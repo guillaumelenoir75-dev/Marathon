@@ -264,8 +264,42 @@ function shoeFullBadge(shoe){
 }
 
 let state={};
-try{state=JSON.parse(localStorage.getItem('marathon_app')||'{}');}catch(e){}
-function save(){try{localStorage.setItem('marathon_app',JSON.stringify(state));}catch(e){}}
+let firebaseReady=false;
+let dbRef=null;
+
+function initFirebase(){
+  const script=document.createElement('script');
+  script.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+  script.onload=()=>{
+    const script2=document.createElement('script');
+    script2.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+    script2.onload=()=>{
+      const firebaseConfig={
+        apiKey:"AIzaSyA1yOzyqcrIM4fYOJh5DCBFPQXCSV7X5uw",
+        authDomain:"prepa-marathon.firebaseapp.com",
+        databaseURL:"https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId:"prepa-marathon",
+        storageBucket:"prepa-marathon.firebasestorage.app",
+        messagingSenderId:"1068433254929",
+        appId:"1:1068433254929:web:63147befb9b51dd2f95fb0"
+      };
+      firebase.initializeApp(firebaseConfig);
+      dbRef=firebase.database().ref('marathon/state');
+      dbRef.on('value',(snapshot)=>{
+        const data=snapshot.val();
+        if(data) state=data;
+        firebaseReady=true;
+        renderHome();
+      });
+    };
+    document.head.appendChild(script2);
+  };
+  document.head.appendChild(script);
+}
+
+function save(){
+  if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
+}
 function gk(w,i){return `s${w}i${i}`;}
 function rfk(w,r){return `rf${w}r${r}`;}
 
@@ -692,6 +726,8 @@ const joursArr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const moisFrArr = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'];
 const todayEl = document.getElementById('today-date');
 if(todayEl) todayEl.textContent = joursArr[now.getDay()]+' '+now.getDate()+' '+moisFrArr[now.getMonth()]+' '+now.getFullYear();
+
+initFirebase();
 
 let rendered={};
 function showScreen(name, renfoTab){
