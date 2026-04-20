@@ -104,7 +104,8 @@ input[type=number]:focus{border-color:var(--orange);}
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Volume par semaine (km)</p>
   <div style="position:relative;width:100%;height:200px;margin-bottom:20px;"><canvas id="chart-km"></canvas></div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
-  <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;"></div>
+  <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
+  <div id="shoes-manage" style="margin-bottom:20px;"></div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
     <div style="display:grid;grid-template-columns:72px 52px 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
@@ -219,6 +220,12 @@ const shoeStyle={
   [S]:{bg:'#FBEAF0',color:'#72243E',dot:'#D4537E'},
   [Z]:{bg:'#FEFCE8',color:'#854F0B',dot:'#EAB308'}
 };
+const defaultShoeColors=['#185FA5','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780'];
+function getShoes(){
+  if(state._shoes) return JSON.parse(state._shoes);
+  return [{name:P,color:'#185FA5',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
+}
+function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
 const typeColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888780',race:'#C4960A'};
 const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
 const typeLabel={ef:'EF',tempo:'Tempo',long:'Long',rest:'Repos',race:'Course'};
@@ -275,17 +282,30 @@ const renfo2=[
 ];
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"}];
 const shoes=[{name:P,color:'#185FA5',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
+function getShoeStyle(name){
+  const predefined=shoeStyle[name];
+  if(predefined) return predefined;
+  const sh=getShoes().find(s=>s.name===name);
+  if(!sh) return {bg:'#F1EFE8',color:'#444441',dot:'#888780'};
+  return {bg:sh.color+'22',color:sh.color,dot:sh.color};
+}
 const shoeKm=[[16,46,69,87,110,126,126,141,158,176,195,212,231,250,270,288,308,329,350,369,379,399,422,442,462,471,481,491,499,516,524,529],[0,0,0,0,0,9,9,18,28,40,54,66,82,99,117,131,149,169,191,205,219,219,219,234,252,252,252,276,276,292,304,304],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
 
 function shoeBadge(shoe){
   if(!shoe)return '';
-  const st=shoeStyle[shoe],abbr=shoe===P?'Peg':shoe===S?'Sal':'ZF';
+  const st=getShoeStyle(shoe);
+  const abbr=shoe.length>6?shoe.substring(0,3):shoe;
   return `<span style="background:${st.bg};color:${st.color};padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><span style="width:6px;height:6px;border-radius:50%;background:${st.dot};display:inline-block;"></span>${abbr}</span>`;
 }
 function shoeFullBadge(shoe){
   if(!shoe)return '';
-  const st=shoeStyle[shoe];
+  const st=getShoeStyle(shoe);
   return `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};display:inline-block;"></span>${shoe}</span>`;
+}
+function getShoeOptions(currentShoe){
+  const list=getShoes();
+  return [...list.map(sh=>`<option value="${sh.name}" ${currentShoe===sh.name?'selected':''}>${sh.name}</option>`),
+    `<option value="" ${!currentShoe?'selected':''}>— aucune —</option>`].join('');
 }
 
 let state={};
@@ -495,12 +515,36 @@ function openHomeModal(idx){
   const title=parts[0];
   const detail=parts[1]||'';
   const mc=document.getElementById('modal-container');
-  const shoeOptions=['Pegasus','Salomon','Zoom Fly',''].map(sh=>
-    `<option value="${sh}" ${s.shoe===sh||(!s.shoe&&sh==='')?'selected':''}>${sh||'— aucune —'}</option>`
-  ).join('');
+  const shoeOptions=getShoeOptions(s.shoe);
   const typeOptions=['ef','tempo','long','rest','race'].map(t=>
     `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
   ).join('');
+  // Parse existing pace for tempo
+  const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
+  const pMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:'5:00';
+  const pMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:'5:20';
+  const detailField=s.type==='tempo'
+    ?`<div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Allure (min:sec /km)</p>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
+          <div>
+            <p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">De</p>
+            <input type="text" id="hm-pace-min" value="${pMin}" placeholder="5:00" maxlength="5"
+              style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          </div>
+          <span style="font-size:16px;color:var(--muted);padding-top:18px;">—</span>
+          <div>
+            <p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">À</p>
+            <input type="text" id="hm-pace-max" value="${pMax}" placeholder="5:20" maxlength="5"
+              style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          </div>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin-top:5px;text-align:center;">Format : minutes:secondes (ex: 5:00)</p>
+      </div>`
+    :`<div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+        <input type="text" id="hm-detail" value="${detail}" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>`;
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
@@ -518,10 +562,7 @@ function openHomeModal(idx){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
         <input type="text" id="hm-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
       </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
-        <input type="text" id="hm-detail" value="${detail}" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
+      ${detailField}
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance planifiée (km)</p>
         <input type="number" id="hm-km" value="${s.km}" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
@@ -547,10 +588,19 @@ function openHomeModal(idx){
 function saveHomeModal(idx){
   const kmReal=parseFloat(document.getElementById('hm-km-real').value);
   const name=document.getElementById('hm-name').value.trim();
-  const detail=document.getElementById('hm-detail').value.trim();
   const km=parseFloat(document.getElementById('hm-km').value);
   const type=document.getElementById('hm-type').value;
   const shoe=document.getElementById('hm-shoe').value||null;
+  let detail='';
+  if(type==='tempo'){
+    const pMin=(document.getElementById('hm-pace-min').value||'').trim();
+    const pMax=(document.getElementById('hm-pace-max').value||'').trim();
+    if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
+    else if(pMin) detail=`${pMin} /km`;
+  } else {
+    const detailEl=document.getElementById('hm-detail');
+    if(detailEl) detail=detailEl.value.trim();
+  }
   if(!isNaN(kmReal)&&kmReal>=0){
     state[gk(CW,idx)+'km']=kmReal;
     state[gk(CW,idx)+'done']=true;
@@ -763,9 +813,7 @@ function openEditModal(ws, si){
   const title = parts[0];
   const detail = parts[1]||'';
   const mc = document.getElementById('modal-container');
-  const shoeOptions = ['Pegasus','Salomon','Zoom Fly',''].map(sh=>
-    `<option value="${sh}" ${s.shoe===sh||(!s.shoe&&sh==='') ?'selected':''}>${sh||'— aucune —'}</option>`
-  ).join('');
+  const shoeOptions=getShoeOptions(s.shoe);
   const typeOptions = ['ef','tempo','long','rest','race'].map(t=>
     `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
   ).join('');
@@ -781,10 +829,32 @@ function openEditModal(ws, si){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
         <input type="text" id="edit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
       </div>
-      <div>
+      ${s.type==='tempo'?(()=>{
+        // Parse existing allure: "5'00 — 5'20 /km" or "5'00-5'20/km"
+        const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
+        const pMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:'5:00';
+        const pMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:'5:20';
+        return `<div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Allure (min:sec /km)</p>
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
+            <div>
+              <p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">De</p>
+              <input type="text" id="edit-pace-min" value="${pMin}" placeholder="5:00" maxlength="5"
+                style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+            </div>
+            <span style="font-size:16px;color:var(--muted);padding-top:18px;">—</span>
+            <div>
+              <p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">À</p>
+              <input type="text" id="edit-pace-max" value="${pMax}" placeholder="5:20" maxlength="5"
+                style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+            </div>
+          </div>
+          <p style="font-size:10px;color:var(--muted);margin-top:5px;text-align:center;">Format : minutes:secondes (ex: 5:00)</p>
+        </div>`;
+      })():`<div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
         <input type="text" id="edit-detail" value="${detail}" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
+      </div>`}
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance (km)</p>
         <input type="number" id="edit-km" value="${s.km}" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
@@ -814,26 +884,30 @@ function openEditModal(ws, si){
 
 function saveEdit(ws, si){
   const name = document.getElementById('edit-name').value.trim();
-  const detail = document.getElementById('edit-detail').value.trim();
-  const km = parseFloat(document.getElementById('edit-km').value);
   const type = document.getElementById('edit-type').value;
+  const km = parseFloat(document.getElementById('edit-km').value);
   const shoe = document.getElementById('edit-shoe').value || null;
   const applyAll = document.getElementById('edit-apply-all');
+  let detail = '';
+  if(type==='tempo'){
+    const pMin=(document.getElementById('edit-pace-min').value||'').trim();
+    const pMax=(document.getElementById('edit-pace-max').value||'').trim();
+    if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
+    else if(pMin) detail=`${pMin} /km`;
+  } else {
+    const detailEl=document.getElementById('edit-detail');
+    if(detailEl) detail=detailEl.value.trim();
+  }
   const d = detail ? `${name}|${detail}` : name;
   const key = `edit_w${ws}_s${si}`;
   state[key] = JSON.stringify({d, km: isNaN(km)?0:km, type, shoe});
-  // Propagate allure to all following Tempo sessions if checkbox checked
   if(applyAll && applyAll.checked && detail){
     for(let w=ws+1;w<=32;w++){
       weeks[w-1].sessions.forEach((s2,si2)=>{
         if(s2.type==='tempo'){
           const existing=state[`edit_w${w}_s${si2}`]?JSON.parse(state[`edit_w${w}_s${si2}`]):s2;
-          const existingParts=existing.d.split('|');
-          const existingTitle=existingParts[0];
-          state[`edit_w${w}_s${si2}`]=JSON.stringify({
-            ...existing,
-            d:`${existingTitle}|${detail}`
-          });
+          const existingTitle=existing.d.split('|')[0];
+          state[`edit_w${w}_s${si2}`]=JSON.stringify({...existing,d:`${existingTitle}|${detail}`});
         }
       });
     }
@@ -884,9 +958,7 @@ function getWeekSessions(ws){
 
 function openAddModal(ws){
   const mc=document.getElementById('modal-container');
-  const shoeOptions=['Pegasus','Salomon','Zoom Fly',''].map(sh=>
-    `<option value="${sh}">${sh||'— aucune —'}</option>`
-  ).join('');
+  const shoeOptions=getShoeOptions(null);
   const typeOptions=['ef','tempo','long','rest','race'].map(t=>
     `<option value="${t}">${typeLabel[t]}</option>`
   ).join('');
@@ -930,9 +1002,7 @@ function openEditExtraModal(ws, ei){
   const parts=s.d.split('|');
   const title=parts[0],detail=parts[1]||'';
   const mc=document.getElementById('modal-container');
-  const shoeOptions=['Pegasus','Salomon','Zoom Fly',''].map(sh=>
-    `<option value="${sh}" ${s.shoe===sh||(!s.shoe&&sh==='')?'selected':''}>${sh||'— aucune —'}</option>`
-  ).join('');
+  const shoeOptions=getShoeOptions(s.shoe);
   const typeOptions=['ef','tempo','long','rest','race'].map(t=>
     `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
   ).join('');
@@ -1000,6 +1070,129 @@ function saveAdd(ws){
   renderHome();
 }
 
+function updateShoeMax(name, val){
+  const arr=getShoes();
+  const sh=arr.find(s=>s.name===name);
+  if(sh){sh.max=parseInt(val)||600;saveShoes(arr);rendered.stats=false;renderStats();}
+}
+function deleteShoe(name){
+  if(!confirm(`Supprimer "${name}" ?`)) return;
+  const arr=getShoes().filter(s=>s.name!==name);
+  saveShoes(arr);
+  rendered.stats=false;
+  renderStats();
+  renderHome();
+}
+function openAddShoeModal(){
+  const mc=document.getElementById('modal-container');
+  const colors=['#185FA5','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
+  const colorBtns=colors.map(c=>`<button onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
+    style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid transparent;cursor:pointer;transition:border 0.15s;"
+    ></button>`).join('');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <p style="font-size:16px;font-weight:600;color:var(--text);">Ajouter une paire</p>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la chaussure</p>
+        <input type="text" id="new-shoe-name" placeholder="ex: Asics Gel Nimbus" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Couleur</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="shoe-color-picker">${colorBtns}</div>
+        <input type="hidden" id="new-shoe-color" value="${colors[0]}">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Kilométrage max (km)</p>
+        <input type="number" id="new-shoe-max" value="600" min="100" max="2000" step="50" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+    </div>
+    <button onclick="saveNewShoe()" style="width:100%;margin-top:20px;padding:13px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Ajouter</button>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+  // Select first color
+  selectShoeColor(colors[0]);
+}
+function selectShoeColor(c){
+  document.getElementById('new-shoe-color').value=c;
+  document.querySelectorAll('[id^="sc-"]').forEach(btn=>{
+    btn.style.border='3px solid transparent';
+  });
+  const btn=document.getElementById('sc-'+c.replace('#',''));
+  if(btn) btn.style.border='3px solid var(--text)';
+}
+function openEditShoeModal(name){
+  const arr=getShoes();
+  const sh=arr.find(s=>s.name===name);
+  if(!sh) return;
+  const colors=['#185FA5','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
+  const colorBtns=colors.map(c=>`<button onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
+    style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===sh.color?'var(--text)':'transparent'};cursor:pointer;"></button>`).join('');
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <p style="font-size:16px;font-weight:600;color:var(--text);">Modifier la chaussure</p>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom</p>
+        <input type="text" id="edit-shoe-name" value="${sh.name}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Couleur</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="shoe-color-picker">${colorBtns}</div>
+        <input type="hidden" id="new-shoe-color" value="${sh.color}">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Kilométrage max (km)</p>
+        <input type="number" id="new-shoe-max" value="${sh.max}" min="100" max="2000" step="50" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+    </div>
+    <button onclick="saveEditShoe('${name}')" style="width:100%;margin-top:20px;padding:13px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+}
+
+function saveEditShoe(oldName){
+  const newName=document.getElementById('edit-shoe-name').value.trim();
+  const color=document.getElementById('new-shoe-color').value;
+  const max=parseInt(document.getElementById('new-shoe-max').value)||600;
+  if(!newName) return;
+  const arr=getShoes();
+  const sh=arr.find(s=>s.name===oldName);
+  if(!sh) return;
+  sh.name=newName; sh.color=color; sh.max=max;
+  saveShoes(arr);
+  closeModal();
+  rendered.stats=false;
+  renderStats();
+  renderHome();
+}
+
+function saveNewShoe(){
+  const name=document.getElementById('new-shoe-name').value.trim();
+  if(!name){alert('Donnez un nom à la chaussure');return;}
+  const color=document.getElementById('new-shoe-color').value;
+  const max=parseInt(document.getElementById('new-shoe-max').value)||600;
+  const arr=getShoes();
+  if(arr.find(s=>s.name===name)){alert('Cette chaussure existe déjà');return;}
+  arr.push({name,color,max});
+  saveShoes(arr);
+  closeModal();
+  rendered.stats=false;
+  renderStats();
+  renderHome();
+}
+
 let chartKm=null;
 function renderStats(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
@@ -1011,13 +1204,44 @@ function renderStats(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' km'}}},scales:{x:{ticks:{color:isDark?'#888':'#666',font:{size:8}},autoSkip:true,maxTicksLimit:16,grid:{display:false}},y:{ticks:{color:isDark?'#888':'#666',font:{size:9}},grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}}}}
   });
   const sb=document.getElementById('shoes-bars');sb.innerHTML='';
-  shoes.forEach((sh,si)=>{
-    const km=shoeKm[si][CW-1],pct=Math.round(km/sh.max*100);
+  const dynamicShoes=getShoes();
+  const shoeKm=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
+  const defaultNames=[P,S,Z];
+  dynamicShoes.forEach((sh)=>{
+    const defaultIdx=defaultNames.indexOf(sh.name);
+    const km=defaultIdx>=0?(shoeKm[defaultIdx][CW-1]||0):(state[`shoe_km_${sh.name}`]||0);
+    const pct=Math.min(100,Math.round(km/sh.max*100));
     const row=document.createElement('div');
-    row.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:13px;color:var(--text);">${sh.name}</span><span style="font-size:13px;font-weight:600;color:var(--text);">${km} km <span style="font-size:11px;color:var(--muted);">/ ${sh.max}</span></span></div>
-    <div style="background:var(--bg2);border-radius:4px;height:8px;"><div style="background:${sh.color};border-radius:4px;height:8px;width:${pct}%;transition:width 0.5s;"></div></div>`;
+    row.style.cssText='margin-bottom:14px;';
+    row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};display:inline-block;flex-shrink:0;"></span>
+        <span style="font-size:13px;font-weight:600;color:var(--text);">${sh.name}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:13px;color:var(--text);">${km} <span style="color:var(--muted);">/ ${sh.max} km</span></span>
+        <div style="display:flex;gap:4px;">
+          <button onclick="openEditShoeModal('${sh.name}')" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button onclick="deleteShoe('${sh.name}')" style="background:none;border:none;cursor:pointer;color:#E24B4A;padding:2px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:4px;height:8px;">
+      <div style="background:${sh.color};border-radius:4px;height:8px;width:${pct}%;transition:width 0.5s;"></div>
+    </div>`;
     sb.appendChild(row);
   });
+
+  // Shoe management section
+  const sm=document.getElementById('shoes-manage');
+  sm.innerHTML=`<button onclick="openAddShoeModal()" style="width:100%;padding:10px;background:transparent;border:1.5px dashed var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Ajouter une paire de chaussures
+  </button>`;
   const calories=[
     {j:'Lundi',kcal:2800},{j:'Mardi',kcal:2900},{j:'Mercredi',kcal:2500},
     {j:'Jeudi',kcal:3000},{j:'Vendredi',kcal:2500},{j:'Samedi',kcal:3300},{j:'Dimanche',kcal:2500}
