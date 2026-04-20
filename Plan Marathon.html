@@ -65,9 +65,8 @@ input[type=number]:focus{border-color:var(--orange);}
     </div>
   </div>
   <div style="padding:0 16px;">
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Cette semaine — séances</p>
+    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Séances</p>
     <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">KPIs</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;">
       <div class="kpi-card">
         <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">KM réalisés cette semaine</p>
@@ -87,6 +86,8 @@ input[type=number]:focus{border-color:var(--orange);}
         <p style="font-size:26px;font-weight:700;color:var(--text);">26</p>
       </div>
     </div>
+    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Renforcement cette semaine</p>
+    <div id="home-renfo" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;"></div>
   </div>
 </div>
 
@@ -105,7 +106,7 @@ input[type=number]:focus{border-color:var(--orange);}
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;"></div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
-  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
     <div style="display:grid;grid-template-columns:72px 52px 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
       <span style="font-size:11px;font-weight:600;color:var(--muted);">Distance</span>
       <span style="font-size:11px;font-weight:600;color:var(--muted);">Gels</span>
@@ -113,18 +114,39 @@ input[type=number]:focus{border-color:var(--orange);}
     </div>
     <div id="gels-rows"></div>
   </div>
+  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Nutrition — calories</p>
+  <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <span style="font-size:13px;color:var(--text);">Consommation quotidienne</span>
+      <span style="font-size:15px;font-weight:700;color:var(--orange);">2 100 kcal</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:var(--muted);">Dépenses par jour ci-dessous</span>
+      <span style="font-size:12px;color:var(--muted);">Balance = conso - dépense</span>
+    </div>
+  </div>
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:80px 1fr 80px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
+      <span style="font-size:11px;font-weight:600;color:var(--muted);">Jour</span>
+      <span style="font-size:11px;font-weight:600;color:var(--muted);">Balance</span>
+      <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:right;">Dépensé</span>
+    </div>
+    <div id="cal-rows"></div>
+  </div>
 </div>
 
 <!-- RENFO -->
 <div id="sc-renfo" style="display:none;padding:16px;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">Renforcement</p>
-  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">2 séances / semaine</p>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">2 séances / semaine · Prescrit par kiné</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
-    <div id="renfo-tab-1" onclick="switchRenfo(1)" style="background:var(--orange);border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
-      <p style="font-size:13px;font-weight:600;color:#fff;">Renfo 1</p><p style="font-size:11px;color:rgba(255,255,255,0.8);">6 exercices</p>
+    <div id="renfo-tab-1" onclick="switchRenfo(1)" style="background:#2B8FE0;border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
+      <p style="font-size:13px;font-weight:600;color:#fff;">Ischio-fessiers</p>
+      <p style="font-size:10px;color:rgba(255,255,255,0.8);">Fémoro-patellaire · 6 exos</p>
     </div>
     <div id="renfo-tab-2" onclick="switchRenfo(2)" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
-      <p style="font-size:13px;font-weight:600;color:var(--text);">Renfo 2</p><p style="font-size:11px;color:var(--muted);">5 exercices</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text);">Bas du dos</p>
+      <p style="font-size:10px;color:var(--muted);">Core stabilisation · 5 exos</p>
     </div>
   </div>
   <div id="renfo-done-banner" style="display:none;background:#EAF3DE;border:1px solid #97C459;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;align-items:center;gap:8px;">
@@ -220,11 +242,11 @@ const renfo1=[
   {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"3 séries × 10 rép."},
 ];
 const renfo2=[
-  {nom:"Élastiques cheville",desc:"Allongé sur le côté, jambe du dessus — battements avec élastique à la cheville.",series:"3×15 droite · 4×15 gauche"},
-  {nom:"Médecine Ball sur bassin (4 kg)",desc:"En planche, médecine ball posé sur le bassin — extension de jambe alternée.",series:"3×15 droite · 4×15 gauche"},
-  {nom:"Swiss Ball entre les genoux",desc:"Swiss Ball entre les genoux, Waff sous bassin et épaules — rotations gauche/droite.",series:"5 séries × 20 rép."},
-  {nom:"Swiss Ball genou-coude opposé",desc:"Allongé, Swiss Ball tenu — genou et coude opposés vers le haut puis sur le côté.",series:"3×15 rép. par côté"},
-  {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"5 séries × 20 A/R"},
+  {nom:"Élastiques cheville",desc:"Allongé sur le côté, jambe du dessus — battements avec élastique à la cheville.",series:"3×15 droite · 3×15 gauche"},
+  {nom:"Médecine Ball sur bassin (4 kg)",desc:"En planche, médecine ball posé sur le bassin — extension de jambe alternée.",series:"3×15 droite · 3×15 gauche"},
+  {nom:"Relevé de jambes",desc:"Allongé sur le dos, jambes tendues — montez-les lentement à 90° puis redescendez doucement.",series:"3 séries × 15 rép."},
+  {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément le bras droit et la jambe gauche, maintenez 3 sec, alternez.",series:"3×15 rép. par côté"},
+  {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"3 séries × 15 A/R"},
 ];
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"}];
 const shoes=[{name:P,color:'#185FA5',max:600},{name:S,color:'#3B6D11',max:500},{name:Z,color:'#F5A623',max:600}];
@@ -265,6 +287,11 @@ function calcTotalDone(){
   return Math.round(t);
 }
 
+function getNbSeries(seriesStr){
+  const m = seriesStr.match(/^(\d+)/);
+  return m ? parseInt(m[1]) : 3;
+}
+
 function renderHome(){
   const td=calcTotalDone();
   const pct=Math.round(td/GRAND_TOTAL*100);
@@ -275,6 +302,45 @@ function renderHome(){
   document.getElementById('kpi-rest').textContent=Math.max(0,GRAND_TOTAL-td);
   document.getElementById('kpi-week-done').textContent=calcWeekDoneKm();
   document.getElementById('kpi-week-plan').textContent='/ '+weeks[CW-1].km+' km planifiés';
+  // Renfo
+  const renfoEl=document.getElementById('home-renfo');
+  if(renfoEl){
+    renfoEl.innerHTML='';
+    const renfoData=[
+      {name:'Ischio-fessiers',sub:'Fémoro-patellaire · 6 exos',r:1},
+      {name:'Bas du dos',sub:'Core stabilisation · 5 exos',r:2},
+    ];
+    renfoData.forEach(rd=>{
+      const done=!!state[rfk(CW,rd.r)+'done'];
+      const exos=rd.r===1?renfo1:renfo2;
+      const totalSeries=exos.reduce((a,ex)=>a+getNbSeries(ex.series),0);
+      const doneSeries=exos.reduce((a,ex,i)=>a+(state[rfk(CW,rd.r)+'e'+i+'_series']||0),0);
+      const pct=Math.round(doneSeries/totalSeries*100);
+      const card=document.createElement('div');
+      card.style.cssText='background:var(--bg);border:1px solid '+(done?'#3B6D11':'var(--border)')+';border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;';
+      card.onclick=()=>showScreen('renfo',rd.r);
+      card.innerHTML=`<div style="width:40px;height:40px;border-radius:10px;background:${done?'#EAF3DE':'#EBF4FD'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        ${done
+          ?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+          :'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B8FE0" stroke-width="2"><path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/></svg>'
+        }
+      </div>
+      <div style="flex:1;min-width:0;">
+        <p style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'var(--text)'};">${rd.name} ${done?'<span style="font-size:11px;">✓ fait</span>':''}</p>
+        <p style="font-size:11px;color:var(--muted);">${rd.sub}</p>
+        ${!done&&doneSeries>0?`<div style="margin-top:5px;background:var(--bg2);border-radius:3px;height:4px;"><div style="background:#2B8FE0;border-radius:3px;height:4px;width:${pct}%;"></div></div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        ${done
+          ?'<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:3px 8px;border-radius:20px;font-weight:600;">✓ Terminé</span>'
+          :doneSeries>0
+            ?`<span style="font-size:13px;font-weight:700;color:#2B8FE0;">${pct}%</span>`
+            :'<span style="font-size:11px;background:var(--bg2);color:var(--muted);padding:3px 8px;border-radius:20px;font-weight:600;">À faire</span>'
+        }
+      </div>`;
+      renfoEl.appendChild(card);
+    });
+  }
   const el=document.getElementById('home-sessions');
   el.innerHTML='';
   weeks[CW-1].sessions.forEach((s,i)=>{
@@ -356,19 +422,24 @@ function renderPlan(){
     if(isCur) badges.push(`<span style="font-size:10px;background:#EBF4FD;color:#1A6CB5;padding:2px 7px;border-radius:20px;font-weight:600;">En cours</span>`);
     if(w.s===27) badges.push(`<span style="font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:20px;font-weight:600;">Semi-M</span>`);
     if(w.s===32) badges.push(`<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:2px 7px;border-radius:20px;font-weight:600;">Marathon</span>`);
-    const sessionRows=w.sessions.map(s=>{
-      const c=typeColor[s.type]||'#888',lbl=typeLabel[s.type]||'EF';
-      const parts=s.d.split('|');
+    const sessionRows=w.sessions.map((s,si)=>{
+      const s2 = getSession(w.s, si);
+      const c=typeColor[s2.type]||'#888',lbl=typeLabel[s2.type]||'EF';
+      const parts=s2.d.split('|');
       const title=parts[0];
       const detail=parts[1]||null;
-      return `<div class="session-row">
+      const edited = state[`edit_w${w.s}_s${si}`];
+      return `<div class="session-row" onclick="openEditModal(${w.s},${si})" style="cursor:pointer;">
         <div style="width:32px;height:32px;border-radius:8px;background:${c}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span></div>
         <div style="flex:1;min-width:0;">
-          <p style="font-size:12px;font-weight:600;color:var(--text);">${title}</p>
-          ${detail?`<p style="font-size:11px;color:#2B8FE0;font-weight:600;margin-top:1px;">${detail}</p>`:''}
-          <div style="margin-top:2px;">${s.shoe?shoeBadge(s.shoe):''}</div>
+          <p style="font-size:12px;font-weight:600;color:var(--text);">${title}${edited?'<span style="font-size:9px;color:var(--orange);margin-left:5px;">✎</span>':''}</p>
+          ${detail?`<p style="font-size:11px;color:var(--orange);font-weight:600;margin-top:1px;">${detail}</p>`:''}
+          <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
         </div>
-        <span style="font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0;">${s.km} km</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);">${s2.km} km</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
       </div>`;
     }).join('');
     card.innerHTML=`<div onclick="toggleWeek(${w.s})" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
@@ -392,6 +463,85 @@ function renderPlan(){
 }
 function toggleWeek(s){if(openWeeks.has(s))openWeeks.delete(s);else openWeeks.add(s);renderPlan();}
 
+function getSession(ws, si){
+  const key = `edit_w${ws}_s${si}`;
+  return state[key] ? JSON.parse(state[key]) : weeks[ws-1].sessions[si];
+}
+
+function openEditModal(ws, si){
+  const s = getSession(ws, si);
+  const parts = s.d.split('|');
+  const title = parts[0];
+  const detail = parts[1]||'';
+  const mc = document.getElementById('modal-container');
+  const shoeOptions = ['Pegasus','Salomon','Zoom Fly',''].map(sh=>
+    `<option value="${sh}" ${s.shoe===sh||(!s.shoe&&sh==='') ?'selected':''}>${sh||'— aucune —'}</option>`
+  ).join('');
+  const typeOptions = ['ef','tempo','long','rest','race'].map(t=>
+    `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
+  ).join('');
+  const overlay = document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <p style="font-size:16px;font-weight:600;color:var(--text);">Modifier la séance</p>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+        <input type="text" id="edit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+        <input type="text" id="edit-detail" value="${detail}" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance (km)</p>
+        <input type="number" id="edit-km" value="${s.km}" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Type de séance</p>
+        <select id="edit-type" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select>
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
+        <select id="edit-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
+      <button onclick="resetSession(${ws},${si})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
+      <button onclick="saveEdit(${ws},${si})" style="padding:12px;background:var(--orange);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+    </div>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+}
+
+function saveEdit(ws, si){
+  const name = document.getElementById('edit-name').value.trim();
+  const detail = document.getElementById('edit-detail').value.trim();
+  const km = parseFloat(document.getElementById('edit-km').value);
+  const type = document.getElementById('edit-type').value;
+  const shoe = document.getElementById('edit-shoe').value || null;
+  const d = detail ? `${name}|${detail}` : name;
+  const key = `edit_w${ws}_s${si}`;
+  state[key] = JSON.stringify({d, km: isNaN(km)?0:km, type, shoe});
+  save();
+  closeModal();
+  rendered.plan=false;
+  renderPlan();
+}
+
+function resetSession(ws, si){
+  const key = `edit_w${ws}_s${si}`;
+  delete state[key];
+  save();
+  closeModal();
+  rendered.plan=false;
+  renderPlan();
+}
+
 let chartKm=null;
 function renderStats(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
@@ -410,6 +560,30 @@ function renderStats(){
     <div style="background:var(--bg2);border-radius:4px;height:8px;"><div style="background:${sh.color};border-radius:4px;height:8px;width:${pct}%;transition:width 0.5s;"></div></div>`;
     sb.appendChild(row);
   });
+  const calories=[
+    {j:'Lundi',kcal:2800},{j:'Mardi',kcal:2900},{j:'Mercredi',kcal:2500},
+    {j:'Jeudi',kcal:3000},{j:'Vendredi',kcal:2500},{j:'Samedi',kcal:3300},{j:'Dimanche',kcal:2500}
+  ];
+  const consumed=2100;
+  const cr=document.getElementById('cal-rows');cr.innerHTML='';
+  calories.forEach((c,i)=>{
+    const balance=consumed-c.kcal;
+    const pct=Math.round(c.kcal/3500*100);
+    const barColor=c.kcal>3000?'#E24B4A':c.kcal>2800?'#F5A623':'#2B8FE0';
+    const balColor=balance>=0?'#3B6D11':'#E24B4A';
+    const balLabel=balance>=0?`+${balance} kcal surplus`:`${balance} kcal déficit`;
+    const row=document.createElement('div');
+    row.style.cssText=`padding:10px 12px;border-bottom:${i<calories.length-1?'1px solid var(--border)':'none'};display:grid;grid-template-columns:80px 1fr 72px;align-items:center;gap:8px;`;
+    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${c.j}</span>
+    <div>
+      <div style="background:var(--bg2);border-radius:3px;height:6px;margin-bottom:3px;">
+        <div style="background:${barColor};border-radius:3px;height:6px;width:${pct}%;"></div>
+      </div>
+      <span style="font-size:10px;color:${balColor};font-weight:600;">${balLabel}</span>
+    </div>
+    <span style="font-size:13px;font-weight:700;color:var(--text);text-align:right;">${c.kcal.toLocaleString()}</span>`;
+    cr.appendChild(row);
+  });
   const gr=document.getElementById('gels-rows');gr.innerHTML='';
   gels.forEach((g,i)=>{
     const row=document.createElement('div');
@@ -422,6 +596,7 @@ function renderStats(){
 let curRenfo=1;
 function switchRenfo(n){
   curRenfo=n;
+  const labels=[['Ischio-fessiers','Fémoro-patellaire · 6 exos'],['Bas du dos','Core stabilisation · 5 exos']];
   [1,2].forEach(x=>{
     const t=document.getElementById('renfo-tab-'+x);
     t.style.background=x===n?'#2B8FE0':'var(--bg2)';
@@ -431,36 +606,84 @@ function switchRenfo(n){
   });
   renderRenfoExercises();
 }
+
 function renderRenfoExercises(){
   const exos=curRenfo===1?renfo1:renfo2;
   const el=document.getElementById('renfo-exercises');el.innerHTML='';
   const dk=rfk(CW,curRenfo),isDone=!!state[dk+'done'];
   const banner=document.getElementById('renfo-done-banner');
   banner.style.display=isDone?'flex':'none';
-  if(isDone)document.getElementById('renfo-done-text').textContent=`Renfo ${curRenfo} validé — S${CW}`;
+  const renfoNames=['Ischio-fessiers','Bas du dos'];
+  if(isDone)document.getElementById('renfo-done-text').textContent=`${renfoNames[curRenfo-1]} validé — S${CW}`;
   const btn=document.getElementById('renfo-btn');
   btn.textContent=isDone?'Séance déjà validée':'Valider la séance';
   btn.style.background=isDone?'#639922':'#2B8FE0';
+  let cancelBtn=document.getElementById('renfo-cancel-btn');
+  if(!cancelBtn){
+    cancelBtn=document.createElement('button');
+    cancelBtn.id='renfo-cancel-btn';
+    cancelBtn.style.cssText='width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;';
+    cancelBtn.textContent='Annuler la validation';
+    cancelBtn.onclick=()=>{delete state[rfk(CW,curRenfo)+'done'];save();renderRenfoExercises();};
+    btn.parentNode.appendChild(cancelBtn);
+  }
+  cancelBtn.style.display=isDone?'block':'none';
+
   exos.forEach((ex,i)=>{
-    const ek=dk+'e'+i,checked=!!state[ek];
+    const nb=getNbSeries(ex.series);
+    const doneSeries=state[dk+'e'+i+'_series']||0;
+    const allDone=doneSeries>=nb;
     const div=document.createElement('div');
-    div.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;gap:10px;align-items:flex-start;';
-    div.innerHTML=`<div onclick="toggleExo('${ek}',this)" class="exo-check${checked?' done':''}" style="margin-top:2px;">${checked?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
-    <div style="flex:1;">
-      <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;${checked?'text-decoration:line-through;opacity:0.5;':''}">${ex.nom}</p>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:5px;${checked?'opacity:0.5;':''}">${ex.desc}</p>
-      <span style="font-size:11px;background:#EBF4FD;color:#1A6CB5;padding:2px 8px;border-radius:20px;font-weight:600;">${ex.series}</span>
+    div.style.cssText=`background:var(--bg);border:1px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);padding:12px 14px;`;
+
+    // Series buttons
+    let seriesBtns='';
+    for(let s=1;s<=nb;s++){
+      const done=s<=doneSeries;
+      seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#2B8FE0':'var(--border)'};background:${done?'#2B8FE0':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
+    }
+
+    div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;min-width:0;">
+        <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;${allDone?'opacity:0.5;':''}">${ex.nom} ${allDone?'<span style="font-size:11px;color:#3B6D11;">✓ terminé</span>':''}</p>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:5px;${allDone?'opacity:0.5;':''}">${ex.desc}</p>
+        <span style="font-size:11px;background:#EBF4FD;color:#1A6CB5;padding:2px 8px;border-radius:20px;font-weight:600;">${ex.series}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--muted);margin-right:2px;">Séries :</span>
+      ${seriesBtns}
+      ${doneSeries>0&&!allDone?`<span style="font-size:11px;color:#2B8FE0;font-weight:600;">${doneSeries}/${nb}</span>`:''}
     </div>`;
     el.appendChild(div);
   });
+
+  // Check if all exercises done → auto-suggest validate
+  const total=exos.length;
+  const allComplete=exos.every((_,i)=>{
+    const nb=getNbSeries(exos[i].series);
+    return (state[dk+'e'+i+'_series']||0)>=nb;
+  });
+  if(allComplete&&!isDone){
+    btn.textContent='Toutes les séries terminées — Valider !';
+    btn.style.background='#3B6D11';
+  }
 }
-function toggleExo(key,el){
-  state[key]=!state[key];save();
-  el.className='exo-check'+(state[key]?' done':'');
-  el.innerHTML=state[key]?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'';
-  const sib=el.nextElementSibling;
-  if(sib)sib.querySelectorAll('p').forEach(p=>{p.style.textDecoration=state[key]?'line-through':'';p.style.opacity=state[key]?'0.5':'1';});
+
+function toggleSerie(dk,exoIdx,serieNum,total){
+  const key=dk+'e'+exoIdx+'_series';
+  const current=state[key]||0;
+  // Click on already done serie = reset to serie-1
+  if(serieNum<=current){
+    state[key]=serieNum-1;
+  } else {
+    state[key]=serieNum;
+  }
+  if(state[key]<=0) delete state[key];
+  save();
+  renderRenfoExercises();
 }
+
 function markRenfoDone(){state[rfk(CW,curRenfo)+'done']=true;save();renderRenfoExercises();}
 
 // Date du jour sur accueil
@@ -471,7 +694,7 @@ const todayEl = document.getElementById('today-date');
 if(todayEl) todayEl.textContent = joursArr[now.getDay()]+' '+now.getDate()+' '+moisFrArr[now.getMonth()]+' '+now.getFullYear();
 
 let rendered={};
-function showScreen(name){
+function showScreen(name, renfoTab){
   ['home','plan','stats','renfo'].forEach(s=>{
     document.getElementById('sc-'+s).style.display=s===name?'block':'none';
     const btn=document.getElementById('nav-'+s);
@@ -480,7 +703,11 @@ function showScreen(name){
   if(name==='home')renderHome();
   if(name==='plan'&&!rendered.plan){rendered.plan=true;renderPlan();}
   if(name==='stats'&&!rendered.stats){rendered.stats=true;setTimeout(renderStats,50);}
-  if(name==='renfo'&&!rendered.renfo){rendered.renfo=true;renderRenfoExercises();}
+  if(name==='renfo'){
+    if(!rendered.renfo)rendered.renfo=true;
+    if(renfoTab&&renfoTab!==curRenfo) switchRenfo(renfoTab);
+    else renderRenfoExercises();
+  }
 }
 renderHome();
 </script>
