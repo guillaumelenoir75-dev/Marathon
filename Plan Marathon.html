@@ -46,7 +46,7 @@ input[type=number]:focus{border-color:var(--orange);}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div>
         <p style="font-size:12px;opacity:0.8;">Semaine en cours</p>
-        <p style="font-size:22px;font-weight:700;">S7 <span style="font-size:13px;font-weight:400;opacity:0.9;">· 21/04</span></p>
+        <p style="font-size:22px;font-weight:700;">S7</p>
         <p style="font-size:11px;opacity:0.75;" id="today-date"></p>
       </div>
       <div style="text-align:right;"><p style="font-size:12px;opacity:0.8;">Objectif</p><p style="font-size:22px;font-weight:700;">5'40 /km</p><p style="font-size:11px;opacity:0.75;">18/10/2026</p></div>
@@ -177,38 +177,38 @@ const typeColor={ef:'#185FA5',tempo:'#2B8FE0',long:'#0F6E56',rest:'#888780',race
 const typeLabel={ef:'EF',tempo:'Tempo',long:'Long',rest:'Repos',race:'Course'};
 
 const weeks=[
-  {s:1,km:23,date:'10/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:null},{d:"Séance EF longue",km:8,type:"long",shoe:null}]},
-  {s:2,km:30,date:'17/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:null},{d:"Séance EF",km:10,type:"ef",shoe:null},{d:"Séance EF longue",km:11,type:"long",shoe:null}]},
-  {s:3,km:23,date:'24/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:null},{d:"Séance EF longue",km:8,type:"long",shoe:null}]},
-  {s:4,km:18,date:'31/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:null},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:null}]},
-  {s:5,km:23,date:'07/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Tempo 2×5 min (5'00-5'20/km)",km:7,type:"tempo",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:null}]},
-  {s:6,km:25,date:'14/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×6 min (5'00-5'20/km)",km:8,type:"tempo",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
-  {s:7,km:27,date:'21/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×6 min (5'00-5'20/km)",km:8,type:"tempo",shoe:P},{d:"Séance EF longue",km:11,type:"long",shoe:S}]},
-  {s:8,km:24,date:'28/04',month:'Avril',sessions:[{d:"Tempo 2×8 min (5'00-5'20/km)",km:8,type:"tempo",shoe:P},{d:"Séance EF légère",km:7,type:"ef",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
-  {s:9,km:27,date:'05/05',month:'Mai',sessions:[{d:"Tempo 2×8 min (5'00-5'20/km)",km:9,type:"tempo",shoe:P},{d:"Séance EF légère",km:8,type:"ef",shoe:P},{d:"Séance EF longue",km:10,type:"long",shoe:S}]},
-  {s:10,km:30,date:'12/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 3×8 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
-  {s:11,km:33,date:'19/05',month:'Mai',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×8 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
-  {s:12,km:29,date:'26/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×10 min (5'00-5'20/km)",km:9,type:"tempo",shoe:P},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
-  {s:13,km:35,date:'02/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:16,type:"long",shoe:S}]},
-  {s:14,km:37,date:'09/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"Séance EF longue",km:17,type:"long",shoe:S}]},
-  {s:15,km:38,date:'16/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×12 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"Séance EF longue",km:18,type:"long",shoe:S}]},
-  {s:16,km:32,date:'23/06',month:'Juin',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
-  {s:17,km:38,date:'30/06',month:'Juin',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:18,type:"long",shoe:S}]},
-  {s:18,km:41,date:'07/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"EF longue|16 EF · 4 AM @ 5'40/km",km:20,type:"long",shoe:S}]},
-  {s:19,km:43,date:'14/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"Séance EF longue",km:22,type:"long",shoe:S}]},
-  {s:20,km:33,date:'21/07',month:'Juillet',sessions:[{d:"9 km EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×8 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
-  {s:21,km:30,date:'27/07',month:'Juillet',sessions:[{d:"EF (Paris)",km:10,type:"ef",shoe:P},{d:"Séance EF (Paris)",km:8,type:"ef",shoe:P},{d:"EF longue (Paris)",km:12,type:"long",shoe:S}]},
-  {s:22,km:22,date:'04/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:10,type:"ef",shoe:P},{d:"Repos",km:0,type:"rest",shoe:null},{d:"EF longue (Sri Lanka)",km:12,type:"long",shoe:P}]},
-  {s:23,km:28,date:'11/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:P},{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:null},{d:"EF longue|8 EF · 3 AM @ 5'40/km · 2 EF",km:12,type:"long",shoe:P}]},
-  {s:24,km:35,date:'18/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"EF longue|10 EF · 3 AM @ 5'40/km · 2 EF",km:15,type:"long",shoe:S}]},
-  {s:25,km:38,date:'25/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"EF longue|12 EF · 4 AM @ 5'40/km · 2 EF",km:18,type:"long",shoe:S}]},
-  {s:26,km:34,date:'01/09',month:'Septembre',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"Séance EF longue",km:15,type:"long",shoe:Z}]},
-  {s:27,km:41,date:'08/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"Semi-Marathon Bois d'Arcy",km:21,type:"race",shoe:Z}]},
-  {s:28,km:44,date:'15/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"EF longue|14 EF · 6 AM @ 5'40/km · 4 EF",km:24,type:"long",shoe:S}]},
-  {s:29,km:48,date:'22/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"EF longue|18 EF · 4 AM · 4 EF · 4 AM @ 5'40/km",km:30,type:"long",shoe:Z}]},
-  {s:30,km:33,date:'29/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min (5'00-5'20/km)",km:9,type:"tempo",shoe:P},{d:"EF longue|11 EF · 3 AM @ 5'40/km · 2 EF",km:16,type:"long",shoe:S}]},
-  {s:31,km:29,date:'06/10',month:'Octobre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×5 min (5'00-5'20/km)",km:9,type:"tempo",shoe:Z},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
-  {s:32,km:51,date:'13/10',month:'Octobre',sessions:[{d:"Séance EF",km:5,type:"ef",shoe:P},{d:"Séance EF légère",km:4,type:"ef",shoe:Z},{d:"MARATHON",km:42,type:"race",shoe:Z}]},
+  {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:null},{d:"Séance EF longue",km:8,type:"long",shoe:null}]},
+  {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:null},{d:"Séance EF",km:10,type:"ef",shoe:null},{d:"Séance EF longue",km:11,type:"long",shoe:null}]},
+  {s:3,km:23,date:'23/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:null},{d:"Séance EF longue",km:8,type:"long",shoe:null}]},
+  {s:4,km:18,date:'30/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:null},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:null}]},
+  {s:5,km:23,date:'06/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Tempo 2×5 min (5'00-5'20/km)",km:7,type:"tempo",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:null}]},
+  {s:6,km:25,date:'13/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×6 min (5'00-5'20/km)",km:8,type:"tempo",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
+  {s:7,km:27,date:'20/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×6 min (5'00-5'20/km)",km:8,type:"tempo",shoe:P},{d:"Séance EF longue",km:11,type:"long",shoe:S}]},
+  {s:8,km:24,date:'27/04',month:'Avril',sessions:[{d:"Tempo 2×8 min (5'00-5'20/km)",km:8,type:"tempo",shoe:P},{d:"Séance EF légère",km:7,type:"ef",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
+  {s:9,km:27,date:'04/05',month:'Mai',sessions:[{d:"Tempo 2×8 min (5'00-5'20/km)",km:9,type:"tempo",shoe:P},{d:"Séance EF légère",km:8,type:"ef",shoe:P},{d:"Séance EF longue",km:10,type:"long",shoe:S}]},
+  {s:10,km:30,date:'11/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 3×8 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
+  {s:11,km:33,date:'18/05',month:'Mai',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×8 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
+  {s:12,km:29,date:'25/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×10 min (5'00-5'20/km)",km:9,type:"tempo",shoe:P},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
+  {s:13,km:35,date:'01/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:16,type:"long",shoe:S}]},
+  {s:14,km:37,date:'08/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"Séance EF longue",km:17,type:"long",shoe:S}]},
+  {s:15,km:38,date:'15/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×12 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"Séance EF longue",km:18,type:"long",shoe:S}]},
+  {s:16,km:32,date:'22/06',month:'Juin',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
+  {s:17,km:38,date:'29/06',month:'Juin',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:18,type:"long",shoe:S}]},
+  {s:18,km:41,date:'06/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"EF longue|16 EF · 4 AM @ 5'40/km",km:20,type:"long",shoe:S}]},
+  {s:19,km:43,date:'13/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:11,type:"tempo",shoe:P},{d:"Séance EF longue",km:22,type:"long",shoe:S}]},
+  {s:20,km:33,date:'20/07',month:'Juillet',sessions:[{d:"9 km EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×8 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
+  {s:21,km:30,date:'28/07',month:'Juillet',sessions:[{d:"EF (Paris)",km:10,type:"ef",shoe:P},{d:"Séance EF (Paris)",km:8,type:"ef",shoe:P},{d:"EF longue (Paris)",km:12,type:"long",shoe:S}]},
+  {s:22,km:22,date:'03/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:10,type:"ef",shoe:P},{d:"Repos",km:0,type:"rest",shoe:null},{d:"EF longue (Sri Lanka)",km:12,type:"long",shoe:P}]},
+  {s:23,km:28,date:'10/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:P},{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:null},{d:"EF longue|8 EF · 3 AM @ 5'40/km · 2 EF",km:12,type:"long",shoe:P}]},
+  {s:24,km:35,date:'17/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"EF longue|10 EF · 3 AM @ 5'40/km · 2 EF",km:15,type:"long",shoe:S}]},
+  {s:25,km:38,date:'24/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:P},{d:"EF longue|12 EF · 4 AM @ 5'40/km · 2 EF",km:18,type:"long",shoe:S}]},
+  {s:26,km:34,date:'31/08',month:'Septembre',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"Séance EF longue",km:15,type:"long",shoe:Z}]},
+  {s:27,km:41,date:'07/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"Semi-Marathon Bois d'Arcy",km:21,type:"race",shoe:Z}]},
+  {s:28,km:44,date:'14/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"EF longue|14 EF · 6 AM @ 5'40/km · 4 EF",km:24,type:"long",shoe:S}]},
+  {s:29,km:48,date:'21/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×10 min (5'00-5'20/km)",km:10,type:"tempo",shoe:Z},{d:"EF longue|18 EF · 4 AM · 4 EF · 4 AM @ 5'40/km",km:30,type:"long",shoe:Z}]},
+  {s:30,km:33,date:'28/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min (5'00-5'20/km)",km:9,type:"tempo",shoe:P},{d:"EF longue|11 EF · 3 AM @ 5'40/km · 2 EF",km:16,type:"long",shoe:S}]},
+  {s:31,km:29,date:'05/10',month:'Octobre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×5 min (5'00-5'20/km)",km:9,type:"tempo",shoe:Z},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
+  {s:32,km:51,date:'12/10',month:'Octobre',sessions:[{d:"Séance EF",km:5,type:"ef",shoe:P},{d:"Séance EF légère",km:4,type:"ef",shoe:Z},{d:"MARATHON",km:42,type:"race",shoe:Z}]},
 ];
 
 const renfo1=[
