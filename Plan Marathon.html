@@ -312,7 +312,10 @@ function initFirebase(){
       dbRef=firebase.database().ref('marathon/state');
       dbRef.on('value',(snapshot)=>{
         const data=snapshot.val();
-        if(data) state=data;
+        if(data){
+          state=data;
+          migrateState();
+        }
         firebaseReady=true;
         renderHome();
       });
@@ -320,6 +323,47 @@ function initFirebase(){
     document.head.appendChild(script2);
   };
   document.head.appendChild(script);
+}
+
+function migrateState(){
+  // Fix old tempo sessions stored without | separator
+  const tempoFix=[
+    ["Tempo 2×5 min (5'00-5'20/km)","Tempo 2×5 min|5'00 — 5'20 /km"],
+    ["Tempo 2×6 min (5'00-5'20/km)","Tempo 2×6 min|5'00 — 5'20 /km"],
+    ["Tempo 2×8 min (5'00-5'20/km)","Tempo 2×8 min|5'00 — 5'20 /km"],
+    ["Tempo 3×8 min (5'00-5'20/km)","Tempo 3×8 min|5'00 — 5'20 /km"],
+    ["Tempo 2×10 min (5'00-5'20/km)","Tempo 2×10 min|5'00 — 5'20 /km"],
+    ["Tempo 3×10 min (5'00-5'20/km)","Tempo 3×10 min|5'00 — 5'20 /km"],
+    ["Tempo 2×12 min (5'00-5'20/km)","Tempo 2×12 min|5'00 — 5'20 /km"],
+    ["Tempo 2×15 min (5'00-5'20/km)","Tempo 2×15 min|5'00 — 5'20 /km"],
+    // Also catch variants without pipe but with old allure format
+    ["Tempo 2×5 min ","Tempo 2×5 min|5'00 — 5'20 /km"],
+    ["Tempo 2×6 min ","Tempo 2×6 min|5'00 — 5'20 /km"],
+    ["Tempo 2×8 min ","Tempo 2×8 min|5'00 — 5'20 /km"],
+    ["Tempo 3×8 min ","Tempo 3×8 min|5'00 — 5'20 /km"],
+    ["Tempo 2×10 min ","Tempo 2×10 min|5'00 — 5'20 /km"],
+    ["Tempo 3×10 min ","Tempo 3×10 min|5'00 — 5'20 /km"],
+    ["Tempo 2×12 min ","Tempo 2×12 min|5'00 — 5'20 /km"],
+    ["Tempo 2×15 min ","Tempo 2×15 min|5'00 — 5'20 /km"],
+  ];
+  let changed=false;
+  Object.keys(state).forEach(k=>{
+    if(k.startsWith('edit_')){
+      try{
+        const obj=JSON.parse(state[k]);
+        if(obj.d){
+          tempoFix.forEach(([old,fix])=>{
+            if(obj.d===old||obj.d.startsWith(old.trim())){
+              obj.d=fix;
+              state[k]=JSON.stringify(obj);
+              changed=true;
+            }
+          });
+        }
+      }catch(e){}
+    }
+  });
+  if(changed) save();
 }
 
 function save(){
@@ -409,9 +453,11 @@ function renderHome(){
   }
   const el=document.getElementById('home-sessions');
   el.innerHTML='';
-  weeks[CW-1].sessions.forEach((s,i)=>{
-    const s2=getSession(CW,i);
-    const key=gk(CW,i),done=!!state[key+'done'],rv=state[key+'km'];
+  getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei},i)=>{
+    const key=gk(CW,typeof si==='number'?si:0);
+    const done=extra?false:!!state[gk(CW,si)+'done'];
+    const rv=extra?null:state[gk(CW,si)+'km'];
+    const modalIdx=extra?null:si;
     const c=typeColor[s2.type]||'#888',lbl=typeLabel[s2.type]||'EF';
     const bg=typeBg[s2.type]||'#f5f5f5';
     const parts=s2.d.split('|');
@@ -431,12 +477,12 @@ function renderHome(){
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-      <div onclick="openHomeModal(${i})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${rv!=null?c:'var(--border)'};display:flex;align-items:center;justify-content:center;cursor:pointer;background:${rv!=null?bg:'transparent'};">
+      ${modalIdx!==null?`<div onclick="openHomeModal(${modalIdx})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${rv!=null?c:'var(--border)'};display:flex;align-items:center;justify-content:center;cursor:pointer;background:${rv!=null?bg:'transparent'};">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?c:'var(--muted)'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
-      <div onclick="toggleDone(${i})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?c:'var(--border)'};background:${done?c:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
+      <div onclick="toggleDone(${modalIdx})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?c:'var(--border)'};background:${done?c:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
         ${done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
-      </div>
+      </div>`:''}
     </div>`;
     el.appendChild(div);
   });
@@ -514,8 +560,10 @@ function saveHomeModal(idx){
   state[key]=JSON.stringify({d,km:isNaN(km)?0:km,type,shoe});
   save();
   closeModal();
-  renderHome();
   rendered.plan=false;
+  rendered.stats=false;
+  renderHome();
+  renderPlan();
 }
 
 function clearHomeModal(idx){
@@ -523,8 +571,10 @@ function clearHomeModal(idx){
   delete state[`edit_w${CW}_s${idx}`];
   save();
   closeModal();
-  renderHome();
   rendered.plan=false;
+  rendered.stats=false;
+  renderHome();
+  renderPlan();
 }
 
 function openModal(idx){
@@ -578,31 +628,43 @@ function renderPlan(){
     if(w.s===27) badges.push(`<span style="font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:20px;font-weight:600;">Semi-M</span>`);
     if(w.s===32) badges.push(`<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:2px 7px;border-radius:20px;font-weight:600;">Marathon</span>`);
     const allSessions=[];
-    weeks[w.s-1].sessions.forEach((s,si)=>{
-      if(!state[`del_w${w.s}_s${si}`]) allSessions.push({s:getSession(w.s,si),si,extra:false});
-    });
+    const orderKey=`order_w${w.s}`;
+    const baseOrder=weeks[w.s-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${w.s}_s${si}`]);
     let ei=0;
-    while(state[`extra_w${w.s}_s${ei}`]){
-      allSessions.push({s:JSON.parse(state[`extra_w${w.s}_s${ei}`]),si:'x'+ei,extra:true,ei});
-      ei++;
-    }
-    const sessionRows=allSessions.map(({s:s2,si,extra,ei})=>{
+    while(state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+    const savedOrder=state[orderKey]?JSON.parse(state[orderKey]):null;
+    const orderedSessions=savedOrder?savedOrder.map(o=>baseOrder.find(b=>JSON.stringify(b)===JSON.stringify(o))).filter(Boolean):baseOrder;
+    orderedSessions.forEach(({si,extra,ei})=>{
+      const s=extra?JSON.parse(state[`extra_w${w.s}_s${ei}`]):getSession(w.s,si);
+      allSessions.push({s,si,extra,ei});
+    });
+    const totalRows=allSessions.length;
+    const sessionRows=allSessions.map(({s:s2,si,extra,ei},rowIdx)=>{
       const c=typeColor[s2.type]||'#888',lbl=typeLabel[s2.type]||'EF';
       const parts=s2.d.split('|');
       const title=parts[0];
       const detail=parts[1]||null;
       const edited=!extra&&state[`edit_w${w.s}_s${si}`];
       const clickFn=extra?`openEditExtraModal(${w.s},${ei})`:`openEditModal(${w.s},${si})`;
-      return `<div class="session-row" onclick="${clickFn}" style="cursor:pointer;">
-        <div style="width:32px;height:32px;border-radius:8px;background:${c}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span></div>
-        <div style="flex:1;min-width:0;">
-          <p style="font-size:12px;font-weight:600;color:var(--text);">${title}${edited?'<span style="font-size:9px;color:#2B8FE0;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}</p>
-          ${detail?`<p style="font-size:11px;color:#2B8FE0;font-weight:600;margin-top:1px;">${detail}</p>`:''}
-          <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
+      const canUp=rowIdx>0;
+      const canDown=rowIdx<totalRows-1;
+      return `<div class="session-row" style="position:relative;">
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;padding:10px 0 10px 14px;">
+          <div style="width:32px;height:32px;border-radius:8px;background:${typeBg[s2.type]||'#f5f5f5'};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span></div>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:12px;font-weight:600;color:var(--text);">${title}${edited?'<span style="font-size:9px;color:#2B8FE0;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}</p>
+            ${detail?`<p style="font-size:11px;color:${c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
+            <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
+          </div>
+          <span style="font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0;">${s2.km} km</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <span style="font-size:12px;font-weight:600;color:var(--muted);">${s2.km} km</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <div style="display:flex;flex-direction:column;gap:1px;padding-right:10px;flex-shrink:0;">
+          <button onclick="moveSession(${w.s},${rowIdx},-1)" style="background:none;border:none;cursor:pointer;padding:2px 4px;opacity:${canUp?1:0.2};color:var(--muted);" ${canUp?'':'disabled'}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <button onclick="moveSession(${w.s},${rowIdx},1)" style="background:none;border:none;cursor:pointer;padding:2px 4px;opacity:${canDown?1:0.2};color:var(--muted);" ${canDown?'':'disabled'}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
         </div>
       </div>`;
     }).join('');
@@ -654,6 +716,40 @@ function getWeekTotalKm(ws){
   return Math.round(total*10)/10;
 }
 
+function getOrderedWeekSessions(ws){
+  const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
+  let ei=0;
+  while(state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+  const savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]):null;
+  const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>JSON.stringify(b)===JSON.stringify(o))).filter(Boolean):baseOrder;
+  // Add any new sessions not in saved order
+  baseOrder.forEach(b=>{
+    if(!ordered.find(o=>JSON.stringify(o)===JSON.stringify(b))) ordered.push(b);
+  });
+  return ordered.map(({si,extra,ei})=>({
+    s:extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si),
+    si,extra,ei
+  }));
+}
+
+function moveSession(ws, rowIdx, dir){
+  const orderKey=`order_w${ws}`;
+  const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
+  let ei=0;
+  while(state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+  const current=state[orderKey]?JSON.parse(state[orderKey]):baseOrder;
+  const newOrder=[...current];
+  const swapIdx=rowIdx+dir;
+  if(swapIdx<0||swapIdx>=newOrder.length) return;
+  [newOrder[rowIdx],newOrder[swapIdx]]=[newOrder[swapIdx],newOrder[rowIdx]];
+  state[orderKey]=JSON.stringify(newOrder);
+  save();
+  rendered.plan=false;
+  rendered.stats=false;
+  renderPlan();
+  renderHome();
+}
+
 function toggleWeek(s){if(openWeeks.has(s))openWeeks.delete(s);else openWeeks.add(s);renderPlan();}
 
 function getSession(ws, si){
@@ -701,6 +797,10 @@ function openEditModal(ws, si){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
         <select id="edit-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
       </div>
+      ${s.type==='tempo'?`<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="edit-apply-all" style="width:18px;height:18px;cursor:pointer;accent-color:#E8530A;">
+        <label for="edit-apply-all" style="font-size:12px;color:var(--text);cursor:pointer;">Appliquer l'allure à toutes les séances Tempo suivantes (S${ws+1}→S32)</label>
+      </div>`:''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="resetSession(${ws},${si})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
@@ -718,9 +818,26 @@ function saveEdit(ws, si){
   const km = parseFloat(document.getElementById('edit-km').value);
   const type = document.getElementById('edit-type').value;
   const shoe = document.getElementById('edit-shoe').value || null;
+  const applyAll = document.getElementById('edit-apply-all');
   const d = detail ? `${name}|${detail}` : name;
   const key = `edit_w${ws}_s${si}`;
   state[key] = JSON.stringify({d, km: isNaN(km)?0:km, type, shoe});
+  // Propagate allure to all following Tempo sessions if checkbox checked
+  if(applyAll && applyAll.checked && detail){
+    for(let w=ws+1;w<=32;w++){
+      weeks[w-1].sessions.forEach((s2,si2)=>{
+        if(s2.type==='tempo'){
+          const existing=state[`edit_w${w}_s${si2}`]?JSON.parse(state[`edit_w${w}_s${si2}`]):s2;
+          const existingParts=existing.d.split('|');
+          const existingTitle=existingParts[0];
+          state[`edit_w${w}_s${si2}`]=JSON.stringify({
+            ...existing,
+            d:`${existingTitle}|${detail}`
+          });
+        }
+      });
+    }
+  }
   save();
   closeModal();
   rendered.plan=false;
@@ -878,7 +995,9 @@ function saveAdd(ws){
   save();
   closeModal();
   rendered.plan=false;
+  rendered.stats=false;
   renderPlan();
+  renderHome();
 }
 
 let chartKm=null;
