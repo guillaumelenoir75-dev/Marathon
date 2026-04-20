@@ -196,12 +196,12 @@ const weekDates=[
   '2026-09-21','2026-09-28','2026-10-05','2026-10-12',
 ];
 function getCurrentWeek(){
-  const today=new Date();
-  today.setHours(0,0,0,0);
+  const now=new Date();
+  const today=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
+  const dates=weekDates.map(d=>{const p=d.split('-');return parseInt(p[0])*10000+parseInt(p[1])*100+parseInt(p[2]);});
   let cw=1;
-  for(let i=0;i<weekDates.length;i++){
-    const d=new Date(weekDates[i]);
-    if(today>=d) cw=i+1;
+  for(let i=0;i<dates.length;i++){
+    if(today>=dates[i]) cw=i+1;
     else break;
   }
   return Math.min(cw,32);
@@ -210,7 +210,7 @@ const CW=getCurrentWeek();
 const KM_AVANT_S7=192;
 const KM_RESTANTS_PLAN=900;
 function getGrandTotal(){
-  return KM_AVANT_S7 + weeks.reduce((a,w)=>a+getWeekTotalKm(w.s),0);
+  return KM_AVANT_S7+KM_RESTANTS_PLAN;
 }
 
 const P='Pegasus',S='Salomon',Z='Zoom Fly';
@@ -616,7 +616,11 @@ function renderPlan(){
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.2s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </div>
-    ${isPast||isCur?`<div style="padding:0 14px 8px;"><div style="background:var(--bg2);border-radius:4px;height:3px;"><div style="background:${isPast?'#2B8FE0':'#5AAEE8'};border-radius:4px;height:3px;width:${isPast?100:30}%;"></div></div></div>`:''}
+    ${isPast||isCur?`<div style="padding:0 14px 8px;"><div style="background:var(--bg2);border-radius:4px;height:3px;"><div style="background:${isPast?'#2B8FE0':'#5AAEE8'};border-radius:4px;height:3px;width:${isPast?100:(()=>{
+      const total=weeks[w.s-1].sessions.length;
+      const done=weeks[w.s-1].sessions.filter((_,si)=>state[gk(w.s,si)+'done']||state[gk(w.s,si)+'km']!=null).length;
+      return total>0?Math.round(done/total*100):0;
+    })()}%;"></div></div></div>`:''}
     <div class="week-detail${isOpen?' open':''}" style="border-top:${isOpen?'1px solid var(--border)':'none'};">
       ${sessionRows}
       ${isOpen?`<div onclick="openAddModal(${w.s})" style="padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;border-top:1px solid var(--border);">
