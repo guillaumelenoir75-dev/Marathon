@@ -215,11 +215,12 @@ function getGrandTotal(){
 
 const P='Pegasus',S='Salomon',Z='Zoom Fly';
 const shoeStyle={
-  [P]:{bg:'#EAF3DE',color:'#27500A',dot:'#3B6D11'},
+  [P]:{bg:'#E6F1FB',color:'#0C447C',dot:'#185FA5'},
   [S]:{bg:'#FBEAF0',color:'#72243E',dot:'#D4537E'},
   [Z]:{bg:'#FEFCE8',color:'#854F0B',dot:'#EAB308'}
 };
-const typeColor={ef:'#185FA5',tempo:'#2B8FE0',long:'#0F6E56',rest:'#888780',race:'#534AB7'};
+const typeColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888780',race:'#C4960A'};
+const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
 const typeLabel={ef:'EF',tempo:'Tempo',long:'Long',rest:'Repos',race:'Course'};
 
 const weeks=[
@@ -273,7 +274,7 @@ const renfo2=[
   {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"3 séries × 15 A/R"},
 ];
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"}];
-const shoes=[{name:P,color:'#3B6D11',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
+const shoes=[{name:P,color:'#185FA5',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
 const shoeKm=[[16,46,69,87,110,126,126,141,158,176,195,212,231,250,270,288,308,329,350,369,379,399,422,442,462,471,481,491,499,516,524,529],[0,0,0,0,0,9,9,18,28,40,54,66,82,99,117,131,149,169,191,205,219,219,219,234,252,252,252,276,276,292,304,304],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
 
 function shoeBadge(shoe){
@@ -412,25 +413,28 @@ function renderHome(){
     const s2=getSession(CW,i);
     const key=gk(CW,i),done=!!state[key+'done'],rv=state[key+'km'];
     const c=typeColor[s2.type]||'#888',lbl=typeLabel[s2.type]||'EF';
+    const bg=typeBg[s2.type]||'#f5f5f5';
     const parts=s2.d.split('|');
     const title=parts[0];
     const detail=parts[1]||null;
     const div=document.createElement('div');
     div.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:10px;';
-    div.innerHTML=`<div style="width:40px;height:40px;border-radius:10px;background:${c}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span></div>
+    div.innerHTML=`<div style="width:42px;height:42px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid ${c}30;">
+      <span style="font-size:10px;font-weight:700;color:${c};letter-spacing:0.02em;">${lbl}</span>
+    </div>
     <div style="flex:1;min-width:0;">
       <p style="font-size:13px;font-weight:600;color:var(--text);">${title}</p>
-      ${detail?`<p style="font-size:11px;color:#2B8FE0;font-weight:600;margin-top:1px;">${detail}</p>`:''}
+      ${detail?`<p style="font-size:11px;color:${c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
       <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
-        <span style="font-size:12px;color:var(--muted);">${rv!=null?'<span style="color:#2B8FE0;font-weight:600;">'+rv+' km</span> · plan '+s2.km+' km':s2.km+' km'}</span>
+        <span style="font-size:12px;color:var(--muted);">${rv!=null?'<span style="color:'+c+';font-weight:600;">'+rv+' km</span> · plan '+s2.km+' km':s2.km+' km'}</span>
         ${s2.shoe?shoeFullBadge(s2.shoe):''}
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-      <div onclick="openHomeModal(${i})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${rv!=null?'#2B8FE0':'var(--border)'};display:flex;align-items:center;justify-content:center;cursor:pointer;background:${rv!=null?'#EBF4FD':'transparent'};">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?'#2B8FE0':'var(--muted)'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <div onclick="openHomeModal(${i})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${rv!=null?c:'var(--border)'};display:flex;align-items:center;justify-content:center;cursor:pointer;background:${rv!=null?bg:'transparent'};">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?c:'var(--muted)'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
-      <div onclick="toggleDone(${i})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?'#2B8FE0':'var(--border)'};background:${done?'#2B8FE0':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
+      <div onclick="toggleDone(${i})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?c:'var(--border)'};background:${done?c:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
         ${done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
       </div>
     </div>`;
