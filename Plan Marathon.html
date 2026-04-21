@@ -556,14 +556,14 @@ function updateMarathonPace(){
   const am=calcMarathonPace();
   const prev=state._am_pace||"5'40";
   state._am_pace=am;
-  const el=document.getElementById('h-am-pace');
-  if(el) el.textContent=am+' /km';
+  if(am!==prev) save();
+  // Tout mettre à jour via renderHome (h-am-pace, kpi-ef-pace, kpi-marathon-time, kpi-am-ref)
+  renderHome();
+  const prevSec=paceStrToSec(prev.replace("'",":"));
+  const newSec=paceStrToSec(am.replace("'",":"));
   if(am!==prev){
-    save();
-    const prevSec=paceStrToSec(prev.replace("'",":"));
-    const newSec=paceStrToSec(am.replace("'",":"));
-    if(newSec<prevSec) return 'improved';   // plus rapide
-    if(newSec>prevSec) return 'regressed';  // plus lent
+    if(newSec<prevSec) return 'improved';
+    if(newSec>prevSec) return 'regressed';
   }
   return false;
 }
@@ -1313,6 +1313,7 @@ function getSession(ws, si){
 function renderLongBlocks(){
   const container=document.getElementById('long-blocks');
   const dataEl=document.getElementById('long-blocks-data');
+  const totalEl=document.getElementById('long-blocks-total');
   if(!container||!dataEl) return;
   let blocks=[];
   try{blocks=JSON.parse(dataEl.value.replace(/&quot;/g,'"'));}catch(e){return;}
@@ -1327,6 +1328,21 @@ function renderLongBlocks(){
       <span style="font-size:16px;color:var(--muted);">${i<blocks.length-1?'·':''}</span>
       <button onclick="removeLongBlock(${i})" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:18px;padding:0 4px;">×</button>
     </div>`).join('');
+  // Calcul du total et indicateur
+  if(totalEl){
+    const total=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
+    const planned=parseFloat(document.getElementById('edit-km').value)||0;
+    const diff=Math.round((total-planned)*10)/10;
+    const ok=Math.abs(diff)<0.1;
+    const color=ok?'#3B6D11':diff>0?'#E8530A':'#E24B4A';
+    const msg=ok?`✓ ${total} km — correspond à la distance planifiée`
+      :diff>0?`⚠ ${total} km — ${diff} km de trop (prévu : ${planned} km)`
+      :`⚠ ${total} km — il manque ${Math.abs(diff)} km (prévu : ${planned} km)`;
+    totalEl.style.color=color;
+    totalEl.style.background=ok?'#EAF3DE':'#FDF0EB';
+    totalEl.style.borderColor=color+'30';
+    totalEl.textContent=msg;
+  }
 }
 
 function getLongBlocksData(){
@@ -1434,6 +1450,7 @@ function openEditModal(ws, si){
         <span style="font-size:13px;font-weight:700;color:#1B4FD8;">${am} /km</span>
       </div>
       <div id="long-blocks" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <div id="long-blocks-total" style="font-size:12px;font-weight:600;padding:7px 12px;border-radius:var(--radius-sm);border:1.5px solid;margin-bottom:8px;"></div>
       <button onclick="addLongBlock()" style="width:100%;padding:8px;background:var(--bg2);border:1.5px dashed var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);cursor:pointer;">+ Ajouter un bloc</button>
       <input type="hidden" id="long-blocks-data" value="${blocksJson}">
     </div>`;
