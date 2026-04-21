@@ -224,7 +224,7 @@ const shoeStyle={
 const defaultShoeColors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780'];
 function getShoes(){
   if(state._shoes) return JSON.parse(state._shoes);
-  return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
+  return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:600},{name:Z,color:'#EAB308',max:600}];
 }
 function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
 const typeColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888780',race:'#C4960A'};
@@ -281,7 +281,7 @@ const renfo2=[
   {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément le bras droit et la jambe gauche, maintenez 3 sec, alternez.",series:"3×15 rép. par côté"},
   {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"3 séries × 15 A/R"},
 ];
-const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"}];
+const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"},{km:'Marathon',nb:8,t:"6, 12, 17, 22, 26, 30, 34 & 38 km"}];
 const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
 function getShoeStyle(name){
   const predefined=shoeStyle[name];
@@ -1423,7 +1423,7 @@ function renderStats(){
   gels.forEach((g,i)=>{
     const row=document.createElement('div');
     row.style.cssText=`display:grid;grid-template-columns:72px 52px 1fr;padding:10px 12px;border-bottom:${i<gels.length-1?'1px solid var(--border)':'none'};`;
-    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${g.km} km</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
+    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${typeof g.km==='number'?g.km+' km':g.km}</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
     gr.appendChild(row);
   });
 }
