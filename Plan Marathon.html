@@ -436,7 +436,8 @@ function migrateState(){
         const obj=JSON.parse(state[k]);
         if(obj.d){
           tempoFix.forEach(([old,fix])=>{
-            if(obj.d===old||obj.d.startsWith(old.trim())){
+            // Ne corriger que si la séance n'a pas déjà une allure personnalisée (pas de |)
+            if(!obj.d.includes('|') && (obj.d===old.trim()||obj.d===old)){
               obj.d=fix;
               state[k]=JSON.stringify(obj);
               changed=true;
