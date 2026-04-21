@@ -106,6 +106,17 @@ input[type=number]:focus{border-color:var(--orange);}
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
   <div id="shoes-manage" style="margin-bottom:20px;"></div>
+  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Performances — séances validées</p>
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:80px 1fr 48px 48px 48px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);gap:4px;">
+      <span style="font-size:10px;font-weight:600;color:var(--muted);">Séance</span>
+      <span style="font-size:10px;font-weight:600;color:var(--muted);">Nom</span>
+      <span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center;">KM</span>
+      <span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center;">Allure</span>
+      <span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center;">FC</span>
+    </div>
+    <div id="perf-rows"><p style="padding:16px;text-align:center;font-size:13px;color:var(--muted);">Aucune séance validée pour l'instant</p></div>
+  </div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
     <div style="display:grid;grid-template-columns:72px 52px 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
@@ -347,7 +358,7 @@ function initFirebase(){
 
 function migrateState(){
   // Inject historical sessions S1-S6 if not already done
-  const historyKey='_history_injected_v3';
+  const historyKey='_history_injected_v5';
   if(!state[historyKey]){
     const history=[
       {ws:1,si:1,shoe:'Pegasus',km:8},{ws:1,si:2,shoe:'Pegasus',km:8},
@@ -370,6 +381,31 @@ function migrateState(){
       }
     });
     state[historyKey]=true;
+    // Inject performance data S1-S6
+    const perfData=[
+      {ws:1,si:0,km:7,dur:'37:51',pace:'5:43',hr:158},
+      {ws:1,si:1,km:8,dur:'45:31',pace:'5:41',hr:159},
+      {ws:1,si:2,km:8,dur:'52:02',pace:'6:30',hr:139},
+      {ws:2,si:0,km:9,dur:'59:24',pace:'6:36',hr:142},
+      {ws:2,si:1,km:10,dur:'1:08:31',pace:'6:51',hr:149},
+      {ws:2,si:2,km:11,dur:'1:16:09',pace:'6:55',hr:148},
+      {ws:3,si:0,km:7,dur:'52:23',pace:'6:09',hr:156},
+      {ws:3,si:1,km:8,dur:'52:33',pace:'6:56',hr:141},
+      {ws:3,si:2,km:8,dur:'44:21',pace:'6:20',hr:145},
+      {ws:4,si:0,km:9,dur:'1:00:10',pace:'6:40',hr:144},
+      {ws:4,si:2,km:9,dur:'58:55',pace:'6:31',hr:152},
+      {ws:5,si:0,km:7,dur:'45:50',pace:'6:33',hr:146},
+      {ws:5,si:1,km:7,dur:'41:03',pace:'5:52',hr:154},
+      {ws:5,si:2,km:9,dur:'54:56',pace:'5:59',hr:159},
+      {ws:6,si:0,km:8,dur:'51:30',pace:'6:26',hr:146},
+      {ws:6,si:1,km:8,dur:'44:22',pace:'5:31',hr:162},
+      {ws:6,si:2,km:9,dur:'56:39',pace:'6:17',hr:144},
+    ];
+    // Toujours écrire les perfs S1-S6 (écrase les éventuelles valeurs vides)
+    perfData.forEach(({ws,si,km,dur,pace,hr})=>{
+      const k=gk(ws,si);
+      state[k+'perf']=JSON.stringify({dur,pace,hr});
+    });
     // Inject orders
     if(!state['order_w6']) state['order_w6']=JSON.stringify([{"si":1,"extra":false},{"si":0,"extra":false},{"si":2,"extra":false}]);
     if(!state['order_w7']) state['order_w7']=JSON.stringify([{"si":0,"extra":false},{"si":1,"extra":false},{"si":2,"extra":false}]);
@@ -538,6 +574,121 @@ function renderHome(){
     </div>`;
     el.appendChild(div);
   });
+}
+
+function openValidationModal(idx){
+  const s=getSession(CW,idx);
+  const parts=s.d.split('|');
+  const title=parts[0];
+  const detail=parts[1]||null;
+  const c=typeColor[s.type]||'#888';
+  const bg=typeBg[s.type]||'#f5f5f5';
+  const lbl=typeLabel[s.type]||'EF';
+  const prev=state[gk(CW,idx)+'perf']?JSON.parse(state[gk(CW,idx)+'perf']):{};
+  const kmVal=state[gk(CW,idx)+'km']!=null?state[gk(CW,idx)+'km']:s.km;
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:9px;background:${bg};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:700;color:${c};">${lbl}</span>
+        </div>
+        <div>
+          <p style="font-size:15px;font-weight:600;color:var(--text);">${title}</p>
+          ${detail?`<p style="font-size:11px;color:${c};font-weight:600;">${detail}</p>`:''}
+        </div>
+      </div>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
+          <input type="number" id="val-km" value="${kmVal}" min="0" max="99" step="0.5" oninput="calcPace()"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
+        </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm ou mm:ss)</p>
+          <input type="text" id="val-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="5" oninput="calcPace()"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(auto ou manuel)</span></p>
+          <input type="text" id="val-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
+        </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moyenne</p>
+          <input type="number" id="val-hr" value="${prev.hr||''}" placeholder="145" min="50" max="220"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
+      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
+      <button onclick="saveValidation(${idx})" style="padding:12px;background:#3B6D11;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">✓ Valider</button>
+    </div>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+}
+
+function calcPace(){
+  const kmEl=document.getElementById('val-km');
+  const durEl=document.getElementById('val-dur');
+  const paceEl=document.getElementById('val-pace');
+  if(!kmEl||!durEl||!paceEl) return;
+  const km=parseFloat(kmEl.value);
+  const durStr=durEl.value.trim();
+  if(!km||km<=0||!durStr) return;
+  const parts=durStr.split(':');
+  if(parts.length!==2) return;
+  const left=parseInt(parts[0])||0;
+  const right=parseInt(parts[1])||0;
+  if(isNaN(right)||right<0||right>59) return;
+  // Si left > 10 c'est probablement mm:ss, sinon h:mm
+  let totalMin;
+  if(left>=10){
+    // Format mm:ss
+    totalMin=left+right/60;
+  } else {
+    // Format h:mm
+    totalMin=left*60+right;
+  }
+  if(totalMin<=0) return;
+  const paceMin=totalMin/km;
+  const paceMinInt=Math.floor(paceMin);
+  const paceSec=Math.round((paceMin-paceMinInt)*60);
+  const paceStr=`${paceMinInt}:${paceSec.toString().padStart(2,'0')}`;
+  paceEl.value=paceStr;
+  paceEl.style.borderColor='#3B6D11';
+}
+
+function saveValidation(idx){
+  const km=parseFloat(document.getElementById('val-km').value);
+  const dur=(document.getElementById('val-dur').value||'').trim();
+  const pace=(document.getElementById('val-pace').value||'').trim();
+  const hr=parseInt(document.getElementById('val-hr').value)||null;
+  const k=gk(CW,idx);
+  state[k+'done']=true;
+  if(!isNaN(km)&&km>=0) state[k+'km']=km;
+  const perf={};
+  if(dur) perf.dur=dur;
+  if(pace) perf.pace=pace;
+  if(hr) perf.hr=hr;
+  if(Object.keys(perf).length>0) state[k+'perf']=JSON.stringify(perf);
+  save();
+  closeModal();
+  renderHome();
+  rendered.stats=false;
+  if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
 
 function openHomeModal(idx){
@@ -711,7 +862,22 @@ function saveKm(idx){
   closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
 function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
-function toggleDone(idx){const k=gk(CW,idx)+'done';state[k]=!state[k];save();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
+function toggleDone(idx){
+  const k=gk(CW,idx)+'done';
+  const wasDone=!!state[k];
+  if(!wasDone){
+    // Ouvrir le modal de validation
+    openValidationModal(idx);
+  } else {
+    // Décocher directement
+    state[k]=false;
+    delete state[gk(CW,idx)+'perf'];
+    save();
+    renderHome();
+    rendered.stats=false;
+    if(document.getElementById('sc-stats').style.display!=='none')renderStats();
+  }
+}
 
 const openWeeks=new Set();
 function renderPlan(){
@@ -1484,6 +1650,62 @@ function renderStats(){
     <span style="font-size:13px;font-weight:700;color:var(--text);text-align:right;">${c.kcal.toLocaleString()}</span>`;
     cr.appendChild(row);
   });
+  // Tableau performances
+  const pr=document.getElementById('perf-rows');
+  if(pr){
+    // Données de perf historiques S1-S6 (fallback si pas dans Firebase)
+    const staticPerf={
+      's1i0':{dur:'37:51',pace:'5:43',hr:158},
+      's1i1':{dur:'45:31',pace:'5:41',hr:159},
+      's1i2':{dur:'52:02',pace:'6:30',hr:139},
+      's2i0':{dur:'59:24',pace:'6:36',hr:142},
+      's2i1':{dur:'1:08:31',pace:'6:51',hr:149},
+      's2i2':{dur:'1:16:09',pace:'6:55',hr:148},
+      's3i0':{dur:'52:23',pace:'6:09',hr:156},
+      's3i1':{dur:'52:33',pace:'6:56',hr:141},
+      's3i2':{dur:'44:21',pace:'6:20',hr:145},
+      's4i0':{dur:'1:00:10',pace:'6:40',hr:144},
+      's4i2':{dur:'58:55',pace:'6:31',hr:152},
+      's5i0':{dur:'45:50',pace:'6:33',hr:146},
+      's5i1':{dur:'41:03',pace:'5:52',hr:154},
+      's5i2':{dur:'54:56',pace:'5:59',hr:159},
+      's6i0':{dur:'51:30',pace:'6:26',hr:146},
+      's6i1':{dur:'44:22',pace:'5:31',hr:162},
+      's6i2':{dur:'56:39',pace:'6:17',hr:144},
+    };
+    const perfRows=[];
+    for(let ws=1;ws<=CW;ws++){
+      getOrderedWeekSessions(ws).forEach(({s,si,extra})=>{
+        if(extra) return;
+        if(s.type==='rest'||s.km===0) return;
+        const k=gk(ws,si);
+        const isPast=ws<CW;
+        const done=isPast||!!state[k+'done'];
+        if(!done) return;
+        const kmReal=state[k+'km']!=null?state[k+'km']:s.km;
+        // Perf : Firebase d'abord, sinon données statiques
+        const perf=state[k+'perf']?JSON.parse(state[k+'perf']):(staticPerf[k]||{});
+        const c=typeColor[s.type]||'#888';
+        const title=s.d.split('|')[0];
+        perfRows.push({ws,title,km:kmReal,perf,c,type:s.type});
+      });
+    }
+    if(perfRows.length===0){
+      pr.innerHTML='<p style="padding:16px;text-align:center;font-size:13px;color:var(--muted);">Aucune séance validée pour l\'instant</p>';
+    } else {
+      pr.innerHTML=perfRows.reverse().map((row,i)=>{
+        const hasPerf=row.perf.pace||row.perf.dur||row.perf.hr;
+        return `<div style="display:grid;grid-template-columns:80px 1fr 48px 48px 48px;padding:10px 12px;border-bottom:${i<perfRows.length-1?'1px solid var(--border)':'none'};align-items:center;gap:4px;">
+          <span style="font-size:11px;font-weight:700;color:${row.c};background:${typeBg[row.type]||'#f5f5f5'};padding:2px 6px;border-radius:20px;text-align:center;">${typeLabel[row.type]||'EF'} S${row.ws}</span>
+          <span style="font-size:12px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.title}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text);text-align:center;">${row.km}</span>
+          <span style="font-size:11px;color:var(--muted);text-align:center;">${row.perf.pace||'—'}</span>
+          <span style="font-size:11px;color:var(--muted);text-align:center;">${row.perf.hr?row.perf.hr+'':'—'}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
   const gr=document.getElementById('gels-rows');gr.innerHTML='';
   gels.forEach((g,i)=>{
     const row=document.createElement('div');
