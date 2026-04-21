@@ -49,7 +49,7 @@ input[type=number]:focus{border-color:var(--orange);}
         <p style="font-size:22px;font-weight:700;" id="h-week-num">S7</p>
         <p style="font-size:11px;opacity:0.75;" id="today-date"></p>
       </div>
-      <div style="text-align:right;"><p style="font-size:12px;opacity:0.8;">Objectif</p><p style="font-size:22px;font-weight:700;">5'40 /km</p><p style="font-size:11px;opacity:0.75;">18/10/2026</p></div>
+      <div style="text-align:right;"><p style="font-size:12px;opacity:0.8;">Objectif</p><p style="font-size:22px;font-weight:700;" id="h-am-pace">5'40 /km</p><p style="font-size:11px;opacity:0.75;">18/10/2026</p></div>
     </div>
     <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:12px 14px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -86,7 +86,18 @@ input[type=number]:focus{border-color:var(--orange);}
         <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-weeks-left">—</p>
       </div>
     </div>
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Renforcement cette semaine</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;">
+      <div class="kpi-card" style="border-left:3px solid #3B6D11;">
+        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Allure EF actuelle</p>
+        <p style="font-size:22px;font-weight:700;color:#3B6D11;" id="kpi-ef-pace">—</p>
+        <p style="font-size:10px;color:var(--muted);">FC ≤ 148 bpm</p>
+      </div>
+      <div class="kpi-card" style="border-left:3px solid #1B4FD8;">
+        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Temps marathon projeté</p>
+        <p style="font-size:22px;font-weight:700;color:#1B4FD8;" id="kpi-marathon-time">—</p>
+        <p style="font-size:10px;color:var(--muted);" id="kpi-marathon-pace-ref">à <span id="kpi-am-ref">5'40</span>/km</p>
+      </div>
+    </div>
     <div id="home-renfo" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;"></div>
   </div>
 </div>
@@ -240,37 +251,37 @@ const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',long:'#EEEDFE',rest:'#F1EFE8',race:'#
 const typeLabel={ef:'EF',tempo:'Tempo',long:'Long',rest:'Repos',race:'Course'};
 
 const weeks=[
-  {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue",km:8,type:"long",shoe:"Pegasus"}]},
-  {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:10,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue",km:11,type:"long",shoe:"Pegasus"}]},
-  {s:3,km:23,date:'23/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue",km:8,type:"long",shoe:"Pegasus"}]},
-  {s:4,km:18,date:'30/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:"Pegasus"}]},
-  {s:5,km:23,date:'06/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:"Pegasus"},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:7,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:9,type:"long",shoe:"Pegasus"}]},
-  {s:6,km:25,date:'13/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Tempo 2×6 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:9,type:"long",shoe:"Salomon"}]},
-  {s:7,km:27,date:'20/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Tempo 3×8 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:11,type:"long",shoe:S}]},
-  {s:8,km:24,date:'27/04',month:'Avril',sessions:[{d:"Tempo 2×10 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF légère",km:7,type:"ef",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
-  {s:9,km:27,date:'04/05',month:'Mai',sessions:[{d:"Tempo 2×12 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"Séance EF légère",km:8,type:"ef",shoe:P},{d:"Séance EF longue",km:10,type:"long",shoe:S}]},
-  {s:10,km:30,date:'11/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 1×20 min|5:00 — 5:15 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
-  {s:11,km:33,date:'18/05',month:'Mai',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×12 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
-  {s:12,km:29,date:'25/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
-  {s:13,km:35,date:'01/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:16,type:"long",shoe:S}]},
-  {s:14,km:37,date:'08/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 1×25 min|5:00 — 5:15 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:17,type:"long",shoe:S}]},
-  {s:15,km:38,date:'15/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 1×30 min|5:00 — 5:15 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:18,type:"long",shoe:S}]},
-  {s:16,km:32,date:'22/06',month:'Juin',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
-  {s:17,km:38,date:'29/06',month:'Juin',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:18,type:"long",shoe:S}]},
+  {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},
+  {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:10,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|11 EF",km:11,type:"long",shoe:"Pegasus"}]},
+  {s:3,km:23,date:'23/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},
+  {s:4,km:18,date:'30/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue|9 EF",km:9,type:"long",shoe:"Pegasus"}]},
+  {s:5,km:23,date:'06/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:"Pegasus"},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:7,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|9 EF",km:9,type:"long",shoe:"Pegasus"}]},
+  {s:6,km:25,date:'13/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Tempo 2×6 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|9 EF",km:9,type:"long",shoe:"Salomon"}]},
+  {s:7,km:27,date:'20/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Tempo 3×8 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|8 EF · 3 AM @ 5'40/km",km:11,type:"long",shoe:S}]},
+  {s:8,km:24,date:'27/04',month:'Avril',sessions:[{d:"Tempo 2×10 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF légère",km:7,type:"ef",shoe:P},{d:"Séance EF longue|7 EF · 2 AM @ 5'40/km",km:9,type:"long",shoe:S}]},
+  {s:9,km:27,date:'04/05',month:'Mai',sessions:[{d:"Tempo 2×12 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"Séance EF légère",km:8,type:"ef",shoe:P},{d:"Séance EF longue|7 EF · 3 AM @ 5'40/km",km:10,type:"long",shoe:S}]},
+  {s:10,km:30,date:'11/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 1×20 min|5:00 — 5:15 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
+  {s:11,km:33,date:'18/05',month:'Mai',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×12 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 4 AM @ 5'40/km",km:14,type:"long",shoe:S}]},
+  {s:12,km:29,date:'25/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
+  {s:13,km:35,date:'01/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|11 EF · 5 AM @ 5'40/km",km:16,type:"long",shoe:S}]},
+  {s:14,km:37,date:'08/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 1×25 min|5:00 — 5:15 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"EF longue|12 EF · 5 AM @ 5'40/km",km:17,type:"long",shoe:S}]},
+  {s:15,km:38,date:'15/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 1×30 min|5:00 — 5:15 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|13 EF · 5 AM @ 5'40/km",km:18,type:"long",shoe:S}]},
+  {s:16,km:32,date:'22/06',month:'Juin',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 4 AM @ 5'40/km",km:14,type:"long",shoe:S}]},
+  {s:17,km:38,date:'29/06',month:'Juin',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|13 EF · 5 AM @ 5'40/km",km:18,type:"long",shoe:S}]},
   {s:18,km:41,date:'06/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"EF longue|16 EF · 4 AM @ 5'40/km",km:20,type:"long",shoe:S}]},
-  {s:19,km:43,date:'13/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:22,type:"long",shoe:S}]},
-  {s:20,km:33,date:'20/07',month:'Juillet',sessions:[{d:"9 km EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue",km:14,type:"long",shoe:S}]},
-  {s:21,km:30,date:'28/07',month:'Juillet',sessions:[{d:"EF (Paris)",km:10,type:"ef",shoe:P},{d:"Séance EF (Paris)",km:8,type:"ef",shoe:P},{d:"EF longue (Paris)",km:12,type:"long",shoe:S}]},
-  {s:22,km:22,date:'03/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:10,type:"ef",shoe:P},{d:"Repos",km:0,type:"rest",shoe:null},{d:"EF longue (Sri Lanka)",km:12,type:"long",shoe:P}]},
+  {s:19,km:43,date:'13/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"EF longue|14 EF · 8 AM @ 5'40/km",km:22,type:"long",shoe:S}]},
+  {s:20,km:33,date:'20/07',month:'Juillet',sessions:[{d:"9 km EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 4 AM @ 5'40/km",km:14,type:"long",shoe:S}]},
+  {s:21,km:30,date:'28/07',month:'Juillet',sessions:[{d:"EF (Paris)",km:10,type:"ef",shoe:P},{d:"Séance EF (Paris)",km:8,type:"ef",shoe:P},{d:"EF longue (Paris)|10 EF · 2 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
+  {s:22,km:22,date:'03/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:10,type:"ef",shoe:P},{d:"Repos",km:0,type:"rest",shoe:null},{d:"EF longue (Sri Lanka)|10 EF · 2 AM @ 5'40/km",km:12,type:"long",shoe:P}]},
   {s:23,km:28,date:'10/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:P},{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:null},{d:"EF longue (Paris)|8 EF · 3 AM @ 5'40/km · 2 EF",km:12,type:"long",shoe:"Pegasus"}]},
   {s:24,km:35,date:'17/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 3 AM @ 5'40/km · 2 EF",km:15,type:"long",shoe:S}]},
   {s:25,km:38,date:'24/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|12 EF · 4 AM @ 5'40/km · 2 EF",km:18,type:"long",shoe:S}]},
-  {s:26,km:34,date:'31/08',month:'Septembre',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"Séance EF longue",km:15,type:"long",shoe:Z}]},
+  {s:26,km:34,date:'31/08',month:'Septembre',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|10 EF · 3 AM @ 5'40/km · 2 EF",km:15,type:"long",shoe:Z}]},
   {s:27,km:41,date:'07/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"Semi-Marathon Bois d'Arcy",km:21,type:"race",shoe:Z}]},
   {s:28,km:44,date:'14/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|14 EF · 6 AM @ 5'40/km · 4 EF",km:24,type:"long",shoe:S}]},
   {s:29,km:48,date:'21/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|18 EF · 4 AM · 4 EF · 4 AM @ 5'40/km",km:30,type:"long",shoe:Z}]},
   {s:30,km:33,date:'28/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"EF longue|11 EF · 3 AM @ 5'40/km · 2 EF",km:16,type:"long",shoe:S}]},
-  {s:31,km:29,date:'05/10',month:'Octobre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Zoom Fly"},{d:"Séance EF longue",km:12,type:"long",shoe:S}]},
+  {s:31,km:29,date:'05/10',month:'Octobre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
   {s:32,km:51,date:'12/10',month:'Octobre',sessions:[{d:"Séance EF",km:5,type:"ef",shoe:P},{d:"Séance EF légère",km:4,type:"ef",shoe:Z},{d:"MARATHON",km:42,type:"race",shoe:Z}]},
 ];
 
@@ -450,8 +461,118 @@ function migrateState(){
   if(changed) save();
 }
 
+// Table EF → AM (depuis Excel)
+const EF_AM_TABLE=[
+  {efSec:6*60+0,  amStr:"5'40"},
+  {efSec:5*60+55, amStr:"5'35"},
+  {efSec:5*60+50, amStr:"5'30"},
+  {efSec:5*60+45, amStr:"5'25"},
+  {efSec:5*60+40, amStr:"5'20"},
+  {efSec:5*60+35, amStr:"5'15"},
+  {efSec:5*60+30, amStr:"5'10"},
+  {efSec:5*60+25, amStr:"5'05"},
+  {efSec:5*60+20, amStr:"5'00"},
+  {efSec:5*60+15, amStr:"4'55"},
+  {efSec:5*60+10, amStr:"4'50"},
+  {efSec:5*60+5,  amStr:"4'45"},
+  {efSec:5*60+0,  amStr:"4'40"},
+  {efSec:4*60+55, amStr:"4'35"},
+  {efSec:4*60+50, amStr:"4'30"},
+  {efSec:4*60+45, amStr:"4'25"},
+  {efSec:4*60+40, amStr:"4'20"},
+  {efSec:4*60+35, amStr:"4'15"},
+  {efSec:4*60+30, amStr:"4'10"},
+];
+
+function getBestEfPace(){
+  // Dernière allure EF validée avec FC ≤ 148
+  let lastSec=null;
+  for(let ws=1;ws<=CW;ws++){
+    weeks[ws-1].sessions.forEach((s,si)=>{
+      if(s.type!=='ef') return;
+      const k=gk(ws,si);
+      if(!state[k+'done']) return;
+      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+      if(!perf.pace||!perf.hr) return;
+      if(parseInt(perf.hr)>148) return;
+      const sec=paceStrToSec(perf.pace);
+      if(sec===null) return;
+      lastSec=sec; // on garde la dernière
+    });
+  }
+  if(lastSec===null) return null;
+  const m=Math.floor(lastSec/60);
+  const s=lastSec%60;
+  return `${m}'${s.toString().padStart(2,'0')}`;
+}
+
+function calcMarathonTime(amStr){
+  // AM format "5'40" ou "5'35" → temps sur 42.195 km
+  if(!amStr) return null;
+  const sec=paceStrToSec(amStr.replace("'",":"));
+  if(!sec) return null;
+  const totalSec=Math.round(sec*42.195);
+  const h=Math.floor(totalSec/3600);
+  const m=Math.floor((totalSec%3600)/60);
+  const s=totalSec%60;
+  return `${h}h${m.toString().padStart(2,'0')}`;
+}
+
+function paceStrToSec(p){
+  const m=p.replace("'",":").split(':');
+  if(m.length<2) return null;
+  return parseInt(m[0])*60+parseInt(m[1]);
+}
+
+function calcMarathonPace(){
+  // Utiliser la DERNIÈRE séance EF valide (FC ≤ 148)
+  // Réactif : si la dernière EF est bonne → AM descend, si moins bonne → AM remonte
+  const validEF=[];
+  for(let ws=1;ws<=CW;ws++){
+    weeks[ws-1].sessions.forEach((s,si)=>{
+      if(s.type!=='ef') return;
+      const k=gk(ws,si);
+      if(!state[k+'done']) return;
+      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+      if(!perf.pace||!perf.hr) return;
+      if(parseInt(perf.hr)>148) return;
+      const sec=paceStrToSec(perf.pace);
+      if(sec===null) return;
+      validEF.push({ws,si,sec});
+    });
+  }
+  if(validEF.length===0) return state._am_pace||"5'40";
+  // Prendre uniquement la dernière séance EF valide
+  const lastSec=validEF[validEF.length-1].sec;
+  // Trouver l'AM correspondante dans la table
+  const sorted=[...EF_AM_TABLE].reverse();
+  for(const row of sorted){
+    if(lastSec<=row.efSec) return row.amStr;
+  }
+  return "5'40";
+}
+
+function updateMarathonPace(){
+  const am=calcMarathonPace();
+  const prev=state._am_pace||"5'40";
+  state._am_pace=am;
+  const el=document.getElementById('h-am-pace');
+  if(el) el.textContent=am+' /km';
+  if(am!==prev){
+    save();
+    const prevSec=paceStrToSec(prev.replace("'",":"));
+    const newSec=paceStrToSec(am.replace("'",":"));
+    if(newSec<prevSec) return 'improved';   // plus rapide
+    if(newSec>prevSec) return 'regressed';  // plus lent
+  }
+  return false;
+}
+
 function save(){
   if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
+}
+function getMarathonPaceStr(){
+  return state._am_pace||calcMarathonPace()||"5'40";
 }
 function gk(w,i){return `s${w}i${i}`;}
 function rfk(w,r){return `rf${w}r${r}`;}
@@ -499,6 +620,19 @@ function renderHome(){
   const weeksLeftEl=document.getElementById('kpi-weeks-left');
   if(weeksLeftEl) weeksLeftEl.textContent=Math.max(0,32-CW);
   document.getElementById('kpi-week-plan').textContent='/ '+getWeekTotalKm(CW)+' km planifiés';
+  // AM pace
+  const amEl=document.getElementById('h-am-pace');
+  if(amEl) amEl.textContent=getMarathonPaceStr()+' /km';
+  // EF pace actuelle
+  const efPace=getBestEfPace();
+  const efEl=document.getElementById('kpi-ef-pace');
+  if(efEl) efEl.textContent=efPace?efPace+' /km':'—';
+  // Temps marathon projeté
+  const am=getMarathonPaceStr();
+  const mtEl=document.getElementById('kpi-marathon-time');
+  const amRefEl=document.getElementById('kpi-am-ref');
+  if(mtEl) mtEl.textContent=calcMarathonTime(am)||'—';
+  if(amRefEl) amRefEl.textContent=am;
   const wtEl=document.getElementById('week-total-km');
   if(wtEl) wtEl.textContent=getWeekTotalKm(CW)+' km';
   // Renfo
@@ -696,10 +830,14 @@ function saveValidation(idx){
   save();
   closeModal();
   renderHome();
+  rendered.plan=false;
   rendered.stats=false;
+  if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
   if(document.getElementById('sc-stats').style.display!=='none')renderStats();
+  // Mettre à jour l'allure marathon et vérifier si elle a progressé
+  const amImproved=updateMarathonPace();
   // Coach feedback
-  showCoachFeedback(s, km, pace, hr);
+  showCoachFeedback(s, km, pace, hr, amImproved);
 }
 
 function parsePaceToSec(paceStr){
@@ -709,7 +847,7 @@ function parsePaceToSec(paceStr){
   return parseInt(p[0])*60+parseInt(p[1]);
 }
 
-function showCoachFeedback(s, km, pace, hr){
+function showCoachFeedback(s, km, pace, hr, amImproved){
   const msgs=[];
   const c=typeColor[s.type]||'#888';
   const bg=typeBg[s.type]||'#f5f5f5';
@@ -740,6 +878,17 @@ function showCoachFeedback(s, km, pace, hr){
     }
   }
 
+  // === FC CHECK (Tempo) ===
+  if(s.type==='tempo'&&hr){
+    if(hr<=165){
+      msgs.push({icon:'✓',color:'#3B6D11',text:`FC Tempo correcte — ${hr} bpm, sous le seuil de 165 bpm. Bonne intensité.`});
+    } else if(hr<=172){
+      msgs.push({icon:'⚠',color:'#E8530A',text:`FC Tempo élevée — ${hr} bpm, au-dessus de 165 bpm. Tu es allé un peu trop fort, surveille l'intensité.`});
+    } else {
+      msgs.push({icon:'✗',color:'#E24B4A',text:`FC Tempo trop élevée — ${hr} bpm ! C'est au-delà du seuil, risque de surentraînement. Réduis l'allure ou les répétitions.`});
+    }
+  }
+
   // === ALLURE CHECK (Tempo) ===
   if(s.type==='tempo'&&pace){
     const detail=s.d.split('|')[1]||'';
@@ -765,6 +914,15 @@ function showCoachFeedback(s, km, pace, hr){
   }
 
   if(msgs.length===0) return;
+
+  // Message AM si changement
+  if(amImproved==='improved'){
+    const newAm=getMarathonPaceStr();
+    msgs.unshift({icon:'🎯',color:'#1B4FD8',text:`Allure marathon mise à jour ! Grâce à ta progression en EF, ton allure marathon cible passe à ${newAm} /km. Continue comme ça !`});
+  } else if(amImproved==='regressed'){
+    const newAm=getMarathonPaceStr();
+    msgs.unshift({icon:'📉',color:'#854F0B',text:`Allure marathon révisée à ${newAm} /km sur la base de tes 3 dernières séances EF. Continue à travailler ton endurance fondamentale.`});
+  }
 
   // Afficher le modal coach
   const mc=document.getElementById('modal-container');
@@ -1034,15 +1192,21 @@ function renderPlan(){
       const title=parts[0];
       const detail=parts[1]||null;
       const edited=!extra&&state[`edit_w${w.s}_s${si}`];
+      const isDone=!extra&&!!state[gk(w.s,si)+'done'];
       const clickFn=extra?`openEditExtraModal(${w.s},${ei})`:`openEditModal(${w.s},${si})`;
       const canUp=rowIdx>0;
       const canDown=rowIdx<totalRows-1;
-      return `<div class="session-row" style="position:relative;">
+      return `<div class="session-row" style="position:relative;${isDone?'background:#f6faf2;':''}">
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;padding:10px 0 10px 14px;">
-          <div style="width:32px;height:32px;border-radius:8px;background:${typeBg[s2.type]||'#f5f5f5'};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span></div>
+          <div style="width:32px;height:32px;border-radius:8px;background:${isDone?'#EAF3DE':typeBg[s2.type]||'#f5f5f5'};border:1.5px solid ${isDone?'#3B6D11':c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            ${isDone
+              ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+              : `<span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span>`
+            }
+          </div>
           <div style="flex:1;min-width:0;">
-            <p style="font-size:12px;font-weight:600;color:var(--text);">${title}${edited?'<span style="font-size:9px;color:#1B4FD8;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}</p>
-            ${detail?`<p style="font-size:11px;color:${c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
+            <p style="font-size:12px;font-weight:600;color:${isDone?'#3B6D11':'var(--text)'};">${title}${edited?'<span style="font-size:9px;color:#1B4FD8;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}${isDone?'<span style="font-size:10px;color:#3B6D11;margin-left:6px;font-weight:700;">✓ fait</span>':''}</p>
+            ${detail?`<p style="font-size:11px;color:${isDone?'#3B6D11':c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
             <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
           </div>
           <span style="font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0;">${s2.km} km</span>
@@ -1146,6 +1310,60 @@ function getSession(ws, si){
   return state[key] ? JSON.parse(state[key]) : weeks[ws-1].sessions[si];
 }
 
+function renderLongBlocks(){
+  const container=document.getElementById('long-blocks');
+  const dataEl=document.getElementById('long-blocks-data');
+  if(!container||!dataEl) return;
+  let blocks=[];
+  try{blocks=JSON.parse(dataEl.value.replace(/&quot;/g,'"'));}catch(e){return;}
+  container.innerHTML=blocks.map((b,i)=>`
+    <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;">
+      <div style="display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px;background:var(--bg2);border-radius:var(--radius-sm);padding:6px 10px;border:1.5px solid ${b.type==='EF'?'#3B6D11':'#1B4FD8'}20;">
+        <button onclick="toggleLongBlockType(${i})" style="padding:3px 8px;border-radius:20px;border:none;cursor:pointer;font-size:11px;font-weight:700;background:${b.type==='EF'?'#EAF3DE':'#EEF2FD'};color:${b.type==='EF'?'#3B6D11':'#1B4FD8'};">${b.type}</button>
+        <input type="number" value="${b.km}" min="0.5" max="40" step="0.5" oninput="updateLongBlockKm(${i},this.value)"
+          style="background:transparent;border:none;outline:none;font-size:18px;font-weight:700;color:var(--text);width:100%;text-align:center;">
+        <span style="font-size:11px;color:var(--muted);grid-column:2;text-align:center;margin-top:-2px;">${b.type==='AM'?getMarathonPaceStr()+' /km':'EF'}</span>
+      </div>
+      <span style="font-size:16px;color:var(--muted);">${i<blocks.length-1?'·':''}</span>
+      <button onclick="removeLongBlock(${i})" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:18px;padding:0 4px;">×</button>
+    </div>`).join('');
+}
+
+function getLongBlocksData(){
+  const dataEl=document.getElementById('long-blocks-data');
+  if(!dataEl) return [];
+  try{return JSON.parse(dataEl.value.replace(/&quot;/g,'"'));}catch(e){return [];}
+}
+function setLongBlocksData(blocks){
+  const dataEl=document.getElementById('long-blocks-data');
+  if(dataEl) dataEl.value=JSON.stringify(blocks);
+  renderLongBlocks();
+}
+function toggleLongBlockType(i){
+  const blocks=getLongBlocksData();
+  blocks[i].type=blocks[i].type==='EF'?'AM':'EF';
+  setLongBlocksData(blocks);
+}
+function updateLongBlockKm(i,val){
+  const blocks=getLongBlocksData();
+  blocks[i].km=parseFloat(val)||1;
+  setLongBlocksData(blocks);
+}
+function addLongBlock(){
+  const blocks=getLongBlocksData();
+  blocks.push({km:2,type:'EF'});
+  setLongBlocksData(blocks);
+}
+function removeLongBlock(i){
+  const blocks=getLongBlocksData();
+  blocks.splice(i,1);
+  setLongBlocksData(blocks);
+}
+function buildLongDetail(blocks){
+  const am=getMarathonPaceStr();
+  return blocks.map(b=>`${b.km} ${b.type}${b.type==='AM'?' @ '+am+'/km':''}`).join(' · ');
+}
+
 function openEditModal(ws, si){
   const s = getSession(ws, si);
   const parts = s.d.split('|');
@@ -1193,7 +1411,34 @@ function openEditModal(ws, si){
     <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;gap:10px;">
       <input type="checkbox" id="edit-apply-all" style="width:18px;height:18px;cursor:pointer;accent-color:#E8530A;">
       <label for="edit-apply-all" style="font-size:12px;color:var(--text);cursor:pointer;">Appliquer cette allure à toutes les Tempo suivantes (S${ws+1}→S32)</label>
-    </div>`:`
+    </div>`
+  :s.type==='long'?(()=>{
+    // Parser le detail existant en blocs EF/AM
+    // Format: "3 EF · 6 AM · 2 EF" ou "8 EF · 3 AM @ 5'40/km · 2 EF"
+    const am=getMarathonPaceStr();
+    const blocks=[];
+    const rawDetail=detail||'';
+    // Parser chaque bloc séparé par ·
+    rawDetail.split('·').forEach(part=>{
+      const p=part.trim();
+      const m=p.match(/^(\d+(?:\.\d+)?)\s*(EF|AM)/i);
+      if(m) blocks.push({km:parseFloat(m[1]),type:m[2].toUpperCase()});
+    });
+    if(blocks.length===0){blocks.push({km:5,type:'EF'});blocks.push({km:3,type:'AM'});}
+    const blocksJson=JSON.stringify(blocks).replace(/"/g,'&quot;');
+    return `
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Organisation de la séance longue</p>
+      <div style="background:#EEF2FD;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:#1B4FD8;">🎯 AM calculée automatiquement :</span>
+        <span style="font-size:13px;font-weight:700;color:#1B4FD8;">${am} /km</span>
+      </div>
+      <div id="long-blocks" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <button onclick="addLongBlock()" style="width:100%;padding:8px;background:var(--bg2);border:1.5px dashed var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);cursor:pointer;">+ Ajouter un bloc</button>
+      <input type="hidden" id="long-blocks-data" value="${blocksJson}">
+    </div>`;
+  })()
+  :`
     <div>
       <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
       <input type="text" id="edit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
@@ -1233,6 +1478,8 @@ function openEditModal(ws, si){
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   mc.appendChild(overlay);
+  // Init blocs long si nécessaire
+  if(s.type==='long') renderLongBlocks();
 }
 
 function saveEdit(ws, si){
@@ -1255,6 +1502,12 @@ function saveEdit(ws, si){
     const pMax=pMaxEl?(pMaxEl.value||'').trim():'';
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
+  } else if(type==='long'){
+    // Reconstruire depuis les blocs EF/AM
+    const existing=getSession(ws,si);
+    name=existing.d.split('|')[0]||'Séance EF longue';
+    const blocks=getLongBlocksData();
+    if(blocks.length>0) detail=buildLongDetail(blocks);
   } else {
     const nameEl=document.getElementById('edit-name');
     if(nameEl) name=nameEl.value.trim();
