@@ -12,7 +12,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;}
-:root{--orange:#2B8FE0;--orange-light:#EBF4FD;--border:#e0e0e0;--bg:#fff;--bg2:#f5f5f5;--text:#1a1a1a;--muted:#6b6b6b;--radius:12px;--radius-sm:8px;}
+:root{--orange:#E8530A;--orange-light:#FDF0EB;--blue:#1B4FD8;--border:#e0e0e0;--bg:#fff;--bg2:#f5f5f5;--text:#1a1a1a;--muted:#6b6b6b;--radius:12px;--radius-sm:8px;}
 @media(prefers-color-scheme:dark){:root{--bg:#1a1a1a;--bg2:#242424;--border:#333;--text:#f0f0f0;--muted:#888;}}
 #app{max-width:390px;margin:0 auto;background:var(--bg);min-height:100vh;position:relative;}
 .nav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);}
@@ -42,7 +42,7 @@ input[type=number]:focus{border-color:var(--orange);}
 
 <!-- ACCUEIL -->
 <div id="sc-home">
-  <div style="background:var(--orange);padding:20px 16px 24px;border-radius:0 0 24px 24px;color:#fff;margin-bottom:16px;">
+  <div style="background:var(--blue);padding:20px 16px 24px;border-radius:0 0 24px 24px;color:#fff;margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div>
         <p style="font-size:12px;opacity:0.8;">Semaine en cours</p>
@@ -94,7 +94,7 @@ input[type=number]:focus{border-color:var(--orange);}
 <!-- PLAN -->
 <div id="sc-plan" style="display:none;padding:16px;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">Plan d'entraînement</p>
-  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">32 semaines · 1016 km planifiés</p>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;" id="plan-total-km">32 semaines · 1092 km</p>
   <div id="plan-list" style="display:flex;flex-direction:column;gap:8px;"></div>
 </div>
 
@@ -141,7 +141,7 @@ input[type=number]:focus{border-color:var(--orange);}
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">Renforcement</p>
   <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">2 séances / semaine · Prescrit par kiné</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
-    <div id="renfo-tab-1" onclick="switchRenfo(1)" style="background:#2B8FE0;border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
+    <div id="renfo-tab-1" onclick="switchRenfo(1)" style="background:#1B4FD8;border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
       <p style="font-size:13px;font-weight:600;color:#fff;">Ischio-fessiers</p>
       <p style="font-size:10px;color:rgba(255,255,255,0.8);">Fémoro-patellaire · 6 exos</p>
     </div>
@@ -209,21 +209,22 @@ function getCurrentWeek(){
 }
 const CW=getCurrentWeek();
 const KM_AVANT_S7=192;
-const KM_RESTANTS_PLAN=900;
 function getGrandTotal(){
-  return KM_AVANT_S7+KM_RESTANTS_PLAN;
+  // 192 km faits avant S7 + km planifiés de S7 à S32 (modifiables)
+  const planKm=weeks.slice(CW-1).reduce((a,w)=>a+getWeekTotalKm(w.s),0);
+  return KM_AVANT_S7+planKm;
 }
 
 const P='Pegasus',S='Salomon',Z='Zoom Fly';
 const shoeStyle={
-  [P]:{bg:'#E6F1FB',color:'#0C447C',dot:'#185FA5'},
+  [P]:{bg:'#EEF2FD',color:'#102B8A',dot:'#1438A8'},
   [S]:{bg:'#FBEAF0',color:'#72243E',dot:'#D4537E'},
   [Z]:{bg:'#FEFCE8',color:'#854F0B',dot:'#EAB308'}
 };
-const defaultShoeColors=['#185FA5','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780'];
+const defaultShoeColors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780'];
 function getShoes(){
   if(state._shoes) return JSON.parse(state._shoes);
-  return [{name:P,color:'#185FA5',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
+  return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
 }
 function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
 const typeColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888780',race:'#C4960A'};
@@ -231,11 +232,11 @@ const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',long:'#EEEDFE',rest:'#F1EFE8',race:'#
 const typeLabel={ef:'EF',tempo:'Tempo',long:'Long',rest:'Repos',race:'Course'};
 
 const weeks=[
-  {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:null},{d:"Séance EF longue",km:8,type:"long",shoe:null}]},
-  {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:null},{d:"Séance EF",km:10,type:"ef",shoe:null},{d:"Séance EF longue",km:11,type:"long",shoe:null}]},
-  {s:3,km:23,date:'23/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:null},{d:"Séance EF longue",km:8,type:"long",shoe:null}]},
-  {s:4,km:18,date:'30/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:null},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:null}]},
-  {s:5,km:23,date:'06/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:7,type:"tempo",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:null}]},
+  {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Séance EF longue",km:8,type:"long",shoe:P}]},
+  {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Séance EF",km:10,type:"ef",shoe:P},{d:"Séance EF longue",km:11,type:"long",shoe:P}]},
+  {s:3,km:23,date:'23/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:P},{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Séance EF longue",km:8,type:"long",shoe:P}]},
+  {s:4,km:18,date:'30/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue",km:9,type:"long",shoe:P}]},
+  {s:5,km:23,date:'06/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:P},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:7,type:"tempo",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:P}]},
   {s:6,km:25,date:'13/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×6 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
   {s:7,km:27,date:'20/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×6 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:P},{d:"Séance EF longue",km:11,type:"long",shoe:S}]},
   {s:8,km:24,date:'27/04',month:'Avril',sessions:[{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:P},{d:"Séance EF légère",km:7,type:"ef",shoe:P},{d:"Séance EF longue",km:9,type:"long",shoe:S}]},
@@ -281,7 +282,7 @@ const renfo2=[
   {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"3 séries × 15 A/R"},
 ];
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"}];
-const shoes=[{name:P,color:'#185FA5',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
+const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
 function getShoeStyle(name){
   const predefined=shoeStyle[name];
   if(predefined) return predefined;
@@ -346,6 +347,31 @@ function initFirebase(){
 }
 
 function migrateState(){
+  // Inject historical sessions S1-S6 if not already done
+  const historyKey='_history_injected_v2';
+  if(!state[historyKey]){
+    const history=[
+      {ws:1,si:1,shoe:'Pegasus',km:8},{ws:1,si:2,shoe:'Pegasus',km:8},
+      {ws:2,si:0,shoe:'Pegasus',km:9},{ws:2,si:1,shoe:'Pegasus',km:10},{ws:2,si:2,shoe:'Pegasus',km:11},
+      {ws:3,si:0,shoe:'Pegasus',km:7},{ws:3,si:1,shoe:'Pegasus',km:8},{ws:3,si:2,shoe:'Pegasus',km:8},
+      {ws:4,si:0,shoe:'Pegasus',km:9},{ws:4,si:2,shoe:'Pegasus',km:9},
+      {ws:5,si:0,shoe:'Pegasus',km:7},{ws:5,si:1,shoe:'Pegasus',km:7},{ws:5,si:2,shoe:'Pegasus',km:9},
+      {ws:6,si:0,shoe:'Pegasus',km:8},{ws:6,si:1,shoe:'Pegasus',km:8},{ws:6,si:2,shoe:'Salomon',km:9},
+    ];
+    history.forEach(({ws,si,shoe,km})=>{
+      const dk=gk(ws,si);
+      if(!state[dk+'done']) state[dk+'done']=true;
+      if(state[dk+'km']==null) state[dk+'km']=km;
+      const ek=`edit_w${ws}_s${si}`;
+      const base=weeks[ws-1].sessions[si];
+      if(!state[ek]){
+        state[ek]=JSON.stringify({...base,shoe});
+      } else {
+        try{const obj=JSON.parse(state[ek]);obj.shoe=shoe;state[ek]=JSON.stringify(obj);}catch(e){}
+      }
+    });
+    state[historyKey]=true;
+  }
   // Fix old tempo sessions stored without | separator
   const tempoFix=[
     ["Tempo 2×5 min (5'00-5'20/km)","Tempo 2×5 min|5'00 — 5'20 /km"],
@@ -451,22 +477,22 @@ function renderHome(){
       const card=document.createElement('div');
       card.style.cssText='background:var(--bg);border:1px solid '+(done?'#3B6D11':'var(--border)')+';border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;';
       card.onclick=()=>showScreen('renfo',rd.r);
-      card.innerHTML=`<div style="width:40px;height:40px;border-radius:10px;background:${done?'#EAF3DE':'#EBF4FD'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      card.innerHTML=`<div style="width:40px;height:40px;border-radius:10px;background:${done?'#EAF3DE':'#EEF2FD'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         ${done
           ?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-          :'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B8FE0" stroke-width="2"><path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/></svg>'
+          :'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="2"><path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/></svg>'
         }
       </div>
       <div style="flex:1;min-width:0;">
         <p style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'var(--text)'};">${rd.name} ${done?'<span style="font-size:11px;">✓ fait</span>':''}</p>
         <p style="font-size:11px;color:var(--muted);">${rd.sub}</p>
-        ${!done&&doneSeries>0?`<div style="margin-top:5px;background:var(--bg2);border-radius:3px;height:4px;"><div style="background:#2B8FE0;border-radius:3px;height:4px;width:${pct}%;"></div></div>`:''}
+        ${!done&&doneSeries>0?`<div style="margin-top:5px;background:var(--bg2);border-radius:3px;height:4px;"><div style="background:#1B4FD8;border-radius:3px;height:4px;width:${pct}%;"></div></div>`:''}
       </div>
       <div style="text-align:right;flex-shrink:0;">
         ${done
           ?'<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:3px 8px;border-radius:20px;font-weight:600;">✓ Terminé</span>'
           :doneSeries>0
-            ?`<span style="font-size:13px;font-weight:700;color:#2B8FE0;">${pct}%</span>`
+            ?`<span style="font-size:13px;font-weight:700;color:#1B4FD8;">${pct}%</span>`
             :'<span style="font-size:11px;background:var(--bg2);color:var(--muted);padding:3px 8px;border-radius:20px;font-weight:600;">À faire</span>'
         }
       </div>`;
@@ -580,7 +606,7 @@ function openHomeModal(idx){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="clearHomeModal(${idx})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
-      <button onclick="saveHomeModal(${idx})" style="padding:12px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+      <button onclick="saveHomeModal(${idx})" style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
     </div>
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
@@ -646,7 +672,7 @@ function openModal(idx){
     <input type="number" id="modal-input" min="0" max="99" step="0.5" value="${cur}" placeholder="${s.km}" style="margin-bottom:16px;font-size:22px;text-align:center;font-weight:700;">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <button class="btn-secondary" onclick="clearKm(${idx})">Effacer</button>
-      <button style="padding:12px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;" onclick="saveKm(${idx})">Enregistrer</button>
+      <button style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;" onclick="saveKm(${idx})">Enregistrer</button>
     </div>
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
@@ -663,6 +689,8 @@ function toggleDone(idx){const k=gk(CW,idx)+'done';state[k]=!state[k];save();ren
 
 const openWeeks=new Set();
 function renderPlan(){
+  const ptEl=document.getElementById('plan-total-km');
+  if(ptEl) ptEl.textContent='32 semaines · '+getGrandTotal()+' km';
   const el=document.getElementById('plan-list');el.innerHTML='';
   let currentMonth='';
   weeks.forEach(w=>{
@@ -678,7 +706,7 @@ function renderPlan(){
     const card=document.createElement('div');
     card.className='week-card'+(isCur?' current':'');
     const badges=[];
-    if(isCur) badges.push(`<span style="font-size:10px;background:#EBF4FD;color:#1A6CB5;padding:2px 7px;border-radius:20px;font-weight:600;">En cours</span>`);
+    if(isCur) badges.push(`<span style="font-size:10px;background:#EEF2FD;color:#1438A8;padding:2px 7px;border-radius:20px;font-weight:600;">En cours</span>`);
     if(w.s===27) badges.push(`<span style="font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:20px;font-weight:600;">Semi-M</span>`);
     if(w.s===32) badges.push(`<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:2px 7px;border-radius:20px;font-weight:600;">Marathon</span>`);
     const allSessions=[];
@@ -706,7 +734,7 @@ function renderPlan(){
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;padding:10px 0 10px 14px;">
           <div style="width:32px;height:32px;border-radius:8px;background:${typeBg[s2.type]||'#f5f5f5'};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:9px;font-weight:700;color:${c};">${lbl}</span></div>
           <div style="flex:1;min-width:0;">
-            <p style="font-size:12px;font-weight:600;color:var(--text);">${title}${edited?'<span style="font-size:9px;color:#2B8FE0;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}</p>
+            <p style="font-size:12px;font-weight:600;color:var(--text);">${title}${edited?'<span style="font-size:9px;color:#1B4FD8;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}</p>
             ${detail?`<p style="font-size:11px;color:${c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
             <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
           </div>
@@ -724,7 +752,7 @@ function renderPlan(){
     }).join('');
     card.innerHTML=`<div onclick="toggleWeek(${w.s})" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-size:13px;font-weight:600;color:${isCur?'#2B8FE0':'var(--text)'};">S${w.s}</span>
+        <span style="font-size:13px;font-weight:600;color:${isCur?'#1B4FD8':'var(--text)'};">S${w.s}</span>
         <span style="font-size:12px;color:var(--muted);">· lun. ${w.date}</span>
         ${badges.join('')}
       </div>
@@ -736,7 +764,7 @@ function renderPlan(){
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.2s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </div>
-    ${isPast||isCur?`<div style="padding:0 14px 8px;"><div style="background:var(--bg2);border-radius:4px;height:3px;"><div style="background:${isPast?'#2B8FE0':'#5AAEE8'};border-radius:4px;height:3px;width:${isPast?100:(()=>{
+    ${isPast||isCur?`<div style="padding:0 14px 8px;"><div style="background:var(--bg2);border-radius:4px;height:3px;"><div style="background:${isPast?'#1B4FD8':'#5B7FE8'};border-radius:4px;height:3px;width:${isPast?100:(()=>{
       const total=weeks[w.s-1].sessions.length;
       const done=weeks[w.s-1].sessions.filter((_,si)=>state[gk(w.s,si)+'done']||state[gk(w.s,si)+'km']!=null).length;
       return total>0?Math.round(done/total*100):0;
@@ -878,7 +906,7 @@ function openEditModal(ws, si){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="resetSession(${ws},${si})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
-      <button onclick="saveEdit(${ws},${si})" style="padding:12px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+      <button onclick="saveEdit(${ws},${si})" style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
     </div>
     <button onclick="deleteSession(${ws},${si})" style="width:100%;margin-top:8px;padding:11px;background:transparent;border:1px solid #E24B4A;border-radius:var(--radius-sm);font-size:13px;color:#E24B4A;cursor:pointer;">Supprimer cette séance</button>
   </div>`;
@@ -995,7 +1023,7 @@ function openAddModal(ws){
         <select id="add-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
       </div>
     </div>
-    <button onclick="saveAdd(${ws})" style="width:100%;margin-top:20px;padding:13px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Ajouter</button>
+    <button onclick="saveAdd(${ws})" style="width:100%;margin-top:20px;padding:13px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Ajouter</button>
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   mc.appendChild(overlay);
@@ -1031,7 +1059,7 @@ function openEditExtraModal(ws, ei){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
-      <button onclick="saveExtraEdit(${ws},${ei})" style="padding:12px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+      <button onclick="saveExtraEdit(${ws},${ei})" style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
     </div>
     <button onclick="deleteExtra(${ws},${ei})" style="width:100%;margin-top:8px;padding:11px;background:transparent;border:1px solid #E24B4A;border-radius:var(--radius-sm);font-size:13px;color:#E24B4A;cursor:pointer;">Supprimer cette séance</button>
   </div>`;
@@ -1089,7 +1117,7 @@ function deleteShoe(name){
 }
 function openAddShoeModal(){
   const mc=document.getElementById('modal-container');
-  const colors=['#185FA5','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
+  const colors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
   const colorBtns=colors.map(c=>`<button onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
     style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid transparent;cursor:pointer;transition:border 0.15s;"
     ></button>`).join('');
@@ -1115,7 +1143,7 @@ function openAddShoeModal(){
         <input type="number" id="new-shoe-max" value="600" min="100" max="2000" step="50" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
       </div>
     </div>
-    <button onclick="saveNewShoe()" style="width:100%;margin-top:20px;padding:13px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Ajouter</button>
+    <button onclick="saveNewShoe()" style="width:100%;margin-top:20px;padding:13px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Ajouter</button>
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   mc.appendChild(overlay);
@@ -1130,11 +1158,87 @@ function selectShoeColor(c){
   const btn=document.getElementById('sc-'+c.replace('#',''));
   if(btn) btn.style.border='3px solid var(--text)';
 }
+function openShoeHistory(shoeName){
+  const sh=getShoes().find(s=>s.name===shoeName);
+  if(!sh) return;
+  const sessions=[];
+  for(let ws=1;ws<CW;ws++){  // semaines passées uniquement
+    const w=weeks[ws-1];
+    weeks[ws-1].sessions.forEach((baseSess,si)=>{
+      if(state[`del_w${ws}_s${si}`]) return;
+      // Récupérer la session (avec modifications éventuelles)
+      const s=getSession(ws,si);
+      if(s.shoe!==shoeName) return;
+      if(s.km===0) return; // ignorer repos
+      const dk=gk(ws,si);
+      const kmReal=state[dk+'km']!=null?state[dk+'km']:s.km;
+      const title=s.d.split('|')[0];
+      sessions.push({title,km:kmReal,ws});
+    });
+    // séances extra
+    let ei=0;
+    while(state[`extra_w${ws}_s${ei}`]){
+      const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+      if(s.shoe===shoeName && s.km>0){
+        sessions.push({title:s.d.split('|')[0],km:s.km,ws});
+      }
+      ei++;
+    }
+  }
+  // S7 en cours : séances déjà cochées
+  const w=weeks[CW-1];
+  getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
+    if(s.shoe!==shoeName||s.km===0) return;
+    const done=!extra&&(state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null);
+    if(!done) return;
+    const kmReal=(!extra&&state[gk(CW,si)+'km']!=null)?state[gk(CW,si)+'km']:s.km;
+    sessions.push({title:s.d.split('|')[0],km:kmReal,ws:CW});
+  });
+
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+
+  // Grouper par mois
+  const byMonth={};
+  sessions.forEach(s=>{
+    const month=weeks[s.ws-1].month;
+    if(!byMonth[month]) byMonth[month]=[];
+    byMonth[month].push(s);
+  });
+
+  const rows=sessions.length===0
+    ?`<p style="text-align:center;color:var(--muted);font-size:13px;padding:20px 0;">Aucune séance réalisée pour l'instant</p>`
+    :Object.entries(byMonth).map(([month,seances])=>`
+      <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.08em;padding:10px 0 4px;border-bottom:1px solid var(--border);">${month}</div>
+      ${seances.map((s,i)=>`
+        <div style="display:grid;grid-template-columns:40px 1fr 45px;align-items:center;gap:8px;padding:9px 0;${i<seances.length-1?'border-bottom:1px solid var(--border)':''}">
+          <span style="font-size:11px;font-weight:600;color:var(--muted);">S${s.ws}</span>
+          <span style="font-size:13px;color:var(--text);font-weight:500;">${s.title}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text);text-align:right;">${s.km} km</span>
+        </div>`).join('')}
+    `).join('');
+  const totalKm=Math.round(sessions.reduce((a,s)=>a+s.km,0)*10)/10;
+  overlay.innerHTML=`<div class="modal-box" style="max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:12px;height:12px;border-radius:50%;background:${sh.color};display:inline-block;"></span>
+        <p style="font-size:16px;font-weight:600;color:var(--text);">${shoeName}</p>
+      </div>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">${sessions.length} séance${sessions.length>1?'s':''} · ${totalKm} km total</p>
+    <div>${rows}</div>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+}
+
 function openEditShoeModal(name){
   const arr=getShoes();
   const sh=arr.find(s=>s.name===name);
   if(!sh) return;
-  const colors=['#185FA5','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
+  const colors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
   const colorBtns=colors.map(c=>`<button onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
     style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===sh.color?'var(--text)':'transparent'};cursor:pointer;"></button>`).join('');
   const mc=document.getElementById('modal-container');
@@ -1160,7 +1264,7 @@ function openEditShoeModal(name){
         <input type="number" id="new-shoe-max" value="${sh.max}" min="100" max="2000" step="50" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
       </div>
     </div>
-    <button onclick="saveEditShoe('${name}')" style="width:100%;margin-top:20px;padding:13px;background:#2B8FE0;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+    <button onclick="saveEditShoe('${name}')" style="width:100%;margin-top:20px;padding:13px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   mc.appendChild(overlay);
@@ -1203,7 +1307,7 @@ function renderStats(){
   const cwDoneCount=weeks[CW-1].sessions.filter((_,si)=>state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null).length;
   const cwTotal=weeks[CW-1].sessions.length;
   const cwComplete=cwDoneCount>=cwTotal;
-  const bgs=weeks.map(w=>w.s<CW?'#2B8FE0':w.s===CW?(cwComplete?'#2B8FE0':'#D3D1C7'):'#D3D1C7');
+  const bgs=weeks.map(w=>w.s<CW?'#1B4FD8':w.s===CW?(cwComplete?'#1B4FD8':'#D3D1C7'):'#D3D1C7');
   if(chartKm)chartKm.destroy();
   const kmData=weeks.map(w=>getWeekTotalKm(w.s));
   chartKm=new Chart(document.getElementById('chart-km'),{
@@ -1262,9 +1366,10 @@ function renderStats(){
     const row=document.createElement('div');
     row.style.cssText='margin-bottom:14px;';
     row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="openShoeHistory('${sh.name}')">
         <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};display:inline-block;flex-shrink:0;"></span>
-        <span style="font-size:13px;font-weight:600;color:var(--text);">${sh.name}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px dashed var(--border);">${sh.name}</span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <span style="font-size:13px;color:var(--text);">${km} <span style="color:var(--muted);">/ ${sh.max} km</span></span>
@@ -1299,7 +1404,7 @@ function renderStats(){
   calories.forEach((c,i)=>{
     const balance=consumed-c.kcal;
     const pct=Math.round(c.kcal/3500*100);
-    const barColor=c.kcal>3000?'#E24B4A':c.kcal>2800?'#F5A623':'#2B8FE0';
+    const barColor=c.kcal>3000?'#E24B4A':c.kcal>2800?'#F5A623':'#1B4FD8';
     const balColor=balance>=0?'#3B6D11':'#E24B4A';
     const balLabel=balance>=0?`+${balance} kcal surplus`:`${balance} kcal déficit`;
     const row=document.createElement('div');
@@ -1318,7 +1423,7 @@ function renderStats(){
   gels.forEach((g,i)=>{
     const row=document.createElement('div');
     row.style.cssText=`display:grid;grid-template-columns:72px 52px 1fr;padding:10px 12px;border-bottom:${i<gels.length-1?'1px solid var(--border)':'none'};`;
-    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${g.km} km</span><span style="font-size:13px;font-weight:600;color:#2B8FE0;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
+    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${g.km} km</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
     gr.appendChild(row);
   });
 }
@@ -1329,7 +1434,7 @@ function switchRenfo(n){
   const labels=[['Ischio-fessiers','Fémoro-patellaire · 6 exos'],['Bas du dos','Core stabilisation · 5 exos']];
   [1,2].forEach(x=>{
     const t=document.getElementById('renfo-tab-'+x);
-    t.style.background=x===n?'#2B8FE0':'var(--bg2)';
+    t.style.background=x===n?'#1B4FD8':'var(--bg2)';
     t.style.border=x===n?'none':'1px solid var(--border)';
     t.querySelectorAll('p')[0].style.color=x===n?'#fff':'var(--text)';
     t.querySelectorAll('p')[1].style.color=x===n?'rgba(255,255,255,0.8)':'var(--muted)';
@@ -1347,7 +1452,7 @@ function renderRenfoExercises(){
   if(isDone)document.getElementById('renfo-done-text').textContent=`${renfoNames[curRenfo-1]} validé — S${CW}`;
   const btn=document.getElementById('renfo-btn');
   btn.textContent=isDone?'Séance déjà validée':'Valider la séance';
-  btn.style.background=isDone?'#639922':'#2B8FE0';
+  btn.style.background=isDone?'#639922':'#1B4FD8';
   let cancelBtn=document.getElementById('renfo-cancel-btn');
   if(!cancelBtn){
     cancelBtn=document.createElement('button');
@@ -1370,20 +1475,20 @@ function renderRenfoExercises(){
     let seriesBtns='';
     for(let s=1;s<=nb;s++){
       const done=s<=doneSeries;
-      seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#2B8FE0':'var(--border)'};background:${done?'#2B8FE0':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
+      seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#1B4FD8':'var(--border)'};background:${done?'#1B4FD8':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
     }
 
     div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
       <div style="flex:1;min-width:0;">
         <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;${allDone?'opacity:0.5;':''}">${ex.nom} ${allDone?'<span style="font-size:11px;color:#3B6D11;">✓ terminé</span>':''}</p>
         <p style="font-size:12px;color:var(--muted);margin-bottom:5px;${allDone?'opacity:0.5;':''}">${ex.desc}</p>
-        <span style="font-size:11px;background:#EBF4FD;color:#1A6CB5;padding:2px 8px;border-radius:20px;font-weight:600;">${ex.series}</span>
+        <span style="font-size:11px;background:#EEF2FD;color:#1438A8;padding:2px 8px;border-radius:20px;font-weight:600;">${ex.series}</span>
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <span style="font-size:11px;color:var(--muted);margin-right:2px;">Séries :</span>
       ${seriesBtns}
-      ${doneSeries>0&&!allDone?`<span style="font-size:11px;color:#2B8FE0;font-weight:600;">${doneSeries}/${nb}</span>`:''}
+      ${doneSeries>0&&!allDone?`<span style="font-size:11px;color:#1B4FD8;font-weight:600;">${doneSeries}/${nb}</span>`:''}
     </div>`;
     el.appendChild(div);
   });
