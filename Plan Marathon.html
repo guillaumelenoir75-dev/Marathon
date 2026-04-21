@@ -331,12 +331,11 @@ function initFirebase(){
       };
       firebase.initializeApp(firebaseConfig);
       dbRef=firebase.database().ref('marathon/state');
-      dbRef.on('value',(snapshot)=>{
+      // Charger une seule fois au démarrage
+      dbRef.once('value',(snapshot)=>{
         const data=snapshot.val();
-        if(data){
-          state=data;
-          migrateState();
-        }
+        if(data) state=data;
+        migrateState();
         firebaseReady=true;
         renderHome();
       });
