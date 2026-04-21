@@ -65,7 +65,7 @@ input[type=number]:focus{border-color:var(--orange);}
     </div>
   </div>
   <div style="padding:0 16px;">
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Séances</p>
+    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Séances — <span style="font-size:11px;font-weight:700;color:var(--text);" id="week-total-km"></span></p>
     <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;">
       <div class="kpi-card">
@@ -102,7 +102,7 @@ input[type=number]:focus{border-color:var(--orange);}
 <div id="sc-stats" style="display:none;padding:16px;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;">Statistiques</p>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Volume par semaine (km)</p>
-  <div style="position:relative;width:100%;height:200px;margin-bottom:20px;"><canvas id="chart-km"></canvas></div>
+  <div style="position:relative;width:100%;height:260px;margin-bottom:20px;"><canvas id="chart-km"></canvas></div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
   <div id="shoes-manage" style="margin-bottom:20px;"></div>
@@ -432,6 +432,8 @@ function renderHome(){
   const weeksLeftEl=document.getElementById('kpi-weeks-left');
   if(weeksLeftEl) weeksLeftEl.textContent=Math.max(0,32-CW);
   document.getElementById('kpi-week-plan').textContent='/ '+getWeekTotalKm(CW)+' km planifiés';
+  const wtEl=document.getElementById('week-total-km');
+  if(wtEl) wtEl.textContent=getWeekTotalKm(CW)+' km';
   // Renfo
   const renfoEl=document.getElementById('home-renfo');
   if(renfoEl){
@@ -614,6 +616,7 @@ function saveHomeModal(idx){
   rendered.stats=false;
   renderHome();
   renderPlan();
+  if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
 
 function clearHomeModal(idx){
@@ -625,6 +628,7 @@ function clearHomeModal(idx){
   rendered.stats=false;
   renderHome();
   renderPlan();
+  if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
 
 function openModal(idx){
@@ -652,10 +656,10 @@ function closeModal(){const mc=document.getElementById('modal-container');mc.inn
 function saveKm(idx){
   const v=parseFloat(document.getElementById('modal-input').value);
   if(!isNaN(v)&&v>=0){state[gk(CW,idx)+'km']=v;state[gk(CW,idx)+'done']=true;save();}
-  closeModal();renderHome();
+  closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
-function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHome();}
-function toggleDone(idx){const k=gk(CW,idx)+'done';state[k]=!state[k];save();renderHome();}
+function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
+function toggleDone(idx){const k=gk(CW,idx)+'done';state[k]=!state[k];save();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
 
 const openWeeks=new Set();
 function renderPlan(){
@@ -1196,12 +1200,44 @@ function saveNewShoe(){
 let chartKm=null;
 function renderStats(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
-  const bgs=weeks.map(w=>w.s<CW?'#2B8FE0':w.s===CW?'#5AAEE8':'#D3D1C7');
+  const cwDoneCount=weeks[CW-1].sessions.filter((_,si)=>state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null).length;
+  const cwTotal=weeks[CW-1].sessions.length;
+  const cwComplete=cwDoneCount>=cwTotal;
+  const bgs=weeks.map(w=>w.s<CW?'#2B8FE0':w.s===CW?(cwComplete?'#2B8FE0':'#D3D1C7'):'#D3D1C7');
   if(chartKm)chartKm.destroy();
+  const kmData=weeks.map(w=>getWeekTotalKm(w.s));
   chartKm=new Chart(document.getElementById('chart-km'),{
     type:'bar',
-    data:{labels:weeks.map(w=>'S'+w.s),datasets:[{data:weeks.map(w=>getWeekTotalKm(w.s)),backgroundColor:bgs,borderRadius:2,borderSkipped:false}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' km'}}},scales:{x:{ticks:{color:isDark?'#888':'#666',font:{size:8}},autoSkip:true,maxTicksLimit:16,grid:{display:false}},y:{ticks:{color:isDark?'#888':'#666',font:{size:9}},grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}}}}
+    data:{
+      labels:weeks.map(w=>'S'+w.s),
+      datasets:[{
+        data:kmData,
+        backgroundColor:bgs,
+        borderRadius:3,
+        borderSkipped:false,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.raw+' km'}}
+      },
+      scales:{
+        x:{
+          ticks:{color:isDark?'#888':'#666',font:{size:8}},
+          autoSkip:true,
+          maxTicksLimit:16,
+          grid:{display:false}
+        },
+        y:{
+          min:10,
+          ticks:{color:isDark?'#888':'#666',font:{size:9},stepSize:10},
+          grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}
+        }
+      }
+    }
   });
   const sb=document.getElementById('shoes-bars');sb.innerHTML='';
   const dynamicShoes=getShoes();
@@ -1209,7 +1245,19 @@ function renderStats(){
   const defaultNames=[P,S,Z];
   dynamicShoes.forEach((sh)=>{
     const defaultIdx=defaultNames.indexOf(sh.name);
-    const km=defaultIdx>=0?(shoeKm[defaultIdx][CW-1]||0):(state[`shoe_km_${sh.name}`]||0);
+    // Base = km cumulés FIN de la semaine précédente (CW-2)
+    const baseKm=defaultIdx>=0?(shoeKm[defaultIdx][CW-2]||0):(state[`shoe_km_${sh.name}`]||0);
+    // Ajouter les km réels des séances cochées cette semaine avec cette chaussure
+    let thisWeekKm=0;
+    getOrderedWeekSessions(CW).forEach(({s:s2,si,extra})=>{
+      if(s2.shoe===sh.name){
+        const done=!extra&&(state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null);
+        if(done){
+          thisWeekKm+=state[gk(CW,si)+'km']!=null?state[gk(CW,si)+'km']:s2.km;
+        }
+      }
+    });
+    const km=baseKm+thisWeekKm;
     const pct=Math.min(100,Math.round(km/sh.max*100));
     const row=document.createElement('div');
     row.style.cssText='margin-bottom:14px;';
@@ -1386,7 +1434,7 @@ function showScreen(name, renfoTab){
   });
   if(name==='home')renderHome();
   if(name==='plan'&&!rendered.plan){rendered.plan=true;renderPlan();}
-  if(name==='stats'&&!rendered.stats){rendered.stats=true;setTimeout(renderStats,50);}
+  if(name==='stats'){rendered.stats=true;setTimeout(renderStats,50);}
   if(name==='renfo'){
     if(!rendered.renfo)rendered.renfo=true;
     if(renfoTab&&renfoTab!==curRenfo) switchRenfo(renfoTab);
