@@ -107,16 +107,13 @@ input[type=number]:focus{border-color:var(--orange);}
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
   <div id="shoes-manage" style="margin-bottom:20px;"></div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Performances — séances validées</p>
-  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
-    <div style="display:grid;grid-template-columns:80px 1fr 48px 48px 48px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);gap:4px;">
-      <span style="font-size:10px;font-weight:600;color:var(--muted);">Séance</span>
-      <span style="font-size:10px;font-weight:600;color:var(--muted);">Nom</span>
-      <span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center;">KM</span>
-      <span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center;">Allure</span>
-      <span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center;">FC</span>
-    </div>
-    <div id="perf-rows"><p style="padding:16px;text-align:center;font-size:13px;color:var(--muted);">Aucune séance validée pour l'instant</p></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="perf-filters">
+    <button onclick="setPerfFilter('all')" id="pf-all" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Tout</button>
+    <button onclick="setPerfFilter('ef')" id="pf-ef" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">EF</button>
+    <button onclick="setPerfFilter('tempo')" id="pf-tempo" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Tempo</button>
+    <button onclick="setPerfFilter('long')" id="pf-long" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Long</button>
   </div>
+  <div id="perf-rows" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px;"></div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
     <div style="display:grid;grid-template-columns:72px 52px 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
@@ -603,6 +600,11 @@ function openValidationModal(idx){
       <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Date de la séance</p>
+        <input type="date" id="val-date" value="${(()=>{const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')})()}"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
@@ -676,6 +678,7 @@ function saveValidation(idx){
   const dur=(document.getElementById('val-dur').value||'').trim();
   const pace=(document.getElementById('val-pace').value||'').trim();
   const hr=parseInt(document.getElementById('val-hr').value)||null;
+  const dateVal=(document.getElementById('val-date').value||'').trim();
   const k=gk(CW,idx);
   state[k+'done']=true;
   if(!isNaN(km)&&km>=0) state[k+'km']=km;
@@ -683,6 +686,7 @@ function saveValidation(idx){
   if(dur) perf.dur=dur;
   if(pace) perf.pace=pace;
   if(hr) perf.hr=hr;
+  if(dateVal) perf.date=dateVal; // "YYYY-MM-DD"
   if(Object.keys(perf).length>0) state[k+'perf']=JSON.stringify(perf);
   save();
   closeModal();
@@ -1532,6 +1536,31 @@ function saveNewShoe(){
   renderHome();
 }
 
+let perfFilter='all';
+function setPerfFilter(f){
+  perfFilter=f;
+  ['all','ef','tempo','long'].forEach(k=>{
+    const btn=document.getElementById('pf-'+k);
+    if(!btn) return;
+    const active=k===f;
+    const color=k==='ef'?'#3B6D11':k==='tempo'?'#E8530A':k==='long'?'#534AB7':'var(--blue)';
+    btn.style.background=active?color:'transparent';
+    btn.style.borderColor=active?color:'var(--border)';
+    btn.style.color=active?'#fff':'var(--muted)';
+  });
+  rendered.stats=false;
+  renderStats();
+}
+
+function togglePerfMonth(id){
+  const el=document.getElementById(id);
+  const arr=document.getElementById('arr-'+id);
+  if(!el) return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(arr) arr.style.transform=open?'rotate(180deg)':'rotate(0)';
+}
+
 let chartKm=null;
 function renderStats(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
@@ -1665,7 +1694,7 @@ function renderStats(){
       's3i1':{dur:'52:33',pace:'6:56',hr:141},
       's3i2':{dur:'44:21',pace:'6:20',hr:145},
       's4i0':{dur:'1:00:10',pace:'6:40',hr:144},
-      's4i2':{dur:'58:55',pace:'6:31',hr:152},
+      's4i2':{dur:'58:55',pace:'6:31',hr:152,date:'2026-04-04'},
       's5i0':{dur:'45:50',pace:'6:33',hr:146},
       's5i1':{dur:'41:03',pace:'5:52',hr:154},
       's5i2':{dur:'54:56',pace:'5:59',hr:159},
@@ -1690,19 +1719,49 @@ function renderStats(){
         perfRows.push({ws,title,km:kmReal,perf,c,type:s.type});
       });
     }
-    if(perfRows.length===0){
-      pr.innerHTML='<p style="padding:16px;text-align:center;font-size:13px;color:var(--muted);">Aucune séance validée pour l\'instant</p>';
+    // Apply filter
+    const filtered=perfFilter==='all'?perfRows:perfRows.filter(r=>r.type===perfFilter);
+    const moisFr=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    perfRows.forEach(row=>{
+      row.bg=typeBg[row.type]||'#f5f5f5';
+      if(row.perf.date){
+        const d=new Date(row.perf.date);
+        row.month=moisFr[d.getMonth()];
+      } else {
+        row.month=weeks[row.ws-1].month;
+      }
+    });
+    if(filtered.length===0){
+      pr.innerHTML='<p style="padding:16px;text-align:center;font-size:13px;color:var(--muted);">Aucune séance pour ce filtre</p>';
     } else {
-      pr.innerHTML=perfRows.reverse().map((row,i)=>{
-        const hasPerf=row.perf.pace||row.perf.dur||row.perf.hr;
-        return `<div style="display:grid;grid-template-columns:80px 1fr 48px 48px 48px;padding:10px 12px;border-bottom:${i<perfRows.length-1?'1px solid var(--border)':'none'};align-items:center;gap:4px;">
-          <span style="font-size:11px;font-weight:700;color:${row.c};background:${typeBg[row.type]||'#f5f5f5'};padding:2px 6px;border-radius:20px;text-align:center;">${typeLabel[row.type]||'EF'} S${row.ws}</span>
-          <span style="font-size:12px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.title}</span>
-          <span style="font-size:12px;font-weight:700;color:var(--text);text-align:center;">${row.km}</span>
-          <span style="font-size:11px;color:var(--muted);text-align:center;">${row.perf.pace||'—'}</span>
-          <span style="font-size:11px;color:var(--muted);text-align:center;">${row.perf.hr?row.perf.hr+'':'—'}</span>
-        </div>`;
-      }).join('');
+      const byMonth={};
+      [...filtered].reverse().forEach(row=>{
+        if(!byMonth[row.month]) byMonth[row.month]=[];
+        byMonth[row.month].push(row);
+      });
+      pr.innerHTML='';
+      Object.entries(byMonth).forEach(([month,rows])=>{
+        const bonusKm=(month==='Mars')?8:0;
+        const totalKm=rows.reduce((a,r)=>a+Number(r.km),0)+bonusKm;
+        const hid='pm_'+month.replace(/[^a-zA-Z]/g,'_');
+        const card=document.createElement('div');
+        card.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;';
+        const detail=rows.map((row,i)=>`
+          <div style="padding:10px 14px;${i<rows.length-1?'border-bottom:1px solid var(--border)':''};">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:10px;font-weight:700;color:${row.c};background:${row.bg};padding:2px 7px;border-radius:20px;">S${row.ws} · ${typeLabel[row.type]||'EF'}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text);">${row.title}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+              <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">KM</p><p style="font-size:14px;font-weight:700;color:var(--text);">${row.km}</p></div>
+              <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">Durée</p><p style="font-size:12px;font-weight:700;color:var(--text);">${row.perf.dur||'—'}</p></div>
+              <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">Allure</p><p style="font-size:12px;font-weight:700;color:var(--text);">${row.perf.pace||'—'}</p></div>
+              <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">FC</p><p style="font-size:14px;font-weight:700;color:var(--text);">${row.perf.hr||'—'}</p></div>
+            </div>
+          </div>`).join('');
+        card.innerHTML=`<div onclick="togglePerfMonth('${hid}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;user-select:none;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.06em;">${month}</span><span style="font-size:11px;color:var(--muted);">${rows.length} séance${rows.length>1?'s':''}</span></div><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:600;color:var(--text);">${Math.round(totalKm*10)/10} km</span><svg id="arr-${hid}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="transition:transform 0.2s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg></div></div><div id="${hid}" style="display:none;border-top:1px solid var(--border);">${detail}</div>`;
+        pr.appendChild(card);
+      });
     }
   }
 
