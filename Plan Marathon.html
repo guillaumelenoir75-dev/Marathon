@@ -847,6 +847,45 @@ function parsePaceToSec(paceStr){
   return parseInt(p[0])*60+parseInt(p[1]);
 }
 
+function getHistoricalComparison(type, pace, hr){
+  // Récupérer toutes les séances précédentes du même type avec perf
+  const history=[];
+  for(let ws=1;ws<CW;ws++){
+    weeks[ws-1].sessions.forEach((s,si)=>{
+      if(s.type!==type) return;
+      const k=gk(ws,si);
+      if(!state[k+'done']) return;
+      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+      if(!perf.pace) return;
+      const sec=paceStrToSec(perf.pace);
+      if(!sec) return;
+      history.push({ws,sec,pace:perf.pace,hr:perf.hr?parseInt(perf.hr):null});
+    });
+  }
+  if(history.length===0||!pace) return null;
+  const curSec=paceStrToSec(pace);
+  if(!curSec) return null;
+
+  // 1. Comparaison avec dernière séance du même type
+  const last=history[history.length-1];
+  const diffLast=last.sec-curSec; // positif = on est plus rapide maintenant
+  const pctLast=Math.round(Math.abs(diffLast)/last.sec*100);
+
+  // 2. Si HR disponible, chercher séances à FC similaire (±5 bpm)
+  let hrComp=null;
+  if(hr&&last.hr){
+    const similar=history.filter(h=>h.hr&&Math.abs(h.hr-hr)<=5);
+    if(similar.length>0){
+      const bestSimilar=similar.reduce((a,b)=>b.sec<a.sec?b:a); // meilleure allure
+      const diffHr=bestSimilar.sec-curSec;
+      const pctHr=Math.round(Math.abs(diffHr)/bestSimilar.sec*100);
+      hrComp={pace:bestSimilar.pace,hr:bestSimilar.hr,ws:bestSimilar.ws,diff:diffHr,pct:pctHr};
+    }
+  }
+
+  return {last,diffLast,pctLast,hrComp,count:history.length};
+}
+
 function showCoachFeedback(s, km, pace, hr, amImproved){
   const msgs=[];
   const c=typeColor[s.type]||'#888';
@@ -910,6 +949,34 @@ function showCoachFeedback(s, km, pace, hr, amImproved){
       }
     } else {
       msgs.push({icon:'ℹ',color:'#1B4FD8',text:`Allure enregistrée : ${pace}/km. Pense à renseigner l'allure cible dans ton plan pour un suivi précis.`});
+    }
+  }
+
+  // === COMPARAISON HISTORIQUE ===
+  if(pace && (s.type==='ef'||s.type==='tempo'||s.type==='long')){
+    const comp=getHistoricalComparison(s.type,pace,hr);
+    if(comp){
+      // Comparaison avec la dernière séance
+      if(comp.diffLast>2){
+        msgs.push({icon:'📈',color:'#3B6D11',
+          text:`Progression vs dernière ${typeLabel[s.type]} — allure ${pace}/km vs ${comp.last.pace}/km, soit +${comp.pctLast}% plus rapide. Belle amélioration !`});
+      } else if(comp.diffLast<-2){
+        msgs.push({icon:'📉',color:'#854F0B',
+          text:`Régression vs dernière ${typeLabel[s.type]} — allure ${pace}/km vs ${comp.last.pace}/km (${comp.pctLast}% moins rapide). Peut-être fatigue ou jour sans ?`});
+      } else {
+        msgs.push({icon:'➡',color:'#1B4FD8',
+          text:`Allure stable vs dernière ${typeLabel[s.type]} — ${pace}/km vs ${comp.last.pace}/km. Régularité au rendez-vous.`});
+      }
+      // Comparaison à FC similaire (±5 bpm) si disponible
+      if(comp.hrComp&&hr){
+        if(comp.hrComp.diff>2){
+          msgs.push({icon:'💓',color:'#3B6D11',
+            text:`À FC similaire (${hr} vs ${comp.hrComp.hr} bpm) — tu cours ${comp.hrComp.pct}% plus vite qu'en S${comp.hrComp.ws} (${pace}/km vs ${comp.hrComp.pace}/km). Ton cœur travaille mieux !`});
+        } else if(comp.hrComp.diff<-2){
+          msgs.push({icon:'💓',color:'#854F0B',
+            text:`À FC similaire (${hr} vs ${comp.hrComp.hr} bpm) — allure ${comp.hrComp.pct}% moins rapide qu'en S${comp.hrComp.ws} (${pace}/km vs ${comp.hrComp.pace}/km).`});
+        }
+      }
     }
   }
 
