@@ -75,15 +75,15 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
       <div class="kpi-card">
         <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">KM faits total</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-total">192</p>
+        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-total">—</p>
       </div>
       <div class="kpi-card">
         <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">KM restants</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-rest">900</p>
+        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-rest">—</p>
       </div>
       <div class="kpi-card">
         <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Semaines restantes</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-weeks-left">26</p>
+        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-weeks-left">—</p>
       </div>
     </div>
     <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Renforcement cette semaine</p>
@@ -457,18 +457,21 @@ function rfk(w,r){return `rf${w}r${r}`;}
 
 function calcWeekDoneKm(){
   let t=0;
-  weeks[CW-1].sessions.forEach((s,i)=>{
-    const dn=state[gk(CW,i)+'done'],rv=state[gk(CW,i)+'km'];
-    if(dn||rv!=null)t+=(rv!=null?rv:s.km);
+  getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
+    if(extra) return;
+    const dn=state[gk(CW,si)+'done'],rv=state[gk(CW,si)+'km'];
+    if(dn||rv!=null) t+=(rv!=null?rv:s.km);
   });
   return Math.round(t*10)/10;
 }
 
 function calcTotalDone(){
+  // Km faits avant S7 + km réels des séances cochées de S7
   let t=KM_AVANT_S7;
-  weeks[CW-1].sessions.forEach((s,i)=>{
-    const dn=state[gk(CW,i)+'done'],rv=state[gk(CW,i)+'km'];
-    if(dn||rv!=null)t+=(rv!=null?rv:s.km);
+  getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
+    if(extra) return;
+    const dn=state[gk(CW,si)+'done'],rv=state[gk(CW,si)+'km'];
+    if(dn||rv!=null) t+=(rv!=null?rv:s.km);
   });
   return Math.round(t);
 }
@@ -680,19 +683,113 @@ function saveValidation(idx){
   const hr=parseInt(document.getElementById('val-hr').value)||null;
   const dateVal=(document.getElementById('val-date').value||'').trim();
   const k=gk(CW,idx);
+  const s=getSession(CW,idx);
   state[k+'done']=true;
   if(!isNaN(km)&&km>=0) state[k+'km']=km;
   const perf={};
   if(dur) perf.dur=dur;
   if(pace) perf.pace=pace;
   if(hr) perf.hr=hr;
-  if(dateVal) perf.date=dateVal; // "YYYY-MM-DD"
+  if(dateVal) perf.date=dateVal;
   if(Object.keys(perf).length>0) state[k+'perf']=JSON.stringify(perf);
   save();
   closeModal();
   renderHome();
   rendered.stats=false;
   if(document.getElementById('sc-stats').style.display!=='none')renderStats();
+  // Coach feedback
+  showCoachFeedback(s, km, pace, hr);
+}
+
+function parsePaceToSec(paceStr){
+  if(!paceStr) return null;
+  const p=paceStr.split(':');
+  if(p.length!==2) return null;
+  return parseInt(p[0])*60+parseInt(p[1]);
+}
+
+function showCoachFeedback(s, km, pace, hr){
+  const msgs=[];
+  const c=typeColor[s.type]||'#888';
+  const bg=typeBg[s.type]||'#f5f5f5';
+
+  // === KM CHECK (toutes séances) ===
+  if(!isNaN(km)&&km>0){
+    const diff=km-s.km;
+    const pct=Math.round(Math.abs(diff)/s.km*100);
+    if(Math.abs(diff)<0.5){
+      msgs.push({icon:'✓',color:'#3B6D11',text:`Distance parfaite — ${km} km réalisés pour ${s.km} km prévus.`});
+    } else if(diff<0){
+      if(pct>15) msgs.push({icon:'⚠',color:'#E8530A',text:`Distance en dessous — ${km} km réalisés pour ${s.km} km prévus (${pct}% de moins). Essaie de rester proche du plan.`});
+      else msgs.push({icon:'~',color:'#854F0B',text:`Légèrement en dessous — ${km} km pour ${s.km} km prévus. Rien d'alarmant.`});
+    } else {
+      if(pct>20) msgs.push({icon:'⚠',color:'#E8530A',text:`Distance dépassée — ${km} km pour ${s.km} km prévus (+${pct}%). Attention à la surcharge.`});
+      else msgs.push({icon:'~',color:'#854F0B',text:`Un peu au-dessus — ${km} km pour ${s.km} km prévus. Reste raisonnable.`});
+    }
+  }
+
+  // === FC CHECK (EF + Long) ===
+  if((s.type==='ef'||s.type==='long')&&hr){
+    if(hr<=148){
+      msgs.push({icon:'✓',color:'#3B6D11',text:`FC bien maîtrisée — ${hr} bpm, sous le seuil de 148 bpm. Tu restes en zone aérobie.`});
+    } else if(hr<=158){
+      msgs.push({icon:'⚠',color:'#E8530A',text:`FC un peu élevée — ${hr} bpm, au-dessus du seuil de 148 bpm. Essaie de ralentir l'allure sur les prochaines sorties EF.`});
+    } else {
+      msgs.push({icon:'✗',color:'#E24B4A',text:`FC trop élevée — ${hr} bpm ! Cette séance était trop intense pour une sortie ${s.type==='ef'?'EF':'longue'}. Ralentis clairement la prochaine fois.`});
+    }
+  }
+
+  // === ALLURE CHECK (Tempo) ===
+  if(s.type==='tempo'&&pace){
+    const detail=s.d.split('|')[1]||'';
+    const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
+    if(paceMatch){
+      const targetMin=parseInt(paceMatch[1])*60+parseInt(paceMatch[2]);
+      const targetMax=parseInt(paceMatch[3])*60+parseInt(paceMatch[4]);
+      const actual=parsePaceToSec(pace);
+      if(actual){
+        if(actual>=targetMin&&actual<=targetMax){
+          msgs.push({icon:'✓',color:'#3B6D11',text:`Allure dans la cible — ${pace}/km, dans l'intervalle ${paceMatch[1]}:${paceMatch[2]}–${paceMatch[3]}:${paceMatch[4]}/km. Parfait !`});
+        } else if(actual<targetMin){
+          const diff=targetMin-actual;
+          msgs.push({icon:'⚠',color:'#E8530A',text:`Allure trop rapide — ${pace}/km, ${diff}s sous l'objectif minimum. Attention à ne pas griller les efforts.`});
+        } else {
+          const diff=actual-targetMax;
+          msgs.push({icon:'⚠',color:'#E8530A',text:`Allure trop lente — ${pace}/km, ${diff}s au-dessus de l'objectif. Essaie de pousser un peu plus sur les répétitions.`});
+        }
+      }
+    } else {
+      msgs.push({icon:'ℹ',color:'#1B4FD8',text:`Allure enregistrée : ${pace}/km. Pense à renseigner l'allure cible dans ton plan pour un suivi précis.`});
+    }
+  }
+
+  if(msgs.length===0) return;
+
+  // Afficher le modal coach
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#1B4FD8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="font-size:18px;">🏃</span>
+        </div>
+        <p style="font-size:16px;font-weight:600;color:var(--text);">Retour coach</p>
+      </div>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${msgs.map(m=>`
+        <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;border-left:3px solid ${m.color};">
+          <span style="font-size:16px;flex-shrink:0;line-height:1.4;">${m.icon}</span>
+          <p style="font-size:13px;color:var(--text);line-height:1.5;">${m.text}</p>
+        </div>`).join('')}
+    </div>
+    <button onclick="closeModal()" style="width:100%;margin-top:16px;padding:12px;background:var(--blue);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">OK, merci !</button>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
 }
 
 function openHomeModal(idx){
@@ -873,8 +970,9 @@ function toggleDone(idx){
     // Ouvrir le modal de validation
     openValidationModal(idx);
   } else {
-    // Décocher directement
+    // Décocher — supprimer done, km réels et perf
     state[k]=false;
+    delete state[gk(CW,idx)+'km'];
     delete state[gk(CW,idx)+'perf'];
     save();
     renderHome();
