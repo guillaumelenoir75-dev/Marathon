@@ -893,28 +893,33 @@ function saveHomeModal(idx){
   const km=parseFloat(document.getElementById('hm-km').value);
   const type=document.getElementById('hm-type').value;
   const shoe=document.getElementById('hm-shoe').value||null;
-  // Récupérer la session existante pour ne pas perdre les données
+
+  // Récupérer la session existante complète (depuis Firebase ou code de base)
   const existing=getSession(CW,idx);
+  const existingParts=existing.d.split('|');
+  const existingTitle=existingParts[0];
+  const existingDetail=existingParts[1]||'';
+
   let name='', detail='';
   if(type==='tempo'){
     const reps=parseInt(document.getElementById('hm-reps').value)||2;
     const dur=parseInt(document.getElementById('hm-dur').value)||8;
     name=`Tempo ${reps}×${dur} min`;
-    const pMin=(document.getElementById('hm-pace-min').value||'').trim();
-    const pMax=(document.getElementById('hm-pace-max').value||'').trim();
+    const pMinEl=document.getElementById('hm-pace-min');
+    const pMaxEl=document.getElementById('hm-pace-max');
+    const pMin=(pMinEl?pMinEl.value||'':'').trim();
+    const pMax=(pMaxEl?pMaxEl.value||'':'').trim();
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
-    // Fallback : garder l'allure existante si les champs sont vides
-    if(!detail){
-      const existingDetail=existing.d.split('|')[1]||'';
-      detail=existingDetail;
-    }
+    // Toujours fallback sur l'allure existante si les champs sont vides ou identiques au défaut
+    if(!detail || detail==='5:00 — 5:20 /km') detail=existingDetail||detail;
   } else {
     const nameEl=document.getElementById('hm-name');
-    if(nameEl) name=nameEl.value.trim();
+    name=nameEl?nameEl.value.trim():existingTitle;
     const detailEl=document.getElementById('hm-detail');
-    if(detailEl) detail=detailEl.value.trim();
+    detail=detailEl?detailEl.value.trim():existingDetail;
   }
+
   if(!isNaN(kmReal)&&kmReal>=0){
     state[gk(CW,idx)+'km']=kmReal;
     state[gk(CW,idx)+'done']=true;
