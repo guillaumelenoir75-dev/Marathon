@@ -355,7 +355,7 @@ function initFirebase(){
 
 function migrateState(){
   // Inject historical sessions S1-S6 if not already done
-  const historyKey='_history_injected_v5';
+  const historyKey='_history_injected_v6';
   if(!state[historyKey]){
     const history=[
       {ws:1,si:1,shoe:'Pegasus',km:8},{ws:1,si:2,shoe:'Pegasus',km:8},
@@ -390,7 +390,7 @@ function migrateState(){
       {ws:3,si:1,km:8,dur:'52:33',pace:'6:56',hr:141},
       {ws:3,si:2,km:8,dur:'44:21',pace:'6:20',hr:145},
       {ws:4,si:0,km:9,dur:'1:00:10',pace:'6:40',hr:144},
-      {ws:4,si:2,km:9,dur:'58:55',pace:'6:31',hr:152},
+      {ws:4,si:2,km:9,dur:'58:55',pace:'6:31',hr:152,date:'2026-04-04'},
       {ws:5,si:0,km:7,dur:'45:50',pace:'6:33',hr:146},
       {ws:5,si:1,km:7,dur:'41:03',pace:'5:52',hr:154},
       {ws:5,si:2,km:9,dur:'54:56',pace:'5:59',hr:159},
@@ -399,9 +399,9 @@ function migrateState(){
       {ws:6,si:2,km:9,dur:'56:39',pace:'6:17',hr:144},
     ];
     // Toujours écrire les perfs S1-S6 (écrase les éventuelles valeurs vides)
-    perfData.forEach(({ws,si,km,dur,pace,hr})=>{
+    perfData.forEach(({ws,si,km,dur,pace,hr,date})=>{
       const k=gk(ws,si);
-      state[k+'perf']=JSON.stringify({dur,pace,hr});
+      state[k+'perf']=JSON.stringify({dur,pace,hr,...(date?{date}:{})});
     });
     // Inject orders
     if(!state['order_w6']) state['order_w6']=JSON.stringify([{"si":1,"extra":false},{"si":0,"extra":false},{"si":2,"extra":false}]);
