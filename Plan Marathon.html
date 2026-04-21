@@ -893,6 +893,8 @@ function saveHomeModal(idx){
   const km=parseFloat(document.getElementById('hm-km').value);
   const type=document.getElementById('hm-type').value;
   const shoe=document.getElementById('hm-shoe').value||null;
+  // Récupérer la session existante pour ne pas perdre les données
+  const existing=getSession(CW,idx);
   let name='', detail='';
   if(type==='tempo'){
     const reps=parseInt(document.getElementById('hm-reps').value)||2;
@@ -902,6 +904,11 @@ function saveHomeModal(idx){
     const pMax=(document.getElementById('hm-pace-max').value||'').trim();
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
+    // Fallback : garder l'allure existante si les champs sont vides
+    if(!detail){
+      const existingDetail=existing.d.split('|')[1]||'';
+      detail=existingDetail;
+    }
   } else {
     const nameEl=document.getElementById('hm-name');
     if(nameEl) name=nameEl.value.trim();
