@@ -912,8 +912,10 @@ function showCoachFeedback(s, km, pace, hr, amImproved){
       msgs.push({icon:'✓',color:'#3B6D11',text:`FC bien maîtrisée — ${hr} bpm, sous le seuil de 148 bpm. Tu restes en zone aérobie.`});
     } else if(hr<=158){
       msgs.push({icon:'⚠',color:'#E8530A',text:`FC un peu élevée — ${hr} bpm, au-dessus du seuil de 148 bpm. Essaie de ralentir l'allure sur les prochaines sorties EF.`});
+      if(s.type==='ef') msgs.push({icon:'ℹ',color:'#854F0B',text:`Cette séance EF ne sera pas prise en compte pour le calcul de l'allure marathon (FC > 148 bpm requise).`});
     } else {
       msgs.push({icon:'✗',color:'#E24B4A',text:`FC trop élevée — ${hr} bpm ! Cette séance était trop intense pour une sortie ${s.type==='ef'?'EF':'longue'}. Ralentis clairement la prochaine fois.`});
+      if(s.type==='ef') msgs.push({icon:'ℹ',color:'#E24B4A',text:`Cette séance EF ne sera pas prise en compte pour le calcul de l'allure marathon (FC > 148 bpm requise).`});
     }
   }
 
