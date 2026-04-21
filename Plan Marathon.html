@@ -547,12 +547,31 @@ function openHomeModal(idx){
   const typeOptions=['ef','tempo','long','rest','race'].map(t=>
     `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
   ).join('');
-  // Parse existing pace for tempo
+  // Parse existing pace and format for tempo
   const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
   const pMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:'5:00';
   const pMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:'5:20';
+  const repMatch=title.match(/(\d+)×(\d+)/);
+  const hmReps=repMatch?repMatch[1]:'2';
+  const hmDur=repMatch?repMatch[2]:'8';
   const detailField=s.type==='tempo'
     ?`<div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Format d'intervalles</p>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
+          <div>
+            <p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">Répétitions</p>
+            <input type="number" id="hm-reps" value="${hmReps}" min="1" max="10" step="1"
+              style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:22px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          </div>
+          <span style="font-size:18px;color:var(--muted);padding-top:18px;">×</span>
+          <div>
+            <p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">Durée (min)</p>
+            <input type="number" id="hm-dur" value="${hmDur}" min="1" max="60" step="1"
+              style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:22px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          </div>
+        </div>
+      </div>
+      <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Allure (min:sec /km)</p>
         <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
           <div>
@@ -567,7 +586,6 @@ function openHomeModal(idx){
               style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
           </div>
         </div>
-        <p style="font-size:10px;color:var(--muted);margin-top:5px;text-align:center;">Format : minutes:secondes (ex: 5:00)</p>
       </div>`
     :`<div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
@@ -586,10 +604,10 @@ function openHomeModal(idx){
         <input type="number" id="hm-km-real" min="0" max="99" step="0.5" value="${cur}" placeholder="${s.km}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:20px;text-align:center;font-weight:700;color:var(--text);width:100%;outline:none;">
       </div>
       <div style="height:1px;background:var(--border);margin:4px 0;"></div>
-      <div>
+      ${s.type!=='tempo'?`<div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
         <input type="text" id="hm-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
+      </div>`:''}
       ${detailField}
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance planifiée (km)</p>
@@ -615,17 +633,21 @@ function openHomeModal(idx){
 
 function saveHomeModal(idx){
   const kmReal=parseFloat(document.getElementById('hm-km-real').value);
-  const name=document.getElementById('hm-name').value.trim();
   const km=parseFloat(document.getElementById('hm-km').value);
   const type=document.getElementById('hm-type').value;
   const shoe=document.getElementById('hm-shoe').value||null;
-  let detail='';
+  let name='', detail='';
   if(type==='tempo'){
+    const reps=parseInt(document.getElementById('hm-reps').value)||2;
+    const dur=parseInt(document.getElementById('hm-dur').value)||8;
+    name=`Tempo ${reps}×${dur} min`;
     const pMin=(document.getElementById('hm-pace-min').value||'').trim();
     const pMax=(document.getElementById('hm-pace-max').value||'').trim();
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
   } else {
+    const nameEl=document.getElementById('hm-name');
+    if(nameEl) name=nameEl.value.trim();
     const detailEl=document.getElementById('hm-detail');
     if(detailEl) detail=detailEl.value.trim();
   }
