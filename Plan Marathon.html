@@ -1357,7 +1357,7 @@ function saveHomeModal(idx){
     if(!detail) detail=existingDetail||detail;
     const recupEl=document.getElementById('hm-recup');
     const recup=(recupEl?recupEl.value||'':'').trim();
-    if(recup&&recup!=='0') detail=detail+(detail?' · ':'')+`${recup} min récup`;
+    if(recup&&recup!=='0'&&reps>1) detail=detail+(detail?' · ':'')+`${recup} min récup`;
   } else if(type==='long'){
     const nameEl=document.getElementById('hm-name');
     name=nameEl&&nameEl.value.trim()?nameEl.value.trim():existingTitle||'Séance EF longue';
@@ -1848,7 +1848,7 @@ function saveEdit(ws, si){
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
     const recup=(recupEl?recupEl.value||'':'').trim();
-    if(recup&&recup!=='0') detail=detail+(detail?' · ':'')+`${recup} min récup`;
+    if(recup&&recup!=='0'&&reps>1) detail=detail+(detail?' · ':'')+`${recup} min récup`;
   } else if(type==='long'){
     const existing=getSession(ws,si);
     name=existing.d.split('|')[0]||'Séance EF longue';
@@ -2111,7 +2111,7 @@ function saveAdd(ws){
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else detail="5:00 — 5:20 /km";
     const recup=((document.getElementById('add-recup')||{}).value||'').trim();
-    if(recup&&recup!=='0') detail=detail+` · ${recup} min récup`;
+    if(recup&&recup!=='0'&&reps>1) detail=detail+` · ${recup} min récup`;
   } else {
     const nameEl=document.getElementById('add-name');
     name=nameEl?nameEl.value.trim():'';
@@ -2259,7 +2259,7 @@ function saveExtraEdit(ws, ei){
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else detail='5:00 — 5:20 /km';
     const recup=((document.getElementById('exedit-recup')||{}).value||'').trim();
-    if(recup&&recup!=='0') detail=detail+` · ${recup} min récup`;
+    if(recup&&recup!=='0'&&reps>1) detail=detail+` · ${recup} min récup`;
   } else {
     const nameEl=document.getElementById('exedit-name');
     name=nameEl?nameEl.value.trim():'';
