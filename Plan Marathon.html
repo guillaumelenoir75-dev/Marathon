@@ -2647,7 +2647,15 @@ function renderRenfoExercises(){
     cancelBtn.id='renfo-cancel-btn';
     cancelBtn.style.cssText='width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;';
     cancelBtn.textContent='Annuler la validation';
-    cancelBtn.onclick=()=>{delete state[rfk(CW,curRenfo)+'done'];save();renderRenfoExercises();};
+    cancelBtn.onclick=()=>{
+      const exos=curRenfo===1?renfo1:renfo2;
+      const dk=rfk(CW,curRenfo);
+      exos.forEach((_,i)=>{ delete state[dk+'e'+i+'_series']; });
+      delete state[dk+'done'];
+      save();
+      renderRenfoExercises();
+      renderHome();
+    };
     btn.parentNode.appendChild(cancelBtn);
   }
   cancelBtn.style.display=isDone?'block':'none';
@@ -2710,7 +2718,19 @@ function toggleSerie(dk,exoIdx,serieNum,total){
   renderRenfoExercises();
 }
 
-function markRenfoDone(){state[rfk(CW,curRenfo)+'done']=true;save();renderRenfoExercises();renderHome();}
+function markRenfoDone(){
+  const exos=curRenfo===1?renfo1:renfo2;
+  const dk=rfk(CW,curRenfo);
+  // Cocher toutes les séries automatiquement
+  exos.forEach((_,i)=>{
+    const nb=getNbSeries(exos[i].series);
+    state[dk+'e'+i+'_series']=nb;
+  });
+  state[dk+'done']=true;
+  save();
+  renderRenfoExercises();
+  renderHome();
+}
 
 // Date du jour sur accueil
 const now = new Date();
