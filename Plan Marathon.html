@@ -346,7 +346,22 @@ function initFirebase(){
       firebase.initializeApp(firebaseConfig);
       dbRef=firebase.database().ref('marathon/state');
       // Charger une seule fois au démarrage
+      // Timeout de sécurité si Firebase ne répond pas (réseau bloqué)
+      const fbTimeout=setTimeout(()=>{
+        if(!firebaseReady){
+          console.warn('Firebase timeout, mode démo activé');
+          migrateState();
+          firebaseReady=true;
+          const lo=document.getElementById('loading-overlay');
+          if(lo){
+            lo.innerHTML='<p style="font-size:13px;color:#888;font-family:sans-serif;text-align:center;padding:20px;">⚠️ Mode aperçu<br><span style="font-size:11px;">Firebase non disponible dans ce contexte</span></p>';
+            setTimeout(()=>{lo.remove();renderHome();},1200);
+          } else renderHome();
+        }
+      },4000);
+
       dbRef.once('value',(snapshot)=>{
+        clearTimeout(fbTimeout);
         const data=snapshot.val();
         if(data) state=data;
         migrateState();
@@ -354,6 +369,16 @@ function initFirebase(){
         const lo=document.getElementById('loading-overlay');
         if(lo) lo.remove();
         renderHome();
+      }, (error)=>{
+        clearTimeout(fbTimeout);
+        console.warn('Firebase inaccessible, mode démo activé');
+        migrateState();
+        firebaseReady=true;
+        const lo=document.getElementById('loading-overlay');
+        if(lo){
+          lo.innerHTML='<p style="font-size:13px;color:#888;font-family:sans-serif;text-align:center;padding:20px;">⚠️ Mode aperçu<br><span style="font-size:11px;">Firebase non disponible dans ce contexte</span></p>';
+          setTimeout(()=>{lo.remove();renderHome();},1200);
+        } else renderHome();
       });
     };
     document.head.appendChild(script2);
@@ -1727,7 +1752,7 @@ function getWeekSessions(ws){
 function openAddModal(ws){
   const mc=document.getElementById('modal-container');
   const shoeOptions=getShoeOptions(null);
-  const typeOptions=['ef','tempo','long','rest','race'].map(t=>
+  const typeOptions=['ef','tempo','long','race'].map(t=>
     `<option value="${t}">${typeLabel[t]}</option>`
   ).join('');
   const overlay=document.createElement('div');
@@ -1739,20 +1764,37 @@ function openAddModal(ws){
     </div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
-        <input type="text" id="add-name" placeholder="ex: Séance EF" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Type</p>
+        <select id="add-type" onchange="onAddTypeChange()" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select>
       </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
-        <input type="text" id="add-detail" placeholder="ex: 5'40 /km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      <div id="add-fields-standard">
+        <div style="margin-bottom:12px;">
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+          <input type="text" id="add-name" placeholder="ex: Séance EF" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+        </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+          <input type="text" id="add-detail" placeholder="ex: 5'40 /km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+        </div>
+      </div>
+      <div id="add-fields-long" style="display:none;">
+        <div style="margin-bottom:12px;">
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+          <input type="text" id="add-name-long" placeholder="ex: EF longue" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+        </div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Organisation de la séance longue</p>
+        <div style="background:#EEF2FD;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;color:#1B4FD8;">🎯 AM calculée automatiquement :</span>
+          <span style="font-size:13px;font-weight:700;color:#1B4FD8;">${getMarathonPaceStr()} /km</span>
+        </div>
+        <div id="long-blocks" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+        <div id="long-blocks-total" style="font-size:12px;font-weight:600;padding:7px 12px;border-radius:var(--radius-sm);border:1.5px solid;margin-bottom:8px;"></div>
+        <button onclick="addLongBlock()" style="width:100%;padding:8px;background:var(--bg2);border:1.5px dashed var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);cursor:pointer;">+ Ajouter un bloc</button>
+        <input type="hidden" id="long-blocks-data" value="[{&quot;km&quot;:5,&quot;type&quot;:&quot;EF&quot;},{&quot;km&quot;:3,&quot;type&quot;:&quot;AM&quot;}]">
       </div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance (km)</p>
         <input type="number" id="add-km" value="10" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Type</p>
-        <select id="add-type" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select>
       </div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
@@ -1765,67 +1807,37 @@ function openAddModal(ws){
   mc.appendChild(overlay);
 }
 
-function openEditExtraModal(ws, ei){
-  const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-  const parts=s.d.split('|');
-  const title=parts[0],detail=parts[1]||'';
-  const mc=document.getElementById('modal-container');
-  const shoeOptions=getShoeOptions(s.shoe);
-  const typeOptions=['ef','tempo','long','rest','race'].map(t=>
-    `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
-  ).join('');
-  const overlay=document.createElement('div');
-  overlay.className='modal-overlay';
-  overlay.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <p style="font-size:16px;font-weight:600;color:var(--text);">Modifier la séance</p>
-      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom</p>
-        <input type="text" id="exedit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;"></div>
-      <div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure</p>
-        <input type="text" id="exedit-detail" value="${detail}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;"></div>
-      <div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance (km)</p>
-        <input type="number" id="exedit-km" value="${s.km}" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;"></div>
-      <div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Type</p>
-        <select id="exedit-type" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select></div>
-      <div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
-        <select id="exedit-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
-      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
-      <button onclick="saveExtraEdit(${ws},${ei})" style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
-    </div>
-    <button onclick="deleteExtra(${ws},${ei})" style="width:100%;margin-top:8px;padding:11px;background:transparent;border:1px solid #E24B4A;border-radius:var(--radius-sm);font-size:13px;color:#E24B4A;cursor:pointer;">Supprimer cette séance</button>
-  </div>`;
-  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
-  mc.appendChild(overlay);
-}
-
-function saveExtraEdit(ws,ei){
-  const name=document.getElementById('exedit-name').value.trim();
-  const detail=document.getElementById('exedit-detail').value.trim();
-  const km=parseFloat(document.getElementById('exedit-km').value)||0;
-  const type=document.getElementById('exedit-type').value;
-  const shoe=document.getElementById('exedit-shoe').value||null;
-  const d=detail?`${name}|${detail}`:name;
-  state[`extra_w${ws}_s${ei}`]=JSON.stringify({d,km,type,shoe});
-  save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
-}
-
-function deleteExtra(ws,ei){
-  delete state[`extra_w${ws}_s${ei}`];
-  save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
+function onAddTypeChange(){
+  const type=document.getElementById('add-type').value;
+  const std=document.getElementById('add-fields-standard');
+  const lng=document.getElementById('add-fields-long');
+  if(type==='long'){
+    std.style.display='none';
+    lng.style.display='block';
+    renderLongBlocks();
+  } else {
+    std.style.display='block';
+    lng.style.display='none';
+  }
 }
 
 function saveAdd(ws){
-  const name=document.getElementById('add-name').value.trim();
-  if(!name){alert('Donnez un nom à la séance');return;}
-  const detail=document.getElementById('add-detail').value.trim();
-  const km=parseFloat(document.getElementById('add-km').value)||0;
   const type=document.getElementById('add-type').value;
+  const km=parseFloat(document.getElementById('add-km').value)||0;
   const shoe=document.getElementById('add-shoe').value||null;
+  let name='', detail='';
+  if(type==='long'){
+    const nameEl=document.getElementById('add-name-long');
+    name=nameEl&&nameEl.value.trim()?nameEl.value.trim():'EF longue';
+    const blocks=getLongBlocksData();
+    if(blocks.length>0) detail=buildLongDetail(blocks);
+  } else {
+    const nameEl=document.getElementById('add-name');
+    name=nameEl?nameEl.value.trim():'';
+    if(!name){alert('Donnez un nom à la séance');return;}
+    const detailEl=document.getElementById('add-detail');
+    detail=detailEl?detailEl.value.trim():'';
+  }
   const d=detail?`${name}|${detail}`:name;
   let ei=0;
   while(state[`extra_w${ws}_s${ei}`]) ei++;
@@ -1837,6 +1849,7 @@ function saveAdd(ws){
   renderPlan();
   renderHome();
 }
+
 
 function updateShoeMax(name, val){
   const arr=getShoes();
