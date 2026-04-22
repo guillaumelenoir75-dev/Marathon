@@ -282,18 +282,18 @@ const weeks=[
 
 const renfo1=[
   {nom:"Pont fessier",desc:"Genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"3 séries × 10 rép."},
-  {nom:"Pont fessier unipodal",desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"3 séries × 10 rép."},
-  {nom:"Battements latéraux",desc:"Allongé sur le côté, battements latéraux avec la jambe du dessus, lentement.",series:"3 séries × 10 rép."},
-  {nom:"Ouvertures de hanche",desc:"Allongé sur le côté, élastique au-dessus des genoux — ouvrez en gardant les pieds serrés.",series:"3 séries × 10 rép."},
-  {nom:"Extension de jambe",desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement (4 sec).",series:"3 séries × 10 rép."},
-  {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"3 séries × 10 rép."},
+  {nom:"Pont fessier unipodal",desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"4 séries × 10 rép."},
+  {nom:"Battements latéraux",desc:"Allongé sur le côté, battements latéraux avec la jambe du dessus, lentement.",series:"4 séries × 10 rép."},
+  {nom:"Ouvertures de hanche",desc:"Allongé sur le côté, élastique au-dessus des genoux — ouvrez en gardant les pieds serrés.",series:"4 séries × 10 rép."},
+  {nom:"Extension de jambe",desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement (4 sec).",series:"4 séries × 10 rép."},
+  {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"4 séries × 10 rép."},
 ];
 const renfo2=[
-  {nom:"Élastiques cheville",desc:"Allongé sur le côté, jambe du dessus — battements avec élastique à la cheville.",series:"3×15 droite · 3×15 gauche"},
-  {nom:"Médecine Ball sur bassin (4 kg)",desc:"En planche, médecine ball posé sur le bassin — extension de jambe alternée.",series:"3×15 droite · 3×15 gauche"},
-  {nom:"Relevé de jambes",desc:"Allongé sur le dos, jambes tendues — montez-les lentement à 90° puis redescendez doucement.",series:"3 séries × 15 rép."},
-  {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément le bras droit et la jambe gauche, maintenez 3 sec, alternez.",series:"3×15 rép. par côté"},
-  {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"3 séries × 15 A/R"},
+  {nom:"Élastiques cheville",desc:"Allongé sur le côté, jambe du dessus — battements avec élastique à la cheville.",series:"4×10 droite · 4×10 gauche"},
+  {nom:"Médecine Ball sur bassin (4 kg)",desc:"En planche, médecine ball posé sur le bassin — extension de jambe alternée.",series:"4×10 droite · 4×10 gauche"},
+  {nom:"Relevé de jambes",desc:"Allongé sur le dos, jambes tendues — montez-les lentement à 90° puis redescendez doucement.",series:"3 séries × 10 rép."},
+  {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément le bras droit et la jambe gauche, maintenez 3 sec, alternez.",series:"4×10 rép. par côté"},
+  {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"4 séries × 10 A/R"},
 ];
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"},{km:'Marathon',nb:8,t:"6, 12, 17, 22, 26, 30, 34 & 38 km"}];
 const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
@@ -328,11 +328,27 @@ let firebaseReady=false;
 let dbRef=null;
 
 function initFirebase(){
+  // Timeout global — se déclenche même si les scripts CDN ne chargent pas
+  const globalTimeout=setTimeout(()=>{
+    if(!firebaseReady){
+      console.warn('Firebase timeout (CDN ou réseau bloqué), mode démo');
+      migrateState();
+      firebaseReady=true;
+      const lo=document.getElementById('loading-overlay');
+      if(lo){
+        lo.innerHTML='<p style="font-size:13px;color:#888;font-family:sans-serif;text-align:center;padding:20px;">⚠️ Mode aperçu<br><span style="font-size:11px;">Firebase non disponible</span></p>';
+        setTimeout(()=>{lo.remove();renderHome();},1200);
+      } else renderHome();
+    }
+  },10000);
+
   const script=document.createElement('script');
   script.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+  script.onerror=()=>{clearTimeout(globalTimeout);migrateState();firebaseReady=true;const lo=document.getElementById('loading-overlay');if(lo)lo.remove();renderHome();};
   script.onload=()=>{
     const script2=document.createElement('script');
     script2.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+    script2.onerror=()=>{clearTimeout(globalTimeout);migrateState();firebaseReady=true;const lo=document.getElementById('loading-overlay');if(lo)lo.remove();renderHome();};
     script2.onload=()=>{
       const firebaseConfig={
         apiKey:"AIzaSyA1yOzyqcrIM4fYOJh5DCBFPQXCSV7X5uw",
@@ -345,23 +361,8 @@ function initFirebase(){
       };
       firebase.initializeApp(firebaseConfig);
       dbRef=firebase.database().ref('marathon/state');
-      // Charger une seule fois au démarrage
-      // Timeout de sécurité si Firebase ne répond pas (réseau bloqué)
-      const fbTimeout=setTimeout(()=>{
-        if(!firebaseReady){
-          console.warn('Firebase timeout, mode démo activé');
-          migrateState();
-          firebaseReady=true;
-          const lo=document.getElementById('loading-overlay');
-          if(lo){
-            lo.innerHTML='<p style="font-size:13px;color:#888;font-family:sans-serif;text-align:center;padding:20px;">⚠️ Mode aperçu<br><span style="font-size:11px;">Firebase non disponible dans ce contexte</span></p>';
-            setTimeout(()=>{lo.remove();renderHome();},1200);
-          } else renderHome();
-        }
-      },4000);
-
       dbRef.once('value',(snapshot)=>{
-        clearTimeout(fbTimeout);
+        clearTimeout(globalTimeout);
         const data=snapshot.val();
         if(data) state=data;
         migrateState();
@@ -370,15 +371,12 @@ function initFirebase(){
         if(lo) lo.remove();
         renderHome();
       }, (error)=>{
-        clearTimeout(fbTimeout);
-        console.warn('Firebase inaccessible, mode démo activé');
+        clearTimeout(globalTimeout);
         migrateState();
         firebaseReady=true;
         const lo=document.getElementById('loading-overlay');
-        if(lo){
-          lo.innerHTML='<p style="font-size:13px;color:#888;font-family:sans-serif;text-align:center;padding:20px;">⚠️ Mode aperçu<br><span style="font-size:11px;">Firebase non disponible dans ce contexte</span></p>';
-          setTimeout(()=>{lo.remove();renderHome();},1200);
-        } else renderHome();
+        if(lo) lo.remove();
+        renderHome();
       });
     };
     document.head.appendChild(script2);
@@ -601,8 +599,12 @@ function rfk(w,r){return `rf${w}r${r}`;}
 
 function calcWeekDoneKm(){
   let t=0;
-  getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
-    if(extra) return;
+  getOrderedWeekSessions(CW).forEach(({s,si,extra,ei})=>{
+    if(extra){
+      const k=`extra_w${CW}_s${ei}`;
+      if(state[k+'_done']){const rv=state[k+'_km'];t+=(rv!=null?rv:s.km);}
+      return;
+    }
     const dn=state[gk(CW,si)+'done'],rv=state[gk(CW,si)+'km'];
     if(dn||rv!=null) t+=(rv!=null?rv:s.km);
   });
@@ -610,10 +612,13 @@ function calcWeekDoneKm(){
 }
 
 function calcTotalDone(){
-  // Km faits avant S7 + km réels des séances cochées de S7
   let t=KM_AVANT_S7;
-  getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
-    if(extra) return;
+  getOrderedWeekSessions(CW).forEach(({s,si,extra,ei})=>{
+    if(extra){
+      const k=`extra_w${CW}_s${ei}`;
+      if(state[k+'_done']){const rv=state[k+'_km'];t+=(rv!=null?rv:s.km);}
+      return;
+    }
     const dn=state[gk(CW,si)+'done'],rv=state[gk(CW,si)+'km'];
     if(dn||rv!=null) t+=(rv!=null?rv:s.km);
   });
@@ -631,17 +636,15 @@ function renderHome(){
   if(weekNumEl) weekNumEl.textContent='S'+CW;
   const gt=getGrandTotal();
   const pct=Math.round(td/gt*100);
-  document.getElementById('h-pct').textContent=pct+'%';
-  document.getElementById('h-bar').style.width=pct+'%';
-  document.getElementById('h-done-km').textContent=td+' km faits';
-  const gtEl=document.getElementById('h-grand-total');
-  if(gtEl) gtEl.textContent=gt+' km total';
-  document.getElementById('kpi-total').textContent=td;
-  document.getElementById('kpi-rest').textContent=Math.max(0,gt-td);
-  document.getElementById('kpi-week-done').textContent=calcWeekDoneKm();
-  const weeksLeftEl=document.getElementById('kpi-weeks-left');
-  if(weeksLeftEl) weeksLeftEl.textContent=Math.max(0,32-CW);
-  document.getElementById('kpi-week-plan').textContent='/ '+getWeekTotalKm(CW)+' km planifiés';
+  const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=pct+'%';
+  const barEl=document.getElementById('h-bar'); if(barEl) barEl.style.width=pct+'%';
+  const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td+' km faits';
+  const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt+' km total';
+  const kpiTotalEl=document.getElementById('kpi-total'); if(kpiTotalEl) kpiTotalEl.textContent=td;
+  const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=Math.max(0,gt-td);
+  const kpiWeekEl=document.getElementById('kpi-week-done'); if(kpiWeekEl) kpiWeekEl.textContent=calcWeekDoneKm();
+  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=Math.max(0,32-CW);
+  const kpiWeekPlanEl=document.getElementById('kpi-week-plan'); if(kpiWeekPlanEl) kpiWeekPlanEl.textContent='/ '+getWeekTotalKm(CW)+' km planifiés';
   // AM pace dans le header
   const am=getMarathonPaceStr();
   const amEl=document.getElementById('h-am-pace');
@@ -708,22 +711,34 @@ function renderHome(){
   const el=document.getElementById('home-sessions');
   el.innerHTML='';
   getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei},i)=>{
-    const key=gk(CW,typeof si==='number'?si:0);
-    const done=extra?false:!!state[gk(CW,si)+'done'];
-    const rv=extra?null:state[gk(CW,si)+'km'];
-    const modalIdx=extra?null:si;
+    const done=extra?!!state[`extra_w${CW}_s${ei}_done`]:!!state[gk(CW,si)+'done'];
+    const rv=extra?state[`extra_w${CW}_s${ei}_km`]:state[gk(CW,si)+'km'];
     const c=typeColor[s2.type]||'#888',lbl=typeLabel[s2.type]||'EF';
     const bg=typeBg[s2.type]||'#f5f5f5';
     const parts=s2.d.split('|');
     const title=parts[0];
     const detail=parts[1]||null;
+    const editBtn=extra
+      ?`<div onclick="openEditExtraModal(${CW},${ei})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;background:transparent;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>`
+      :`<div onclick="openHomeModal(${si})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${rv!=null?c:'var(--border)'};display:flex;align-items:center;justify-content:center;cursor:pointer;background:${rv!=null?bg:'transparent'};">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?c:'var(--muted)'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>`;
+    const doneBtn=extra
+      ?`<div onclick="toggleDoneExtra(${ei})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?c:'var(--border)'};background:${done?c:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
+          ${done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
+        </div>`
+      :`<div onclick="toggleDone(${si})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?c:'var(--border)'};background:${done?c:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
+          ${done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
+        </div>`;
     const div=document.createElement('div');
-    div.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:10px;';
-    div.innerHTML=`<div style="width:42px;height:42px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid ${c}30;">
-      <span style="font-size:10px;font-weight:700;color:${c};letter-spacing:0.02em;">${lbl}</span>
+    div.style.cssText=`background:var(--bg);border:1px solid ${done?c+'40':'var(--border)'};border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:10px;${done?'background:'+typeBg[s2.type]+';':''}`;
+    div.innerHTML=`<div style="width:42px;height:42px;border-radius:10px;background:${done?c+'20':bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid ${c}30;">
+      ${done?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'<span style="font-size:10px;font-weight:700;color:'+c+';letter-spacing:0.02em;">'+lbl+'</span>'}
     </div>
     <div style="flex:1;min-width:0;">
-      <p style="font-size:13px;font-weight:600;color:var(--text);">${title}</p>
+      <p style="font-size:13px;font-weight:600;color:${done?c:'var(--text)'};">${title}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}</p>
       ${detail?`<p style="font-size:11px;color:${c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
       <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
         <span style="font-size:12px;color:var(--muted);">${rv!=null?'<span style="color:'+c+';font-weight:600;">'+rv+' km</span> · plan '+s2.km+' km':s2.km+' km'}</span>
@@ -731,15 +746,119 @@ function renderHome(){
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-      ${modalIdx!==null?`<div onclick="openHomeModal(${modalIdx})" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${rv!=null?c:'var(--border)'};display:flex;align-items:center;justify-content:center;cursor:pointer;background:${rv!=null?bg:'transparent'};">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?c:'var(--muted)'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </div>
-      <div onclick="toggleDone(${modalIdx})" style="width:30px;height:30px;border-radius:50%;border:2px solid ${done?c:'var(--border)'};background:${done?c:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
-        ${done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
-      </div>`:''}
+      ${editBtn}${doneBtn}
     </div>`;
     el.appendChild(div);
   });
+}
+
+function toggleDoneExtra(ei){
+  const k=`extra_w${CW}_s${ei}`;
+  const doneK=k+'_done';
+  const wasDone=!!state[doneK];
+  if(!wasDone){
+    openValidationModalExtra(ei);
+  } else {
+    state[doneK]=false;
+    delete state[k+'_km'];
+    delete state[k+'_perf'];
+    save();
+    renderHome();
+    rendered.stats=false;
+  }
+}
+
+function openValidationModalExtra(ei){
+  const s=JSON.parse(state[`extra_w${CW}_s${ei}`]||'{}');
+  const parts=(s.d||'').split('|');
+  const title=parts[0];
+  const detail=parts[1]||null;
+  const c=typeColor[s.type]||'#888';
+  const bg=typeBg[s.type]||'#f5f5f5';
+  const lbl=typeLabel[s.type]||'EF';
+  const kmVal=state[`extra_w${CW}_s${ei}_km`]||s.km||0;
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:9px;background:${bg};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:700;color:${c};">${lbl}</span>
+        </div>
+        <div>
+          <p style="font-size:15px;font-weight:600;color:var(--text);">${title}</p>
+          ${detail?`<p style="font-size:11px;color:${c};font-weight:600;">${detail}</p>`:''}
+        </div>
+      </div>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Date de la séance</p>
+        <input type="date" id="val-date" value="${(()=>{const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')})()}"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
+          <input type="number" id="val-km" value="${kmVal}" min="0" max="99" step="0.5" oninput="calcPace()"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
+        </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm ou mm:ss)</p>
+          <input type="text" id="val-dur" value="" placeholder="47:53" maxlength="5" oninput="calcPace()"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(auto ou manuel)</span></p>
+          <input type="text" id="val-pace" value="" placeholder="5:40" maxlength="5"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
+        </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moyenne</p>
+          <input type="number" id="val-hr" value="" placeholder="145" min="50" max="220"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
+      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
+      <button onclick="saveValidationExtra(${ei})" style="padding:12px;background:#3B6D11;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">✓ Valider</button>
+    </div>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+}
+
+function saveValidationExtra(ei){
+  const km=parseFloat(document.getElementById('val-km').value);
+  const dur=(document.getElementById('val-dur').value||'').trim();
+  const pace=(document.getElementById('val-pace').value||'').trim();
+  const hr=parseInt(document.getElementById('val-hr').value)||null;
+  const dateVal=(document.getElementById('val-date').value||'').trim();
+  const k=`extra_w${CW}_s${ei}`;
+  state[k+'_done']=true;
+  if(!isNaN(km)&&km>=0) state[k+'_km']=km;
+  const perf={};
+  if(dur) perf.dur=dur;
+  if(pace) perf.pace=pace;
+  if(hr) perf.hr=hr;
+  if(dateVal) perf.date=dateVal;
+  if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
+  save();
+  closeModal();
+  renderHome();
+  rendered.stats=false;
+  if(document.getElementById('sc-stats').style.display!=='none')renderStats();
+  const s=JSON.parse(state[k]||'{}');
+  const amImproved=updateMarathonPace();
+  showCoachFeedback(s,km,pace,hr,amImproved);
 }
 
 function openValidationModal(idx){
@@ -1051,6 +1170,42 @@ function showCoachFeedback(s, km, pace, hr, amImproved){
   mc.appendChild(overlay);
 }
 
+function onHmTypeChange(){
+  const type=document.getElementById('hm-type').value;
+  const container=document.getElementById('hm-detail-container');
+  const nameContainer=document.querySelector('#hm-detail-container')?.previousElementSibling;
+  if(!container) return;
+  if(type==='long'){
+    // Récupérer le détail existant pour parser les blocs
+    const detailInput=document.getElementById('hm-detail');
+    const existingDetail=detailInput?detailInput.value:'';
+    container.innerHTML=buildLongModalHtml(existingDetail);
+    renderLongBlocks();
+    // Masquer le champ nom standard
+    const hmName=document.getElementById('hm-name');
+    if(hmName) hmName.closest('div').style.display='none';
+  } else if(type==='tempo'){
+    container.innerHTML=`<div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Allure (min:sec /km)</p>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
+        <div><p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">De</p>
+          <input type="text" id="hm-pace-min" value="5:00" placeholder="5:00" maxlength="5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;"></div>
+        <span style="font-size:16px;color:var(--muted);padding-top:18px;">—</span>
+        <div><p style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:center;">À</p>
+          <input type="text" id="hm-pace-max" value="5:20" placeholder="5:20" maxlength="5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;"></div>
+      </div></div>`;
+    const hmName=document.getElementById('hm-name');
+    if(hmName) hmName.closest('div').style.display='none';
+  } else {
+    container.innerHTML=`<div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+      <input type="text" id="hm-detail" value="" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>`;
+    const hmName=document.getElementById('hm-name');
+    if(hmName) hmName.closest('div').style.display='block';
+  }
+}
+
 function buildLongModalHtml(detail){
   const am=getMarathonPaceStr();
   const blocks=[];
@@ -1148,14 +1303,14 @@ function openHomeModal(idx){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
         <input type="text" id="hm-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
       </div>`:''}
-      ${detailField}
+      <div id="hm-detail-container">${detailField}</div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance planifiée (km)</p>
         <input type="number" id="hm-km" value="${s.km}" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
       </div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Type</p>
-        <select id="hm-type" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select>
+        <select id="hm-type" onchange="onHmTypeChange()" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select>
       </div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
@@ -1173,12 +1328,15 @@ function openHomeModal(idx){
 }
 
 function saveHomeModal(idx){
-  const kmReal=parseFloat(document.getElementById('hm-km-real').value);
   const km=parseFloat(document.getElementById('hm-km').value);
   const type=document.getElementById('hm-type').value;
   const shoe=document.getElementById('hm-shoe').value||null;
+  const kmReal=parseFloat(document.getElementById('hm-km-real').value);
 
-  // Récupérer la session existante complète (depuis Firebase ou code de base)
+  // Validations identiques à Plan
+  if(isNaN(km)||km<=0){alert('Entrez une distance planifiée valide.');return;}
+  if(!shoe){alert('Choisissez une paire de chaussures.');return;}
+
   const existing=getSession(CW,idx);
   const existingParts=existing.d.split('|');
   const existingTitle=existingParts[0];
@@ -1186,8 +1344,10 @@ function saveHomeModal(idx){
 
   let name='', detail='';
   if(type==='tempo'){
-    const reps=parseInt(document.getElementById('hm-reps').value)||2;
-    const dur=parseInt(document.getElementById('hm-dur').value)||8;
+    const repsEl=document.getElementById('hm-reps');
+    const durEl=document.getElementById('hm-dur');
+    const reps=repsEl?parseInt(repsEl.value)||2:2;
+    const dur=durEl?parseInt(durEl.value)||8:8;
     name=`Tempo ${reps}×${dur} min`;
     const pMinEl=document.getElementById('hm-pace-min');
     const pMaxEl=document.getElementById('hm-pace-max');
@@ -1195,15 +1355,20 @@ function saveHomeModal(idx){
     const pMax=(pMaxEl?pMaxEl.value||'':'').trim();
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
-    if(!detail || detail==='5:00 — 5:20 /km') detail=existingDetail||detail;
+    if(!detail) detail=existingDetail||detail;
   } else if(type==='long'){
-    name=existingTitle||'Séance EF longue';
+    const nameEl=document.getElementById('hm-name');
+    name=nameEl&&nameEl.value.trim()?nameEl.value.trim():existingTitle||'Séance EF longue';
     const blocks=getLongBlocksData();
-    if(blocks.length>0) detail=buildLongDetail(blocks);
-    else detail=existingDetail;
+    if(blocks.length>0){
+      const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
+      if(Math.abs(bTotal-km)>=0.1){alert('Total des blocs ('+bTotal+' km) ≠ distance planifiée ('+km+' km). Ajuste les blocs.');return;}
+      detail=buildLongDetail(blocks);
+    } else detail=existingDetail;
   } else {
     const nameEl=document.getElementById('hm-name');
     name=nameEl?nameEl.value.trim():existingTitle;
+    if(!name){alert('Entrez un nom pour la séance.');return;}
     const detailEl=document.getElementById('hm-detail');
     detail=detailEl?detailEl.value.trim():existingDetail;
   }
@@ -1311,6 +1476,10 @@ function renderPlan(){
     while(state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
     const savedOrder=state[orderKey]?JSON.parse(state[orderKey]):null;
     const orderedSessions=savedOrder?savedOrder.map(o=>baseOrder.find(b=>JSON.stringify(b)===JSON.stringify(o))).filter(Boolean):baseOrder;
+    // Ajouter les séances extra nouvelles non incluses dans l'ordre sauvegardé
+    baseOrder.forEach(b=>{
+      if(!orderedSessions.find(o=>JSON.stringify(o)===JSON.stringify(b))) orderedSessions.push(b);
+    });
     orderedSessions.forEach(({si,extra,ei})=>{
       const s=extra?JSON.parse(state[`extra_w${w.s}_s${ei}`]):getSession(w.s,si);
       allSessions.push({s,si,extra,ei});
@@ -1466,7 +1635,8 @@ function updateLongBlocksTotal(blocks){
   const totalEl=document.getElementById('long-blocks-total');
   if(!totalEl) return;
   const total=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
-  const planned=parseFloat(document.getElementById('edit-km').value)||0;
+  const kmEl=document.getElementById('edit-km')||document.getElementById('hm-km')||document.getElementById('add-km')||document.getElementById('exedit-km');
+  const planned=parseFloat(kmEl?kmEl.value:0)||0;
   const diff=Math.round((total-planned)*10)/10;
   const ok=Math.abs(diff)<0.1;
   const color=ok?'#3B6D11':diff>0?'#E8530A':'#E24B4A';
@@ -1665,11 +1835,14 @@ function saveEdit(ws, si){
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
   } else if(type==='long'){
-    // Reconstruire depuis les blocs EF/AM
     const existing=getSession(ws,si);
     name=existing.d.split('|')[0]||'Séance EF longue';
     const blocks=getLongBlocksData();
-    if(blocks.length>0) detail=buildLongDetail(blocks);
+    if(blocks.length>0){
+      const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
+      if(Math.abs(bTotal-km)>=0.1){alert('Total des blocs ('+bTotal+' km) ≠ distance planifiée ('+km+' km). Ajuste les blocs.');return;}
+      detail=buildLongDetail(blocks);
+    }
   } else {
     const nameEl=document.getElementById('edit-name');
     if(nameEl) name=nameEl.value.trim();
@@ -1822,22 +1995,36 @@ function onAddTypeChange(){
 }
 
 function saveAdd(ws){
-  const type=document.getElementById('add-type').value;
-  const km=parseFloat(document.getElementById('add-km').value)||0;
-  const shoe=document.getElementById('add-shoe').value||null;
+  const typeEl=document.getElementById('add-type');
+  const kmEl=document.getElementById('add-km');
+  const shoeEl=document.getElementById('add-shoe');
+  const type=typeEl?typeEl.value:'ef';
+  const km=parseFloat(kmEl?kmEl.value:0)||0;
+  const shoe=shoeEl&&shoeEl.value?shoeEl.value:null;
+
+  // Validation
+  if(!type){showAddError('Choisissez un type de séance.');return;}
+  if(!km||km<=0){showAddError('Entrez une distance en km.');return;}
+  if(!shoe){showAddError('Choisissez une paire de chaussures.');return;}
+
   let name='', detail='';
   if(type==='long'){
     const nameEl=document.getElementById('add-name-long');
     name=nameEl&&nameEl.value.trim()?nameEl.value.trim():'EF longue';
     const blocks=getLongBlocksData();
-    if(blocks.length>0) detail=buildLongDetail(blocks);
+    if(blocks.length>0){
+      const total=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
+      if(Math.abs(total-km)>=0.1){showAddError(`Total des blocs (${total} km) ≠ distance planifiée (${km} km). Ajuste les blocs.`);return;}
+      detail=buildLongDetail(blocks);
+    }
   } else {
     const nameEl=document.getElementById('add-name');
     name=nameEl?nameEl.value.trim():'';
-    if(!name){alert('Donnez un nom à la séance');return;}
+    if(!name){showAddError('Entrez un nom pour la séance.');return;}
     const detailEl=document.getElementById('add-detail');
     detail=detailEl?detailEl.value.trim():'';
   }
+
   const d=detail?`${name}|${detail}`:name;
   let ei=0;
   while(state[`extra_w${ws}_s${ei}`]) ei++;
@@ -1848,6 +2035,137 @@ function saveAdd(ws){
   rendered.stats=false;
   renderPlan();
   renderHome();
+}
+
+function showAddError(msg){
+  const existing=document.getElementById('add-error');
+  if(existing) existing.remove();
+  const btn=document.querySelector('[onclick^="saveAdd"]');
+  if(!btn) return;
+  const err=document.createElement('p');
+  err.id='add-error';
+  err.style.cssText='color:#E24B4A;font-size:12px;text-align:center;margin-top:8px;';
+  err.textContent='⚠ '+msg;
+  btn.parentNode.insertBefore(err,btn.nextSibling);
+}
+
+function onExEditTypeChange(){
+  const type=document.getElementById('exedit-type').value;
+  const container=document.getElementById('exedit-fields-container');
+  if(!container) return;
+  if(type==='long'){
+    const detailInput=document.getElementById('exedit-detail');
+    const existingDetail=detailInput?detailInput.value:'';
+    container.innerHTML=buildLongModalHtml(existingDetail);
+    renderLongBlocks();
+  } else if(type==='tempo'){
+    container.innerHTML=`<div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+      <input type="text" id="exedit-name" value="" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+      <input type="text" id="exedit-detail" value="" placeholder="ex: 5'00 — 5'20 /km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>`;
+  } else {
+    container.innerHTML=`<div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+      <input type="text" id="exedit-name" value="" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+      <input type="text" id="exedit-detail" value="" placeholder="ex: 5'40 /km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>`;
+  }
+}
+
+function openEditExtraModal(ws, ei){
+  const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+  const parts=s.d.split('|');
+  const title=parts[0], detail=parts[1]||'';
+  const mc=document.getElementById('modal-container');
+  const shoeOptions=getShoeOptions(s.shoe);
+  const typeOptions=['ef','tempo','long','race'].map(t=>
+    `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
+  ).join('');
+
+  // Champs selon le type
+  let fieldsHtml='';
+  if(s.type==='long'){
+    fieldsHtml=buildLongModalHtml(detail);
+  } else {
+    fieldsHtml=`
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+        <input type="text" id="exedit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
+        <input type="text" id="exedit-detail" value="${detail}" placeholder="ex: 5'40 /km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>`;
+  }
+
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <p style="font-size:16px;font-weight:600;color:var(--text);">Modifier la séance</p>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div id="exedit-fields-container">${fieldsHtml}</div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance (km)</p>
+        <input type="number" id="exedit-km" value="${s.km}" min="0" max="99" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Type</p>
+        <select id="exedit-type" onchange="onExEditTypeChange()" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${typeOptions}</select>
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
+        <select id="exedit-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
+      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
+      <button onclick="saveExtraEdit(${ws},${ei})" style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+    </div>
+    <button onclick="deleteExtra(${ws},${ei})" style="width:100%;margin-top:8px;padding:11px;background:transparent;border:1px solid #E24B4A;border-radius:var(--radius-sm);font-size:13px;color:#E24B4A;cursor:pointer;">Supprimer cette séance</button>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+  if(s.type==='long') renderLongBlocks();
+}
+
+function saveExtraEdit(ws, ei){
+  const type=document.getElementById('exedit-type').value;
+  const km=parseFloat(document.getElementById('exedit-km').value)||0;
+  const shoe=document.getElementById('exedit-shoe').value||null;
+  let name='', detail='';
+  if(type==='long'){
+    const existing=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+    name=existing.d.split('|')[0]||'EF longue';
+    const blocks=getLongBlocksData();
+    if(blocks.length>0){
+      const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
+      if(Math.abs(bTotal-km)>=0.1){alert('Total des blocs ('+bTotal+' km) ≠ distance planifiée ('+km+' km). Ajuste les blocs.');return;}
+      detail=buildLongDetail(blocks);
+    }
+  } else {
+    const nameEl=document.getElementById('exedit-name');
+    name=nameEl?nameEl.value.trim():'';
+    const detailEl=document.getElementById('exedit-detail');
+    detail=detailEl?detailEl.value.trim():'';
+  }
+  const d=detail?`${name}|${detail}`:name;
+  state[`extra_w${ws}_s${ei}`]=JSON.stringify({d,km,type,shoe});
+  save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
+}
+
+function deleteExtra(ws, ei){
+  delete state[`extra_w${ws}_s${ei}`];
+  save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
 }
 
 
@@ -2218,15 +2536,25 @@ function renderStats(){
     };
     const perfRows=[];
     for(let ws=1;ws<=CW;ws++){
-      getOrderedWeekSessions(ws).forEach(({s,si,extra})=>{
-        if(extra) return;
+      getOrderedWeekSessions(ws).forEach(({s,si,extra,ei})=>{
         if(s.type==='rest'||s.km===0) return;
+        if(extra){
+          // Séances ajoutées manuellement
+          const k=`extra_w${ws}_s${ei}`;
+          const done=!!state[k+'_done'];
+          if(!done) return;
+          const kmReal=state[k+'_km']!=null?state[k+'_km']:s.km;
+          const perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};
+          const c=typeColor[s.type]||'#888';
+          const title=s.d.split('|')[0];
+          perfRows.push({ws,title,km:kmReal,perf,c,type:s.type,extra:true});
+          return;
+        }
         const k=gk(ws,si);
         const isPast=ws<CW;
         const done=isPast||!!state[k+'done'];
         if(!done) return;
         const kmReal=state[k+'km']!=null?state[k+'km']:s.km;
-        // Perf : Firebase d'abord, sinon données statiques
         const perf=state[k+'perf']?JSON.parse(state[k+'perf']):(staticPerf[k]||{});
         const c=typeColor[s.type]||'#888';
         const title=s.d.split('|')[0];
