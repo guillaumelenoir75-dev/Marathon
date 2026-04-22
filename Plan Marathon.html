@@ -282,18 +282,18 @@ const weeks=[
 
 const renfo1=[
   {nom:"Pont fessier",desc:"Genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"3 séries × 10 rép."},
-  {nom:"Pont fessier unipodal",desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"4 séries × 10 rép."},
-  {nom:"Battements latéraux",desc:"Allongé sur le côté, battements latéraux avec la jambe du dessus, lentement.",series:"4 séries × 10 rép."},
-  {nom:"Ouvertures de hanche",desc:"Allongé sur le côté, élastique au-dessus des genoux — ouvrez en gardant les pieds serrés.",series:"4 séries × 10 rép."},
-  {nom:"Extension de jambe",desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement (4 sec).",series:"4 séries × 10 rép."},
-  {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"4 séries × 10 rép."},
+  {nom:"Pont fessier unipodal",desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Battements latéraux",desc:"Allongé sur le côté, jambe du dessus tendue — battements avec élastique à la cheville.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Ouvertures de hanche",desc:"Allongé sur le côté, élastique au-dessus des genoux — ouvrez en gardant les pieds serrés.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Extension de jambe",desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement (4 sec).",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
 ];
 const renfo2=[
-  {nom:"Élastiques cheville",desc:"Allongé sur le côté, jambe du dessus — battements avec élastique à la cheville.",series:"4×10 droite · 4×10 gauche"},
-  {nom:"Médecine Ball sur bassin (4 kg)",desc:"En planche, médecine ball posé sur le bassin — extension de jambe alternée.",series:"4×10 droite · 4×10 gauche"},
+  {nom:"Battements latéraux",desc:"Allongé sur le côté, jambe du dessus tendue — battements avec élastique à la cheville.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément la jambe droite et le bras gauche, maintenez 2 sec puis alternez. Gardez le dos plat et les abdos gainés.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Relevé de jambes",desc:"Allongé sur le dos, jambes tendues — montez-les lentement à 90° puis redescendez doucement.",series:"3 séries × 10 rép."},
-  {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément le bras droit et la jambe gauche, maintenez 3 sec, alternez.",series:"4×10 rép. par côté"},
-  {nom:"Kettlebell Waff (6 kg)",desc:"Pieds sur Waff, Kettlebell dans les mains — balancement latéral A/R.",series:"4 séries × 10 A/R"},
+  {nom:"Kick-back élastique",desc:"À 4 pattes, élastique autour des chevilles — extension de jambe vers l'arrière en gardant le dos plat et les abdos gainés.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Superman",desc:"Allongé sur le ventre, bras tendus devant toi — soulevez simultanément les bras et les jambes en creusant légèrement le bas du dos, maintenez 2 sec puis redescendez lentement.",series:"3 séries × 10 rép."},
 ];
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"},{km:'Marathon',nb:8,t:"6, 12, 17, 22, 26, 30, 34 & 38 km"}];
 const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
@@ -2688,8 +2688,11 @@ function renderRenfoExercises(){
     return (state[dk+'e'+i+'_series']||0)>=nb;
   });
   if(allComplete&&!isDone){
-    btn.textContent='Toutes les séries terminées — Valider !';
-    btn.style.background='#3B6D11';
+    state[dk+'done']=true;
+    save();
+    renderRenfoExercises();
+    renderHome();
+    return;
   }
 }
 
@@ -2707,7 +2710,7 @@ function toggleSerie(dk,exoIdx,serieNum,total){
   renderRenfoExercises();
 }
 
-function markRenfoDone(){state[rfk(CW,curRenfo)+'done']=true;save();renderRenfoExercises();}
+function markRenfoDone(){state[rfk(CW,curRenfo)+'done']=true;save();renderRenfoExercises();renderHome();}
 
 // Date du jour sur accueil
 const now = new Date();
