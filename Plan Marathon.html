@@ -351,6 +351,8 @@ function initFirebase(){
         if(data) state=data;
         migrateState();
         firebaseReady=true;
+        const lo=document.getElementById('loading-overlay');
+        if(lo) lo.remove();
         renderHome();
       });
     };
@@ -1024,6 +1026,29 @@ function showCoachFeedback(s, km, pace, hr, amImproved){
   mc.appendChild(overlay);
 }
 
+function buildLongModalHtml(detail){
+  const am=getMarathonPaceStr();
+  const blocks=[];
+  (detail||'').split('·').forEach(part=>{
+    const p=part.trim();
+    const m=p.match(/^(\d+(?:\.\d+)?)\s*(EF|AM)/i);
+    if(m) blocks.push({km:parseFloat(m[1]),type:m[2].toUpperCase()});
+  });
+  if(blocks.length===0){blocks.push({km:5,type:'EF'});blocks.push({km:3,type:'AM'});}
+  const blocksJson=JSON.stringify(blocks).replace(/"/g,'&quot;');
+  return '<div>'
+    +'<p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Organisation de la séance longue</p>'
+    +'<div style="background:#EEF2FD;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">'
+    +'<span style="font-size:11px;color:#1B4FD8;">🎯 AM calculée automatiquement :</span>'
+    +'<span style="font-size:13px;font-weight:700;color:#1B4FD8;">'+am+' /km</span>'
+    +'</div>'
+    +'<div id="long-blocks" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>'
+    +'<div id="long-blocks-total" style="font-size:12px;font-weight:600;padding:7px 12px;border-radius:var(--radius-sm);border:1.5px solid;margin-bottom:8px;"></div>'
+    +'<button onclick="addLongBlock()" style="width:100%;padding:8px;background:var(--bg2);border:1.5px dashed var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);cursor:pointer;">+ Ajouter un bloc</button>'
+    +'<input type="hidden" id="long-blocks-data" value="'+blocksJson+'">'
+    +'</div>';
+}
+
 function openHomeModal(idx){
   const s=getSession(CW,idx);
   const cur=state[gk(CW,idx)+'km']||'';
@@ -1075,6 +1100,8 @@ function openHomeModal(idx){
           </div>
         </div>
       </div>`
+  :s.type==='long'
+    ?buildLongModalHtml(detail)
     :`<div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
         <input type="text" id="hm-detail" value="${detail}" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
@@ -1117,6 +1144,7 @@ function openHomeModal(idx){
   </div>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   mc.appendChild(overlay);
+  if(s.type==='long') renderLongBlocks();
 }
 
 function saveHomeModal(idx){
@@ -1142,8 +1170,12 @@ function saveHomeModal(idx){
     const pMax=(pMaxEl?pMaxEl.value||'':'').trim();
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
-    // Toujours fallback sur l'allure existante si les champs sont vides ou identiques au défaut
     if(!detail || detail==='5:00 — 5:20 /km') detail=existingDetail||detail;
+  } else if(type==='long'){
+    name=existingTitle||'Séance EF longue';
+    const blocks=getLongBlocksData();
+    if(blocks.length>0) detail=buildLongDetail(blocks);
+    else detail=existingDetail;
   } else {
     const nameEl=document.getElementById('hm-name');
     name=nameEl?nameEl.value.trim():existingTitle;
@@ -2361,7 +2393,12 @@ function showScreen(name, renfoTab){
     else renderRenfoExercises();
   }
 }
-renderHome();
+// Afficher un overlay de chargement jusqu'à ce que Firebase soit prêt
+const loadingEl=document.createElement('div');
+loadingEl.id='loading-overlay';
+loadingEl.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+loadingEl.innerHTML='<div style="width:44px;height:44px;border:3px solid #EEF2FD;border-top:3px solid #1B4FD8;border-radius:50%;animation:spin 0.8s linear infinite;"></div><p style="font-size:14px;color:#888;font-family:sans-serif;">Chargement…</p><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+document.body.appendChild(loadingEl);
 </script>
 </body>
 </html>
