@@ -1090,23 +1090,57 @@ function showCoachFeedback(s, km, pace, hr, amImproved){
     }
   }
 
-  // === ALLURE CHECK (Tempo) ===
-  if(s.type==='tempo'&&pace){
+  // === ALLURE CHECK (Tempo) — allure moyenne globale attendue ===
+  if(s.type==='tempo'&&pace&&km){
     const detail=s.d.split('|')[1]||'';
+    const title=s.d.split('|')[0]||'';
+    // Parse reps et durée depuis le titre (ex: "Tempo 2×8 min")
+    const repMatch=title.match(/(\d+)×(\d+)/);
+    // Parse allure cible depuis le détail (ex: "4:55 — 5:00 /km")
     const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
-    if(paceMatch){
-      const targetMin=parseInt(paceMatch[1])*60+parseInt(paceMatch[2]);
-      const targetMax=parseInt(paceMatch[3])*60+parseInt(paceMatch[4]);
+
+    if(repMatch&&paceMatch){
+      const reps=parseInt(repMatch[1]);
+      const durMin=parseInt(repMatch[2]);
+      const pMin=parseInt(paceMatch[1])*60+parseInt(paceMatch[2]); // sec/km
+      const pMax=parseInt(paceMatch[3])*60+parseInt(paceMatch[4]); // sec/km
+      const pMoy=(pMin+pMax)/2; // allure cible moyenne des blocs rapides
+
+      // Distance couverte pendant les blocs rapides
+      const kmRapide=reps*(durMin*60/pMoy); // en km
+      const kmTotal=parseFloat(km);
+      const kmEF=Math.max(0, kmTotal-kmRapide);
+
+      // Allure EF actuelle
+      const efPaceStr=getBestEfPace()||"5'59";
+      const efSec=parsePaceToSec(efPaceStr.replace("'",':'));
+
+      // Allure moyenne globale attendue
+      const tempsRapide=kmRapide*pMoy; // secondes
+      const tempsEF=efSec>0?kmEF*efSec:0;
+      const allureMoyAttendueSec=kmTotal>0?(tempsRapide+tempsEF)/(kmTotal):0;
+
       const actual=parsePaceToSec(pace);
-      if(actual){
-        if(actual>=targetMin&&actual<=targetMax){
-          msgs.push({icon:'✓',color:'#3B6D11',text:`Allure dans la cible — ${pace}/km, dans l'intervalle ${paceMatch[1]}:${paceMatch[2]}–${paceMatch[3]}:${paceMatch[4]}/km. Parfait !`});
-        } else if(actual<targetMin){
-          const diff=targetMin-actual;
-          msgs.push({icon:'⚠',color:'#E8530A',text:`Allure trop rapide — ${pace}/km, ${diff}s sous l'objectif minimum. Attention à ne pas griller les efforts.`});
+
+      if(actual&&allureMoyAttendueSec>0){
+        const minA=Math.floor(allureMoyAttendueSec/60);
+        const secA=Math.round(allureMoyAttendueSec%60);
+        const attenduStr=`${minA}:${secA.toString().padStart(2,'0')}`;
+        const kmRapideRounded=Math.round(kmRapide*10)/10;
+        const kmEFRounded=Math.round(kmEF*10)/10;
+        const explication=`(${reps}×${durMin}min ≈ ${kmRapideRounded}km rapide + ${kmEFRounded}km EF à ${efPaceStr}/km)`;
+
+        const diff=allureMoyAttendueSec-actual; // positif = tu as été plus rapide
+        const seuilSec=5; // tolérance ±5s
+
+        if(Math.abs(diff)<=seuilSec){
+          msgs.push({icon:'✓',color:'#3B6D11',text:`Allure globale dans la cible — ${pace}/km, attendu ${attenduStr}/km. Séance bien dosée ! ${explication}`});
+        } else if(diff<0){
+          // actual > attendu → trop lent
+          msgs.push({icon:'⚠',color:'#E8530A',text:`Allure globale trop lente — ${pace}/km, attendu ${attenduStr}/km. Essaie de pousser davantage sur les répétitions. ${explication}`});
         } else {
-          const diff=actual-targetMax;
-          msgs.push({icon:'⚠',color:'#E8530A',text:`Allure trop lente — ${pace}/km, ${diff}s au-dessus de l'objectif. Essaie de pousser un peu plus sur les répétitions.`});
+          // actual < attendu → trop rapide
+          msgs.push({icon:'⚠',color:'#E8530A',text:`Allure globale trop rapide — ${pace}/km, attendu ${attenduStr}/km. Tu as été un peu trop vite sur la séance, attention à bien respecter les allures cibles pour préserver l'énergie. ${explication}`});
         }
       }
     } else {
