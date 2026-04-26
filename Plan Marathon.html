@@ -817,8 +817,8 @@ function openValidationModalExtra(ei){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm ou mm:ss)</p>
-          <input type="text" id="val-dur" value="" placeholder="47:53" maxlength="5" oninput="calcPace()"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm:ss ou mm:ss)</p>
+          <input type="text" id="val-dur" value="" placeholder="47:53" maxlength="7" oninput="calcPace()"
             style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
@@ -911,8 +911,8 @@ function openValidationModal(idx){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm ou mm:ss)</p>
-          <input type="text" id="val-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="5" oninput="calcPace()"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm:ss ou mm:ss)</p>
+          <input type="text" id="val-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="7" oninput="calcPace()"
             style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:20px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
@@ -949,18 +949,26 @@ function calcPace(){
   const durStr=durEl.value.trim();
   if(!km||km<=0||!durStr) return;
   const parts=durStr.split(':');
-  if(parts.length!==2) return;
-  const left=parseInt(parts[0])||0;
-  const right=parseInt(parts[1])||0;
-  if(isNaN(right)||right<0||right>59) return;
-  // Si left > 10 c'est probablement mm:ss, sinon h:mm
   let totalMin;
-  if(left>=10){
-    // Format mm:ss
-    totalMin=left+right/60;
+  if(parts.length===3){
+    // Format h:mm:ss
+    const h=parseInt(parts[0])||0;
+    const m=parseInt(parts[1])||0;
+    const s=parseInt(parts[2])||0;
+    if(isNaN(m)||m<0||m>59||isNaN(s)||s<0||s>59) return;
+    totalMin=h*60+m+s/60;
+  } else if(parts.length===2){
+    const left=parseInt(parts[0])||0;
+    const right=parseInt(parts[1])||0;
+    if(isNaN(right)||right<0||right>59) return;
+    // Si left >= 10 c'est probablement mm:ss, sinon h:mm
+    if(left>=10){
+      totalMin=left+right/60;
+    } else {
+      totalMin=left*60+right;
+    }
   } else {
-    // Format h:mm
-    totalMin=left*60+right;
+    return;
   }
   if(totalMin<=0) return;
   const paceMin=totalMin/km;
@@ -1502,6 +1510,22 @@ function renderPlan(){
   let currentMonth='';
   weeks.forEach(w=>{
     const isCur=w.s===CW,isPast=w.s<CW,isOpen=openWeeks.has(w.s);
+    // Calcul "semaine terminée" pour la semaine en cours
+    const isCurrentWeekAllDone=(()=>{
+      if(!isCur) return false;
+      const baseSessions=weeks[w.s-1].sessions.filter((_,si)=>!state[`del_w${w.s}_s${si}`]);
+      if(baseSessions.length===0) return false;
+      const baseAllDone=weeks[w.s-1].sessions.every((_,si)=>{
+        if(state[`del_w${w.s}_s${si}`]) return true; // supprimée = ignorée
+        return !!state[gk(w.s,si)+'done'];
+      });
+      let ei=0;let extraAllDone=true;
+      while(state[`extra_w${w.s}_s${ei}`]){
+        if(!state[`extra_w${w.s}_s${ei}_done`]) extraAllDone=false;
+        ei++;
+      }
+      return baseAllDone&&extraAllDone;
+    })();
     // Séparateur de mois
     if(w.month!==currentMonth){
       currentMonth=w.month;
@@ -1576,7 +1600,7 @@ function renderPlan(){
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="text-align:right;">
           <span style="font-size:13px;font-weight:600;color:var(--text);" id="week-total-${w.s}">${getWeekTotalKm(w.s)} km</span>
-          ${isPast?'<br><span style="font-size:11px;color:#3B6D11;font-weight:600;">✓ fait</span>':''}
+          ${(isPast||(isCur&&isCurrentWeekAllDone))?'<br><span style="font-size:11px;color:#3B6D11;font-weight:600;">✓ fait</span>':''}
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.2s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
