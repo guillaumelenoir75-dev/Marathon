@@ -1421,10 +1421,13 @@ function openHomeModal(idx){
         <input type="number" id="hm-km-real" min="0" max="99" step="0.5" value="${cur}" placeholder="${s.km}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:20px;text-align:center;font-weight:700;color:var(--text);width:100%;outline:none;">
       </div>
       <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+      ${s.type==='tempo'?`<div>${(()=>{const ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>`:''}
       ${s.type!=='tempo'?`<div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
         <input type="text" id="hm-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>`:''}
+      </div>
+      <div>${(()=>{const ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>`
+      :''}
       <div id="hm-detail-container">${detailField}</div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance planifiée (km)</p>
@@ -1438,7 +1441,6 @@ function openHomeModal(idx){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
         <select id="hm-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
       </div>
-      <div>${(()=>{const ed=state[`edit_w${CW}_s${idx}`]?JSON.parse(state[`edit_w${CW}_s${idx}`]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="clearHomeModal(${idx})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
@@ -1939,6 +1941,11 @@ function openEditModal(ws, si){
     const blocksJson=JSON.stringify(blocks).replace(/"/g,'&quot;');
     return `
     <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
+      <input type="text" id="edit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>
+    <div>${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>
+    <div>
       <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Organisation de la séance longue</p>
       <div style="background:#EEF2FD;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
         <span style="font-size:11px;color:#1B4FD8;">🎯 AM calculée automatiquement :</span>
@@ -1955,6 +1962,7 @@ function openEditModal(ws, si){
       <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la séance</p>
       <input type="text" id="edit-name" value="${title}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
     </div>
+    <div>${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>
     <div>
       <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
       <input type="text" id="edit-detail" value="${detail}" placeholder="ex: 10 EF · 3 AM @ 5'40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
@@ -1968,6 +1976,7 @@ function openEditModal(ws, si){
       <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
     </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
+      ${s.type==='tempo'?`<div>${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>`:''}
       <div id="edit-fields-container">${tempoFields}</div>
       <div>
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Distance (km)</p>
@@ -1981,7 +1990,6 @@ function openEditModal(ws, si){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
         <select id="edit-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
       </div>
-      <div>${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="resetSession(${ws},${si})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
@@ -2020,7 +2028,8 @@ function saveEdit(ws, si){
     if(recup&&recup!=='0'&&reps>1) detail=detail+(detail?' · ':'')+`${recup} min récup`;
   } else if(type==='long'){
     const existing=getSession(ws,si);
-    name=existing.d.split('|')[0]||'Séance EF longue';
+    const nameElLong=document.getElementById('edit-name');
+    name=(nameElLong&&nameElLong.value.trim())||existing.d.split('|')[0]||'Séance EF longue';
     const blocks=getLongBlocksData();
     if(blocks.length>0){
       const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
