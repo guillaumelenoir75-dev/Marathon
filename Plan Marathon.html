@@ -640,6 +640,58 @@ function getNbSeries(seriesStr){
   return m ? parseInt(m[1]) : 3;
 }
 
+
+function openRenfoSchedModal(r){
+  const key=rfk(CW,r)+'sched';
+  const existing=state[key]?JSON.parse(state[key]):{};
+  const days=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+  const opts=days.map((d,i)=>i===0?`<option value="">-- Jour --</option>`:`<option value="${i}" ${existing.day==i?'selected':''}>${d}</option>`).join('');
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <p style="font-size:16px;font-weight:600;color:var(--text);">Planifier le renforcement</p>
+      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Jour prévu</p>
+        <select id="rf-sched-day" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${opts}</select>
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Heure approx.</p>
+        <input type="time" id="rf-sched-time" value="${existing.time||''}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button onclick="clearRenfoSched(${r})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Effacer</button>
+      <button onclick="saveRenfoSched(${r})" style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
+    </div>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  mc.appendChild(overlay);
+}
+
+function saveRenfoSched(r){
+  const day=parseInt(document.getElementById('rf-sched-day').value)||null;
+  const time=document.getElementById('rf-sched-time').value||null;
+  if(day||time){
+    state[rfk(CW,r)+'sched']=JSON.stringify({day:day||undefined,time:time||undefined});
+  } else {
+    delete state[rfk(CW,r)+'sched'];
+  }
+  save();
+  closeModal();
+  renderHome();
+}
+
+function clearRenfoSched(r){
+  delete state[rfk(CW,r)+'sched'];
+  save();
+  closeModal();
+  renderHome();
+}
 function renderHome(){
   const td=calcTotalDone();
   const weekNumEl=document.getElementById('h-week-num');
@@ -687,6 +739,9 @@ function renderHome(){
       const card=document.createElement('div');
       card.style.cssText='background:var(--bg);border:1px solid '+(done?'#3B6D11':'var(--border)')+';border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;';
       card.onclick=()=>showScreen('renfo',rd.r);
+      const renfoSched=state[rfk(CW,rd.r)+'sched']?JSON.parse(state[rfk(CW,rd.r)+'sched']):null;
+      const rfDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+      const rfSchedStr=renfoSched?[renfoSched.day?rfDays[renfoSched.day]:'',renfoSched.time||''].filter(Boolean).join(' · '):'';
       card.innerHTML=`<div style="width:40px;height:40px;border-radius:10px;background:${done?'#EAF3DE':'#EEF2FD'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         ${done
           ?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
@@ -696,9 +751,13 @@ function renderHome(){
       <div style="flex:1;min-width:0;">
         <p style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'var(--text)'};">${rd.name} ${done?'<span style="font-size:11px;">✓ fait</span>':''}</p>
         <p style="font-size:11px;color:var(--muted);">${rd.sub}</p>
+        ${rfSchedStr?`<p style="font-size:11px;color:var(--muted);margin-top:2px;">📅 ${rfSchedStr}</p>`:''}
         ${!done&&doneSeries>0?`<div style="margin-top:5px;background:var(--bg2);border-radius:3px;height:4px;"><div style="background:#1B4FD8;border-radius:3px;height:4px;width:${pct}%;"></div></div>`:''}
       </div>
-      <div style="text-align:right;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div onclick="event.stopPropagation();openRenfoSchedModal(${rd.r})" style="width:30px;height:30px;border-radius:50%;border:1.5px solid ${rfSchedStr?'#1B4FD8':'var(--border)'};background:${rfSchedStr?'#EEF2FD':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Planifier">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${rfSchedStr?'#1B4FD8':'var(--muted)'}" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
         ${done
           ?'<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:3px 8px;border-radius:20px;font-weight:600;">✓ Terminé</span>'
           :doneSeries>0
@@ -754,6 +813,17 @@ function renderHome(){
         <span style="font-size:12px;color:var(--muted);">${rv!=null?'<span style="color:'+c+';font-weight:600;">'+rv+' km</span> · plan '+s2.km+' km':s2.km+' km'}</span>
         ${s2.shoe?shoeFullBadge(s2.shoe):''}
       </div>
+      ${(()=>{
+        if(extra) return '';
+        const edRaw=state['edit_w'+CW+'_s'+si];
+        if(!edRaw) return '';
+        const ed=JSON.parse(edRaw);
+        if(!ed.sched_day&&!ed.sched_time) return '';
+        const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+        const dayStr=ed.sched_day?days[ed.sched_day]:'';
+        const timeStr=ed.sched_time||'';
+        return '<p style="font-size:11px;color:var(--muted);margin-top:3px;">📅 '+[dayStr,timeStr].filter(Boolean).join(' · ')+'</p>';
+      })()}
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
       ${editBtn}${doneBtn}
@@ -1368,6 +1438,7 @@ function openHomeModal(idx){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
         <select id="hm-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
       </div>
+      <div>${(()=>{const ed=state[`edit_w${CW}_s${idx}`]?JSON.parse(state[`edit_w${CW}_s${idx}`]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="clearHomeModal(${idx})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
@@ -1433,8 +1504,10 @@ function saveHomeModal(idx){
     state[gk(CW,idx)+'done']=true;
   }
   const d=detail?`${name}|${detail}`:name;
+  const schedDay2=parseInt(document.getElementById('sched-day').value)||null;
+  const schedTime2=document.getElementById('sched-time').value||null;
   const key=`edit_w${CW}_s${idx}`;
-  state[key]=JSON.stringify({d,km:isNaN(km)?0:km,type,shoe});
+  state[key]=JSON.stringify({d,km:isNaN(km)?0:km,type,shoe,sched_day:schedDay2||undefined,sched_time:schedTime2||undefined});
   save();
   closeModal();
   rendered.plan=false;
@@ -1578,6 +1651,17 @@ function renderPlan(){
             <p style="font-size:12px;font-weight:600;color:${isDone?'#3B6D11':'var(--text)'};">${title}${edited?'<span style="font-size:9px;color:#1B4FD8;margin-left:5px;">✎</span>':''}${extra?'<span style="font-size:9px;color:#3B6D11;margin-left:5px;">+</span>':''}${isDone?'<span style="font-size:10px;color:#3B6D11;margin-left:6px;font-weight:700;">✓ fait</span>':''}</p>
             ${detail?`<p style="font-size:11px;color:${isDone?'#3B6D11':c};font-weight:600;margin-top:1px;">${detail}</p>`:''}
             <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
+            ${(()=>{
+              if(extra) return '';
+              const edRaw=state['edit_w'+w.s+'_s'+si];
+              if(!edRaw) return '';
+              const ed=JSON.parse(edRaw);
+              if(!ed.sched_day&&!ed.sched_time) return '';
+              const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+              const dayStr=ed.sched_day?days[ed.sched_day]:'';
+              const timeStr=ed.sched_time||'';
+              return '<p style="font-size:11px;color:var(--muted);margin-top:2px;">📅 '+[dayStr,timeStr].filter(Boolean).join(' · ')+'</p>';
+            })()}
           </div>
           <span style="font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0;">${s2.km} km</span>
         </div>
@@ -1766,6 +1850,21 @@ function buildLongDetail(blocks){
   return blocks.map(b=>`${b.km} ${b.type}${b.type==='AM'?' @ '+am+'/km':''}`).join(' · ');
 }
 
+
+function buildSchedFieldsHtml(day, time){
+  const days=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+  const opts=days.map((d,i)=>i===0?`<option value="">-- Jour --</option>`:`<option value="${i}" ${day==i?'selected':''}>${d}</option>`).join('');
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Jour prévu</p>
+      <select id="sched-day" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${opts}</select>
+    </div>
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Heure approx.</p>
+      <input type="time" id="sched-time" value="${time||''}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
+    </div>
+  </div>`;
+}
 function openEditModal(ws, si){
   const s = getSession(ws, si);
   const parts = s.d.split('|');
@@ -1882,6 +1981,7 @@ function openEditModal(ws, si){
         <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Chaussures</p>
         <select id="edit-shoe" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">${shoeOptions}</select>
       </div>
+      <div>${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
       <button onclick="resetSession(${ws},${si})" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Réinitialiser</button>
@@ -1934,8 +2034,10 @@ function saveEdit(ws, si){
     if(detailEl) detail=detailEl.value.trim();
   }
   const d = detail ? `${name}|${detail}` : name;
+  const schedDay=parseInt(document.getElementById('sched-day').value)||null;
+  const schedTime=document.getElementById('sched-time').value||null;
   const key = `edit_w${ws}_s${si}`;
-  state[key] = JSON.stringify({d, km: isNaN(km)?0:km, type, shoe});
+  state[key] = JSON.stringify({d, km: isNaN(km)?0:km, type, shoe, sched_day:schedDay||undefined, sched_time:schedTime||undefined});
   // Appliquer le format (reps×dur) à toutes les Tempo suivantes
   if(applyFormat && applyFormat.checked && type==='tempo'){
     const reps=parseInt(document.getElementById('edit-reps').value)||2;
