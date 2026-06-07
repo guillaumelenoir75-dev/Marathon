@@ -7288,23 +7288,11 @@ function toggleDone(idx){
 
 const openWeeks=new Set();
 function renderAthletePlan(el){
-  // Collecter toutes les séances extra de l'athlète sur toutes les semaines
-  const allSessions=[];
-  for(let ws=1;ws<=52;ws++){
-    let ei=0;
-    while(true){
-      const k='extra_w'+ws+'_s'+ei;
-      if(!state[k]) break;
-      try {
-        const s=typeof state[k]==='string'?JSON.parse(state[k]):state[k];
-        const done=!!state[k+'_done'];
-        allSessions.push({ws,ei,s,done,k});
-      } catch(e){}
-      ei++;
-    }
-  }
+  // Collecter toutes les semaines avec séances extra
+  const weekNums=new Set();
+  for(let ws=1;ws<=52;ws++){if(state['extra_w'+ws+'_s0']) weekNums.add(ws);}
 
-  if(allSessions.length===0){
+  if(weekNums.size===0){
     el.innerHTML=`<div style="text-align:center;padding:48px 24px;color:#888;">
       <div style="font-size:40px;margin-bottom:12px;">📋</div>
       <p style="font-size:15px;font-weight:600;color:#444;margin-bottom:8px;">Ton plan est vide</p>
@@ -7314,38 +7302,165 @@ function renderAthletePlan(el){
     return;
   }
 
-  // Grouper par semaine
-  const byWeek={};
-  allSessions.forEach(item=>{
-    if(!byWeek[item.ws]) byWeek[item.ws]=[];
-    byWeek[item.ws].push(item);
+  [...weekNums].sort((a,b)=>a-b).forEach(ws=>{
+    const isCur=ws===CW, isPast=ws<CW;
+
+    // Collecter séances de cette semaine
+    const sessions=[];
+    let ei=0;
+    while(state[`extra_w${ws}_s${ei}`]){
+      try{
+        const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+        const done=!!state[`extra_w${ws}_s${ei}_done`];
+        const kmDone=state[`extra_w${ws}_s${ei}_km`]!=null?parseFloat(state[`extra_w${ws}_s${ei}_km`]):null;
+        const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+        sessions.push({s,ei,done,kmDone,perf});
+      }catch(e){}
+      ei++;
+    }
+
+    const kmTotal=sessions.reduce((t,{s})=>t+(parseFloat(s.km)||0),0);
+    const doneCnt=sessions.filter(x=>x.done).length;
+    const allDone=doneCnt===sessions.length&&sessions.length>0;
+    const weekDone=sessions.length?Math.round(doneCnt/sessions.length*100):0;
+
+    const numBg=isCur?'var(--blue)':isPast?'var(--bg2)':'var(--bg2)';
+    const numColor=isCur?'#fff':isPast?'var(--muted)':'var(--text)';
+    const statusHtml=allDone
+      ?`<span style="font-size:13px;font-weight:700;color:#3B6D11;">${kmTotal}<span style="font-size:10px;font-weight:500;color:#3B6D11aa;"> km</span> <span style="font-size:11px;">✓</span></span>`
+      :`<span style="font-size:13px;font-weight:700;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}<span style="font-size:10px;font-weight:500;color:var(--muted);"> km</span></span>`;
+    const progressHtml=isCur
+      ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:var(--blue);"></div></div>`
+      :isPast?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`:'';
+
+    const isOpen=openWeeks.has(ws);
+    const chevron=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+    const badges=[];
+    if(isCur) badges.push(`<span class="plan-badge" style="background:#EEF2FD;color:#1438A8;">En cours</span>`);
+
+    const sessionRowsHtml=isOpen?sessions.map(({s,ei:eid,done,kmDone,perf},rowIdx)=>{
+      const typeC=typeColor[s.type]||'#888';
+      const typeBgC=typeBg[s.type]||'#f5f5f5';
+      const lbl=typeLabel[s.type]||s.type;
+      const title=s.d?s.d.split('|')[0]:'';
+      const detail=s.d&&s.d.includes('|')?s.d.split('|')[1]:null;
+      const clickFn=done?`openPerfEditExtraModal(${ws},${eid})`:`openEditExtraModal(${ws},${eid})`;
+      const iconContent=done
+        ?`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        :`<span style="font-size:9px;font-weight:800;color:${typeC};">${lbl}</span>`;
+      const iconBg=done?'#EAF3DE':typeBgC;
+      const iconBorder=done?'#3B6D11':typeC;
+      const kmShow=done&&kmDone!=null?kmDone:s.km;
+      const kmSub=done&&kmDone!=null?`<span style="font-size:9px;font-weight:400;color:#3B6D11aa;"> /&nbsp;${s.km}</span>`:'';
+      const canUp=rowIdx>0, canDown=rowIdx<sessions.length-1;
+      const durHtml=(()=>{
+        if(done){
+          const parts=[];
+          if(perf.dur) parts.push(`<span style="font-size:10px;font-weight:600;color:#3B6D11;">⏱ ${perf.dur}</span>`);
+          if(perf.pace) parts.push(`<span style="font-size:10px;color:#3B6D11;font-weight:600;">🏃 ${perf.pace}/km</span>`);
+          return parts.length?`<div style="display:flex;gap:6px;align-items:center;margin-top:2px;">${parts.join('<span style="color:var(--border);"> · </span>')}</div>`:'';
+        }
+        const dur=calcSessionDuration(s,getBestEfPace(),getMarathonPaceStr());
+        return dur?`<span style="font-size:10px;color:var(--muted);font-weight:500;">⏱ ~${dur}</span>`:'';
+      })();
+      const schedHtml=(()=>{
+        if(s.sched_day||s.sched_time){
+          const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+          return `<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
+        }
+        return '';
+      })();
+      return `<div class="plan-session-card" style="${done?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':''}">
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}22;">${iconContent}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'var(--text)'};">${title}</span>
+              ${done?`<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>`:''}
+            </div>
+            ${detail?`<p style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;">${detail}</p>`:''}
+            ${durHtml}${schedHtml}
+            <div style="margin-top:2px;">${s.shoe?shoeBadge(s.shoe):''}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;flex-shrink:0;width:75px;">
+          <div style="width:52px;text-align:right;flex-shrink:0;">
+            <span style="font-size:13px;font-weight:700;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</span>
+            <span style="font-size:10px;font-weight:500;color:${done?'#3B6D11aa':'var(--muted)'};">${kmSub?kmSub+'&thinsp;km':'&thinsp;km'}</span>
+          </div>
+          <div class="plan-session-move">
+            <button onclick="event.stopPropagation();moveExtraSession(${ws},${rowIdx},-1)" ${canUp?'':'disabled'}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+            <button onclick="event.stopPropagation();moveExtraSession(${ws},${rowIdx},1)" ${canDown?'':'disabled'}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join(''):'';
+
+    const addRowHtml=isOpen?`<div class="plan-add-row" onclick="openAddModal(${ws})">
+      <div class="plan-session-icon" style="background:var(--bg2);border:1.5px dashed var(--border);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+      <span style="font-size:12px;color:var(--muted);">Ajouter une séance</span>
+    </div>`:'';
+
+    const card=document.createElement('div');
+    card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'');
+    card.innerHTML=`
+      ${progressHtml}
+      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})">
+        <div class="plan-week-num" style="background:${numBg};color:${numColor};">S${ws}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--muted);">Semaine ${ws}</span>
+            ${badges.join('')}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;flex-shrink:0;width:75px;">
+          <div style="width:52px;text-align:right;">${statusHtml}</div>
+          <div style="width:23px;display:flex;justify-content:flex-end;">${chevron}</div>
+        </div>
+      </div>
+      ${sessionRowsHtml}${addRowHtml}`;
+    el.appendChild(card);
   });
 
-  Object.keys(byWeek).sort((a,b)=>a-b).forEach(ws=>{
-    const sessions=byWeek[ws];
-    const wsNum=parseInt(ws);
-    const wEl=document.createElement('div');
-    wEl.style.cssText='background:#fff;border-radius:14px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06);';
-    wEl.innerHTML=`<div style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;">Semaine ${ws}</div>`
-      +sessions.map(({s,done,k,ei})=>{
-        const typeColors={ef:'#2d7d46',tempo:'#b45309',long:'#1B4FD8',race:'#9333ea'};
-        const typeLabel={ef:'EF',tempo:'Tempo',long:'Longue',race:'Course'};
-        const color=typeColors[s.type]||'#555';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f4ff;">
-          <span style="font-size:11px;font-weight:700;color:${color};background:${color}15;padding:2px 8px;border-radius:20px;">${typeLabel[s.type]||s.type}</span>
-          <span style="flex:1;font-size:13px;color:#333;">${s.d?s.d.split('|')[0]:''} ${s.km?'· '+s.km+' km':''}</span>
-          ${done?'<span style="color:#2d7d46;font-size:16px;">✓</span>':''}
-        </div>`;
-      }).join('')
-      +`<button onclick="openAddModal(${wsNum})" style="margin-top:10px;width:100%;padding:8px;background:#f0f4ff;border:1.5px dashed #c5d8f0;border-radius:10px;font-size:13px;color:#1B4FD8;cursor:pointer;">+ Ajouter une séance S${ws}</button>`;
-    el.appendChild(wEl);
-  });
-
-  // Bouton ajouter semaine suivante
-  const nextWs=allSessions.length>0?Math.max(...allSessions.map(a=>a.ws)):CW;
+  // Bouton ajouter une semaine
+  const nextWs=(weekNums.size>0?Math.max(...weekNums):CW)+1;
   const addEl=document.createElement('div');
-  addEl.innerHTML=`<button onclick="openAddModal(${nextWs})" style="width:100%;padding:12px;background:#fff;border:2px dashed #c5d8f0;border-radius:14px;font-size:14px;color:#1B4FD8;font-weight:600;cursor:pointer;">+ Nouvelle séance</button>`;
+  addEl.innerHTML=`<div class="plan-add-row" onclick="openAddModal(${nextWs})" style="border:1.5px dashed var(--border);border-radius:var(--radius);background:var(--bg);">
+    <div class="plan-session-icon" style="background:var(--bg2);border:1.5px dashed var(--border);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    <span style="font-size:12px;color:var(--muted);">Nouvelle semaine S${nextWs}</span>
+  </div>`;
   el.appendChild(addEl);
+}
+
+function toggleAthleteWeek(ws){if(openWeeks.has(ws))openWeeks.delete(ws);else openWeeks.add(ws);renderPlan();}
+
+function moveExtraSession(ws,rowIdx,dir){
+  // Collecter les indices existants
+  const keys=[];
+  let ei=0;
+  while(state[`extra_w${ws}_s${ei}`]){keys.push(ei);ei++;}
+  const target=rowIdx+dir;
+  if(target<0||target>=keys.length) return;
+  // Échanger les deux séances (toutes leurs clés associées)
+  const suffixes=['','_done','_km','_perf'];
+  suffixes.forEach(suf=>{
+    const a=state[`extra_w${ws}_s${rowIdx}${suf}`];
+    const b=state[`extra_w${ws}_s${target}${suf}`];
+    if(b!=null) state[`extra_w${ws}_s${rowIdx}${suf}`]=b; else delete state[`extra_w${ws}_s${rowIdx}${suf}`];
+    if(a!=null) state[`extra_w${ws}_s${target}${suf}`]=a; else delete state[`extra_w${ws}_s${target}${suf}`];
+  });
+  save();
+  rendered.plan=false;
+  renderPlan();
 }
 
 function renderPlan(){
@@ -7355,6 +7470,7 @@ function renderPlan(){
   // Plan vide pour les athlètes — seulement les séances qu'ils ajoutent eux-mêmes
   if(!isAdmin()){
     if(ptEl) ptEl.textContent='Ton plan personnalisé';
+    openWeeks.add(CW);
     renderAthletePlan(el);
     return;
   }
