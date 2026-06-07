@@ -668,7 +668,9 @@ const shoeStyle={
 const defaultShoeColors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780'];
 function getShoes(){
   if(state._shoes) return JSON.parse(state._shoes);
-  return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:600},{name:Z,color:'#EAB308',max:600}];
+  // Les chaussures de Guillaume sont prédéfinies uniquement pour son compte admin
+  if(currentUserRole==='admin') return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:600},{name:Z,color:'#EAB308',max:600}];
+  return [];
 }
 function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
 const typeColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888780',race:'#C4960A'};
@@ -8597,7 +8599,7 @@ function saveAdd(ws){
 
   if(!type){ showAddError('Choisissez un type.'); return; }
   if(!km || km <= 0){ showAddError('Entrez une distance en km.'); return; }
-  if(!shoe){ showAddError('Choisissez une paire de chaussures.'); return; }
+  if(!shoe && getShoes().length>0){ showAddError('Choisissez une paire de chaussures.'); return; }
 
   // Planning (sched_day + sched_time) — commun à tous les types
   const schedDay  = parseInt((document.getElementById('sched-day')  || {}).value) || undefined;
