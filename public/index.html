@@ -1330,6 +1330,10 @@ async function saveOnboarding(){
     // Sauvegarder tout le plan en un seul update Firebase
     if(dbRef && entries.length>0){
       const updates={};
+      // Enregistrer la date de début du plan (= aujourd'hui)
+      const startDate=new Date().toISOString().split('T')[0];
+      state.plan_start_date=startDate;
+      updates.plan_start_date=startDate;
       entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
       await dbRef.update(updates).catch(()=>{});
     }
@@ -7287,7 +7291,17 @@ function toggleDone(idx){
 }
 
 const openWeeks=new Set();
+function getAthleteCW(){
+  // Semaine courante de l'athlète = semaines écoulées depuis plan_start_date
+  if(!state.plan_start_date) return 1;
+  const start=new Date(state.plan_start_date);
+  const now=new Date();
+  const diffDays=Math.floor((now-start)/(1000*60*60*24));
+  return Math.max(1, Math.floor(diffDays/7)+1);
+}
+
 function renderAthletePlan(el){
+  const ACW=getAthleteCW();
   // Collecter toutes les semaines avec séances extra
   const weekNums=new Set();
   for(let ws=1;ws<=52;ws++){if(state['extra_w'+ws+'_s0']) weekNums.add(ws);}
@@ -7297,13 +7311,13 @@ function renderAthletePlan(el){
       <div style="font-size:40px;margin-bottom:12px;">📋</div>
       <p style="font-size:15px;font-weight:600;color:#444;margin-bottom:8px;">Ton plan est vide</p>
       <p style="font-size:13px;color:#888;margin-bottom:20px;">Ajoute tes premières séances pour construire ton plan.</p>
-      <button onclick="openAddModal(${CW})" style="padding:12px 24px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">+ Ajouter une séance</button>
+      <button onclick="openAddModal(1)" style="padding:12px 24px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">+ Ajouter une séance</button>
     </div>`;
     return;
   }
 
   [...weekNums].sort((a,b)=>a-b).forEach(ws=>{
-    const isCur=ws===CW, isPast=ws<CW;
+    const isCur=ws===ACW, isPast=ws<ACW;
 
     // Collecter séances de cette semaine
     const sessions=[];
@@ -7470,7 +7484,7 @@ function renderPlan(){
   // Plan vide pour les athlètes — seulement les séances qu'ils ajoutent eux-mêmes
   if(!isAdmin()){
     if(ptEl) ptEl.textContent='Ton plan personnalisé';
-    openWeeks.add(CW);
+    openWeeks.add(getAthleteCW());
     renderAthletePlan(el);
     return;
   }
