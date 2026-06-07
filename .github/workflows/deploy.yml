@@ -26,4 +26,6 @@ jobs:
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_SECRET }}
-        run: firebase deploy --token "$FIREBASE_TOKEN" --project prepa-marathon --non-interactive
+        run: |
+          firebase deploy --only functions --token "$FIREBASE_TOKEN" --project prepa-marathon --non-interactive
+          firebase deploy --only hosting:prepa-marathon --token "$FIREBASE_TOKEN" --project prepa-marathon --non-interactive
