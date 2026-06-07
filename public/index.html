@@ -433,6 +433,24 @@ input[type=number]:focus{border-color:var(--orange);}
     </div>
   </div>
   <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e0e0;margin-bottom:16px;">
+    <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0 0 12px;">Mes informations</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input id="info-prenom" type="text" autocomplete="given-name" placeholder="Prénom"
+        style="width:100%;padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;box-sizing:border-box;">
+      <input id="info-email" type="email" autocomplete="email" placeholder="Adresse e-mail"
+        style="width:100%;padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;box-sizing:border-box;">
+      <div>
+        <p style="font-size:11px;font-weight:700;color:#888;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Genre</p>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="info-gender-M" onclick="selectInfoGender('M')" style="flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;background:#f5f5f5;color:#666;cursor:pointer;">🚹 Homme</button>
+          <button type="button" id="info-gender-F" onclick="selectInfoGender('F')" style="flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;background:#f5f5f5;color:#666;cursor:pointer;">🚺 Femme</button>
+        </div>
+      </div>
+      <button onclick="saveProfileInfo()" style="padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Enregistrer</button>
+      <p id="info-msg" style="font-size:12px;margin:0;display:none;"></p>
+    </div>
+  </div>
+  <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e0e0;margin-bottom:16px;">
     <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0 0 12px;">Modifier mon mot de passe</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div style="position:relative;"><input id="pwd-current" type="password" autocomplete="current-password" placeholder="Mot de passe actuel" style="width:100%;padding:11px 40px 11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;box-sizing:border-box;"><button type="button" onclick="togglePwd('pwd-current',this)" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;color:#888;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
@@ -1084,6 +1102,13 @@ function renderCompteScreen(){
       :['Chaque km compte 🏃','Continue comme ça, tu assures ! 💪','La régularité fait la différence ⚡','Un pas après l\'autre 🌟'];
     tagEl.textContent=taglines[Math.floor(Math.random()*taglines.length)];
   }
+  // Préremplir les champs "Mes informations"
+  const infoPrenom=document.getElementById('info-prenom');
+  const infoEmail=document.getElementById('info-email');
+  if(infoPrenom&&user) infoPrenom.value=user.displayName||'';
+  if(infoEmail&&user) infoEmail.value=user.email||'';
+  const savedGender=state.gender||(currentUserRole==='admin'?'M':null);
+  if(savedGender){ _infoGender=savedGender; selectInfoGender(savedGender); }
   const adminPanel=document.getElementById('admin-panel');
   if(adminPanel) adminPanel.style.display=currentUserRole==='admin'?'block':'none';
   if(currentUserRole==='admin') loadAdminUsersList();
@@ -1428,6 +1453,87 @@ function togglePwd(inputId, btn){
   if(svg) svg.innerHTML=show
     ?'<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
     :'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
+function _askCurrentPassword(){
+  return new Promise(resolve=>{
+    const existing=document.getElementById('confirm-pwd-modal');
+    if(existing) existing.remove();
+    const overlay=document.createElement('div');
+    overlay.id='confirm-pwd-modal';
+    overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    overlay.innerHTML=`
+    <div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+      <div style="padding:24px 20px 16px;text-align:center;">
+        <div style="font-size:36px;margin-bottom:10px;">🔒</div>
+        <p style="font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:6px;">Confirme ton identité</p>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Entre ton mot de passe actuel pour valider les modifications.</p>
+        <div style="position:relative;">
+          <input id="cpwd-input" type="password" autocomplete="current-password" placeholder="Mot de passe actuel"
+            style="width:100%;padding:12px 40px 12px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;font-family:sans-serif;box-sizing:border-box;">
+          <button type="button" onclick="togglePwd('cpwd-input',this)" tabindex="-1"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:2px;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <p id="cpwd-err" style="font-size:12px;color:#DC2626;margin:6px 0 0;display:none;"></p>
+      </div>
+      <div style="display:flex;border-top:1px solid #f0f0f0;">
+        <button id="cpwd-cancel" style="flex:1;padding:15px;background:#fff;border:none;border-right:1px solid #f0f0f0;font-size:14px;font-weight:600;color:#666;cursor:pointer;border-radius:0 0 0 22px;">Annuler</button>
+        <button id="cpwd-ok" style="flex:1;padding:15px;background:#1B4FD8;border:none;font-size:14px;font-weight:700;color:#fff;cursor:pointer;border-radius:0 0 22px 0;">Valider</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const input=document.getElementById('cpwd-input');
+    setTimeout(()=>input?.focus(),100);
+    document.getElementById('cpwd-cancel').onclick=()=>{overlay.remove();resolve(null);};
+    const confirm=()=>{
+      const v=input?.value||'';
+      if(!v){const e=document.getElementById('cpwd-err');if(e){e.textContent='Entre ton mot de passe.';e.style.display='block';}return;}
+      overlay.remove();resolve(v);
+    };
+    document.getElementById('cpwd-ok').onclick=confirm;
+    input?.addEventListener('keydown',e=>{if(e.key==='Enter')confirm();});
+  });
+}
+
+let _infoGender='';
+function selectInfoGender(g){
+  _infoGender=g;
+  ['M','F'].forEach(x=>{
+    const b=document.getElementById('info-gender-'+x);
+    if(!b) return;
+    const sel=x===g;
+    b.style.borderColor=sel?'#1B4FD8':'#e0e0e0';
+    b.style.background=sel?'#EBF0FF':'#f5f5f5';
+    b.style.color=sel?'#1B4FD8':'#666';
+  });
+}
+
+async function saveProfileInfo(){
+  const user=firebase.auth().currentUser;
+  const msgEl=document.getElementById('info-msg');
+  const prenom=(document.getElementById('info-prenom')?.value||'').trim();
+  const email=(document.getElementById('info-email')?.value||'').trim();
+  const gender=_infoGender||state.gender||null;
+  if(!email){if(msgEl){msgEl.textContent='L\'email est requis.';msgEl.style.color='#e53e3e';msgEl.style.display='block';}return;}
+  if(msgEl) msgEl.style.display='none';
+  try{
+    const pwd=await _askCurrentPassword();
+    if(!pwd) return;
+    const cred=firebase.auth.EmailAuthProvider.credential(user.email, pwd);
+    await user.reauthenticateWithCredential(cred);
+    // Mettre à jour le displayName
+    if(prenom!==user.displayName) await user.updateProfile({displayName:prenom||null});
+    // Mettre à jour l'email
+    if(email!==user.email) await user.updateEmail(email);
+    // Sauvegarder le genre dans Firebase
+    if(gender){state.gender=gender;if(dbRef) await dbRef.child('gender').set(gender).catch(()=>{});}
+    if(msgEl){msgEl.textContent='✅ Informations mises à jour !';msgEl.style.color='#2d7d46';msgEl.style.display='block';}
+    renderCompteScreen();
+  }catch(e){
+    if(msgEl){msgEl.textContent='Erreur : '+e.message;msgEl.style.color='#e53e3e';msgEl.style.display='block';}
+  }
 }
 
 async function changePassword(){
