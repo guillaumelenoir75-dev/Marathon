@@ -11,8 +11,8 @@ self.addEventListener('push', event => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Plan Marathon', {
       body: data.body || '',
-      icon: '/icon.jpeg',
-      badge: '/icon.jpeg',
+      icon: '/icon-512-v2.png',
+      badge: '/icon-192-v2.png',
       tag: data.tag || 'marathon-notif',
       data: { tag: data.tag || '' },
       requireInteraction: false
