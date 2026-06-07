@@ -1767,6 +1767,16 @@ RÈGLES DE MISE À JOUR — ESSENTIELLES :
 
 // ── PUSH NOTIFICATIONS — CRON JOBS ───────────────────────────────────────────
 
+async function getUserPref(db, statePath, key, defaultVal=true){
+  try{
+    const snap=await db.ref(`${statePath}/_prefs`).once('value');
+    const raw=snap.val();
+    if(!raw) return defaultVal;
+    const prefs=typeof raw==='string'?JSON.parse(raw):raw;
+    return prefs[key]!==undefined?prefs[key]:defaultVal;
+  }catch(e){return defaultVal;}
+}
+
 async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   const webpush = require('web-push');
   webpush.setVapidDetails('mailto:guillaumelenoir75@gmail.com', vapidPublic, vapidPrivate);
@@ -1995,25 +2005,25 @@ exports.dbAdmin = onRequest(
 // ── 1a. FC repos — lundi-vendredi 8h01 ───────────────────────────────────────
 exports.fcReposReminderWeekday = onSchedule(
   {schedule:'58 7 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
 );
 
 // ── 1b. FC repos — samedi-dimanche 9h30 ──────────────────────────────────────
 exports.fcReposReminderWeekend = onSchedule(
   {schedule:'30 9 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
 );
 
 // ── 1c. FC repos rappel 14h — lundi-vendredi ─────────────────────────────────
 exports.fcReposReminder14hWeekday = onSchedule(
   {schedule:'0 14 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
 );
 
 // ── 1d. FC repos rappel 14h — samedi-dimanche ────────────────────────────────
 exports.fcReposReminder14hWeekend = onSchedule(
   {schedule:'0 14 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
 );
 
 // ── 3. Rappel séance — toutes les 30 min (7h-21h) ────────────────────────────
@@ -2022,6 +2032,7 @@ exports.sessionReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_seance'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const now=new Date();
@@ -2126,6 +2137,7 @@ exports.briefAfterFcRepos = onSchedule(
   async()=>{
     try{
       const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_brief_matin'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const trigger=state['_brief_trigger'];
       if(!trigger||!trigger.ts)return;
@@ -2239,6 +2251,7 @@ exports.unvalidatedSessionReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_unvalidated'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const now=new Date();
@@ -2295,6 +2308,7 @@ exports.weekCompleteCongrats = onSchedule(
   async()=>{
     try{
       const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_congrats'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
 
@@ -2376,6 +2390,7 @@ exports.weeklyPlanifReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_planif'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const cwNext=Math.min(cw+1,32);
@@ -2401,6 +2416,7 @@ exports.weeklyDebriefNotif = onSchedule(
   async()=>{
     try{
       const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_debrief_semaine'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const ctx=await buildNotifContext(state,cw);
