@@ -48,6 +48,9 @@ input[type=number]:focus{border-color:var(--orange);}
 .modal-input-styled:focus{border-color:var(--_accent,var(--blue));}
 .modal-input-xl{font-size:28px;padding:13px 14px;text-align:center;border-radius:14px;font-weight:800;}
 .modal-chip{padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all 0.15s;}
+.ob-chip{width:100%;padding:18px 20px;background:#fff;border:2px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;text-align:left;color:#1a1a1a;transition:all 0.15s;}
+.ob-chip.selected{border-color:#1B4FD8;background:#EBF0FF;color:#1B4FD8;}
+.ob-chip-sm{flex:1;text-align:center;padding:20px 10px;font-size:22px;font-weight:800;}
 .modal-chip.active{color:#fff;border-color:transparent;}
 .modal-stat-card{background:var(--bg);border-radius:14px;padding:14px 12px;text-align:center;flex:1;border:1px solid rgba(0,0,0,0.04);}
 .modal-stat-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;}
@@ -433,6 +436,15 @@ input[type=number]:focus{border-color:var(--orange);}
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     Se déconnecter
   </button>
+  <div id="athlete-panel" style="display:none;margin-bottom:16px;">
+    <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">Mon profil</p>
+        <button onclick="showOnboarding(true)" style="background:#EBF0FF;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;">Modifier</button>
+      </div>
+      <div id="athlete-profile-content" style="font-size:13px;color:#555;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
   <div id="admin-panel" style="display:none;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
       <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0 0 14px;">Gestion des utilisateurs</p>
@@ -451,6 +463,58 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
       <p style="font-size:12px;font-weight:600;color:#555;margin:0 0 8px;">Comptes existants</p>
       <div id="admin-users-list" style="font-size:13px;color:#555;">Chargement...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING OVERLAY -->
+<div id="onboarding-overlay" style="display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;height:100%;z-index:300;background:#EDF2FB;flex-direction:column;overflow:hidden;">
+  <div style="flex:1;display:flex;flex-direction:column;padding:56px 24px 24px;overflow-y:auto;">
+    <div style="display:flex;gap:6px;margin-bottom:44px;">
+      <div id="ob-prog-0" style="flex:1;height:4px;border-radius:2px;background:#1B4FD8;transition:background 0.3s;"></div>
+      <div id="ob-prog-1" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+      <div id="ob-prog-2" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+      <div id="ob-prog-3" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+    </div>
+    <div id="ob-step-0">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 1 / 4</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Quelle course prépares-tu ?</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="onboardingSelect('course','Marathon')" class="ob-chip" id="ob-course-Marathon">🏅 Marathon</button>
+        <button onclick="onboardingSelect('course','Semi-marathon')" class="ob-chip" id="ob-course-Semi-marathon">🥈 Semi-marathon</button>
+        <button onclick="onboardingSelect('course','10 km')" class="ob-chip" id="ob-course-10 km">⚡ 10 km</button>
+        <button onclick="onboardingSelect('course','Autre')" class="ob-chip" id="ob-course-Autre">🎯 Autre</button>
+      </div>
+    </div>
+    <div id="ob-step-1" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 2 / 4</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Date de ta course ?</h2>
+      <input type="date" id="ob-date-input" style="width:100%;padding:16px;border:2px solid #e0e0e0;border-radius:14px;font-size:17px;font-weight:700;background:#fff;outline:none;color:#1a1a1a;" oninput="onboardingSelect('date',this.value)">
+      <p style="font-size:12px;color:#888;margin-top:10px;">Laisse vide si tu ne sais pas encore</p>
+    </div>
+    <div id="ob-step-2" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 3 / 4</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Séances de course par semaine ?</h2>
+      <div style="display:flex;gap:12px;">
+        <button onclick="onboardingSelect('sessions','2')" class="ob-chip ob-chip-sm" id="ob-sessions-2">2</button>
+        <button onclick="onboardingSelect('sessions','3')" class="ob-chip ob-chip-sm" id="ob-sessions-3">3</button>
+        <button onclick="onboardingSelect('sessions','4+')" class="ob-chip ob-chip-sm" id="ob-sessions-4+">4+</button>
+      </div>
+    </div>
+    <div id="ob-step-3" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 4 / 4</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Quel est ton niveau ?</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="onboardingSelect('niveau','Débutant')" class="ob-chip" id="ob-niveau-Débutant">🌱 Débutant — première course</button>
+        <button onclick="onboardingSelect('niveau','Intermédiaire')" class="ob-chip" id="ob-niveau-Intermédiaire">🔥 Intermédiaire — quelques courses</button>
+        <button onclick="onboardingSelect('niveau','Confirmé')" class="ob-chip" id="ob-niveau-Confirmé">🏆 Confirmé — objectif chrono</button>
+      </div>
+    </div>
+  </div>
+  <div style="padding:20px 24px calc(24px + env(safe-area-inset-bottom,0px));background:#EDF2FB;border-top:1px solid rgba(0,0,0,0.06);">
+    <div style="display:flex;gap:12px;">
+      <button id="ob-btn-back" onclick="_obGoTo(_obStep-1)" style="display:none;flex:0 0 auto;padding:16px 20px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;color:#1a1a1a;">← Retour</button>
+      <button id="ob-btn-next" onclick="onboardingNext()" style="flex:1;padding:16px;background:#1B4FD8;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;opacity:0.4;" disabled>Suivant →</button>
     </div>
   </div>
 </div>
@@ -748,6 +812,7 @@ function initFirebase(){
               hideLoginScreen();
               applyRoleUI();
               showScreen('home');
+              if(currentUserRole==='athlete' && !state.onboarding) showOnboarding(false);
               // Récupérer la météo réelle pour les séances passées (silencieux)
               setTimeout(() => autoFetchMissingMeteo(), 2000);
               // Vérifier les notifications coach dès l'ouverture de l'app
@@ -908,6 +973,7 @@ function renderCompteScreen(){
   const adminPanel=document.getElementById('admin-panel');
   if(adminPanel) adminPanel.style.display=currentUserRole==='admin'?'block':'none';
   if(currentUserRole==='admin') loadAdminUsersList();
+  renderAthletePanel();
 }
 
 async function loadAdminUsersList(){
@@ -965,6 +1031,101 @@ async function adminDeleteUser(uid,label){
 }
 
 
+
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
+let _obStep=0;
+let _obData={course:null,date:null,sessions:null,niveau:null};
+let _obEditMode=false;
+
+function showOnboarding(editMode){
+  _obEditMode=!!editMode;
+  _obData={course:null,date:null,sessions:null,niveau:null};
+  if(editMode && state.onboarding){
+    Object.assign(_obData,state.onboarding);
+  }
+  _obGoTo(0);
+  // Restore selections
+  ['course','sessions','niveau'].forEach(f=>{
+    document.querySelectorAll('[id^="ob-'+f+'-"]').forEach(el=>el.classList.remove('selected'));
+    if(_obData[f]){const c=document.getElementById('ob-'+f+'-'+_obData[f]);if(c)c.classList.add('selected');}
+  });
+  const di=document.getElementById('ob-date-input');
+  if(di) di.value=_obData.date||'';
+  const el=document.getElementById('onboarding-overlay');
+  if(el) el.style.display='flex';
+}
+
+function hideOnboarding(){
+  const el=document.getElementById('onboarding-overlay');
+  if(el) el.style.display='none';
+}
+
+function _obGoTo(step){
+  _obStep=step;
+  for(let i=0;i<4;i++){
+    const s=document.getElementById('ob-step-'+i);
+    if(s) s.style.display=i===step?'block':'none';
+    const p=document.getElementById('ob-prog-'+i);
+    if(p) p.style.background=i<=step?'#1B4FD8':'#e0e0e0';
+  }
+  const back=document.getElementById('ob-btn-back');
+  if(back) back.style.display=step>0?'flex':'none';
+  const next=document.getElementById('ob-btn-next');
+  if(next){
+    next.textContent=step===3?'Terminer ✓':'Suivant →';
+    const keys=['course','date','sessions','niveau'];
+    const enabled=step===1?true:!!_obData[keys[step]];
+    next.disabled=!enabled;
+    next.style.opacity=enabled?'1':'0.4';
+  }
+}
+
+function onboardingSelect(field,val){
+  _obData[field]=val;
+  if(field!=='date'){
+    document.querySelectorAll('[id^="ob-'+field+'-"]').forEach(el=>el.classList.remove('selected'));
+    const c=document.getElementById('ob-'+field+'-'+val);
+    if(c) c.classList.add('selected');
+    setTimeout(()=>onboardingNext(),220);
+  }
+  const next=document.getElementById('ob-btn-next');
+  if(next){next.disabled=false;next.style.opacity='1';}
+}
+
+function onboardingNext(){
+  if(_obStep<3){_obGoTo(_obStep+1);}
+  else{saveOnboarding();}
+}
+
+async function saveOnboarding(){
+  if(dbRef){
+    await dbRef.child('onboarding').set(_obData).catch(()=>{});
+    state.onboarding=_obData;
+  }
+  hideOnboarding();
+  if(_obEditMode) renderCompteScreen();
+}
+
+function renderAthletePanel(){
+  const panel=document.getElementById('athlete-panel');
+  if(!panel) return;
+  panel.style.display=currentUserRole==='athlete'?'block':'none';
+  if(currentUserRole!=='athlete') return;
+  const ob=state.onboarding;
+  const content=document.getElementById('athlete-profile-content');
+  if(!content) return;
+  if(!ob){
+    content.innerHTML='<p style="color:#888;font-style:italic;">Profil non renseigné.</p>';
+    return;
+  }
+  const rows=[
+    {label:'Course',value:ob.course||'—'},
+    {label:'Date',value:ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'Non définie'},
+    {label:'Séances / semaine',value:ob.sessions||'—'},
+    {label:'Niveau',value:ob.niveau||'—'},
+  ];
+  content.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${r.label}</span><span style="font-weight:700;color:#1a1a1a;">${r.value}</span></div>`).join('');
+}
 
 function migrateState(){
   const rfDefaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
