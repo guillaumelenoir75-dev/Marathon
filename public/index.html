@@ -1018,8 +1018,40 @@ function applyRoleUI(){
   }
 }
 
+function _showConfirmModal({icon,title,message,confirmLabel,confirmStyle,onConfirm}){
+  const existing=document.getElementById('confirm-modal-overlay');
+  if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='confirm-modal-overlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML=`
+  <div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div style="padding:28px 24px 20px;text-align:center;">
+      <div style="font-size:42px;margin-bottom:14px;">${icon}</div>
+      <p style="font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:10px;letter-spacing:-0.02em;">${title}</p>
+      <p style="font-size:14px;color:#666;line-height:1.5;">${message}</p>
+    </div>
+    <div style="display:flex;gap:0;border-top:1px solid #f0f0f0;">
+      <button id="cm-cancel" style="flex:1;padding:16px;background:#fff;border:none;border-right:1px solid #f0f0f0;font-size:14px;font-weight:600;color:#666;cursor:pointer;border-radius:0 0 0 22px;">Annuler</button>
+      <button id="cm-confirm" style="flex:1;padding:16px;border:none;font-size:14px;font-weight:700;cursor:pointer;border-radius:0 0 22px 0;${confirmStyle}">${confirmLabel}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  document.getElementById('cm-cancel').onclick=close;
+  overlay.onclick=e=>{if(e.target===overlay)close();};
+  document.getElementById('cm-confirm').onclick=()=>{close();onConfirm();};
+}
+
 function logoutUser(){
-  if(confirm('Se déconnecter ?')) firebase.auth().signOut();
+  _showConfirmModal({
+    icon:'👋',
+    title:'Se déconnecter ?',
+    message:'Tu seras redirigé vers l\'écran de connexion.',
+    confirmLabel:'Se déconnecter',
+    confirmStyle:'background:#1B4FD8;color:#fff;',
+    onConfirm:()=>firebase.auth().signOut(),
+  });
 }
 
 function renderCompteScreen(){
@@ -1079,7 +1111,16 @@ async function adminCreateUser(){
 }
 
 async function adminDeleteUser(uid,label){
-  if(!confirm('Supprimer le compte '+label+' ? Cette action est irréversible.')) return;
+  await new Promise(resolve=>{
+    _showConfirmModal({
+      icon:'🗑️',
+      title:'Supprimer ce compte ?',
+      message:`Le compte <b>${label}</b> et toutes ses données seront définitivement supprimés. Cette action est irréversible.`,
+      confirmLabel:'Supprimer',
+      confirmStyle:'background:#DC2626;color:#fff;',
+      onConfirm:resolve,
+    });
+  });
   try {
     const token=await getAuthToken();
     const resp=await fetch(FUNCTIONS_BASE+'/deleteUser',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({uid})});
