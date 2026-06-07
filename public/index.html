@@ -660,7 +660,7 @@ const KM_AVANT_S7=219;
 // Mis à jour manuellement à chaque début de semaine si nécessaire
 const KM_HISTORIQUE_BASE = 243; // km faits S1-S8 inclus (193 plan + ~50 hors plan)
 function getGrandTotal(){
-  if(currentUserRole !== 'admin'){
+  if(!isAdmin()){
     // Pour les athlètes : total des km de leurs séances extra uniquement
     let t=0;
     for(let ws=1;ws<=52;ws++){let ei=0;while(state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
@@ -679,7 +679,7 @@ const defaultShoeColors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E85
 function getShoes(){
   if(state._shoes) return JSON.parse(state._shoes);
   // Les chaussures de Guillaume sont prédéfinies uniquement pour son compte admin
-  if(currentUserRole==='admin') return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:600},{name:Z,color:'#EAB308',max:600}];
+  if(isAdmin()) return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:600},{name:Z,color:'#EAB308',max:600}];
   return [];
 }
 function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
@@ -770,6 +770,7 @@ let firebaseReady=false;
 let dbRef=null;
 let currentUserRole=null;
 let currentUserId=null;
+function isAdmin(){return currentUserRole==='admin'||firebase.auth().currentUser?.email===ADMIN_EMAIL;}
 
 const ADMIN_EMAIL='guillaumelenoir75@gmail.com';
 const FUNCTIONS_BASE='https://us-central1-prepa-marathon.cloudfunctions.net';
@@ -852,7 +853,7 @@ function initFirebase(){
             dbRef=db.ref('users/'+user.uid+'/state');
 
             // Migration one-time : admin récupère ses données depuis marathon/state
-            if(currentUserRole==='admin'){
+            if(isAdmin()){
               const existingSnap=await dbRef.once('value');
               if(!existingSnap.val()){
                 const oldSnap=await db.ref('marathon/state').once('value');
@@ -1017,7 +1018,7 @@ function hideLoginScreen(){
 function applyRoleUI(){
   const navCoach=document.getElementById('nav-coach');
   const scCoach=document.getElementById('sc-coach');
-  if(currentUserRole!=='admin'){
+  if(!isAdmin()){
     if(navCoach) navCoach.style.display='none';
     if(scCoach) scCoach.style.display='none';
   } else {
@@ -1072,14 +1073,14 @@ function renderCompteScreen(){
     const h=new Date().getHours();
     const salut=h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir';
     // Pour l'admin Guillaume, on sait que c'est un homme
-    const gender=state.gender||(currentUserRole==='admin'?'M':null);
+    const gender=state.gender||(isAdmin()?'M':null);
     const genderEmoji=gender==='F'?'👩‍🏃':gender==='M'?'🏃':'🏃';
     greetEl.textContent=salut+' '+prenomCap+' '+genderEmoji;
     // Mettre à jour l'avatar aussi
     const avatarEl=document.getElementById('compte-avatar');
     if(avatarEl) avatarEl.textContent=genderEmoji;
     // Tagline selon rôle et heure
-    const taglines=currentUserRole==='admin'
+    const taglines=isAdmin()
       ?['Coach en chef 💪','On va les faire progresser ! 🚀','Ton équipe compte sur toi 🏆']
       :['Chaque km compte 🏃','Continue comme ça, tu assures ! 💪','La régularité fait la différence ⚡','Un pas après l\'autre 🌟'];
     tagEl.textContent=taglines[Math.floor(Math.random()*taglines.length)];
@@ -1088,8 +1089,8 @@ function renderCompteScreen(){
   const sub=document.getElementById('info-subtitle');
   if(sub&&user){const prenom=user.displayName||user.email?.split('@')[0]||'';sub.textContent=prenom?prenom+' · '+user.email:user.email;}
   const adminPanel=document.getElementById('admin-panel');
-  if(adminPanel) adminPanel.style.display=currentUserRole==='admin'?'block':'none';
-  if(currentUserRole==='admin') loadAdminUsersList();
+  if(adminPanel) adminPanel.style.display=isAdmin()?'block':'none';
+  if(isAdmin()) loadAdminUsersList();
   renderAthletePanel();
 }
 
@@ -1495,7 +1496,7 @@ function openProfileModal(){
   const ov=document.createElement('div');
   ov.id='profile-modal-overlay';
   ov.style.cssText='position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;';
-  const savedGender=state.gender||(currentUserRole==='admin'?'M':null);
+  const savedGender=state.gender||(isAdmin()?'M':null);
   _infoGender=savedGender||'';
   const gChip=(g)=>{
     const sel=savedGender===g;
@@ -1994,7 +1995,7 @@ function migrateState(){
   //    par autoFetchMissingMeteo() après le chargement Firebase ──
 
   // Horaires renfo par défaut — admin seulement
-  if(currentUserRole === 'admin'){
+  if(isAdmin()){
     [CW, Math.min(CW+1,32)].forEach(w => {
       [1,2].forEach(r => {
         const k = rfk(w,r)+'sched';
@@ -2128,7 +2129,7 @@ function getBestEfPace(){
   let lastSec=null;
   for(let ws=1;ws<=CW;ws++){
     // Séances base (plan Guillaume) — admin seulement
-    if(currentUserRole==='admin'){
+    if(isAdmin()){
       weeks[ws-1].sessions.forEach((s,si)=>{
         if(s.type!=='ef') return;
         const k=gk(ws,si);
@@ -2191,7 +2192,7 @@ function vdotMarathonPaceSec(vo2max) {
 
 function buildMarathonPrediction() {
   // Pour les athlètes sans données : retourner vide
-  if(currentUserRole !== 'admin'){
+  if(!isAdmin()){
     // Vérifier s'ils ont des séances validées avec perf
     let hasData=false;
     for(let ws=1;ws<=52;ws++){let ei=0;while(state[`extra_w${ws}_s${ei}`]){if(state[`extra_w${ws}_s${ei}_perf`]){hasData=true;break;}ei++;}if(hasData)break;}
@@ -4232,7 +4233,7 @@ function calcWeekDoneKm(){
 
 function calcTotalDone(){
   // Pour les athlètes : seulement les km de leurs séances extra validées
-  if(currentUserRole !== 'admin'){
+  if(!isAdmin()){
     let t=0;
     for(let ws=1;ws<=52;ws++){
       let ei=0;
@@ -4451,7 +4452,7 @@ function renderHome(){
   const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
   const kpiTotalEl=document.getElementById('kpi-total'); if(kpiTotalEl) kpiTotalEl.textContent=td;
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=Math.max(0,gt-td);
-  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=currentUserRole==='admin'?Math.max(0,32-CW):'—';
+  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=isAdmin()?Math.max(0,32-CW):'—';
   // KM semaine : basés sur la semaine affichée
   const weekDoneKm = (()=>{
     let km=0;
@@ -4470,19 +4471,19 @@ function renderHome(){
   // EF pace
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
-  if(efEl) efEl.textContent=efPace?efPace:(currentUserRole==='admin'?"5'59":'—');
+  if(efEl) efEl.textContent=efPace?efPace:(isAdmin()?"5'59":'—');
   // Temps marathon projeté
   const pred = buildMarathonPrediction();
   const mtEl=document.getElementById('kpi-marathon-time');
-  if(mtEl) mtEl.textContent = pred.tempsStr || (currentUserRole==='admin'?(calcMarathonTime(am)||'—'):'—');
+  if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
   const amPredEl = document.getElementById('h-am-pred');
   if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
   const amTrainEl = document.getElementById('kpi-am-training');
-  if(amTrainEl) amTrainEl.textContent = state._am_training_pace || (currentUserRole==='admin'?"5'20":'—');
+  if(amTrainEl) amTrainEl.textContent = state._am_training_pace || (isAdmin()?"5'20":'—');
   const vo2El = document.getElementById('kpi-vo2max');
-  if(vo2El) vo2El.textContent = state['vo2max_current'] || (currentUserRole==='admin'?52:'—');
+  if(vo2El) vo2El.textContent = state['vo2max_current'] || (isAdmin()?52:'—');
   const today = new Date().toISOString().slice(0,10);
   const fcToday = state['fc_repos_'+today] || null;
   const fcReposEl = document.getElementById('kpi-fc-repos');
@@ -4576,7 +4577,7 @@ function renderHome(){
         const defaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
         renfoData.forEach(rd => {
           const schedKey = rfk(cwNext, rd.r)+'sched';
-          if(!state[schedKey] && currentUserRole==='admin') state[schedKey] = JSON.stringify(defaults[rd.r]);
+          if(!state[schedKey] && isAdmin()) state[schedKey] = JSON.stringify(defaults[rd.r]);
           const sched = state[schedKey] ? JSON.parse(state[schedKey]) : {};
           const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ')||'À planifier';
           const btn = document.createElement('div');
@@ -7352,10 +7353,15 @@ function renderPlan(){
   const el=document.getElementById('plan-list'); el.innerHTML='';
 
   // Plan vide pour les athlètes — seulement les séances qu'ils ajoutent eux-mêmes
-  if(currentUserRole !== 'admin'){
+  if(!isAdmin()){
     if(ptEl) ptEl.textContent='Ton plan personnalisé';
     renderAthletePlan(el);
     return;
+  }
+  // Garantir que le rôle admin est bien enregistré si l'email correspond
+  if(currentUserRole!=='admin'){
+    currentUserRole='admin';
+    firebase.database().ref('users/'+firebase.auth().currentUser.uid+'/role').set('admin').catch(()=>{});
   }
 
   if(ptEl) ptEl.textContent='32 semaines · '+getGrandTotal()+' km';
@@ -7605,7 +7611,7 @@ function renderPlan(){
 }
 
 function getWeekTotalKm(ws){
-  if(currentUserRole !== 'admin'){
+  if(!isAdmin()){
     // Pour les athlètes : seulement leurs séances extra
     let total=0;
     let ei=0;
@@ -7630,7 +7636,7 @@ function getWeekTotalKm(ws){
 
 function getOrderedWeekSessions(ws){
   // Athlètes : seulement leurs séances extra, pas le plan hardcodé de Guillaume
-  if(currentUserRole !== 'admin'){
+  if(!isAdmin()){
     const res=[];
     let ei=0;
     while(state[`extra_w${ws}_s${ei}`]){
