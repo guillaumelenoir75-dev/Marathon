@@ -1001,12 +1001,15 @@ function migrateState(){
   // ── Rien ici : la météo historique est récupérée dynamiquement
   //    par autoFetchMissingMeteo() après le chargement Firebase ──
 
-  [CW, Math.min(CW+1,32)].forEach(w => {
-    [1,2].forEach(r => {
-      const k = rfk(w,r)+'sched';
-      if(!state[k]) state[k] = JSON.stringify(rfDefaults[r]);
+  // Horaires renfo par défaut — admin seulement
+  if(currentUserRole === 'admin'){
+    [CW, Math.min(CW+1,32)].forEach(w => {
+      [1,2].forEach(r => {
+        const k = rfk(w,r)+'sched';
+        if(!state[k]) state[k] = JSON.stringify(rfDefaults[r]);
+      });
     });
-  });
+  }
   // Inject historical sessions S1-S6 if not already done
   const historyKey='_history_injected_v6';
   if(!state[historyKey]){
@@ -3456,7 +3459,7 @@ function renderHome(){
   const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
   const kpiTotalEl=document.getElementById('kpi-total'); if(kpiTotalEl) kpiTotalEl.textContent=td;
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=Math.max(0,gt-td);
-  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=Math.max(0,32-CW);
+  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=currentUserRole==='admin'?Math.max(0,32-CW):'—';
   // KM semaine : basés sur la semaine affichée
   const weekDoneKm = (()=>{
     let km=0;
@@ -3581,9 +3584,9 @@ function renderHome(){
         const defaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
         renfoData.forEach(rd => {
           const schedKey = rfk(cwNext, rd.r)+'sched';
-          if(!state[schedKey]) state[schedKey] = JSON.stringify(defaults[rd.r]);
-          const sched = JSON.parse(state[schedKey]);
-          const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ');
+          if(!state[schedKey] && currentUserRole==='admin') state[schedKey] = JSON.stringify(defaults[rd.r]);
+          const sched = state[schedKey] ? JSON.parse(state[schedKey]) : {};
+          const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ')||'À planifier';
           const btn = document.createElement('div');
           btn.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border:1px solid #d0dff5;border-radius:10px;margin-bottom:6px;cursor:pointer;';
           btn.onclick=()=>openRenfoSchedModal(rd.r, cwNext);
