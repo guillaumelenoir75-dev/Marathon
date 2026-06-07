@@ -12,6 +12,9 @@ const STRAVA_CLIENT_SECRET = defineSecret("STRAVA_CLIENT_SECRET");
 const VAPID_PUBLIC_KEY = defineSecret("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = defineSecret("VAPID_PRIVATE_KEY");
 
+const ADMIN_UID = 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1';
+const ADMIN_STATE = `users/${ADMIN_UID}/state`;
+
 // ── STRAVA OAUTH ──────────────────────────────────────────────────────────────
 
 // Étape 1 : redirige l'utilisateur vers la page d'autorisation Strava
@@ -667,11 +670,11 @@ exports.calendar = onRequest(async (req, res) => {
     state = snap.val() || {};
     // Fallback vers marathon/state si vide
     if (Object.keys(state).length === 0) {
-      const oldSnap = await db.ref('marathon/state').once('value');
+      const oldSnap = await db.ref(`${ADMIN_STATE}`).once('value');
       state = oldSnap.val() || {};
     }
   } catch(e) {
-    const snapshot = await db.ref('marathon/state').once('value');
+    const snapshot = await db.ref(`${ADMIN_STATE}`).once('value');
     state = snapshot.val() || {};
   }
   const events = [];
@@ -1768,7 +1771,7 @@ async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   const webpush = require('web-push');
   webpush.setVapidDetails('mailto:guillaumelenoir75@gmail.com', vapidPublic, vapidPrivate);
   const db = admin.database();
-  const snap = await db.ref('marathon/state/_push_sub').once('value');
+  const snap = await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
   const sub = snap.val();
   if (!sub) { console.log('Pas de subscription push — skip'); return; }
   try {
@@ -1776,7 +1779,7 @@ async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
     console.log(`Push envoyé : [${tag}] ${title}`);
   } catch (err) {
     if (err.statusCode === 410 || err.statusCode === 404) {
-      await db.ref('marathon/state/_push_sub').remove();
+      await db.ref(`${ADMIN_STATE}/_push_sub`).remove();
     } else { throw err; }
   }
 }
@@ -1992,25 +1995,25 @@ exports.dbAdmin = onRequest(
 // ── 1a. FC repos — lundi-vendredi 8h01 ───────────────────────────────────────
 exports.fcReposReminderWeekday = onSchedule(
   {schedule:'58 7 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`marathon/state/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
 );
 
 // ── 1b. FC repos — samedi-dimanche 9h30 ──────────────────────────────────────
 exports.fcReposReminderWeekend = onSchedule(
   {schedule:'30 9 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`marathon/state/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
 );
 
 // ── 1c. FC repos rappel 14h — lundi-vendredi ─────────────────────────────────
 exports.fcReposReminder14hWeekday = onSchedule(
   {schedule:'0 14 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`marathon/state/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
 );
 
 // ── 1d. FC repos rappel 14h — samedi-dimanche ────────────────────────────────
 exports.fcReposReminder14hWeekend = onSchedule(
   {schedule:'0 14 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`marathon/state/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
 );
 
 // ── 3. Rappel séance — toutes les 30 min (7h-21h) ────────────────────────────
@@ -2019,7 +2022,7 @@ exports.sessionReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const state=(await db.ref('marathon/state').once('value')).val()||{};
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const now=new Date();
       // Utiliser l'heure Paris (et non UTC) pour comparer avec sched.time stocké en Paris
@@ -2046,7 +2049,7 @@ exports.sessionReminder = onSchedule(
         let meteoStr='';
         if(isRunSession){
           try{
-            const locSnap=await db.ref('marathon/state/_last_location').once('value');
+            const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
             const loc=locSnap.val();
             // Fallback : Paris 75015 si pas de localisation stockée ou > 30 jours
             const locFresh = loc && loc.lat && (Date.now()-loc.ts)<30*24*3600*1000;
@@ -2068,7 +2071,7 @@ exports.sessionReminder = onSchedule(
         }
         const body=`🏃 ${titre}${ed.km?' — '+ed.km+'km':''} à ${ed.sched_time}.${meteoStr} Prépare ton équipement ! 💪`;
         await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
-        await db.ref(`marathon/state/${rk}`).set(ts);
+        await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
         break;
       }
       // Rappel séances extra 1h avant
@@ -2087,7 +2090,7 @@ exports.sessionReminder = onSchedule(
                 const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
                 const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
                 await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
-                await db.ref(`marathon/state/${rk}`).set(ts);
+                await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
                 break;
               }
             }
@@ -2109,7 +2112,7 @@ exports.sessionReminder = onSchedule(
         if(state[rk]===ts)continue;
         const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
         await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Renfo dans 1h',`💪 ${renfoNames[ri]} à ${sched.time}. Prépare-toi !`,'session-reminder','/');
-        await db.ref(`marathon/state/${rk}`).set(ts);
+        await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
         break;
       }
     }catch(e){console.error('sessionReminder:',e.message);}
@@ -2123,27 +2126,27 @@ exports.briefAfterFcRepos = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const state=(await db.ref('marathon/state').once('value')).val()||{};
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const trigger=state['_brief_trigger'];
       if(!trigger||!trigger.ts)return;
       const now=Date.now();
       const age=(now-trigger.ts)/1000/60; // minutes
       // Fenêtre élargie : entre 2 et 30 minutes après la saisie FC
       if(age<2||age>30){
-        if(age>30) await db.ref('marathon/state/_brief_trigger').remove();
+        if(age>30) await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
         return;
       }
       // Vérifier qu'un brief n'a pas déjà été envoyé aujourd'hui
       const todayStr=trigger.date||new Date().toISOString().slice(0,10);
       const briefKey='_brief_matin_'+todayStr;
-      const briefSnap=await db.ref('marathon/state/'+briefKey).once('value');
+      const briefSnap=await db.ref(`${ADMIN_STATE}/`+briefKey).once('value');
       if(briefSnap.val()){
         // Brief déjà fait — nettoyer le trigger et partir
-        await db.ref('marathon/state/_brief_trigger').remove();
+        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
         return;
       }
       // Supprimer le trigger immédiatement pour éviter doublons
-      await db.ref('marathon/state/_brief_trigger').remove();
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
       const cw=getWeekFromDB();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;
@@ -2177,7 +2180,7 @@ exports.briefAfterFcRepos = onSchedule(
       // Météo à l'heure de la première séance run du jour
       let meteoMsg = '';
       try {
-        const locSnap = await db.ref('marathon/state/_last_location').once('value');
+        const locSnap = await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
         const loc = locSnap.val();
         const lat = (loc && loc.lat && (Date.now()-loc.ts)<30*24*3600*1000) ? loc.lat : 48.8417;
         const lng = (loc && loc.lng && (Date.now()-loc.ts)<30*24*3600*1000) ? loc.lng : 2.2945;
@@ -2216,14 +2219,14 @@ exports.briefAfterFcRepos = onSchedule(
       if(!body.endsWith('.') && !body.endsWith('!') && !body.endsWith('?')) body += '.';
 
       // Stocker le brief court en pending ET un flag pour que l'app génère le brief complet
-      await db.ref('marathon/state/_brief_pending').set({
+      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({
         content: body,
         date: todayStr,
         type: 'morning_brief',
         needs_full_brief: true   // ← signal : l'app doit générer le brief complet au lieu d'afficher ce texte court
       });
-      await db.ref('marathon/state/'+briefKey).set('push_sent'); // "push_sent" ≠ true → l'app peut encore générer le brief complet
-      await db.ref('marathon/state/_open_coach').set(true);
+      await db.ref(`${ADMIN_STATE}/`+briefKey).set('push_sent'); // "push_sent" ≠ true → l'app peut encore générer le brief complet
+      await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,body,'brief-matinal','/');
     }catch(e){console.error('briefAfterFcRepos:',e.message);}
   }
@@ -2236,7 +2239,7 @@ exports.unvalidatedSessionReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const state=(await db.ref('marathon/state').once('value')).val()||{};
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const now=new Date();
       const dayOfWeek=now.getDay()===0?7:now.getDay();
@@ -2292,7 +2295,7 @@ exports.weekCompleteCongrats = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const state=(await db.ref('marathon/state').once('value')).val()||{};
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
 
       // Vérifier si félicitations déjà envoyées cette semaine
@@ -2354,15 +2357,15 @@ exports.weekCompleteCongrats = onSchedule(
       const today = new Date().toISOString().slice(0,10);
 
       // Écrire dans _brief_pending pour que le tap ouvre le Coach
-      await db.ref('marathon/state/_brief_pending').set({content: body, date: today, type: 'week_complete'});
+      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content: body, date: today, type: 'week_complete'});
 
-      await db.ref('marathon/state/_open_coach').set(true);
+      await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),
 
         `🎉 Semaine S${cw} complète !`,body,'week-complete','/');
 
-      await db.ref(`marathon/state/${congratsKey}`).set(true);
+      await db.ref(`${ADMIN_STATE}/${congratsKey}`).set(true);
     }catch(e){console.error('weekCompleteCongrats:',e.message);}
   }
 );
@@ -2373,7 +2376,7 @@ exports.weeklyPlanifReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const state=(await db.ref('marathon/state').once('value')).val()||{};
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const cwNext=Math.min(cw+1,32);
       let seancesNonPlanifiees=0;
@@ -2398,15 +2401,15 @@ exports.weeklyDebriefNotif = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const state=(await db.ref('marathon/state').once('value')).val()||{};
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const cw=getWeekFromDB();
       const ctx=await buildNotifContext(state,cw);
       const prompt=`Tu es le coach running de Guillaume. Débrief fin de semaine en 3 phrases max pour notification iPhone.\nBilan S${cw} (${ctx.typeSem}) : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?' — '+ctx.kmSemaine+'km':''}. ${ctx.seancesRestantes.length>0?'Manquées : '+ctx.seancesRestantes.join(', ')+'.':'Toutes faites 🎉'} EF : ${ctx.efPace||'?'}.\nS${ctx.cwNext} (${ctx.typeSemNext}) : ${ctx.seancesNext.join(', ')||'à planifier'}.\nPhrase 1 = bilan 📊, phrase 2 = point clé 📈 ou ⚠️, phrase 3 = aperçu S${ctx.cwNext} + "Ouvre le Coach pour le détail 👇"`;
       const debrief=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running concis et motivant.',[{role:'user',content:prompt}],200);
       const body=debrief||`📊 S${cw} terminée : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?', '+ctx.kmSemaine+'km':''}. S${ctx.cwNext} (${ctx.typeSemNext}) arrive. Ouvre le Coach pour le détail 👇`;
       const today=new Date().toISOString().slice(0,10);
-      await db.ref('marathon/state/_brief_pending').set({content:body,date:today,type:'weekly_debrief'});
-      await db.ref('marathon/state/_open_coach').set(true);
+      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:body,date:today,type:'weekly_debrief'});
+      await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`📊 Bilan S${cw}`,body,'weekly-debrief','/');
     }catch(e){console.error('weeklyDebriefNotif:',e.message);}
   }
