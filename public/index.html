@@ -450,7 +450,10 @@ input[type=number]:focus{border-color:var(--orange);}
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">Mon profil</p>
-        <button onclick="showOnboarding(true)" style="background:#EBF0FF;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;">Modifier</button>
+        <div style="display:flex;gap:8px;">
+          <button onclick="showOnboarding(true)" style="background:#EBF0FF;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;">Modifier</button>
+          <button onclick="deleteAthletePlan()" id="btn-delete-plan" style="background:#FEF2F2;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#DC2626;cursor:pointer;display:none;">🗑 Supprimer le plan</button>
+        </div>
       </div>
       <div id="athlete-profile-content" style="font-size:13px;color:#555;display:flex;flex-direction:column;gap:8px;"></div>
     </div>
@@ -1705,6 +1708,28 @@ function renderAthletePanel(){
     {label:'Programme généré',value:ob.generate_plan==='oui'?'✅ Oui':ob.generate_plan==='non'?'Non (manuel)':'—'},
   ];
   content.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${r.label}</span><span style="font-weight:700;color:#1a1a1a;">${r.value}</span></div>`).join('');
+  // Afficher le bouton supprimer uniquement si un plan existe
+  const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
+  const delBtn=document.getElementById('btn-delete-plan');
+  if(delBtn) delBtn.style.display=hasPlan?'block':'none';
+}
+
+async function deleteAthletePlan(){
+  const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
+  if(!hasPlan) return;
+  if(!confirm('Supprimer entièrement le plan d\'entraînement ?\n\nToutes les séances planifiées seront effacées. Cette action est irréversible.')) return;
+  // Supprimer toutes les clés extra_w* du state
+  const keysToDelete=Object.keys(state).filter(k=>/^extra_w/.test(k));
+  keysToDelete.forEach(k=>delete state[k]);
+  // Supprimer dans Firebase
+  if(dbRef){
+    const updates={};
+    keysToDelete.forEach(k=>{ updates[k]=null; });
+    await dbRef.update(updates).catch(()=>{});
+  }
+  rendered.plan=false;
+  renderAthletePanel();
+  renderPlan();
 }
 
 function migrateState(){
