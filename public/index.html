@@ -425,10 +425,10 @@ input[type=number]:focus{border-color:var(--orange);}
 <div id="sc-compte" style="display:none;padding:16px;background:#EDF2FB;min-height:100vh;">
   <div style="background:#0C447C;border-radius:18px;padding:20px;color:#fff;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;">🏃</div>
-      <div>
-        <p id="compte-email" style="font-size:14px;font-weight:600;margin:0;">—</p>
-        <p id="compte-role" style="font-size:12px;opacity:0.6;margin:4px 0 0;">—</p>
+      <div id="compte-avatar" style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">🏃</div>
+      <div style="min-width:0;">
+        <p id="compte-greeting" style="font-size:20px;font-weight:800;margin:0;letter-spacing:-0.02em;">—</p>
+        <p id="compte-tagline" style="font-size:12px;opacity:0.7;margin:3px 0 0;font-weight:500;">—</p>
       </div>
     </div>
   </div>
@@ -1056,10 +1056,21 @@ function logoutUser(){
 
 function renderCompteScreen(){
   const user=firebase.auth().currentUser;
-  const emailEl=document.getElementById('compte-email');
-  const roleEl=document.getElementById('compte-role');
-  if(emailEl) emailEl.textContent=user?user.email:'—';
-  if(roleEl) roleEl.textContent=currentUserRole==='admin'?'Administrateur':'Athlète';
+  const greetEl=document.getElementById('compte-greeting');
+  const tagEl=document.getElementById('compte-tagline');
+  if(greetEl&&user){
+    // Prénom = displayName ou première partie du mail
+    const prenom=(user.displayName||user.email||'').split(/[@\s]/)[0];
+    const prenomCap=prenom.charAt(0).toUpperCase()+prenom.slice(1);
+    const h=new Date().getHours();
+    const salut=h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir';
+    greetEl.textContent=salut+' '+prenomCap+' 👋';
+    // Tagline selon rôle et heure
+    const taglines=currentUserRole==='admin'
+      ?['Coach en chef 💪','On va les faire progresser ! 🚀','Ton équipe compte sur toi 🏆']
+      :['Chaque km compte 🏃','Continue comme ça, tu assures ! 💪','La régularité fait la différence ⚡','Un pas après l\'autre 🌟'];
+    tagEl.textContent=taglines[Math.floor(Math.random()*taglines.length)];
+  }
   const adminPanel=document.getElementById('admin-panel');
   if(adminPanel) adminPanel.style.display=currentUserRole==='admin'?'block':'none';
   if(currentUserRole==='admin') loadAdminUsersList();
