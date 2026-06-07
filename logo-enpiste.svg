@@ -72,18 +72,15 @@
     <line x1="57" y1="80" x2="76" y2="124" stroke="#EDF2FB" stroke-width="8.5" stroke-linecap="round"/>
     <line x1="76" y1="124" x2="96" y2="106" stroke="#EDF2FB" stroke-width="7.5" stroke-linecap="round"/>
 
-    <!-- Jambe gauche — genou haut levé (orange, en avant) -->
-    <line x1="57" y1="80" x2="36" y2="118" stroke="url(#orangeGrad)" stroke-width="8.5" stroke-linecap="round"/>
-    <line x1="36" y1="118" x2="20" y2="148" stroke="url(#orangeGrad)" stroke-width="7.5" stroke-linecap="round"/>
+    <!-- Jambe gauche — genou haut levé (blanc) -->
+    <line x1="57" y1="80" x2="36" y2="118" stroke="#EDF2FB" stroke-width="8.5" stroke-linecap="round"/>
+    <line x1="36" y1="118" x2="20" y2="148" stroke="#EDF2FB" stroke-width="7.5" stroke-linecap="round"/>
 
-    <!-- Chaussure gauche (orange) -->
-    <ellipse cx="14" cy="154" rx="14" ry="6" fill="#E8530A"/>
+    <!-- Chaussure gauche (blanc) -->
+    <ellipse cx="14" cy="154" rx="14" ry="6" fill="#EDF2FB"/>
     <!-- Chaussure droite (blanc) -->
     <ellipse cx="100" cy="110" rx="13" ry="5.5" fill="#EDF2FB"/>
   </g>
-
-  <!-- Point vert actif (comme dans l'app) -->
-  <circle cx="316" cy="100" r="7" fill="#7FD4A8" opacity="0.9" filter="url(#softGlow)"/>
 
   <!-- Séparateur -->
   <line x1="50" y1="312" x2="350" y2="312" stroke="#1B4FD8" stroke-width="1" opacity="0.35"/>
