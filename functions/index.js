@@ -1953,9 +1953,11 @@ exports.deleteUser = onRequest(
 
 // ── dbAdmin — proxy base de données (admin seulement) ────────────────────────
 exports.dbAdmin = onRequest(
-  {cors:true},
+  {cors:true,timeoutSeconds:30,memory:'256MiB'},
   async(req,res)=>{
-    res.set(corsHeaders());
+    res.setHeader('Access-Control-Allow-Origin','*');
+    res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, x-claude-key');
     if(req.method==='OPTIONS'){res.status(204).send('');return;}
     const claudeKey=req.headers['x-claude-key']||'';
     if(claudeKey!=='claude-marathon-db-2026'){
@@ -1963,9 +1965,9 @@ exports.dbAdmin = onRequest(
     }
     const{action,path:dbPath,value}=req.body||{};
     if(!dbPath){res.status(400).json({error:'path requis'});return;}
-    const db=admin.database();
-    const ref=db.ref(dbPath);
     try{
+      const db=admin.database('https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app');
+      const ref=db.ref(dbPath);
       if(action==='read'){
         const snap=await ref.once('value');
         res.json({data:snap.val()});
