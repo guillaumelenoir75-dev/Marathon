@@ -432,6 +432,16 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
     </div>
   </div>
+  <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e0e0;margin-bottom:16px;">
+    <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0 0 12px;">Modifier mon mot de passe</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input id="pwd-current" type="password" placeholder="Mot de passe actuel" style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
+      <input id="pwd-new" type="password" placeholder="Nouveau mot de passe (min. 6 caractères)" style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
+      <input id="pwd-confirm" type="password" placeholder="Confirmer le nouveau mot de passe" style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
+      <button onclick="changePassword()" style="padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Changer le mot de passe</button>
+      <p id="pwd-msg" style="font-size:12px;margin:0;display:none;"></p>
+    </div>
+  </div>
   <button onclick="logoutUser()" style="width:100%;padding:14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:14px;font-weight:600;color:#e53e3e;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     Se déconnecter
@@ -1104,6 +1114,32 @@ async function saveOnboarding(){
   }
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
+}
+
+async function changePassword(){
+  const current=(document.getElementById('pwd-current')?.value||'').trim();
+  const nw=(document.getElementById('pwd-new')?.value||'').trim();
+  const confirm=(document.getElementById('pwd-confirm')?.value||'').trim();
+  const msg=document.getElementById('pwd-msg');
+  const show=(txt,ok)=>{if(msg){msg.textContent=txt;msg.style.color=ok?'#2d7d46':'#e53e3e';msg.style.display='block';}};
+  if(!current||!nw||!confirm){show('Remplis tous les champs.',false);return;}
+  if(nw.length<6){show('Le mot de passe doit faire au moins 6 caractères.',false);return;}
+  if(nw!==confirm){show('Les mots de passe ne correspondent pas.',false);return;}
+  try{
+    const user=firebase.auth().currentUser;
+    const cred=firebase.auth.EmailAuthProvider.credential(user.email,current);
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(nw);
+    document.getElementById('pwd-current').value='';
+    document.getElementById('pwd-new').value='';
+    document.getElementById('pwd-confirm').value='';
+    show('✅ Mot de passe modifié avec succès.',true);
+  }catch(e){
+    const msg2=e.code==='auth/wrong-password'?'Mot de passe actuel incorrect.'
+      :e.code==='auth/too-many-requests'?'Trop de tentatives. Réessaie dans quelques minutes.'
+      :'Erreur : '+e.message;
+    show(msg2,false);
+  }
 }
 
 function renderAthletePanel(){
