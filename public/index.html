@@ -1194,20 +1194,66 @@ function onboardingBack(){
 }
 
 async function saveOnboarding(){
-  if(dbRef){
-    await dbRef.child('onboarding').set(_obData).catch(()=>{});
-    state.onboarding=_obData;
-    // Générer le plan si demandé
-    if(_obData.generate_plan==='oui'){
-      const plan=generateAthletePlan(_obData);
-      if(plan){
-        for(const[k,v] of Object.entries(plan)){
-          state[k]=v;
-          await dbRef.child(k).set(v).catch(()=>{});
-        }
-      }
+  const generatePlan=_obData.generate_plan==='oui';
+
+  // Écran de chargement
+  let loadEl=null;
+  if(generatePlan){
+    loadEl=document.createElement('div');
+    loadEl.style.cssText='position:fixed;inset:0;z-index:9999;background:#0C447C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;';
+    loadEl.innerHTML=`
+      <div style="font-size:48px;">🏃</div>
+      <p style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.02em;">Génération du plan…</p>
+      <p id="ob-gen-msg" style="color:rgba(255,255,255,0.7);font-size:14px;font-weight:500;">Calcul des semaines d'entraînement</p>
+      <div style="width:260px;background:rgba(255,255,255,0.2);border-radius:8px;height:8px;overflow:hidden;">
+        <div id="ob-gen-bar" style="height:8px;background:#fff;border-radius:8px;width:0%;transition:width 0.4s ease;"></div>
+      </div>
+      <p id="ob-gen-pct" style="color:#fff;font-size:13px;font-weight:700;">0%</p>`;
+    document.body.appendChild(loadEl);
+
+    const setProgress=(pct,msg)=>{
+      const bar=document.getElementById('ob-gen-bar');
+      const pctEl=document.getElementById('ob-gen-pct');
+      const msgEl=document.getElementById('ob-gen-msg');
+      if(bar) bar.style.width=pct+'%';
+      if(pctEl) pctEl.textContent=pct+'%';
+      if(msg&&msgEl) msgEl.textContent=msg;
+    };
+
+    // Générer le plan
+    setProgress(10,'Calcul des semaines d\'entraînement…');
+    await new Promise(r=>setTimeout(r,300));
+    const plan=generateAthletePlan(_obData);
+    const entries=Object.entries(plan||{});
+    setProgress(30,'Plan calculé — enregistrement…');
+    await new Promise(r=>setTimeout(r,200));
+
+    // Sauvegarder onboarding
+    if(dbRef){
+      state.onboarding=_obData;
+      await dbRef.child('onboarding').set(_obData).catch(()=>{});
+    }
+    setProgress(50,'Profil sauvegardé…');
+    await new Promise(r=>setTimeout(r,200));
+
+    // Sauvegarder tout le plan en un seul update Firebase
+    if(dbRef && entries.length>0){
+      const updates={};
+      entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
+      await dbRef.update(updates).catch(()=>{});
+    }
+    setProgress(85,'Séances créées…');
+    await new Promise(r=>setTimeout(r,300));
+    setProgress(100,'Prêt ! 🎉');
+    await new Promise(r=>setTimeout(r,600));
+    loadEl.remove();
+  } else {
+    if(dbRef){
+      state.onboarding=_obData;
+      await dbRef.child('onboarding').set(_obData).catch(()=>{});
     }
   }
+
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
   else renderPlan();
