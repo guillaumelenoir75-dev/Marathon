@@ -479,6 +479,7 @@ input[type=number]:focus{border-color:var(--orange);}
 
 <!-- ONBOARDING OVERLAY -->
 <div id="onboarding-overlay" style="display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;height:100%;z-index:300;background:#EDF2FB;flex-direction:column;overflow:hidden;">
+  <button id="ob-btn-close" onclick="hideOnboarding();if(_obEditMode)showScreen('compte');" style="display:none;position:absolute;top:16px;right:16px;background:#fff;border:1.5px solid #e0e0e0;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;z-index:1;line-height:1;">✕</button>
   <div style="flex:1;display:flex;flex-direction:column;padding:56px 24px 24px;overflow-y:auto;">
     <div style="display:flex;gap:6px;margin-bottom:44px;">
       <div id="ob-prog-0" style="flex:1;height:4px;border-radius:2px;background:#1B4FD8;transition:background 0.3s;"></div>
@@ -499,7 +500,22 @@ input[type=number]:focus{border-color:var(--orange);}
     <div id="ob-step-1" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 2 / 4</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Date de ta course ?</h2>
-      <input type="date" id="ob-date-input" style="width:100%;padding:16px;border:2px solid #e0e0e0;border-radius:14px;font-size:17px;font-weight:700;background:#fff;outline:none;color:#1a1a1a;" oninput="onboardingSelect('date',this.value)">
+      <div style="display:flex;gap:8px;">
+        <select id="ob-date-day" onchange="obDateChanged()" style="flex:1;padding:14px 10px;border:2px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;background:#fff;color:#1a1a1a;outline:none;-webkit-appearance:auto;">
+          <option value="">Jour</option>
+        </select>
+        <select id="ob-date-month" onchange="obDateChanged()" style="flex:2;padding:14px 10px;border:2px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;background:#fff;color:#1a1a1a;outline:none;-webkit-appearance:auto;">
+          <option value="">Mois</option>
+          <option value="01">Janvier</option><option value="02">Février</option><option value="03">Mars</option>
+          <option value="04">Avril</option><option value="05">Mai</option><option value="06">Juin</option>
+          <option value="07">Juillet</option><option value="08">Août</option><option value="09">Septembre</option>
+          <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+        </select>
+        <select id="ob-date-year" onchange="obDateChanged()" style="flex:1.5;padding:14px 10px;border:2px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;background:#fff;color:#1a1a1a;outline:none;-webkit-appearance:auto;">
+          <option value="">Année</option>
+          <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
+        </select>
+      </div>
       <p style="font-size:12px;color:#888;margin-top:10px;">Laisse vide si tu ne sais pas encore</p>
     </div>
     <div id="ob-step-2" style="display:none;">
@@ -1055,19 +1071,45 @@ let _obEditMode=false;
 function showOnboarding(editMode){
   _obEditMode=!!editMode;
   _obData={course:null,date:null,sessions:null,niveau:null};
-  if(editMode && state.onboarding){
-    Object.assign(_obData,state.onboarding);
+  if(editMode && state.onboarding) Object.assign(_obData,state.onboarding);
+  // Remplir les jours (1-31)
+  const dayEl=document.getElementById('ob-date-day');
+  if(dayEl && dayEl.options.length<=1){
+    for(let d=1;d<=31;d++){const o=document.createElement('option');o.value=String(d).padStart(2,'0');o.textContent=d;dayEl.appendChild(o);}
   }
+  // Bouton fermer visible seulement en mode édition
+  const closeBtn=document.getElementById('ob-btn-close');
+  if(closeBtn) closeBtn.style.display=editMode?'flex':'none';
   _obGoTo(0);
   // Restore selections
   ['course','sessions','niveau'].forEach(f=>{
     document.querySelectorAll('[id^="ob-'+f+'-"]').forEach(el=>el.classList.remove('selected'));
     if(_obData[f]){const c=document.getElementById('ob-'+f+'-'+_obData[f]);if(c)c.classList.add('selected');}
   });
-  const di=document.getElementById('ob-date-input');
-  if(di) di.value=_obData.date||'';
+  // Restore date selects
+  if(_obData.date){
+    const parts=_obData.date.split('-');
+    if(parts.length===3){
+      const dy=document.getElementById('ob-date-day');
+      const dm=document.getElementById('ob-date-month');
+      const dyr=document.getElementById('ob-date-year');
+      if(dy) dy.value=parts[2];
+      if(dm) dm.value=parts[1];
+      if(dyr) dyr.value=parts[0];
+    }
+  } else {
+    ['ob-date-day','ob-date-month','ob-date-year'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  }
   const el=document.getElementById('onboarding-overlay');
   if(el) el.style.display='flex';
+}
+
+function obDateChanged(){
+  const d=document.getElementById('ob-date-day')?.value;
+  const m=document.getElementById('ob-date-month')?.value;
+  const y=document.getElementById('ob-date-year')?.value;
+  if(d&&m&&y) onboardingSelect('date',y+'-'+m+'-'+d);
+  else{_obData.date=null;}
 }
 
 function hideOnboarding(){
