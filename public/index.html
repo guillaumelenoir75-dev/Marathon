@@ -468,6 +468,13 @@ input[type=number]:focus{border-color:var(--orange);}
           style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
         <input id="admin-new-name" type="text" placeholder="Prénom (optionnel)"
           style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
+        <div>
+          <p style="font-size:11px;font-weight:700;color:#888;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Genre</p>
+          <div style="display:flex;gap:8px;">
+            <button type="button" id="gender-btn-M" onclick="selectGender('M')" style="flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:600;background:#f5f5f5;color:#666;cursor:pointer;">🚹 Homme</button>
+            <button type="button" id="gender-btn-F" onclick="selectGender('F')" style="flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:600;background:#f5f5f5;color:#666;cursor:pointer;">🚺 Femme</button>
+          </div>
+        </div>
         <button onclick="adminCreateUser()"
           style="padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">
           Créer le compte
@@ -1064,7 +1071,13 @@ function renderCompteScreen(){
     const prenomCap=prenom.charAt(0).toUpperCase()+prenom.slice(1);
     const h=new Date().getHours();
     const salut=h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir';
-    greetEl.textContent=salut+' '+prenomCap+' 👋';
+    // Pour l'admin Guillaume, on sait que c'est un homme
+    const gender=state.gender||(currentUserRole==='admin'?'M':null);
+    const genderEmoji=gender==='F'?'👩‍🏃':gender==='M'?'🏃':'🏃';
+    greetEl.textContent=salut+' '+prenomCap+' '+genderEmoji;
+    // Mettre à jour l'avatar aussi
+    const avatarEl=document.getElementById('compte-avatar');
+    if(avatarEl) avatarEl.textContent=genderEmoji;
     // Tagline selon rôle et heure
     const taglines=currentUserRole==='admin'
       ?['Coach en chef 💪','On va les faire progresser ! 🚀','Ton équipe compte sur toi 🏆']
@@ -1097,23 +1110,42 @@ async function loadAdminUsersList(){
   } catch(e){listEl.textContent='Erreur : '+e.message;}
 }
 
+let _adminNewGender='';
+function selectGender(g){
+  _adminNewGender=g;
+  ['M','F'].forEach(x=>{
+    const b=document.getElementById('gender-btn-'+x);
+    if(!b) return;
+    const sel=x===g;
+    b.style.borderColor=sel?'#1B4FD8':'#e0e0e0';
+    b.style.background=sel?'#EBF0FF':'#f5f5f5';
+    b.style.color=sel?'#1B4FD8':'#666';
+  });
+}
+
 async function adminCreateUser(){
   const email=(document.getElementById('admin-new-email')?.value||'').trim();
   const password=document.getElementById('admin-new-password')?.value||'';
   const displayName=(document.getElementById('admin-new-name')?.value||'').trim();
+  const gender=_adminNewGender||null;
   const msgEl=document.getElementById('admin-create-msg');
   if(!email||!password){if(msgEl){msgEl.textContent='Email et mot de passe requis.';msgEl.style.color='#e53e3e';msgEl.style.display='block';}return;}
   const btn=document.querySelector('#admin-panel button[onclick="adminCreateUser()"]');
   if(btn){btn.textContent='Création...';btn.disabled=true;}
   try {
     const token=await getAuthToken();
-    const resp=await fetch(FUNCTIONS_BASE+'/createUser',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({email,password,displayName})});
+    const resp=await fetch(FUNCTIONS_BASE+'/createUser',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({email,password,displayName,gender})});
     const data=await resp.json();
     if(data.error) throw new Error(data.error);
+    // Sauvegarder le genre dans la DB de l'utilisateur créé
+    if(gender&&data.uid){
+      await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'write',path:`users/${data.uid}/state/gender`,value:gender})}).catch(()=>{});
+    }
     if(msgEl){msgEl.textContent='✅ Compte créé pour '+data.email;msgEl.style.color='#2d7d46';msgEl.style.display='block';}
     document.getElementById('admin-new-email').value='';
     document.getElementById('admin-new-password').value='';
     document.getElementById('admin-new-name').value='';
+    _adminNewGender='';selectGender('');
     loadAdminUsersList();
   } catch(e){
     if(msgEl){msgEl.textContent='Erreur : '+e.message;msgEl.style.color='#e53e3e';msgEl.style.display='block';}
