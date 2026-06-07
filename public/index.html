@@ -1201,8 +1201,11 @@ function generateAthletePlan(ob){
   const sessStr=ob.sessions||'3';
   const nbSess=sessStr==='4+'?4:parseInt(sessStr)||3;
 
-  // Nombre de semaines jusqu'à la course (max 32, min 8)
-  let numWeeks=20;
+  // Plafond : 2× les km de départ
+  const peakKm=baseKm*2;
+
+  // Nombre de semaines : date de course si définie, sinon 16 semaines
+  let numWeeks=16;
   if(ob.date){
     const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
     if(diff>0) numWeeks=Math.min(Math.max(diff,8),32);
@@ -1212,15 +1215,16 @@ function generateAthletePlan(ob){
   const recovery=new Set();
   for(let w=4;w<=numWeeks;w+=4) recovery.add(w);
 
-  // Calcul km par semaine
+  // Calcul km par semaine avec plafond à 2× base
   const weekKms=[];
   let cur=baseKm;
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
-      weekKms.push(Math.max(Math.round((weekKms[w-2]||cur)*0.65),baseKm));
+      const prev=weekKms[w-2]||cur;
+      weekKms.push(Math.max(Math.round(prev*0.65),baseKm));
     } else {
-      weekKms.push(Math.round(cur));
-      cur=cur*1.10;
+      weekKms.push(Math.round(Math.min(cur,peakKm)));
+      if(cur<peakKm) cur=cur*1.10; // on arrête d'augmenter une fois le plafond atteint
     }
   }
 
