@@ -435,9 +435,9 @@ input[type=number]:focus{border-color:var(--orange);}
   <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e0e0;margin-bottom:16px;">
     <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0 0 12px;">Modifier mon mot de passe</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <input id="pwd-current" type="password" placeholder="Mot de passe actuel" style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
-      <input id="pwd-new" type="password" placeholder="Nouveau mot de passe (min. 6 caractères)" style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
-      <input id="pwd-confirm" type="password" placeholder="Confirmer le nouveau mot de passe" style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
+      <div style="position:relative;"><input id="pwd-current" type="password" autocomplete="current-password" placeholder="Mot de passe actuel" style="width:100%;padding:11px 40px 11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;box-sizing:border-box;"><button type="button" onclick="togglePwd('pwd-current',this)" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;color:#888;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div style="position:relative;"><input id="pwd-new" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe (min. 6 caractères)" style="width:100%;padding:11px 40px 11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;box-sizing:border-box;"><button type="button" onclick="togglePwd('pwd-new',this)" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;color:#888;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div style="position:relative;"><input id="pwd-confirm" type="password" autocomplete="new-password" placeholder="Confirmer le nouveau mot de passe" style="width:100%;padding:11px 40px 11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;box-sizing:border-box;"><button type="button" onclick="togglePwd('pwd-confirm',this)" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;color:#888;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
       <button onclick="changePassword()" style="padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Changer le mot de passe</button>
       <p id="pwd-msg" style="font-size:12px;margin:0;display:none;"></p>
     </div>
@@ -917,21 +917,26 @@ function showLoginScreen(msg){
     lo.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;';
     document.body.appendChild(lo);
   }
-  lo.innerHTML=`<div style="text-align:center;padding:32px 24px;font-family:sans-serif;max-width:360px;width:100%;">
+  lo.innerHTML=`<form id="login-form" onsubmit="loginWithEmail();return false;" style="text-align:center;padding:32px 24px;font-family:sans-serif;max-width:360px;width:100%;">
     <div style="font-size:44px;margin-bottom:12px;">🏃</div>
     <p style="font-size:20px;font-weight:700;color:#1B4FD8;margin:0 0 6px;">Plan Marathon</p>
     <p style="font-size:13px;color:#888;margin:0 0 28px;">${msg||'Connecte-toi pour accéder à ton plan'}</p>
-    <input id="login-email" type="email" placeholder="Adresse e-mail" autocomplete="email"
+    <input id="login-email" type="email" name="email" placeholder="Adresse e-mail" autocomplete="username"
       style="width:100%;padding:13px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none;font-family:sans-serif;">
-    <input id="login-password" type="password" placeholder="Mot de passe" autocomplete="current-password"
-      style="width:100%;padding:13px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:18px;box-sizing:border-box;outline:none;font-family:sans-serif;"
-      onkeydown="if(event.key==='Enter') loginWithEmail()">
-    <button onclick="loginWithEmail()"
+    <div style="position:relative;margin-bottom:18px;">
+      <input id="login-password" type="password" name="password" placeholder="Mot de passe" autocomplete="current-password"
+        style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;font-family:sans-serif;">
+      <button type="button" onclick="togglePwd('login-password',this)" tabindex="-1"
+        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#888;">
+        <svg id="eye-login" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <button type="submit"
       style="width:100%;padding:14px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:sans-serif;">
       Se connecter
     </button>
     <p id="login-error" style="font-size:12px;color:#e53e3e;margin-top:14px;display:none;"></p>
-  </div>`;
+  </form>`;
 }
 
 function loginWithEmail(){
@@ -1114,6 +1119,18 @@ async function saveOnboarding(){
   }
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
+}
+
+function togglePwd(inputId, btn){
+  const inp=document.getElementById(inputId);
+  if(!inp) return;
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  // Swap icon
+  const svg=btn.querySelector('svg');
+  if(svg) svg.innerHTML=show
+    ?'<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    :'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
 }
 
 async function changePassword(){
