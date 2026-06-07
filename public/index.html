@@ -497,6 +497,7 @@ input[type=number]:focus{border-color:var(--orange);}
         <button onclick="onboardingSelect('course','Semi-marathon')" class="ob-chip" id="ob-course-Semi-marathon">🥈 Semi-marathon</button>
         <button onclick="onboardingSelect('course','10 km')" class="ob-chip" id="ob-course-10 km">⚡ 10 km</button>
         <button onclick="onboardingSelect('course','Autre')" class="ob-chip" id="ob-course-Autre">🎯 Autre</button>
+        <button onclick="onboardingSelect('course','Plaisir')" class="ob-chip" id="ob-course-Plaisir">🎉 Pas de course, juste pour le plaisir</button>
       </div>
     </div>
     <div id="ob-step-1" style="display:none;">
@@ -560,7 +561,7 @@ input[type=number]:focus{border-color:var(--orange);}
   </div>
   <div style="padding:20px 24px calc(24px + env(safe-area-inset-bottom,0px));background:#EDF2FB;border-top:1px solid rgba(0,0,0,0.06);">
     <div style="display:flex;gap:12px;">
-      <button id="ob-btn-back" onclick="_obGoTo(_obStep-1)" style="display:none;flex:0 0 auto;padding:16px 20px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;color:#1a1a1a;">← Retour</button>
+      <button id="ob-btn-back" onclick="onboardingBack()" style="display:none;flex:0 0 auto;padding:16px 20px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;color:#1a1a1a;">← Retour</button>
       <button id="ob-btn-next" onclick="onboardingNext()" style="flex:1;padding:16px;background:#1B4FD8;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;opacity:0.4;" disabled>Suivant →</button>
     </div>
   </div>
@@ -1173,8 +1174,21 @@ function onboardingSelect(field,val){
 }
 
 function onboardingNext(){
-  if(_obStep<5){_obGoTo(_obStep+1);}
-  else{saveOnboarding();}
+  if(_obStep===5){saveOnboarding();return;}
+  let next=_obStep+1;
+  // Sauter l'étape date si "Plaisir" (pas de course, pas de date butoir)
+  if(next===1&&_obData.course==='Plaisir'){
+    _obData.date=null;
+    next=2;
+  }
+  _obGoTo(next);
+}
+
+function onboardingBack(){
+  let prev=_obStep-1;
+  // Sauter l'étape date au retour aussi
+  if(prev===1&&_obData.course==='Plaisir') prev=0;
+  _obGoTo(prev);
 }
 
 async function saveOnboarding(){
