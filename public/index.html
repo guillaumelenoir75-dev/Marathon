@@ -452,6 +452,7 @@ input[type=number]:focus{border-color:var(--orange);}
         <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">Mon profil</p>
         <div style="display:flex;gap:8px;">
           <button onclick="showOnboarding(true)" style="background:#EBF0FF;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;">Modifier</button>
+          <button onclick="showOnboarding(true)" id="btn-generate-plan" style="background:#EAF3DE;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#3B6D11;cursor:pointer;display:none;">✨ Générer un plan</button>
           <button onclick="deleteAthletePlan()" id="btn-delete-plan" style="background:#FEF2F2;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#DC2626;cursor:pointer;display:none;">🗑 Supprimer le plan</button>
         </div>
       </div>
@@ -1942,7 +1943,9 @@ function renderAthletePanel(){
   // Afficher le bouton supprimer uniquement si un plan existe
   const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
   const delBtn=document.getElementById('btn-delete-plan');
+  const genBtn=document.getElementById('btn-generate-plan');
   if(delBtn) delBtn.style.display=hasPlan?'block':'none';
+  if(genBtn) genBtn.style.display=hasPlan?'none':'block';
 }
 
 async function deleteAthletePlan(){
