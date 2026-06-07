@@ -1430,8 +1430,12 @@ function renderAthleteCoachView(userData, uid, name){
 function cvEditSession(w, si){
   const key=`extra_w${w}_s${si}`;
   let s={}; try{s=JSON.parse(_cvState[key]||'{}');}catch(e){}
-  const title=s.d?s.d.split('|')[0]:'';
-  _cvShowSessionModal({w,si,title,km:s.km||0,type:s.type||'ef',isNew:false});
+  const parts=(s.d||'').split('|');
+  const title=parts[0]||'';
+  const detail=parts[1]||'';
+  _cvShowSessionModal({w,si,title,detail,km:s.km||0,type:s.type||'ef',isNew:false});
+  // Préremplir le champ detail après le rendu
+  setTimeout(()=>{const el=document.getElementById('cv-s-detail');if(el)el.value=detail;},50);
 }
 
 function cvAddSession(w){
@@ -1442,47 +1446,154 @@ function cvAddSession(w){
 }
 
 function cvAddWeek(w){
-  _cvShowSessionModal({w,si:0,title:'',km:0,type:'ef',isNew:true});
+  // Ouvre le modal en mode "nouvelle semaine" — on peut choisir la semaine et ajouter la 1ère séance
+  _cvShowSessionModal({w,si:0,title:'',km:0,type:'ef',isNew:true,newWeek:true});
 }
 
-function _cvShowSessionModal({w,si,title,km,type,isNew}){
+function _cvTypeHeaderStyle(type){
+  const cfg={
+    ef:{bg:'linear-gradient(135deg,#1E4A09,#2d6b12)',accent:'#3B6D11',icon:'🟢',label:'Endurance Fondamentale'},
+    tempo:{bg:'linear-gradient(135deg,#7a1a00,#b83000)',accent:'#E8530A',icon:'🔥',label:'Tempo / Intervalles'},
+    long:{bg:'linear-gradient(135deg,#1a1660,#3a2ea0)',accent:'#534AB7',icon:'💜',label:'Sortie Longue EF'},
+    race:{bg:'linear-gradient(135deg,#6b4a00,#b38000)',accent:'#C4960A',icon:'🏁',label:'Course'},
+    rest:{bg:'linear-gradient(135deg,#444,#666)',accent:'#888',icon:'😴',label:'Repos'},
+  };
+  return cfg[type]||cfg.ef;
+}
+
+function _cvShowSessionModal({w,si,title,km,type,isNew,newWeek}){
+  // Calculer les semaines disponibles pour le sélecteur
+  const existingWeeks=new Set();
+  Object.keys(_cvState||{}).forEach(k=>{const m=k.match(/^extra_w(\d+)_s\d+$/);if(m)existingWeeks.add(parseInt(m[1]));});
+  const nextW=(existingWeeks.size>0?Math.max(...existingWeeks):0)+1;
+  const allWeeks=[...Array.from(existingWeeks).sort((a,b)=>a-b),(existingWeeks.has(nextW)?null:nextW)].filter(Boolean);
+
   let modal=document.getElementById('cv-session-modal');
   if(!modal){
     modal=document.createElement('div');
     modal.id='cv-session-modal';
-    modal.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;justify-content:center;';
+    modal.style.cssText='position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;';
     document.getElementById('app').appendChild(modal);
   }
   modal.style.display='flex';
-  modal.innerHTML=`<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:390px;box-sizing:border-box;">
-    <p style="font-size:15px;font-weight:700;margin:0 0 16px;">${isNew?'Nouvelle séance':'Modifier la séance'} — S${w}</p>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <input id="cv-s-title" placeholder="Titre (ex: Séance EF)" value="${title}" style="padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;">
-      <div style="display:flex;gap:8px;">
-        <input id="cv-s-km" type="number" min="1" max="50" placeholder="km" value="${km||''}" style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;">
-        <select id="cv-s-type" style="flex:2;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;background:#fff;">
-          <option value="ef" ${type==='ef'?'selected':''}>🌿 EF (endurance fondamentale)</option>
-          <option value="tempo" ${type==='tempo'?'selected':''}>🔥 Tempo</option>
-          <option value="long" ${type==='long'?'selected':''}>🏔️ EF longue</option>
-        </select>
+
+  const cfg=_cvTypeHeaderStyle(type||'ef');
+  const typeChips=['ef','tempo','long','race'].map(t=>{
+    const c=_cvTypeHeaderStyle(t);
+    const sel=(type||'ef')===t;
+    return `<button type="button" onclick="_cvPickType('${t}')" id="cv-chip-${t}" style="padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;border:2px solid ${sel?c.accent:'#e0e0e0'};background:${sel?c.accent+'18':'#f5f5f5'};color:${sel?c.accent:'#666'};cursor:pointer;transition:all 0.15s;">${c.icon} ${c.label.split(' ')[0]}</button>`;
+  }).join('');
+
+  const weekSelect=isNew?`
+    <div style="margin-bottom:16px;">
+      <p style="font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Semaine</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${allWeeks.map(wk=>`<button type="button" onclick="_cvPickWeek(${wk})" id="cv-wk-${wk}" style="padding:7px 13px;border-radius:20px;font-size:13px;font-weight:700;border:2px solid ${wk===w?'#1B4FD8':'#e0e0e0'};background:${wk===w?'#EBF0FF':'#f5f5f5'};color:${wk===w?'#1B4FD8':'#666'};cursor:pointer;">S${wk}</button>`).join('')}</div>
+    </div>`:
+    `<p style="font-size:12px;color:#888;font-weight:600;margin-bottom:16px;">Semaine ${w}</p>`;
+
+  modal.innerHTML=`
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:420px;box-sizing:border-box;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+    <!-- Header coloré -->
+    <div id="cv-modal-header" style="background:${cfg.bg};padding:20px 20px 16px;flex-shrink:0;border-radius:24px 24px 0 0;">
+      <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.35);margin:0 auto 14px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <p style="font-size:10px;font-weight:800;opacity:0.75;letter-spacing:0.1em;text-transform:uppercase;color:#fff;margin-bottom:4px;">${isNew?'Nouvelle séance':'Modifier la séance'}</p>
+          <p id="cv-modal-label" style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-0.02em;">${cfg.icon} ${cfg.label}</p>
+        </div>
+        <button onclick="document.getElementById('cv-session-modal').style.display='none'" style="background:rgba(255,255,255,0.25);border:none;color:#fff;font-size:20px;line-height:1;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
       </div>
-      <div style="display:flex;gap:8px;margin-top:4px;">
-        <button onclick="document.getElementById('cv-session-modal').style.display='none'" style="flex:1;padding:12px;background:#f5f5f5;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
-        <button onclick="cvSaveSession(${w},${si})" style="flex:2;padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Enregistrer</button>
+    </div>
+
+    <!-- Body scrollable -->
+    <div style="padding:20px;overflow-y:auto;flex:1;">
+      ${weekSelect}
+
+      <!-- Type chips -->
+      <p style="font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Type de séance</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;">${typeChips}</div>
+
+      <!-- Titre -->
+      <p style="font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Titre</p>
+      <input id="cv-s-title" placeholder="ex: Séance EF, Tempo 2×8 min…" value="${title.replace(/"/g,'&quot;')}"
+        style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;outline:none;margin-bottom:16px;font-family:inherit;">
+
+      <!-- Structure (detail) -->
+      <p style="font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Structure / détail <span style="font-weight:400;text-transform:none;">(optionnel)</span></p>
+      <input id="cv-s-detail" placeholder="ex: 5'10 — 5'30/km · 8 EF · 3 AM @ 5'40/km" value=""
+        style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;outline:none;margin-bottom:16px;font-family:inherit;color:#555;">
+
+      <!-- km -->
+      <p style="font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Distance (km)</p>
+      <input id="cv-s-km" type="number" min="1" max="60" step="0.5" placeholder="0" value="${km||''}"
+        style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:22px;font-weight:700;outline:none;margin-bottom:24px;text-align:center;">
+
+      <!-- Boutons -->
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('cv-session-modal').style.display='none'" style="flex:1;padding:14px;background:#f5f5f5;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
+        <button onclick="cvSaveSession()" style="flex:2;padding:14px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">Enregistrer</button>
       </div>
     </div>
   </div>`;
+
+  // Stocker contexte courant dans le modal
+  modal._cvW=w; modal._cvSi=si; modal._cvIsNew=isNew; modal._cvType=type||'ef';
 }
 
-async function cvSaveSession(w, si){
+function _cvPickType(t){
+  const modal=document.getElementById('cv-session-modal');
+  if(!modal) return;
+  modal._cvType=t;
+  ['ef','tempo','long','race'].forEach(x=>{
+    const btn=document.getElementById('cv-chip-'+x);
+    if(!btn) return;
+    const c=_cvTypeHeaderStyle(x);
+    const sel=x===t;
+    btn.style.borderColor=sel?c.accent:'#e0e0e0';
+    btn.style.background=sel?c.accent+'18':'#f5f5f5';
+    btn.style.color=sel?c.accent:'#666';
+  });
+  // Mettre à jour le header
+  const cfg=_cvTypeHeaderStyle(t);
+  const hdr=document.getElementById('cv-modal-header');
+  if(hdr) hdr.style.background=cfg.bg;
+  const lbl=document.getElementById('cv-modal-label');
+  if(lbl) lbl.textContent=cfg.icon+' '+cfg.label;
+}
+
+function _cvPickWeek(wk){
+  const modal=document.getElementById('cv-session-modal');
+  if(!modal) return;
+  const prev=modal._cvW;
+  modal._cvW=wk;
+  // Recalculer si pour la nouvelle semaine
+  let si=0;
+  while(_cvState[`extra_w${wk}_s${si}`]) si++;
+  modal._cvSi=si;
+  // Mettre à jour les boutons
+  document.querySelectorAll('[id^="cv-wk-"]').forEach(btn=>{
+    const bwk=parseInt(btn.id.replace('cv-wk-',''));
+    const sel=bwk===wk;
+    btn.style.borderColor=sel?'#1B4FD8':'#e0e0e0';
+    btn.style.background=sel?'#EBF0FF':'#f5f5f5';
+    btn.style.color=sel?'#1B4FD8':'#666';
+  });
+}
+
+async function cvSaveSession(){
+  const modal=document.getElementById('cv-session-modal');
+  const w=modal?._cvW||0;
+  const si=modal?._cvSi||0;
+  const type=modal?._cvType||'ef';
   const title=(document.getElementById('cv-s-title')?.value||'').trim();
-  const km=parseInt(document.getElementById('cv-s-km')?.value)||0;
-  const type=document.getElementById('cv-s-type')?.value||'ef';
+  const detail=(document.getElementById('cv-s-detail')?.value||'').trim();
+  const km=parseFloat(document.getElementById('cv-s-km')?.value)||0;
   if(!title||!km){alert('Titre et km obligatoires.');return;}
   const key=`extra_w${w}_s${si}`;
-  const val=JSON.stringify({d:title,km,type,shoe:null});
+  const fullTitle=detail?`${title}|${detail}`:title;
+  const val=JSON.stringify({d:fullTitle,km,type,shoe:null});
   _cvState[key]=val;
-  document.getElementById('cv-session-modal').style.display='none';
+  if(modal) modal.style.display='none';
   // Sauvegarder dans Firebase
   try{
     const token=await getAuthToken();
