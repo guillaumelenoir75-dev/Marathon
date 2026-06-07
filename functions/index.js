@@ -1843,6 +1843,30 @@ async function buildNotifContext(state, cw) {
   return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw};
 }
 
+// ── INIT MOT DE PASSE ADMIN (usage unique) ───────────────────────────────────
+// Permet d'ajouter email/password à un compte Google existant sans perdre les données
+
+exports.initAdminPassword = onRequest(
+  { cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    const { uid, password, secret } = req.body || {};
+    // Protection basique par secret (pas de token Firebase car pas encore de mot de passe)
+    if (secret !== 'marathon2026-init') { res.status(403).json({ error: 'Secret invalide' }); return; }
+    if (!uid || !password) { res.status(400).json({ error: 'uid et password requis' }); return; }
+    try {
+      await admin.auth().updateUser(uid, { password, email: ADMIN_EMAIL });
+      // S'assurer que le rôle admin est bien défini dans la DB
+      const db = admin.database();
+      await db.ref(`users/${uid}/role`).set('admin');
+      res.json({ success: true, message: 'Mot de passe ajouté au compte existant' });
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
 // ── GESTION UTILISATEURS (admin seulement) ────────────────────────────────────
 
 exports.createUser = onRequest(
