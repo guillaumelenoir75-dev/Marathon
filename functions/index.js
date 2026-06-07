@@ -654,9 +654,26 @@ function buildEvent(uid, title, description, startDate, durationMinutes) {
 }
 
 exports.calendar = onRequest(async (req, res) => {
+  // Réservé à l'admin
+  try { await verifyAdmin(req); } catch(e) { res.status(403).send('Accès réservé'); return; }
   const db = admin.database();
-  const snapshot = await db.ref("marathon/state").once("value");
-  const state = snapshot.val() || {};
+  // Lire depuis le chemin admin (users/{uid}/state ou marathon/state pour compatibilité)
+  const authHeader = req.headers.authorization || '';
+  let state = {};
+  try {
+    const token = authHeader.slice(7);
+    const decoded = await admin.auth().verifyIdToken(token);
+    const snap = await db.ref('users/' + decoded.uid + '/state').once('value');
+    state = snap.val() || {};
+    // Fallback vers marathon/state si vide
+    if (Object.keys(state).length === 0) {
+      const oldSnap = await db.ref('marathon/state').once('value');
+      state = oldSnap.val() || {};
+    }
+  } catch(e) {
+    const snapshot = await db.ref('marathon/state').once('value');
+    state = snapshot.val() || {};
+  }
   const events = [];
 
   Object.keys(state).forEach(key => {
