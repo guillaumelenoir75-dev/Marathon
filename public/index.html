@@ -4364,6 +4364,29 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   analysisContext.fc = hr;
   analysisContext.semaine = CW;
 
+  // Structure complète de la séance (partie après |)
+  const _seanceDetail = s.d.includes('|') ? s.d.split('|')[1] : null;
+  if(_seanceDetail) analysisContext.structure_seance = _seanceDetail;
+
+  // Détecter les blocs AM dans les sorties longues
+  if((s.type==='long'||s.type==='ef') && _seanceDetail){
+    const amMatch = _seanceDetail.match(/(\d+)\s*AM\s*[@à]\s*([\d'']+\/km)/i);
+    const amKmMatch = _seanceDetail.match(/(\d+)\s*AM/i);
+    if(amMatch || amKmMatch){
+      const amPace = amMatch ? amMatch[2] : null;
+      const amKm = amKmMatch ? parseInt(amKmMatch[1]) : null;
+      // Extraire structure complète : ex "10 EF · 2 AM @ 5'22/km · 4 EF"
+      const parts = _seanceDetail.split(/[·•]/);
+      analysisContext.blocs_am = {
+        present: true,
+        km_am: amKm,
+        allure_cible_am: amPace || getMarathonPaceStr(),
+        structure: _seanceDetail.trim(),
+        INSTRUCTION: `RÈGLE CRITIQUE — SÉANCE AVEC BLOCS ALLURE MARATHON : Cette sortie longue N'EST PAS une sortie EF pure. Elle est structurée ainsi : "${_seanceDetail.trim()}". L'allure globale (${pace}/km) est une MOYENNE incluant les phases EF lentes ET les blocs AM rapides. NE PAS évaluer l'allure globale comme si c'était une allure EF. Analyser SÉPARÉMENT : (1) les km en EF et leur cohérence avec la zone EF, (2) les ${amKm||'X'} km en allure marathon et leur exécution par rapport à la cible ${amPace||getMarathonPaceStr()}. Si des splits Strava sont disponibles, identifier quels km correspondent aux blocs AM.`
+      };
+    }
+  }
+
   // Allure marathon
   analysisContext.allureMarathon = getMarathonPaceStr();
   analysisContext.semaines_restantes = 32 - CW;
@@ -4409,7 +4432,11 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   (()=>{
     const efActuelle = getBestEfPace() || "5'48";
     if(s.type==='ef' || s.type==='long') {
-      analysisContext.allure_attendue = efActuelle + '/km (allure EF actuelle)';
+      if(analysisContext.blocs_am && analysisContext.blocs_am.present){
+        analysisContext.allure_attendue = `Structure mixte : phases EF à ${efActuelle}/km + ${analysisContext.blocs_am.km_am||'X'} km AM à ${analysisContext.blocs_am.allure_cible_am} — allure globale = moyenne des deux`;
+      } else {
+        analysisContext.allure_attendue = efActuelle + '/km (allure EF actuelle)';
+      }
     } else if(s.type==='tempo') {
       const detail = s.d.split('|')[1]||'';
       const paceMatch = detail.match(/(\d+)[':'](\d+)\s*[—\-]+\s*(\d+)[':'](\d+)/);
