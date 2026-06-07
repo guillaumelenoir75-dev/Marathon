@@ -1951,6 +1951,41 @@ exports.deleteUser = onRequest(
   }
 );
 
+// ── dbAdmin — proxy base de données (admin seulement) ────────────────────────
+exports.dbAdmin = onRequest(
+  {cors:true},
+  async(req,res)=>{
+    res.set(corsHeaders());
+    if(req.method==='OPTIONS'){res.status(204).send('');return;}
+    try{
+      await verifyAdmin(req);
+    }catch(e){res.status(403).json({error:e.message});return;}
+    const{action,path:dbPath,value}=req.body||{};
+    if(!dbPath){res.status(400).json({error:'path requis'});return;}
+    const db=admin.database();
+    const ref=db.ref(dbPath);
+    try{
+      if(action==='read'){
+        const snap=await ref.once('value');
+        res.json({data:snap.val()});
+      }else if(action==='write'){
+        await ref.set(value);
+        res.json({success:true});
+      }else if(action==='update'){
+        await ref.update(value);
+        res.json({success:true});
+      }else if(action==='delete'){
+        await ref.remove();
+        res.json({success:true});
+      }else{
+        res.status(400).json({error:'action invalide (read|write|update|delete)'});
+      }
+    }catch(e){
+      res.status(500).json({error:e.message});
+    }
+  }
+);
+
 // ── 1a. FC repos — lundi-vendredi 8h01 ───────────────────────────────────────
 exports.fcReposReminderWeekday = onSchedule(
   {schedule:'58 7 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
