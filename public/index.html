@@ -538,9 +538,12 @@ const KM_AVANT_S7=219;
 // Mis à jour manuellement à chaque début de semaine si nécessaire
 const KM_HISTORIQUE_BASE = 243; // km faits S1-S8 inclus (193 plan + ~50 hors plan)
 function getGrandTotal(){
-  // Total = km planifiés de toutes les semaines S1 à S32
-  // Pour les semaines passées sans données Firebase, on utilise les km planifiés du plan
-  // (getWeekTotalKm tient compte des modifications et suppressions de séances)
+  if(currentUserRole !== 'admin'){
+    // Pour les athlètes : total des km de leurs séances extra uniquement
+    let t=0;
+    for(let ws=1;ws<=52;ws++){let ei=0;while(state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
+    return Math.round(t);
+  }
   return Math.round(weeks.reduce((a,w)=>a+getWeekTotalKm(w.s),0));
 }
 
@@ -6559,6 +6562,13 @@ function renderPlan(){
 }
 
 function getWeekTotalKm(ws){
+  if(currentUserRole !== 'admin'){
+    // Pour les athlètes : seulement leurs séances extra
+    let total=0;
+    let ei=0;
+    while(state[`extra_w${ws}_s${ei}`]){try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}
+    return Math.round(total*10)/10;
+  }
   const w=weeks[ws-1];
   let total=0;
   w.sessions.forEach((_,si)=>{
@@ -6576,6 +6586,16 @@ function getWeekTotalKm(ws){
 }
 
 function getOrderedWeekSessions(ws){
+  // Athlètes : seulement leurs séances extra, pas le plan hardcodé de Guillaume
+  if(currentUserRole !== 'admin'){
+    const res=[];
+    let ei=0;
+    while(state[`extra_w${ws}_s${ei}`]){
+      try{res.push({s:JSON.parse(state[`extra_w${ws}_s${ei}`]),si:'x'+ei,extra:true,ei});}catch(e){}
+      ei++;
+    }
+    return res;
+  }
   const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
   let ei=0;
   while(state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
