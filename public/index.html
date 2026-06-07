@@ -1037,12 +1037,13 @@ async function loadAdminUsersList(){
     const users=await resp.json();
     if(!Array.isArray(users)){listEl.textContent='Erreur chargement.';return;}
     listEl.innerHTML=users.map(u=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-        <div>
-          <div style="font-weight:600;">${u.displayName||u.email||u.uid}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
+        <div ${u.role!=='admin'?`onclick="openAthleteCoachView('${u.uid}','${u.displayName||u.email||u.uid}')" style="cursor:pointer;flex:1;"`:'style="flex:1;"'}>
+          <div style="font-weight:600;font-size:14px;">${u.displayName||u.email||u.uid}</div>
           <div style="font-size:11px;color:#888;">${u.email||''} · ${u.role==='admin'?'Admin':'Athlète'}</div>
+          ${u.role!=='admin'?'<div style="font-size:11px;color:#1B4FD8;margin-top:2px;">Voir le plan →</div>':''}
         </div>
-        ${u.role!=='admin'?`<button onclick="adminDeleteUser('${u.uid}','${u.email||u.uid}')" style="background:none;border:1px solid #ffcdd2;border-radius:8px;padding:4px 10px;font-size:11px;color:#e53e3e;cursor:pointer;">Suppr.</button>`:''}
+        ${u.role!=='admin'?`<button onclick="event.stopPropagation();adminDeleteUser('${u.uid}','${u.email||u.uid}')" style="background:none;border:1px solid #ffcdd2;border-radius:8px;padding:4px 10px;font-size:11px;color:#e53e3e;cursor:pointer;flex-shrink:0;">Suppr.</button>`:''}
       </div>`).join('');
   } catch(e){listEl.textContent='Erreur : '+e.message;}
 }
@@ -1304,6 +1305,112 @@ async function changePassword(){
       :'Erreur : '+e.message;
     show(msg2,false);
   }
+}
+
+async function openAthleteCoachView(uid, name){
+  // Créer ou réutiliser l'overlay
+  let ov=document.getElementById('coach-view-overlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='coach-view-overlay';
+    ov.style.cssText='position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;height:100%;z-index:400;background:#EDF2FB;display:flex;flex-direction:column;overflow:hidden;';
+    document.getElementById('app').appendChild(ov);
+  }
+  ov.style.display='flex';
+  ov.innerHTML=`
+    <div style="background:#0C447C;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top,0px));color:#fff;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+      <button onclick="document.getElementById('coach-view-overlay').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:34px;height:34px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;">←</button>
+      <div>
+        <div style="font-size:16px;font-weight:700;">${name}</div>
+        <div style="font-size:12px;opacity:0.7;">Vue coach</div>
+      </div>
+    </div>
+    <div id="coach-view-body" style="flex:1;overflow-y:auto;padding:16px;">
+      <p style="text-align:center;color:#888;padding:40px 0;">Chargement…</p>
+    </div>`;
+
+  // Charger les données via dbAdmin
+  try {
+    const token=await getAuthToken();
+    const resp=await fetch(FUNCTIONS_BASE+'/dbAdmin',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({action:'read',path:`users/${uid}`})
+    });
+    const {data}=await resp.json();
+    renderAthleteCoachView(data||{}, uid, name);
+  } catch(e){
+    document.getElementById('coach-view-body').innerHTML=`<p style="color:#e53e3e;padding:20px;">Erreur : ${e.message}</p>`;
+  }
+}
+
+function renderAthleteCoachView(userData, uid, name){
+  const body=document.getElementById('coach-view-body');
+  if(!body) return;
+  const ob=userData.state?.onboarding||{};
+  const st=userData.state||{};
+
+  // Profil
+  const kmLabel={10:'< 15 km',20:'15–25 km',30:'25–35 km',40:'> 35 km'};
+  let html=`<div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;border:1px solid #e0e8f5;">
+    <p style="font-size:13px;font-weight:700;color:#0C447C;margin:0 0 12px;">Profil</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+      <div><span style="color:#888;">Course</span><br><b>${ob.course||'—'}</b></div>
+      <div><span style="color:#888;">Date</span><br><b>${ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'—'}</b></div>
+      <div><span style="color:#888;">Séances/sem</span><br><b>${ob.sessions||'—'}</b></div>
+      <div><span style="color:#888;">Niveau</span><br><b>${ob.niveau||'—'}</b></div>
+      <div><span style="color:#888;">Km actuels</span><br><b>${kmLabel[ob.km_semaine]||ob.km_semaine||'—'}</b></div>
+      <div><span style="color:#888;">Plan généré</span><br><b>${ob.generate_plan==='oui'?'✅ Oui':'Non'}</b></div>
+    </div>
+  </div>`;
+
+  // Construire le plan depuis extra_w{ws}_s{ei}
+  const weekData={};
+  Object.keys(st).forEach(k=>{
+    const m=k.match(/^extra_w(\d+)_s(\d+)$/);
+    if(!m) return;
+    const w=parseInt(m[1]),si=parseInt(m[2]);
+    if(!weekData[w]) weekData[w]={sessions:[],done:0,kmDone:0,kmPlan:0};
+    try{
+      const s=JSON.parse(st[k]);
+      const done=!!st[`extra_w${w}_s${si}_done`];
+      const km=parseFloat(st[`extra_w${w}_s${si}_km`]||s.km)||0;
+      const perf=st[`extra_w${w}_s${si}_perf`]?JSON.parse(st[`extra_w${w}_s${si}_perf`]):{};
+      weekData[w].sessions.push({s,si,done,km,perf});
+      weekData[w].kmPlan+=(s.km||0);
+      if(done){weekData[w].done++;weekData[w].kmDone+=km;}
+    }catch(e){}
+  });
+
+  const weeks=Object.keys(weekData).map(Number).sort((a,b)=>a-b);
+  if(weeks.length===0){
+    html+=`<div style="background:#fff;border-radius:14px;padding:20px;text-align:center;color:#888;border:1px solid #e0e0e0;">Aucun plan généré</div>`;
+  } else {
+    const typeColor={ef:'#1E4A09',tempo:'#9A2D00',long:'#2A2070'};
+    const typeLabel={ef:'EF',tempo:'Tempo',long:'Long'};
+    html+=`<p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">Plan — ${weeks.length} semaines</p>`;
+    weeks.forEach(w=>{
+      const wd=weekData[w];
+      const allDone=wd.done===wd.sessions.length&&wd.sessions.length>0;
+      const pct=wd.kmPlan>0?Math.round(wd.kmDone/wd.kmPlan*100):0;
+      html+=`<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid ${allDone?'#c6f0d0':'#e0e0e0'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:700;">Semaine ${w}</span>
+          <span style="font-size:12px;color:${allDone?'#2d7d46':'#888'};">${allDone?'✅ Terminée':wd.done>0?wd.done+'/'+wd.sessions.length+' faites':'À faire'} · ${wd.kmPlan} km</span>
+        </div>
+        ${wd.sessions.map(({s,done,km,perf})=>{
+          const col=typeColor[s.type]||'#333';
+          const lbl=typeLabel[s.type]||s.type;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f5f5f5;">
+            <span style="background:${col}22;color:${col};font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;flex-shrink:0;">${lbl}</span>
+            <span style="flex:1;font-size:13px;">${s.d.split('|')[0]} · ${s.km} km</span>
+            ${done?`<span style="font-size:12px;color:#2d7d46;">✓ ${km}km${perf.pace?' · '+perf.pace+'/km':''}</span>`:'<span style="font-size:11px;color:#aaa;">—</span>'}
+          </div>`;
+        }).join('')}
+      </div>`;
+    });
+  }
+  body.innerHTML=html;
 }
 
 function renderAthletePanel(){
