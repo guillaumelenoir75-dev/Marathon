@@ -486,9 +486,11 @@ input[type=number]:focus{border-color:var(--orange);}
       <div id="ob-prog-1" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
       <div id="ob-prog-2" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
       <div id="ob-prog-3" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+      <div id="ob-prog-4" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+      <div id="ob-prog-5" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
     </div>
     <div id="ob-step-0">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 1 / 4</p>
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 1 / 6</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Quelle course prépares-tu ?</h2>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('course','Marathon')" class="ob-chip" id="ob-course-Marathon">🏅 Marathon</button>
@@ -498,7 +500,7 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
     </div>
     <div id="ob-step-1" style="display:none;">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 2 / 4</p>
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 2 / 6</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Date de ta course ?</h2>
       <div style="display:flex;gap:8px;">
         <select id="ob-date-day" onchange="obDateChanged()" style="flex:1;padding:14px 10px;border:2px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;background:#fff;color:#1a1a1a;outline:none;-webkit-appearance:auto;">
@@ -519,7 +521,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <p style="font-size:12px;color:#888;margin-top:10px;">Laisse vide si tu ne sais pas encore</p>
     </div>
     <div id="ob-step-2" style="display:none;">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 3 / 4</p>
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 3 / 6</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Séances de course par semaine ?</h2>
       <div style="display:flex;gap:12px;">
         <button onclick="onboardingSelect('sessions','2')" class="ob-chip ob-chip-sm" id="ob-sessions-2">2</button>
@@ -528,12 +530,31 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
     </div>
     <div id="ob-step-3" style="display:none;">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 4 / 4</p>
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 4 / 6</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Quel est ton niveau ?</h2>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('niveau','Débutant')" class="ob-chip" id="ob-niveau-Débutant">🌱 Débutant — première course</button>
         <button onclick="onboardingSelect('niveau','Intermédiaire')" class="ob-chip" id="ob-niveau-Intermédiaire">🔥 Intermédiaire — quelques courses</button>
         <button onclick="onboardingSelect('niveau','Confirmé')" class="ob-chip" id="ob-niveau-Confirmé">🏆 Confirmé — objectif chrono</button>
+      </div>
+    </div>
+    <div id="ob-step-4" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 5 / 6</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Combien de km cours-tu par semaine actuellement ?</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="onboardingSelect('km_semaine','10')" class="ob-chip" id="ob-km_semaine-10">🐢 Moins de 15 km</button>
+        <button onclick="onboardingSelect('km_semaine','20')" class="ob-chip" id="ob-km_semaine-20">🚶 15 – 25 km</button>
+        <button onclick="onboardingSelect('km_semaine','30')" class="ob-chip" id="ob-km_semaine-30">🏃 25 – 35 km</button>
+        <button onclick="onboardingSelect('km_semaine','40')" class="ob-chip" id="ob-km_semaine-40">⚡ Plus de 35 km</button>
+      </div>
+    </div>
+    <div id="ob-step-5" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 6</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:16px;">On te génère un programme ?</h2>
+      <p style="font-size:14px;color:#555;margin-bottom:28px;line-height:1.5;">À partir de tes km actuels, on construit un plan progressif (+10%/semaine avec semaines de décharge) adapté à ton nombre de séances.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="onboardingSelect('generate_plan','oui')" class="ob-chip" id="ob-generate_plan-oui">✅ Oui, génère-moi un programme</button>
+        <button onclick="onboardingSelect('generate_plan','non')" class="ob-chip" id="ob-generate_plan-non">⏭️ Non, je le ferai moi-même</button>
       </div>
     </div>
   </div>
@@ -1065,12 +1086,12 @@ async function adminDeleteUser(uid,label){
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
 let _obStep=0;
-let _obData={course:null,date:null,sessions:null,niveau:null};
+let _obData={course:null,date:null,sessions:null,niveau:null,km_semaine:null,generate_plan:null};
 let _obEditMode=false;
 
 function showOnboarding(editMode){
   _obEditMode=!!editMode;
-  _obData={course:null,date:null,sessions:null,niveau:null};
+  _obData={course:null,date:null,sessions:null,niveau:null,km_semaine:null,generate_plan:null};
   if(editMode && state.onboarding) Object.assign(_obData,state.onboarding);
   // Remplir les jours (1-31)
   const dayEl=document.getElementById('ob-date-day');
@@ -1082,7 +1103,7 @@ function showOnboarding(editMode){
   if(closeBtn) closeBtn.style.display=editMode?'flex':'none';
   _obGoTo(0);
   // Restore selections
-  ['course','sessions','niveau'].forEach(f=>{
+  ['course','sessions','niveau','km_semaine','generate_plan'].forEach(f=>{
     document.querySelectorAll('[id^="ob-'+f+'-"]').forEach(el=>el.classList.remove('selected'));
     if(_obData[f]){const c=document.getElementById('ob-'+f+'-'+_obData[f]);if(c)c.classList.add('selected');}
   });
@@ -1119,7 +1140,8 @@ function hideOnboarding(){
 
 function _obGoTo(step){
   _obStep=step;
-  for(let i=0;i<4;i++){
+  const OB_STEPS=6;
+  for(let i=0;i<OB_STEPS;i++){
     const s=document.getElementById('ob-step-'+i);
     if(s) s.style.display=i===step?'block':'none';
     const p=document.getElementById('ob-prog-'+i);
@@ -1129,8 +1151,8 @@ function _obGoTo(step){
   if(back) back.style.display=step>0?'flex':'none';
   const next=document.getElementById('ob-btn-next');
   if(next){
-    next.textContent=step===3?'Terminer ✓':'Suivant →';
-    const keys=['course','date','sessions','niveau'];
+    next.textContent=step===OB_STEPS-1?'Terminer ✓':'Suivant →';
+    const keys=['course','date','sessions','niveau','km_semaine','generate_plan'];
     const enabled=step===1?true:!!_obData[keys[step]];
     next.disabled=!enabled;
     next.style.opacity=enabled?'1':'0.4';
@@ -1150,7 +1172,7 @@ function onboardingSelect(field,val){
 }
 
 function onboardingNext(){
-  if(_obStep<3){_obGoTo(_obStep+1);}
+  if(_obStep<5){_obGoTo(_obStep+1);}
   else{saveOnboarding();}
 }
 
@@ -1158,9 +1180,88 @@ async function saveOnboarding(){
   if(dbRef){
     await dbRef.child('onboarding').set(_obData).catch(()=>{});
     state.onboarding=_obData;
+    // Générer le plan si demandé
+    if(_obData.generate_plan==='oui'){
+      const plan=generateAthletePlan(_obData);
+      if(plan){
+        for(const[k,v] of Object.entries(plan)){
+          state[k]=v;
+          await dbRef.child(k).set(v).catch(()=>{});
+        }
+      }
+    }
   }
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
+  else renderPlan();
+}
+
+function generateAthletePlan(ob){
+  const baseKm=parseInt(ob.km_semaine)||20;
+  const sessStr=ob.sessions||'3';
+  const nbSess=sessStr==='4+'?4:parseInt(sessStr)||3;
+
+  // Nombre de semaines jusqu'à la course (max 32, min 8)
+  let numWeeks=20;
+  if(ob.date){
+    const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
+    if(diff>0) numWeeks=Math.min(Math.max(diff,8),32);
+  }
+
+  // Semaines de décharge : toutes les 4 semaines
+  const recovery=new Set();
+  for(let w=4;w<=numWeeks;w+=4) recovery.add(w);
+
+  // Calcul km par semaine
+  const weekKms=[];
+  let cur=baseKm;
+  for(let w=1;w<=numWeeks;w++){
+    if(recovery.has(w)){
+      weekKms.push(Math.max(Math.round((weekKms[w-2]||cur)*0.65),baseKm));
+    } else {
+      weekKms.push(Math.round(cur));
+      cur=cur*1.10;
+    }
+  }
+
+  const updates={};
+  for(let w=1;w<=numWeeks;w++){
+    const total=weekKms[w-1];
+    let sessions=[];
+    if(nbSess<=2){
+      // EF uniquement
+      const k1=Math.round(total*0.45); const k2=total-k1;
+      sessions=[
+        {d:'Séance EF',km:Math.max(k1,4),type:'ef',shoe:null},
+        {d:'EF longue',km:Math.max(k2,5),type:'long',shoe:null},
+      ];
+      if(nbSess===1) sessions=[{d:'Séance EF',km:total,type:'ef',shoe:null}];
+    } else if(nbSess===3){
+      // EF + Tempo + Long
+      const kEF=Math.max(Math.round(total*0.28),5);
+      const kT=Math.max(Math.round(total*0.27),5);
+      const kL=Math.max(total-kEF-kT,6);
+      sessions=[
+        {d:'Séance EF',km:kEF,type:'ef',shoe:null},
+        {d:'Tempo',km:kT,type:'tempo',shoe:null},
+        {d:'EF longue',km:kL,type:'long',shoe:null},
+      ];
+    } else {
+      // EF + EF + Tempo + Long
+      const kEF1=Math.max(Math.round(total*0.20),4);
+      const kEF2=Math.max(Math.round(total*0.20),4);
+      const kT=Math.max(Math.round(total*0.20),5);
+      const kL=Math.max(total-kEF1-kEF2-kT,6);
+      sessions=[
+        {d:'Séance EF',km:kEF1,type:'ef',shoe:null},
+        {d:'Séance EF',km:kEF2,type:'ef',shoe:null},
+        {d:'Tempo',km:kT,type:'tempo',shoe:null},
+        {d:'EF longue',km:kL,type:'long',shoe:null},
+      ];
+    }
+    sessions.forEach((s,i)=>{ updates[`extra_w${w}_s${i}`]=JSON.stringify(s); });
+  }
+  return updates;
 }
 
 function togglePwd(inputId, btn){
@@ -1213,11 +1314,14 @@ function renderAthletePanel(){
     content.innerHTML='<p style="color:#888;font-style:italic;">Profil non renseigné.</p>';
     return;
   }
+  const kmLabel={10:'< 15 km',20:'15–25 km',30:'25–35 km',40:'> 35 km'};
   const rows=[
     {label:'Course',value:ob.course||'—'},
     {label:'Date',value:ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'Non définie'},
     {label:'Séances / semaine',value:ob.sessions||'—'},
     {label:'Niveau',value:ob.niveau||'—'},
+    {label:'Km actuels / semaine',value:kmLabel[ob.km_semaine]||ob.km_semaine||'—'},
+    {label:'Programme généré',value:ob.generate_plan==='oui'?'✅ Oui':ob.generate_plan==='non'?'Non (manuel)':'—'},
   ];
   content.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${r.label}</span><span style="font-weight:700;color:#1a1a1a;">${r.value}</span></div>`).join('');
 }
