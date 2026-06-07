@@ -735,10 +735,21 @@ exports.calendar = onRequest(async (req, res) => {
 
 // ── COACH IA ──────────────────────────────────────────────────────────────────
 
+const ADMIN_EMAIL = 'guillaumelenoir75@gmail.com';
+
 function corsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+async function verifyAdmin(req) {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) throw new Error('Non authentifié');
+  const token = authHeader.slice(7);
+  const decoded = await admin.auth().verifyIdToken(token);
+  if (decoded.email !== ADMIN_EMAIL) throw new Error('Accès réservé à l\'administrateur');
+  return decoded.uid;
 }
 
 async function callAnthropic(apiKey, system, messages, maxTokens) {
@@ -766,6 +777,7 @@ exports.analyzeSession = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const { sessionData, historyData, planContext } = req.body;
       const system = `Tu es le coach running personnel de Guillaume. Tu analyses ses séances de manière experte, honnête et personnalisée.
@@ -1050,6 +1062,7 @@ exports.coachChat = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const { message, history, stateContext, responseMode } = req.body;
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
@@ -1359,6 +1372,7 @@ exports.weeklyBriefing = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const { contextWeek } = req.body;
       const system = `Tu es le coach IA de Guillaume Lenoir. C'est lundi matin — briefing de la semaine.
@@ -1426,6 +1440,7 @@ exports.weeklyReport = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const { contextBilan } = req.body;
       const system = `Tu es le coach IA de Guillaume Lenoir. C'est dimanche soir — bilan de semaine.
@@ -1490,8 +1505,9 @@ Génère le bilan de semaine.`;
 exports.quickBrief = onRequest(
   {cors: true, invoker: 'public', secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 30, memory: '256MiB'},
   async (req, res) => {
-    if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept');res.status(204).send('');return;}
+    if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const {fc_repos_today, seances_today, jour, bodyhit, renfo_today} = req.body || {};
 
@@ -1571,8 +1587,9 @@ exports.quickBrief = onRequest(
 exports.morningBrief = onRequest(
   {cors: true, invoker: 'public', secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'},
   async (req, res) => {
-    if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept');res.status(204).send('');return;}
+    if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const {context} = req.body;
       // Le contexte ne contient que les données du jour — pas d'historique ni de semaine
@@ -1660,6 +1677,7 @@ exports.addMemo = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const { note, existingMemos } = req.body;
       const system = `Tu gères les mémos personnalisés du coach IA de Guillaume, un coureur qui prépare un marathon.
@@ -1696,6 +1714,7 @@ exports.extractMemos = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const { history, existingMemos, recentPerfs } = req.body;
       const system = `Tu gères les mémos personnalisés du coach IA de Guillaume.
@@ -1823,6 +1842,97 @@ async function buildNotifContext(state, cw) {
   for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
   return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw};
 }
+
+// ── INIT MOT DE PASSE ADMIN (usage unique) ───────────────────────────────────
+// Permet d'ajouter email/password à un compte Google existant sans perdre les données
+
+exports.initAdminPassword = onRequest(
+  { cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    const { uid, password, secret } = req.body || {};
+    // Protection basique par secret (pas de token Firebase car pas encore de mot de passe)
+    if (secret !== 'marathon2026-init') { res.status(403).json({ error: 'Secret invalide' }); return; }
+    if (!uid || !password) { res.status(400).json({ error: 'uid et password requis' }); return; }
+    try {
+      await admin.auth().updateUser(uid, { password, email: ADMIN_EMAIL });
+      // S'assurer que le rôle admin est bien défini dans la DB
+      const db = admin.database();
+      await db.ref(`users/${uid}/role`).set('admin');
+      res.json({ success: true, message: 'Mot de passe ajouté au compte existant' });
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
+// ── GESTION UTILISATEURS (admin seulement) ────────────────────────────────────
+
+exports.createUser = onRequest(
+  { cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    const { email, password, displayName } = req.body || {};
+    if (!email || !password) { res.status(400).json({ error: 'Email et mot de passe requis' }); return; }
+    try {
+      const userRecord = await admin.auth().createUser({ email, password, displayName: displayName || email });
+      const db = admin.database();
+      await db.ref(`users/${userRecord.uid}/role`).set('athlete');
+      res.json({ uid: userRecord.uid, email: userRecord.email });
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
+exports.listUsers = onRequest(
+  { cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    try {
+      const db = admin.database();
+      const snap = await db.ref('users').once('value');
+      const usersData = snap.val() || {};
+      const result = await Promise.all(
+        Object.entries(usersData).map(async ([uid, data]) => {
+          try {
+            const authUser = await admin.auth().getUser(uid);
+            return { uid, email: authUser.email, displayName: authUser.displayName, role: data.role || 'athlete' };
+          } catch(e) {
+            return { uid, role: data.role || 'athlete' };
+          }
+        })
+      );
+      res.json(result);
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
+exports.deleteUser = onRequest(
+  { cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    const { uid } = req.body || {};
+    if (!uid) { res.status(400).json({ error: 'UID requis' }); return; }
+    try {
+      await admin.auth().deleteUser(uid);
+      const db = admin.database();
+      await db.ref(`users/${uid}`).remove();
+      res.json({ success: true });
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
 
 // ── 1a. FC repos — lundi-vendredi 8h01 ───────────────────────────────────────
 exports.fcReposReminderWeekday = onSchedule(
