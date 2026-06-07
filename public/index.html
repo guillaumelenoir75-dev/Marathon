@@ -1132,17 +1132,20 @@ const EF_AM_TABLE=[
 function getBestEfPace(){
   let lastSec=null;
   for(let ws=1;ws<=CW;ws++){
-    weeks[ws-1].sessions.forEach((s,si)=>{
-      if(s.type!=='ef') return;
-      const k=gk(ws,si);
-      if(!state[k+'done']) return;
-      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
-      if(!perf.pace||!perf.hr) return;
-      if(parseInt(perf.hr)>148) return;
-      const sec=paceStrToSec(perf.pace);
-      if(sec===null) return;
-      lastSec=sec;
-    });
+    // Séances base (plan Guillaume) — admin seulement
+    if(currentUserRole==='admin'){
+      weeks[ws-1].sessions.forEach((s,si)=>{
+        if(s.type!=='ef') return;
+        const k=gk(ws,si);
+        if(!state[k+'done']) return;
+        const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+        if(!perf.pace||!perf.hr) return;
+        if(parseInt(perf.hr)>148) return;
+        const sec=paceStrToSec(perf.pace);
+        if(sec===null) return;
+        lastSec=sec;
+      });
+    }
     // Séances extra EF
     let ei=0;
     while(state[`extra_w${ws}_s${ei}`]){
@@ -1192,6 +1195,13 @@ function vdotMarathonPaceSec(vo2max) {
 }
 
 function buildMarathonPrediction() {
+  // Pour les athlètes sans données : retourner vide
+  if(currentUserRole !== 'admin'){
+    // Vérifier s'ils ont des séances validées avec perf
+    let hasData=false;
+    for(let ws=1;ws<=52;ws++){let ei=0;while(state[`extra_w${ws}_s${ei}`]){if(state[`extra_w${ws}_s${ei}_perf`]){hasData=true;break;}ei++;}if(hasData)break;}
+    if(!hasData) return {tempsStr:null,amPaceRecoStr:null,confiance:0};
+  }
   const vo2max = getVo2max();
   const vdotPaceSec = vdotMarathonPaceSec(vo2max);
   const fmtTime = s => { const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60); return `${hh}h${String(mm).padStart(2,'0')}`; };
@@ -3226,18 +3236,29 @@ function calcWeekDoneKm(){
 }
 
 function calcTotalDone(){
+  // Pour les athlètes : seulement les km de leurs séances extra validées
+  if(currentUserRole !== 'admin'){
+    let t=0;
+    for(let ws=1;ws<=52;ws++){
+      let ei=0;
+      while(state[`extra_w${ws}_s${ei}`]){
+        if(state[`extra_w${ws}_s${ei}_done`]){
+          const rv=state[`extra_w${ws}_s${ei}_km`];
+          try{t+=rv!=null?parseFloat(rv):(parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0);}catch(e){}
+        }
+        ei++;
+      }
+    }
+    return Math.round(t);
+  }
   // Base = km historiques avant le début du tracking dans l'app
-  // (séances S1-S8 + km hors plan courus depuis janvier)
   let kmBase = 0;
   if(state['_km_historique'] != null) {
     kmBase = parseFloat(state['_km_historique']);
   } else {
     kmBase = KM_HISTORIQUE_BASE; // 243 km au 04/05/2026
   }
-
-  // Ajouter les séances validées de toutes les semaines depuis S9 jusqu'à CW
-  // (S1-S8 sont déjà dans KM_HISTORIQUE_BASE)
-  const FIRST_TRACKED_WEEK = 9; // première semaine trackée dans l'app
+  const FIRST_TRACKED_WEEK = 9;
   let t = kmBase;
   for(let ws = FIRST_TRACKED_WEEK; ws <= CW; ws++){
     if(!weeks[ws-1]) continue;
@@ -3428,8 +3449,8 @@ function renderHome(){
   // ── KPIs globaux (toujours basés sur CW réel) ───────────────────────────────
   const td=calcTotalDone();
   const gt=getGrandTotal();
-  const pct=Math.round(td/gt*100);
-  const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=pct+'%';
+  const pct=gt>0?Math.round(td/gt*100):0;
+  const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'—';
   const barEl=document.getElementById('h-bar'); if(barEl) barEl.style.width=pct+'%';
   const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
   const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
