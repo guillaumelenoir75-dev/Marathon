@@ -1344,11 +1344,14 @@ async function openAthleteCoachView(uid, name){
   }
 }
 
+// Contexte courant de la vue coach (pour les actions d'édition)
+let _cvUid=null, _cvState=null, _cvName=null;
+
 function renderAthleteCoachView(userData, uid, name){
+  _cvUid=uid; _cvName=name; _cvState=userData.state||{};
   const body=document.getElementById('coach-view-body');
   if(!body) return;
-  const ob=userData.state?.onboarding||{};
-  const st=userData.state||{};
+  const ob=_cvState.onboarding||{};
 
   // Profil
   const kmLabel={10:'< 15 km',20:'15–25 km',30:'25–35 km',40:'> 35 km'};
@@ -1356,7 +1359,7 @@ function renderAthleteCoachView(userData, uid, name){
     <p style="font-size:13px;font-weight:700;color:#0C447C;margin:0 0 12px;">Profil</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
       <div><span style="color:#888;">Course</span><br><b>${ob.course||'—'}</b></div>
-      <div><span style="color:#888;">Date</span><br><b>${ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'—'}</b></div>
+      <div><span style="color:#888;">Date course</span><br><b>${ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'—'}</b></div>
       <div><span style="color:#888;">Séances/sem</span><br><b>${ob.sessions||'—'}</b></div>
       <div><span style="color:#888;">Niveau</span><br><b>${ob.niveau||'—'}</b></div>
       <div><span style="color:#888;">Km actuels</span><br><b>${kmLabel[ob.km_semaine]||ob.km_semaine||'—'}</b></div>
@@ -1366,51 +1369,145 @@ function renderAthleteCoachView(userData, uid, name){
 
   // Construire le plan depuis extra_w{ws}_s{ei}
   const weekData={};
-  Object.keys(st).forEach(k=>{
+  Object.keys(_cvState).forEach(k=>{
     const m=k.match(/^extra_w(\d+)_s(\d+)$/);
     if(!m) return;
     const w=parseInt(m[1]),si=parseInt(m[2]);
-    if(!weekData[w]) weekData[w]={sessions:[],done:0,kmDone:0,kmPlan:0};
+    if(!weekData[w]) weekData[w]={sessions:[],kmPlan:0,done:0,kmDone:0};
     try{
-      const s=JSON.parse(st[k]);
-      const done=!!st[`extra_w${w}_s${si}_done`];
-      const km=parseFloat(st[`extra_w${w}_s${si}_km`]||s.km)||0;
-      const perf=st[`extra_w${w}_s${si}_perf`]?JSON.parse(st[`extra_w${w}_s${si}_perf`]):{};
-      weekData[w].sessions.push({s,si,done,km,perf});
-      weekData[w].kmPlan+=(s.km||0);
-      if(done){weekData[w].done++;weekData[w].kmDone+=km;}
+      const s=JSON.parse(_cvState[k]);
+      const done=!!_cvState[`extra_w${w}_s${si}_done`];
+      const kmDone=parseFloat(_cvState[`extra_w${w}_s${si}_km`]||0)||0;
+      const perf=_cvState[`extra_w${w}_s${si}_perf`]?JSON.parse(_cvState[`extra_w${w}_s${si}_perf`]):{};
+      weekData[w].sessions.push({s,si,done,kmDone,perf});
+      weekData[w].kmPlan+=parseFloat(s.km)||0;
+      if(done){weekData[w].done++;weekData[w].kmDone+=kmDone;}
     }catch(e){}
   });
 
   const weeks=Object.keys(weekData).map(Number).sort((a,b)=>a-b);
+  const typeColor={ef:'#1E4A09',tempo:'#9A2D00',long:'#2A2070'};
+  const typeLabel={ef:'EF',tempo:'Tempo',long:'Long'};
+
   if(weeks.length===0){
-    html+=`<div style="background:#fff;border-radius:14px;padding:20px;text-align:center;color:#888;border:1px solid #e0e0e0;">Aucun plan généré</div>`;
+    html+=`<div style="background:#fff;border-radius:14px;padding:20px;text-align:center;color:#888;border:1px solid #e0e0e0;margin-bottom:12px;">Aucun plan — </div>`;
   } else {
-    const typeColor={ef:'#1E4A09',tempo:'#9A2D00',long:'#2A2070'};
-    const typeLabel={ef:'EF',tempo:'Tempo',long:'Long'};
     html+=`<p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">Plan — ${weeks.length} semaines</p>`;
     weeks.forEach(w=>{
       const wd=weekData[w];
       const allDone=wd.done===wd.sessions.length&&wd.sessions.length>0;
-      const pct=wd.kmPlan>0?Math.round(wd.kmDone/wd.kmPlan*100):0;
+      // Sessions triées par si
+      const sorted=[...wd.sessions].sort((a,b)=>a.si-b.si);
       html+=`<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid ${allDone?'#c6f0d0':'#e0e0e0'};">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:13px;font-weight:700;">Semaine ${w}</span>
-          <span style="font-size:12px;color:${allDone?'#2d7d46':'#888'};">${allDone?'✅ Terminée':wd.done>0?wd.done+'/'+wd.sessions.length+' faites':'À faire'} · ${wd.kmPlan} km</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:${allDone?'#2d7d46':'#888'};">${allDone?'✅':wd.done>0?wd.done+'/'+wd.sessions.length+' ✓':'À faire'} · ${wd.kmPlan} km</span>
+            <button onclick="cvAddSession(${w})" style="background:#EBF0FF;border:none;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;color:#1B4FD8;cursor:pointer;">+ Séance</button>
+          </div>
         </div>
-        ${wd.sessions.map(({s,done,km,perf})=>{
+        ${sorted.map(({s,si,done,kmDone,perf})=>{
           const col=typeColor[s.type]||'#333';
           const lbl=typeLabel[s.type]||s.type;
-          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f5f5f5;">
+          return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #f5f5f5;">
             <span style="background:${col}22;color:${col};font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;flex-shrink:0;">${lbl}</span>
-            <span style="flex:1;font-size:13px;">${s.d.split('|')[0]} · ${s.km} km</span>
-            ${done?`<span style="font-size:12px;color:#2d7d46;">✓ ${km}km${perf.pace?' · '+perf.pace+'/km':''}</span>`:'<span style="font-size:11px;color:#aaa;">—</span>'}
+            <span style="flex:1;font-size:13px;">${s.d.split('|')[0]} · <b>${s.km} km</b></span>
+            ${done?`<span style="font-size:11px;color:#2d7d46;">✓ ${kmDone}km${perf.pace?' · '+perf.pace:''}</span>`:''}
+            <button onclick="cvEditSession(${w},${si})" style="background:#f5f5f5;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;">✏️</button>
+            ${!done?`<button onclick="cvDeleteSession(${w},${si})" style="background:none;border:none;font-size:14px;cursor:pointer;color:#ccc;flex-shrink:0;">✕</button>`:''}
           </div>`;
         }).join('')}
       </div>`;
     });
   }
+  // Bouton ajouter semaine
+  const nextW=(weeks.length>0?Math.max(...weeks):0)+1;
+  html+=`<button onclick="cvAddWeek(${nextW})" style="width:100%;padding:13px;background:#fff;border:1.5px dashed #1B4FD8;border-radius:12px;font-size:13px;font-weight:600;color:#1B4FD8;cursor:pointer;margin-bottom:24px;">+ Ajouter une semaine (S${nextW})</button>`;
   body.innerHTML=html;
+}
+
+// ── Édition séance coach view ─────────────────────────────────────────────────
+function cvEditSession(w, si){
+  const key=`extra_w${w}_s${si}`;
+  let s={}; try{s=JSON.parse(_cvState[key]||'{}');}catch(e){}
+  const title=s.d?s.d.split('|')[0]:'';
+  _cvShowSessionModal({w,si,title,km:s.km||0,type:s.type||'ef',isNew:false});
+}
+
+function cvAddSession(w){
+  // Trouver le prochain index libre
+  let si=0;
+  while(_cvState[`extra_w${w}_s${si}`]) si++;
+  _cvShowSessionModal({w,si,title:'',km:0,type:'ef',isNew:true});
+}
+
+function cvAddWeek(w){
+  _cvShowSessionModal({w,si:0,title:'',km:0,type:'ef',isNew:true});
+}
+
+function _cvShowSessionModal({w,si,title,km,type,isNew}){
+  let modal=document.getElementById('cv-session-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='cv-session-modal';
+    modal.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;justify-content:center;';
+    document.getElementById('app').appendChild(modal);
+  }
+  modal.style.display='flex';
+  modal.innerHTML=`<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:390px;box-sizing:border-box;">
+    <p style="font-size:15px;font-weight:700;margin:0 0 16px;">${isNew?'Nouvelle séance':'Modifier la séance'} — S${w}</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input id="cv-s-title" placeholder="Titre (ex: Séance EF)" value="${title}" style="padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;">
+      <div style="display:flex;gap:8px;">
+        <input id="cv-s-km" type="number" min="1" max="50" placeholder="km" value="${km||''}" style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;">
+        <select id="cv-s-type" style="flex:2;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;background:#fff;">
+          <option value="ef" ${type==='ef'?'selected':''}>🌿 EF (endurance fondamentale)</option>
+          <option value="tempo" ${type==='tempo'?'selected':''}>🔥 Tempo</option>
+          <option value="long" ${type==='long'?'selected':''}>🏔️ EF longue</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button onclick="document.getElementById('cv-session-modal').style.display='none'" style="flex:1;padding:12px;background:#f5f5f5;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
+        <button onclick="cvSaveSession(${w},${si})" style="flex:2;padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Enregistrer</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function cvSaveSession(w, si){
+  const title=(document.getElementById('cv-s-title')?.value||'').trim();
+  const km=parseInt(document.getElementById('cv-s-km')?.value)||0;
+  const type=document.getElementById('cv-s-type')?.value||'ef';
+  if(!title||!km){alert('Titre et km obligatoires.');return;}
+  const key=`extra_w${w}_s${si}`;
+  const val=JSON.stringify({d:title,km,type,shoe:null});
+  _cvState[key]=val;
+  document.getElementById('cv-session-modal').style.display='none';
+  // Sauvegarder dans Firebase
+  try{
+    const token=await getAuthToken();
+    await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'write',path:`users/${_cvUid}/state/${key}`,value:val})});
+  }catch(e){alert('Erreur sauvegarde : '+e.message);return;}
+  renderAthleteCoachView({state:_cvState},_cvUid,_cvName);
+}
+
+async function cvDeleteSession(w, si){
+  if(!confirm('Supprimer cette séance ?')) return;
+  const key=`extra_w${w}_s${si}`;
+  delete _cvState[key];
+  // Renuméroter les séances suivantes pour combler le trou
+  let i=si+1;
+  while(_cvState[`extra_w${w}_s${i}`]){
+    _cvState[`extra_w${w}_s${i-1}`]=_cvState[`extra_w${w}_s${i}`];
+    delete _cvState[`extra_w${w}_s${i}`];
+    i++;
+  }
+  // Sauvegarder dans Firebase : réécrire tout le state de l'user
+  try{
+    const token=await getAuthToken();
+    await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'write',path:`users/${_cvUid}/state`,value:_cvState})});
+  }catch(e){alert('Erreur : '+e.message);return;}
+  renderAthleteCoachView({state:_cvState},_cvUid,_cvName);
 }
 
 function renderAthletePanel(){
