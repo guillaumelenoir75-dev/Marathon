@@ -3451,19 +3451,19 @@ function renderHome(){
   // EF pace
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
-  if(efEl) efEl.textContent=efPace?efPace:"5'59";
+  if(efEl) efEl.textContent=efPace?efPace:(currentUserRole==='admin'?"5'59":'—');
   // Temps marathon projeté
   const pred = buildMarathonPrediction();
   const mtEl=document.getElementById('kpi-marathon-time');
-  if(mtEl) mtEl.textContent = pred.tempsStr || calcMarathonTime(am) || '—';
+  if(mtEl) mtEl.textContent = pred.tempsStr || (currentUserRole==='admin'?(calcMarathonTime(am)||'—'):'—');
   const amPredEl = document.getElementById('h-am-pred');
   if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
   const amTrainEl = document.getElementById('kpi-am-training');
-  if(amTrainEl) amTrainEl.textContent = state._am_training_pace || "5'20";
+  if(amTrainEl) amTrainEl.textContent = state._am_training_pace || (currentUserRole==='admin'?"5'20":'—');
   const vo2El = document.getElementById('kpi-vo2max');
-  if(vo2El) vo2El.textContent = (state['vo2max_current'] || 52);
+  if(vo2El) vo2El.textContent = state['vo2max_current'] || (currentUserRole==='admin'?52:'—');
   const today = new Date().toISOString().slice(0,10);
   const fcToday = state['fc_repos_'+today] || null;
   const fcReposEl = document.getElementById('kpi-fc-repos');
@@ -6240,10 +6240,79 @@ function toggleDone(idx){
 }
 
 const openWeeks=new Set();
+function renderAthletePlan(el){
+  // Collecter toutes les séances extra de l'athlète sur toutes les semaines
+  const allSessions=[];
+  for(let ws=1;ws<=52;ws++){
+    let ei=0;
+    while(true){
+      const k='extra_w'+ws+'_s'+ei;
+      if(!state[k]) break;
+      try {
+        const s=typeof state[k]==='string'?JSON.parse(state[k]):state[k];
+        const done=!!state[k+'_done'];
+        allSessions.push({ws,ei,s,done,k});
+      } catch(e){}
+      ei++;
+    }
+  }
+
+  if(allSessions.length===0){
+    el.innerHTML=`<div style="text-align:center;padding:48px 24px;color:#888;">
+      <div style="font-size:40px;margin-bottom:12px;">📋</div>
+      <p style="font-size:15px;font-weight:600;color:#444;margin-bottom:8px;">Ton plan est vide</p>
+      <p style="font-size:13px;color:#888;margin-bottom:20px;">Ajoute tes premières séances pour construire ton plan.</p>
+      <button onclick="openAddModal(${CW})" style="padding:12px 24px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">+ Ajouter une séance</button>
+    </div>`;
+    return;
+  }
+
+  // Grouper par semaine
+  const byWeek={};
+  allSessions.forEach(item=>{
+    if(!byWeek[item.ws]) byWeek[item.ws]=[];
+    byWeek[item.ws].push(item);
+  });
+
+  Object.keys(byWeek).sort((a,b)=>a-b).forEach(ws=>{
+    const sessions=byWeek[ws];
+    const wsNum=parseInt(ws);
+    const wEl=document.createElement('div');
+    wEl.style.cssText='background:#fff;border-radius:14px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06);';
+    wEl.innerHTML=`<div style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;">Semaine ${ws}</div>`
+      +sessions.map(({s,done,k,ei})=>{
+        const typeColors={ef:'#2d7d46',tempo:'#b45309',long:'#1B4FD8',race:'#9333ea'};
+        const typeLabel={ef:'EF',tempo:'Tempo',long:'Longue',race:'Course'};
+        const color=typeColors[s.type]||'#555';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f4ff;">
+          <span style="font-size:11px;font-weight:700;color:${color};background:${color}15;padding:2px 8px;border-radius:20px;">${typeLabel[s.type]||s.type}</span>
+          <span style="flex:1;font-size:13px;color:#333;">${s.d?s.d.split('|')[0]:''} ${s.km?'· '+s.km+' km':''}</span>
+          ${done?'<span style="color:#2d7d46;font-size:16px;">✓</span>':''}
+        </div>`;
+      }).join('')
+      +`<button onclick="openAddModal(${wsNum})" style="margin-top:10px;width:100%;padding:8px;background:#f0f4ff;border:1.5px dashed #c5d8f0;border-radius:10px;font-size:13px;color:#1B4FD8;cursor:pointer;">+ Ajouter une séance S${ws}</button>`;
+    el.appendChild(wEl);
+  });
+
+  // Bouton ajouter semaine suivante
+  const nextWs=allSessions.length>0?Math.max(...allSessions.map(a=>a.ws)):CW;
+  const addEl=document.createElement('div');
+  addEl.innerHTML=`<button onclick="openAddModal(${nextWs})" style="width:100%;padding:12px;background:#fff;border:2px dashed #c5d8f0;border-radius:14px;font-size:14px;color:#1B4FD8;font-weight:600;cursor:pointer;">+ Nouvelle séance</button>`;
+  el.appendChild(addEl);
+}
+
 function renderPlan(){
   const ptEl=document.getElementById('plan-total-km');
-  if(ptEl) ptEl.textContent='32 semaines · '+getGrandTotal()+' km';
   const el=document.getElementById('plan-list'); el.innerHTML='';
+
+  // Plan vide pour les athlètes — seulement les séances qu'ils ajoutent eux-mêmes
+  if(currentUserRole !== 'admin'){
+    if(ptEl) ptEl.textContent='Ton plan personnalisé';
+    renderAthletePlan(el);
+    return;
+  }
+
+  if(ptEl) ptEl.textContent='32 semaines · '+getGrandTotal()+' km';
 
   // Auto-ouvrir la semaine courante
   openWeeks.add(CW);
