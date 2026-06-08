@@ -2008,7 +2008,7 @@ function generateAthletePlan(ob){
   const niveau=ob.niveau||'Intermédiaire'; // Débutant / Intermédiaire / Confirmé
   const course=ob.course||'Marathon';
   const useFrac=course==='5 km'||course==='10 km'; // fractionné pour courtes distances
-  const peakKm=Math.min(baseKm*2, baseKm+40); // plafond raisonnable
+  const peakKm=Math.min(baseKm*2, baseKm+40, nbSess<=2?40:nbSess===3?55:999); // plafond raisonnable + cap par nb de séances
 
   // Périodes d'affûtage selon la distance (données physiologiques standard)
   // noInt = numéros de semaines dans l'affûtage où l'intensité est supprimée
