@@ -7276,7 +7276,7 @@ function estimateDuration(s) {
   if(s.type === 'ef' || s.type === 'long') {
     // Allure EF : chercher "EF @ X:XX" d'abord, sinon getBestEfPace
     // Ne jamais prendre l'allure AM (@ 5'40/km) comme allure EF
-    const efAtMatch = detail.match(/EF\s*@\s*(\d+)[':](\d+)/i);
+    const efAtMatch = detail.match(/EF\s*[@\s]\s*(\d+)['':](\d+)/i);
     let paceMin = efAtMatch ? parsePaceMin(efAtMatch[1]+':'+efAtMatch[2]) : null;
     if(!paceMin && s.type === 'ef') {
       // EF simple : chercher X:XX/km explicitement
@@ -7309,7 +7309,7 @@ function estimateDuration(s) {
     const reps = repMatch ? parseInt(repMatch[1]) : (isFrac ? 6 : 2);
     const durMin = repMatch ? parseInt(repMatch[2]) : (isFrac ? 2 : 8);
 
-    const efDetailMatch = detail.match(/EF\s*@\s*(\d+)[':](\d+)/i);
+    const efDetailMatch = detail.match(/EF\s*[@\s]\s*(\d+)['':](\d+)/i);
     const paceEf = efDetailMatch
       ? (parsePaceMin(efDetailMatch[1]+':'+efDetailMatch[2]) || 6.67)
       : (parsePaceMin((getBestEfPace()||"6'40").replace("'",":")) || 6.67);
@@ -7426,7 +7426,7 @@ function calcEfRestantGeneric(prefix, displayId){
 function buildLongModalHtml(detail){
   const am=getAmTrainingPace();
   // Extraire l'allure EF si déjà sauvegardée dans le detail
-  const efPaceMatch=(detail||'').match(/EF\s*@\s*(\d+)[':](\d+)/);
+  const efPaceMatch=(detail||'').match(/EF\s*[@\s]\s*(\d+)['':](\d+)/);
   const currentEfPace=efPaceMatch?efPaceMatch[1]+':'+efPaceMatch[2]:(getBestEfPace()||'6:40').replace("'",'::').replace(/:(\d{3}).*/,'').replace('::',"'");
   const blocks=[];
   (detail||'').split('·').forEach(part=>{
@@ -8667,7 +8667,7 @@ function _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editP
       <div class="modal-section-label" style="color:#3B6D11;">🟢 Allure EF — échauffement · récup · fin</div>
       <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:14px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
-          <input type="text" id="edit-ef-pace" value="${(()=>{const m=detail.match(/EF\s*@\s*(\d+)[\'::]+(\d+)/i);return m?m[1]+':'+m[2]:getBestEfPace()||'6:40';})()}" maxlength="5" oninput="calcEfRestant()"
+          <input type="text" id="edit-ef-pace" value="${(()=>{const m=detail.match(/EF\s*[@\s]\s*(\d+)[''\':](\d+)/i);return m?m[1]+':'+m[2]:getBestEfPace()||'6:40';})()}" maxlength="5" oninput="calcEfRestant()"
             style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:13px 10px;font-size:30px;font-weight:900;color:#3B6D11;width:104px;outline:none;text-align:center;line-height:1;">
           <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
         </div>
@@ -8795,7 +8795,7 @@ function openEditModal(ws, si){
   const editRecupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
   const editRecup=editRecupMatch?editRecupMatch[1]:(isFrac?'2':'3');
 
-  const editEfPaceMatch = detail.match(/EF\s*@\s*(\d+)['':](\d+)/i);
+  const editEfPaceMatch = detail.match(/EF\s*[@\s]\s*(\d+)[''\':](\d+)/i);
   const editEfPaceVal = editEfPaceMatch ? editEfPaceMatch[1]+':'+editEfPaceMatch[2] : getBestEfPace()||'6:40';
   const tempoFields = s.type==='tempo' ? _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editPMax, detail)
   :s.type==='frac' ? buildTempoFieldsHtml('edit',parseInt(editReps),parseInt(editDur),editRecup,editPMin,editPMax,'#C4141B',editEfPaceVal)
