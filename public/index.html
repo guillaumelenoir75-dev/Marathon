@@ -575,6 +575,15 @@ input[type=number]:focus{border-color:var(--orange);}
         <button onclick="onboardingSelect('km_semaine','20')" class="ob-chip" id="ob-km_semaine-20">🚶 15 – 25 km</button>
         <button onclick="onboardingSelect('km_semaine','30')" class="ob-chip" id="ob-km_semaine-30">🏃 25 – 35 km</button>
         <button onclick="onboardingSelect('km_semaine','40')" class="ob-chip" id="ob-km_semaine-40">⚡ Plus de 35 km</button>
+        <button onclick="toggleKmCustom()" class="ob-chip" id="ob-km_semaine-custom">✏️ Personnalisé</button>
+        <div id="ob-km-custom-box" style="display:none;margin-top:4px;">
+          <div style="display:flex;align-items:center;gap:10px;background:#f0f4ff;border-radius:12px;padding:12px 16px;border:1.5px solid #1B4FD8;">
+            <input type="number" id="ob-km-custom-input" min="1" max="300" placeholder="ex: 28"
+              style="width:80px;font-size:20px;font-weight:700;border:none;background:transparent;color:#1B4FD8;outline:none;text-align:center;"
+              oninput="onKmCustomInput(this.value)">
+            <span style="font-size:16px;color:#1B4FD8;font-weight:600;">km / semaine</span>
+          </div>
+        </div>
       </div>
     </div>
     <div id="ob-step-5" style="display:none;">
@@ -1386,6 +1395,38 @@ function onboardingSelect(field,val){
   if(next){next.disabled=false;next.style.opacity='1';}
 }
 
+function toggleKmCustom(){
+  const box = document.getElementById('ob-km-custom-box');
+  const btn = document.getElementById('ob-km_semaine-custom');
+  const isOpen = box.style.display !== 'none';
+  if(isOpen){
+    box.style.display = 'none';
+    btn.classList.remove('selected');
+    if(_obData.km_semaine === 'custom') delete _obData.km_semaine;
+  } else {
+    box.style.display = 'block';
+    document.querySelectorAll('[id^="ob-km_semaine-"]').forEach(el=>el.classList.remove('selected'));
+    btn.classList.add('selected');
+    const input = document.getElementById('ob-km-custom-input');
+    if(input) setTimeout(()=>input.focus(), 50);
+  }
+  const next = document.getElementById('ob-btn-next');
+  if(next){ next.disabled=true; next.style.opacity='0.4'; }
+}
+
+function onKmCustomInput(val){
+  const km = parseInt(val);
+  if(km > 0 && km <= 300){
+    _obData.km_semaine = String(km);
+    const next = document.getElementById('ob-btn-next');
+    if(next){ next.disabled=false; next.style.opacity='1'; }
+  } else {
+    delete _obData.km_semaine;
+    const next = document.getElementById('ob-btn-next');
+    if(next){ next.disabled=true; next.style.opacity='0.4'; }
+  }
+}
+
 function onboardingSelectEf(val){
   if(val==='oui'){
     // Afficher le champ de saisie, désactiver l'auto-avance
@@ -1919,6 +1960,7 @@ function renderAthleteCoachView(userData, uid, name){
 
   // Profil
   const kmLabel={10:'< 15 km',20:'15–25 km',30:'25–35 km',40:'> 35 km'};
+  const kmDisplay = v => kmLabel[v] || (v && !isNaN(v) ? v+' km' : v || '—');
   let html=`<div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;border:1px solid #e0e8f5;">
     <p style="font-size:13px;font-weight:700;color:#0C447C;margin:0 0 12px;">Profil</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
@@ -1926,7 +1968,7 @@ function renderAthleteCoachView(userData, uid, name){
       <div><span style="color:#888;">Date course</span><br><b>${ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'—'}</b></div>
       <div><span style="color:#888;">Séances/sem</span><br><b>${ob.sessions||'—'}</b></div>
       <div><span style="color:#888;">Niveau</span><br><b>${ob.niveau||'—'}</b></div>
-      <div><span style="color:#888;">Km actuels</span><br><b>${kmLabel[ob.km_semaine]||ob.km_semaine||'—'}</b></div>
+      <div><span style="color:#888;">Km actuels</span><br><b>${kmDisplay(ob.km_semaine)}</b></div>
       <div><span style="color:#888;">Plan généré</span><br><b>${ob.generate_plan==='oui'?'✅ Oui':'Non'}</b></div>
     </div>
   </div>`;
@@ -2199,12 +2241,13 @@ function renderAthletePanel(){
     return;
   }
   const kmLabel={10:'< 15 km',20:'15–25 km',30:'25–35 km',40:'> 35 km'};
+  const kmDisplay = v => kmLabel[v] || (v && !isNaN(v) ? v+' km' : v || '—');
   const rows=[
     {label:'Course',value:ob.course||'—'},
     {label:'Date',value:ob.date?new Date(ob.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'Non définie'},
     {label:'Séances / semaine',value:ob.sessions||'—'},
     {label:'Niveau',value:ob.niveau||'—'},
-    {label:'Km actuels / semaine',value:kmLabel[ob.km_semaine]||ob.km_semaine||'—'},
+    {label:'Km actuels / semaine',value:kmDisplay(ob.km_semaine)},
     {label:'Programme généré',value:ob.generate_plan==='oui'?'✅ Oui':ob.generate_plan==='non'?'Non (manuel)':'—'},
   ];
   content.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${r.label}</span><span style="font-weight:700;color:#1a1a1a;">${r.value}</span></div>`).join('');
