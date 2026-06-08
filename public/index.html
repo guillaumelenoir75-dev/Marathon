@@ -2481,7 +2481,7 @@ function buildMarathonPrediction() {
       const entry = { ws, paceSec, fc, km, cadence, type: s.type };
       if(s.type === 'ef' && fc <= 152) { efPts.push(entry); }
       else if(s.type === 'long' && fc <= 158) { longPts.push(entry); }
-      else if(s.type === 'tempo') {
+      else if(s.type === 'tempo' || s.type === 'frac') {
         const blocs = perf.blocsAllure ? perf.blocsAllure.filter(Boolean) : [];
         if(blocs.length > 0) { blocs.forEach(b => { const bSec = paceStrToSec(b); if(bSec) tempoPts.push({...entry, paceSec: bSec}); }); }
       }
@@ -2500,7 +2500,7 @@ function buildMarathonPrediction() {
             const entry={ws,paceSec,fc,km,cadence:null,type:es.type};
             if(es.type==='ef'&&fc<=152) efPts.push(entry);
             else if(es.type==='long'&&fc<=158) longPts.push(entry);
-            else if(es.type==='tempo'){
+            else if(es.type==='tempo'||es.type==='frac'){
               const blocs=perf.blocsAllure?perf.blocsAllure.filter(Boolean):[];
               if(blocs.length>0) blocs.forEach(b=>{const bSec=paceStrToSec(b);if(bSec)tempoPts.push({...entry,paceSec:bSec});});
             }
@@ -6333,7 +6333,7 @@ function _applyGarminToValidation(activity) {
 
   // ── Pré-remplissage blocs TEMPO depuis les laps ──
   const ctx = window._currentValidationSession;
-  if (ctx && ctx.s && ctx.s.type === 'tempo') {
+  if (ctx && ctx.s && (ctx.s.type === 'tempo' || ctx.s.type === 'frac')) {
     const sessionDetail = (ctx.s.d || '').split('|')[1] || '';
     const blocs = _detectTempoBlocsFromLaps(activity.laps || activity.splits, sessionDetail);
     const blocsContainer = document.getElementById('val-blocs-container');
@@ -6562,7 +6562,7 @@ function _applyGarminToPerfEdit(activity, ws, si) {
   save();
 
   // Pré-remplir les blocs tempo si applicable
-  if(s.type === 'tempo' && (activity.laps || activity.splits)) {
+  if((s.type === 'tempo' || s.type === 'frac') && (activity.laps || activity.splits)) {
     const sessionDetail = (s.d || '').split('|')[1] || '';
     const blocs = _detectTempoBlocsFromLaps(activity.laps || activity.splits, sessionDetail);
     if(blocs && blocs.length > 0) {
@@ -11928,6 +11928,7 @@ function selectSessionToModif(si, el, ws){
   // Type suggéré
   let suggestedType = s.type;
   if(/\bef\b|endurance fondamentale|récup/i.test(txt)) suggestedType='ef';
+  else if(/fractionn[eé]|\bfrac\b|intervalles?/i.test(txt)) suggestedType='frac';
   else if(/\btempo\b/i.test(txt)) suggestedType='tempo';
   else if(/\blong\b|sortie longue/i.test(txt)) suggestedType='long';
   else if(/\brepos\b|\brest\b|récupération complète/i.test(txt)) suggestedType='rest';
@@ -13338,7 +13339,7 @@ async function checkMorningBrief(memos, force) {
     const s0 = todaySessions[0];
     const heureSeance = s0.heure ? parseInt(s0.heure.split(':')[0]) : 12;
     // Estimation simple basée sur le jour
-    alerteRecup = derniereSeanceInfo.type === 'tempo' ? 'Tempo hier → vérifier que 36h minimum écoulées avant EF' : null;
+    alerteRecup = (derniereSeanceInfo.type === 'tempo' || derniereSeanceInfo.type === 'frac') ? 'Séance intense hier → vérifier que 36h minimum écoulées avant EF' : null;
   }
 
   // Météo : seulement si permission déjà accordée (pas de dialog au réveil)

@@ -627,6 +627,7 @@ exports.garminSync = onRequest(
 const typeToTitle = {
   ef: "Run - EF",
   tempo: "Run - Tempo",
+  frac: "Run - Fractionné",
   long: "Run - EF Long",
   race: "Run - Course",
   rest: "Récupération"
