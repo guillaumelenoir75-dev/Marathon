@@ -11515,13 +11515,16 @@ function renderFcReposChart(){
 
 function switchRenfo(n){
   curRenfo=n;
-  const labels=[['Ischio-fessiers','Fémoro-patellaire · 6 exos'],['Bas du dos','Core stabilisation · 5 exos']];
   [1,2].forEach(x=>{
     const t=document.getElementById('renfo-tab-'+x);
+    const prog=getRenfoData(x);
+    const ps=t.querySelectorAll('p');
+    if(ps[0]) ps[0].textContent=prog.name;
+    if(ps[1]) ps[1].textContent=prog.sub;
     t.style.background=x===n?'#1B4FD8':'var(--bg2)';
     t.style.border=x===n?'none':'1px solid var(--border)';
-    t.querySelectorAll('p')[0].style.color=x===n?'#fff':'var(--text)';
-    t.querySelectorAll('p')[1].style.color=x===n?'rgba(255,255,255,0.8)':'var(--muted)';
+    ps[0].style.color=x===n?'#fff':'var(--text)';
+    ps[1].style.color=x===n?'rgba(255,255,255,0.8)':'var(--muted)';
   });
   renderRenfoExercises();
 }
@@ -11530,7 +11533,14 @@ function renderRenfoExercises(){
   const prog=getRenfoData(curRenfo);
   const exos=prog.exos;
   // Mettre à jour les libellés des onglets avec les programmes sélectionnés
-  [1,2].forEach(r=>{const t=document.getElementById('renfo-tab'+r);if(t)t.textContent=getRenfoData(r).name;});
+  [1,2].forEach(r=>{
+    const t=document.getElementById('renfo-tab-'+r);
+    if(!t) return;
+    const prog=getRenfoData(r);
+    const ps=t.querySelectorAll('p');
+    if(ps[0]) ps[0].textContent=prog.name;
+    if(ps[1]) ps[1].textContent=prog.sub;
+  });
   const el=document.getElementById('renfo-exercises');el.innerHTML='';
   const dk=rfk(CW,curRenfo),isDone=!!state[dk+'done'];
   const banner=document.getElementById('renfo-done-banner');
