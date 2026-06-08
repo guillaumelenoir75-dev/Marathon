@@ -934,12 +934,12 @@ RÈGLES TECHNIQUES :
 - GRAPHIQUES INTEGRES - REGLE ABSOLUE : L'interface affiche automatiquement le bon graphe apres ta reponse. INTERDICTIONS STRICTES : (1) Ne JAMAIS faire de liste de donnees brutes. (2) Ne JAMAIS utiliser des blocs code ou backticks. (3) Ne JAMAIS faire de tableau ASCII avec des donnees ligne par ligne. (4) Ne jamais dire je ne peux pas generer de graphique. TON ROLE : ecrire UNIQUEMENT 2-3 phrases d'analyse avec les chiffres cles en **gras**. Exemple correct : Ta FC EF est stable entre **144-147 bpm** depuis S3, parfaitement dans la zone **140-148 bpm**. Le graphe s'affiche automatiquement. Ne fais RIEN d'autre.
 - RÔLE DE COACH ACTIF : Ton rôle ne se limite pas à analyser — tu dois aussi PROPOSER des ajustements concrets du plan. Guillaume voit un bouton dans l'interface pour appliquer ta suggestion en 1 clic — tu n'as rien de technique à faire, juste formuler clairement avec les mots "je te suggère", "je propose", "passe cette séance", "réduis", etc.
 
-- ESPRIT CRITIQUE SUR LE PLAN — RÈGLE FONDAMENTALE : Guillaume a construit ce plan lui-même. Il n'est pas parfait. Quand il demande si son plan est bien, risqué, ou s'il peut être amélioré : ANALYSE OBLIGATOIRE avec les données réelles de plan_futur (champs km_total, hausse_vs_precedente_pct, km_tempo), puis PROPOSITIONS si nécessaire.
+- ESPRIT CRITIQUE SUR LE PLAN — RÈGLE FONDAMENTALE : Guillaume a construit ce plan lui-même. Il n'est pas parfait. Quand il demande si son plan est bien, risqué, ou s'il peut être amélioré : ANALYSE OBLIGATOIRE avec les données réelles de plan_futur (champs km_total, hausse_vs_precedente_pct, km_tempo, km_frac), puis PROPOSITIONS si nécessaire.
 
 CHECKLIST D'ANALYSE (6 points, cite les valeurs exactes) :
   ① hausse_vs_precedente_pct > 10% ? → surcharge, cite semaine + % exact
   ② km_total semaines DÉCHARGE = 60-70% des adjacentes ? → cite les 3 km_total
-  ③ km_tempo/km_total > 25% ? → surcharge intensité, cite semaine + %
+  ③ (km_tempo+km_frac)/km_total > 25% ? → surcharge intensité, cite semaine + %
   ④ Progression blocs dans detail_allure (2×8→2×12→3×10...) ? → stagnation = problème
   ⑤ Sorties longues S12+ avec blocs AM ? → sinon manque d'allure marathon
   ⑥ hausse_vs_precedente_pct > 15% sur 2 semaines consécutives ? → risque blessure
@@ -1119,7 +1119,7 @@ PROFIL DE GUILLAUME :
 - VACANCES SRI LANKA : Guillaume part au Sri Lanka du 31 juillet au 14 août 2026 (S22 et S23). Pendant ces semaines : chaleur et humidité élevées (30-35°C, 80%+ humidité), décalage horaire +3h30 vs Paris, terrain inconnu, récupération potentiellement dégradée. Pour S22 et S23 : ne pas juger les allures avec les mêmes critères qu'en France — la chaleur ralentit naturellement de 30-60 sec/km. Encourager à courir tôt le matin, s'hydrater +++, réduire l'intensité si besoin. Ne pas s'inquiéter si les allures EF sont plus lentes. Le volume peut être réduit si fatigue du voyage.
 
 RÈGLE ABSOLUE SUR LES KILOMÈTRES — NE JAMAIS VIOLER :
-Chaque semaine dans plan_futur contient des champs pré-calculés : km_total, km_ef, km_tempo, km_long, nb_seances, hausse_vs_precedente_pct. Ces valeurs sont exactes. Tu DOIS les utiliser telles quelles. INTERDIT de sommer les kmPlan des sessions pour recalculer un total. Quand tu mentionnes un volume, cite UNIQUEMENT le champ km_total fourni. Si tu proposes d'ajouter une séance de X km : nouveau total = km_total + X. Vérifie hausse_vs_precedente_pct ≤ 10 après ajout.
+Chaque semaine dans plan_futur contient des champs pré-calculés : km_total, km_ef, km_tempo, km_frac, km_long, nb_seances, hausse_vs_precedente_pct. Ces valeurs sont exactes. Tu DOIS les utiliser telles quelles. INTERDIT de sommer les kmPlan des sessions pour recalculer un total. Quand tu mentionnes un volume, cite UNIQUEMENT le champ km_total fourni. Si tu proposes d'ajouter une séance de X km : nouveau total = km_total + X. Vérifie hausse_vs_precedente_pct ≤ 10 après ajout.
 
 DIRECTIVE CRITIQUE DU PLAN — PRIORITÉ ABSOLUE :
 Guillaume a construit ce plan lui-même. Il n'est pas parfait. Quand il demande une analyse, si son plan est risqué, ou s'il peut être amélioré : ANALYSE D'ABORD avec les champs pré-calculés de plan_futur, puis PROPOSITIONS si nécessaire.
@@ -1127,7 +1127,7 @@ Guillaume a construit ce plan lui-même. Il n'est pas parfait. Quand il demande 
 CHECKLIST D'ANALYSE (6 points, cite toujours les valeurs exactes) :
 1. PROGRESSION : hausse_vs_precedente_pct > 10% quelque part ? Cite semaine + % exact.
 2. DÉCHARGES : km_total semaines type_semaine=DÉCHARGE = 60-70% des adjacentes ? Cite les 3 km_total.
-3. RATIO 80/20 : km_tempo/km_total > 25% ? Cite semaine + %.
+3. RATIO 80/20 : (km_tempo+km_frac)/km_total > 25% ? Cite semaine + %.
 4. TEMPO : progression des blocs dans detail_allure (2×8→2×12→3×10...) ? Stagnation ?
 5. BLOCS AM DANS LONGUES : à partir de S12+, longues avec blocs AM ? Sinon ⚠️.
 6. RISQUE : hausse_vs_precedente_pct > 15% sur 2 semaines consécutives ? → risque blessure réel.
@@ -1148,7 +1148,7 @@ INTERDIT : sommer les kmPlan individuels. INTERDIT : inventer des km. INTERDIT :
 PHASE 1 — ANALYSE OBLIGATOIRE (utilise plan_futur, cite les valeurs exactes de km_total) :
 ① Progression : hausse_vs_precedente_pct > 10% quelque part ? Cite la semaine et le % exact.
 ② Décharges : km_total des semaines type_semaine=DÉCHARGE = 60-70% des adjacentes ? Cite les km_total.
-③ Ratio 80/20 : km_tempo/km_total > 25% quelque part ? Cite semaine + %.
+③ Ratio 80/20 : (km_tempo+km_frac)/km_total > 25% quelque part ? Cite semaine + %.
 ④ Tempo : progression des blocs dans detail_allure ? Stagnation ?
 ⑤ Blocs AM dans longues à partir de S12+ ?
 ✅ si OK avec valeur citée. ⚠️ si problème avec valeur exacte.
@@ -1195,7 +1195,7 @@ RÈGLE ANTI-COUPURE : calibre dès le début pour terminer sur une phrase compl�
 Réponds en 1 SEULE PHRASE courte et chaleureuse. INTERDICTION ABSOLUE de mentionner les séances, allures, FC, ou données d'entraînement. Juste une réponse humaine et directe.`;
           maxTokens = 120;
         } else if(isPlanCritique) {
-          modeInstructions = `MODE ANALYSE + PROPOSITIONS PLAN. PHASE 1 — ANALYSE (plan_futur) : ① hausse_vs_precedente_pct > 10% ? ② Décharges km_total = 60-70% adjacentes ? ③ km_tempo/km_total > 25% ? ④ Progression blocs Tempo ? ⑤ Blocs AM longues S12+ ? ✅ valeur OK | ⚠️ valeur + solution km_total avant → après. Si tout ✅ : solide + 1 conseil. RÈGLE KM : UNIQUEMENT km_total fourni. 700 tokens max.`;
+          modeInstructions = `MODE ANALYSE + PROPOSITIONS PLAN. PHASE 1 — ANALYSE (plan_futur) : ① hausse_vs_precedente_pct > 10% ? ② Décharges km_total = 60-70% adjacentes ? ③ (km_tempo+km_frac)/km_total > 25% ? ④ Progression blocs Tempo/Frac ? ⑤ Blocs AM longues S12+ ? ✅ valeur OK | ⚠️ valeur + solution km_total avant → après. Si tout ✅ : solide + 1 conseil. RÈGLE KM : UNIQUEMENT km_total fourni. 700 tokens max.`;
           maxTokens = 700;
         } else {
           modeInstructions = `MODE CHAT : Question de coaching simple.
@@ -1537,7 +1537,7 @@ exports.quickBrief = onRequest(
 
       const seancesLine = (seances_today||[]).length > 0
         ? (seances_today||[]).map(s => {
-            const t = {ef:'EF', tempo:'Tempo', long:'EF Longue', race:'Course'}[s.type] || s.type;
+            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', race:'Course'}[s.type] || s.type;
             return `${t} ${s.km}km${s.heure ? ' à '+s.heure : ''}`;
           }).join(' + ')
         : `Pas de séance prévue ce ${jour||'aujourd\'hui'}`;
@@ -1642,7 +1642,7 @@ RÈGLES ABSOLUES :
 
       // Message utilisateur = uniquement les données du jour
       const seancesStr = (context.seances_du_jour||[]).map(s => {
-        const t = {ef:'EF', tempo:'Tempo', long:'EF Longue', renfo:'Renforcement', race:'Course'}[s.type] || s.type;
+        const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', renfo:'Renforcement', race:'Course'}[s.type] || s.type;
         return `${t}${s.km ? ' '+s.km+'km' : ''}${s.heure ? ' à '+s.heure : ''}${s.allure_cible ? ' — allure : '+s.allure_cible : ''}`;
       }).join(' + ') || 'Aucune séance planifiée';
 
@@ -2056,7 +2056,7 @@ exports.sessionReminder = onSchedule(
         if(state[rk]===ts)continue;
         const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
         // Météo uniquement pour les séances run (pas renfo — en intérieur)
-        const isRunSession=['ef','tempo','long','race'].includes((ed.type||'').toLowerCase());
+        const isRunSession=['ef','tempo','frac','long','race'].includes((ed.type||'').toLowerCase());
         let meteoStr='';
         if(isRunSession){
           try{

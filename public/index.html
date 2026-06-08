@@ -313,6 +313,7 @@ input[type=number]:focus{border-color:var(--orange);}
     <button onclick="setPerfFilter('all')" id="pf-all" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Tout</button>
     <button onclick="setPerfFilter('ef')" id="pf-ef" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">EF</button>
     <button onclick="setPerfFilter('tempo')" id="pf-tempo" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Tempo</button>
+    <button onclick="setPerfFilter('frac')" id="pf-frac" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Frac</button>
     <button onclick="setPerfFilter('long')" id="pf-long" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Long</button>
   </div>
   <div id="perf-rows" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px;"></div>
@@ -5186,7 +5187,7 @@ function openValidationModal(idx){
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
-  const _headerColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888',race:'#0C447C'}[s.type]||'#0C447C';
+  const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',rest:'#888',race:'#0C447C'}[s.type]||'#0C447C';
   overlay.innerHTML=`<div class="modal-box" style="max-height:92vh;">
     <!-- Header coloré par type (fixe) -->
     <div style="background:${_headerColor};padding:16px 16px 14px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;">
@@ -7197,32 +7198,31 @@ function estimateDuration(s) {
     return fmtDur(km * paceMin);
   }
 
-  if(s.type === 'tempo') {
+  if(s.type === 'tempo' || s.type === 'frac') {
+    const isFrac = s.type === 'frac';
     const repMatch = title.match(/(\d+)[×x×](\d+)/);
-    const reps = repMatch ? parseInt(repMatch[1]) : 2;
-    const durMin = repMatch ? parseInt(repMatch[2]) : 8;
+    const reps = repMatch ? parseInt(repMatch[1]) : (isFrac ? 6 : 2);
+    const durMin = repMatch ? parseInt(repMatch[2]) : (isFrac ? 2 : 8);
 
-    // Allure EF : chercher "EF @ X:XX" dans le detail, sinon getBestEfPace
     const efDetailMatch = detail.match(/EF\s*@\s*(\d+)[':](\d+)/i);
     const paceEf = efDetailMatch
-      ? (parsePaceMin(efDetailMatch[1]+':'+efDetailMatch[2]) || 5.8)
-      : (parsePaceMin((getBestEfPace()||"6'40").replace("'",":")) || 5.8);
+      ? (parsePaceMin(efDetailMatch[1]+':'+efDetailMatch[2]) || 6.67)
+      : (parsePaceMin((getBestEfPace()||"6'40").replace("'",":")) || 6.67);
 
-    // Allure tempo : 1ère allure dans le detail
+    // 1ère allure dans le detail = allure des blocs
     const paceMatch2 = detail.match(/(\d+)[':](\d+)/);
-    const paceTempoMin = paceMatch2 ? parsePaceMin(paceMatch2[1]+':'+paceMatch2[2]) : 4.92;
+    const paceBlocMin = paceMatch2 ? parsePaceMin(paceMatch2[1]+':'+paceMatch2[2]) : (isFrac ? 4.5 : 4.92);
 
     const recupMatch = detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
     const recupMinutes = recupMatch ? (()=>{
       const rp = recupMatch[1].split(':');
-      return rp.length>1 ? parseInt(rp[0])+parseInt(rp[1])/60 : parseFloat(rp[0])||3;
-    })() : 3;
+      return rp.length>1 ? parseInt(rp[0])+parseInt(rp[1])/60 : parseFloat(rp[0])||(isFrac?2:3);
+    })() : (isFrac ? 2 : 3);
 
-    const KM_ECHA = 3.0;
-    const kmBlocs = paceTempoMin ? (reps * durMin) / paceTempoMin : 0;
+    const KM_ECHA = isFrac ? 2.0 : 3.0;
+    const kmBlocs = paceBlocMin ? (reps * durMin) / paceBlocMin : 0;
     const kmRecup = (reps * recupMinutes) / paceEf;
     const kmEfRestantRaw = km - KM_ECHA - kmBlocs - kmRecup;
-    // Formule identique au modal : ceil au 0.5 supérieur, conserver valeur si négatif
     const kmEfRestant = kmEfRestantRaw <= 0 ? kmEfRestantRaw : Math.ceil(kmEfRestantRaw * 2) / 2;
     const totalMin = (KM_ECHA * paceEf) + (reps * durMin) + (reps * recupMinutes) + (Math.max(0,kmEfRestant) * paceEf);
     return fmtDur(totalMin);
@@ -9832,11 +9832,11 @@ function saveNewShoe(){
 let perfFilter='all';
 function setPerfFilter(f){
   perfFilter=f;
-  ['all','ef','tempo','long'].forEach(k=>{
+  ['all','ef','tempo','frac','long'].forEach(k=>{
     const btn=document.getElementById('pf-'+k);
     if(!btn) return;
     const active=k===f;
-    const color=k==='ef'?'#3B6D11':k==='tempo'?'#E8530A':k==='long'?'#534AB7':'var(--blue)';
+    const color=k==='ef'?'#3B6D11':k==='tempo'?'#E8530A':k==='frac'?'#C4141B':k==='long'?'#534AB7':'var(--blue)';
     btn.style.background=active?color:'transparent';
     btn.style.borderColor=active?color:'var(--border)';
     btn.style.color=active?'#fff':'var(--muted)';
@@ -12630,6 +12630,7 @@ async function sendCoachMessage(){
         const kmTotal   = getWeekTotalKm(ws);
         const kmEF      = Math.round(weekSessions.filter(s=>s.type==='ef').reduce((a,s)=>a+s.kmPlan,0)*10)/10;
         const kmTempo   = Math.round(weekSessions.filter(s=>s.type==='tempo').reduce((a,s)=>a+s.kmPlan,0)*10)/10;
+        const kmFrac    = Math.round(weekSessions.filter(s=>s.type==='frac').reduce((a,s)=>a+s.kmPlan,0)*10)/10;
         const kmLong    = Math.round(weekSessions.filter(s=>s.type==='long').reduce((a,s)=>a+s.kmPlan,0)*10)/10;
         const nbSeances = weekSessions.filter(s=>s.type!=='rest').length;
         const typeSemaine = [8,12,16,20,26,30].includes(ws) ? 'DÉCHARGE' : 'CHARGE';
@@ -12659,6 +12660,7 @@ async function sendCoachMessage(){
           km_total: kmTotal,
           km_ef: kmEF,
           km_tempo: kmTempo,
+          km_frac: kmFrac,
           km_long: kmLong,
           nb_seances: nbSeances,
           km_semaine_precedente: kmPrevSemaine,
