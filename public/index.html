@@ -1515,68 +1515,137 @@ function generateAthletePlan(ob){
   const baseKm=parseInt(ob.km_semaine)||20;
   const sessStr=ob.sessions||'3';
   const nbSess=sessStr==='4+'?4:parseInt(sessStr)||3;
+  const niveau=ob.niveau||'Intermédiaire'; // Débutant / Intermédiaire / Confirmé
+  const peakKm=Math.min(baseKm*2, baseKm+40); // plafond raisonnable
 
-  // Plafond : 2× les km de départ
-  const peakKm=baseKm*2;
-
-  // Nombre de semaines : date de course si définie, sinon 16 semaines
+  // Nombre de semaines
   let numWeeks=16;
   if(ob.date){
     const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
     if(diff>0) numWeeks=Math.min(Math.max(diff,8),32);
   }
 
-  // Semaines de décharge : toutes les 4 semaines
+  // Décharges toutes les 4 semaines
   const recovery=new Set();
   for(let w=4;w<=numWeeks;w+=4) recovery.add(w);
 
-  // Calcul km par semaine avec plafond à 2× base
+  // Volume par semaine (+10%/semaine, plafond)
   const weekKms=[];
   let cur=baseKm;
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
-      const prev=weekKms[w-2]||cur;
-      weekKms.push(Math.max(Math.round(prev*0.65),baseKm));
+      weekKms.push(Math.max(Math.round((weekKms[w-2]||cur)*0.65),baseKm));
     } else {
       weekKms.push(Math.round(Math.min(cur,peakKm)));
-      if(cur<peakKm) cur=cur*1.10; // on arrête d'augmenter une fois le plafond atteint
+      if(cur<peakKm) cur*=1.10;
     }
   }
+
+  // ── Calcul des allures depuis l'EF déclarée ─────────────────────────────────
+  // ef_pace format "5:48" ou "5'48"
+  const efRaw=ob.ef_pace||null;
+  let efSec=null;
+  if(efRaw){
+    const parts=efRaw.replace("'",":").split(':');
+    if(parts.length===2) efSec=parseInt(parts[0])*60+parseInt(parts[1]);
+  }
+  const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
+
+  // Allures calculées
+  const efLabel  = efSec ? fmtPace(efSec)    : null;
+  // Tempo : EF - 50s/km (±5s selon niveau)
+  const tDelta   = niveau==='Débutant'?-40 : niveau==='Confirmé'?-60 : -50;
+  const tempoSec = efSec ? efSec+tDelta : null;
+  const tempoLbl = tempoSec ? fmtPace(tempoSec) : null;
+
+  // ── Progression des séances tempo selon semaine et niveau ───────────────────
+  // Nombre de répétitions et durée min selon la semaine
+  const tempoProgression=(w)=>{
+    // Débutant : intro à S5, Intermédiaire : S3, Confirmé : S2
+    const introW = niveau==='Débutant'?5 : niveau==='Confirmé'?2 : 3;
+    if(w < introW) return null; // pas encore de tempo
+    const age=w-introW;
+    if(age<2)  return {rep:1,dur:8};
+    if(age<4)  return {rep:2,dur:8};
+    if(age<6)  return {rep:2,dur:10};
+    if(age<10) return {rep:2,dur:12};
+    return {rep:2,dur:15};
+  };
+
+  // Construit le champ d="Titre|détail" pour chaque type de séance
+  const makeD=(type,tempo)=>{
+    if(type==='ef'){
+      return efLabel ? `Séance EF|${efLabel}/km · FC 140-150 bpm` : 'Séance EF';
+    }
+    if(type==='long'){
+      return efLabel ? `EF longue|${efLabel}/km · allure confort` : 'EF longue';
+    }
+    if(type==='tempo'&&tempo){
+      const base=tempoLbl ? `${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · 3 min récup · EF ${efLabel||'?'}/km` : `${tempo.rep}×${tempo.dur} min tempo`;
+      return base;
+    }
+    return type==='ef'?'Séance EF':type==='long'?'EF longue':'Séance';
+  };
 
   const updates={};
   for(let w=1;w<=numWeeks;w++){
     const total=weekKms[w-1];
+    const tempo=tempoProgression(w);
+    const hasTempo=!!tempo && nbSess>=3;
     let sessions=[];
+
     if(nbSess<=2){
-      // EF uniquement
-      const k1=Math.round(total*0.45); const k2=total-k1;
-      sessions=[
-        {d:'Séance EF',km:Math.max(k1,4),type:'ef',shoe:null},
-        {d:'EF longue',km:Math.max(k2,5),type:'long',shoe:null},
-      ];
-      if(nbSess===1) sessions=[{d:'Séance EF',km:total,type:'ef',shoe:null}];
+      if(nbSess===1){
+        sessions=[{d:makeD('ef'),km:total,type:'ef',shoe:null}];
+      } else {
+        const k1=Math.round(total*0.45);
+        sessions=[
+          {d:makeD('ef'),km:Math.max(k1,4),type:'ef',shoe:null},
+          {d:makeD('long'),km:Math.max(total-k1,5),type:'long',shoe:null},
+        ];
+      }
     } else if(nbSess===3){
-      // EF + Tempo + Long
-      const kEF=Math.max(Math.round(total*0.28),5);
-      const kT=Math.max(Math.round(total*0.27),5);
-      const kL=Math.max(total-kEF-kT,6);
-      sessions=[
-        {d:'Séance EF',km:kEF,type:'ef',shoe:null},
-        {d:'Tempo',km:kT,type:'tempo',shoe:null},
-        {d:'EF longue',km:kL,type:'long',shoe:null},
-      ];
+      if(hasTempo){
+        const kEF=Math.max(Math.round(total*0.30),4);
+        const kT =Math.max(Math.round(total*0.27),5);
+        const kL =Math.max(total-kEF-kT,6);
+        sessions=[
+          {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
+          {d:makeD('tempo',tempo),km:kT,type:'tempo',shoe:null},
+          {d:makeD('long'),km:kL,type:'long',shoe:null},
+        ];
+      } else {
+        // Pas encore de tempo : 2 EF + 1 longue
+        const k1=Math.round(total*0.30);
+        const k2=Math.round(total*0.25);
+        sessions=[
+          {d:makeD('ef'),km:Math.max(k1,4),type:'ef',shoe:null},
+          {d:makeD('ef'),km:Math.max(k2,4),type:'ef',shoe:null},
+          {d:makeD('long'),km:Math.max(total-k1-k2,6),type:'long',shoe:null},
+        ];
+      }
     } else {
-      // EF + EF + Tempo + Long
-      const kEF1=Math.max(Math.round(total*0.20),4);
-      const kEF2=Math.max(Math.round(total*0.20),4);
-      const kT=Math.max(Math.round(total*0.20),5);
-      const kL=Math.max(total-kEF1-kEF2-kT,6);
-      sessions=[
-        {d:'Séance EF',km:kEF1,type:'ef',shoe:null},
-        {d:'Séance EF',km:kEF2,type:'ef',shoe:null},
-        {d:'Tempo',km:kT,type:'tempo',shoe:null},
-        {d:'EF longue',km:kL,type:'long',shoe:null},
-      ];
+      // 4+ séances
+      if(hasTempo){
+        const kEF1=Math.max(Math.round(total*0.20),4);
+        const kEF2=Math.max(Math.round(total*0.20),4);
+        const kT  =Math.max(Math.round(total*0.22),5);
+        const kL  =Math.max(total-kEF1-kEF2-kT,6);
+        sessions=[
+          {d:makeD('ef'),km:kEF1,type:'ef',shoe:null},
+          {d:makeD('ef'),km:kEF2,type:'ef',shoe:null},
+          {d:makeD('tempo',tempo),km:kT,type:'tempo',shoe:null},
+          {d:makeD('long'),km:kL,type:'long',shoe:null},
+        ];
+      } else {
+        const k1=Math.round(total*0.25),k2=Math.round(total*0.20),k3=Math.round(total*0.20);
+        sessions=[
+          {d:makeD('ef'),km:Math.max(k1,4),type:'ef',shoe:null},
+          {d:makeD('ef'),km:Math.max(k2,4),type:'ef',shoe:null},
+          {d:makeD('ef'),km:Math.max(k3,4),type:'ef',shoe:null},
+          {d:makeD('long'),km:Math.max(total-k1-k2-k3,6),type:'long',shoe:null},
+        ];
+      }
     }
     sessions.forEach((s,i)=>{ updates[`extra_w${w}_s${i}`]=JSON.stringify(s); });
   }
