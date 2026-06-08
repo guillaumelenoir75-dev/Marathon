@@ -2014,58 +2014,71 @@ function generateAthletePlan(ob){
   const nbSess=sessStr==='4'?4:parseInt(sessStr)||3;
   const niveau=ob.niveau||'Intermédiaire'; // Débutant / Intermédiaire / Confirmé
   const course=ob.course||'Marathon';
+  const isPlaisir=!course||course==='Plaisir';
   const useFrac=course==='5 km'||course==='10 km'; // fractionné pour courtes distances
-  const peakKm=Math.min(baseKm*2, baseKm+40, nbSess<=2?40:nbSess===3?55:999); // plafond raisonnable + cap par nb de séances
+  // Plafond de volume (pic du plan)
+  // Plaisir : cible progressive ambitieuse indépendante du base (ne pas bloquer les débutants)
+  // Course : plafond classique × base
+  const peakKm=isPlaisir
+    ? Math.min(Math.max(nbSess<=2?20:nbSess===3?28:38, Math.round(baseKm*1.6)), nbSess<=2?40:nbSess===3?55:999)
+    : Math.min(baseKm*2, baseKm+40, nbSess<=2?40:nbSess===3?55:999);
 
-  // Périodes d'affûtage selon la distance (données physiologiques standard)
-  // noInt = numéros de semaines dans l'affûtage où l'intensité est supprimée
-  const taperCfg={
-    'Marathon':      {w:3,r:[0.70,0.50,0.20],noInt:[2,3]}, // 3 sem : réduit→léger→course
-    'Semi-marathon': {w:2,r:[0.65,0.25],     noInt:[2]},   // 2 sem
-    '10 km':         {w:2,r:[0.60,0.30],     noInt:[2]},   // 2 sem
-    '5 km':          {w:1,r:[0.40],          noInt:[1]},   // 1 sem
-  }[course]||{w:2,r:[0.65,0.25],noInt:[2]};
+  // Affûtage : aucun pour Plaisir, sinon selon la distance
+  const taperCfg=isPlaisir?{w:0,r:[],noInt:[]}:({
+    'Marathon':      {w:3,r:[0.70,0.50,0.20],noInt:[2,3]},
+    'Semi-marathon': {w:2,r:[0.65,0.25],     noInt:[2]},
+    '10 km':         {w:2,r:[0.60,0.30],     noInt:[2]},
+    '5 km':          {w:1,r:[0.40],          noInt:[1]},
+  }[course]||{w:2,r:[0.65,0.25],noInt:[2]});
 
   // Nombre de semaines
-  let numWeeks=16;
+  // Plaisir sans date : 24 semaines — suffisant pour passer de 3-4 km à 20+ km/sem
+  let numWeeks=isPlaisir?24:16;
   if(ob.date){
     const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
     if(diff>0) numWeeks=Math.min(Math.max(diff,8),32);
   }
 
-  // Décharges toutes les 4 semaines
+  // Décharges : pattern 2:1 (toutes les 3 sem) pour très débutants < 10 km, sinon 3:1 (toutes les 4 sem)
+  // Recommandation evidence-based : tendons/ligaments s'adaptent plus lentement que le cardio
+  const recovPeriod=baseKm<10?3:4;
   const recovery=new Set();
-  for(let w=4;w<=numWeeks;w+=4) recovery.add(w);
+  for(let w=recovPeriod;w<=numWeeks;w+=recovPeriod) recovery.add(w);
 
-  // Volume par semaine (+10%/semaine, plafond)
+  // Volume par semaine
   const weekKms=[];
   let cur=baseKm;
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
-      const recovKm=Math.max(Math.round((weekKms[w-2]||cur)*0.65),baseKm);
+      // Récup : -35% du dernier pic réel (pas retour au départ pour les débutants)
+      const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
+      const recovKm=Math.max(Math.round(lastBuild*0.65), Math.max(2,Math.round(baseKm*0.8)));
       weekKms.push(recovKm);
       // cur inchangé : l'adaptation est maintenue, seule la fatigue aiguë est réduite
     } else {
       let km=Math.round(Math.min(cur,peakKm));
-      // Limiteur post-récupération : max +30%/semaine sur les 2 semaines qui suivent une récup
-      // pour éviter un rebond brutal (ex: 10km récup → 18km semaine suivante)
-      if(w>1 && recovery.has(w-1)){
-        km=Math.min(km,Math.round((weekKms[w-2]||baseKm)*1.30));
+      // Limiteur post-récupération : max +30% vs le DERNIER BLOC avant récup (weekKms[w-3])
+      if(w>2 && recovery.has(w-1)){
+        km=Math.min(km,Math.round((weekKms[w-3]||baseKm)*1.30));
       } else if(w>2 && recovery.has(w-2)){
         km=Math.min(km,Math.round((weekKms[w-2]||baseKm)*1.30));
       }
       weekKms.push(km);
-      if(cur<peakKm) cur*=1.10;
+      if(cur<peakKm){
+        // Progression absolue pour faibles volumes : +1.5 km/sem évite les +300m inutiles
+        // Progression relative au-dessus de 12 km/sem (8% plus conservateur que 10%)
+        cur=cur<12 ? cur+1.5 : cur*1.08;
+      }
     }
   }
-  // Affûtage : remplacer les dernières semaines par des volumes décroissants
+  // Affûtage : uniquement pour les plans avec course (Plaisir = pas d'affûtage)
   const peakVol=Math.max(...weekKms.filter(k=>k>0));
-  if(numWeeks>taperCfg.w+4){
+  if(taperCfg.r.length>0 && numWeeks>taperCfg.w+4){
     taperCfg.r.forEach((ratio,i)=>{
       weekKms[numWeeks-taperCfg.r.length+i]=Math.max(Math.round(peakVol*ratio),3);
     });
   }
-  const taperStartW=numWeeks-taperCfg.w+1; // première semaine d'affûtage (1-indexé)
+  const taperStartW=taperCfg.w>0?numWeeks-taperCfg.w+1:numWeeks+1; // numWeeks+1 = jamais pour Plaisir
 
   // ── Calcul des allures ──────────────────────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
@@ -2233,16 +2246,19 @@ function generateAthletePlan(ob){
     const noIntensity=taperCfg.noInt.includes(weekInTaper)||isRaceWeek;
     const tempo=useFrac ? fracProgression(w) : tempoProgression(w);
     const sessionType=useFrac?'frac':'tempo';
-    const hasTempo=!!tempo && nbSess>=3 && !isRecoveryWeek && !noIntensity;
+    // Plaisir : pas d'intensité — 100% facile (base aérobie d'abord, min 8 semaines + 20 km/sem)
+    const hasTempo=!!tempo && nbSess>=3 && !isRecoveryWeek && !noIntensity
+      && (!isPlaisir || (w>=8 && total>=20));
     let sessions=[];
+    const sFloor=total<10?2:3; // floor adaptatif : 2 km pour faibles volumes, 3 km sinon
 
     if(nbSess<=2){
       if(nbSess===1){
         sessions=[{d:makeD('ef'),km:total,type:'ef',shoe:null}];
       } else {
-        // EF = ~55%, long = résidu (~45%) — long run max 45% évite le dépassement physiologique
-        const kEF=Math.max(Math.round(total*0.55),3);
-        const kL=Math.max(total-kEF,3);
+        // EF = ~55%, long = résidu (~45%)
+        const kEF=Math.max(Math.round(total*0.55),sFloor);
+        const kL=Math.max(total-kEF,sFloor);
         sessions=[
           {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
           {d:makeD('long'),km:kL,type:'long',shoe:null},
@@ -2250,9 +2266,9 @@ function generateAthletePlan(ob){
       }
     } else if(nbSess===3){
       if(hasTempo){
-        const kEF=Math.max(Math.round(total*0.30),3);
-        const kT =Math.max(Math.round(total*0.27),3);
-        const kL =Math.max(total-kEF-kT,3); // long = résidu, garantit sum ≤ total+3
+        const kEF=Math.max(Math.round(total*0.30),sFloor);
+        const kT =Math.max(Math.round(total*0.27),sFloor);
+        const kL =Math.max(total-kEF-kT,sFloor);
         sessions=[
           {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
           {d:makeD(sessionType,tempo),km:kT,type:sessionType,shoe:null},
@@ -2260,9 +2276,9 @@ function generateAthletePlan(ob){
         ];
       } else {
         // Pas encore de tempo : 2 EF + 1 longue
-        const k1=Math.max(Math.round(total*0.30),3);
-        const k2=Math.max(Math.round(total*0.25),3);
-        const kL=Math.max(total-k1-k2,3);
+        const k1=Math.max(Math.round(total*0.30),sFloor);
+        const k2=Math.max(Math.round(total*0.25),sFloor);
+        const kL=Math.max(total-k1-k2,sFloor);
         sessions=[
           {d:makeD('ef'),km:k1,type:'ef',shoe:null},
           {d:makeD('ef'),km:k2,type:'ef',shoe:null},
@@ -2270,12 +2286,12 @@ function generateAthletePlan(ob){
         ];
       }
     } else {
-      // 4+ séances
+      // 4 séances
       if(hasTempo){
-        const kEF1=Math.max(Math.round(total*0.20),3);
-        const kEF2=Math.max(Math.round(total*0.20),3);
-        const kT  =Math.max(Math.round(total*0.22),3);
-        const kL  =Math.max(total-kEF1-kEF2-kT,3);
+        const kEF1=Math.max(Math.round(total*0.20),sFloor);
+        const kEF2=Math.max(Math.round(total*0.20),sFloor);
+        const kT  =Math.max(Math.round(total*0.22),sFloor);
+        const kL  =Math.max(total-kEF1-kEF2-kT,sFloor);
         sessions=[
           {d:makeD('ef'),km:kEF1,type:'ef',shoe:null},
           {d:makeD('ef'),km:kEF2,type:'ef',shoe:null},
@@ -2283,10 +2299,10 @@ function generateAthletePlan(ob){
           {d:makeD('long'),km:kL,type:'long',shoe:null},
         ];
       } else {
-        const k1=Math.max(Math.round(total*0.25),3);
-        const k2=Math.max(Math.round(total*0.20),3);
-        const k3=Math.max(Math.round(total*0.20),3);
-        const kL=Math.max(total-k1-k2-k3,3);
+        const k1=Math.max(Math.round(total*0.25),sFloor);
+        const k2=Math.max(Math.round(total*0.20),sFloor);
+        const k3=Math.max(Math.round(total*0.20),sFloor);
+        const kL=Math.max(total-k1-k2-k3,sFloor);
         sessions=[
           {d:makeD('ef'),km:k1,type:'ef',shoe:null},
           {d:makeD('ef'),km:k2,type:'ef',shoe:null},
