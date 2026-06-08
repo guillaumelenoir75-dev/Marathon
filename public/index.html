@@ -3655,8 +3655,8 @@ function openMarathonPredModal() {
       </div>
     </div>` : ''}
 
-    <!-- Tableau record 10km -->
-    ${(()=>{
+    <!-- Tableau record 10km (admin uniquement) -->
+    ${(!isAdmin() ? '' : (()=>{
       const r10pred = getRecord10kmPredictions();
       if(!r10pred) return `
     <div onclick="closeModal();openRecord10kmModal();" style="background:var(--bg2);border-radius:12px;padding:10px 14px;margin-bottom:12px;cursor:pointer;border:1.5px dashed var(--border);display:flex;align-items:center;gap:10px;">
@@ -3700,7 +3700,7 @@ function openMarathonPredModal() {
         </div>
       </div>
     </div>`;
-    })()}
+    })())}
 
     <!-- Tableau décomposition -->
     ${(()=>{
@@ -11146,9 +11146,11 @@ function renderStats(){
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
   if(badge) badge.textContent = (isAdmin() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
-  // Badge record 10km
+  // Badge record 10km (admin uniquement)
+  const b10container = document.getElementById('badge-record10km')?.closest('div[onclick]');
+  if(b10container) b10container.style.display = isAdmin() ? 'flex' : 'none';
   const b10 = document.getElementById('badge-record10km');
-  if(b10) {
+  if(b10 && isAdmin()) {
     const r10 = state['record_10km'];
     b10.textContent = r10 ? r10 + ' 10km' : '— 10km';
   }
