@@ -4989,7 +4989,7 @@ function openValidationModalExtra(ei){
   const parts=(s.d||'').split('|');
   const title=parts[0];
   const detail=filterDetailDisplay(title, parts[1]||null);
-  const _headerColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
+  const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
   const kmVal=state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s.km||0;
   const prev=state[`extra_w${CW}_s${ei}_perf`]?JSON.parse(state[`extra_w${CW}_s${ei}_perf`]):{};
   // Stocker le contexte pour Strava (_applyGarminToValidation)
@@ -5056,7 +5056,7 @@ function openValidationModalExtra(ei){
         </div>
       </div>
       ${(()=>{
-        if(s.type!=='tempo') return '';
+        if(s.type!=='tempo' && s.type!=='frac') return '';
         const titleMatch=(s.d||'').split('|')[0].match(/(\d+)[x\u00d7]/i);
         const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
         const prevBlocs=prev.blocsAllure||[];
@@ -5536,10 +5536,11 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
       } else {
         analysisContext.allure_attendue = efActuelle + '/km (allure EF actuelle)';
       }
-    } else if(s.type==='tempo') {
+    } else if(s.type==='tempo' || s.type==='frac') {
       const detail = s.d.split('|')[1]||'';
       const paceMatch = detail.match(/(\d+)[':'](\d+)\s*[—\-]+\s*(\d+)[':'](\d+)/);
-      if(paceMatch) analysisContext.allure_attendue = paceMatch[1]+':'+paceMatch[2]+' — '+paceMatch[3]+':'+paceMatch[4]+'/km (blocs tempo)';
+      const label = s.type==='frac' ? 'blocs fractionné' : 'blocs tempo';
+      if(paceMatch) analysisContext.allure_attendue = paceMatch[1]+':'+paceMatch[2]+' — '+paceMatch[3]+':'+paceMatch[4]+'/km ('+label+')';
     } else if(s.type==='long') {
       analysisContext.allure_attendue = efActuelle + '/km (EF longue)';
     }
@@ -5599,7 +5600,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   }
 
   // Comparaison historique
-  if(pace&&(s.type==='ef'||s.type==='tempo'||s.type==='long')){
+  if(pace&&(s.type==='ef'||s.type==='tempo'||s.type==='frac'||s.type==='long')){
     const comp=getHistoricalComparison(s.type,pace,hr);
     if(comp){
       analysisContext.historique = {
@@ -8294,10 +8295,10 @@ function openPerfEditModal(ws, si){
 
   // Champs blocs pour Tempo
   const titleMatch = title.match(/(\d+)[x\u00d7]/i);
-  const nbBlocs = s.type==='tempo' ? (titleMatch?parseInt(titleMatch[1]):2) : 0;
+  const nbBlocs = (s.type==='tempo'||s.type==='frac') ? (titleMatch?parseInt(titleMatch[1]):(s.type==='frac'?6:2)) : 0;
   const prevBlocs = prev.blocsAllure||[];
   let blocsHtml = '';
-  if(s.type==='tempo' && nbBlocs>0){
+  if((s.type==='tempo'||s.type==='frac') && nbBlocs>0){
     const nbRows = Math.ceil(nbBlocs/3);
     blocsHtml = '<div style="margin-top:4px;"><p style="font-size:12px;font-weight:600;color:#1B4FD8;margin-bottom:8px;">\u26a1 Allure par bloc tempo</p>';
     for(let row=0;row<nbRows;row++){
@@ -8830,7 +8831,7 @@ function openEditModal(ws, si){
   _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
   // Init blocs long si nécessaire
   if(s.type==='long') { renderLongBlocks(); setTimeout(()=>{ updateLongDuration(); const ef=document.getElementById('long-ef-pace'); if(ef) highlightLongEfChip(ef.value); }, 50); }
-  if(s.type==='tempo') setTimeout(()=>{ calcEfRestant(); }, 50); // calcEfRestant syncs header too
+  if(s.type==='tempo'||s.type==='frac') setTimeout(()=>{ calcEfRestant(); }, 50);
   if(s.type==='ef') setTimeout(()=>{
     updateEfPreview();
     // Highlight current pace chip
@@ -8953,22 +8954,21 @@ function saveEdit(ws, si){
       detail=efPaceStr?efPaceStr+'/km':'';
     }
   }
-  if(type==='tempo'){
+  if(type==='tempo'||type==='frac'){
     const repsEl=document.getElementById('edit-reps');
     const durEl=document.getElementById('edit-dur');
     const pMinEl=document.getElementById('edit-pace-min');
     const pMaxEl=document.getElementById('edit-pace-max');
     const recupEl=document.getElementById('edit-recup');
-    const reps=repsEl?parseInt(repsEl.value)||2:2;
-    const dur=durEl?parseInt(durEl.value)||8:8;
-    name=`Tempo ${reps}×${dur} min`;
+    const reps=repsEl?parseInt(repsEl.value)||(type==='frac'?6:2):(type==='frac'?6:2);
+    const dur=durEl?parseInt(durEl.value)||(type==='frac'?2:8):(type==='frac'?2:8);
+    name=type==='frac'?`Fractionné ${reps}×${dur} min`:`Tempo ${reps}×${dur} min`;
     const pMin=pMinEl?(pMinEl.value||'').trim():'';
     const pMax=pMaxEl?(pMaxEl.value||'').trim():'';
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
     else if(pMin) detail=`${pMin} /km`;
     const recup=(recupEl?recupEl.value||'':'').trim();
     if(recup&&recup!=='0'&&reps>1) detail=detail+(detail?' · ':'')+`${recup} min récup`;
-    // Sauvegarder l'allure EF pour cohérence avec l'accueil
     const editEfPaceEl=document.getElementById('edit-ef-pace');
     const editEfPaceStr=(editEfPaceEl?editEfPaceEl.value.trim():'').replace("'",":");
     if(editEfPaceStr&&editEfPaceStr.match(/\d+:\d+/)) detail=detail+` · EF @ ${editEfPaceStr}`;
@@ -9555,17 +9555,16 @@ function saveExtraEdit(ws, ei){
       if(Math.abs(bTotal-km)>=0.1){alert('Total des blocs ('+bTotal+' km) ≠ distance planifiée ('+km+' km). Ajuste les blocs.');return;}
       detail=buildLongDetail(blocks);
     }
-  } else if(type==='tempo'){
-    const reps=parseInt((document.getElementById('exedit-reps')||{}).value)||2;
-    const dur=parseInt((document.getElementById('exedit-dur')||{}).value)||8;
-    name=`Tempo ${reps}×${dur} min`;
+  } else if(type==='tempo'||type==='frac'){
+    const reps=parseInt((document.getElementById('exedit-reps')||{}).value)||(type==='frac'?6:2);
+    const dur=parseInt((document.getElementById('exedit-dur')||{}).value)||(type==='frac'?2:8);
+    name=type==='frac'?`Fractionné ${reps}×${dur} min`:`Tempo ${reps}×${dur} min`;
     const pMin=((document.getElementById('exedit-pace-min')||{}).value||'').trim();
     const pMax=((document.getElementById('exedit-pace-max')||{}).value||'').trim();
     if(pMin&&pMax) detail=`${pMin} — ${pMax} /km`;
-    else detail='5:00 — 5:20 /km';
+    else detail=type==='frac'?'4:30 — 4:50 /km':'5:00 — 5:20 /km';
     const recup=((document.getElementById('exedit-recup')||{}).value||'').trim();
     if(recup&&recup!=='0'&&reps>1) detail=detail+` · ${recup} min récup`;
-    // EF @ pace — identique à saveEdit
     const exEditEfPace=((document.getElementById('exedit-ef-pace')||{}).value||'').trim().replace("'",":");
     if(exEditEfPace&&exEditEfPace.match(/\d+:\d+/)) detail=detail+` · EF @ ${exEditEfPace}`;
   } else {
@@ -10130,7 +10129,7 @@ function renderStats(){
               <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">Allure</p><p style="font-size:12px;font-weight:700;color:var(--text);">${row.perf.pace||'—'}</p></div>
               <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">FC</p><p style="font-size:14px;font-weight:700;color:var(--text);">${row.perf.hr||'—'}</p></div>
             </div>
-            ${row.type==='tempo'&&row.perf.blocsAllure&&row.perf.blocsAllure.some(b=>b)?`
+            ${(row.type==='tempo'||row.type==='frac')&&row.perf.blocsAllure&&row.perf.blocsAllure.some(b=>b)?`
             <div style="margin-top:7px;display:flex;align-items:center;gap:6px;">
               <span style="font-size:10px;font-weight:700;color:#1B4FD8;">⚡ Blocs :</span>
               <span style="font-size:12px;font-weight:700;color:#1B4FD8;">${row.perf.blocsAllure.filter(Boolean).join(' · ')}</span>
@@ -11187,9 +11186,9 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const heuresDepuis = Math.round((new Date()-derniere.date)/(1000*3600));
       const heuresEntreDeux = Math.round((derniere.date-avantDerniere.date)/(1000*3600));
       let alerte = null;
-      if(derniere.type==='tempo' && avantDerniere.type==='tempo' && heuresEntreDeux < 48)
-        alerte = 'Deux Tempo en moins de 48h — risque de surmenage élevé';
-      else if((derniere.type==='tempo'||derniere.type==='long') && heuresDepuis < 24)
+      if((derniere.type==='tempo'||derniere.type==='frac') && (avantDerniere.type==='tempo'||avantDerniere.type==='frac') && heuresEntreDeux < 48)
+        alerte = 'Deux séances intenses en moins de 48h — risque de surmenage élevé';
+      else if((derniere.type==='tempo'||derniere.type==='frac'||derniere.type==='long') && heuresDepuis < 24)
         alerte = 'Séance intense il y a moins de 24h — corps encore en récupération';
       return {
         derniere_seance_il_y_a_heures: heuresDepuis,
@@ -11810,6 +11809,7 @@ function extractSuggestionsFromCoach(si, s, ed){
   // Type
   let type = s.type;
   if(/\bef\b|endurance fondamentale/i.test(txt)) type='ef';
+  else if(/fractionn[eé]|\bfrac\b|intervalles?/i.test(txt)) type='frac';
   else if(/\btempo\b/i.test(txt)) type='tempo';
   else if(/sortie longue/i.test(txt)) type='long';
   else if(/\brepos\b|récupération complète/i.test(txt)) type='rest';
@@ -12069,29 +12069,30 @@ async function applyPlanModif(){
 
   // Appliquer les champs tempo
   let extFull = null;
-  if(!formOpen && type==='tempo') extFull = extractSuggestionsFromCoach(_selectedModifSi, s0, ed0);
-  if(type==='tempo'){
+  if(!formOpen && (type==='tempo'||type==='frac')) extFull = extractSuggestionsFromCoach(_selectedModifSi, s0, ed0);
+  if(type==='tempo'||type==='frac'){
+    const isFracMod = type==='frac';
     let reps, dur, pace, paceMax, recup;
     if(formOpen){
       const repsEl=document.getElementById('modif-reps');
       const durEl=document.getElementById('modif-dur');
       const paceEl=document.getElementById('modif-pace');
       const recupEl=document.getElementById('modif-recup');
-      reps=repsEl?parseInt(repsEl.value)||2:2;
-      dur=durEl?parseInt(durEl.value)||8:8;
+      reps=repsEl?parseInt(repsEl.value)||(isFracMod?6:2):(isFracMod?6:2);
+      dur=durEl?parseInt(durEl.value)||(isFracMod?2:8):(isFracMod?2:8);
       pace=(paceEl?paceEl.value||'':'').trim();
       paceMax=pace;
       recup=(recupEl?recupEl.value||'':'').trim();
     } else {
       const curTitle=(ed.d||s.d).split('|')[0];
       const curMatch=curTitle.match(/(\d+)[×x](\d+)/i);
-      reps = (extFull&&extFull.reps) || (curMatch?parseInt(curMatch[1]):2);
-      dur = (extFull&&extFull.dur) || (curMatch?parseInt(curMatch[2]):8);
+      reps = (extFull&&extFull.reps) || (curMatch?parseInt(curMatch[1]):(isFracMod?6:2));
+      dur = (extFull&&extFull.dur) || (curMatch?parseInt(curMatch[2]):(isFracMod?2:8));
       pace = (extFull&&extFull.paceMin) || '';
       paceMax = (extFull&&extFull.paceMax) || pace;
       recup = (extFull&&extFull.recup) || '';
     }
-    let newTitle='Tempo '+reps+'×'+dur+' min';
+    let newTitle=(isFracMod?'Fractionné ':'Tempo ')+reps+'×'+dur+' min';
     let newDetail='';
     if(pace) newDetail=pace+(paceMax&&paceMax!==pace?' — '+paceMax:'')+' /km';
     if(recup&&recup!=='0'&&reps>1) newDetail=newDetail+(newDetail?' · ':'')+recup+' min récup';
