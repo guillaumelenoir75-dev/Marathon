@@ -1973,6 +1973,15 @@ function generateAthletePlan(ob){
   const useFrac=course==='5 km'||course==='10 km'; // fractionné pour courtes distances
   const peakKm=Math.min(baseKm*2, baseKm+40); // plafond raisonnable
 
+  // Périodes d'affûtage selon la distance (données physiologiques standard)
+  // noInt = numéros de semaines dans l'affûtage où l'intensité est supprimée
+  const taperCfg={
+    'Marathon':      {w:3,r:[0.70,0.50,0.20],noInt:[2,3]}, // 3 sem : réduit→léger→course
+    'Semi-marathon': {w:2,r:[0.65,0.25],     noInt:[2]},   // 2 sem
+    '10 km':         {w:2,r:[0.60,0.30],     noInt:[2]},   // 2 sem
+    '5 km':          {w:1,r:[0.40],          noInt:[1]},   // 1 sem
+  }[course]||{w:2,r:[0.65,0.25],noInt:[2]};
+
   // Nombre de semaines
   let numWeeks=16;
   if(ob.date){
@@ -2005,6 +2014,14 @@ function generateAthletePlan(ob){
       if(cur<peakKm) cur*=1.10;
     }
   }
+  // Affûtage : remplacer les dernières semaines par des volumes décroissants
+  const peakVol=Math.max(...weekKms.filter(k=>k>0));
+  if(numWeeks>taperCfg.w+4){
+    taperCfg.r.forEach((ratio,i)=>{
+      weekKms[numWeeks-taperCfg.r.length+i]=Math.max(Math.round(peakVol*ratio),3);
+    });
+  }
+  const taperStartW=numWeeks-taperCfg.w+1; // première semaine d'affûtage (1-indexé)
 
   // ── Calcul des allures ──────────────────────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
@@ -2167,9 +2184,12 @@ function generateAthletePlan(ob){
   for(let w=1;w<=numWeeks;w++){
     const total=weekKms[w-1];
     const isRecoveryWeek=recovery.has(w);
+    const isRaceWeek=w===numWeeks&&!!ob.date;
+    const weekInTaper=w>=taperStartW?w-taperStartW+1:0; // 1=1ère sem affûtage, 0=hors affûtage
+    const noIntensity=taperCfg.noInt.includes(weekInTaper)||isRaceWeek;
     const tempo=useFrac ? fracProgression(w) : tempoProgression(w);
     const sessionType=useFrac?'frac':'tempo';
-    const hasTempo=!!tempo && nbSess>=3 && !isRecoveryWeek;
+    const hasTempo=!!tempo && nbSess>=3 && !isRecoveryWeek && !noIntensity;
     let sessions=[];
 
     if(nbSess<=2){
@@ -2231,26 +2251,44 @@ function generateAthletePlan(ob){
         ];
       }
     }
+    // Semaine de course : EF de préactivation + séance race le jour J
+    if(isRaceWeek){
+      sessions=[];
+      if(nbSess>=2) sessions.push({d:makeD('ef'),km:3,type:'ef',shoe:null});
+      const racePaceLbl=racePaceSec?fmtPace(Math.round(racePaceSec)):null;
+      sessions.push({
+        d:`🏆 ${course}|Jour J${racePaceLbl?' · Objectif '+racePaceLbl+'/km':''}`,
+        km:Math.round(raceDist),type:'race',shoe:null,_isRace:true
+      });
+    }
+
     // Calculer la date de chaque séance et embarquer sched_day/sched_time dans le JSON
     const runDays=ob.run_days||[];
     const runTimes=ob.run_times||{};
     const sortedDays=[...runDays].sort((a,b)=>a-b);
     const planStart=new Date(); planStart.setHours(0,0,0,0);
     sessions.forEach((s,i)=>{
-      const dayOfWeek=sortedDays.length>0?sortedDays[i%sortedDays.length]:i%7; // 0=lun
-      // sched_day: 1=lun…7=dim (format Cloud Function)
-      s.sched_day=dayOfWeek+1;
-      s.sched_time=runTimes[dayOfWeek]||ob.run_time||'12:00';
-      // Date calendaire (pour affichage)
-      const weekOffset=new Date(planStart);
-      weekOffset.setDate(planStart.getDate()+(w-1)*7);
-      const dow=weekOffset.getDay();
-      const mondayOffset=dow===0?-6:1-dow;
-      const monday=new Date(weekOffset);
-      monday.setDate(weekOffset.getDate()+mondayOffset);
-      const sessionDate=new Date(monday);
-      sessionDate.setDate(monday.getDate()+dayOfWeek);
-      s.sched_date=sessionDate.toISOString().split('T')[0];
+      if(s._isRace&&ob.date){
+        // La course : date exacte du jour J
+        const rd=new Date(ob.date+'T00:00:00');
+        s.sched_date=ob.date;
+        s.sched_day=rd.getDay()===0?7:rd.getDay(); // 1=lun…7=dim
+        s.sched_time='09:00';
+        delete s._isRace;
+      } else {
+        const dayOfWeek=sortedDays.length>0?sortedDays[i%sortedDays.length]:i%7; // 0=lun
+        s.sched_day=dayOfWeek+1;
+        s.sched_time=runTimes[dayOfWeek]||ob.run_time||'12:00';
+        const weekOffset=new Date(planStart);
+        weekOffset.setDate(planStart.getDate()+(w-1)*7);
+        const dow=weekOffset.getDay();
+        const mondayOffset=dow===0?-6:1-dow;
+        const monday=new Date(weekOffset);
+        monday.setDate(weekOffset.getDate()+mondayOffset);
+        const sessionDate=new Date(monday);
+        sessionDate.setDate(monday.getDate()+dayOfWeek);
+        s.sched_date=sessionDate.toISOString().split('T')[0];
+      }
       updates[`extra_w${w}_s${i}`]=JSON.stringify(s);
     });
   }
@@ -8536,13 +8574,25 @@ function renderAthletePlan(el){
   }
   const sortedWeeks=[...weekNums].sort((a,b)=>a-b);
 
+  // Trouver la semaine de course (type 'race') pour badges et carte Jour J
+  let raceWeekNum=null,raceSessionData=null;
+  outerRace: for(const ws of sortedWeeks){
+    let ei=0;
+    while(state[`extra_w${ws}_s${ei}`]){
+      try{const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);if(s.type==='race'){raceWeekNum=ws;raceSessionData=s;break outerRace;}}catch(e){}
+      ei++;
+    }
+  }
+  let currentRenderMonth=-1; // pour séparateurs de mois
+
   sortedWeeks.forEach((ws,wsIdx)=>{
     const isCur=ws===ACW, isPast=ws<ACW;
-    // Décharge : km significativement inférieur à la semaine précédente (≥10% de baisse)
     const prevWs=wsIdx>0?sortedWeeks[wsIdx-1]:null;
     const prevKm=prevWs!=null?weekKmMap[prevWs]:null;
     const thisKm=weekKmMap[ws]||0;
     const isDecharge=prevKm!=null&&thisKm>0&&thisKm<prevKm*0.92;
+    const isRaceWeekCard=ws===raceWeekNum;
+    const isAffutage=!isRaceWeekCard&&raceWeekNum!=null&&ws>=raceWeekNum-3&&ws<raceWeekNum&&isDecharge;
 
     // Collecter séances de cette semaine
     const sessions=[];
@@ -8563,6 +8613,20 @@ function renderAthletePlan(el){
     const allDone=doneCnt===sessions.length&&sessions.length>0;
     const weekDone=sessions.length?Math.round(doneCnt/sessions.length*100):0;
 
+    // Extraire la date du lundi depuis la première séance
+    let weekDateLabel='',weekMonthIdx=-1,weekMonthName='';
+    if(sessions.length&&sessions[0].s&&sessions[0].s.sched_date){
+      try{
+        const sd=new Date(sessions[0].s.sched_date+'T00:00:00');
+        const d=sd.getDay();
+        const mon=new Date(sd); mon.setDate(sd.getDate()+(d===0?-6:1-d));
+        const mC=['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
+        const mL=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+        weekDateLabel='lun. '+mon.getDate()+' '+mC[mon.getMonth()];
+        weekMonthIdx=mon.getMonth(); weekMonthName=mL[mon.getMonth()];
+      }catch(e){}
+    }
+
     const numBg=isCur?'var(--blue)':isPast?'var(--bg2)':'var(--bg2)';
     const numColor=isCur?'#fff':isPast?'var(--muted)':'var(--text)';
     const statusHtml=allDone
@@ -8577,7 +8641,9 @@ function renderAthletePlan(el){
 
     const badges=[];
     if(isCur) badges.push(`<span class="plan-badge" style="background:#EEF2FD;color:#1438A8;">En cours</span>`);
-    if(isDecharge) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
+    if(isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:#FEF9E7;color:#B7791F;">🏆 Course</span>`);
+    else if(isAffutage) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">🔽 Affûtage</span>`);
+    else if(isDecharge) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
 
     const sessionRowsHtml=isOpen?sessions.map(({s,ei:eid,done,kmDone,perf},rowIdx)=>{
       const typeC=typeColor[s.type]||'#888';
@@ -8661,14 +8727,14 @@ function renderAthletePlan(el){
     </div>`:'';
 
     const card=document.createElement('div');
-    card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'');
+    card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'')+(isRaceWeekCard?' is-race':'');
     card.innerHTML=`
       ${progressHtml}
-      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})">
-        <div class="plan-week-num" style="background:${numBg};color:${numColor};">S${ws}</div>
+      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${isRaceWeekCard?'background:linear-gradient(90deg,#FFFBEB,transparent);':''}">
+        <div class="plan-week-num" style="background:${isRaceWeekCard?'#D97706':numBg};color:${isRaceWeekCard?'#fff':numColor};">S${ws}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:var(--muted);">Semaine ${ws}</span>
+            <span style="font-size:12px;color:var(--muted);">${weekDateLabel||'Semaine '+ws}</span>
             ${badges.join('')}
           </div>
         </div>
@@ -8678,8 +8744,42 @@ function renderAthletePlan(el){
         </div>
       </div>
       ${sessionRowsHtml}${addRowHtml}`;
+    // Séparateur de mois (inséré avant la carte si changement de mois)
+    if(weekMonthIdx>=0&&weekMonthIdx!==currentRenderMonth){
+      currentRenderMonth=weekMonthIdx;
+      const sepEl=document.createElement('div');
+      sepEl.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 2px 4px;';
+      sepEl.innerHTML=`<span style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.08em;">${weekMonthName}</span><div style="flex:1;height:1px;background:var(--border);"></div>`;
+      el.appendChild(sepEl);
+    }
     el.appendChild(card);
   });
+
+  // Carte Jour J (si une séance de course est trouvée dans le plan)
+  if(raceSessionData){
+    try{
+      const rd=raceSessionData.sched_date?new Date(raceSessionData.sched_date+'T00:00:00'):null;
+      const courseName=(raceSessionData.d?raceSessionData.d.split('|')[0]:'Course').replace('🏆 ','');
+      const distKm=raceSessionData.km||'';
+      const joursL=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+      const moisL=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const dateStr=rd?`${joursL[rd.getDay()]} ${rd.getDate()} ${moisL[rd.getMonth()]} ${rd.getFullYear()}`:'';
+      const jourJEl=document.createElement('div');
+      jourJEl.style.cssText='margin:8px 0 4px;border:2px solid #D97706;border-radius:var(--radius);background:linear-gradient(135deg,#FFFBEB,#FEF3C7);overflow:hidden;';
+      jourJEl.innerHTML=`
+        <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;">
+          <div style="font-size:36px;line-height:1;">🏆</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:700;color:#D97706;text-transform:uppercase;letter-spacing:0.08em;">Jour J</div>
+            <div style="font-size:16px;font-weight:800;color:#92400E;margin-top:2px;">${courseName}</div>
+            ${dateStr?`<div style="font-size:12px;color:#B45309;font-weight:600;margin-top:3px;">${dateStr}</div>`:''}
+          </div>
+          ${distKm?`<div style="background:#D97706;color:#fff;border-radius:12px;padding:8px 14px;text-align:center;flex-shrink:0;"><div style="font-size:22px;font-weight:900;line-height:1;">${distKm}</div><div style="font-size:10px;font-weight:600;opacity:0.9;">km</div></div>`:''}
+        </div>
+        <div style="height:3px;background:linear-gradient(90deg,#FCD34D,#D97706,#92400E);"></div>`;
+      el.appendChild(jourJEl);
+    }catch(e){}
+  }
 
   // Bouton ajouter une semaine
   const nextWs=(weekNums.size>0?Math.max(...weekNums):CW)+1;
