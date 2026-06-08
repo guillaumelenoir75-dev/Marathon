@@ -5659,13 +5659,15 @@ function openValidationModalExtra(ei){
         const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
         const prevBlocs=prev.blocsAllure||[];
         const nbRows=Math.ceil(nbBlocs/3);
-        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:#1B4FD8;margin-bottom:8px;">⚡ Allure par bloc tempo</p>';
+        const _bColor=s.type==='frac'?'#C4141B':'#1B4FD8';
+        const _bLabel=s.type==='frac'?'⚡ Allure par bloc fractionné':'⚡ Allure par bloc tempo';
+        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:'+_bColor+';margin-bottom:8px;">'+_bLabel+'</p>';
         for(let row=0;row<nbRows;row++){
           const s2=row*3,e2=Math.min(s2+3,nbBlocs),cnt=e2-s2;
           html+='<div style="display:grid;grid-template-columns:repeat('+cnt+',1fr);gap:8px;'+(row>0?'margin-top:8px;':'')+'">';
           for(let i=s2;i<e2;i++){
             html+='<div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Bloc '+(i+1)+'</p>';
-            html+='<input type="text" id="val-bloc-'+i+'" value="'+(prevBlocs[i]||'')+'" placeholder="4:50" maxlength="5" style="background:var(--bg2);border:1.5px solid #1B4FD830;border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:#1B4FD8;width:100%;outline:none;text-align:center;">';
+            html+='<input type="text" id="val-bloc-'+i+'" value="'+(prevBlocs[i]||'')+'" placeholder="4:50" maxlength="5" style="background:var(--bg2);border:1.5px solid '+_bColor+'30;border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:'+_bColor+';width:100%;outline:none;text-align:center;">';
             html+='<p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p></div>';
           }
           html+='</div>';
@@ -5755,7 +5757,7 @@ async function saveValidationExtra(ei){
     }
   }
   if(isAdmin()) showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance);
-  else showAthleteFeedback(sExtra,km,pace,hr);
+  else showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance);
 }
 
 function openValidationModal(idx){
@@ -5993,7 +5995,7 @@ async function saveValidation(idx){
   // Réinitialiser pour la prochaine validation
   window._meteoValidationData = null;
   if(isAdmin()) showCoachFeedback(s, km, pace, hr, amImproved, idx, meteoSeance);
-  else showAthleteFeedback(s, km, pace, hr);
+  else showAthleteFeedback(s, km, pace, hr, perf, meteoSeance);
 }
 
 function parsePaceToSec(paceStr){
@@ -6049,7 +6051,7 @@ function getHistoricalComparison(type, pace, hr){
   return {last,diffLast,pctLast,hrComp,count:history.length};
 }
 
-function showAthleteFeedback(s, km, pace, hr){
+function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   const fcMax=parseInt(state.fc_max)||0;
   const efMin=fcMax?Math.floor(fcMax*0.70):0;
   const efMax=fcMax?Math.floor(fcMax*0.75):0;
@@ -6057,10 +6059,11 @@ function showAthleteFeedback(s, km, pace, hr){
   const realKm=parseFloat(km)||0;
   const kmRatio=plannedKm>0?realKm/plannedKm:1;
   const hrNum=parseInt(hr)||0;
-  function _paceToSec(p){if(!p)return 0;const pts=p.split(':');if(pts.length!==2)return 0;return parseInt(pts[0])*60+parseInt(pts[1]);}
-  const paceSec=_paceToSec(pace);
+  const blocsAllure=(perf&&perf.blocsAllure)||[];
+  function _ps(p){if(!p)return 0;const pts=p.split(':');if(pts.length!==2)return 0;const m=parseInt(pts[0]),sc=parseInt(pts[1]);return(isNaN(m)||isNaN(sc))?0:m*60+sc;}
+  const paceSec=_ps(pace);
   const efPaceStr=state.ef_pace||'';
-  const efPaceSec=_paceToSec(efPaceStr);
+  const efPaceSec=_ps(efPaceStr);
   const type=s.type;
   const headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[type]||'#0C447C';
   let icon='✅';
@@ -6070,79 +6073,120 @@ function showAthleteFeedback(s, km, pace, hr){
   if(type==='ef'){
     icon='🌿'; title='Endurance Fondamentale';
     if(fcMax&&hrNum){
-      if(hrNum<=efMax) lines.push('✅ FC dans la zone EF ('+hrNum+' bpm / cible '+efMin+'–'+efMax+' bpm) — tu coures à la bonne intensité, bravo.');
+      if(hrNum<=efMax) lines.push('✅ FC parfaitement dans la zone EF ('+hrNum+' bpm / cible '+efMin+'–'+efMax+' bpm) — tu coures à la bonne intensité, bravo ! 👍');
       else if(hrNum<=efMax+10) lines.push('⚠️ FC légèrement au-dessus de la zone EF ('+hrNum+' bpm / cible max '+efMax+' bpm). Essaie de ralentir un peu la prochaine fois.');
-      else lines.push('🔴 FC trop élevée ('+hrNum+' bpm) pour une séance EF (zone cible : '+efMin+'–'+efMax+' bpm). N\'hésite pas à marcher pour rester en zone.');
+      else lines.push('🔴 FC trop élevée ('+hrNum+' bpm) pour une séance EF (zone cible : '+efMin+'–'+efMax+' bpm). N\'hésite pas à marcher quelques instants pour rester en zone.');
     } else if(pace){
-      if(efPaceSec&&paceSec>=efPaceSec-10) lines.push('✅ Allure ('+pace+'/km) cohérente avec une séance EF. Beau travail en endurance fondamentale.');
-      else if(efPaceSec&&paceSec<efPaceSec-30) lines.push('⚠️ Allure ('+pace+'/km) un peu rapide pour de l\'EF (cible ~'+efPaceStr+'/km). Ralentis pour rester en zone basse.');
-      else lines.push('✅ Séance EF complétée à '+pace+'/km. Pense à saisir ta FC pour un suivi plus précis.');
+      if(efPaceSec&&paceSec>=efPaceSec-15) lines.push('✅ Allure ('+pace+'/km) cohérente avec une séance EF — beau travail en endurance fondamentale 👏');
+      else if(efPaceSec&&paceSec<efPaceSec-15) lines.push('⚠️ Allure ('+pace+'/km) un peu rapide pour de l\'EF (cible ~'+efPaceStr+'/km). Ralentis pour bien rester en zone basse et construire ta base.');
+      else lines.push('✅ Séance EF complétée à '+pace+'/km. Pense à saisir ta FC pour un suivi encore plus précis.');
     } else {
-      lines.push('✅ Séance EF complétée. Saisis ta FC et ton allure pour mieux suivre ta progression.');
+      lines.push('✅ Séance EF dans la boîte ! Saisis ta FC et ton allure pour mieux suivre ta progression.');
     }
     if(plannedKm>0){
-      if(kmRatio>=0.95&&kmRatio<=1.12) lines.push('📏 Volume parfait : '+realKm+' km réalisés sur '+plannedKm+' km prévus.');
-      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu t\'es écouté·e, c\'est bien — l\'essentiel est de progresser sans se blesser.');
-      else if(kmRatio>1.15) lines.push('📏 Tu as dépassé le volume prévu ('+realKm+' km). Attention à la fatigue accumulée — respecte le plan sur le long terme.');
-      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
+      if(kmRatio>=0.95&&kmRatio<=1.12) lines.push('📏 Volume parfait : '+realKm+' km réalisés sur '+plannedKm+' km prévus. 🎯');
+      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu t\'es écouté·e, c\'est la bonne décision — progresser sans se blesser, c\'est la priorité.');
+      else if(kmRatio>1.15) lines.push('📏 Tu as dépassé le volume prévu ('+realKm+' km). Attention à la fatigue accumulée — respecte le plan sur la durée.');
+      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km). Bien joué !');
     }
-    const tips=['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression marathon.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.'];
+    const tips=['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression marathon.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.','80 % de ton entraînement devrait être en zone EF — chaque sortie douce compte !'];
     lines.push('💡 '+tips[Math.floor(Math.random()*tips.length)]);
 
   } else if(type==='tempo'){
     icon='🔥'; title='Séance Tempo';
-    if(pace) lines.push('⚡ Allure moyenne (incluant récupérations) : '+pace+'/km.');
+    if(pace) lines.push('⚡ Allure moyenne (récupérations incluses) : '+pace+'/km.');
     if(hrNum&&fcMax){
       const tMin=Math.floor(fcMax*0.80);
       const tMax=Math.floor(fcMax*0.88);
-      if(hrNum>=tMin&&hrNum<=tMax) lines.push('✅ FC dans la zone tempo ('+hrNum+' bpm / '+tMin+'–'+tMax+' bpm) — belle qualité de travail au seuil.');
-      else if(hrNum>tMax) lines.push('⚠️ FC élevée ('+hrNum+' bpm). Bien sollicité — veille à bien récupérer après cette séance.');
-      else lines.push('💡 FC un peu basse pour du tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm). N\'hésite pas à pousser un peu plus fort sur les blocs.');
+      if(hrNum>=tMin&&hrNum<=tMax) lines.push('✅ FC dans la zone tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm) — belle qualité de travail au seuil ! 🔥');
+      else if(hrNum>tMax) lines.push('⚠️ FC élevée ('+hrNum+' bpm / cible max '+tMax+' bpm). Tu as bien sollicité ton organisme — récupère bien dans les 24–48h.');
+      else lines.push('💡 FC un peu basse pour du tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm). N\'hésite pas à pousser davantage sur les blocs la prochaine fois.');
+    }
+    // Analyse des blocs tempo
+    const tBlocs=blocsAllure.filter(b=>b&&b.trim());
+    if(tBlocs.length>0){
+      const tSecs=tBlocs.map(b=>_ps(b)).filter(v=>v>0);
+      if(tSecs.length>0){
+        lines.push('⚡ Blocs : '+tBlocs.join(' · ')+' /km');
+        if(tSecs.length>=2){
+          const variation=Math.max(...tSecs)-Math.min(...tSecs);
+          if(variation<=5) lines.push('✅ Excellent régularité sur les blocs (≤ 5 sec/km d\'écart) — c\'est la marque d\'un effort parfaitement contrôlé ! 🎯');
+          else if(variation<=12) lines.push('📊 Bonne régularité ('+variation+' sec/km d\'écart entre les blocs) — à affiner progressivement.');
+          else lines.push('⚠️ Variation de '+variation+' sec/km entre les blocs. Essaie de partir un peu moins vite pour finir plus fort — ça s\'appelle le "négatif split".');
+        }
+      }
     }
     if(plannedKm>0){
-      if(kmRatio>=0.9) lines.push('📏 Volume bien réalisé : '+realKm+' / '+plannedKm+' km.');
-      else lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus — si tu as ressenti de la fatigue, c\'est normal, le tempo est exigeant.');
+      if(kmRatio>=0.9) lines.push('📏 Volume bien réalisé : '+realKm+' / '+plannedKm+' km. 👏');
+      else lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus — c\'est normal de ne pas toujours finir le tempo, il vaut mieux s\'arrêter proprement.');
     }
-    lines.push('💡 Les séances tempo développent ton seuil lactique, clé pour soutenir l\'allure marathon sur la durée.');
+    lines.push('💡 Les séances tempo développent ton seuil lactique — c\'est la clé pour soutenir l\'allure marathon longtemps.');
 
   } else if(type==='frac'){
     icon='⚡'; title='Séance Fractionné';
     if(pace) lines.push('🏃 Allure moyenne (récupérations incluses) : '+pace+'/km.');
     if(hrNum&&fcMax){
       const fMin=Math.floor(fcMax*0.88);
-      if(hrNum>=fMin) lines.push('✅ FC bien haute ('+hrNum+' bpm) — les intervalles ont bien sollicité ton système cardiovasculaire.');
+      if(hrNum>=fMin) lines.push('✅ FC bien haute ('+hrNum+' bpm) — les intervalles ont parfaitement sollicité ton système cardiovasculaire ! 💪');
       else lines.push('💡 FC à '+hrNum+' bpm. Essaie de pousser davantage sur les répétitions pour dépasser '+fMin+' bpm et maximiser l\'effet entraînement.');
     }
+    // Analyse des blocs fractionné
+    const fBlocs=blocsAllure.filter(b=>b&&b.trim());
+    if(fBlocs.length>0){
+      const fSecs=fBlocs.map(b=>_ps(b)).filter(v=>v>0);
+      if(fSecs.length>0){
+        lines.push('⚡ Répétitions : '+fBlocs.join(' · ')+' /km');
+        if(fSecs.length>=2){
+          const variation=Math.max(...fSecs)-Math.min(...fSecs);
+          const avgSec=fSecs.reduce((a,v)=>a+v,0)/fSecs.length;
+          const avgStr=Math.floor(avgSec/60)+':'+(Math.round(avgSec%60)<10?'0':'')+Math.round(avgSec%60);
+          lines.push('📊 Allure moy. des répétitions : '+avgStr+'/km — écart max : '+variation+' sec/km.');
+          if(variation<=8) lines.push('✅ Régularité exemplaire sur les intervalles ! C\'est exactement ce qu\'on cherche. 🎯');
+          else if(variation<=20) lines.push('💪 Régularité correcte — avec l\'expérience, tu doseras encore mieux l\'effort sur chaque répétition.');
+          else lines.push('⚠️ Grande variation entre les répétitions ('+variation+' sec/km). Pars plus prudemment sur les premiers intervalles pour maintenir l\'allure jusqu\'à la fin.');
+        }
+      }
+    }
     if(plannedKm>0) lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
-    lines.push('💡 Le fractionné développe ta VO2max et ta vitesse — c\'est l\'entraînement le plus efficace pour progresser rapidement.');
+    lines.push('💡 Le fractionné développe ta VO2max et ta vitesse — c\'est l\'entraînement le plus puissant pour progresser rapidement. 🚀');
 
   } else if(type==='long'){
     icon='🏔️'; title='Sortie Longue';
     if(fcMax&&hrNum){
-      if(hrNum<=efMax) lines.push('✅ FC maîtrisée ('+hrNum+' bpm) sur la durée — c\'est exactement ce qu\'on cherche en sortie longue.');
-      else if(hrNum<=efMax+12) lines.push('⚠️ FC un peu élevée ('+hrNum+' bpm / zone EF max '+efMax+' bpm). Ça peut arriver en fin de sortie — essaie de partir plus doucement la prochaine fois.');
-      else lines.push('🔴 FC trop haute ('+hrNum+' bpm) pour une sortie longue. Ralentis davantage : l\'objectif est d\'accumuler du temps en zone basse.');
+      if(hrNum<=efMax) lines.push('✅ FC parfaitement maîtrisée ('+hrNum+' bpm) sur la durée — c\'est exactement ce qu\'on cherche en sortie longue ! Excellent travail. 🌟');
+      else if(hrNum<=efMax+12) lines.push('⚠️ FC un peu élevée ('+hrNum+' bpm / zone EF max '+efMax+' bpm). Ça peut arriver en fin de sortie ou par chaleur — pars un peu plus doucement la prochaine fois.');
+      else lines.push('🔴 FC trop haute ('+hrNum+' bpm) pour une sortie longue. Ralentis davantage — l\'objectif est d\'accumuler du temps en zone basse, pas de te fatiguer.');
     }
     if(plannedKm>0){
-      if(kmRatio>=0.9&&kmRatio<=1.05) lines.push('📏 Excellent volume : '+realKm+' km (prévu : '+plannedKm+' km). La sortie longue construit ta résistance à l\'effort prolongé.');
-      else if(realKm>=25) lines.push('📏 Belle sortie longue de '+realKm+' km — ce type de séance est fondamental pour le marathon !');
-      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu as ressenti de la fatigue, mieux vaut s\'arrêter à temps.');
-      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
+      if(kmRatio>=0.9&&kmRatio<=1.05) lines.push('📏 Excellent volume : '+realKm+' km (prévu : '+plannedKm+' km) — la sortie longue construit ta résistance à l\'effort prolongé. 💪');
+      else if(realKm>=25) lines.push('📏 Belle sortie longue de '+realKm+' km ! Ce type de séance est fondamental pour le marathon. 🏅');
+      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. S\'arrêter à temps quand on ressent la fatigue, c\'est la bonne décision — la récupération fait partie de l\'entraînement.');
+      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km). Bien joué !');
     }
-    lines.push('💡 La sortie longue est la reine du marathon — chaque km supplémentaire en zone EF renforce tes mitochondries et ta résistance à la fatigue.');
+    lines.push('💡 La sortie longue est la reine du marathon — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue. 🏆');
 
   } else {
     icon='🏁'; title='Séance validée';
-    lines.push('✅ Séance complétée !');
+    lines.push('✅ Séance complétée ! Bravo 💪');
     if(realKm) lines.push('📏 '+realKm+' km réalisés.');
     if(pace) lines.push('⚡ Allure : '+pace+'/km.');
+  }
+
+  // Contexte météo si disponible
+  if(meteo&&meteo.temperature){
+    const elevFC=(meteo.impact_performance&&meteo.impact_performance.elevation_fc_bpm)||0;
+    if(elevFC>0){
+      lines.push('🌡️ Séance par '+meteo.temperature+'°C (ressenti '+meteo.ressenti+'°C) : la chaleur a naturellement élevé ta FC de ~'+elevFC+' bpm — tiens-en compte dans l\'analyse de ton effort.');
+    } else {
+      lines.push('🌤️ Conditions idéales : '+meteo.temperature+'°C — parfait pour courir !');
+    }
   }
 
   const nbWarnings=lines.filter(l=>l.startsWith('⚠️')||l.startsWith('🔴')).length;
   const nbOk=lines.filter(l=>l.startsWith('✅')).length;
   let overall;
-  if(nbWarnings===0&&nbOk>0) overall='Belle séance ! Continue comme ça 💪';
-  else if(nbWarnings>=2) overall='Séance dans la boîte ! Récupère bien.';
+  if(nbWarnings===0&&nbOk>0) overall='Belle séance, continue comme ça ! 💪';
+  else if(nbWarnings>=2) overall='Séance dans la boîte — récupère bien ! 🛌';
   else overall='Chaque sortie te rapproche de l\'objectif 🎯';
 
   const mc=document.getElementById('modal-container');
@@ -6165,7 +6209,7 @@ function showAthleteFeedback(s, km, pace, hr){
         <div style="display:flex;flex-direction:column;gap:10px;">
           ${lines.map(l=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600;color:var(--text);line-height:1.5;">${l}</div>`).join('')}
         </div>
-        <button onclick="closeModal()" style="margin-top:20px;width:100%;padding:14px;background:${headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">Fermer</button>
+        <button onclick="closeModal()" style="margin-top:20px;width:100%;padding:14px;background:${headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">👍 Fermer</button>
       </div>
     </div>
   </div>`;
@@ -6767,7 +6811,7 @@ async function importMeteoValidation() {
           ${elevFC > 0 ? `<span style="background:#FF6F0018;border-radius:12px;padding:4px 10px;font-size:11px;font-weight:600;color:#E65100;">❤️ FC +${elevFC} bpm attendus</span>` : ''}
         </div>
         ${niveau !== 'IDEAL' ? `<p style="font-size:10px;color:#666;margin:0 0 4px;font-style:italic;line-height:1.4;">${meteo.impact_performance?.conseil}</p>` : ''}
-        <p style="font-size:9px;color:#aaa;margin:0;">✅ Transmis au Coach IA pour l'analyse de ta séance</p>`;
+        <p style="font-size:9px;color:#aaa;margin:0;">${isAdmin()?'✅ Transmis au Coach IA pour l\'analyse de ta séance':'📊 Météo enregistrée pour cette séance'}</p>`;
       // Fade in
       requestAnimationFrame(() => { preview.style.opacity = '1'; });
     }
