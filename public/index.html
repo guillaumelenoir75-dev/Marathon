@@ -32,6 +32,7 @@ input[type=number]{background:var(--bg2);border:1px solid var(--border);border-r
 input[type=number]:focus{border-color:var(--orange);}
 .modal-overlay{position:fixed;top:0;bottom:0;z-index:200;display:flex;align-items:flex-end;justify-content:center;left:max(0px,(100vw - 390px)/2);right:max(0px,(100vw - 390px)/2);background:transparent;animation:_overlayFadeIn 0.22s ease forwards;overflow:hidden;will-change:transform;touch-action:pan-y;}
 @keyframes _overlayFadeIn{from{background:transparent;}to{background:var(--_overlay-bg,rgba(0,0,0,0.4));}}
+@keyframes _pulseBadge{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.3);opacity:0.8;}}
 @keyframes _sheetSlideUp{from{transform:translateY(100%);opacity:0.6;}to{transform:translateY(0);opacity:1;}}
 @keyframes _sheetSlideDown{from{transform:translateY(0);opacity:1;}to{transform:translateY(100%);opacity:0;}}
 .modal-box{background:var(--bg);border-radius:24px 24px 0 0;padding:0;width:100%;max-width:390px;border-top:none;overscroll-behavior:contain;overflow:hidden;animation:_sheetSlideUp 0.32s cubic-bezier(0.32,0.72,0,1) forwards;box-shadow:0 -8px 40px rgba(0,0,0,0.18);position:relative;will-change:transform;touch-action:pan-y;display:flex;flex-direction:column;max-height:92vh;}
@@ -152,9 +153,10 @@ input[type=number]:focus{border-color:var(--orange);}
           <span style="font-size:10px;font-weight:700;" id="h-week-num">S9</span>
         </div>
         <!-- Bouton notifications -->
-        <div id="notif-btn" onclick="handleNotifBtn()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.13);border-radius:20px;padding:3px 9px;cursor:pointer;" title="Notifications">
+        <div id="notif-btn" onclick="handleNotifBtn()" style="position:relative;display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.13);border-radius:20px;padding:3px 9px;cursor:pointer;" title="Notifications">
           <svg id="notif-bell-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
           <span id="notif-btn-label" style="font-size:10px;opacity:0.85;">Notifs</span>
+          <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;background:#E8530A;border-radius:50%;border:2px solid #1B4FD8;animation:_pulseBadge 1.8s ease-in-out infinite;"></span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;">
@@ -254,6 +256,8 @@ input[type=number]:focus{border-color:var(--orange);}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
   </div>
+  <!-- Bannière notifications (affichée si non activées) -->
+  <div id="home-notif-banner" style="display:none;background:#EDF2FB;padding:8px 16px 0;"></div>
   <!-- Charnière séances -->
   <div style="background:#EDF2FB;padding:4px 16px 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
     <p style="font-size:13px;font-weight:700;color:#0C447C;">Séances <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="sessions-progress"></span></p>
@@ -1233,14 +1237,33 @@ function openPrefsModal(){
 
       <!-- Notifications -->
       <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e8e8e8;">
-        <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px;">🔔 Notifications</p>
-        ${row('Brief du matin','Résumé de la journée chaque matin','notif_brief_matin')}
-        ${row('Rappel 1h avant séance','Notification avant chaque entraînement','notif_seance')}
-        ${row('Débrief hebdomadaire','Bilan de fin de semaine','notif_debrief_semaine')}
-        ${row('Planification semaine','Rappel de planification le dimanche','notif_planif')}
-        ${row('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')}
-        ${row('Rappel FC de repos','Mesure FC repos le matin (admin)','notif_fc_repos',true)}
-        ${row('Séances non validées','Rappel si des séances ne sont pas cochées','notif_unvalidated')}
+        <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">🔔 Notifications</p>
+        ${(()=>{
+          const perm=('Notification' in window)?Notification.permission:'unavailable';
+          const pushOk='PushManager' in window && 'serviceWorker' in navigator;
+          if(!pushOk) return '<p style="font-size:12px;color:#888;padding:8px 0;">Les notifications push nécessitent iOS 16.4+ et l\'app installée sur l\'écran d\'accueil.</p>';
+          const ctaBanner = perm !== 'granted' ? `<div onclick="handleNotifBtn();document.getElementById('prefs-modal-overlay')?.remove()" style="background:${perm==='denied'?'#FFF0F0':'#FEF3EE'};border:1.5px solid ${perm==='denied'?'#E24B4A40':'#E8530A40'};border-radius:12px;padding:10px 14px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${perm==='denied'?'#E24B4A':'#E8530A'}" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <div style="flex:1;">
+              <p style="font-size:13px;font-weight:700;color:${perm==='denied'?'#E24B4A':'#E8530A'};margin:0;">${perm==='denied'?'Notifications bloquées':'Notifications non activées'}</p>
+              <p style="font-size:11px;color:#888;margin:2px 0 0;">${perm==='denied'?"Va dans Réglages > Marathon pour les débloquer":"Appuie ici pour les activer — obligatoire"}</p>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${perm==='denied'?'#E24B4A':'#E8530A'}" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>` : '';
+          const rowN=(label,sub,key,defVal=true)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f5f5f5;gap:8px;">
+            <div style="flex:1;min-width:0;"><p style="font-size:14px;font-weight:600;color:#1a1a1a;margin:0;">${label}</p>${sub?`<p style="font-size:11px;color:#888;margin:2px 0 0;">${sub}</p>`:''}</div>
+            <button id="test-notif-btn-${key}" onclick="event.stopPropagation();testLocalNotif('${key}')" style="padding:4px 10px;background:#EEF2FD;border:1.5px solid #d0dff5;border-radius:10px;font-size:11px;font-weight:700;color:#1B4FD8;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all 0.2s;">Tester</button>
+            ${tog(key,defVal)}
+          </div>`;
+          return ctaBanner
+            + rowN('Brief du matin','Résumé chaque matin avant de courir','notif_brief_matin')
+            + rowN('Rappel 1h avant séance','Notification avant chaque entraînement','notif_seance')
+            + rowN('Débrief hebdomadaire','Bilan de fin de semaine','notif_debrief_semaine')
+            + rowN('Planification semaine','Rappel de planification le dimanche','notif_planif')
+            + rowN('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')
+            + (isAdmin()?rowN('Rappel FC de repos','Mesure FC repos le matin','notif_fc_repos'):'')
+            + rowN('Séances non validées','Rappel si des séances ne sont pas cochées','notif_unvalidated');
+        })()}
       </div>
     </div>
   </div>`;
@@ -5565,6 +5588,9 @@ function renderHome(){
   }
   // Météo accueil : seulement sur semaine en cours
   if(isCurrent) setTimeout(_updateHomeWeather, 500);
+  // Bannière notifications
+  _updateHomeNotifBanner();
+  updateNotifBtnState();
 }
 
 function toggleDoneExtra(ei){
@@ -14716,6 +14742,66 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 // Enregistre le Service Worker et initialise l'état du bouton notifications
+function _updateHomeNotifBanner(){
+  const banner = document.getElementById('home-notif-banner');
+  if (!banner) return;
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    banner.style.display = 'none';
+    return;
+  }
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    banner.style.display = 'none';
+    return;
+  }
+  banner.style.display = 'block';
+  const isDenied = perm === 'denied';
+  banner.innerHTML = `<div onclick="handleNotifBtn()" style="background:${isDenied?'linear-gradient(135deg,#C4141B,#8B0000)':'linear-gradient(135deg,#E8530A,#C4141B)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:10px;box-shadow:0 4px 16px rgba(232,83,10,0.35);">
+    <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+    </div>
+    <div style="flex:1;">
+      <p style="font-size:14px;font-weight:800;color:#fff;margin:0;">${isDenied?'Notifications bloquées':'🔔 Active les notifications'}</p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.88);margin:3px 0 0;">${isDenied?"Va dans Réglages › Marathon pour les débloquer":"Ne rate plus aucune séance ni bilan — appuie ici !"}</p>
+    </div>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+  </div>`;
+}
+
+async function testLocalNotif(type){
+  if (!('serviceWorker' in navigator)) { alert('Service Worker non supporté sur cet appareil.'); return; }
+  if (Notification.permission !== 'granted') {
+    alert('Active d\'abord les notifications en appuyant sur le bouton "Notifs" en haut de l\'écran.');
+    return;
+  }
+  const cw = getEffectiveCW();
+  const notifDefs = {
+    notif_brief_matin: { title: '☀️ Brief du matin — S'+cw, body: 'EF 12 km prévu à 7h30. Conditions idéales aujourd\'hui 🌤️' },
+    notif_seance:      { title: '⏱️ Séance dans 1h', body: 'EF 12 km dans 1 heure. Prépare tes affaires ! 🏃' },
+    notif_debrief_semaine: { title: '📊 Bilan S'+cw+' — Terminée !', body: '3 séances sur 3 validées cette semaine. Félicitations ! 🎉' },
+    notif_planif:      { title: '📅 On planifie la semaine ?', body: 'Prends 2 min pour planifier tes séances de la semaine à venir.' },
+    notif_congrats:    { title: '🏆 Semaine S'+cw+' complète !', body: 'Toutes tes séances sont validées. Beau travail, continue ! 💪' },
+    notif_fc_repos:    { title: 'Rappel ☀️', body: 'Rentre ta FC repos avant de te lever ❤️' },
+    notif_unvalidated: { title: '⚠️ Séances non validées', body: '2 séances de cette semaine ne sont pas encore cochées.' },
+  };
+  const n = notifDefs[type];
+  if (!n) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(n.title, {
+      body: n.body,
+      icon: '/icon-512-v3.png',
+      badge: '/icon-192-v3.png',
+      tag: type+'-test',
+      requireInteraction: false
+    });
+    const btn = document.getElementById('test-notif-btn-'+type);
+    if (btn) { btn.textContent = '✅'; btn.style.background = '#EAF3DE'; btn.style.color = '#3B6D11'; setTimeout(()=>{ btn.textContent='Tester'; btn.style.background=''; btn.style.color=''; }, 2500); }
+  } catch(e) {
+    alert('Erreur test notif : '+e.message);
+  }
+}
+
 async function initNotifications() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     // iOS < 16.4 ou pas installée comme PWA → cacher le bouton
@@ -14736,20 +14822,25 @@ function updateNotifBtnState() {
   const btn = document.getElementById('notif-btn');
   const label = document.getElementById('notif-btn-label');
   const icon = document.getElementById('notif-bell-icon');
+  const badge = document.getElementById('notif-badge');
   if (!btn) return;
-  const perm = Notification.permission;
+  const perm = ('Notification' in window) ? Notification.permission : 'unavailable';
   if (perm === 'granted') {
     btn.style.background = 'rgba(127,212,168,0.25)';
     if (label) label.textContent = '✓ Actives';
     if (icon) icon.setAttribute('stroke', '#7FD4A8');
+    if (badge) badge.style.display = 'none';
   } else if (perm === 'denied') {
     btn.style.background = 'rgba(226,75,74,0.2)';
     if (label) label.textContent = 'Bloquées';
     if (icon) icon.setAttribute('stroke', '#E24B4A');
+    if (badge) badge.style.display = 'block';
   } else {
     btn.style.background = 'rgba(255,255,255,0.13)';
     if (label) label.textContent = 'Notifs';
     if (icon) icon.setAttribute('stroke', 'rgba(255,255,255,0.75)');
+    // Pastille orange uniquement si PushManager supporté (sinon on ne peut pas activer)
+    if (badge) badge.style.display = ('PushManager' in window) ? 'block' : 'none';
   }
 }
 
@@ -14785,9 +14876,13 @@ async function subscribeToPush() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
-    // Sauvegarder dans Firebase DB sous marathon/push_sub
+    // Sauvegarder dans Firebase DB sous users/{uid}/state/_push_sub
     if (dbRef) {
-      await dbRef.child('_push_sub').set(JSON.parse(JSON.stringify(sub)));
+      const subObj = JSON.parse(JSON.stringify(sub));
+      await dbRef.child('_push_sub').set(subObj);
+      // Aussi dans _push_subscribers/{uid} pour les notifications multi-utilisateurs
+      const uid = firebase.auth().currentUser?.uid;
+      if (uid) await firebase.database().ref('_push_subscribers/'+uid).set(subObj);
       console.log('Push subscription sauvegardée dans Firebase');
     }
     updateNotifBtnState();

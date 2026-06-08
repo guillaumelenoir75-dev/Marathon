@@ -1795,6 +1795,35 @@ async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   }
 }
 
+// Envoie à tous les abonnés push (admin + athlètes) avec vérification de préférence
+async function sendPushToAll(vapidPublic, vapidPrivate, title, body, tag, url, prefKey) {
+  const webpush = require('web-push');
+  webpush.setVapidDetails('mailto:guillaumelenoir75@gmail.com', vapidPublic, vapidPrivate);
+  const db = admin.database();
+  const subsSnap = await db.ref('_push_subscribers').once('value');
+  const subs = subsSnap.val() || {};
+  if (Object.keys(subs).length === 0) { console.log('Aucun abonné push global — skip'); return; }
+  const sendOne = async (uid, sub) => {
+    if (prefKey) {
+      try {
+        const pSnap = await db.ref(`users/${uid}/state/_prefs`).once('value');
+        const prefs = pSnap.val() ? JSON.parse(pSnap.val()) : {};
+        if (prefs[prefKey] === false) return;
+      } catch(e) {}
+    }
+    try {
+      await webpush.sendNotification(sub, JSON.stringify({ title, body, tag, url: url || '/' }));
+      console.log(`sendPushToAll → ${uid} : [${tag}]`);
+    } catch(err) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await db.ref(`_push_subscribers/${uid}`).remove().catch(()=>{});
+        await db.ref(`users/${uid}/state/_push_sub`).remove().catch(()=>{});
+      }
+    }
+  };
+  await Promise.all(Object.entries(subs).map(([uid, sub]) => sendOne(uid, sub)));
+}
+
 function getWeekFromDB() {
   const weekDates = [
     '2026-03-09','2026-03-16','2026-03-23','2026-03-30',
