@@ -5174,14 +5174,10 @@ function renderHome(){
   const am=getMarathonPaceStr();
   const amEl=document.getElementById('h-am-pace');
   if(amEl) amEl.textContent=am;
-  // EF pace + zone FC
+  // EF pace
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
-  if(efEl){
-    const fcZ=getFcMaxZone();
-    const efStr=efPace?efPace:(isAdmin()?"6'40":'—');
-    efEl.textContent=fcZ?efStr+' · '+fcZ.min+'–'+fcZ.max+'bpm':efStr;
-  }
+  if(efEl) efEl.textContent=efPace?efPace:(isAdmin()?"6'40":'—');
 
   // ── Bloc course / KPIs selon rôle ──────────────────────────────────────────
   const ob=state.onboarding||{};
