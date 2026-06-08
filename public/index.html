@@ -13002,8 +13002,8 @@ async function checkPendingBrief() {
     delete state['_brief_pending'];
     // Remettre le flag _brief_matin_ à false pour que checkMorningBrief puisse tourner
     try { await dbRef.child('_brief_matin_' + today).remove(); } catch(e) {}
-    // Retourner false → loadCoachHistory appellera checkMorningBrief en fin de flow
-    return false;
+    // Retourner un objet spécial pour signaler à loadCoachHistory d'appeler checkMorningBrief(force=true)
+    return { needs_full_brief: true };
   }
 
   _briefShownToday = true;
@@ -13081,7 +13081,7 @@ async function checkMorningBrief(memos, force) {
   // Lundi : bodyhit compte comme activité du jour même sans séance planifiée
   const bodyhitToday = (dow === 1);
 
-  if(todaySessions.length === 0 && renfoTodayGate.length === 0 && !bodyhitToday) return false;
+  if(!force && todaySessions.length === 0 && renfoTodayGate.length === 0 && !bodyhitToday) return false;
 
   // Marquer comme brief complet généré
   try { await dbRef.child(briefKey).set(true); } catch(e){}
@@ -13273,11 +13273,12 @@ async function loadCoachHistory(){
 
   // Vérifier d'abord si un brief push est en attente (priorité absolue, sans condition)
   const _pendingResult = await checkPendingBrief();
-  // _pendingResult peut être false si needs_full_brief → dans ce cas on génère le brief complet
+  // needs_full_brief : le serveur a envoyé la notif mais délègue la génération du brief complet au client
+  const _needsFullBrief = _pendingResult && _pendingResult.needs_full_brief;
   // On mémorise si on vient d'une notif pour ne pas afficher le message de bienvenue parasite
   const _fromPushNotif = window._coachOpenedFromNotif || false;
   window._coachOpenedFromNotif = false; // reset
-  if (_pendingResult) {
+  if (_pendingResult && !_needsFullBrief) {
     try {
       const _h = await dbRef.child('_coach_history').once('value');
       if (_h.val()) coachHistory = JSON.parse(_h.val());
@@ -13609,7 +13610,9 @@ async function loadCoachHistory(){
   // ── TOUJOURS vérifier le brief du matin en fin de loadCoachHistory ──
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)
   if (!_briefShownToday) {
-    try { await checkMorningBrief(memos); } catch(_e) {}
+    // force=true si on vient d'une notif (needs_full_brief ou _coachOpenedFromNotif)
+    const _forceBrief = _needsFullBrief || _fromPushNotif;
+    try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
   }
 }
 // Afficher un overlay de chargement jusqu'à ce que Firebase soit prêt
