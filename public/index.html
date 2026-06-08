@@ -1399,15 +1399,58 @@ function showOnboarding(editMode){
   if(dayEl && dayEl.options.length<=1){
     for(let d=1;d<=31;d++){const o=document.createElement('option');o.value=String(d).padStart(2,'0');o.textContent=d;dayEl.appendChild(o);}
   }
+  // Nettoyer les champs FC max et EF pace
+  const fcValEl=document.getElementById('ob-fcmax-val');
+  const fcAgeEl=document.getElementById('ob-fcmax-age');
+  const fcAgeRes=document.getElementById('ob-fcmax-age-result');
+  const efMinEl=document.getElementById('ob-ef-min');
+  const efSecEl=document.getElementById('ob-ef-sec');
+  if(fcValEl) fcValEl.value='';
+  if(fcAgeEl) fcAgeEl.value='';
+  if(fcAgeRes) fcAgeRes.textContent='';
+  if(efMinEl) efMinEl.value='';
+  if(efSecEl) efSecEl.value='';
+  // En mode édition : restaurer les valeurs dans les inputs
+  if(editMode && _obData.fc_max){
+    // FC max : selon si elle vient de l'âge ou directement
+    if(_obData._fc_max_from_age){
+      if(fcAgeEl) fcAgeEl.value=_obData._fc_max_from_age;
+      if(fcAgeRes) fcAgeRes.textContent='→ FC max estimée : '+_obData.fc_max+' bpm';
+    } else {
+      if(fcValEl) fcValEl.value=_obData.fc_max;
+    }
+  }
+  if(editMode && _obData.ef_pace){
+    const parts=_obData.ef_pace.replace("'",":").split(':');
+    if(efMinEl) efMinEl.value=parts[0]||'';
+    if(efSecEl) efSecEl.value=parts[1]||'';
+  }
   // Bouton fermer visible seulement en mode édition
   const closeBtn=document.getElementById('ob-btn-close');
   if(closeBtn) closeBtn.style.display=editMode?'flex':'none';
   _obGoTo(0);
-  // Restore selections
-  ['course','sessions','niveau','km_semaine','generate_plan'].forEach(f=>{
+  // Restore chip selections
+  ['course','sessions','niveau','generate_plan'].forEach(f=>{
     document.querySelectorAll('[id^="ob-'+f+'-"]').forEach(el=>el.classList.remove('selected'));
     if(_obData[f]){const c=document.getElementById('ob-'+f+'-'+_obData[f]);if(c)c.classList.add('selected');}
   });
+  // Restore km_semaine (y compris valeur custom)
+  document.querySelectorAll('[id^="ob-km_semaine-"]').forEach(el=>el.classList.remove('selected'));
+  const knownKmVals=['10','20','30','40'];
+  if(_obData.km_semaine){
+    if(knownKmVals.includes(_obData.km_semaine)){
+      const c=document.getElementById('ob-km_semaine-'+_obData.km_semaine);
+      if(c) c.classList.add('selected');
+    } else {
+      // Valeur custom : ouvrir la boîte
+      const customBtn=document.getElementById('ob-km_semaine-custom');
+      const customBox=document.getElementById('ob-km-custom-box');
+      const customInput=document.getElementById('ob-km-custom-input');
+      if(customBtn) customBtn.classList.add('selected');
+      if(customBox) customBox.style.display='block';
+      if(customInput) customInput.value=_obData.km_semaine;
+    }
+  }
   // Restore date selects
   if(_obData.date){
     const parts=_obData.date.split('-');
@@ -1467,12 +1510,21 @@ function _obGoTo(step){
   // Initialiser l'étape jours avec la bonne limite
   if(step===5) setTimeout(initObDaysStep, 0);
   if(step===8) setTimeout(_initObTargetTime, 0);
-  // Reset champ EF si on revient sur l'étape 6
+  // Étape 6 (EF) : gérer l'état du champ selon si EF déjà saisie ou non
   if(step===6){
     const wrap=document.getElementById('ob-ef-input-wrap');
-    if(wrap) wrap.style.display='none';
     document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
-    if(_obData.ef_pace===null) delete _obData.ef_pace; // réinitialiser pour que le choix soit re-fait
+    if(_obData.ef_pace===null) delete _obData.ef_pace;
+    if(_obData.ef_pace){
+      // Restaurer la sélection et les valeurs
+      if(wrap) wrap.style.display='block';
+      const oui=document.getElementById('ob-ef-oui'); if(oui) oui.classList.add('selected');
+      const parts=String(_obData.ef_pace).replace("'",":").split(':');
+      const efMin=document.getElementById('ob-ef-min'); if(efMin) efMin.value=parts[0]||'';
+      const efSec=document.getElementById('ob-ef-sec'); if(efSec) efSec.value=parts[1]||'';
+    } else {
+      if(wrap) wrap.style.display='none';
+    }
   }
   const back=document.getElementById('ob-btn-back');
   if(back) back.style.display=step>0?'flex':'none';
@@ -1636,7 +1688,8 @@ function onboardingSelectEf(val){
 }
 
 function onboardingNext(){
-  if(_obStep===7){saveOnboarding();return;}
+  // Dernière étape → sauvegarder
+  if(_obStep===8){saveOnboarding();return;}
   // Étape 5 (jours) : lire l'horaire avant de passer
   if(_obStep===5){
     const timeEl=document.getElementById('ob-run-time');
@@ -1729,7 +1782,7 @@ function initObDaysStep(){
   // Pré-sélection par défaut : Mar(1), Jeu(3), Sam(5) — 3 jours; adapter si max différent
   if(!_obData.run_days || _obData.run_days.length===0){
     const defaults=[[1,3,5],[1,3],[1,3,5,6]][Math.min(max,4)===2?1:max>=4?2:0];
-    _obData.run_days=[1,3,5].slice(0,max);
+    _obData.run_days=[...defaults];
     if(!_obData.run_times) _obData.run_times={};
     _obData.run_days.forEach(d=>{ if(!_obData.run_times[d]) _obData.run_times[d]='12:00'; });
     _obData.run_time='12:00';
@@ -1843,10 +1896,19 @@ async function saveOnboarding(){
     await new Promise(r=>setTimeout(r,600));
     loadEl.remove();
   } else {
+    // Plan non généré : sauvegarder quand même le profil et les préférences
     if(dbRef){
       state.onboarding=_obData;
       await dbRef.child('onboarding').set(_obData).catch(()=>{});
-      if(_obData.fc_max){ state.fc_max=_obData.fc_max; await dbRef.child('fc_max').set(_obData.fc_max).catch(()=>{}); }
+      const updates={};
+      if(_obData.fc_max){ state.fc_max=_obData.fc_max; updates.fc_max=_obData.fc_max; }
+      if(_obData.ef_pace){ state.ef_pace=_obData.ef_pace; updates.ef_pace=_obData.ef_pace; }
+      if(_obData.run_days){ state.run_days=_obData.run_days; updates.run_days=JSON.stringify(_obData.run_days); }
+      if(_obData.run_time){ state.run_time=_obData.run_time; updates.run_time=_obData.run_time; }
+      if(_obData.run_times){ state.run_times=_obData.run_times; updates.run_times=JSON.stringify(_obData.run_times); }
+      if(_obData.target_time){ state.target_time=_obData.target_time; updates.target_time=_obData.target_time; }
+      if(_obData.race_distance_km){ state.race_distance_km=_obData.race_distance_km; updates.race_distance_km=_obData.race_distance_km; }
+      if(Object.keys(updates).length>0) await dbRef.update(updates).catch(()=>{});
     }
   }
 
