@@ -5105,9 +5105,9 @@ async function saveValidationExtra(ei){
   if(pace) perf.pace=pace;
   if(hr) perf.hr=hr;
   if(dateVal) perf.date=dateVal;
-  // Blocs Tempo
+  // Blocs Tempo/Frac
   const sExtra=JSON.parse(state[k]||'{}');
-  if(sExtra.type==='tempo'){
+  if(sExtra.type==='tempo'||sExtra.type==='frac'){
     const tmatch=(sExtra.d||'').split('|')[0].match(/(\d+)[x\u00d7]/i);
     const nbB=tmatch?parseInt(tmatch[1]):2;
     const blocsAllure=[];
@@ -5242,18 +5242,20 @@ function openValidationModal(idx){
         </div>
       </div>
       ${(()=>{
-        if(s.type!=='tempo') return '';
+        if(s.type!=='tempo'&&s.type!=='frac') return '';
         const titleMatch=s.d.split('|')[0].match(/(\d+)[x\u00d7]/i);
         const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
         const prevBlocs=prev.blocsAllure||[];
         const nbRows=Math.ceil(nbBlocs/3);
-        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:#1B4FD8;margin-bottom:8px;">\u26a1 Allure par bloc tempo</p>';
+        const _blocColor=s.type==='frac'?'#C4141B':'#1B4FD8';
+        const _blocLabel=s.type==='frac'?'\u26a1 Allure par bloc fractionn\u00e9':'\u26a1 Allure par bloc tempo';
+        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:'+_blocColor+';margin-bottom:8px;">'+_blocLabel+'</p>';
         for(let row=0;row<nbRows;row++){
           const start2=row*3; const end2=Math.min(start2+3,nbBlocs); const count=end2-start2;
           html+='<div style="display:grid;grid-template-columns:repeat('+count+',1fr);gap:8px;'+(row>0?'margin-top:8px;':'')+'">';
           for(let i=start2;i<end2;i++){
             html+='<div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Bloc '+(i+1)+'</p>';
-            html+='<input type="text" id="val-bloc-'+i+'" value="'+(prevBlocs[i]||'')+'" placeholder="4:50" maxlength="5" style="background:var(--bg2);border:1.5px solid #1B4FD830;border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:#1B4FD8;width:100%;outline:none;text-align:center;">';
+            html+='<input type="text" id="val-bloc-'+i+'" value="'+(prevBlocs[i]||'')+'" placeholder="4:50" maxlength="5" style="background:var(--bg2);border:1.5px solid '+_blocColor+'30;border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:'+_blocColor+';width:100%;outline:none;text-align:center;">';
             html+='<p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p></div>';
           }
           html+='</div>';
@@ -5330,8 +5332,8 @@ async function saveValidation(idx){
   if(pace) perf.pace=pace;
   if(hr) perf.hr=hr;
   if(dateVal) perf.date=dateVal;
-  // Sauvegarder les allures de blocs tempo
-  if(s.type==='tempo'){
+  // Sauvegarder les allures de blocs tempo/frac
+  if(s.type==='tempo'||s.type==='frac'){
     const titleMatch=s.d.split('|')[0].match(/(\d+)[x×]/i);
     const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
     const blocsAllure=[];
@@ -5552,14 +5554,15 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
       analysisContext.fcSeuil = 148;
       analysisContext.fcAnalyse = hr<=148?'bonne_maitrise':hr<=158?'un_peu_elevee':'trop_elevee';
       analysisContext.fcComptePourCalcAM = hr<=148;
-    } else if(s.type==='tempo'){
-      analysisContext.fcSeuil = 165;
-      analysisContext.fcAnalyse = hr<=165?'correct':hr<=172?'un_peu_eleve':'trop_eleve';
+    } else if(s.type==='tempo'||s.type==='frac'){
+      analysisContext.fcSeuil = s.type==='frac'?170:165;
+      const seuil=analysisContext.fcSeuil;
+      analysisContext.fcAnalyse = hr<=seuil?'correct':hr<=seuil+7?'un_peu_eleve':'trop_eleve';
     }
   }
 
-  // Pour Tempo : calcul allure globale attendue
-  if(s.type==='tempo'&&pace&&km){
+  // Pour Tempo/Frac : calcul allure globale attendue
+  if((s.type==='tempo'||s.type==='frac')&&pace&&km){
     const detail=s.d.split('|')[1]||'';
     const title=s.d.split('|')[0]||'';
     const repMatch=title.match(/(\d+)×(\d+)/);
@@ -7053,6 +7056,10 @@ function onEditTypeChange(){
     container.innerHTML=buildTempoFieldsHtml('hm',2,8,'3:00','5:00','5:20');
     const hmName=document.getElementById('hm-name');
     if(hmName) hmName.closest('div').style.display='none';
+  } else if(type==='frac'){
+    container.innerHTML=buildTempoFieldsHtml('hm',6,2,'2:00','4:30','4:50','#C4141B');
+    const hmName=document.getElementById('hm-name');
+    if(hmName) hmName.closest('div').style.display='none';
   } else {
     container.innerHTML=`<div>
       <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
@@ -8469,8 +8476,8 @@ function savePerfEdit(ws, si){
     const existing = state[k+'perf'] ? (typeof state[k+'perf']==='string' ? JSON.parse(state[k+'perf']) : state[k+'perf']) : {};
     if(existing.meteo) perf.meteo = existing.meteo;
   } catch(e) {}
-  // Blocs tempo
-  if(s.type==='tempo'){
+  // Blocs tempo/frac
+  if(s.type==='tempo'||s.type==='frac'){
     const titleMatch=s.d.split('|')[0].match(/(\d+)[x\u00d7]/i);
     const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
     const blocsAllure=[];
@@ -8747,7 +8754,7 @@ function openEditModal(ws, si){
   const _hcls  = {ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'}[s.type]||'modal-header-default';
   const _hacc  = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
   const _hlbl  = {ef:'Endurance Fondamentale',tempo:'Intervalles Tempo',frac:'Fractionné',long:'Sortie Longue'}[s.type]||title;
-  const _hemj  = {ef:'🟢',tempo:'🔥',long:'💜'}[s.type]||'📅';
+  const _hemj  = {ef:'🟢',tempo:'🔥',frac:'⚡',long:'💜'}[s.type]||'📅';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
   // Couleur gradient de transition header→body
   const _gradColors = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'};
@@ -8775,8 +8782,8 @@ function openEditModal(ws, si){
     <div class="modal-scroll-body">
     <div class="modal-body" style="gap:0;">
 
-      <!-- Planning (Tempo & Long) -->
-      ${s.type==='tempo'||s.type==='long'?`
+      <!-- Planning (Tempo, Frac & Long) -->
+      ${s.type==='tempo'||s.type==='frac'||s.type==='long'?`
       <div class="modal-section" style="background:linear-gradient(135deg,#EEF2FD,#E8EDFF);">
         <div class="modal-section-label" style="color:#1B4FD8;">📅 Planification</div>
         ${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}
@@ -10958,7 +10965,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   }
 
   // Charge courante
-  const coeff = {ef:1, long:1.1, tempo:1.5, race:1.6, rest:0};
+  const coeff = {ef:1, long:1.1, tempo:1.5, frac:1.5, race:1.6, rest:0};
   let chargeCW = 0, chargePrev = 0;
   weeks[CW-1].sessions.forEach((sess,si)=>{
     if(state[`del_w${CW}_s${si}`]) return;
@@ -11236,7 +11243,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const tempoAvecBlocs = [];
       for(let ws=1; ws<=CW; ws++){
         weeks[ws-1].sessions.forEach((sess,si)=>{
-          if(sess.type!=='tempo') return;
+          if(sess.type!=='tempo'&&sess.type!=='frac') return;
           const k=gk(ws,si);
           const perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;
           if(!perf||!perf.blocsAllure||!perf.blocsAllure.some(b=>b)) return;
@@ -11500,7 +11507,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
   }
 
   if(needs.charge_detail) {
-    const coeff={ef:1,long:1.1,tempo:1.5,race:1.6,rest:0};
+    const coeff={ef:1,long:1.1,tempo:1.5,frac:1.5,race:1.6,rest:0};
     const chargeHist=[];
     for(let ws=Math.max(1,CW-7);ws<=CW;ws++){
       let charge=0;
@@ -11624,7 +11631,7 @@ function openPlanModifModal(){
 
   // Si un type est ciblé, ne montrer que les séances de ce type
   const searchForDisplay = ((_lastUserMessageBeforeProposal||'').toLowerCase()+' '+(_lastCoachProposalText||'').toLowerCase());
-  const typeKWDisplay = {ef:[/\bef\b/i,/seance ef/i], tempo:[/\btempo\b/i], long:[/longue/i]};
+  const typeKWDisplay = {ef:[/\bef\b/i,/seance ef/i], tempo:[/\btempo\b/i], frac:[/\bfrac\b/i,/fractionn[eé]/i], long:[/longue/i]};
   let targetTypeDisplay = null;
   for(const [t,keys] of Object.entries(typeKWDisplay)){if(keys.some(k=>k.test(searchForDisplay))){targetTypeDisplay=t;break;}}
 
@@ -11642,7 +11649,7 @@ function openPlanModifModal(){
     const c = typeColor[s.type]||'#888';
     // Détecter si cette séance est la cible de la modification
     const searchForTarget = ((_lastUserMessageBeforeProposal||'').toLowerCase()+' '+(_lastCoachProposalText||'').toLowerCase());
-    const typeKW = {ef:['\bef\b','endurance fondamentale','séance ef'], tempo:['\btempo\b'], long:['longue','sortie longue'], rest:['\brepos\b'], race:['\bcourse\b']};
+    const typeKW = {ef:['\bef\b','endurance fondamentale','séance ef'], tempo:['\btempo\b'], frac:['\bfrac\b','fractionn'], long:['longue','sortie longue'], rest:['\brepos\b'], race:['\bcourse\b']};
     let targetType = null;
     for(const [t,keys] of Object.entries(typeKW)){
       if(keys.some(k=>new RegExp(k,'i').test(searchForTarget))){ targetType=t; break; }
@@ -11710,7 +11717,7 @@ function openPlanModifModal(){
     if(!isDone || userAskedModifGlobal) availableSessions.push({si,ws:wsItem,type:s.type,done:isDone});
   });
   const searchAuto = ((_lastUserMessageBeforeProposal||'').toLowerCase()+' '+(_lastCoachProposalText||'').toLowerCase());
-  const typeAutoMap = {ef:[/\bef\b/i,/seance ef/i], tempo:[/\btempo\b/i], long:[/longue/i]};
+  const typeAutoMap = {ef:[/\bef\b/i,/seance ef/i], tempo:[/\btempo\b/i], frac:[/\bfrac\b/i,/fractionn[eé]/i], long:[/longue/i]};
   let targetTypeAuto = null;
   for(const [t,keys] of Object.entries(typeAutoMap)){ if(keys.some(k=>k.test(searchAuto))){ targetTypeAuto=t; break; } }
   // Priorité au type détecté dans l'écran (targetTypeDisplay) sur le type auto
