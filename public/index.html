@@ -7056,10 +7056,12 @@ function onEditTypeChange(){
     container.innerHTML=buildTempoFieldsHtml('hm',2,8,'3:00','5:00','5:20');
     const hmName=document.getElementById('hm-name');
     if(hmName) hmName.closest('div').style.display='none';
+    setTimeout(()=>selectTempoEfPace('hm', document.getElementById('hm-ef-pace')?.value||getBestEfPace()||'6:40'),50);
   } else if(type==='frac'){
     container.innerHTML=buildTempoFieldsHtml('hm',6,2,'2:00','4:30','4:50','#C4141B');
     const hmName=document.getElementById('hm-name');
     if(hmName) hmName.closest('div').style.display='none';
+    setTimeout(()=>selectTempoEfPace('hm', document.getElementById('hm-ef-pace')?.value||getBestEfPace()||'6:40'),50);
   } else {
     container.innerHTML=`<div>
       <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
@@ -7070,10 +7072,11 @@ function onEditTypeChange(){
   }
 }
 
-function buildTempoFieldsHtml(prefix, reps, dur, recup, pMin, pMax, accentColor){
+function buildTempoFieldsHtml(prefix, reps, dur, recup, pMin, pMax, accentColor, efPaceDefault){
   const showRecup = reps > 1;
   const O = accentColor || '#E8530A';
   const icon = O === '#C4141B' ? '⚡' : '🔥';
+  const efPaceVal = efPaceDefault || getBestEfPace() || '6:40';
   return `
     <!-- Format blocs : grand et lisible -->
     <div class="modal-section">
@@ -7127,12 +7130,46 @@ function buildTempoFieldsHtml(prefix, reps, dur, recup, pMin, pMax, accentColor)
             style="background:var(--bg);border:3px solid ${O}50;border-radius:14px;padding:14px 10px;font-size:28px;font-weight:900;color:${O};width:100%;outline:none;text-align:center;">
         </div>
       </div>
-    </div>`;
+    </div>
+
+    <!-- EF allure — échauffement · récup · fin -->
+    <div class="modal-section">
+      <div class="modal-section-label" style="color:#3B6D11;">🟢 Allure EF — échauffement · récup · fin</div>
+      <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:14px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+          <input type="text" id="${prefix}-ef-pace" value="${efPaceVal}" maxlength="5"
+            oninput="calcEfRestantForPrefix('${prefix}')"
+            style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:13px 10px;font-size:30px;font-weight:900;color:#3B6D11;width:104px;outline:none;text-align:center;line-height:1;">
+          <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
+        </div>
+        <div style="flex:1;display:flex;flex-wrap:wrap;align-content:center;gap:6px;">
+          ${['6:20','6:10','6:00','5:50','5:40','5:30'].map(p=>`<button type="button" id="${prefix}-ef-chip-${p.replace(':','-')}" onclick="selectTempoEfPace('${prefix}','${p}')" style="padding:6px 10px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all 0.15s;">${p}</button>`).join('')}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="modal-stat-card" style="background:#EEF2FD;border:none;">
+          <div class="modal-stat-label" style="color:#1B4FD8;">⏱ Durée totale</div>
+          <div class="modal-stat-value" style="color:#1B4FD8;" id="${prefix}-tempo-duration">—</div>
+        </div>
+        <div class="modal-stat-card" style="background:#EAF3DE;border:none;">
+          <div class="modal-stat-label" style="color:#3B6D11;">🏁 EF de fin</div>
+          <div class="modal-stat-value" style="color:#3B6D11;" id="${prefix}-ef-fin">—</div>
+        </div>
+      </div>
+    </div>
+    <div id="${prefix}-ef-restant-display" style="display:none;"></div>`;
+}
+
+function calcEfRestantForPrefix(prefix){
+  // Cherche d'abord l'ID standardisé, sinon le fallback hérité (_buildTempoEditFields)
+  const displayId = document.getElementById(prefix+'-ef-restant-display')
+    ? prefix+'-ef-restant-display'
+    : 'ef-restant-display';
+  calcEfRestantGeneric(prefix, displayId);
 }
 
 function onTempoInputChange(prefix){
-  if(prefix==='edit') calcEfRestant();
-  if(prefix==='hm') calcEfRestant();
+  calcEfRestantForPrefix(prefix);
 }
 
 function onTempoRepsChange(prefix){
@@ -7141,8 +7178,7 @@ function onTempoRepsChange(prefix){
   if(repsEl&&recupContainer){
     recupContainer.style.display=parseInt(repsEl.value)>1?'block':'none';
   }
-  if(prefix==='edit') calcEfRestant();
-  if(prefix==='hm') calcEfRestant();
+  calcEfRestantForPrefix(prefix);
 }
 
 function calcEfRestant(){ calcEfRestantGeneric('hm', 'ef-restant-hm-display'); }
@@ -8698,8 +8734,10 @@ function openEditModal(ws, si){
   const editRecupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
   const editRecup=editRecupMatch?editRecupMatch[1]:(isFrac?'2':'3');
 
+  const editEfPaceMatch = detail.match(/EF\s*@\s*(\d+)['':](\d+)/i);
+  const editEfPaceVal = editEfPaceMatch ? editEfPaceMatch[1]+':'+editEfPaceMatch[2] : getBestEfPace()||'6:40';
   const tempoFields = s.type==='tempo' ? _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editPMax, detail)
-  :s.type==='frac' ? buildTempoFieldsHtml('edit',parseInt(editReps),parseInt(editDur),editRecup,editPMin,editPMax,'#C4141B')
+  :s.type==='frac' ? buildTempoFieldsHtml('edit',parseInt(editReps),parseInt(editDur),editRecup,editPMin,editPMax,'#C4141B',editEfPaceVal)
   :s.type==='long'?buildLongModalHtml(detail)
   :(()=>{
     // Extraire l'allure depuis le detail existant
@@ -8852,7 +8890,8 @@ function openEditModal(ws, si){
   _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
   // Init blocs long si nécessaire
   if(s.type==='long') { renderLongBlocks(); setTimeout(()=>{ updateLongDuration(); const ef=document.getElementById('long-ef-pace'); if(ef) highlightLongEfChip(ef.value); }, 50); }
-  if(s.type==='tempo'||s.type==='frac') setTimeout(()=>{ calcEfRestant(); }, 50);
+  if(s.type==='tempo') setTimeout(()=>{ calcEfRestant(); }, 50);
+  if(s.type==='frac') setTimeout(()=>{ calcEfRestantForPrefix('edit'); selectTempoEfPace('edit', document.getElementById('edit-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
   if(s.type==='ef') setTimeout(()=>{
     updateEfPreview();
     // Highlight current pace chip
@@ -8864,9 +8903,7 @@ function openEditModal(ws, si){
 function selectTempoEfPace(prefix, pace){
   const inp=document.getElementById(prefix+'-ef-pace');
   if(inp){inp.value=pace;}
-  // Re-calculer EF restant
-  if(prefix==='hm') calcEfRestant();
-  if(prefix==='edit') calcEfRestant();
+  calcEfRestantForPrefix(prefix);
   // Highlight chip sélectionné
   document.querySelectorAll('[id^="'+prefix+'-ef-chip-"]').forEach(btn=>{
     const sel=btn.id===prefix+'-ef-chip-'+pace.replace(':','-');
@@ -9122,7 +9159,7 @@ function openAddModal(ws){
           <div style="text-align:center;">
             <div style="display:flex;align-items:center;gap:6px;">
               <button type="button" onclick="const el=document.getElementById('add-km');el.value=Math.max(0,parseFloat(el.value||0)-1);el.dispatchEvent(new Event('input'))" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
-              <input type="number" id="add-km" value="10" min="0" max="99" step="1" oninput="updateAddEfPreview()"
+              <input type="number" id="add-km" value="10" min="0" max="99" step="1" oninput="updateAddEfPreview();calcEfRestantForPrefix('add')"
                 style="background:var(--bg);border:2px solid #1B4FD840;border-radius:10px;padding:8px;font-size:22px;font-weight:800;color:#1B4FD8;width:66px;outline:none;text-align:center;">
               <button type="button" onclick="const el=document.getElementById('add-km');el.value=Math.min(99,parseFloat(el.value||0)+1);el.dispatchEvent(new Event('input'))" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
             </div>
@@ -9160,7 +9197,7 @@ function onAddTypeChange(ws){
       + buildTempoFieldsHtml('add', 2, 8, '3:00',
           getBestEfPace() ? '5:00' : '5:00',
           getBestEfPace() ? '5:20' : '5:20', '#E8530A');
-    setTimeout(() => { calcEfRestant && calcEfRestant(); }, 50);
+    setTimeout(() => { calcEfRestantForPrefix('add'); selectTempoEfPace('add', document.getElementById('add-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
 
   } else if (type === 'frac') {
     container.innerHTML = `
@@ -9171,7 +9208,7 @@ function onAddTypeChange(ws){
       + buildTempoFieldsHtml('add', 6, 2, '2:00',
           getBestEfPace() ? '4:30' : '4:30',
           getBestEfPace() ? '4:50' : '4:50', '#C4141B');
-    setTimeout(() => { calcEfRestant && calcEfRestant(); }, 50);
+    setTimeout(() => { calcEfRestantForPrefix('add'); selectTempoEfPace('add', document.getElementById('add-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
 
   } else if (type === 'long') {
     container.innerHTML = `
@@ -9543,7 +9580,7 @@ function openEditExtraModal(ws, ei){
           <div style="text-align:center;">
             <div style="display:flex;align-items:center;gap:6px;">
               <button type="button" onclick="const el=document.getElementById('exedit-km');el.value=Math.max(0,parseFloat(el.value||0)-1);" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
-              <input type="number" id="exedit-km" value="${s.km}" min="0" max="99" step="1" style="background:var(--bg);border:2px solid ${_hacc}40;border-radius:10px;padding:8px;font-size:22px;font-weight:800;color:${_hacc};width:66px;outline:none;text-align:center;">
+              <input type="number" id="exedit-km" value="${s.km}" min="0" max="99" step="1" oninput="calcEfRestantForPrefix('exedit')" style="background:var(--bg);border:2px solid ${_hacc}40;border-radius:10px;padding:8px;font-size:22px;font-weight:800;color:${_hacc};width:66px;outline:none;text-align:center;">
               <button type="button" onclick="const el=document.getElementById('exedit-km');el.value=Math.min(99,parseFloat(el.value||0)+1);" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
             </div>
             <p style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;">km</p>
@@ -9571,6 +9608,7 @@ function openEditExtraModal(ws, ei){
   mc.appendChild(overlay);
   _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
   if(s.type==='long') renderLongBlocks();
+  if(s.type==='tempo'||s.type==='frac') setTimeout(()=>{ calcEfRestantForPrefix('exedit'); selectTempoEfPace('exedit', document.getElementById('exedit-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
 }
 
 function saveExtraEdit(ws, ei){
