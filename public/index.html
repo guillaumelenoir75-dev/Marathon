@@ -5610,12 +5610,8 @@ function openValidationModalExtra(ei){
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
         <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
-          <button id="garmin-val-btn" onclick="importFromStrava()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Strava
-          </button>
-          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Météo
-          </button>
+          ${isAdmin()?`<button id="garmin-val-btn" onclick="importFromStrava()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Strava</button>`:''}
+          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Météo</button>
           <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
       </div>
@@ -5758,7 +5754,8 @@ async function saveValidationExtra(ei){
       meteoSeance=await fetchWeatherIfGranted(_seanceHeure,dateVal||null);
     }
   }
-  showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance);
+  if(isAdmin()) showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance);
+  else showAthleteFeedback(sExtra,km,pace,hr);
 }
 
 function openValidationModal(idx){
@@ -5800,7 +5797,7 @@ function openValidationModal(idx){
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
         <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
-          <button id="garmin-val-btn" onclick="importFromStrava()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Strava</button>
+          ${isAdmin()?`<button id="garmin-val-btn" onclick="importFromStrava()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Strava</button>`:''}
           <button id="meteo-val-btn" onclick="importMeteoValidation()" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Météo</button>
           <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
@@ -5995,8 +5992,8 @@ async function saveValidation(idx){
   }
   // Réinitialiser pour la prochaine validation
   window._meteoValidationData = null;
-  // Coach feedback
-  showCoachFeedback(s, km, pace, hr, amImproved, idx, meteoSeance);
+  if(isAdmin()) showCoachFeedback(s, km, pace, hr, amImproved, idx, meteoSeance);
+  else showAthleteFeedback(s, km, pace, hr);
 }
 
 function parsePaceToSec(paceStr){
@@ -6050,6 +6047,132 @@ function getHistoricalComparison(type, pace, hr){
     }
   }
   return {last,diffLast,pctLast,hrComp,count:history.length};
+}
+
+function showAthleteFeedback(s, km, pace, hr){
+  const fcMax=parseInt(state.fc_max)||0;
+  const efMin=fcMax?Math.floor(fcMax*0.70):0;
+  const efMax=fcMax?Math.floor(fcMax*0.75):0;
+  const plannedKm=parseFloat(s.km)||0;
+  const realKm=parseFloat(km)||0;
+  const kmRatio=plannedKm>0?realKm/plannedKm:1;
+  const hrNum=parseInt(hr)||0;
+  function _paceToSec(p){if(!p)return 0;const pts=p.split(':');if(pts.length!==2)return 0;return parseInt(pts[0])*60+parseInt(pts[1]);}
+  const paceSec=_paceToSec(pace);
+  const efPaceStr=state.ef_pace||'';
+  const efPaceSec=_paceToSec(efPaceStr);
+  const type=s.type;
+  const headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[type]||'#0C447C';
+  let icon='✅';
+  let title='Séance validée';
+  let lines=[];
+
+  if(type==='ef'){
+    icon='🌿'; title='Endurance Fondamentale';
+    if(fcMax&&hrNum){
+      if(hrNum<=efMax) lines.push('✅ FC dans la zone EF ('+hrNum+' bpm / cible '+efMin+'–'+efMax+' bpm) — tu coures à la bonne intensité, bravo.');
+      else if(hrNum<=efMax+10) lines.push('⚠️ FC légèrement au-dessus de la zone EF ('+hrNum+' bpm / cible max '+efMax+' bpm). Essaie de ralentir un peu la prochaine fois.');
+      else lines.push('🔴 FC trop élevée ('+hrNum+' bpm) pour une séance EF (zone cible : '+efMin+'–'+efMax+' bpm). N\'hésite pas à marcher pour rester en zone.');
+    } else if(pace){
+      if(efPaceSec&&paceSec>=efPaceSec-10) lines.push('✅ Allure ('+pace+'/km) cohérente avec une séance EF. Beau travail en endurance fondamentale.');
+      else if(efPaceSec&&paceSec<efPaceSec-30) lines.push('⚠️ Allure ('+pace+'/km) un peu rapide pour de l\'EF (cible ~'+efPaceStr+'/km). Ralentis pour rester en zone basse.');
+      else lines.push('✅ Séance EF complétée à '+pace+'/km. Pense à saisir ta FC pour un suivi plus précis.');
+    } else {
+      lines.push('✅ Séance EF complétée. Saisis ta FC et ton allure pour mieux suivre ta progression.');
+    }
+    if(plannedKm>0){
+      if(kmRatio>=0.95&&kmRatio<=1.12) lines.push('📏 Volume parfait : '+realKm+' km réalisés sur '+plannedKm+' km prévus.');
+      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu t\'es écouté·e, c\'est bien — l\'essentiel est de progresser sans se blesser.');
+      else if(kmRatio>1.15) lines.push('📏 Tu as dépassé le volume prévu ('+realKm+' km). Attention à la fatigue accumulée — respecte le plan sur le long terme.');
+      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
+    }
+    const tips=['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression marathon.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.'];
+    lines.push('💡 '+tips[Math.floor(Math.random()*tips.length)]);
+
+  } else if(type==='tempo'){
+    icon='🔥'; title='Séance Tempo';
+    if(pace) lines.push('⚡ Allure moyenne (incluant récupérations) : '+pace+'/km.');
+    if(hrNum&&fcMax){
+      const tMin=Math.floor(fcMax*0.80);
+      const tMax=Math.floor(fcMax*0.88);
+      if(hrNum>=tMin&&hrNum<=tMax) lines.push('✅ FC dans la zone tempo ('+hrNum+' bpm / '+tMin+'–'+tMax+' bpm) — belle qualité de travail au seuil.');
+      else if(hrNum>tMax) lines.push('⚠️ FC élevée ('+hrNum+' bpm). Bien sollicité — veille à bien récupérer après cette séance.');
+      else lines.push('💡 FC un peu basse pour du tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm). N\'hésite pas à pousser un peu plus fort sur les blocs.');
+    }
+    if(plannedKm>0){
+      if(kmRatio>=0.9) lines.push('📏 Volume bien réalisé : '+realKm+' / '+plannedKm+' km.');
+      else lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus — si tu as ressenti de la fatigue, c\'est normal, le tempo est exigeant.');
+    }
+    lines.push('💡 Les séances tempo développent ton seuil lactique, clé pour soutenir l\'allure marathon sur la durée.');
+
+  } else if(type==='frac'){
+    icon='⚡'; title='Séance Fractionné';
+    if(pace) lines.push('🏃 Allure moyenne (récupérations incluses) : '+pace+'/km.');
+    if(hrNum&&fcMax){
+      const fMin=Math.floor(fcMax*0.88);
+      if(hrNum>=fMin) lines.push('✅ FC bien haute ('+hrNum+' bpm) — les intervalles ont bien sollicité ton système cardiovasculaire.');
+      else lines.push('💡 FC à '+hrNum+' bpm. Essaie de pousser davantage sur les répétitions pour dépasser '+fMin+' bpm et maximiser l\'effet entraînement.');
+    }
+    if(plannedKm>0) lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
+    lines.push('💡 Le fractionné développe ta VO2max et ta vitesse — c\'est l\'entraînement le plus efficace pour progresser rapidement.');
+
+  } else if(type==='long'){
+    icon='🏔️'; title='Sortie Longue';
+    if(fcMax&&hrNum){
+      if(hrNum<=efMax) lines.push('✅ FC maîtrisée ('+hrNum+' bpm) sur la durée — c\'est exactement ce qu\'on cherche en sortie longue.');
+      else if(hrNum<=efMax+12) lines.push('⚠️ FC un peu élevée ('+hrNum+' bpm / zone EF max '+efMax+' bpm). Ça peut arriver en fin de sortie — essaie de partir plus doucement la prochaine fois.');
+      else lines.push('🔴 FC trop haute ('+hrNum+' bpm) pour une sortie longue. Ralentis davantage : l\'objectif est d\'accumuler du temps en zone basse.');
+    }
+    if(plannedKm>0){
+      if(kmRatio>=0.9&&kmRatio<=1.05) lines.push('📏 Excellent volume : '+realKm+' km (prévu : '+plannedKm+' km). La sortie longue construit ta résistance à l\'effort prolongé.');
+      else if(realKm>=25) lines.push('📏 Belle sortie longue de '+realKm+' km — ce type de séance est fondamental pour le marathon !');
+      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu as ressenti de la fatigue, mieux vaut s\'arrêter à temps.');
+      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
+    }
+    lines.push('💡 La sortie longue est la reine du marathon — chaque km supplémentaire en zone EF renforce tes mitochondries et ta résistance à la fatigue.');
+
+  } else {
+    icon='🏁'; title='Séance validée';
+    lines.push('✅ Séance complétée !');
+    if(realKm) lines.push('📏 '+realKm+' km réalisés.');
+    if(pace) lines.push('⚡ Allure : '+pace+'/km.');
+  }
+
+  const nbWarnings=lines.filter(l=>l.startsWith('⚠️')||l.startsWith('🔴')).length;
+  const nbOk=lines.filter(l=>l.startsWith('✅')).length;
+  let overall;
+  if(nbWarnings===0&&nbOk>0) overall='Belle séance ! Continue comme ça 💪';
+  else if(nbWarnings>=2) overall='Séance dans la boîte ! Récupère bien.';
+  else overall='Chaque sortie te rapproche de l\'objectif 🎯';
+
+  const mc=document.getElementById('modal-container');
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
+  overlay.innerHTML=`<div class="modal-box" style="max-height:88vh;">
+    <div style="background:${headerColor};padding:16px 16px 14px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <p style="font-size:10px;font-weight:800;opacity:0.75;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">${icon} Analyse de ta séance</p>
+          <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;">${title}</p>
+          <p style="font-size:13px;opacity:0.9;margin-top:3px;font-weight:600;">${overall}</p>
+        </div>
+        <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">×</button>
+      </div>
+    </div>
+    <div class="modal-scroll-body">
+      <div style="padding:16px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${lines.map(l=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600;color:var(--text);line-height:1.5;">${l}</div>`).join('')}
+        </div>
+        <button onclick="closeModal()" style="margin-top:20px;width:100%;padding:14px;background:${headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">Fermer</button>
+      </div>
+    </div>
+  </div>`;
+  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
+  _lockBodyScroll();
+  mc.appendChild(overlay);
+  _initSwipeToDismiss(overlay,overlay.querySelector('.modal-box'));
 }
 
 function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
