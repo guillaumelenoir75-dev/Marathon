@@ -468,10 +468,6 @@ input[type=number]:focus{border-color:var(--orange);}
     </div>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
-  <button onclick="logoutUser()" style="width:100%;padding:14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:14px;font-weight:600;color:#e53e3e;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    Se déconnecter
-  </button>
   <div id="athlete-panel" style="display:none;margin-bottom:16px;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -512,6 +508,10 @@ input[type=number]:focus{border-color:var(--orange);}
       <div id="admin-users-list" style="font-size:13px;color:#555;">Chargement...</div>
     </div>
   </div>
+  <button onclick="logoutUser()" style="width:100%;padding:14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:14px;font-weight:600;color:#e53e3e;cursor:pointer;margin-top:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    Se déconnecter
+  </button>
 </div>
 
 <!-- ONBOARDING OVERLAY -->
