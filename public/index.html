@@ -1558,39 +1558,55 @@ function generateAthletePlan(ob){
 
   // Allures calculées
   const efLabel  = efSec ? fmtPace(efSec)    : null;
-  // Tempo : EF - 50s/km (±5s selon niveau)
+  // Tempo (semi/marathon) : allure seuil lactate, EF - 40/50/60s selon niveau
   const tDelta   = niveau==='Débutant'?-40 : niveau==='Confirmé'?-60 : -50;
   const tempoSec = efSec ? efSec+tDelta : null;
   const tempoLbl = tempoSec ? fmtPace(tempoSec) : null;
-  // Fractionné : EF - 85s/km (plus rapide)
-  const fracSec  = efSec ? efSec-85 : null;
-  const fracLbl  = fracSec ? fmtPace(fracSec) : null;
-  const fracMinSec = fracSec ? fracSec-10 : null;
+
+  // Fractionné (5km/10km) : allure VO2max / VMA
+  // 5km → zone très intense : EF - 90s à EF - 105s  (ex: EF 6'30 → 5'05 à 4'45)
+  // 10km → zone VO2max : EF - 75s à EF - 90s         (ex: EF 6'30 → 5'15 à 5'00)
+  const fracBaseDelta = course==='5 km' ? -97 : -82; // allure basse de la zone
+  const fracZoneWidth = course==='5 km' ? 15  : 12;  // largeur de la zone (s/km)
+  const fracSec    = efSec ? efSec+fracBaseDelta : null;        // allure lente de la zone (borne basse intensité)
+  const fracMinSec = fracSec ? fracSec-fracZoneWidth : null;   // allure rapide (borne haute intensité)
+  const fracLbl    = fracSec    ? fmtPace(fracSec)    : null;
   const fracMinLbl = fracMinSec ? fmtPace(fracMinSec) : null;
 
-  // ── Progression des séances selon semaine et niveau ─────────────────────────
+  // ── Progression des séances selon semaine, niveau et distance ───────────────
   const tempoProgression=(w)=>{
     // Débutant : intro à S5, Intermédiaire : S3, Confirmé : S2
     const introW = niveau==='Débutant'?5 : niveau==='Confirmé'?2 : 3;
     if(w < introW) return null;
     const age=w-introW;
-    if(age<2)  return {rep:1,dur:8};
-    if(age<4)  return {rep:2,dur:8};
-    if(age<6)  return {rep:2,dur:10};
-    if(age<10) return {rep:2,dur:12};
-    return {rep:2,dur:15};
+    if(age<2)  return {rep:1,dur:8,  recup:'3:00'};
+    if(age<4)  return {rep:2,dur:8,  recup:'3:00'};
+    if(age<6)  return {rep:2,dur:10, recup:'3:00'};
+    if(age<10) return {rep:2,dur:12, recup:'3:00'};
+    return             {rep:2,dur:15, recup:'3:00'};
   };
 
-  // Progression fractionné : plus de reps, durées courtes
+  // Fractionné 5km : courts & nombreux (VMA courte, 1-3min), récup égale ou ½ effort
+  // Fractionné 10km : durée moyenne (3-5min, VO2max prolongé), récup plus longue
   const fracProgression=(w)=>{
     const introW = niveau==='Débutant'?4 : niveau==='Confirmé'?2 : 3;
     if(w < introW) return null;
     const age=w-introW;
-    if(age<2)  return {rep:4,dur:2};
-    if(age<4)  return {rep:5,dur:2};
-    if(age<6)  return {rep:6,dur:2};
-    if(age<10) return {rep:6,dur:3};
-    return {rep:8,dur:3};
+    if(course==='5 km'){
+      // 5km : montée en charge sur les reps et durée (1min → 2min → 3min)
+      if(age<2)  return {rep:6,  dur:1, recup:'1:30'};
+      if(age<4)  return {rep:8,  dur:1, recup:'1:30'};
+      if(age<6)  return {rep:6,  dur:2, recup:'2:00'};
+      if(age<10) return {rep:8,  dur:2, recup:'2:00'};
+      return             {rep:6,  dur:3, recup:'2:00'};
+    } else {
+      // 10km : blocs plus longs (3→5min), récupération active
+      if(age<2)  return {rep:4, dur:3, recup:'2:30'};
+      if(age<4)  return {rep:5, dur:3, recup:'2:30'};
+      if(age<6)  return {rep:6, dur:3, recup:'2:30'};
+      if(age<10) return {rep:4, dur:5, recup:'3:00'};
+      return             {rep:5, dur:5, recup:'3:00'};
+    }
   };
 
   // Construit le champ d="Titre|détail" pour chaque type de séance
@@ -1602,10 +1618,12 @@ function generateAthletePlan(ob){
       return efLabel ? `EF longue|${efLabel}/km · allure confort` : 'EF longue';
     }
     if(type==='tempo'&&tempo){
-      return tempoLbl ? `${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · 3 min récup · EF ${efLabel||'?'}/km` : `${tempo.rep}×${tempo.dur} min tempo`;
+      const recupStr=tempo.recup||'3:00';
+      return tempoLbl ? `Tempo ${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · ${recupStr} min récup · EF ${efLabel||'?'}/km` : `Tempo ${tempo.rep}×${tempo.dur} min`;
     }
     if(type==='frac'&&tempo){
-      return fracLbl ? `Fractionné ${tempo.rep}×${tempo.dur} min|${fracMinLbl||fracLbl} — ${fracLbl}/km · 2 min récup · EF ${efLabel||'?'}/km` : `Fractionné ${tempo.rep}×${tempo.dur} min`;
+      const recupStr=tempo.recup||'2:00';
+      return fracLbl ? `Fractionné ${tempo.rep}×${tempo.dur} min|${fracMinLbl||fracLbl} — ${fracLbl}/km · ${recupStr} min récup · EF ${efLabel||'?'}/km` : `Fractionné ${tempo.rep}×${tempo.dur} min`;
     }
     return type==='ef'?'Séance EF':type==='long'?'EF longue':'Séance';
   };
