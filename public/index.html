@@ -515,6 +515,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <div id="ob-prog-4" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
       <div id="ob-prog-5" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
       <div id="ob-prog-6" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+      <div id="ob-prog-7" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
     </div>
     <div id="ob-step-0">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 1 / 6</p>
@@ -587,7 +588,27 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
     </div>
     <div id="ob-step-5" style="display:none;">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 7</p>
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 8</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:8px;">Quels jours cours-tu habituellement ?</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.5;">Tu pourras modifier ces infos plus tard dans les paramètres.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+        <button onclick="toggleObDay(0)" class="ob-chip" id="ob-day-0" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Lun</button>
+        <button onclick="toggleObDay(1)" class="ob-chip" id="ob-day-1" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Mar</button>
+        <button onclick="toggleObDay(2)" class="ob-chip" id="ob-day-2" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Mer</button>
+        <button onclick="toggleObDay(3)" class="ob-chip" id="ob-day-3" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Jeu</button>
+        <button onclick="toggleObDay(4)" class="ob-chip" id="ob-day-4" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Ven</button>
+        <button onclick="toggleObDay(5)" class="ob-chip" id="ob-day-5" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Sam</button>
+        <button onclick="toggleObDay(6)" class="ob-chip" id="ob-day-6" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Dim</button>
+      </div>
+      <div style="background:#f0f4ff;border-radius:14px;padding:16px;border:1.5px solid #d0dff5;">
+        <p style="font-size:13px;font-weight:600;color:#1B4FD8;margin-bottom:10px;">À quelle heure tu cours ?</p>
+        <input type="time" id="ob-run-time" value="07:00"
+          style="width:100%;padding:10px 14px;border:1.5px solid #d0dff5;border-radius:10px;font-size:18px;font-weight:700;color:#1a1a1a;background:#fff;outline:none;box-sizing:border-box;">
+      </div>
+    </div>
+
+    <div id="ob-step-6" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 7 / 8</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:8px;">Tu connais ton allure EF ?</h2>
       <p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">L'allure Endurance Fondamentale (EF) est ton allure de base, celle où tu peux tenir une conversation. Elle sera affichée sur l'accueil et dans ton plan.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
@@ -605,8 +626,8 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
     </div>
 
-    <div id="ob-step-6" style="display:none;">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 7 / 7</p>
+    <div id="ob-step-7" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 8 / 8</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:16px;">On te génère un programme ?</h2>
       <p style="font-size:14px;color:#555;margin-bottom:28px;line-height:1.5;">À partir de tes km actuels, on construit un plan progressif (+10%/semaine avec semaines de décharge) adapté à ton nombre de séances.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
@@ -1356,15 +1377,15 @@ function hideOnboarding(){
 
 function _obGoTo(step){
   _obStep=step;
-  const OB_STEPS=7;
+  const OB_STEPS=8;
   for(let i=0;i<OB_STEPS;i++){
     const s=document.getElementById('ob-step-'+i);
     if(s) s.style.display=i===step?'block':'none';
     const p=document.getElementById('ob-prog-'+i);
     if(p) p.style.background=i<=step?'#1B4FD8':'#e0e0e0';
   }
-  // Reset champ EF si on revient sur l'étape 5
-  if(step===5){
+  // Reset champ EF si on revient sur l'étape 6
+  if(step===6){
     const wrap=document.getElementById('ob-ef-input-wrap');
     if(wrap) wrap.style.display='none';
     document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
@@ -1375,9 +1396,11 @@ function _obGoTo(step){
   const next=document.getElementById('ob-btn-next');
   if(next){
     next.textContent=step===OB_STEPS-1?'Terminer ✓':'Suivant →';
-    // Étape 5 (EF) : toujours activé car optionnel (le user peut cliquer "Suivant" sans choisir)
-    const keys=['course','date','sessions','niveau','km_semaine',null,'generate_plan'];
-    const enabled=step===1||step===5?true:!!_obData[keys[step]];
+    // Étape 6 (EF) : toujours activé car optionnel; étape 5 (jours) : activé si au moins 1 jour sélectionné
+    const keys=['course','date','sessions','niveau','km_semaine','run_days',null,'generate_plan'];
+    const enabled=step===1||step===6?true:
+      step===5?(_obData.run_days&&_obData.run_days.length>0):
+      !!_obData[keys[step]];
     next.disabled=!enabled;
     next.style.opacity=enabled?'1':'0.4';
   }
@@ -1452,9 +1475,14 @@ function onboardingSelectEf(val){
 }
 
 function onboardingNext(){
-  if(_obStep===6){saveOnboarding();return;}
-  // Étape 5 (EF) : lire la valeur saisie avant de passer
+  if(_obStep===7){saveOnboarding();return;}
+  // Étape 5 (jours) : lire l'horaire avant de passer
   if(_obStep===5){
+    const timeEl=document.getElementById('ob-run-time');
+    if(timeEl&&timeEl.value) _obData.run_time=timeEl.value;
+  }
+  // Étape 6 (EF) : lire la valeur saisie avant de passer
+  if(_obStep===6){
     const minEl=document.getElementById('ob-ef-min');
     const secEl=document.getElementById('ob-ef-sec');
     const wrap=document.getElementById('ob-ef-input-wrap');
@@ -1478,6 +1506,26 @@ function onboardingBack(){
   // Sauter l'étape date au retour aussi
   if(prev===1&&_obData.course==='Plaisir') prev=0;
   _obGoTo(prev);
+}
+
+function toggleObDay(dayIdx){
+  if(!_obData.run_days) _obData.run_days=[];
+  const arr=_obData.run_days;
+  const i=arr.indexOf(dayIdx);
+  if(i>=0) arr.splice(i,1);
+  else arr.push(dayIdx);
+  // Mettre à jour l'UI
+  for(let d=0;d<7;d++){
+    const btn=document.getElementById('ob-day-'+d);
+    if(btn) btn.classList.toggle('selected',arr.includes(d));
+  }
+  // Activer/désactiver le bouton Suivant
+  const next=document.getElementById('ob-btn-next');
+  if(next){
+    const ok=arr.length>0;
+    next.disabled=!ok;
+    next.style.opacity=ok?'1':'0.4';
+  }
 }
 
 async function saveOnboarding(){
@@ -1535,6 +1583,9 @@ async function saveOnboarding(){
         state.ef_pace=_obData.ef_pace;
         updates.ef_pace=_obData.ef_pace;
       }
+      // Jours et horaire de course
+      if(_obData.run_days){ state.run_days=_obData.run_days; updates.run_days=JSON.stringify(_obData.run_days); }
+      if(_obData.run_time){ state.run_time=_obData.run_time; updates.run_time=_obData.run_time; }
       entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
       await dbRef.update(updates).catch(()=>{});
     }
@@ -1731,6 +1782,29 @@ function generateAthletePlan(ob){
       }
     }
     sessions.forEach((s,i)=>{ updates[`extra_w${w}_s${i}`]=JSON.stringify(s); });
+    // Calculer la date de chaque séance selon les jours préférés
+    const runDays=ob.run_days||[];
+    const runTime=ob.run_time||'07:00';
+    if(runDays.length>0){
+      const sortedDays=[...runDays].sort((a,b)=>a-b);
+      const planStart=new Date();
+      planStart.setHours(0,0,0,0);
+      sessions.forEach((s,i)=>{
+        const dayOfWeek=sortedDays[i%sortedDays.length]; // 0=lun, 6=dim
+        // Lundi de la semaine w
+        const weekOffset=new Date(planStart);
+        weekOffset.setDate(planStart.getDate()+(w-1)*7);
+        const dow=weekOffset.getDay(); // 0=dim,1=lun...
+        const mondayOffset=dow===0?-6:1-dow;
+        const monday=new Date(weekOffset);
+        monday.setDate(weekOffset.getDate()+mondayOffset);
+        const sessionDate=new Date(monday);
+        sessionDate.setDate(monday.getDate()+dayOfWeek);
+        const dateStr=sessionDate.toISOString().split('T')[0];
+        updates[`extra_w${w}_s${i}_date`]=dateStr;
+        updates[`extra_w${w}_s${i}_time`]=runTime;
+      });
+    }
   }
   return updates;
 }
