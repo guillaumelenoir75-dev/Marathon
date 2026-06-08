@@ -872,6 +872,40 @@ const renfo2=[
   {nom:"Kick-back élastique",desc:"À 4 pattes, élastique autour des chevilles — extension de jambe vers l'arrière en gardant le dos plat et les abdos gainés.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Superman",desc:"Allongé sur le ventre, bras tendus devant toi — soulevez simultanément les bras et les jambes en creusant légèrement le bas du dos, maintenez 2 sec puis redescendez lentement.",series:"3 séries × 10 rép."},
 ];
+const renfo3=[
+  {nom:"Planche frontale",desc:"Abdos gainés, dos plat, bras à 90° — maintenez la position sans laisser le bassin tomber.",series:"3 séries × 45 sec"},
+  {nom:"Planche latérale",desc:"Corps aligné de la tête aux pieds, hanche haute, regard vers l'avant.",series:"3 séries × 30 sec (chaque côté)"},
+  {nom:"Dead bug",desc:"Allongé sur le dos, tendez alternativement le bras droit et la jambe gauche sans cambrer le bas du dos.",series:"3 séries × 10 rép. (chaque côté)"},
+  {nom:"Crunch inverse",desc:"Allongé sur le dos, ramenez les genoux vers la poitrine en décollant légèrement le bassin — redescendez lentement.",series:"3 séries × 15 rép."},
+  {nom:"Mountain climber",desc:"Position pompe, amenez alternativement les genoux vers la poitrine rapidement en maintenant le dos plat.",series:"3 séries × 20 rép."},
+];
+const renfo4=[
+  {nom:"Montées sur pointe de pieds",desc:"Debout, montez lentement sur la pointe des pieds, maintenez 1 sec en haut puis redescendez lentement.",series:"4 séries × 20 rép."},
+  {nom:"Montées excentriques",desc:"Sur une marche, montez à deux pieds puis descendez lentement sur un seul pied — contrôlez l'amortissement.",series:"3 séries × 12 rép. (chaque jambe)"},
+  {nom:"Cercles de cheville",desc:"Assis, jambe tendue — tournez lentement la cheville dans les deux sens avec une amplitude maximale.",series:"2 séries × 15 rép. (chaque sens, chaque cheville)"},
+  {nom:"Fentes marchées",desc:"Faites de grandes fentes en marchant, genou avant aligné au-dessus du pied, buste droit.",series:"3 séries × 10 rép. (chaque jambe)"},
+  {nom:"Saut unipodal stabilisé",desc:"Sautez légèrement sur un pied et atterrissez en contrôlant l'amortissement — maintenez 2 sec en équilibre.",series:"3 séries × 10 rép. (chaque pied)"},
+];
+const renfo5=[
+  {nom:"Pompes",desc:"Corps aligné, coudes à 45° — descendez lentement (3 sec) et remontez de façon explosive.",series:"3 séries × 10 rép."},
+  {nom:"Extension dorsale alternée",desc:"Allongé sur le ventre, levez alternativement le bras droit et la jambe gauche, maintenez 2 sec — dos plat.",series:"3 séries × 12 rép. (chaque côté)"},
+  {nom:"Tirage élastique",desc:"Élastique fixé devant vous à hauteur de poitrine — tirez vers vous en serrant les omoplates et en gardant les coudes près du corps.",series:"3 séries × 15 rép."},
+  {nom:"Rotation thoracique",desc:"À 4 pattes, une main derrière la tête — ouvrez le coude vers le plafond en faisant tourner la colonne, regard qui suit.",series:"3 séries × 10 rép. (chaque côté)"},
+  {nom:"Gainage dynamique",desc:"Position pompe, touchez alternativement l'épaule opposée sans bouger le bassin — abdos bien gainés.",series:"3 séries × 20 rép."},
+];
+// Map globale des programmes de renforcement
+const RENFO_PROGRAMS={
+  1:{name:'Ischio-fessiers',    sub:'Fémoro-patellaire · 6 exos',     exos:renfo1},
+  2:{name:'Bas du dos',         sub:'Core stabilisation · 5 exos',    exos:renfo2},
+  3:{name:'Gainage & Core',     sub:'Stabilité centrale · 5 exos',    exos:renfo3},
+  4:{name:'Mollets & Chevilles',sub:'Proprioception · 5 exos',        exos:renfo4},
+  5:{name:'Haut du corps',      sub:'Posture de course · 5 exos',     exos:renfo5},
+};
+// Retourne les données du programme sélectionné pour le slot r (1 ou 2)
+function getRenfoData(r){
+  const progId=parseInt(state&&state['renfo_prog'+r])||r;
+  return RENFO_PROGRAMS[progId]||RENFO_PROGRAMS[r]||RENFO_PROGRAMS[1];
+}
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"},{km:'Marathon',nb:8,t:"6, 12, 17, 22, 26, 30, 34 & 38 km"}];
 const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];
 function getShoeStyle(name){
@@ -2819,7 +2853,21 @@ function renderAthletePanel(){
       <button onclick="openFcMaxEdit()" style="background:#EBF0FF;border:none;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:600;color:#1B4FD8;cursor:pointer;">Modifier</button>
     </div>
   </div>`;
-  content.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${r.label}</span><span style="font-weight:700;color:#1a1a1a;">${r.value}</span></div>`).join('')+fcRow;
+  const renfoProgOptions=Object.entries(RENFO_PROGRAMS).map(([id,p])=>`<option value="${id}">${p.name}</option>`).join('');
+  const renfoSection=`<div style="padding:12px 0;border-bottom:1px solid #f0f0f0;">
+    <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">💪 Programme renforcement</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${[1,2].map(slot=>`<div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:#888;white-space:nowrap;min-width:58px;">Séance ${slot}</span>
+        <select id="renfo-prog${slot}-sel" onchange="saveRenfoProg(${slot},this.value)" style="flex:1;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;color:#1a1a1a;background:#fff;cursor:pointer;">
+          ${renfoProgOptions}
+        </select>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  content.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${r.label}</span><span style="font-weight:700;color:#1a1a1a;">${r.value}</span></div>`).join('')+fcRow+renfoSection;
+  // Restaurer les sélections depuis l'état
+  setTimeout(()=>{[1,2].forEach(slot=>{const s=document.getElementById('renfo-prog'+slot+'-sel');if(s)s.value=String(state['renfo_prog'+slot]||slot);});},0);
   // Afficher le bouton supprimer uniquement si un plan existe
   const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
   const delBtn=document.getElementById('btn-delete-plan');
@@ -2849,6 +2897,13 @@ function openFcMaxEdit(){
     </div>
   </div>`;
   document.body.appendChild(overlay);
+}
+
+async function saveRenfoProg(slot,progId){
+  const id=parseInt(progId)||slot;
+  state['renfo_prog'+slot]=id;
+  if(dbRef) await dbRef.child('renfo_prog'+slot).set(id).catch(()=>{});
+  renderHome(); // synchroniser l'accueil immédiatement
 }
 
 async function saveFcMax(fc){
@@ -5534,13 +5589,10 @@ function renderHome(){
   const renfoEl=document.getElementById('home-renfo');
   if(renfoEl){
     renfoEl.innerHTML='';
-    const renfoData=[
-      {name:'Ischio-fessiers',sub:'Fémoro-patellaire · 6 exos',r:1},
-      {name:'Bas du dos',sub:'Core stabilisation · 5 exos',r:2},
-    ];
+    const renfoData=[1,2].map(r=>{const p=getRenfoData(r);return{name:p.name,sub:p.sub,r};});
     renfoData.forEach(rd=>{
       const done=!!state[rfk(w,rd.r)+'done'];
-      const exos=rd.r===1?renfo1:renfo2;
+      const exos=getRenfoData(rd.r).exos;
       const totalSeries=exos.reduce((a,ex)=>a+getNbSeries(ex.series),0);
       const doneSeries=exos.reduce((a,ex,i)=>a+(state[rfk(w,rd.r)+'e'+i+'_series']||0),0);
       const pct=Math.round(doneSeries/totalSeries*100);
@@ -11462,13 +11514,15 @@ function switchRenfo(n){
 }
 
 function renderRenfoExercises(){
-  const exos=curRenfo===1?renfo1:renfo2;
+  const prog=getRenfoData(curRenfo);
+  const exos=prog.exos;
+  // Mettre à jour les libellés des onglets avec les programmes sélectionnés
+  [1,2].forEach(r=>{const t=document.getElementById('renfo-tab'+r);if(t)t.textContent=getRenfoData(r).name;});
   const el=document.getElementById('renfo-exercises');el.innerHTML='';
   const dk=rfk(CW,curRenfo),isDone=!!state[dk+'done'];
   const banner=document.getElementById('renfo-done-banner');
   banner.style.display=isDone?'flex':'none';
-  const renfoNames=['Ischio-fessiers','Bas du dos'];
-  if(isDone)document.getElementById('renfo-done-text').textContent=`${renfoNames[curRenfo-1]} validé — S${CW}`;
+  if(isDone)document.getElementById('renfo-done-text').textContent=`${prog.name} validé — S${CW}`;
   const btn=document.getElementById('renfo-btn');
   btn.textContent=isDone?'Séance déjà validée':'Valider la séance';
   btn.style.background=isDone?'#639922':'#1B4FD8';
@@ -11479,7 +11533,7 @@ function renderRenfoExercises(){
     cancelBtn.style.cssText='width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;';
     cancelBtn.textContent='Annuler la validation';
     cancelBtn.onclick=()=>{
-      const exos=curRenfo===1?renfo1:renfo2;
+      const exos=getRenfoData(curRenfo).exos;
       const dk=rfk(CW,curRenfo);
       exos.forEach((_,i)=>{ delete state[dk+'e'+i+'_series']; });
       delete state[dk+'done'];

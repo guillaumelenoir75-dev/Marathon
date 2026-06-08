@@ -1890,7 +1890,8 @@ async function buildNotifContext(state, cw) {
     if(!schedRaw)continue;
     let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
     if(sched.day===dayOfWeek){
-      const renfoNoms={1:'Renfo Ischio-fessiers',2:'Renfo Bas du dos'};
+      const _rnAll={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
+      const renfoNoms={1:'Renfo '+(_rnAll[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers'),2:'Renfo '+(_rnAll[parseInt(state.renfo_prog2)||2]||'Bas du dos')};
       seancesAujourdHui.push(`${renfoNoms[ri]}${sched.time?' à '+sched.time:''}`);
     }
   }
@@ -2152,7 +2153,8 @@ exports.sessionReminder = onSchedule(
           }
           extraRi++;
         }
-        const renfoNames = {1:'Ischio-fessiers', 2:'Bas du dos'};
+        const allRenfoNames={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
+        const renfoNames={1:allRenfoNames[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:allRenfoNames[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
         for(let ri=1;ri<=2;ri++){
           const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
           let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
@@ -2243,7 +2245,8 @@ exports.briefAfterFcRepos = onSchedule(
       const jours2=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
       const dow=new Date().getDay();
       const dayOfWeekNum=dow===0?7:dow; // 1=lun...7=dim
-      const renfoNoms={1:'Ischio-fessiers',2:'Bas du dos'};
+      const _rAllN={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
+      const renfoNoms={1:_rAllN[parseInt(uState.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllN[parseInt(uState.renfo_prog2)||2]||'Bas du dos'};
       const renfoAujourdHui=[];
       for(let ri=1;ri<=2;ri++){
         const done=!!state[`rf${cw}r${ri}done`];
@@ -2339,7 +2342,8 @@ exports.unvalidatedSessionReminder = onSchedule(
           const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
           manquees.push(`🏃 ${titre} ${ed.km||''}km`);
         }
-        const renfoNames={1:'Ischio-fessiers',2:'Bas du dos'};
+        const _rAllNames={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
+        const renfoNames={1:_rAllNames[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllNames[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
         for(let ri=1;ri<=2;ri++){
           const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
           const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
