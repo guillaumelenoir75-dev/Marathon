@@ -5538,7 +5538,7 @@ function renderHome(){
     const predBtn=document.getElementById('home-pred-btn');
     const amTrainBtn=document.getElementById('home-am-train-btn');
     if(predBtn) predBtn.style.cursor=isAdmin()?'pointer':'default';
-    if(amTrainBtn) amTrainBtn.style.cursor=isAdmin()?'pointer':'default';
+    if(amTrainBtn){ amTrainBtn.style.cursor=isAdmin()?'pointer':'default'; amTrainBtn.style.display=isAdmin()?'flex':'none'; }
   }
   // Libellés adaptés à la course
   const predLabelEl=document.getElementById('h-pred-label');
