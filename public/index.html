@@ -8801,8 +8801,8 @@ function openEditModal(ws, si){
           <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
             <div>
               <p style="font-size:9px;font-weight:800;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.07em;">Type de séance</p>
-              <div style="display:flex;gap:6px;">
-                ${[['ef','🟢 EF','#3B6D11'],['tempo','🔥 Tempo','#E8530A'],['long','💜 Long','#534AB7']].map(([v,lbl,col])=>`<button type="button" onclick="document.getElementById('edit-type').value='${v}';onEditTypeChange();document.querySelectorAll('.edit-type-pill').forEach(b=>{const isV=b.dataset.type==='${v}';b.style.background=isV?'${col}':'var(--bg)';b.style.color=isV?'#fff':'var(--muted)';b.style.borderColor=isV?'${col}':'var(--border)';})" class="edit-type-pill" data-type="${v}" style="flex:1;padding:9px 4px;border-radius:12px;font-size:12px;font-weight:800;border:2px solid ${s.type===v?col:'var(--border)'};background:${s.type===v?col:'var(--bg)'};color:${s.type===v?'#fff':'var(--muted)'};cursor:pointer;transition:all 0.15s;text-align:center;">${lbl}</button>`).join('')}
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${[['ef','🟢 EF','#3B6D11'],['tempo','🔥 Tempo','#E8530A'],['frac','⚡ Frac','#C4141B'],['long','💜 Long','#534AB7']].map(([v,lbl,col])=>`<button type="button" onclick="document.getElementById('edit-type').value='${v}';onEditTypeChange();document.querySelectorAll('.edit-type-pill').forEach(b=>{const isV=b.dataset.type==='${v}';b.style.background=isV?'${col}':'var(--bg)';b.style.color=isV?'#fff':'var(--muted)';b.style.borderColor=isV?'${col}':'var(--border)';})" class="edit-type-pill" data-type="${v}" style="flex:1;min-width:60px;padding:9px 4px;border-radius:12px;font-size:12px;font-weight:800;border:2px solid ${s.type===v?col:'var(--border)'};background:${s.type===v?col:'var(--bg)'};color:${s.type===v?'#fff':'var(--muted)'};cursor:pointer;transition:all 0.15s;text-align:center;">${lbl}</button>`).join('')}
                 <select id="edit-type" onchange="onEditTypeChange()" style="display:none;">${typeOptions}</select>
               </div>
             </div>
@@ -13140,7 +13140,7 @@ async function generateFullBriefFromNotif(memos) {
       // Fallback si le serveur ne répond pas
       const fallbackSeances = seancesAujourdHui.length > 0
         ? seancesAujourdHui.map(s => {
-            const t = {ef:'EF', tempo:'Tempo', long:'EF Longue', race:'Course'}[s.type] || s.type;
+            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', race:'Course'}[s.type] || s.type;
             return t + ' ' + s.km + 'km' + (s.heure ? ' à ' + s.heure : '');
           }).join(' + ')
         : 'Pas de séance prévue ce matin';
