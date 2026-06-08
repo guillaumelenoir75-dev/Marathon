@@ -1605,7 +1605,7 @@ function generateAthletePlan(ob){
       return tempoLbl ? `${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · 3 min récup · EF ${efLabel||'?'}/km` : `${tempo.rep}×${tempo.dur} min tempo`;
     }
     if(type==='frac'&&tempo){
-      return fracLbl ? `${tempo.rep}×${tempo.dur} min|${fracMinLbl||fracLbl}–${fracLbl}/km · 2 min récup` : `${tempo.rep}×${tempo.dur} min fractionné`;
+      return fracLbl ? `Fractionné ${tempo.rep}×${tempo.dur} min|${fracMinLbl||fracLbl} — ${fracLbl}/km · 2 min récup · EF ${efLabel||'?'}/km` : `Fractionné ${tempo.rep}×${tempo.dur} min`;
     }
     return type==='ef'?'Séance EF':type==='long'?'EF longue':'Séance';
   };
@@ -8055,10 +8055,17 @@ function getOrderedWeekSessions(ws){
   baseOrder.forEach(b=>{
     if(!ordered.find(o=>JSON.stringify(o)===JSON.stringify(b))) ordered.push(b);
   });
-  return ordered.map(({si,extra,ei})=>({
-    s:extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si),
-    si,extra,ei
-  }));
+  return ordered.map(({si,extra,ei})=>{
+    let s=extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si);
+    // Frac extra sauvées avec mauvais titre : correction à la volée
+    if(s && s.type==='frac' && s.d && !s.d.startsWith('Fractionné')){
+      const parts=s.d.split('|');
+      const m=parts[0].match(/(\d+)[×x](\d+)/);
+      const ft=m?`Fractionné ${m[1]}×${m[2]} min`:'Fractionné 6×2 min';
+      s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
+    }
+    return {s,si,extra,ei};
+  });
 }
 
 function moveSession(ws, rowIdx, dir){
@@ -8112,6 +8119,13 @@ function getSession(ws, si){
       d: sess.d.replace(/AM @ [\d'':]+\/km/g, `AM @ ${amPace}/km`)
     });
     return updated;
+  }
+  // Pour les séances Frac sauvées avec un mauvais titre : corriger à la volée
+  if(sess && sess.type === 'frac' && sess.d && !sess.d.startsWith('Fractionné')) {
+    const parts = sess.d.split('|');
+    const repMatch = parts[0].match(/(\d+)[×x](\d+)/);
+    const fixedTitle = repMatch ? `Fractionné ${repMatch[1]}×${repMatch[2]} min` : 'Fractionné 6×2 min';
+    return Object.assign({}, sess, { d: parts.length > 1 ? `${fixedTitle}|${parts[1]}` : fixedTitle });
   }
   return sess;
 }
@@ -9345,13 +9359,24 @@ function saveAdd(ws){
     name   = 'Tempo ' + reps + '×' + dur + ' min';
     detail = pMin + ' — ' + pMax + ' /km';
     if(recup && recup !== '0' && reps > 1) detail += ' · ' + recup + ' min récup';
-    if(efP) detail += ' · EF @ ' + efP;  // format identique à saveEdit
+    if(efP) detail += ' · EF @ ' + efP;
+  } else if(type === 'frac'){
+    const reps = parseInt((document.getElementById('add-reps')     || {}).value) || 6;
+    const dur  = parseInt((document.getElementById('add-dur')      || {}).value) || 2;
+    const pMin = ((document.getElementById('add-pace-min') || {}).value || '4:30').trim();
+    const pMax = ((document.getElementById('add-pace-max') || {}).value || '4:50').trim();
+    const recup = ((document.getElementById('add-recup')   || {}).value || '2:00').trim();
+    const efP  = ((document.getElementById('add-ef-pace')  || {}).value || '').trim();
+    name   = 'Fractionné ' + reps + '×' + dur + ' min';
+    detail = pMin + ' — ' + pMax + ' /km';
+    if(recup && recup !== '0' && reps > 1) detail += ' · ' + recup + ' min récup';
+    if(efP) detail += ' · EF @ ' + efP;
   } else {
     // EF
     const efPaceEl = document.getElementById('add-ef-pace');
     const efPace = efPaceEl ? efPaceEl.value.trim() : (getBestEfPace() || '6:40');
     name   = 'Séance EF';
-    detail = efPace + '/km';  // sans espace — identique à saveEdit
+    detail = efPace + '/km';
   }
 
   const d = detail ? (name + '|' + detail) : name;
