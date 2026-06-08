@@ -590,21 +590,25 @@ input[type=number]:focus{border-color:var(--orange);}
     </div>
     <div id="ob-step-5" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 8</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:8px;">Quels jours cours-tu habituellement ?</h2>
-      <p style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.5;">Tu pourras modifier ces infos plus tard dans les paramètres.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-        <button onclick="toggleObDay(0)" class="ob-chip" id="ob-day-0" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Lun</button>
-        <button onclick="toggleObDay(1)" class="ob-chip" id="ob-day-1" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Mar</button>
-        <button onclick="toggleObDay(2)" class="ob-chip" id="ob-day-2" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Mer</button>
-        <button onclick="toggleObDay(3)" class="ob-chip" id="ob-day-3" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Jeu</button>
-        <button onclick="toggleObDay(4)" class="ob-chip" id="ob-day-4" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Ven</button>
-        <button onclick="toggleObDay(5)" class="ob-chip" id="ob-day-5" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Sam</button>
-        <button onclick="toggleObDay(6)" class="ob-chip" id="ob-day-6" style="flex:1;min-width:40px;padding:12px 6px;text-align:center;font-size:14px;">Dim</button>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:6px;">Quels jours cours-tu ?</h2>
+      <p id="ob-days-hint" style="font-size:13px;color:#1B4FD8;font-weight:600;margin-bottom:16px;">Sélectionne exactement <span id="ob-days-count">?</span> jours</p>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:20px;">
+        <button onclick="toggleObDay(0)" class="ob-chip" id="ob-day-0" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Lun</button>
+        <button onclick="toggleObDay(1)" class="ob-chip" id="ob-day-1" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Mar</button>
+        <button onclick="toggleObDay(2)" class="ob-chip" id="ob-day-2" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Mer</button>
+        <button onclick="toggleObDay(3)" class="ob-chip" id="ob-day-3" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Jeu</button>
+        <button onclick="toggleObDay(4)" class="ob-chip" id="ob-day-4" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Ven</button>
+        <button onclick="toggleObDay(5)" class="ob-chip" id="ob-day-5" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Sam</button>
+        <button onclick="toggleObDay(6)" class="ob-chip" id="ob-day-6" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Dim</button>
       </div>
-      <div style="background:#f0f4ff;border-radius:14px;padding:16px;border:1.5px solid #d0dff5;">
-        <p style="font-size:13px;font-weight:600;color:#1B4FD8;margin-bottom:10px;">À quelle heure tu cours ?</p>
-        <input type="time" id="ob-run-time" value="07:00"
-          style="width:100%;padding:10px 14px;border:1.5px solid #d0dff5;border-radius:10px;font-size:18px;font-weight:700;color:#1a1a1a;background:#fff;outline:none;box-sizing:border-box;">
+      <div style="background:#fff;border-radius:14px;padding:14px 16px;border:1.5px solid #e0e8f5;">
+        <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Horaire habituel</p>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">🕐</span>
+          <input type="time" id="ob-run-time" value="07:00"
+            style="flex:1;padding:10px 14px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:18px;font-weight:700;color:#1a1a1a;background:#f8faff;outline:none;">
+        </div>
+        <p style="font-size:11px;color:#aaa;margin-top:6px;">Tu pourras modifier ça plus tard dans les paramètres.</p>
       </div>
     </div>
 
@@ -1401,6 +1405,8 @@ function _obGoTo(step){
     const p=document.getElementById('ob-prog-'+i);
     if(p) p.style.background=i<=step?'#1B4FD8':'#e0e0e0';
   }
+  // Initialiser l'étape jours avec la bonne limite
+  if(step===5) setTimeout(initObDaysStep, 0);
   // Reset champ EF si on revient sur l'étape 6
   if(step===6){
     const wrap=document.getElementById('ob-ef-input-wrap');
@@ -1416,7 +1422,7 @@ function _obGoTo(step){
     // Étape 6 (EF) : toujours activé car optionnel; étape 5 (jours) : activé si au moins 1 jour sélectionné
     const keys=['course','date','sessions','niveau','km_semaine','run_days',null,'generate_plan'];
     const enabled=step===1||step===6?true:
-      step===5?(_obData.run_days&&_obData.run_days.length>0):
+      step===5?(_obData.run_days&&_obData.run_days.length===_obMaxDays()):
       !!_obData[keys[step]];
     next.disabled=!enabled;
     next.style.opacity=enabled?'1':'0.4';
@@ -1525,24 +1531,53 @@ function onboardingBack(){
   _obGoTo(prev);
 }
 
-function toggleObDay(dayIdx){
-  if(!_obData.run_days) _obData.run_days=[];
-  const arr=_obData.run_days;
-  const i=arr.indexOf(dayIdx);
-  if(i>=0) arr.splice(i,1);
-  else arr.push(dayIdx);
-  // Mettre à jour l'UI
+function _obMaxDays(){
+  const s=_obData.sessions||'3';
+  return s==='4+'?4:parseInt(s)||3;
+}
+
+function initObDaysStep(){
+  const max=_obMaxDays();
+  const hint=document.getElementById('ob-days-count');
+  if(hint) hint.textContent=max;
+  // Si trop de jours déjà sélectionnés (ex: changement de séances), on réinitialise
+  if(_obData.run_days && _obData.run_days.length>max) _obData.run_days=[];
+  _updateObDaysUI();
+}
+
+function _updateObDaysUI(){
+  const arr=_obData.run_days||[];
+  const max=_obMaxDays();
   for(let d=0;d<7;d++){
     const btn=document.getElementById('ob-day-'+d);
-    if(btn) btn.classList.toggle('selected',arr.includes(d));
+    if(!btn) continue;
+    const selected=arr.includes(d);
+    btn.classList.toggle('selected',selected);
+    // Griser les jours non sélectionnés si max atteint
+    const full=arr.length>=max;
+    btn.disabled=full&&!selected;
+    btn.style.opacity=(full&&!selected)?'0.35':'1';
   }
-  // Activer/désactiver le bouton Suivant
   const next=document.getElementById('ob-btn-next');
   if(next){
-    const ok=arr.length>0;
+    const ok=arr.length===max;
     next.disabled=!ok;
     next.style.opacity=ok?'1':'0.4';
   }
+}
+
+function toggleObDay(dayIdx){
+  if(!_obData.run_days) _obData.run_days=[];
+  const arr=_obData.run_days;
+  const max=_obMaxDays();
+  const i=arr.indexOf(dayIdx);
+  if(i>=0){
+    arr.splice(i,1);
+  } else {
+    if(arr.length>=max) return; // déjà au max
+    arr.push(dayIdx);
+  }
+  _updateObDaysUI();
 }
 
 async function saveOnboarding(){
