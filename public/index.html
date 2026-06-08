@@ -600,6 +600,7 @@ input[type=number]:focus{border-color:var(--orange);}
               oninput="onKmCustomInput(this.value)">
             <span style="font-size:15px;color:#1B4FD8;font-weight:600;white-space:nowrap;opacity:0.75;">km / semaine</span>
           </div>
+          <p id="ob-km-sessions-warn" style="display:none;font-size:13px;color:#E8530A;font-weight:600;margin-top:8px;background:#FFF5EC;padding:10px 14px;border-radius:10px;">⚠️ Pour ce volume, ajoute une séance supplémentaire — le plan sera mieux réparti et moins risqué.</p>
         </div>
       </div>
     </div>
@@ -1678,14 +1679,20 @@ function onTargetTimeInput(){
 
 function onKmCustomInput(val){
   const km = parseInt(val);
+  const warn = document.getElementById('ob-km-sessions-warn');
   if(km > 0 && km <= 300){
     _obData.km_semaine = String(km);
     const next = document.getElementById('ob-btn-next');
     if(next){ next.disabled=false; next.style.opacity='1'; }
+    // Avertissement si volume trop élevé pour le nb de séances choisi
+    const sess = parseInt(_obData.sessions)||3;
+    const over = (sess<=2 && km>40) || (sess===3 && km>55);
+    if(warn) warn.style.display = over ? 'block' : 'none';
   } else {
     delete _obData.km_semaine;
     const next = document.getElementById('ob-btn-next');
     if(next){ next.disabled=true; next.style.opacity='0.4'; }
+    if(warn) warn.style.display='none';
   }
 }
 
