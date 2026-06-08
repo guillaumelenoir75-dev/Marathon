@@ -635,7 +635,7 @@ input[type=number]:focus{border-color:var(--orange);}
     <div id="ob-step-7" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 8 / 9</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:10px;">Ta fréquence cardiaque max ?</h2>
-      <p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">Sers à calculer ta zone d'effort fondamental (75 % FC max). Si tu ne la connais pas, indique ton âge — on l'estimera avec la formule 220 − âge.</p>
+      <p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">Sers à calculer ta zone d'effort fondamental (70–75 % FC max). Si tu ne la connais pas, indique ton âge — on l'estimera avec la formule 220 − âge.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="background:#fff;border-radius:14px;padding:16px;border:1.5px solid #e0e8f5;">
           <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">❤️ FC max connue (bpm)</p>
@@ -1593,10 +1593,10 @@ function onboardingSkipFcMax(){
   onboardingNext();
 }
 function getFcMaxZone(){
-  // Retourne {min, max} de la zone EF (70-80% FC max) ou null
+  // Zone EF = 70–75% FC max
   const fc=state.fc_max||null;
   if(!fc||fc<100) return null;
-  return {min:Math.round(fc*0.70), max:Math.round(fc*0.80)};
+  return {min:Math.floor(fc*0.70), max:Math.floor(fc*0.75)};
 }
 
 function onboardingSelectEf(val){
