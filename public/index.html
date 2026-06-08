@@ -548,7 +548,8 @@ input[type=number]:focus{border-color:var(--orange);}
           <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
         </select>
       </div>
-      <p style="font-size:12px;color:#888;margin-top:10px;">Laisse vide si tu ne sais pas encore</p>
+      <p id="ob-date-error" style="display:none;font-size:13px;color:#C4141B;font-weight:600;margin-top:10px;background:#fff0f0;padding:10px 14px;border-radius:10px;">⚠️ La date doit être au moins 2 semaines après aujourd'hui pour que le plan soit utile.</p>
+      <p style="font-size:12px;color:#888;margin-top:8px;">Laisse vide si tu ne sais pas encore</p>
     </div>
     <div id="ob-step-2" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 3 / 6</p>
@@ -1366,8 +1367,24 @@ function obDateChanged(){
   const d=document.getElementById('ob-date-day')?.value;
   const m=document.getElementById('ob-date-month')?.value;
   const y=document.getElementById('ob-date-year')?.value;
-  if(d&&m&&y) onboardingSelect('date',y+'-'+m+'-'+d);
-  else{_obData.date=null;}
+  const errEl=document.getElementById('ob-date-error');
+  if(d&&m&&y){
+    const chosen=new Date(y+'-'+m+'-'+d);
+    const minDate=new Date(); minDate.setDate(minDate.getDate()+14);
+    minDate.setHours(0,0,0,0);
+    if(chosen<minDate){
+      if(errEl) errEl.style.display='block';
+      _obData.date=null;
+      const next=document.getElementById('ob-btn-next');
+      if(next){next.disabled=true;next.style.opacity='0.4';}
+    } else {
+      if(errEl) errEl.style.display='none';
+      onboardingSelect('date',y+'-'+m+'-'+d);
+    }
+  } else {
+    if(errEl) errEl.style.display='none';
+    _obData.date=null;
+  }
 }
 
 function hideOnboarding(){
