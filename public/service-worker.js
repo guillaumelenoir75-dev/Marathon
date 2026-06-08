@@ -16,7 +16,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(payload => {
   self.registration.showNotification(payload.notification.title, {
     body: payload.notification.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png'
+    icon: '/enpiste-icon-192.png',
+    badge: '/enpiste-icon-192.png'
   });
 });
