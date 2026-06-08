@@ -1851,30 +1851,28 @@ function generateAthletePlan(ob){
         ];
       }
     }
-    sessions.forEach((s,i)=>{ updates[`extra_w${w}_s${i}`]=JSON.stringify(s); });
-    // Calculer la date de chaque séance selon les jours préférés
+    // Calculer la date de chaque séance et embarquer sched_day/sched_time dans le JSON
     const runDays=ob.run_days||[];
     const runTime=ob.run_time||'07:00';
-    if(runDays.length>0){
-      const sortedDays=[...runDays].sort((a,b)=>a-b);
-      const planStart=new Date();
-      planStart.setHours(0,0,0,0);
-      sessions.forEach((s,i)=>{
-        const dayOfWeek=sortedDays[i%sortedDays.length]; // 0=lun, 6=dim
-        // Lundi de la semaine w
-        const weekOffset=new Date(planStart);
-        weekOffset.setDate(planStart.getDate()+(w-1)*7);
-        const dow=weekOffset.getDay(); // 0=dim,1=lun...
-        const mondayOffset=dow===0?-6:1-dow;
-        const monday=new Date(weekOffset);
-        monday.setDate(weekOffset.getDate()+mondayOffset);
-        const sessionDate=new Date(monday);
-        sessionDate.setDate(monday.getDate()+dayOfWeek);
-        const dateStr=sessionDate.toISOString().split('T')[0];
-        updates[`extra_w${w}_s${i}_date`]=dateStr;
-        updates[`extra_w${w}_s${i}_time`]=runTime;
-      });
-    }
+    const sortedDays=[...runDays].sort((a,b)=>a-b);
+    const planStart=new Date(); planStart.setHours(0,0,0,0);
+    sessions.forEach((s,i)=>{
+      const dayOfWeek=sortedDays.length>0?sortedDays[i%sortedDays.length]:i%7; // 0=lun
+      // sched_day: 1=lun…7=dim (format Cloud Function)
+      s.sched_day=dayOfWeek+1;
+      s.sched_time=runTime;
+      // Date calendaire (pour affichage)
+      const weekOffset=new Date(planStart);
+      weekOffset.setDate(planStart.getDate()+(w-1)*7);
+      const dow=weekOffset.getDay();
+      const mondayOffset=dow===0?-6:1-dow;
+      const monday=new Date(weekOffset);
+      monday.setDate(weekOffset.getDate()+mondayOffset);
+      const sessionDate=new Date(monday);
+      sessionDate.setDate(monday.getDate()+dayOfWeek);
+      s.sched_date=sessionDate.toISOString().split('T')[0];
+      updates[`extra_w${w}_s${i}`]=JSON.stringify(s);
+    });
   }
   return updates;
 }
