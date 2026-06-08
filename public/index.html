@@ -512,6 +512,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <div id="ob-prog-3" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
       <div id="ob-prog-4" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
       <div id="ob-prog-5" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
+      <div id="ob-prog-6" style="flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background 0.3s;"></div>
     </div>
     <div id="ob-step-0">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 1 / 6</p>
@@ -574,7 +575,26 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
     </div>
     <div id="ob-step-5" style="display:none;">
-      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 6</p>
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 7</p>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:8px;">Tu connais ton allure EF ?</h2>
+      <p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">L'allure Endurance Fondamentale (EF) est ton allure de base, celle où tu peux tenir une conversation. Elle sera affichée sur l'accueil et dans ton plan.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div id="ob-ef-input-wrap" style="display:none;background:#fff;border-radius:14px;padding:16px;border:2px solid #1B4FD8;">
+          <p style="font-size:13px;font-weight:600;color:#1B4FD8;margin-bottom:10px;">Allure EF (min/km)</p>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="ob-ef-min" type="number" min="3" max="9" placeholder="5" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
+            <span style="font-size:20px;font-weight:700;color:#555;">:</span>
+            <input id="ob-ef-sec" type="number" min="0" max="59" placeholder="00" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
+            <span style="font-size:15px;color:#888;font-weight:600;">/km</span>
+          </div>
+        </div>
+        <button onclick="onboardingSelectEf('oui')" class="ob-chip" id="ob-ef-oui">✅ Oui, je la connais</button>
+        <button onclick="onboardingSelectEf('non')" class="ob-chip" id="ob-ef-non">⏭️ Non, pas encore</button>
+      </div>
+    </div>
+
+    <div id="ob-step-6" style="display:none;">
+      <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 7 / 7</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:16px;">On te génère un programme ?</h2>
       <p style="font-size:14px;color:#555;margin-bottom:28px;line-height:1.5;">À partir de tes km actuels, on construit un plan progressif (+10%/semaine avec semaines de décharge) adapté à ton nombre de séances.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
@@ -1324,20 +1344,28 @@ function hideOnboarding(){
 
 function _obGoTo(step){
   _obStep=step;
-  const OB_STEPS=6;
+  const OB_STEPS=7;
   for(let i=0;i<OB_STEPS;i++){
     const s=document.getElementById('ob-step-'+i);
     if(s) s.style.display=i===step?'block':'none';
     const p=document.getElementById('ob-prog-'+i);
     if(p) p.style.background=i<=step?'#1B4FD8':'#e0e0e0';
   }
+  // Reset champ EF si on revient sur l'étape 5
+  if(step===5){
+    const wrap=document.getElementById('ob-ef-input-wrap');
+    if(wrap) wrap.style.display='none';
+    document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
+    if(_obData.ef_pace===null) delete _obData.ef_pace; // réinitialiser pour que le choix soit re-fait
+  }
   const back=document.getElementById('ob-btn-back');
   if(back) back.style.display=step>0?'flex':'none';
   const next=document.getElementById('ob-btn-next');
   if(next){
     next.textContent=step===OB_STEPS-1?'Terminer ✓':'Suivant →';
-    const keys=['course','date','sessions','niveau','km_semaine','generate_plan'];
-    const enabled=step===1?true:!!_obData[keys[step]];
+    // Étape 5 (EF) : toujours activé car optionnel (le user peut cliquer "Suivant" sans choisir)
+    const keys=['course','date','sessions','niveau','km_semaine',null,'generate_plan'];
+    const enabled=step===1||step===5?true:!!_obData[keys[step]];
     next.disabled=!enabled;
     next.style.opacity=enabled?'1':'0.4';
   }
@@ -1355,8 +1383,43 @@ function onboardingSelect(field,val){
   if(next){next.disabled=false;next.style.opacity='1';}
 }
 
+function onboardingSelectEf(val){
+  if(val==='oui'){
+    // Afficher le champ de saisie, désactiver l'auto-avance
+    const wrap=document.getElementById('ob-ef-input-wrap');
+    if(wrap) wrap.style.display='block';
+    document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
+    const c=document.getElementById('ob-ef-oui');
+    if(c) c.classList.add('selected');
+    const next=document.getElementById('ob-btn-next');
+    if(next){next.disabled=false;next.style.opacity='1';}
+    // Focus sur le premier champ
+    setTimeout(()=>{ const f=document.getElementById('ob-ef-min'); if(f) f.focus(); },100);
+  } else {
+    // Pas d'EF — fermer le champ et avancer directement
+    const wrap=document.getElementById('ob-ef-input-wrap');
+    if(wrap) wrap.style.display='none';
+    _obData.ef_pace=null;
+    document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
+    const c=document.getElementById('ob-ef-non');
+    if(c) c.classList.add('selected');
+    setTimeout(()=>onboardingNext(),220);
+  }
+}
+
 function onboardingNext(){
-  if(_obStep===5){saveOnboarding();return;}
+  if(_obStep===6){saveOnboarding();return;}
+  // Étape 5 (EF) : lire la valeur saisie avant de passer
+  if(_obStep===5){
+    const minEl=document.getElementById('ob-ef-min');
+    const secEl=document.getElementById('ob-ef-sec');
+    const wrap=document.getElementById('ob-ef-input-wrap');
+    if(wrap && wrap.style.display!=='none' && minEl && minEl.value){
+      const m=parseInt(minEl.value)||5;
+      const s=Math.min(59,parseInt(secEl&&secEl.value)||0);
+      _obData.ef_pace=m+':'+(s<10?'0':'')+s;
+    }
+  }
   let next=_obStep+1;
   // Sauter l'étape date si "Plaisir" (pas de course, pas de date butoir)
   if(next===1&&_obData.course==='Plaisir'){
@@ -1423,6 +1486,11 @@ async function saveOnboarding(){
       const startDate=new Date().toISOString().split('T')[0];
       state.plan_start_date=startDate;
       updates.plan_start_date=startDate;
+      // EF pace si renseignée
+      if(_obData.ef_pace){
+        state.ef_pace=_obData.ef_pace;
+        updates.ef_pace=_obData.ef_pace;
+      }
       entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
       await dbRef.update(updates).catch(()=>{});
     }
@@ -2222,6 +2290,11 @@ const EF_AM_TABLE=[
 
 function getBestEfPace(){
   let lastSec=null;
+  // Fallback : EF déclarée à l'onboarding (avant d'avoir des séances validées)
+  if(state.ef_pace){
+    const fb=paceStrToSec(state.ef_pace.replace("'",":"));
+    if(fb!==null) lastSec=fb;
+  }
   for(let ws=1;ws<=CW;ws++){
     // Séances base (plan Guillaume) — admin seulement
     if(isAdmin()){
