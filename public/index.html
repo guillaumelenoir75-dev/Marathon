@@ -1672,7 +1672,7 @@ function _makeTimeOptions(defaultVal){
       const val=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
       const opt=document.createElement('option');
       opt.value=val; opt.textContent=val;
-      if(val===(defaultVal||'07:00')) opt.selected=true;
+      if(val===(defaultVal||'12:00')) opt.selected=true;
       sel.appendChild(opt);
     }
   }
@@ -1695,7 +1695,7 @@ function _renderDayTimeRows(){
     const icon=document.createElement('span');
     icon.style.cssText='font-size:18px;flex-shrink:0;';
     icon.textContent='🕐';
-    const sel=_makeTimeOptions(times[d]||'07:00');
+    const sel=_makeTimeOptions(times[d]||'12:00');
     sel.onchange=()=>{
       if(!_obData.run_times) _obData.run_times={};
       _obData.run_times[d]=sel.value;
@@ -1715,6 +1715,14 @@ function initObDaysStep(){
   const hint=document.getElementById('ob-days-count');
   if(hint) hint.textContent=max;
   if(_obData.run_days && _obData.run_days.length>max) _obData.run_days=[];
+  // Pré-sélection par défaut : Mar(1), Jeu(3), Sam(5) — 3 jours; adapter si max différent
+  if(!_obData.run_days || _obData.run_days.length===0){
+    const defaults=[[1,3,5],[1,3],[1,3,5,6]][Math.min(max,4)===2?1:max>=4?2:0];
+    _obData.run_days=[1,3,5].slice(0,max);
+    if(!_obData.run_times) _obData.run_times={};
+    _obData.run_days.forEach(d=>{ if(!_obData.run_times[d]) _obData.run_times[d]='12:00'; });
+    _obData.run_time='12:00';
+  }
   _updateObDaysUI();
 }
 
@@ -2020,7 +2028,7 @@ function generateAthletePlan(ob){
       const dayOfWeek=sortedDays.length>0?sortedDays[i%sortedDays.length]:i%7; // 0=lun
       // sched_day: 1=lun…7=dim (format Cloud Function)
       s.sched_day=dayOfWeek+1;
-      s.sched_time=runTimes[dayOfWeek]||ob.run_time||'07:00';
+      s.sched_time=runTimes[dayOfWeek]||ob.run_time||'12:00';
       // Date calendaire (pour affichage)
       const weekOffset=new Date(planStart);
       weekOffset.setDate(planStart.getDate()+(w-1)*7);
