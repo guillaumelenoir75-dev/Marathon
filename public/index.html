@@ -222,7 +222,7 @@ input[type=number]:focus{border-color:var(--orange);}
     <!-- Bloc progression -->
     <div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:9px 12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-        <span style="font-size:11px;opacity:0.65;">Progression du plan</span>
+        <span style="font-size:11px;opacity:0.65;" id="h-prog-label">Progression du plan</span>
         <span style="font-size:18px;font-weight:800;letter-spacing:-0.5px;" id="h-pct">19%</span>
       </div>
       <div style="background:rgba(255,255,255,0.18);border-radius:5px;height:6px;overflow:hidden;">
@@ -236,7 +236,7 @@ input[type=number]:focus{border-color:var(--orange);}
         <div style="width:0.5px;height:24px;background:rgba(255,255,255,0.2);"></div>
         <div style="text-align:right;">
           <div style="font-size:13px;font-weight:700;" id="h-grand-total">1 042 km</div>
-          <div style="font-size:10px;opacity:0.5;">plan complet</div>
+          <div style="font-size:10px;opacity:0.5;" id="h-grand-total-label">plan complet</div>
         </div>
       </div>
     </div>
@@ -4967,11 +4967,31 @@ function renderHome(){
   // ── KPIs globaux (toujours basés sur CW réel) ───────────────────────────────
   const td=calcTotalDone();
   const gt=getGrandTotal();
-  const pct=gt>0?Math.round(td/gt*100):0;
-  const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'—';
-  const barEl=document.getElementById('h-bar'); if(barEl) barEl.style.width=pct+'%';
-  const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
-  const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
+  const obP=state.onboarding||{};
+  const isPlaisirUser=!isAdmin()&&(obP.course==='Plaisir'||!obP.course);
+  if(isPlaisirUser){
+    // Mode "pour le plaisir" : affiche km parcourus sans objectif ni %
+    const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent='';
+    const barEl=document.getElementById('h-bar');
+    // Barre qui grandit tous les 100km (ou 50km si < 100km courus)
+    const step=td<100?50:100;
+    const pct=Math.min(100,Math.round((td%step)/step*100));
+    if(barEl) barEl.style.width=pct+'%';
+    const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Km parcourus';
+    const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
+    const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent='';
+    const gtLabel=document.getElementById('h-grand-total-label'); if(gtLabel) gtLabel.textContent='';
+    const sepEl=document.querySelector('#h-grand-total')?.closest('div')?.previousElementSibling;
+    if(sepEl) sepEl.style.display='none';
+  } else {
+    const pct=gt>0?Math.round(td/gt*100):0;
+    const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'—';
+    const barEl=document.getElementById('h-bar'); if(barEl) barEl.style.width=pct+'%';
+    const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Progression du plan';
+    const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
+    const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
+    const gtLabel=document.getElementById('h-grand-total-label'); if(gtLabel) gtLabel.textContent='plan complet';
+  }
   const kpiTotalEl=document.getElementById('kpi-total'); if(kpiTotalEl) kpiTotalEl.textContent=td;
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=Math.max(0,gt-td);
   const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=isAdmin()?Math.max(0,32-CW):'—';
