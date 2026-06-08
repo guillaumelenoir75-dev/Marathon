@@ -596,7 +596,7 @@ input[type=number]:focus{border-color:var(--orange);}
           <div style="display:flex;align-items:center;gap:8px;">
             <input id="ob-ef-min" type="number" min="3" max="9" placeholder="5" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
             <span style="font-size:20px;font-weight:700;color:#555;">:</span>
-            <input id="ob-ef-sec" type="number" min="0" max="59" placeholder="00" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
+            <input id="ob-ef-sec" type="number" min="0" max="59" placeholder="00" oninput="if(parseInt(this.value)>59)this.value=59;if(parseInt(this.value)<0)this.value=0;" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
             <span style="font-size:15px;color:#888;font-weight:600;">/km</span>
           </div>
         </div>
