@@ -159,7 +159,7 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
       <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        <span style="font-size:12px;font-weight:700;" id="kpi-ef-pace">5'48</span>
+        <span style="font-size:12px;font-weight:700;" id="kpi-ef-pace">6'40</span>
         <span style="font-size:10px;opacity:0.6;">/km EF</span>
       </div>
     </div>
@@ -2417,7 +2417,7 @@ function getBestEfPace(){
       ei++;
     }
   }
-  if(lastSec===null) return null;
+  if(lastSec===null) return "6'40";
   const m=Math.floor(lastSec/60);
   const s=lastSec%60;
   return `${m}'${s.toString().padStart(2,'0')}`;
@@ -4732,7 +4732,7 @@ function renderHome(){
   // EF pace
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
-  if(efEl) efEl.textContent=efPace?efPace:(isAdmin()?"5'59":'—');
+  if(efEl) efEl.textContent=efPace?efPace:(isAdmin()?"6'40":'—');
   // Temps marathon projeté
   const pred = buildMarathonPrediction();
   const mtEl=document.getElementById('kpi-marathon-time');
@@ -5528,7 +5528,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
 
   // Allure attendue pour cette séance
   (()=>{
-    const efActuelle = getBestEfPace() || "5'48";
+    const efActuelle = getBestEfPace() || "6'40";
     if(s.type==='ef' || s.type==='long') {
       if(analysisContext.blocs_am && analysisContext.blocs_am.present){
         analysisContext.allure_attendue = `Structure mixte : phases EF à ${efActuelle}/km + ${analysisContext.blocs_am.km_am||'X'} km AM à ${analysisContext.blocs_am.allure_cible_am} — allure globale = moyenne des deux`;
@@ -5571,7 +5571,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
       const kmRapide=reps*(durMin*60/pMoy);
       const kmTotal=parseFloat(km);
       const kmEF=Math.max(0,kmTotal-kmRapide);
-      const efPaceStr=getBestEfPace()||"5'59";
+      const efPaceStr=getBestEfPace()||"6'40";
       const efSec=parsePaceToSec(efPaceStr.replace("'",':'));
       const allureMoyAttendueSec=kmTotal>0?((kmRapide*pMoy)+(efSec>0?kmEF*efSec:0))/kmTotal:0;
       const actual=parsePaceToSec(pace);
@@ -7179,7 +7179,7 @@ function estimateDuration(s) {
     }
     if(!paceMin) {
       // Fallback : dernière allure EF validée
-      const efStr = getBestEfPace()||"5'48";
+      const efStr = getBestEfPace()||"6'40";
       paceMin = parsePaceMin(efStr.replace("'",":")) || 5.8;
     }
     if(s.type === 'long') {
@@ -7206,7 +7206,7 @@ function estimateDuration(s) {
     const efDetailMatch = detail.match(/EF\s*@\s*(\d+)[':](\d+)/i);
     const paceEf = efDetailMatch
       ? (parsePaceMin(efDetailMatch[1]+':'+efDetailMatch[2]) || 5.8)
-      : (parsePaceMin((getBestEfPace()||"5'48").replace("'",":")) || 5.8);
+      : (parsePaceMin((getBestEfPace()||"6'40").replace("'",":")) || 5.8);
 
     // Allure tempo : 1ère allure dans le detail
     const paceMatch2 = detail.match(/(\d+)[':](\d+)/);
@@ -7322,7 +7322,7 @@ function buildLongModalHtml(detail){
   const am=getAmTrainingPace();
   // Extraire l'allure EF si déjà sauvegardée dans le detail
   const efPaceMatch=(detail||'').match(/EF\s*@\s*(\d+)[':](\d+)/);
-  const currentEfPace=efPaceMatch?efPaceMatch[1]+':'+efPaceMatch[2]:(getBestEfPace()||'5:48').replace("'",'::').replace(/:(\d{3}).*/,'').replace('::',"'");
+  const currentEfPace=efPaceMatch?efPaceMatch[1]+':'+efPaceMatch[2]:(getBestEfPace()||'6:40').replace("'",'::').replace(/:(\d{3}).*/,'').replace('::',"'");
   const blocks=[];
   (detail||'').split('·').forEach(part=>{
     const p=part.trim();
@@ -7333,7 +7333,7 @@ function buildLongModalHtml(detail){
   const blocksJson=JSON.stringify(blocks).replace(/"/g,'&quot;');
   const efPaces=['6:25','6:20','6:15','6:10','6:05','6:00','5:55','5:50','5:45','5:40','5:35','5:30'];
   const efChips=efPaces.map(p=>`<button type="button" id="long-ef-chip-${p.replace(':','-')}" onclick="selectLongEfPace('${p}')" style="padding:5px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all 0.15s;">${p}</button>`).join('');
-  const curEf=(getBestEfPace()||'5:48').replace("'",'::').split('::')[0] || '5';
+  const curEf=(getBestEfPace()||'6:40').replace("'",'::').split('::')[0] || '5';
   return '<div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
     +'<div style="background:#EAF3DE;border-radius:8px;padding:9px 12px;">'
@@ -8127,7 +8127,7 @@ function updateLongDuration(){
   const blocks=getLongBlocksData();
   if(!blocks||blocks.length===0){durEl.textContent='—';return;}
   const efField=document.getElementById('long-ef-pace');
-  const efPaceRaw=(efField&&efField.value.trim())||getBestEfPace()||"5'48";
+  const efPaceRaw=(efField&&efField.value.trim())||getBestEfPace()||"6'40";
   const parsePaceStr=p=>{const m=(p||'').replace("'",'!').replace(':','!').match(/(\d+)!(\d+)/);return m?parseInt(m[1])+parseInt(m[2])/60:null;};
   const efPace=parsePaceStr(efPaceRaw);
   const amPace=parsePaceStr(getAmTrainingPace());
@@ -8229,10 +8229,10 @@ function buildLongDetail(blocks){
   const am=getMarathonPaceStr();
   const efField=document.getElementById('long-ef-pace');
   const efPace=efField&&efField.value.trim()?efField.value.trim():null;
-  const efDefault=(getBestEfPace()||'5:48').replace("'",'::').split('::')[0];
+  const efDefault=(getBestEfPace()||'6:40').replace("'",'::').split('::')[0];
   const detail=blocks.map(b=>`${b.km} ${b.type}${b.type==='AM'?' @ '+am+'/km':''}`).join(' · ');
   // Sauvegarder l'allure EF si différente de la valeur par défaut
-  if(efPace && efPace !== (getBestEfPace()||'5:48')) return detail+' · EF @ '+efPace+'/km';
+  if(efPace && efPace !== (getBestEfPace()||'6:40')) return detail+' · EF @ '+efPace+'/km';
   return detail;
 }
 
@@ -8548,7 +8548,7 @@ function _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editP
       <div class="modal-section-label" style="color:#3B6D11;">🟢 Allure EF — échauffement · récup · fin</div>
       <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:14px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
-          <input type="text" id="edit-ef-pace" value="${(()=>{const m=detail.match(/EF\s*@\s*(\d+)[\'::]+(\d+)/i);return m?m[1]+':'+m[2]:getBestEfPace()||'5:48';})()}" maxlength="5" oninput="calcEfRestant()"
+          <input type="text" id="edit-ef-pace" value="${(()=>{const m=detail.match(/EF\s*@\s*(\d+)[\'::]+(\d+)/i);return m?m[1]+':'+m[2]:getBestEfPace()||'6:40';})()}" maxlength="5" oninput="calcEfRestant()"
             style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:13px 10px;font-size:30px;font-weight:900;color:#3B6D11;width:104px;outline:none;text-align:center;line-height:1;">
           <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
         </div>
@@ -8682,7 +8682,7 @@ function openEditModal(ws, si){
   :(()=>{
     // Extraire l'allure depuis le detail existant
     const paceMatch2 = detail.match(/(\d+)[':](\d+)/);
-    const efPaceVal = paceMatch2 ? paceMatch2[1]+":"+paceMatch2[2] : getBestEfPace()||'5:48';
+    const efPaceVal = paceMatch2 ? paceMatch2[1]+":"+paceMatch2[2] : getBestEfPace()||'6:40';
     const ed2 = state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};
     // Allures suggérées (plage EF Guillaume)
     const efPaces = ["6:25","6:20","6:15","6:10","6:05","6:00","5:55","5:50","5:45","5:40","5:35","5:30"];
@@ -8698,7 +8698,7 @@ function openEditModal(ws, si){
       <!-- Grande input allure + badge durée -->
       <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:16px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <input type="text" id="edit-ef-pace" value="${efPaceVal}" placeholder="5:48" maxlength="5"
+          <input type="text" id="edit-ef-pace" value="${efPaceVal}" placeholder="6:40" maxlength="5"
             oninput="updateEfPreview()"
             style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:14px 12px;font-size:32px;font-weight:900;color:#3B6D11;width:108px;outline:none;text-align:center;line-height:1;">
           <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
@@ -8730,7 +8730,7 @@ function openEditModal(ws, si){
   const _tc=_typeColors[s.type]||_typeColors.rest;
   // Calculer la durée header avec la même allure que le champ
   const _editPaceMatch = detail.match(/(\d+)[':](\d+)/);
-  const _editEfPace = _editPaceMatch ? _editPaceMatch[1]+':'+_editPaceMatch[2] : (getBestEfPace()||'5:48');
+  const _editEfPace = _editPaceMatch ? _editPaceMatch[1]+':'+_editPaceMatch[2] : (getBestEfPace()||'6:40');
   const _modalDur = (()=>{
     if(s.type==='ef'){
       const pm=_editEfPace.match(/(\d+)[':](\d+)/);
@@ -9164,7 +9164,7 @@ function onAddTypeChange(ws){
 
   } else {
     // EF — section redesignée
-    const efPace = getBestEfPace() || '5:48';
+    const efPace = getBestEfPace() || '6:40';
     const efPaces = ["6:20","6:10","6:00","5:50","5:40","5:30"];
     const paceChips = efPaces.map(p =>
       `<button type="button" id="add-ef-chip-${p.replace(':','-')}" onclick="selectAddEfPace('${p}')" class="modal-chip">${p}</button>`
@@ -9178,7 +9178,7 @@ function onAddTypeChange(ws){
         <div class="modal-section-label" style="color:#3B6D11;">🟢 Allure cible</div>
         <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:16px;">
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
-            <input type="text" id="add-ef-pace" value="${efPace}" placeholder="5:48" maxlength="5"
+            <input type="text" id="add-ef-pace" value="${efPace}" placeholder="6:40" maxlength="5"
               oninput="updateAddEfPreview()"
               style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:14px 12px;font-size:32px;font-weight:900;color:#3B6D11;width:108px;outline:none;text-align:center;line-height:1;">
             <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
@@ -9343,7 +9343,7 @@ function saveAdd(ws){
   } else {
     // EF
     const efPaceEl = document.getElementById('add-ef-pace');
-    const efPace = efPaceEl ? efPaceEl.value.trim() : (getBestEfPace() || '5:48');
+    const efPace = efPaceEl ? efPaceEl.value.trim() : (getBestEfPace() || '6:40');
     name   = 'Séance EF';
     detail = efPace + '/km';  // sans espace — identique à saveEdit
   }
@@ -9390,7 +9390,7 @@ function onExEditTypeChange(){
     container.innerHTML=buildTempoFieldsHtml('exedit',6,2,'2:00','4:30','4:50','#C4141B');
   } else {
     // EF — même pace picker que openEditModal
-    const efPaceVal=getBestEfPace()||'5:48';
+    const efPaceVal=getBestEfPace()||'6:40';
     const efPaces=["6:25","6:20","6:15","6:10","6:05","6:00","5:55","5:50","5:45","5:40","5:35","5:30"];
     const paceChips=efPaces.map(p=>`<button type="button" id="exedit-ef-chip-${p.replace(':','-')}" onclick="selectExEditEfPace('${p}')" style="padding:7px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all 0.15s;">${p}</button>`).join('');
     container.innerHTML=`
@@ -9398,7 +9398,7 @@ function onExEditTypeChange(){
         <div class="modal-section-label" style="color:#3B6D11;">🟢 Allure cible</div>
         <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:16px;">
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <input type="text" id="exedit-ef-pace" value="${efPaceVal}" placeholder="5:48" maxlength="5"
+            <input type="text" id="exedit-ef-pace" value="${efPaceVal}" placeholder="6:40" maxlength="5"
               oninput="updateExEditEfPreview()"
               style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:14px 12px;font-size:32px;font-weight:900;color:#3B6D11;width:108px;outline:none;text-align:center;line-height:1;">
             <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
@@ -9452,7 +9452,7 @@ function openEditExtraModal(ws, ei){
   } else {
     // EF — même pace picker que openEditModal
     const paceMatch2=detail.match(/(\d+)[':](\d+)/);
-    const efPaceVal=paceMatch2?paceMatch2[1]+':'+paceMatch2[2]:(getBestEfPace()||'5:48');
+    const efPaceVal=paceMatch2?paceMatch2[1]+':'+paceMatch2[2]:(getBestEfPace()||'6:40');
     const efPaces=["6:25","6:20","6:15","6:10","6:05","6:00","5:55","5:50","5:45","5:40","5:35","5:30"];
     const paceChips=efPaces.map(p=>`<button type="button" id="exedit-ef-chip-${p.replace(':','-')}" onclick="selectExEditEfPace('${p}')" style="padding:7px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all 0.15s;">${p}</button>`).join('');
     fieldsHtml=`
@@ -9460,7 +9460,7 @@ function openEditExtraModal(ws, ei){
         <div class="modal-section-label" style="color:#3B6D11;">🟢 Allure cible</div>
         <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:16px;">
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <input type="text" id="exedit-ef-pace" value="${efPaceVal}" placeholder="5:48" maxlength="5"
+            <input type="text" id="exedit-ef-pace" value="${efPaceVal}" placeholder="6:40" maxlength="5"
               oninput="updateExEditEfPreview()"
               style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:14px 12px;font-size:32px;font-weight:900;color:#3B6D11;width:108px;outline:none;text-align:center;line-height:1;">
             <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
@@ -11027,7 +11027,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const nonPlanifie = planifie === '';
       let detailFinal = detail;
       if((s.type === 'ef' || s.type === 'long') && detail) {
-        const efDyn = getBestEfPace() || "5'48";
+        const efDyn = getBestEfPace() || "6'40";
         detailFinal = detail.replace(/\d:\d{2}\/km/g, efDyn + '/km')
                             .replace(/EF @ \d:\d{2}\/km/g, 'EF @ ' + efDyn + '/km');
       }
@@ -11075,7 +11075,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     prediction_marathon: buildPredictionForCoach(),
     allure_marathon_cible: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })(),
     temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
-    allure_ef_actuelle: getBestEfPace()||"5'59",
+    allure_ef_actuelle: getBestEfPace()||"6'40",
     projection_sub4h: (()=>{
       const objectifSec = 4*3600; // 4h00
       const objectifAllureSec = Math.ceil(objectifSec / 42.195); // ~341 sec = 5'41/km
@@ -12804,7 +12804,7 @@ async function sendCoachMessage(){
         return s;
       }).join(', ');
       const _dateAuj = now.getDate() + ' ' + _moisNoms2[now.getMonth()] + ' ' + now.getFullYear();
-      const _efDynMsg = getBestEfPace() || "5'48";
+      const _efDynMsg = getBestEfPace() || "6'40";
       const planningDatesFinal = planningDates.replace(/\d:\d{2}\/km/g, _efDynMsg + '/km')
                                               .replace(/EF @ \d:\d{2}\/km/g, 'EF @ ' + _efDynMsg + '/km');
       enrichedMsg = msg + '\n\n[Dates exactes séances: ' + planningDatesFinal + '. AUJOURD\'HUI = ' + jourActuel + ' ' + _dateAuj + '. Utilise UNIQUEMENT ces dates, ne calcule jamais toi-même.]';
@@ -13385,7 +13385,7 @@ async function checkMorningBrief(memos, force) {
     // Consignes allure pour les séances du jour
     consignes_ef: [8,12,16,20,26,30].includes(CW)
       ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`
-      : `Allure EF : ${getBestEfPace()||"5'48"}/km — FC 140-148 bpm`,
+      : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
   };
   try {
     // ── Afficher le loader "Le Coach écrit" immédiatement ──
@@ -13600,8 +13600,8 @@ async function loadCoachHistory(){
           } : null,
           allure_ef_actuelle: getBestEfPace(),
           consignes_ef_semaine: [8,12,16,20,26,30].includes(CW)
-            ? 'DÉCHARGE — allure EF entre '+(()=>{const s=paceStrToSec(getBestEfPace()||"5'48");return Math.floor((s+30)/60)+"'"+(((s+30)%60)+'').padStart(2,'0')+' et '+Math.floor((s+50)/60)+"'"+(((s+50)%60)+'').padStart(2,'0')})()+'  /km, FC < 140 bpm'
-            : 'NORMALE — allure EF entre '+(()=>{const s=paceStrToSec(getBestEfPace()||"5'48");return Math.floor((s+20)/60)+"'"+(((s+20)%60)+'').padStart(2,'0')+' et '+Math.floor((s+40)/60)+"'"+(((s+40)%60)+'').padStart(2,'0')})()+'  /km, FC 140-148 bpm',
+            ? 'DÉCHARGE — allure EF entre '+(()=>{const s=paceStrToSec(getBestEfPace()||"6'40");return Math.floor((s+30)/60)+"'"+(((s+30)%60)+'').padStart(2,'0')+' et '+Math.floor((s+50)/60)+"'"+(((s+50)%60)+'').padStart(2,'0')})()+'  /km, FC < 140 bpm'
+            : 'NORMALE — allure EF entre '+(()=>{const s=paceStrToSec(getBestEfPace()||"6'40");return Math.floor((s+20)/60)+"'"+(((s+20)%60)+'').padStart(2,'0')+' et '+Math.floor((s+40)/60)+"'"+(((s+40)%60)+'').padStart(2,'0')})()+'  /km, FC 140-148 bpm',
           prediction_marathon: buildPredictionForCoach(),
           allure_marathon_cible: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })(),
           temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
