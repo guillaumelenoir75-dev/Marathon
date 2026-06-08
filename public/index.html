@@ -2090,7 +2090,7 @@ function _cvPickType(t){
   const modal=document.getElementById('cv-session-modal');
   if(!modal) return;
   modal._cvType=t;
-  ['ef','tempo','long','race'].forEach(x=>{
+  ['ef','tempo','frac','long','race'].forEach(x=>{
     const btn=document.getElementById('cv-chip-'+x);
     if(!btn) return;
     const c=_cvTypeHeaderStyle(x);
@@ -8749,7 +8749,7 @@ function openEditModal(ws, si){
   const _hemj  = {ef:'🟢',tempo:'🔥',long:'💜'}[s.type]||'📅';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
   // Couleur gradient de transition header→body
-  const _gradColors = {ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7'};
+  const _gradColors = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'};
   const _gc = _gradColors[s.type] || '#0C447C';
   overlay.innerHTML=`<div class="modal-box" style="max-height:92vh;">
 
@@ -9070,8 +9070,7 @@ function getWeekSessions(ws){
 function openAddModal(ws){
   const mc = document.getElementById('modal-container');
   const shoeOptions = getShoeOptions(null);
-  // "race" supprimé, "course" supprimé
-  const typeOptions = ['ef','tempo','long'].map(t =>
+  const typeOptions = ['ef','tempo','frac','long'].map(t =>
     `<option value="${t}">${typeLabel[t]}</option>`
   ).join('');
 
@@ -9208,8 +9207,8 @@ function onAddTypePill(type, ws) {
   if(typeInput) typeInput.value = type;
 
   // Mettre à jour les pills
-  const colors = {ef:'#3B6D11', tempo:'#E8530A', long:'#534AB7'};
-  ['ef','tempo','long'].forEach(t => {
+  const colors = {ef:'#3B6D11', tempo:'#E8530A', frac:'#C4141B', long:'#534AB7'};
+  ['ef','tempo','frac','long'].forEach(t => {
     const pill = document.getElementById('add-pill-'+t);
     if(!pill) return;
     const active = t === type;
@@ -12019,7 +12018,7 @@ function selectSessionToModif(si, el, ws){
     +'<input type="number" id="modif-km" value="'+suggestedKm+'" min="1" max="50" step="0.5" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:16px;font-weight:700;color:var(--text);width:100%;outline:none;text-align:center;"></div>'
     +'<div><p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Type</p>'
     +'<select id="modif-type" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:14px;color:var(--text);width:100%;outline:none;">'
-    +['ef','tempo','long','rest','race'].map(t=>'<option value="'+t+'"'+(suggestedType===t?' selected':'')+'>'+typeLabel[t]+'</option>').join('')
+    +['ef','tempo','frac','long','rest','race'].map(t=>'<option value="'+t+'"'+(suggestedType===t?' selected':'')+'>'+typeLabel[t]+'</option>').join('')
     +'</select></div></div>'
     +tempoExtraHtml
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">'
