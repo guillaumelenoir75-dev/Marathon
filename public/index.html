@@ -5595,7 +5595,7 @@ function renderHome(){
       const exos=getRenfoData(rd.r).exos;
       const totalSeries=exos.reduce((a,ex)=>a+getNbSeries(ex.series),0);
       const doneSeries=exos.reduce((a,ex,i)=>a+(state[rfk(w,rd.r)+'e'+i+'_series']||0),0);
-      const pct=Math.round(doneSeries/totalSeries*100);
+      const pct=Math.min(100,Math.round(doneSeries/totalSeries*100));
       const card=document.createElement('div');
       const renfoSched=state[rfk(w,rd.r)+'sched']?JSON.parse(state[rfk(w,rd.r)+'sched']):null;
       const todayDayRenfo=(new Date()).getDay()===0?7:(new Date()).getDay();
