@@ -573,7 +573,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <div style="display:flex;gap:12px;">
         <button onclick="onboardingSelect('sessions','2')" class="ob-chip ob-chip-sm" id="ob-sessions-2">2</button>
         <button onclick="onboardingSelect('sessions','3')" class="ob-chip ob-chip-sm" id="ob-sessions-3">3</button>
-        <button onclick="onboardingSelect('sessions','4+')" class="ob-chip ob-chip-sm" id="ob-sessions-4+">4+</button>
+        <button onclick="onboardingSelect('sessions','4')" class="ob-chip ob-chip-sm" id="ob-sessions-4">4</button>
       </div>
     </div>
     <div id="ob-step-3" style="display:none;">
@@ -1793,7 +1793,7 @@ function onboardingBack(){
 
 function _obMaxDays(){
   const s=_obData.sessions||'3';
-  return s==='4+'?4:parseInt(s)||3;
+  return s==='4'?4:parseInt(s)||3;
 }
 
 function _makeTimeOptions(defaultVal){
@@ -2005,7 +2005,7 @@ async function saveOnboarding(){
 function generateAthletePlan(ob){
   const baseKm=parseInt(ob.km_semaine)||20;
   const sessStr=ob.sessions||'3';
-  const nbSess=sessStr==='4+'?4:parseInt(sessStr)||3;
+  const nbSess=sessStr==='4'?4:parseInt(sessStr)||3;
   const niveau=ob.niveau||'Intermédiaire'; // Débutant / Intermédiaire / Confirmé
   const course=ob.course||'Marathon';
   const useFrac=course==='5 km'||course==='10 km'; // fractionné pour courtes distances
