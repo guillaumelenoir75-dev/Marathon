@@ -1908,10 +1908,23 @@ async function saveOnboarding(){
       const startDate=new Date().toISOString().split('T')[0];
       state.plan_start_date=startDate;
       updates.plan_start_date=startDate;
-      // EF pace si renseignée
+      // EF pace — déclarée en priorité, sinon dérivée depuis le temps cible
       if(_obData.ef_pace){
         state.ef_pace=_obData.ef_pace;
         updates.ef_pace=_obData.ef_pace;
+      } else if(_obData.target_time&&_obData.race_distance_km){
+        const _rDist=parseFloat(_obData.race_distance_km)||42.195;
+        const _tp=_obData.target_time.split(':').map(Number);
+        const _ts=_tp.length===3?_tp[0]*3600+_tp[1]*60+_tp[2]:_tp.length===2?_tp[0]*60+_tp[1]:0;
+        if(_ts>0){
+          const _rps=_ts/_rDist;
+          const _niv=_obData.niveau||'Intermédiaire';
+          const _crs=_obData.course||'Marathon';
+          const _efM={'Marathon':{Débutant:1.40,Intermédiaire:1.36,Confirmé:1.32},'Semi-marathon':{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30},'10 km':{Débutant:1.35,Intermédiaire:1.31,Confirmé:1.28},'5 km':{Débutant:1.32,Intermédiaire:1.28,Confirmé:1.25}}[_crs]||{Débutant:1.38,Intermédiaire:1.36,Confirmé:1.32};
+          const _efSec=Math.round(_rps*(_efM[_niv]||1.36));
+          const _efStr=Math.floor(_efSec/60)+"'"+String(_efSec%60).padStart(2,'0');
+          state.ef_pace=_efStr; updates.ef_pace=_efStr;
+        }
       }
       // Jours et horaire de course
       if(_obData.run_days){ state.run_days=_obData.run_days; updates.run_days=JSON.stringify(_obData.run_days); }
@@ -1983,84 +1996,149 @@ function generateAthletePlan(ob){
     }
   }
 
-  // ── Calcul des allures depuis l'EF déclarée ─────────────────────────────────
-  // ef_pace format "5:48" ou "5'48"
-  const efRaw=ob.ef_pace||null;
-  let efSec=null;
-  if(efRaw){
-    const parts=efRaw.replace("'",":").split(':');
-    if(parts.length===2) efSec=parseInt(parts[0])*60+parseInt(parts[1]);
-  }
+  // ── Calcul des allures ──────────────────────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
 
-  // Allures calculées
-  const efLabel  = efSec ? fmtPace(efSec)    : null;
-  // Tempo (semi/marathon) : allure seuil lactate, EF - 40/50/60s selon niveau
-  const tDelta   = niveau==='Débutant'?-40 : niveau==='Confirmé'?-60 : -50;
-  const tempoSec = efSec ? efSec+tDelta : null;
-  const tempoLbl = tempoSec ? fmtPace(tempoSec) : null;
+  // 1. EF déclarée (format "5:48" ou "5'48")
+  const efRaw=ob.ef_pace||null;
+  let efSec=null;
+  if(efRaw){const parts=efRaw.replace("'",":").split(':');if(parts.length===2)efSec=parseInt(parts[0])*60+parseInt(parts[1]);}
 
-  // Fractionné (5km/10km) : allure VO2max / VMA
-  // 5km → zone très intense : EF - 90s à EF - 105s  (ex: EF 6'30 → 5'05 à 4'45)
-  // 10km → zone VO2max : EF - 75s à EF - 90s         (ex: EF 6'30 → 5'15 à 5'00)
-  const fracBaseDelta = course==='5 km' ? -97 : -82; // allure basse de la zone
-  const fracZoneWidth = course==='5 km' ? 15  : 12;  // largeur de la zone (s/km)
-  const fracSec    = efSec ? efSec+fracBaseDelta : null;        // allure lente de la zone (borne basse intensité)
-  const fracMinSec = fracSec ? fracSec-fracZoneWidth : null;   // allure rapide (borne haute intensité)
-  const fracLbl    = fracSec    ? fmtPace(fracSec)    : null;
-  const fracMinLbl = fracMinSec ? fmtPace(fracMinSec) : null;
+  // 2. Race pace depuis le temps cible (source principale pour tempo/frac)
+  const raceDist={'Marathon':42.195,'Semi-marathon':21.1,'10 km':10,'5 km':5}[course]||42.195;
+  let racePaceSec=null;
+  if(ob.target_time){
+    const tp=ob.target_time.split(':').map(Number);
+    const totalSec=tp.length===3?tp[0]*3600+tp[1]*60+tp[2]:tp.length===2?tp[0]*60+tp[1]:0;
+    if(totalSec>0) racePaceSec=totalSec/raceDist;
+  }
+
+  // 3. EF effective — déclarée en priorité, sinon dérivée depuis race pace
+  let effectiveEfSec=efSec;
+  if(!effectiveEfSec&&racePaceSec){
+    // EF ≈ race_pace × 1.32–1.40 selon distance et niveau
+    const efMult={'Marathon':{Débutant:1.40,Intermédiaire:1.36,Confirmé:1.32},'Semi-marathon':{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30},'10 km':{Débutant:1.35,Intermédiaire:1.31,Confirmé:1.28},'5 km':{Débutant:1.32,Intermédiaire:1.28,Confirmé:1.25}}[course]||{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30};
+    effectiveEfSec=Math.round(racePaceSec*(efMult[niveau]||1.35));
+  }
+  const efLabel=effectiveEfSec?fmtPace(effectiveEfSec):null;
+
+  // 4. Tempo (allure seuil lactate) — race pace en priorité, fallback EF
+  let tempoPaceSec=null;
+  if(racePaceSec){
+    // Tempo ≈ race_pace × 0.94–0.97 (allure semi ou seuil pour courtes distances)
+    const tempoMult={'Marathon':{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940},'Semi-marathon':{Débutant:0.960,Intermédiaire:0.945,Confirmé:0.930},'10 km':{Débutant:0.965,Intermédiaire:0.950,Confirmé:0.940},'5 km':{Débutant:0.980,Intermédiaire:0.970,Confirmé:0.960}}[course]||{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940};
+    tempoPaceSec=Math.round(racePaceSec*(tempoMult[niveau]||0.952));
+  } else if(effectiveEfSec){
+    // Fallback EF-based avec deltas plus larges
+    const tDelta=niveau==='Débutant'?-55:niveau==='Confirmé'?-80:-65;
+    tempoPaceSec=effectiveEfSec+tDelta;
+  }
+  // Sanity : tempo doit être plus rapide que EF d'au moins 25s
+  if(tempoPaceSec&&effectiveEfSec&&tempoPaceSec>effectiveEfSec-25) tempoPaceSec=effectiveEfSec-30;
+  const tempoLbl=tempoPaceSec?fmtPace(tempoPaceSec):null;
+
+  // 5. Fractionné (VO2max / VMA) — race pace en priorité, fallback EF
+  let fracPaceSec=null,fracMinPaceSec=null;
+  if(racePaceSec){
+    // Frac ≈ allure 5km/VMA : race_pace × 0.82–0.94 selon distance
+    const fracMult={'Marathon':0.820,'Semi-marathon':0.880,'10 km':0.910,'5 km':0.940}[course]||0.820;
+    fracPaceSec=Math.round(racePaceSec*fracMult);
+    fracMinPaceSec=Math.round(fracPaceSec*0.965); // borne rapide (+3.5%)
+  } else if(effectiveEfSec){
+    const fracBaseDelta=course==='5 km'?-100:course==='10 km'?-90:-80;
+    fracPaceSec=effectiveEfSec+fracBaseDelta;
+    fracMinPaceSec=fracPaceSec-12;
+  }
+  // Sanity : frac plus rapide que tempo d'au moins 20s
+  if(fracPaceSec&&tempoPaceSec&&fracPaceSec>tempoPaceSec-20){fracPaceSec=tempoPaceSec-25;fracMinPaceSec=fracPaceSec-12;}
+  const fracLbl=fracPaceSec?fmtPace(fracPaceSec):null;
+  const fracMinLbl=fracMinPaceSec?fmtPace(fracMinPaceSec):null;
+
+  // 6. Zones FC depuis FCmax si disponible
+  const fcMax=parseInt(ob.fc_max)||0;
+  const efFCStr=fcMax?`FC ${Math.round(fcMax*0.70)}-${Math.round(fcMax*0.75)} bpm`:'FC basse, allure confort';
+  const tempoFCStr=fcMax?`FC ${Math.round(fcMax*0.80)}-${Math.round(fcMax*0.88)} bpm`:'FC modérée-haute';
 
   // ── Progression des séances selon semaine, niveau et distance ───────────────
   const tempoProgression=(w)=>{
-    // Débutant : intro à S5, Intermédiaire : S3, Confirmé : S2
-    const introW = niveau==='Débutant'?5 : niveau==='Confirmé'?2 : 3;
-    if(w < introW) return null;
+    // Débutant : intro à S6 avec 1×6 min ; Intermédiaire : S3 ; Confirmé : S2
+    const introW=niveau==='Débutant'?6:niveau==='Confirmé'?2:3;
+    if(w<introW) return null;
     const age=w-introW;
-    if(age<2)  return {rep:1,dur:8,  recup:'3:00'};
-    if(age<4)  return {rep:2,dur:8,  recup:'3:00'};
-    if(age<6)  return {rep:2,dur:10, recup:'3:00'};
-    if(age<10) return {rep:2,dur:12, recup:'3:00'};
-    return             {rep:2,dur:15, recup:'3:00'};
+    if(niveau==='Débutant'){
+      if(age<2)  return {rep:1,dur:6, recup:'3:00'};
+      if(age<4)  return {rep:1,dur:8, recup:'3:00'};
+      if(age<6)  return {rep:2,dur:6, recup:'3:00'};
+      if(age<8)  return {rep:2,dur:8, recup:'3:00'};
+      if(age<12) return {rep:2,dur:10,recup:'3:00'};
+      return            {rep:2,dur:12,recup:'3:00'};
+    }
+    if(niveau==='Confirmé'){
+      if(age<2)  return {rep:2,dur:8, recup:'2:30'};
+      if(age<4)  return {rep:2,dur:10,recup:'2:30'};
+      if(age<6)  return {rep:3,dur:10,recup:'2:30'};
+      if(age<10) return {rep:3,dur:12,recup:'2:00'};
+      return            {rep:3,dur:15,recup:'2:00'};
+    }
+    // Intermédiaire
+    if(age<2)  return {rep:1,dur:8, recup:'3:00'};
+    if(age<4)  return {rep:2,dur:8, recup:'3:00'};
+    if(age<6)  return {rep:2,dur:10,recup:'3:00'};
+    if(age<10) return {rep:2,dur:12,recup:'3:00'};
+    return            {rep:3,dur:12,recup:'2:30'};
   };
 
-  // Fractionné 5km : courts & nombreux (VMA courte, 1-3min), récup égale ou ½ effort
-  // Fractionné 10km : durée moyenne (3-5min, VO2max prolongé), récup plus longue
   const fracProgression=(w)=>{
-    const introW = niveau==='Débutant'?4 : niveau==='Confirmé'?2 : 3;
-    if(w < introW) return null;
+    const introW=niveau==='Débutant'?5:niveau==='Confirmé'?2:3;
+    if(w<introW) return null;
     const age=w-introW;
     if(course==='5 km'){
-      // 5km : montée en charge sur les reps et durée (1min → 2min → 3min)
-      if(age<2)  return {rep:6,  dur:1, recup:'1:30'};
-      if(age<4)  return {rep:8,  dur:1, recup:'1:30'};
-      if(age<6)  return {rep:6,  dur:2, recup:'2:00'};
-      if(age<10) return {rep:8,  dur:2, recup:'2:00'};
-      return             {rep:6,  dur:3, recup:'2:00'};
+      if(niveau==='Débutant'){
+        if(age<2)  return {rep:5,dur:1,recup:'1:30'};
+        if(age<4)  return {rep:6,dur:1,recup:'1:30'};
+        if(age<6)  return {rep:5,dur:2,recup:'2:00'};
+        if(age<10) return {rep:6,dur:2,recup:'2:00'};
+        return           {rep:5,dur:3,recup:'2:00'};
+      }
+      if(age<2)  return {rep:6, dur:1,recup:'1:30'};
+      if(age<4)  return {rep:8, dur:1,recup:'1:30'};
+      if(age<6)  return {rep:6, dur:2,recup:'2:00'};
+      if(age<10) return {rep:8, dur:2,recup:'2:00'};
+      return            {rep:6, dur:3,recup:'2:00'};
     } else {
-      // 10km : blocs plus longs (3→5min), récupération active
-      if(age<2)  return {rep:4, dur:3, recup:'2:30'};
-      if(age<4)  return {rep:5, dur:3, recup:'2:30'};
-      if(age<6)  return {rep:6, dur:3, recup:'2:30'};
-      if(age<10) return {rep:4, dur:5, recup:'3:00'};
-      return             {rep:5, dur:5, recup:'3:00'};
+      // 10km
+      if(niveau==='Débutant'){
+        if(age<2)  return {rep:4,dur:2,recup:'2:30'};
+        if(age<4)  return {rep:4,dur:3,recup:'2:30'};
+        if(age<6)  return {rep:5,dur:3,recup:'2:30'};
+        if(age<10) return {rep:4,dur:4,recup:'3:00'};
+        return           {rep:4,dur:5,recup:'3:00'};
+      }
+      if(age<2)  return {rep:4,dur:3,recup:'2:30'};
+      if(age<4)  return {rep:5,dur:3,recup:'2:30'};
+      if(age<6)  return {rep:6,dur:3,recup:'2:30'};
+      if(age<10) return {rep:4,dur:5,recup:'3:00'};
+      return            {rep:5,dur:5,recup:'3:00'};
     }
   };
 
   // Construit le champ d="Titre|détail" pour chaque type de séance
   const makeD=(type,tempo)=>{
     if(type==='ef'){
-      return efLabel ? `Séance EF|${efLabel}/km · FC 140-150 bpm` : 'Séance EF';
+      return efLabel?`Séance EF|${efLabel}/km · ${efFCStr}`:'Séance EF';
     }
     if(type==='long'){
-      return efLabel ? `EF longue|${efLabel}/km · allure confort` : 'EF longue';
+      return efLabel?`EF longue|${efLabel}/km · allure confort`:'EF longue';
     }
     if(type==='tempo'&&tempo){
       const recupStr=tempo.recup||'3:00';
-      return tempoLbl ? `Tempo ${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · ${recupStr} min récup · EF ${efLabel||'?'}/km` : `Tempo ${tempo.rep}×${tempo.dur} min`;
+      if(tempoLbl) return `Tempo ${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · récup ${recupStr} min · ${tempoFCStr}${efLabel?' · EF ref '+efLabel+'/km':''}`;
+      return `Tempo ${tempo.rep}×${tempo.dur} min`;
     }
     if(type==='frac'&&tempo){
       const recupStr=tempo.recup||'2:00';
-      return fracLbl ? `Fractionné ${tempo.rep}×${tempo.dur} min|${fracMinLbl||fracLbl} — ${fracLbl}/km · ${recupStr} min récup · EF ${efLabel||'?'}/km` : `Fractionné ${tempo.rep}×${tempo.dur} min`;
+      if(fracLbl) return `Fractionné ${tempo.rep}×${tempo.dur} min|${fracMinLbl?fracMinLbl+'–'+fracLbl:fracLbl}/km · récup ${recupStr} min · FC max${efLabel?' · EF ref '+efLabel+'/km':''}`;
+      return `Fractionné ${tempo.rep}×${tempo.dur} min`;
     }
     return type==='ef'?'Séance EF':type==='long'?'EF longue':'Séance';
   };
