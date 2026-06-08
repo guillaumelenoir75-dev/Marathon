@@ -2929,6 +2929,7 @@ async function deleteAthletePlan(){
   rendered.plan=false;
   renderAthletePanel();
   renderPlan();
+  renderHome();
 }
 
 function migrateState(){
@@ -5501,7 +5502,8 @@ function renderHome(){
   // ── Bloc course / KPIs selon rôle ──────────────────────────────────────────
   const ob=state.onboarding||{};
   const userCourse=ob.course||null; // '5 km','10 km','Semi-marathon','Marathon','Plaisir','Autre'
-  const isPlaisir=!isAdmin()&&(userCourse==='Plaisir'||!userCourse);
+  const userHasPlan=!isAdmin()&&Object.keys(state).some(k=>/^extra_w\d+_s\d+/.test(k));
+  const isPlaisir=!isAdmin()&&(userCourse==='Plaisir'||!userCourse||!userHasPlan);
   const raceDateStr=isAdmin()?null:(ob.date||null);
   // Date de course
   const raceDateEl=document.getElementById('home-race-date');
