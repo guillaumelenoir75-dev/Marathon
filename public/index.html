@@ -1389,9 +1389,11 @@ async function adminDeleteUser(uid,label){
 let _obStep=0;
 let _obData={course:null,date:null,sessions:null,niveau:null,km_semaine:null,generate_plan:null};
 let _obEditMode=false;
+let _obSaving=false; // garde contre double-save
 
 function showOnboarding(editMode){
   _obEditMode=!!editMode;
+  _obSaving=false; // reset au cas où la précédente sauvegarde avait planté
   _obData={course:null,date:null,sessions:null,niveau:null,km_semaine:null,generate_plan:null};
   if(editMode && state.onboarding) Object.assign(_obData,state.onboarding);
   // Remplir les jours (1-31)
@@ -1516,12 +1518,16 @@ function _obGoTo(step){
     document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
     if(_obData.ef_pace===null) delete _obData.ef_pace;
     if(_obData.ef_pace){
-      // Restaurer la sélection et les valeurs
+      // Restaurer la sélection "oui" et les valeurs saisies
       if(wrap) wrap.style.display='block';
       const oui=document.getElementById('ob-ef-oui'); if(oui) oui.classList.add('selected');
       const parts=String(_obData.ef_pace).replace("'",":").split(':');
       const efMin=document.getElementById('ob-ef-min'); if(efMin) efMin.value=parts[0]||'';
       const efSec=document.getElementById('ob-ef-sec'); if(efSec) efSec.value=parts[1]||'';
+    } else if(_obData._ef_skipped){
+      // Restaurer la sélection "non"
+      if(wrap) wrap.style.display='none';
+      const non=document.getElementById('ob-ef-non'); if(non) non.classList.add('selected');
     } else {
       if(wrap) wrap.style.display='none';
     }
@@ -1560,7 +1566,7 @@ function toggleKmCustom(){
   if(isOpen){
     box.style.display = 'none';
     btn.classList.remove('selected');
-    if(_obData.km_semaine === 'custom') delete _obData.km_semaine;
+    delete _obData.km_semaine; // toujours vider (la valeur est le nombre, jamais 'custom')
   } else {
     box.style.display = 'block';
     document.querySelectorAll('[id^="ob-km_semaine-"]').forEach(el=>el.classList.remove('selected'));
@@ -1666,6 +1672,7 @@ function getFcMaxZone(){
 function onboardingSelectEf(val){
   if(val==='oui'){
     // Afficher le champ de saisie, désactiver l'auto-avance
+    delete _obData._ef_skipped; // efface le flag "non"
     const wrap=document.getElementById('ob-ef-input-wrap');
     if(wrap) wrap.style.display='block';
     document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
@@ -1680,6 +1687,7 @@ function onboardingSelectEf(val){
     const wrap=document.getElementById('ob-ef-input-wrap');
     if(wrap) wrap.style.display='none';
     _obData.ef_pace=null;
+    _obData._ef_skipped=true; // mémorise le choix "non" pour restauration si retour
     document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
     const c=document.getElementById('ob-ef-non');
     if(c) c.classList.add('selected');
@@ -1826,6 +1834,8 @@ function toggleObDay(dayIdx){
 }
 
 async function saveOnboarding(){
+  if(_obSaving) return; // évite le double-save (chip click + bouton Terminer en <220ms)
+  _obSaving=true;
   const generatePlan=_obData.generate_plan==='oui';
 
   // Écran de chargement
@@ -1912,6 +1922,7 @@ async function saveOnboarding(){
     }
   }
 
+  _obSaving=false;
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
   else renderPlan();
