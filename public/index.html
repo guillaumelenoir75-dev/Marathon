@@ -167,7 +167,7 @@ input[type=number]:focus{border-color:var(--orange);}
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
-        <div onclick="openMarathonPredModal()" style="cursor:pointer;">
+        <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():null">
           <div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-1.5px;" id="kpi-marathon-time">3h52</div>
           <div style="font-size:10px;opacity:0.55;margin-top:3px;display:flex;align-items:center;gap:3px;" id="today-date">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -190,17 +190,22 @@ input[type=number]:focus{border-color:var(--orange);}
       </div>
       <!-- DROITE : EF + prédit + AM entraînement -->
       <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
-        <div onclick="openMarathonPredModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border-radius:9px;padding:5px 9px;cursor:pointer;border:1px solid rgba(255,255,255,0.2);">
+        <div id="home-race-kpi-block">
+        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.2);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span style="font-size:12px;font-weight:700;" id="h-am-pred">—</span>
-          <span style="font-size:10px;opacity:0.7;">/km prédit</span>
+          <span style="font-size:10px;opacity:0.7;" id="h-pred-label">/km prédit</span>
         </div>
-        <div onclick="openAmTrainingModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);">
+        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.15);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span style="font-size:12px;font-weight:700;" id="kpi-am-training">5'20</span>
-          <span style="font-size:10px;opacity:0.6;">/km AM entr.</span>
+          <span style="font-size:10px;opacity:0.6;" id="h-am-train-label">/km AM entr.</span>
         </div>
-        <div style="font-size:10px;opacity:0.38;text-align:right;margin-top:2px;">18/10/2026</div>
+        </div>
+        <div id="home-no-race-btn" style="display:none;">
+          <button onclick="showOnboarding(true)" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:9px;padding:6px 10px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;">🏁 Préparer une course</button>
+        </div>
+        <div id="home-race-date" style="font-size:10px;opacity:0.38;text-align:right;margin-top:2px;">18/10/2026</div>
         <div id="home-weather-strip" onclick="openHomeWeatherModal()" style="display:none;align-items:center;gap:4px;justify-content:flex-end;margin-top:3px;cursor:pointer;">
           <span id="home-weather-icon" style="font-size:15px;line-height:1;"></span>
           <span id="home-weather-temp" style="font-size:12px;font-weight:700;color:#fff;opacity:0.9;"></span>
@@ -633,7 +638,18 @@ input[type=number]:focus{border-color:var(--orange);}
     <div id="ob-step-7" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 8 / 8</p>
       <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:16px;">On te génère un programme ?</h2>
-      <p style="font-size:14px;color:#555;margin-bottom:28px;line-height:1.5;">À partir de tes km actuels, on construit un plan progressif (+10%/semaine avec semaines de décharge) adapté à ton nombre de séances.</p>
+      <p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">À partir de tes km actuels, on construit un plan progressif (+10%/semaine avec semaines de décharge) adapté à ton nombre de séances.</p>
+      <div id="ob-target-time-wrap" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1.5px solid #e0e8f5;margin-bottom:16px;">
+        <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">🎯 Temps cible (optionnel)</p>
+        <p id="ob-target-time-label" style="font-size:13px;color:#555;margin-bottom:10px;"></p>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="ob-target-h" type="number" min="0" max="9" placeholder="h" style="width:56px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="onTargetTimeInput()">
+          <span style="font-size:20px;color:#555;font-weight:700;">:</span>
+          <input id="ob-target-min" type="number" min="0" max="59" placeholder="mm" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput()">
+          <span style="font-size:20px;color:#555;font-weight:700;">:</span>
+          <input id="ob-target-sec" type="number" min="0" max="59" placeholder="ss" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput()">
+        </div>
+      </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('generate_plan','oui')" class="ob-chip" id="ob-generate_plan-oui">✅ Oui, génère-moi un programme</button>
         <button onclick="onboardingSelect('generate_plan','non')" class="ob-chip" id="ob-generate_plan-non">⏭️ Non, je le ferai moi-même</button>
@@ -1406,6 +1422,7 @@ function _obGoTo(step){
   }
   // Initialiser l'étape jours avec la bonne limite
   if(step===5) setTimeout(initObDaysStep, 0);
+  if(step===7) setTimeout(_initObTargetTime, 0);
   // Reset champ EF si on revient sur l'étape 6
   if(step===6){
     const wrap=document.getElementById('ob-ef-input-wrap');
@@ -1457,6 +1474,44 @@ function toggleKmCustom(){
   }
   const next = document.getElementById('ob-btn-next');
   if(next){ next.disabled=true; next.style.opacity='0.4'; }
+}
+
+function _initObTargetTime(){
+  const course=_obData.course||'';
+  const wrap=document.getElementById('ob-target-time-wrap');
+  const lbl=document.getElementById('ob-target-time-label');
+  const distMap={'5 km':5,'10 km':10,'Semi-marathon':21.1,'Marathon':42.195};
+  const dist=distMap[course]||null;
+  if(wrap){
+    const hasRace=!!dist;
+    wrap.style.display=hasRace?'block':'none';
+    if(lbl&&dist){
+      const distStr=course==='Semi-marathon'?'semi-marathon':course;
+      lbl.textContent='Quel est ton objectif de temps pour le '+distStr+' ?';
+      _obData.race_distance_km=dist;
+    }
+  }
+  // Restaurer valeur si déjà saisie
+  if(_obData.target_time){
+    const p=_obData.target_time.split(':');
+    const hEl=document.getElementById('ob-target-h');
+    const mEl=document.getElementById('ob-target-min');
+    const sEl=document.getElementById('ob-target-sec');
+    if(hEl) hEl.value=p[0]||'';
+    if(mEl) mEl.value=p[1]||'';
+    if(sEl) sEl.value=p[2]||'';
+  }
+}
+
+function onTargetTimeInput(){
+  const h=parseInt(document.getElementById('ob-target-h')?.value)||0;
+  const m=parseInt(document.getElementById('ob-target-min')?.value)||0;
+  const s=parseInt(document.getElementById('ob-target-sec')?.value)||0;
+  if(h>0||m>0||s>0){
+    _obData.target_time=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  } else {
+    delete _obData.target_time;
+  }
 }
 
 function onKmCustomInput(val){
@@ -1656,6 +1711,8 @@ async function saveOnboarding(){
       // Jours et horaire de course
       if(_obData.run_days){ state.run_days=_obData.run_days; updates.run_days=JSON.stringify(_obData.run_days); }
       if(_obData.run_time){ state.run_time=_obData.run_time; updates.run_time=_obData.run_time; }
+      if(_obData.target_time){ state.target_time=_obData.target_time; updates.target_time=_obData.target_time; }
+      if(_obData.race_distance_km){ state.race_distance_km=_obData.race_distance_km; updates.race_distance_km=_obData.race_distance_km; }
       entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
       await dbRef.update(updates).catch(()=>{});
     }
@@ -4937,12 +4994,77 @@ function renderHome(){
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
   if(efEl) efEl.textContent=efPace?efPace:(isAdmin()?"6'40":'—');
-  // Temps marathon projeté
-  const pred = buildMarathonPrediction();
-  const mtEl=document.getElementById('kpi-marathon-time');
-  if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
-  const amPredEl = document.getElementById('h-am-pred');
-  if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
+
+  // ── Bloc course / KPIs selon rôle ──────────────────────────────────────────
+  const ob=state.onboarding||{};
+  const userCourse=ob.course||null; // '5 km','10 km','Semi-marathon','Marathon','Plaisir','Autre'
+  const isPlaisir=!isAdmin()&&(userCourse==='Plaisir'||!userCourse);
+  const raceDateStr=isAdmin()?null:(ob.date||null);
+  // Date de course
+  const raceDateEl=document.getElementById('home-race-date');
+  if(raceDateEl){
+    if(raceDateStr){
+      const rd=new Date(raceDateStr);
+      raceDateEl.textContent=rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+      raceDateEl.style.display='block';
+    } else if(isAdmin()){
+      raceDateEl.textContent='18/10/2026';
+      raceDateEl.style.display='block';
+    } else {
+      raceDateEl.style.display='none';
+    }
+  }
+  // Bloc KPI course : masqué si Plaisir ou pas de course
+  const raceKpiBlock=document.getElementById('home-race-kpi-block');
+  const noRaceBtn=document.getElementById('home-no-race-btn');
+  if(isPlaisir){
+    if(raceKpiBlock) raceKpiBlock.style.display='none';
+    if(noRaceBtn) noRaceBtn.style.display='block';
+  } else {
+    if(raceKpiBlock) raceKpiBlock.style.display='block';
+    if(noRaceBtn) noRaceBtn.style.display='none';
+    // Curseur uniquement admin
+    const predBtn=document.getElementById('home-pred-btn');
+    const amTrainBtn=document.getElementById('home-am-train-btn');
+    if(predBtn) predBtn.style.cursor=isAdmin()?'pointer':'default';
+    if(amTrainBtn) amTrainBtn.style.cursor=isAdmin()?'pointer':'default';
+  }
+  // Libellés adaptés à la course
+  const predLabelEl=document.getElementById('h-pred-label');
+  const amTrainLabelEl=document.getElementById('h-am-train-label');
+  if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
+    const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
+    if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
+    if(amTrainLabelEl) amTrainLabelEl.textContent='allure cible';
+    // Grand chiffre : temps cible saisi dans questionnaire ou —
+    const mtEl=document.getElementById('kpi-marathon-time');
+    const targetTime=ob.target_time||state.target_time||null;
+    if(mtEl) mtEl.textContent=targetTime||'—';
+    // Allure cible calculée depuis le temps cible si disponible
+    const amPredElU=document.getElementById('h-am-pred');
+    if(amPredElU){
+      if(targetTime&&(ob.race_distance_km||state.race_distance_km)){
+        const tParts=targetTime.split(':').map(Number);
+        const totalSec=(tParts[0]||0)*3600+(tParts[1]||0)*60+(tParts[2]||0);
+        const distKm=parseFloat(ob.race_distance_km||state.race_distance_km)||0;
+        if(totalSec>0&&distKm>0){
+          const secPerKm=Math.round(totalSec/distKm);
+          amPredElU.textContent=Math.floor(secPerKm/60)+"'"+(secPerKm%60<10?'0':'')+secPerKm%60;
+        } else amPredElU.textContent='—';
+      } else amPredElU.textContent='—';
+    }
+    document.getElementById('home-marathon-time-block').style.cursor='default';
+  } else {
+    if(predLabelEl) predLabelEl.textContent='/km prédit';
+    if(amTrainLabelEl) amTrainLabelEl.textContent='/km AM entr.';
+    // Temps marathon projeté (admin)
+    const pred = buildMarathonPrediction();
+    const mtEl=document.getElementById('kpi-marathon-time');
+    if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
+    const amPredEl = document.getElementById('h-am-pred');
+    if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
+    document.getElementById('home-marathon-time-block').style.cursor=isAdmin()?'pointer':'default';
+  }
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
   const amTrainEl = document.getElementById('kpi-am-training');
