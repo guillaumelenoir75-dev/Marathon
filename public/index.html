@@ -605,8 +605,7 @@ input[type=number]:focus{border-color:var(--orange);}
         <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Horaire habituel</p>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:22px;">🕐</span>
-          <input type="time" id="ob-run-time" value="07:00"
-            style="flex:1;padding:10px 14px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:18px;font-weight:700;color:#1a1a1a;background:#f8faff;outline:none;">
+          <select id="ob-run-time" style="flex:1;padding:10px 14px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:18px;font-weight:700;color:#1a1a1a;background:#f8faff;outline:none;"></select>
         </div>
         <p style="font-size:11px;color:#aaa;margin-top:6px;">Tu pourras modifier ça plus tard dans les paramètres.</p>
       </div>
@@ -1536,6 +1535,24 @@ function _obMaxDays(){
   return s==='4+'?4:parseInt(s)||3;
 }
 
+function initObTimeSelect(){
+  const sel = document.getElementById('ob-run-time');
+  if(!sel || sel.options.length > 1) return; // déjà initialisé
+  for(let h=5; h<=22; h++){
+    for(let m=0; m<60; m+=15){
+      if(h===22 && m>0) break; // s'arrêter à 22:00
+      const hh = String(h).padStart(2,'0');
+      const mm = String(m).padStart(2,'0');
+      const val = hh+':'+mm;
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      if(val === '07:00') opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+}
+
 function initObDaysStep(){
   const max=_obMaxDays();
   const hint=document.getElementById('ob-days-count');
@@ -1543,6 +1560,7 @@ function initObDaysStep(){
   // Si trop de jours déjà sélectionnés (ex: changement de séances), on réinitialise
   if(_obData.run_days && _obData.run_days.length>max) _obData.run_days=[];
   _updateObDaysUI();
+  initObTimeSelect();
 }
 
 function _updateObDaysUI(){
@@ -7879,6 +7897,18 @@ function renderAthletePlan(el){
         if(s.sched_day||s.sched_time){
           const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
           return `<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
+        }
+        // Afficher la date de l'onboarding si disponible
+        const dateKey=state[`extra_w${ws}_s${eid}_date`];
+        const timeKey=state[`extra_w${ws}_s${eid}_time`];
+        if(dateKey){
+          try{
+            const d=new Date(dateKey+'T00:00:00');
+            const jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+            const mois=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+            const label=`${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]}${timeKey?' · '+timeKey:''}`;
+            return `<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${label}</span>`;
+          }catch(e){}
         }
         return '';
       })();
