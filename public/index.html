@@ -42,6 +42,7 @@ input[type=number]:focus{border-color:var(--orange);}
 .modal-header{padding:20px 20px 16px;color:#fff;position:relative;}
 .modal-header-ef{background:linear-gradient(145deg,#1E4A09 0%,#3B6D11 55%,#4E8A1A 100%);}
 .modal-header-tempo{background:linear-gradient(145deg,#9A2D00 0%,#E8530A 55%,#F5712A 100%);}
+.modal-header-frac{background:linear-gradient(145deg,#7A0000 0%,#C4141B 55%,#E03030 100%);}
 .modal-header-long{background:linear-gradient(145deg,#2A2070 0%,#534AB7 55%,#6E63CC 100%);}
 .modal-header-default{background:linear-gradient(145deg,#082050 0%,#0C447C 55%,#1560A8 100%);}
 .modal-body{padding:20px 20px 36px;background:var(--bg);}
@@ -520,6 +521,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('course','Marathon')" class="ob-chip" id="ob-course-Marathon">🏅 Marathon</button>
         <button onclick="onboardingSelect('course','Semi-marathon')" class="ob-chip" id="ob-course-Semi-marathon">🥈 Semi-marathon</button>
+        <button onclick="onboardingSelect('course','5 km')" class="ob-chip" id="ob-course-5 km">🚀 5 km</button>
         <button onclick="onboardingSelect('course','10 km')" class="ob-chip" id="ob-course-10 km">⚡ 10 km</button>
         <button onclick="onboardingSelect('course','Autre')" class="ob-chip" id="ob-course-Autre">🎯 Autre</button>
         <button onclick="onboardingSelect('course','Plaisir')" class="ob-chip" id="ob-course-Plaisir">🎉 Pas de course, juste pour le plaisir</button>
@@ -717,9 +719,9 @@ function getShoes(){
   return [];
 }
 function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
-const typeColor={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7',rest:'#888780',race:'#C4960A'};
-const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
-const typeLabel={ef:'EF',tempo:'Tempo',long:'Long',rest:'Repos',race:'Course'};
+const typeColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',rest:'#888780',race:'#C4960A'};
+const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',frac:'#FEF0F0',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
+const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long',rest:'Repos',race:'Course'};
 
 const weeks=[
   {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},
@@ -1516,6 +1518,8 @@ function generateAthletePlan(ob){
   const sessStr=ob.sessions||'3';
   const nbSess=sessStr==='4+'?4:parseInt(sessStr)||3;
   const niveau=ob.niveau||'Intermédiaire'; // Débutant / Intermédiaire / Confirmé
+  const course=ob.course||'Marathon';
+  const useFrac=course==='5 km'||course==='10 km'; // fractionné pour courtes distances
   const peakKm=Math.min(baseKm*2, baseKm+40); // plafond raisonnable
 
   // Nombre de semaines
@@ -1557,19 +1561,35 @@ function generateAthletePlan(ob){
   const tDelta   = niveau==='Débutant'?-40 : niveau==='Confirmé'?-60 : -50;
   const tempoSec = efSec ? efSec+tDelta : null;
   const tempoLbl = tempoSec ? fmtPace(tempoSec) : null;
+  // Fractionné : EF - 85s/km (plus rapide)
+  const fracSec  = efSec ? efSec-85 : null;
+  const fracLbl  = fracSec ? fmtPace(fracSec) : null;
+  const fracMinSec = fracSec ? fracSec-10 : null;
+  const fracMinLbl = fracMinSec ? fmtPace(fracMinSec) : null;
 
-  // ── Progression des séances tempo selon semaine et niveau ───────────────────
-  // Nombre de répétitions et durée min selon la semaine
+  // ── Progression des séances selon semaine et niveau ─────────────────────────
   const tempoProgression=(w)=>{
     // Débutant : intro à S5, Intermédiaire : S3, Confirmé : S2
     const introW = niveau==='Débutant'?5 : niveau==='Confirmé'?2 : 3;
-    if(w < introW) return null; // pas encore de tempo
+    if(w < introW) return null;
     const age=w-introW;
     if(age<2)  return {rep:1,dur:8};
     if(age<4)  return {rep:2,dur:8};
     if(age<6)  return {rep:2,dur:10};
     if(age<10) return {rep:2,dur:12};
     return {rep:2,dur:15};
+  };
+
+  // Progression fractionné : plus de reps, durées courtes
+  const fracProgression=(w)=>{
+    const introW = niveau==='Débutant'?4 : niveau==='Confirmé'?2 : 3;
+    if(w < introW) return null;
+    const age=w-introW;
+    if(age<2)  return {rep:4,dur:2};
+    if(age<4)  return {rep:5,dur:2};
+    if(age<6)  return {rep:6,dur:2};
+    if(age<10) return {rep:6,dur:3};
+    return {rep:8,dur:3};
   };
 
   // Construit le champ d="Titre|détail" pour chaque type de séance
@@ -1581,8 +1601,10 @@ function generateAthletePlan(ob){
       return efLabel ? `EF longue|${efLabel}/km · allure confort` : 'EF longue';
     }
     if(type==='tempo'&&tempo){
-      const base=tempoLbl ? `${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · 3 min récup · EF ${efLabel||'?'}/km` : `${tempo.rep}×${tempo.dur} min tempo`;
-      return base;
+      return tempoLbl ? `${tempo.rep}×${tempo.dur} min|${tempoLbl}/km · 3 min récup · EF ${efLabel||'?'}/km` : `${tempo.rep}×${tempo.dur} min tempo`;
+    }
+    if(type==='frac'&&tempo){
+      return fracLbl ? `${tempo.rep}×${tempo.dur} min|${fracMinLbl||fracLbl}–${fracLbl}/km · 2 min récup` : `${tempo.rep}×${tempo.dur} min fractionné`;
     }
     return type==='ef'?'Séance EF':type==='long'?'EF longue':'Séance';
   };
@@ -1590,7 +1612,8 @@ function generateAthletePlan(ob){
   const updates={};
   for(let w=1;w<=numWeeks;w++){
     const total=weekKms[w-1];
-    const tempo=tempoProgression(w);
+    const tempo=useFrac ? fracProgression(w) : tempoProgression(w);
+    const sessionType=useFrac?'frac':'tempo';
     const hasTempo=!!tempo && nbSess>=3;
     let sessions=[];
 
@@ -1611,7 +1634,7 @@ function generateAthletePlan(ob){
         const kL =Math.max(total-kEF-kT,6);
         sessions=[
           {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
-          {d:makeD('tempo',tempo),km:kT,type:'tempo',shoe:null},
+          {d:makeD(sessionType,tempo),km:kT,type:sessionType,shoe:null},
           {d:makeD('long'),km:kL,type:'long',shoe:null},
         ];
       } else {
@@ -1634,7 +1657,7 @@ function generateAthletePlan(ob){
         sessions=[
           {d:makeD('ef'),km:kEF1,type:'ef',shoe:null},
           {d:makeD('ef'),km:kEF2,type:'ef',shoe:null},
-          {d:makeD('tempo',tempo),km:kT,type:'tempo',shoe:null},
+          {d:makeD(sessionType,tempo),km:kT,type:sessionType,shoe:null},
           {d:makeD('long'),km:kL,type:'long',shoe:null},
         ];
       } else {
@@ -1908,8 +1931,8 @@ function renderAthleteCoachView(userData, uid, name){
   });
 
   const weeks=Object.keys(weekData).map(Number).sort((a,b)=>a-b);
-  const typeColor={ef:'#1E4A09',tempo:'#9A2D00',long:'#2A2070'};
-  const typeLabel={ef:'EF',tempo:'Tempo',long:'Long'};
+  const typeColor={ef:'#1E4A09',tempo:'#9A2D00',frac:'#7A0000',long:'#2A2070'};
+  const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long'};
 
   if(weeks.length===0){
     html+=`<div style="background:#fff;border-radius:14px;padding:20px;text-align:center;color:#888;border:1px solid #e0e0e0;margin-bottom:12px;">Aucun plan — </div>`;
@@ -1976,6 +1999,7 @@ function _cvTypeHeaderStyle(type){
   const cfg={
     ef:{bg:'linear-gradient(135deg,#1E4A09,#2d6b12)',accent:'#3B6D11',icon:'🟢',label:'Endurance Fondamentale'},
     tempo:{bg:'linear-gradient(135deg,#7a1a00,#b83000)',accent:'#E8530A',icon:'🔥',label:'Tempo / Intervalles'},
+    frac:{bg:'linear-gradient(145deg,#7A0000,#C4141B,#E03030)',accent:'#C4141B',icon:'⚡',label:'Fractionné'},
     long:{bg:'linear-gradient(135deg,#1a1660,#3a2ea0)',accent:'#534AB7',icon:'💜',label:'Sortie Longue EF'},
     race:{bg:'linear-gradient(135deg,#6b4a00,#b38000)',accent:'#C4960A',icon:'🏁',label:'Course'},
     rest:{bg:'linear-gradient(135deg,#444,#666)',accent:'#888',icon:'😴',label:'Repos'},
@@ -2000,7 +2024,7 @@ function _cvShowSessionModal({w,si,title,km,type,isNew,newWeek}){
   modal.style.display='flex';
 
   const cfg=_cvTypeHeaderStyle(type||'ef');
-  const typeChips=['ef','tempo','long','race'].map(t=>{
+  const typeChips=['ef','tempo','frac','long','race'].map(t=>{
     const c=_cvTypeHeaderStyle(t);
     const sel=(type||'ef')===t;
     return `<button type="button" onclick="_cvPickType('${t}')" id="cv-chip-${t}" style="padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;border:2px solid ${sel?c.accent:'#e0e0e0'};background:${sel?c.accent+'18':'#f5f5f5'};color:${sel?c.accent:'#666'};cursor:pointer;transition:all 0.15s;">${c.icon} ${c.label.split(' ')[0]}</button>`;
@@ -7037,13 +7061,14 @@ function onEditTypeChange(){
   }
 }
 
-function buildTempoFieldsHtml(prefix, reps, dur, recup, pMin, pMax){
+function buildTempoFieldsHtml(prefix, reps, dur, recup, pMin, pMax, accentColor){
   const showRecup = reps > 1;
-  const O = '#E8530A';
+  const O = accentColor || '#E8530A';
+  const icon = O === '#C4141B' ? '⚡' : '🔥';
   return `
     <!-- Format blocs : grand et lisible -->
     <div class="modal-section">
-      <div class="modal-section-label" style="color:${O};">🔥 Blocs d'effort</div>
+      <div class="modal-section-label" style="color:${O};">${icon} Blocs d'effort</div>
       <div style="display:flex;align-items:center;gap:0;background:var(--bg);border-radius:16px;overflow:hidden;border:2px solid ${O}25;">
         <div style="flex:1;padding:16px 12px;text-align:center;border-right:1.5px solid ${O}20;">
           <p style="font-size:10px;font-weight:800;color:${O};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Répétitions</p>
@@ -8550,8 +8575,8 @@ function openPerfEditExtraModal(ws, ei){
   const s = JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
   const prev = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {};
   const title = (s.d||'').split('|')[0];
-  const _hacc = {ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7'}[s.type]||'#1B4FD8';
-  const _hcls = {ef:'modal-header-ef',tempo:'modal-header-tempo',long:'modal-header-long'}[s.type]||'modal-header-default';
+  const _hacc = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
+  const _hcls = {ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'}[s.type]||'modal-header-default';
   const mc = document.getElementById('modal-container');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -8636,21 +8661,23 @@ function openEditModal(ws, si){
   const detail = parts[1]||'';
   const mc = document.getElementById('modal-container');
   const shoeOptions=getShoeOptions(s.shoe);
-  const typeOptions = ['ef','tempo','long','rest','race'].map(t=>
+  const typeOptions = ['ef','tempo','frac','long','rest','race'].map(t=>
     `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
   ).join('');
 
-  // Pre-calculate tempo fields
+  // Pre-calculate tempo/frac fields
+  const isFrac=s.type==='frac';
   const repMatch=title.match(/(\d+)×(\d+)/);
-  const editReps=repMatch?repMatch[1]:'2';
-  const editDur=repMatch?repMatch[2]:'8';
+  const editReps=repMatch?repMatch[1]:(isFrac?'6':'2');
+  const editDur=repMatch?repMatch[2]:(isFrac?'2':'8');
   const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
-  const editPMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:'5:00';
-  const editPMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:'5:20';
+  const editPMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:(isFrac?'4:30':'5:00');
+  const editPMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:(isFrac?'4:50':'5:20');
   const editRecupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
-  const editRecup=editRecupMatch?editRecupMatch[1]:'3';
+  const editRecup=editRecupMatch?editRecupMatch[1]:(isFrac?'2':'3');
 
   const tempoFields = s.type==='tempo' ? _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editPMax, detail)
+  :s.type==='frac' ? buildTempoFieldsHtml('edit',parseInt(editReps),parseInt(editDur),editRecup,editPMin,editPMax,'#C4141B')
   :s.type==='long'?buildLongModalHtml(detail)
   :(()=>{
     // Extraire l'allure depuis le detail existant
@@ -8699,7 +8726,7 @@ function openEditModal(ws, si){
   const overlay = document.createElement('div');
   overlay.className='modal-overlay';
   // Couleur et icône par type
-  const _typeColors={ef:{bg:'modal-header-ef',icon:'🟢',label:'Endurance Fondamentale'},tempo:{bg:'modal-header-tempo',icon:'🔥',label:'Tempo'},long:{bg:'modal-header-long',icon:'💜',label:'EF Longue'},rest:{bg:'modal-header-default',icon:'😴',label:'Repos'},race:{bg:'modal-header-default',icon:'🏁',label:'Course'}};
+  const _typeColors={ef:{bg:'modal-header-ef',icon:'🟢',label:'Endurance Fondamentale'},tempo:{bg:'modal-header-tempo',icon:'🔥',label:'Tempo'},frac:{bg:'modal-header-frac',icon:'⚡',label:'Fractionné'},long:{bg:'modal-header-long',icon:'💜',label:'EF Longue'},rest:{bg:'modal-header-default',icon:'😴',label:'Repos'},race:{bg:'modal-header-default',icon:'🏁',label:'Course'}};
   const _tc=_typeColors[s.type]||_typeColors.rest;
   // Calculer la durée header avec la même allure que le champ
   const _editPaceMatch = detail.match(/(\d+)[':](\d+)/);
@@ -8716,9 +8743,9 @@ function openEditModal(ws, si){
     }
     return estimateDuration(s);
   })();
-  const _hcls  = {ef:'modal-header-ef',tempo:'modal-header-tempo',long:'modal-header-long'}[s.type]||'modal-header-default';
-  const _hacc  = {ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7'}[s.type]||'#1B4FD8';
-  const _hlbl  = {ef:'Endurance Fondamentale',tempo:'Intervalles Tempo',long:'Sortie Longue'}[s.type]||title;
+  const _hcls  = {ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'}[s.type]||'modal-header-default';
+  const _hacc  = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
+  const _hlbl  = {ef:'Endurance Fondamentale',tempo:'Intervalles Tempo',frac:'Fractionné',long:'Sortie Longue'}[s.type]||title;
   const _hemj  = {ef:'🟢',tempo:'🔥',long:'💜'}[s.type]||'📅';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
   // Couleur gradient de transition header→body
@@ -9065,7 +9092,7 @@ function openAddModal(ws){
     <div class="modal-body">
       <!-- Sélecteur de type en pills -->
       <div style="display:flex;gap:8px;margin-bottom:16px;">
-        ${[['ef','🟢 EF','#3B6D11'],['tempo','🔥 Tempo','#E8530A'],['long','💜 Long','#534AB7']].map(([v,lbl,col])=>`<button type="button" onclick="onAddTypePill('${v}',${ws})" id="add-pill-${v}" style="flex:1;padding:10px 6px;border-radius:12px;font-size:12px;font-weight:700;border:2px solid ${v==='ef'?col:'var(--border)'};background:${v==='ef'?col:'var(--bg2)'};color:${v==='ef'?'#fff':'var(--muted)'};cursor:pointer;transition:all 0.15s;text-align:center;">${lbl}</button>`).join('')}
+        ${[['ef','🟢 EF','#3B6D11'],['tempo','🔥 Tempo','#E8530A'],['frac','⚡ Frac','#C4141B'],['long','💜 Long','#534AB7']].map(([v,lbl,col])=>`<button type="button" onclick="onAddTypePill('${v}',${ws})" id="add-pill-${v}" style="flex:1;padding:10px 6px;border-radius:12px;font-size:12px;font-weight:700;border:2px solid ${v==='ef'?col:'var(--border)'};background:${v==='ef'?col:'var(--bg2)'};color:${v==='ef'?'#fff':'var(--muted)'};cursor:pointer;transition:all 0.15s;text-align:center;">${lbl}</button>`).join('')}
         <input type="hidden" id="add-type" value="ef">
       </div>
       <div id="add-fields-container"></div>
@@ -9112,7 +9139,18 @@ function onAddTypeChange(ws){
       </div>`
       + buildTempoFieldsHtml('add', 2, 8, '3:00',
           getBestEfPace() ? '5:00' : '5:00',
-          getBestEfPace() ? '5:20' : '5:20');
+          getBestEfPace() ? '5:20' : '5:20', '#E8530A');
+    setTimeout(() => { calcEfRestant && calcEfRestant(); }, 50);
+
+  } else if (type === 'frac') {
+    container.innerHTML = `
+      <div class="modal-section" style="background:linear-gradient(135deg,#EEF2FD,#E8EDFF);">
+        <div class="modal-section-label" style="color:#1B4FD8;">📅 Planification</div>
+        ${buildSchedFieldsHtml('', '')}
+      </div>`
+      + buildTempoFieldsHtml('add', 6, 2, '2:00',
+          getBestEfPace() ? '4:30' : '4:30',
+          getBestEfPace() ? '4:50' : '4:50', '#C4141B');
     setTimeout(() => { calcEfRestant && calcEfRestant(); }, 50);
 
   } else if (type === 'long') {
@@ -9184,9 +9222,9 @@ function onAddTypePill(type, ws) {
   const hdr = document.getElementById('add-modal-header');
   const hdrTitle = document.getElementById('add-header-title');
   const submitBtn = document.getElementById('add-submit-btn');
-  const titles = {ef:'Endurance Fondamentale', tempo:'Tempo — Intervalles', long:'Sortie Longue'};
-  const headerClasses = {ef:'modal-header-ef', tempo:'modal-header-tempo', long:'modal-header-long'};
-  const btnColors = {ef:'#3B6D11', tempo:'#E8530A', long:'#534AB7'};
+  const titles = {ef:'Endurance Fondamentale', tempo:'Tempo — Intervalles', frac:'Fractionné', long:'Sortie Longue'};
+  const headerClasses = {ef:'modal-header-ef', tempo:'modal-header-tempo', frac:'modal-header-frac', long:'modal-header-long'};
+  const btnColors = {ef:'#3B6D11', tempo:'#E8530A', frac:'#C4141B', long:'#534AB7'};
   if(hdr) {
     hdr.className = 'modal-header ' + (headerClasses[type] || 'modal-header-default');
   }
@@ -9235,7 +9273,7 @@ function onEditTypeChange(){
   const container=document.getElementById('edit-fields-container');
   if(!container) return;
   if(type==='tempo'){
-    container.innerHTML=buildTempoFieldsHtml('edit',2,8,'3:00','5:00','5:20')
+    container.innerHTML=buildTempoFieldsHtml('edit',2,8,'3:00','5:00','5:20','#E8530A')
       +`<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;gap:10px;">
         <input type="checkbox" id="edit-apply-format" style="width:18px;height:18px;cursor:pointer;accent-color:#E8530A;">
         <label for="edit-apply-format" style="font-size:12px;color:var(--text);cursor:pointer;">Appliquer ce format à toutes les Tempo suivantes</label>
@@ -9244,6 +9282,8 @@ function onEditTypeChange(){
         <input type="checkbox" id="edit-apply-all" style="width:18px;height:18px;cursor:pointer;accent-color:#E8530A;">
         <label for="edit-apply-all" style="font-size:12px;color:var(--text);cursor:pointer;">Appliquer cette allure à toutes les Tempo suivantes</label>
       </div>`;
+  } else if(type==='frac'){
+    container.innerHTML=buildTempoFieldsHtml('edit',6,2,'2:00','4:30','4:50','#C4141B');
   } else if(type==='long'){
     container.innerHTML=buildLongModalHtml('');
     setTimeout(()=>renderLongBlocks(),0);
@@ -9345,7 +9385,9 @@ function onExEditTypeChange(){
     container.innerHTML=buildLongModalHtml(existingDetail);
     renderLongBlocks();
   } else if(type==='tempo'){
-    container.innerHTML=buildTempoFieldsHtml('exedit',2,8,'3:00','5:00','5:20');
+    container.innerHTML=buildTempoFieldsHtml('exedit',2,8,'3:00','5:00','5:20','#E8530A');
+  } else if(type==='frac'){
+    container.innerHTML=buildTempoFieldsHtml('exedit',6,2,'2:00','4:30','4:50','#C4141B');
   } else {
     // EF — même pace picker que openEditModal
     const efPaceVal=getBestEfPace()||'5:48';
@@ -9384,7 +9426,7 @@ function openEditExtraModal(ws, ei){
   const title=parts[0], detail=parts[1]||'';
   const mc=document.getElementById('modal-container');
   const shoeOptions=getShoeOptions(s.shoe);
-  const typeOptions=['ef','tempo','long','race'].map(t=>
+  const typeOptions=['ef','tempo','frac','long','race'].map(t=>
     `<option value="${t}" ${s.type===t?'selected':''}>${typeLabel[t]}</option>`
   ).join('');
 
@@ -9392,16 +9434,21 @@ function openEditExtraModal(ws, ei){
   let fieldsHtml='';
   if(s.type==='long'){
     fieldsHtml=buildLongModalHtml(detail);
-  } else if(s.type==='tempo'){
+  } else if(s.type==='tempo'||s.type==='frac'){
     const repMatch=title.match(/(\d+)×(\d+)/);
-    const exReps=repMatch?parseInt(repMatch[1]):2;
-    const exDur=repMatch?parseInt(repMatch[2]):8;
+    const defReps=s.type==='frac'?6:2;
+    const defDur=s.type==='frac'?2:8;
+    const defPMin=s.type==='frac'?'4:30':'5:00';
+    const defPMax=s.type==='frac'?'4:50':'5:20';
+    const exReps=repMatch?parseInt(repMatch[1]):defReps;
+    const exDur=repMatch?parseInt(repMatch[2]):defDur;
     const paceMatch=detail.match(/(\d+)['':]?(\d+)[^0-9]+?(\d+)['':]?(\d+)/);
-    const exPMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:'5:00';
-    const exPMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:'5:20';
+    const exPMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:defPMin;
+    const exPMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:defPMax;
     const recupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
-    const exRecup=recupMatch?parseInt(recupMatch[1]):'3:00';
-    fieldsHtml=buildTempoFieldsHtml('exedit',exReps,exDur,exRecup,exPMin,exPMax);
+    const exRecup=recupMatch?parseInt(recupMatch[1]):'2:00';
+    const accentCol=s.type==='frac'?'#C4141B':'#E8530A';
+    fieldsHtml=buildTempoFieldsHtml('exedit',exReps,exDur,exRecup,exPMin,exPMax,accentCol);
   } else {
     // EF — même pace picker que openEditModal
     const paceMatch2=detail.match(/(\d+)[':](\d+)/);
@@ -9437,9 +9484,9 @@ function openEditExtraModal(ws, ei){
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
-  const _typeColors={ef:'modal-header-ef',tempo:'modal-header-tempo',long:'modal-header-long'};
+  const _typeColors={ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'};
   const _hcls=_typeColors[s.type]||'modal-header-default';
-  const _hacc={ef:'#3B6D11',tempo:'#E8530A',long:'#534AB7'}[s.type]||'#1B4FD8';
+  const _hacc={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
   overlay.innerHTML=`<div class="modal-box" style="max-height:92vh;">
     <div class="modal-header ${_hcls}" style="flex-shrink:0;">
       <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.3);margin:0 auto 12px;"></div>
