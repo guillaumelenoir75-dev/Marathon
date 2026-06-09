@@ -2352,7 +2352,10 @@ function generateAthletePlan(ob){
       if(type==='tempo'&&tempo){
         const isContinuous=tempo.recup==='0:00';
         const pLbl=tempoLbl?`${tempoLbl}/km · `:'';
-        if(isContinuous) return `Tempo continu ${tempo.dur} min|${pLbl}${tempoFCStr} · effort soutenu et régulier sans pause`;
+        if(isContinuous){
+          const continuousCue=_plaisirPhase===1?'découverte de l\'allure seuil, effort maîtrisé':_plaisirPhase===2?'allure seuil soutenue, sans forcer':'effort soutenu et régulier sans pause';
+          return `Tempo continu ${tempo.dur} min|${pLbl}${tempoFCStr} · ${continuousCue}`;
+        }
         const phaseCue=_plaisirPhase===1?'intro au seuil':'travail au seuil';
         return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}${phaseCue} · récup ${tempo.recup||'3:00'} min · ${tempoFCStr}`;
       }
@@ -2430,21 +2433,23 @@ function generateAthletePlan(ob){
         const kEF=Math.max(total-kL,sFloor);
         const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
 
-        // Plaisir 2 séances — variété sur cycle de 3 semaines (modulo 3) :
-        //   W6+  : w%3=0 → Fartlek (1ère apparition S6)
-        //   W14+ : w%3=2 → Tempo   (1ère apparition S14)
-        //   Récup & base < 20km → toujours EF
-        let shortD=makeD('ef'), shortType='ef';
-        if(isPlaisir && !isRecoveryWeek && baseKm>=20){
-          if(w%3===0 && w>=6){
-            shortD=makeD('fartlek');
-          } else if(w%3===2 && w>=14 && tempo){
-            shortD=makeD('tempo',tempo);
-            shortType='tempo';
-          }
-        }
+        // Plaisir 2 séances : tempo progressif dès S3 — ZÉRO fartlek
+        // Programme explicite 24 semaines :
+        //   W3: 1×5min continu, W6: 1×8min, W9: 1×10min, W15: 1×12min
+        //   W18: 2×8min (récup 3:00), W21: 2×10min (récup 3:00)
+        // Récup et toutes les autres semaines → EF
+        const plaisirTempo2={
+          3:{rep:1,dur:5,recup:'0:00'},
+          6:{rep:1,dur:8,recup:'0:00'},
+          9:{rep:1,dur:10,recup:'0:00'},
+          15:{rep:1,dur:12,recup:'0:00'},
+          18:{rep:2,dur:8,recup:'3:00'},
+          21:{rep:2,dur:10,recup:'3:00'}
+        };
+        const t2=isPlaisir && !isRecoveryWeek && tempo ? plaisirTempo2[w]||null : null;
         sessions=[
-          {d:shortD,km:kEF,type:shortType,shoe:null},
+          t2 ? {d:makeD('tempo',t2),km:kEF,type:'tempo',shoe:null}
+             : {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
           {d:dL,km:kL,type:'long',shoe:null},
         ];
       }
