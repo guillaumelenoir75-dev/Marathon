@@ -2409,8 +2409,9 @@ function generateAthletePlan(ob){
       if(nbSess===1){
         sessions=[{d:makeD('ef'),km:total,type:'ef',shoe:null}];
       } else {
-        const kEF=Math.max(Math.round(total*0.55),sFloor);
-        const kL=longKm(total-kEF);
+        // La longue doit toujours être plus longue que l'EF
+        const kL=longKm(Math.max(Math.round(total*0.55),sFloor));
+        const kEF=Math.max(total-kL,sFloor);
         const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
         sessions=[
           {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
