@@ -169,7 +169,7 @@ input[type=number]:focus{border-color:var(--orange);}
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
-        <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():null">
+        <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():openTargetTimeModal()">
           <div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-1.5px;" id="kpi-marathon-time">3h52</div>
           <div style="font-size:10px;opacity:0.55;margin-top:3px;display:flex;align-items:center;gap:3px;" id="today-date">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -5756,7 +5756,7 @@ function renderHome(){
         } else amPredElU.textContent='—';
       } else amPredElU.textContent='—';
     }
-    document.getElementById('home-marathon-time-block').style.cursor='default';
+    document.getElementById('home-marathon-time-block').style.cursor='pointer';
   } else {
     if(predLabelEl) predLabelEl.textContent='/km prédit';
     if(amTrainLabelEl) amTrainLabelEl.textContent='/km AM entr.';
@@ -8237,6 +8237,82 @@ function saveRecord10km() {
   renderHome();
   const b10 = document.getElementById('badge-record10km');
   if (b10) b10.textContent = val + ' 10km';
+}
+
+function openTargetTimeModal(){
+  if(isAdmin()) return;
+  const ob=state.onboarding||{};
+  const course=ob.course||state.race_distance||'Marathon';
+  const current=ob.target_time||state.target_time||'';
+  const parts=current.split(':').map(Number);
+  const curH=parts[0]||0, curM=parts[1]||0, curS=parts[2]||0;
+  const existing=document.getElementById('target-time-modal');
+  if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='target-time-modal';
+  overlay.className='modal-overlay';
+  overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.5)');
+  overlay.innerHTML=`<div class="modal-box" style="max-width:340px;">
+    <div style="background:linear-gradient(135deg,#0C447C,#1B4FD8);padding:18px 18px 14px;border-radius:24px 24px 0 0;color:#fff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <p style="font-size:10px;font-weight:800;opacity:0.75;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">🎯 Temps cible</p>
+          <p style="font-size:18px;font-weight:900;letter-spacing:-0.02em;">${course}</p>
+        </div>
+        <button onclick="document.getElementById('target-time-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>
+    </div>
+    <div style="padding:20px 18px 24px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;text-align:center;">Modifie ton objectif de temps pour la course</p>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px;">
+        <div style="text-align:center;">
+          <p style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">H</p>
+          <input id="tt-h" type="number" min="0" max="9" value="${curH}" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
+        </div>
+        <p style="font-size:28px;font-weight:800;color:var(--muted);margin-top:18px;">:</p>
+        <div style="text-align:center;">
+          <p style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">MIN</p>
+          <input id="tt-m" type="number" min="0" max="59" value="${String(curM).padStart(2,'0')}" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
+        </div>
+        <p style="font-size:28px;font-weight:800;color:var(--muted);margin-top:18px;">:</p>
+        <div style="text-align:center;">
+          <p style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">SEC</p>
+          <input id="tt-s" type="number" min="0" max="59" value="${String(curS).padStart(2,'0')}" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
+        </div>
+      </div>
+      <button onclick="_saveTargetTime()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:15px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(27,79,216,0.3);">✅ Enregistrer</button>
+      <button onclick="_clearTargetTime()" style="width:100%;padding:11px;background:none;border:none;font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;">⏭️ Supprimer le temps cible</button>
+    </div>
+  </div>`;
+  document.getElementById('modal-container').appendChild(overlay);
+  setTimeout(()=>document.getElementById('tt-h')?.select(),100);
+}
+
+function _saveTargetTime(){
+  const h=parseInt(document.getElementById('tt-h')?.value)||0;
+  const m=parseInt(document.getElementById('tt-m')?.value)||0;
+  const s=parseInt(document.getElementById('tt-s')?.value)||0;
+  if(h===0&&m===0&&s===0) return _clearTargetTime();
+  const tt=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  state.target_time=tt;
+  if(state.onboarding) state.onboarding.target_time=tt;
+  if(dbRef){
+    dbRef.child('target_time').set(tt).catch(()=>{});
+    if(state.onboarding) dbRef.child('onboarding/target_time').set(tt).catch(()=>{});
+  }
+  document.getElementById('target-time-modal')?.remove();
+  renderHome();
+}
+
+function _clearTargetTime(){
+  delete state.target_time;
+  if(state.onboarding) delete state.onboarding.target_time;
+  if(dbRef){
+    dbRef.child('target_time').remove().catch(()=>{});
+    if(state.onboarding) dbRef.child('onboarding/target_time').remove().catch(()=>{});
+  }
+  document.getElementById('target-time-modal')?.remove();
+  renderHome();
 }
 
 function openFcReposModal(dateParam){
