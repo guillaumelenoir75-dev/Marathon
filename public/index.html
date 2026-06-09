@@ -2413,8 +2413,8 @@ function generateAthletePlan(ob){
         const kL=longKm(Math.max(Math.round(total*0.55),sFloor));
         const kEF=Math.max(total-kL,sFloor);
         const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
-        // Plaisir Phase 2+ (W9+) avec base ≥ 20km : tempo 1 semaine sur 3
-        const hasTempo2=isPlaisir && _plaisirPhase>=2 && baseKm>=20 && hasTempo && w%3===0;
+        // Plaisir à partir de S4, base ≥ 20km : tempo 1 semaine sur 3
+        const hasTempo2=isPlaisir && w>=4 && baseKm>=20 && hasTempo && w%3===0;
         sessions=[
           hasTempo2
             ? {d:makeD('tempo',tempo),km:kEF,type:'tempo',shoe:null}
