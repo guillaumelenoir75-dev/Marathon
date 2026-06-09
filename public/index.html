@@ -2409,12 +2409,16 @@ function generateAthletePlan(ob){
       if(nbSess===1){
         sessions=[{d:makeD('ef'),km:total,type:'ef',shoe:null}];
       } else {
-        // La longue doit toujours être plus longue que l'EF
+        // La longue doit toujours être plus longue que l'EF/tempo
         const kL=longKm(Math.max(Math.round(total*0.55),sFloor));
         const kEF=Math.max(total-kL,sFloor);
         const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
+        // Plaisir Phase 2+ (W9+) avec base ≥ 20km : tempo 1 semaine sur 3
+        const hasTempo2=isPlaisir && _plaisirPhase>=2 && baseKm>=20 && hasTempo && w%3===0;
         sessions=[
-          {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
+          hasTempo2
+            ? {d:makeD('tempo',tempo),km:kEF,type:'tempo',shoe:null}
+            : {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
           {d:dL,km:kL,type:'long',shoe:null},
         ];
       }
