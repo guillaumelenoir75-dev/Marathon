@@ -1325,7 +1325,21 @@ function logoutUser(){
     message:'Tu seras redirigé vers l\'écran de connexion.',
     confirmLabel:'Se déconnecter',
     confirmStyle:'background:#1B4FD8;color:#fff;',
-    onConfirm:()=>firebase.auth().signOut(),
+    onConfirm:async()=>{
+      // Nettoyer les subscriptions push avant déconnexion
+      // → évite que le serveur tente d'envoyer des notifs vers un endpoint mort
+      try{
+        const uid=firebase.auth().currentUser?.uid;
+        if(uid){
+          const db=firebase.database();
+          await Promise.all([
+            dbRef?dbRef.child('_push_sub').remove():Promise.resolve(),
+            db.ref('_push_subscribers/'+uid).remove(),
+          ]);
+        }
+      }catch(e){console.warn('Cleanup push sub:',e);}
+      firebase.auth().signOut();
+    },
   });
 }
 
