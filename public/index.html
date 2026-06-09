@@ -268,6 +268,11 @@ input[type=number]:focus{border-color:var(--orange);}
     <p style="font-size:13px;font-weight:700;color:#0C447C;" id="week-total-km"></p>
   </div>
   <div style="background:#EDF2FB;padding:8px 16px 4px;">
+    <div id="home-adapted-banner" style="display:none;align-items:flex-start;gap:10px;background:#FFF3CD;border:1.5px solid #E8530A;border-radius:12px;padding:10px 12px;margin-bottom:10px;">
+      <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+      <span id="home-adapted-msg" style="font-size:13px;font-weight:600;color:#7A3B00;flex:1;line-height:1.4;"></span>
+      <button onclick="dismissPlanAdapted()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#7A3B00;line-height:1;flex-shrink:0;padding:0;">✕</button>
+    </div>
     <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
   </div>
   <div style="background:#EDF2FB;padding:0 16px 4px;">
@@ -5732,6 +5737,19 @@ function renderHome(){
     }
   }
 
+  // ── Bannière adaptation plan ─────────────────────────────────────────────────
+  if(!isAdmin()){
+    const adapted=state._plan_adapted?JSON.parse(state._plan_adapted):null;
+    const adaptedEl=document.getElementById('home-adapted-banner');
+    if(adapted&&!adapted.seen&&adaptedEl){
+      adaptedEl.style.display='flex';
+      const msgEl=document.getElementById('home-adapted-msg');
+      if(msgEl) msgEl.textContent=adapted.msg||'Plan ajusté suite à ta dernière séance.';
+    } else if(adaptedEl){
+      adaptedEl.style.display='none';
+    }
+  }
+
   // ── Séances ─────────────────────────────────────────────────────────────────
   const el=document.getElementById('home-sessions');
   el.innerHTML='';
@@ -5967,6 +5985,86 @@ function openValidationModalExtra(ei){
   _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
 }
 
+function dismissPlanAdapted(){
+  if(state._plan_adapted){
+    try{
+      const a=JSON.parse(state._plan_adapted);
+      a.seen=true;
+      state._plan_adapted=JSON.stringify(a);
+      save();
+    }catch(e){}
+  }
+  const el=document.getElementById('home-adapted-banner');
+  if(el) el.style.display='none';
+}
+
+async function adaptPlanAfterSession(ei, kmActual, kmPlanned){
+  if(isAdmin()) return;
+  if(!kmPlanned||kmPlanned<=0) return;
+  const ratio=kmActual/kmPlanned;
+  if(ratio>=0.80) return;
+
+  let level, factors;
+  if(ratio>=0.60){
+    level='léger';
+    factors={cw:0.90,n1:0.95,n2:1};
+  } else if(ratio>=0.40){
+    level='modéré';
+    factors={cw:0.80,n1:0.85,n2:0.95};
+  } else {
+    level='majeur';
+    factors={cw:0.70,n1:0.75,n2:0.90};
+  }
+
+  const msg={
+    léger:`Plan ajusté ↓ — Tu as couru ${kmActual} km au lieu de ${kmPlanned} km. Les prochaines séances sont légèrement allégées.`,
+    modéré:`Plan adapté ↓ — Séance écourtée (${kmActual}/${kmPlanned} km). Semaine prochaine allégée pour favoriser ta récupération.`,
+    majeur:`Plan adapté ↓ — Possible fatigue ou blessure (${kmActual}/${kmPlanned} km). Les 2 prochaines semaines sont allégées. Écoute ton corps !`,
+  }[level];
+
+  const maxWeek=getAthleteMaxWeek();
+  const updates={};
+
+  // Séances non-validées de la semaine en cours
+  const wStr=`extra_w${CW}_s`;
+  Object.keys(state).filter(k=>k.startsWith(wStr)&&!k.includes('_done')&&!k.includes('_km')&&!k.includes('_perf')).forEach(k=>{
+    const eiOther=parseInt(k.replace(wStr,''));
+    if(eiOther===ei) return;
+    if(state[`extra_w${CW}_s${eiOther}_done`]) return;
+    try{
+      const s=JSON.parse(state[k]||'{}');
+      if(s.km>0){
+        s.km=Math.max(2,Math.round(s.km*factors.cw*2)/2);
+        updates[k]=JSON.stringify(s);
+        state[k]=updates[k];
+      }
+    }catch(e){}
+  });
+
+  // Semaines +1 et +2
+  [[CW+1, factors.n1],[CW+2, factors.n2]].forEach(([wn, factor])=>{
+    if(factor>=1||wn>maxWeek) return;
+    Object.keys(state).filter(k=>k.startsWith(`extra_w${wn}_s`)&&!k.includes('_done')&&!k.includes('_km')&&!k.includes('_perf')).forEach(k=>{
+      const eiN=parseInt(k.replace(`extra_w${wn}_s`,''));
+      if(state[`extra_w${wn}_s${eiN}_done`]) return;
+      try{
+        const s=JSON.parse(state[k]||'{}');
+        if(s.km>0){
+          s.km=Math.max(2,Math.round(s.km*factor*2)/2);
+          updates[k]=JSON.stringify(s);
+          state[k]=updates[k];
+        }
+      }catch(e){}
+    });
+  });
+
+  const adapted={msg,ts:Date.now(),seen:false,week:CW,level};
+  state._plan_adapted=JSON.stringify(adapted);
+  updates['_plan_adapted']=state._plan_adapted;
+
+  if(dbRef) await dbRef.update(updates).catch(e=>console.warn('adaptPlan update:',e));
+}
+
 async function saveValidationExtra(ei){
   const km=parseFloat(document.getElementById('val-km').value);
   const dur=(document.getElementById('val-dur').value||'').trim();
@@ -6012,6 +6110,11 @@ async function saveValidationExtra(ei){
   }
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   save();
+  // Adaptation automatique du plan si km réels < 80% du prévu
+  if(!isAdmin()&&!isNaN(km)&&km>=0){
+    const kmPlanned=sExtra.km||0;
+    await adaptPlanAfterSession(ei, km, kmPlanned);
+  }
   // Timestamp Firebase comme saveValidation
   if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
   closeModal();
