@@ -5763,15 +5763,15 @@ function renderHome(){
     const title=parts[0];
     const detail=filterDetailDisplay(title,parts[1]||null);
     // Horaire planifié
+    const _schedDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
     let schedHtml='';
     if(!extra){
       const edRaw=state['edit_w'+w+'_s'+si];
       if(edRaw){const ed=JSON.parse(edRaw);if(ed.sched_day||ed.sched_time){
-        const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-        const dayStr=ed.sched_day?days[ed.sched_day]:'';
-        const timeStr=ed.sched_time||'';
-        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
+        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
       }}
+    } else if(s2.sched_day||s2.sched_time){
+      schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
     }
     // "Aujourd'hui" seulement sur semaine en cours
     const runEdRaw=extra?null:state['edit_w'+w+'_s'+si];
