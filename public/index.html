@@ -2071,8 +2071,10 @@ async function saveOnboarding(){
 
   _obSaving=false;
   hideOnboarding();
+  rendered.plan=false; // Force re-render plan tab quel que soit l'état du cache
   if(_obEditMode) renderCompteScreen();
-  else { renderHome(); renderPlan(); }
+  else renderHome();
+  renderPlan();
   if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
@@ -2230,8 +2232,11 @@ function generateAthletePlan(ob){
 
   // ── Progression des séances selon semaine, niveau et distance ───────────────
   const tempoProgression=(w)=>{
-    // Débutant : intro à S6 avec 1×6 min ; Intermédiaire : S3 ; Confirmé : S2
-    const introW=niveau==='Débutant'?6:niveau==='Confirmé'?2:3;
+    // Plaisir : intro basée sur le volume hebdo (km = proxy niveau réel)
+    //   baseKm < 20 → 2 semaines EF seul (introW=3)
+    //   baseKm ≥ 20 → 1 semaine EF seul  (introW=2)
+    // Course : Débutant→S6, Intermédiaire→S3, Confirmé→S2
+    const introW=isPlaisir?(baseKm<20?3:2):(niveau==='Débutant'?6:niveau==='Confirmé'?2:3);
     if(w<introW) return null;
     const age=w-introW;
     if(niveau==='Débutant'){
@@ -2345,10 +2350,9 @@ function generateAthletePlan(ob){
     const tempoFull=useFrac ? fracProgression(w) : tempoProgression(w);
     const tempo=isRecoveryWeek ? reduceIntensity(tempoFull) : tempoFull;
     const sessionType=useFrac?'frac':'tempo';
-    // hasTempo : maintenant les semaines de décharge gardent le tempo (réduit)
-    // Plaisir : pas d'intensité avant S8/20km (base aérobie d'abord)
-    const hasTempo=!!tempo && nbSess>=3 && !noIntensity
-      && (!isPlaisir || (w>=8 && total>=20));
+    // hasTempo : les semaines de décharge gardent le tempo (réduit)
+    // Le démarrage du tempo est contrôlé par introW dans tempoProgression
+    const hasTempo=!!tempo && nbSess>=3 && !noIntensity;
 
     // Sortie longue spécifique marathon : activer à partir du 2ème tiers du plan
     // hors affûtage, hors décharge, niveaux Intermédiaire/Confirmé
