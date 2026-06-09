@@ -6129,7 +6129,6 @@ async function saveValidationExtra(ei){
   }
   // Timestamp Firebase comme saveValidation
   if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
-  closeModal();
   renderHome();
   rendered.plan=false;
   rendered.stats=false;
@@ -6147,7 +6146,7 @@ async function saveValidationExtra(ei){
       meteoSeance=await fetchWeatherIfGranted(_seanceHeure,dateVal||null);
     }
   }
-  if(isAdmin()) showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance);
+  if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance); }
   else showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance);
 }
 
@@ -6581,6 +6580,9 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   else overall='Chaque sortie te rapproche de l\'objectif 🎯';
 
   const mc=document.getElementById('modal-container');
+  // Vider immédiatement pour annuler tout timer de closeModal en cours
+  mc.innerHTML='';
+  _lockBodyScroll();
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
@@ -6592,7 +6594,6 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
           <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;">${title}</p>
           <p style="font-size:13px;opacity:0.9;margin-top:3px;font-weight:600;">${overall}</p>
         </div>
-        <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">×</button>
       </div>
     </div>
     <div class="modal-scroll-body">
@@ -6600,14 +6601,12 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
         <div style="display:flex;flex-direction:column;gap:10px;">
           ${lines.map(l=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600;color:var(--text);line-height:1.5;">${l}</div>`).join('')}
         </div>
-        <button onclick="closeModal()" style="margin-top:20px;width:100%;padding:14px;background:${headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">👍 Fermer</button>
+        <button onclick="closeModal()" style="margin-top:20px;width:100%;padding:15px;background:${headerColor};border:none;border-radius:14px;font-size:15px;font-weight:800;color:#fff;cursor:pointer;letter-spacing:0.01em;">👍 J'ai lu mon analyse</button>
       </div>
     </div>
   </div>`;
-  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
-  _lockBodyScroll();
+  // Pas de fermeture au tap en dehors : l'utilisateur doit cliquer le bouton
   mc.appendChild(overlay);
-  _initSwipeToDismiss(overlay,overlay.querySelector('.modal-box'));
 }
 
 function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
