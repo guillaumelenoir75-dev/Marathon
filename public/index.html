@@ -2816,9 +2816,12 @@ function renderAthleteCoachView(userData, uid, name){
   const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long'};
 
   if(weeks.length===0){
-    html+=`<div style="background:#fff;border-radius:14px;padding:20px;text-align:center;color:#888;border:1px solid #e0e0e0;margin-bottom:12px;">Aucun plan — </div>`;
+    html+=`<div style="background:#fff;border-radius:14px;padding:20px;text-align:center;color:#888;border:1px solid #e0e0e0;margin-bottom:12px;">Aucun plan</div>`;
   } else {
-    html+=`<p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">Plan — ${weeks.length} semaines</p>`;
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0;">Plan — ${weeks.length} semaines</p>
+      <button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer le plan</button>
+    </div>`;
     weeks.forEach(w=>{
       const wd=weekData[w];
       const allDone=wd.done===wd.sessions.length&&wd.sessions.length>0;
@@ -2850,6 +2853,18 @@ function renderAthleteCoachView(userData, uid, name){
   const nextW=(weeks.length>0?Math.max(...weeks):0)+1;
   html+=`<button onclick="cvAddWeek(${nextW})" style="width:100%;padding:13px;background:#fff;border:1.5px dashed #1B4FD8;border-radius:12px;font-size:13px;font-weight:600;color:#1B4FD8;cursor:pointer;margin-bottom:24px;">+ Ajouter une semaine (S${nextW})</button>`;
   body.innerHTML=html;
+}
+
+// ── Suppression du plan athlète ───────────────────────────────────────────────
+async function cvDeletePlan(){
+  if(!confirm(`Supprimer tout le plan de ${_cvName} ? Cette action est irréversible.`)) return;
+  // Supprimer toutes les clés extra_w* du state athlète
+  const keysToDelete=Object.keys(_cvState).filter(k=>/^extra_w\d/.test(k));
+  if(keysToDelete.length===0) return;
+  const updates={};
+  keysToDelete.forEach(k=>{ updates[k]=null; delete _cvState[k]; });
+  await dbRef.update(updates);
+  _refreshAthleteCoachView();
 }
 
 // ── Édition séance coach view ─────────────────────────────────────────────────
