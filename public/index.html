@@ -2072,7 +2072,7 @@ async function saveOnboarding(){
   _obSaving=false;
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
-  else renderPlan();
+  else { renderHome(); renderPlan(); }
   if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
