@@ -5610,7 +5610,17 @@ function renderHome(){
   }
   const kpiTotalEl=document.getElementById('kpi-total'); if(kpiTotalEl) kpiTotalEl.textContent=td;
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=Math.max(0,gt-td);
-  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl) weeksLeftEl.textContent=isAdmin()?Math.max(0,32-CW):'—';
+  const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl){
+    if(isAdmin()){
+      weeksLeftEl.textContent=Math.max(0,32-CW);
+    } else {
+      // Calculer les semaines restantes depuis la semaine courante jusqu'à la dernière semaine du plan
+      let maxW=0;
+      for(let ws=1;ws<=52;ws++){ if(state['extra_w'+ws+'_s0']) maxW=ws; }
+      const ACW=getAthleteCW();
+      weeksLeftEl.textContent=maxW>0?Math.max(0,maxW-ACW+1):'—';
+    }
+  }
   // KM semaine : basés sur la semaine affichée
   const weekDoneKm = (()=>{
     let km=0;
