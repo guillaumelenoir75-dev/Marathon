@@ -10002,6 +10002,7 @@ function _savePerfExtra(ws, ei){
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   else delete state[k+'_perf'];
   save(); closeModal(); rendered.plan=false; rendered.stats=false; renderPlan(); renderHome();
+  if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
 function openEditModal(ws, si){
