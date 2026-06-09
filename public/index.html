@@ -352,6 +352,7 @@ input[type=number]:focus{border-color:var(--orange);}
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
   <div id="shoes-manage" style="margin-bottom:20px;"></div>
+  <div id="stats-calories-section">
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Nutrition — calories</p>
   <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -370,6 +371,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:right;">Dépensé</span>
     </div>
     <div id="cal-rows"></div>
+  </div>
   </div>
 </div>
 
@@ -1197,11 +1199,14 @@ function hideLoginScreen(){
 function applyRoleUI(){
   const navCoach=document.getElementById('nav-coach');
   const scCoach=document.getElementById('sc-coach');
+  const calSec=document.getElementById('stats-calories-section');
   if(!isAdmin()){
     if(navCoach) navCoach.style.display='none';
     if(scCoach) scCoach.style.display='none';
+    if(calSec) calSec.style.display='none';
   } else {
     if(navCoach) navCoach.style.display='';
+    if(calSec) calSec.style.display='';
   }
 }
 
@@ -1239,7 +1244,10 @@ function savePrefs(prefs){
 }
 function getPref(key, defaultVal=true){
   const p=getPrefs();
-  return p[key]!==undefined ? p[key] : defaultVal;
+  if(p[key]!==undefined) return p[key];
+  // FC repos et VO2max désactivés par défaut pour les athlètes
+  if(!isAdmin()&&(key==='show_fc_repos'||key==='show_vo2max')) return false;
+  return defaultVal;
 }
 
 function openPrefsModal(){
@@ -11450,6 +11458,7 @@ function renderStats(){
   ];
   const consumed=2100;
   const cr=document.getElementById('cal-rows');cr.innerHTML='';
+  if(!isAdmin()) return;
   calories.forEach((c,i)=>{
     const balance=consumed-c.kcal;
     const pct=Math.round(c.kcal/3500*100);
