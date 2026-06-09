@@ -5871,6 +5871,13 @@ function toggleDoneExtra(ei){
     state[doneK]=false;
     delete state[k+'_km'];
     delete state[k+'_perf'];
+    // Si la bannière d'adaptation concerne cette semaine, la retirer
+    if(state._plan_adapted){
+      try{
+        const a=JSON.parse(state._plan_adapted);
+        if(a.week===CW){ delete state._plan_adapted; if(dbRef) dbRef.child('_plan_adapted').remove().catch(()=>{}); }
+      }catch(e){}
+    }
     save();
     renderHome();
     rendered.stats=false;
@@ -5914,6 +5921,7 @@ function openValidationModalExtra(ei){
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div style="background:#FFF8F0;border:1.5px solid #E8530A;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#7A3B00;margin-bottom:10px;">⚡ Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan sera adapté automatiquement.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <p style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">📅 Date</p>
@@ -6016,10 +6024,13 @@ async function adaptPlanAfterSession(ei, kmActual, kmPlanned){
     factors={cw:0.70,n1:0.75,n2:0.90};
   }
 
+  const kmActualDisplay=kmActual===0?'0 (séance non réalisée)':kmActual;
   const msg={
-    léger:`Plan ajusté ↓ — Tu as couru ${kmActual} km au lieu de ${kmPlanned} km. Les prochaines séances sont légèrement allégées.`,
-    modéré:`Plan adapté ↓ — Séance écourtée (${kmActual}/${kmPlanned} km). Semaine prochaine allégée pour favoriser ta récupération.`,
-    majeur:`Plan adapté ↓ — Possible fatigue ou blessure (${kmActual}/${kmPlanned} km). Les 2 prochaines semaines sont allégées. Écoute ton corps !`,
+    léger:`Plan ajusté ↓ — Tu as couru ${kmActualDisplay} km au lieu de ${kmPlanned} km. Les prochaines séances sont légèrement allégées.`,
+    modéré:`Plan adapté ↓ — Séance écourtée (${kmActualDisplay}/${kmPlanned} km). Semaine prochaine allégée pour favoriser ta récupération.`,
+    majeur:kmActual===0
+      ?`Plan adapté ↓ — Séance non réalisée (${kmPlanned} km prévus). Les 2 prochaines semaines sont allégées. Écoute ton corps !`
+      :`Plan adapté ↓ — Possible fatigue ou blessure (${kmActualDisplay}/${kmPlanned} km). Les 2 prochaines semaines sont allégées. Écoute ton corps !`,
   }[level];
 
   const maxWeek=getAthleteMaxWeek();
@@ -6073,7 +6084,7 @@ async function saveValidationExtra(ei){
   const dateVal=(document.getElementById('val-date').value||'').trim();
   const k=`extra_w${CW}_s${ei}`;
   state[k+'_done']=true;
-  if(!isNaN(km)&&km>=0) state[k+'_km']=km;
+  state[k+'_km']=(!isNaN(km)&&km>=0)?km:0;
   const perf={};
   if(dur) perf.dur=dur;
   if(pace) perf.pace=pace;
@@ -6110,10 +6121,11 @@ async function saveValidationExtra(ei){
   }
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   save();
-  // Adaptation automatique du plan si km réels < 80% du prévu
-  if(!isAdmin()&&!isNaN(km)&&km>=0){
+  // Adaptation automatique du plan si km réels < 80% du prévu (ou champ vide = 0 km)
+  if(!isAdmin()){
     const kmPlanned=sExtra.km||0;
-    await adaptPlanAfterSession(ei, km, kmPlanned);
+    const kmActual=(!isNaN(km)&&km>=0)?km:0;
+    await adaptPlanAfterSession(ei, kmActual, kmPlanned);
   }
   // Timestamp Firebase comme saveValidation
   if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
