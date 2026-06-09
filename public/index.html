@@ -2118,28 +2118,35 @@ function generateAthletePlan(ob){
   const longRunCap=isPlaisir?22:({'Marathon':32,'Semi-marathon':21,'10 km':16,'5 km':12}[course]||32);
 
   // Volume par semaine
+  // Ratio de décharge : varie selon le pic précédent (plus le pic est haut, plus la décharge est marquée)
+  // Calibré sur le plan admin réel : S8=89%, S12=88%, S16=84%, S20=77%, S30=69%
+  const recovRatio=(lastBuild)=>{
+    if(lastBuild<=25) return 0.88;
+    if(lastBuild<=35) return 0.84;
+    if(lastBuild<=45) return 0.80;
+    return 0.75; // Pics élevés (>45km) → décharge un peu plus marquée
+  };
+
   const weekKms=[];
   let cur=baseKm;
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
-      // Récup : -35% du dernier pic réel (pas retour au départ pour les débutants)
       const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
-      const recovKm=Math.max(Math.round(lastBuild*0.65), Math.max(2,Math.round(baseKm*0.8)));
+      const recovKm=Math.max(Math.round(lastBuild*recovRatio(lastBuild)), Math.max(2,Math.round(baseKm*0.85)));
       weekKms.push(recovKm);
       // cur inchangé : l'adaptation est maintenue, seule la fatigue aiguë est réduite
     } else {
       let km=Math.round(Math.min(cur,peakKm));
-      // Limiteur post-récupération : max +30% vs le DERNIER BLOC avant récup (weekKms[w-3])
-      if(w>2 && recovery.has(w-1)){
-        km=Math.min(km,Math.round((weekKms[w-3]||baseKm)*1.30));
-      } else if(w>2 && recovery.has(w-2)){
-        km=Math.min(km,Math.round((weekKms[w-2]||baseKm)*1.30));
+      // Post-récupération : reprise à ~95% du volume avant décharge (continuité, pas de saut)
+      if(w>1 && recovery.has(w-1)){
+        const preRecov=weekKms[w-2]||cur; // volume de la décharge elle-même
+        const beforeRecov=weekKms.filter((_,i)=>!recovery.has(i+1)&&i<w-1).slice(-1)[0]||preRecov;
+        km=Math.min(km, Math.round(beforeRecov*1.05)); // max +5% vs avant-décharge
       }
       weekKms.push(km);
       if(cur<peakKm){
-        // Progression absolue pour faibles volumes : +1.5 km/sem évite les +300m inutiles
-        // Progression relative au-dessus de 12 km/sem (8% plus conservateur que 10%)
-        cur=cur<12 ? cur+1.5 : cur*1.08;
+        // +1.5 km/sem pour faibles volumes, +7% au-dessus de 12 km/sem
+        cur=cur<12 ? cur+1.5 : cur*1.07;
       }
     }
   }
