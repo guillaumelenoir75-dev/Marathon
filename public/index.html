@@ -2353,7 +2353,7 @@ function generateAthletePlan(ob){
         const pLbl=tempoLbl?`${tempoLbl}/km · `:'';
         if(isContinuous){
           const continuousCue=_plaisirPhase===1?'découverte de l\'allure seuil, effort maîtrisé':_plaisirPhase===2?'allure seuil soutenue, sans forcer':'effort soutenu et régulier sans pause';
-          return `Tempo continu ${tempo.dur} min|${pLbl}${tempoFCStr} · ${continuousCue}`;
+          return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}${tempoFCStr} · ${continuousCue}`;
         }
         const phaseCue=_plaisirPhase===1?'intro au seuil':'travail au seuil';
         return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}${phaseCue} · récup ${tempo.recup||'3:00'} min · ${tempoFCStr}`;
