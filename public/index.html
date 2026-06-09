@@ -2733,7 +2733,7 @@ async function changePassword(){
 }
 
 let _adminSavedState=null, _adminSavedDbRef=null;
-let _adminPreviewUid=null;
+let _adminPreviewUid=null, _adminPreviewName=null;
 
 function _refreshAthleteCoachView(){
   const body=document.getElementById('coach-view-body');
@@ -2786,6 +2786,7 @@ async function openAthleteCoachView(uid, name){
     _adminSavedState=state;
     _adminSavedDbRef=dbRef;
     _adminPreviewUid=uid;
+    _adminPreviewName=name;
     state=athleteState;
     dbRef=firebase.database().ref('users/'+uid+'/state');
     _refreshAthleteCoachView();
@@ -2882,12 +2883,12 @@ function renderAthleteCoachView(userData, uid, name){
 
 // ── Suppression du plan athlète ───────────────────────────────────────────────
 async function cvDeletePlan(){
-  if(!confirm(`Supprimer tout le plan de ${_cvName} ? Cette action est irréversible.`)) return;
-  // Supprimer toutes les clés extra_w* du state athlète
-  const keysToDelete=Object.keys(_cvState).filter(k=>/^extra_w\d/.test(k));
+  if(!confirm(`Supprimer tout le plan de ${_adminPreviewName||'cet athlète'} ? Cette action est irréversible.`)) return;
+  // Supprimer toutes les clés extra_w* du state athlète (state = state athlète, dbRef = dbRef athlète)
+  const keysToDelete=Object.keys(state).filter(k=>/^extra_w\d/.test(k));
   if(keysToDelete.length===0) return;
   const updates={};
-  keysToDelete.forEach(k=>{ updates[k]=null; delete _cvState[k]; });
+  keysToDelete.forEach(k=>{ updates[k]=null; delete state[k]; });
   await dbRef.update(updates);
   _refreshAthleteCoachView();
 }
