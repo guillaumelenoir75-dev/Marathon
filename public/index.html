@@ -677,13 +677,14 @@ input[type=number]:focus{border-color:var(--orange);}
       <div id="ob-target-time-wrap" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1.5px solid #e0e8f5;margin-bottom:16px;">
         <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">🎯 Temps cible (optionnel)</p>
         <p id="ob-target-time-label" style="font-size:13px;color:#555;margin-bottom:10px;"></p>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input id="ob-target-h" type="number" min="0" max="9" placeholder="h" style="width:56px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="onTargetTimeInput()">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input id="ob-target-h" type="number" min="0" max="9" placeholder="h" style="width:56px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="onTargetTimeInput();document.getElementById('ob-no-target-btn').style.cssText='background:#f5f5f5;color:#888;border-color:#e0e0e0;'">
           <span style="font-size:20px;color:#555;font-weight:700;">:</span>
-          <input id="ob-target-min" type="number" min="0" max="59" placeholder="mm" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput()">
+          <input id="ob-target-min" type="number" min="0" max="59" placeholder="mm" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput();document.getElementById('ob-no-target-btn').style.cssText='background:#f5f5f5;color:#888;border-color:#e0e0e0;'">
           <span style="font-size:20px;color:#555;font-weight:700;">:</span>
-          <input id="ob-target-sec" type="number" min="0" max="59" placeholder="ss" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput()">
+          <input id="ob-target-sec" type="number" min="0" max="59" placeholder="ss" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput();document.getElementById('ob-no-target-btn').style.cssText='background:#f5f5f5;color:#888;border-color:#e0e0e0;'">
         </div>
+        <button id="ob-no-target-btn" onclick="clearTargetTime()" style="width:100%;padding:9px;background:#f5f5f5;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;color:#888;cursor:pointer;">⏭️ Pas de temps cible</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('generate_plan','oui')" class="ob-chip" id="ob-generate_plan-oui">✅ Oui, génère-moi un programme</button>
@@ -1682,8 +1683,42 @@ function _initObTargetTime(){
     if(hEl) hEl.value=p[0]||'';
     if(mEl) mEl.value=p[1]||'';
     if(sEl) sEl.value=p[2]||'';
+  } else if(dist&&_obData.ef_pace){
+    // Suggérer un temps réaliste basé sur l'allure EF
+    const parts=(_obData.ef_pace).replace("'",":").split(':');
+    if(parts.length===2){
+      const efSec=parseInt(parts[0])*60+parseInt(parts[1]);
+      // Delta EF → allure course selon distance (s/km plus rapide que EF)
+      const delta={'5 km':90,'10 km':72,'Semi-marathon':48,'Marathon':32}[course]||40;
+      const racePaceSec=Math.max(efSec-delta,150); // minimum 2:30/km
+      const totalSec=Math.round(racePaceSec*dist);
+      const sh=Math.floor(totalSec/3600);
+      const sm=Math.floor((totalSec%3600)/60);
+      const ss=totalSec%60;
+      const hEl=document.getElementById('ob-target-h');
+      const mEl=document.getElementById('ob-target-min');
+      const sEl=document.getElementById('ob-target-sec');
+      if(hEl) hEl.value=sh>0?sh:'';
+      if(mEl) mEl.value=sm;
+      if(sEl) sEl.value=ss>0?String(ss).padStart(2,'0'):'';
+      onTargetTimeInput(); // enregistrer la suggestion dans _obData
+    }
   }
 }
+
+function clearTargetTime(){
+  const hEl=document.getElementById('ob-target-h');
+  const mEl=document.getElementById('ob-target-min');
+  const sEl=document.getElementById('ob-target-sec');
+  if(hEl) hEl.value='';
+  if(mEl) mEl.value='';
+  if(sEl) sEl.value='';
+  delete _obData.target_time;
+  // Mettre en évidence visuellement le bouton actif
+  const btn=document.getElementById('ob-no-target-btn');
+  if(btn){ btn.style.background='#EEF2FD'; btn.style.color='#1B4FD8'; btn.style.borderColor='#1B4FD8'; }
+}
+
 
 function onTargetTimeInput(){
   const h=parseInt(document.getElementById('ob-target-h')?.value)||0;
