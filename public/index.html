@@ -5785,7 +5785,7 @@ function renderHome(){
     // Boutons : actifs sur semaine en cours et futures, lecture seule sur passées
     const canEdit = isCurrent || isFuture;
     const editFn = canEdit ? (extra?`openEditExtraModal(${w},${ei})`:`openEditModal(${w},${si})`) : '';
-    const doneFn = isCurrent ? (extra?`toggleDoneExtra(${ei})`:`toggleDone(${si})`) : '';
+    const doneFn = isCurrent ? (extra?`toggleDoneExtra(${w},${ei})`:`toggleDone(${si})`) : '';
     const div=document.createElement('div');
     div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;cursor:default;'
       +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15;`
@@ -5861,12 +5861,12 @@ function renderHome(){
   updateNotifBtnState();
 }
 
-function toggleDoneExtra(ei){
-  const k=`extra_w${CW}_s${ei}`;
+function toggleDoneExtra(w,ei){
+  const k=`extra_w${w}_s${ei}`;
   const doneK=k+'_done';
   const wasDone=!!state[doneK];
   if(!wasDone){
-    openValidationModalExtra(ei);
+    openValidationModalExtra(w,ei);
   } else {
     state[doneK]=false;
     delete state[k+'_km'];
@@ -5875,7 +5875,7 @@ function toggleDoneExtra(ei){
     if(state._plan_adapted){
       try{
         const a=JSON.parse(state._plan_adapted);
-        if(a.week===CW){ delete state._plan_adapted; if(dbRef) dbRef.child('_plan_adapted').remove().catch(()=>{}); }
+        if(a.week===w){ delete state._plan_adapted; if(dbRef) dbRef.child('_plan_adapted').remove().catch(()=>{}); }
       }catch(e){}
     }
     save();
@@ -5884,19 +5884,19 @@ function toggleDoneExtra(ei){
   }
 }
 
-function openValidationModalExtra(ei){
+function openValidationModalExtra(w,ei){
   // Reset Strava et météo comme pour openValidationModal
   window._meteoValidationData = null;
   window._garminActivityData = null;
-  const s=JSON.parse(state[`extra_w${CW}_s${ei}`]||'{}');
+  const s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');
   const parts=(s.d||'').split('|');
   const title=parts[0];
   const detail=filterDetailDisplay(title, parts[1]||null);
   const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
-  const kmVal=state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s.km||0;
-  const prev=state[`extra_w${CW}_s${ei}_perf`]?JSON.parse(state[`extra_w${CW}_s${ei}_perf`]):{};
+  const kmVal=state[`extra_w${w}_s${ei}_km`]!=null?state[`extra_w${w}_s${ei}_km`]:s.km||0;
+  const prev=state[`extra_w${w}_s${ei}_perf`]?JSON.parse(state[`extra_w${w}_s${ei}_perf`]):{};
   // Stocker le contexte pour Strava (_applyGarminToValidation)
-  window._currentValidationSession = { s, idx: ei, ws: CW, isExtra: true, ei };
+  window._currentValidationSession = { s, idx: ei, ws: w, isExtra: true, ei };
   const mc=document.getElementById('modal-container');
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
@@ -5981,7 +5981,7 @@ function openValidationModalExtra(ei){
     <div style="padding:0 0 28px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
         <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">Annuler</button>
-        <button onclick="saveValidationExtra(${ei})" style="padding:13px;background:${_headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Valider</button>
+        <button onclick="saveValidationExtra(${w},${ei})" style="padding:13px;background:${_headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Valider</button>
       </div>
     </div>
     </div>
@@ -6006,7 +6006,7 @@ function dismissPlanAdapted(){
   if(el) el.style.display='none';
 }
 
-async function adaptPlanAfterSession(ei, kmActual, kmPlanned){
+async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
   if(isAdmin()) return;
   if(!kmPlanned||kmPlanned<=0) return;
   const ratio=kmActual/kmPlanned;
@@ -6037,11 +6037,11 @@ async function adaptPlanAfterSession(ei, kmActual, kmPlanned){
   const updates={};
 
   // Séances non-validées de la semaine en cours
-  const wStr=`extra_w${CW}_s`;
+  const wStr=`extra_w${w}_s`;
   Object.keys(state).filter(k=>k.startsWith(wStr)&&!k.includes('_done')&&!k.includes('_km')&&!k.includes('_perf')).forEach(k=>{
     const eiOther=parseInt(k.replace(wStr,''));
     if(eiOther===ei) return;
-    if(state[`extra_w${CW}_s${eiOther}_done`]) return;
+    if(state[`extra_w${w}_s${eiOther}_done`]) return;
     try{
       const s=JSON.parse(state[k]||'{}');
       if(s.km>0){
@@ -6053,7 +6053,7 @@ async function adaptPlanAfterSession(ei, kmActual, kmPlanned){
   });
 
   // Semaines +1 et +2
-  [[CW+1, factors.n1],[CW+2, factors.n2]].forEach(([wn, factor])=>{
+  [[w+1, factors.n1],[w+2, factors.n2]].forEach(([wn, factor])=>{
     if(factor>=1||wn>maxWeek) return;
     Object.keys(state).filter(k=>k.startsWith(`extra_w${wn}_s`)&&!k.includes('_done')&&!k.includes('_km')&&!k.includes('_perf')).forEach(k=>{
       const eiN=parseInt(k.replace(`extra_w${wn}_s`,''));
@@ -6069,20 +6069,20 @@ async function adaptPlanAfterSession(ei, kmActual, kmPlanned){
     });
   });
 
-  const adapted={msg,ts:Date.now(),seen:false,week:CW,level};
+  const adapted={msg,ts:Date.now(),seen:false,week:w,level};
   state._plan_adapted=JSON.stringify(adapted);
   updates['_plan_adapted']=state._plan_adapted;
 
   if(dbRef) await dbRef.update(updates).catch(e=>console.warn('adaptPlan update:',e));
 }
 
-async function saveValidationExtra(ei){
+async function saveValidationExtra(w,ei){
   const km=parseFloat(document.getElementById('val-km').value);
   const dur=(document.getElementById('val-dur').value||'').trim();
   const pace=(document.getElementById('val-pace').value||'').trim();
   const hr=parseInt(document.getElementById('val-hr').value)||null;
   const dateVal=(document.getElementById('val-date').value||'').trim();
-  const k=`extra_w${CW}_s${ei}`;
+  const k=`extra_w${w}_s${ei}`;
   state[k+'_done']=true;
   state[k+'_km']=(!isNaN(km)&&km>=0)?km:0;
   const perf={};
@@ -6125,10 +6125,10 @@ async function saveValidationExtra(ei){
   if(!isAdmin()){
     const kmPlanned=sExtra.km||0;
     const kmActual=(!isNaN(km)&&km>=0)?km:0;
-    await adaptPlanAfterSession(ei, kmActual, kmPlanned);
+    await adaptPlanAfterSession(w, ei, kmActual, kmPlanned);
   }
   // Timestamp Firebase comme saveValidation
-  if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
+  if(dbRef) dbRef.child('_last_validation_w'+w).set(Date.now()).catch(()=>{});
   renderHome();
   rendered.plan=false;
   rendered.stats=false;
