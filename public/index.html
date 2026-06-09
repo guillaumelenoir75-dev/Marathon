@@ -15124,6 +15124,11 @@ async function initNotifications() {
   try {
     await navigator.serviceWorker.register('/sw.js');
     updateNotifBtnState();
+    // Refresh la subscription à chaque chargement si permission accordée
+    // → garantit que Firebase a toujours l'endpoint valide (évite les expirations silencieuses)
+    if (Notification.permission === 'granted') {
+      await subscribeToPush();
+    }
   } catch(e) {
     console.warn('SW registration failed:', e);
   }
