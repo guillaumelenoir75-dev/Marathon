@@ -2351,12 +2351,14 @@ function generateAthletePlan(ob){
       if(type==='tempo'&&tempo){
         const isContinuous=tempo.recup==='0:00';
         const pLbl=tempoLbl?`${tempoLbl}/km · `:'';
+        const warmup='3 km EF · ';
+        const cooldown=' · EF de fin';
         if(isContinuous){
           const continuousCue=_plaisirPhase===1?'découverte de l\'allure seuil, effort maîtrisé':_plaisirPhase===2?'allure seuil soutenue, sans forcer':'effort soutenu et régulier sans pause';
-          return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}${tempoFCStr} · ${continuousCue}`;
+          return `Tempo ${tempo.rep}×${tempo.dur} min|${warmup}${tempo.rep}×${tempo.dur} min ${pLbl}${tempoFCStr} · ${continuousCue}${cooldown}`;
         }
         const phaseCue=_plaisirPhase===1?'intro au seuil':'travail au seuil';
-        return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}${phaseCue} · récup ${tempo.recup||'3:00'} min · ${tempoFCStr}`;
+        return `Tempo ${tempo.rep}×${tempo.dur} min|${warmup}${tempo.rep}×${tempo.dur} min ${pLbl}${phaseCue} · récup ${tempo.recup||'3:00'} min · ${tempoFCStr}${cooldown}`;
       }
     }
     // ── Descriptions standard (Course) ──────────────────────────────────────
@@ -2371,8 +2373,8 @@ function generateAthletePlan(ob){
       // Semi : séances à allure semi-marathon au lieu du seuil pur
       const pLbl=course==='Semi-marathon'&&semiLbl?semiLbl:tempoLbl;
       const pDesc=course==='Semi-marathon'?'allure semi':'allure seuil';
-      if(pLbl) return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}/km · ${pDesc} · récup ${recupStr} min · ${tempoFCStr}${efLabel?' · EF ref '+efLabel+'/km':''}`;
-      return `Tempo ${tempo.rep}×${tempo.dur} min`;
+      if(pLbl) return `Tempo ${tempo.rep}×${tempo.dur} min|3 km EF · ${tempo.rep}×${tempo.dur} min ${pLbl}/km · ${pDesc} · récup ${recupStr} min · ${tempoFCStr} · EF de fin`;
+      return `Tempo ${tempo.rep}×${tempo.dur} min|3 km EF · ${tempo.rep}×${tempo.dur} min · récup ${recupStr} min · EF de fin`;
     }
     if(type==='frac'&&tempo){
       const recupStr=tempo.recup||'2:00';
