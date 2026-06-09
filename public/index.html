@@ -2009,7 +2009,12 @@ async function saveOnboarding(){
     // Sauvegarder onboarding
     if(dbRef){
       state.onboarding=_obData;
-      await dbRef.child('onboarding').set(_obData).catch(()=>{});
+      if(_adminPreviewUid){
+        const _t=await getAuthToken();
+        await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'write',path:`users/${_adminPreviewUid}/state/onboarding`,value:_obData})}).catch(()=>{});
+      } else {
+        await dbRef.child('onboarding').set(_obData).catch(()=>{});
+      }
     }
     setProgress(50,'Profil sauvegardé…');
     await new Promise(r=>setTimeout(r,200));
@@ -2047,7 +2052,12 @@ async function saveOnboarding(){
       if(_obData.race_distance_km){ state.race_distance_km=_obData.race_distance_km; updates.race_distance_km=_obData.race_distance_km; }
       if(_obData.fc_max){ state.fc_max=_obData.fc_max; updates.fc_max=_obData.fc_max; }
       entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
-      await dbRef.update(updates).catch(()=>{});
+      if(_adminPreviewUid){
+        const _t=await getAuthToken();
+        await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'update',path:`users/${_adminPreviewUid}/state`,value:updates})}).catch(()=>{});
+      } else {
+        await dbRef.update(updates).catch(()=>{});
+      }
     }
     setProgress(85,'Séances créées…');
     await new Promise(r=>setTimeout(r,300));
