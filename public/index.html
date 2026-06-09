@@ -2430,17 +2430,15 @@ function generateAthletePlan(ob){
         const kEF=Math.max(total-kL,sFloor);
         const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
 
-        // Plaisir : rotation de variété sur cycle de 3 semaines par phase
-        // Phase 1 (W1-8)  → EF partout (installer l'habitude)
-        // Phase 2 (W9-16) → w%3=1 : Fartlek ; reste : EF
-        // Phase 3 (W17-24)→ w%3=1 : Fartlek ; w%3=2 : Tempo ; reste : EF
-        // Semaines de récup et base < 20km → toujours EF
+        // Plaisir 2 séances — variété sur cycle de 3 semaines (modulo 3) :
+        //   W6+  : w%3=0 → Fartlek (1ère apparition S6)
+        //   W14+ : w%3=2 → Tempo   (1ère apparition S14)
+        //   Récup & base < 20km → toujours EF
         let shortD=makeD('ef'), shortType='ef';
-        if(isPlaisir && !isRecoveryWeek && _plaisirPhase>=2 && baseKm>=20){
-          if(w%3===1){
+        if(isPlaisir && !isRecoveryWeek && baseKm>=20){
+          if(w%3===0 && w>=6){
             shortD=makeD('fartlek');
-            // fartlek conserve le type 'ef' pour les stats (intensité intermédiaire)
-          } else if(w%3===2 && _plaisirPhase>=3 && tempo){
+          } else if(w%3===2 && w>=14 && tempo){
             shortD=makeD('tempo',tempo);
             shortType='tempo';
           }
