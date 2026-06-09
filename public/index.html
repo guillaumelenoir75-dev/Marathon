@@ -2120,19 +2120,15 @@ function generateAthletePlan(ob){
   // Volume par semaine
   // Ratio de décharge : varie selon le pic précédent (plus le pic est haut, plus la décharge est marquée)
   // Calibré sur le plan admin réel : S8=89%, S12=88%, S16=84%, S20=77%, S30=69%
-  // Décharge : toujours entre -15% et -20% maximum (jamais plus)
-  const recovRatio=(lastBuild)=>{
-    if(lastBuild<=25) return 0.85; // -15%
-    if(lastBuild<=40) return 0.82; // -18%
-    return 0.80;                   // -20% max
-  };
+  // Décharge : toujours -15% (×0.85) quel que soit le volume
+  const recovRatio=()=>0.85;
 
   const weekKms=[];
   let cur=baseKm;
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
       const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
-      const recovKm=Math.max(Math.round(lastBuild*recovRatio(lastBuild)), Math.max(2,Math.round(baseKm*0.85)));
+      const recovKm=Math.max(Math.round(lastBuild*recovRatio()), Math.max(2,Math.round(baseKm*0.85)));
       weekKms.push(recovKm);
       // cur inchangé : l'adaptation est maintenue, seule la fatigue aiguë est réduite
     } else {
