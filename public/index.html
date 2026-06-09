@@ -2090,7 +2090,11 @@ function generateAthletePlan(ob){
   // Plaisir : cible progressive ambitieuse indépendante du base (ne pas bloquer les débutants)
   // Course : plafond classique × base
   const peakKm=isPlaisir
-    ? Math.min(Math.max(nbSess<=2?20:nbSess===3?28:38, Math.round(baseKm*1.6)), nbSess<=2?40:nbSess===3?55:999)
+    // Plaisir 24 sem : pic = 2× la base (vraie progression sur toute la durée)
+    // Plancher pour garantir une montée visible ; plafond de sécurité par nb séances
+    ? Math.min(Math.max(Math.round(baseKm*(nbSess<=2?1.8:nbSess===3?2.0:2.2)),
+                        nbSess<=2?28:nbSess===3?40:52),
+               nbSess<=2?45:nbSess===3?60:80)
     : Math.min(baseKm*2, baseKm+40, nbSess<=2?40:nbSess===3?55:999);
 
   // Affûtage : aucun pour Plaisir, sinon selon la distance
@@ -2117,7 +2121,7 @@ function generateAthletePlan(ob){
   for(let w=recovPeriod;w<=numWeeks;w+=recovPeriod) recovery.add(w);
 
   // Plafond long run selon distance cible (évite sorties trop longues pour courtes distances)
-  const longRunCap=isPlaisir?22:({'Marathon':32,'Semi-marathon':21,'10 km':16,'5 km':12}[course]||32);
+  const longRunCap=isPlaisir?Math.min(Math.max(22,Math.round(baseKm*1.2)),30):({'Marathon':32,'Semi-marathon':21,'10 km':16,'5 km':12}[course]||32);
 
   // Volume par semaine
   // Ratio de décharge : varie selon le pic précédent (plus le pic est haut, plus la décharge est marquée)
@@ -2238,6 +2242,12 @@ function generateAthletePlan(ob){
     // Course : Débutant→S6, Intermédiaire→S3, Confirmé→S2
     const introW=isPlaisir?(baseKm<20?3:2):(niveau==='Débutant'?6:niveau==='Confirmé'?2:3);
     if(w<introW) return null;
+    // Phase 3 Plaisir (W17+) : tempo continu sans récupération
+    if(isPlaisir && w>=17){
+      if(niveau==='Débutant')      return {rep:1,dur:15,recup:'0:00'};
+      if(niveau==='Confirmé')      return {rep:1,dur:25,recup:'0:00'};
+      return                              {rep:1,dur:20,recup:'0:00'}; // Intermédiaire
+    }
     const age=w-introW;
     if(niveau==='Débutant'){
       if(age<2)  return {rep:1,dur:6, recup:'3:00'};
@@ -2301,8 +2311,37 @@ function generateAthletePlan(ob){
     racePaceSec?Math.round(racePaceSec*0.955):null;
   const semiLbl=semiPaceSec?fmtPace(semiPaceSec):null;
 
+  // Phase Plaisir courante (mise à jour dans la boucle principale)
+  let _plaisirPhase=1;
+
   // Construit le champ d="Titre|détail" pour chaque type de séance
   const makeD=(type,tempo)=>{
+    // ── Descriptions enrichies pour le mode Plaisir ─────────────────────────
+    if(isPlaisir){
+      if(type==='ef'){
+        const cues=["courir à l'aise, pouvoir parler","allure confortable, respiration rythmée","allure fluide, écoute du corps"];
+        const cue=cues[_plaisirPhase-1]||cues[0];
+        return efLabel?`Sortie EF|${efLabel}/km · ${efFCStr} · ${cue}`:`Sortie EF|${cue}`;
+      }
+      if(type==='long'){
+        if(_plaisirPhase===3) return efLabel?`Sortie longue avancée|${efLabel}/km · terminer 15 min à allure médium`:`Sortie longue avancée|terminer 15 min à allure médium`;
+        if(_plaisirPhase===2) return efLabel?`Sortie longue progression|${efLabel}/km · terminer les 10 dernières min légèrement plus vite`:`Sortie longue progression|terminer les 10 dernières min plus vite`;
+        return efLabel?`Sortie longue EF|${efLabel}/km · allure confort, plaisir avant tout`:`Sortie longue EF|allure confort, plaisir avant tout`;
+      }
+      if(type==='fartlek'){
+        const cues=['6×(30s vite + 2min jogging)','8×(40s vite + 90s jogging)','8×(45s vite + 90s jogging) + 2 accélérations finales'];
+        const cue=cues[_plaisirPhase-1]||cues[0];
+        return efLabel?`Fartlek|${efLabel}/km base · ${cue}`:`Fartlek|${cue}`;
+      }
+      if(type==='tempo'&&tempo){
+        const isContinuous=tempo.recup==='0:00';
+        const pLbl=tempoLbl?`${tempoLbl}/km · `:'';
+        if(isContinuous) return `Tempo continu ${tempo.dur} min|${pLbl}${tempoFCStr} · effort soutenu et régulier sans pause`;
+        const phaseCue=_plaisirPhase===1?'intro au seuil':'travail au seuil';
+        return `Tempo ${tempo.rep}×${tempo.dur} min|${pLbl}${phaseCue} · récup ${tempo.recup||'3:00'} min · ${tempoFCStr}`;
+      }
+    }
+    // ── Descriptions standard (Course) ──────────────────────────────────────
     if(type==='ef'){
       return efLabel?`Séance EF|${efLabel}/km · ${efFCStr}`:'Séance EF';
     }
@@ -2342,6 +2381,7 @@ function generateAthletePlan(ob){
   const updates={};
   for(let w=1;w<=numWeeks;w++){
     const total=weekKms[w-1];
+    if(isPlaisir) _plaisirPhase=w<=8?1:w<=16?2:3;
     const isRecoveryWeek=recovery.has(w);
     const isRaceWeek=w===numWeeks&&!!ob.date;
     const weekInTaper=w>=taperStartW?w-taperStartW+1:0;
@@ -2402,17 +2442,31 @@ function generateAthletePlan(ob){
     } else {
       // 4 séances
       if(hasTempo){
-        const kEF1=Math.max(Math.round(total*0.20),sFloor);
-        const kEF2=Math.max(Math.round(total*0.20),sFloor);
-        const kT  =Math.max(Math.round(total*0.22),sFloor);
-        const kL  =longKm(total-kEF1-kEF2-kT);
-        const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
-        sessions=[
-          {d:makeD('ef'),km:kEF1,type:'ef',shoe:null},
-          {d:makeD('ef'),km:kEF2,type:'ef',shoe:null},
-          {d:makeD(sessionType,tempo),km:kT,type:sessionType,shoe:null},
-          {d:dL,km:kL,type:'long',shoe:null},
-        ];
+        if(isPlaisir && _plaisirPhase>=2){
+          // Phase 2-3 Plaisir : EF + fartlek + tempo + longue (plus de variété)
+          const kEF =Math.max(Math.round(total*0.18),sFloor);
+          const kFar=Math.max(Math.round(total*0.20),sFloor);
+          const kT  =Math.max(Math.round(total*0.22),sFloor);
+          const kL  =longKm(total-kEF-kFar-kT);
+          sessions=[
+            {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
+            {d:makeD('fartlek'),km:kFar,type:'ef',shoe:null},
+            {d:makeD(sessionType,tempo),km:kT,type:sessionType,shoe:null},
+            {d:makeD('long'),km:kL,type:'long',shoe:null},
+          ];
+        } else {
+          const kEF1=Math.max(Math.round(total*0.20),sFloor);
+          const kEF2=Math.max(Math.round(total*0.20),sFloor);
+          const kT  =Math.max(Math.round(total*0.22),sFloor);
+          const kL  =longKm(total-kEF1-kEF2-kT);
+          const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
+          sessions=[
+            {d:makeD('ef'),km:kEF1,type:'ef',shoe:null},
+            {d:makeD('ef'),km:kEF2,type:'ef',shoe:null},
+            {d:makeD(sessionType,tempo),km:kT,type:sessionType,shoe:null},
+            {d:dL,km:kL,type:'long',shoe:null},
+          ];
+        }
       } else {
         const k1=Math.max(Math.round(total*0.25),sFloor);
         const k2=Math.max(Math.round(total*0.20),sFloor);
