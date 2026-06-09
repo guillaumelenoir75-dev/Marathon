@@ -9285,6 +9285,20 @@ function renderAthletePlan(el){
         }
         return '';
       })();
+      const sessionExplain=(()=>{
+        if(s.type==='tempo'){
+          const m=title.match(/(\d+)×(\d+)/);
+          return m?`3 km d'échauffement EF → ${m[1]}×${m[2]} min à allure seuil → EF de fin`:"3 km d'échauffement EF → bloc tempo → EF de fin";
+        }
+        if(s.type==='frac'){
+          const m=title.match(/(\d+)×(\d+)/);
+          return m?`3 km d'échauffement EF → ${m[1]}×${m[2]} min à haute intensité → EF de fin`:"3 km d'échauffement EF → blocs fractionnés → EF de fin";
+        }
+        if(s.type==='ef') return 'Allure confort du début à la fin — tu dois pouvoir parler sans effort.';
+        if(s.type==='long') return 'Sortie longue à allure confort — construire l\'endurance de fond.';
+        if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';
+        return '';
+      })();
       return `<div class="plan-session-card" style="${done?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':''}">
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
           <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}22;">${iconContent}</div>
@@ -9295,14 +9309,16 @@ function renderAthletePlan(el){
             </div>
             ${detail?`<p style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;">${detail}</p>`:''}
             ${durHtml}${schedHtml}
+            ${sessionExplain?`<p style="font-size:10px;color:var(--muted);font-style:italic;margin-top:3px;line-height:1.4;">${sessionExplain}</p>`:''}
             <div style="margin-top:2px;">${s.shoe?shoeBadge(s.shoe):''}</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;flex-shrink:0;width:75px;">
-          <div style="width:52px;text-align:right;flex-shrink:0;">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:4px;padding-left:8px;">
+          <div style="text-align:right;">
             <span style="font-size:13px;font-weight:700;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</span>
             <span style="font-size:10px;font-weight:500;color:${done?'#3B6D11aa':'var(--muted)'};">${kmSub?kmSub+'&thinsp;km':'&thinsp;km'}</span>
           </div>
+          <button onclick="event.stopPropagation();openEditModal(${ws},${eid})" style="font-size:10px;color:var(--blue);background:#EEF2FD;border:none;border-radius:8px;padding:2px 7px;cursor:pointer;font-weight:600;white-space:nowrap;">Détails →</button>
           <div class="plan-session-move">
             <button onclick="event.stopPropagation();moveExtraSession(${ws},${rowIdx},-1)" ${canUp?'':'disabled'}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
