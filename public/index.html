@@ -2025,6 +2025,7 @@ async function saveOnboarding(){
   hideOnboarding();
   if(_obEditMode) renderCompteScreen();
   else renderPlan();
+  if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
 function generateAthletePlan(ob){
@@ -2551,12 +2552,22 @@ async function changePassword(){
   }
 }
 
-let _adminSavedState=null;
+let _adminSavedState=null, _adminSavedDbRef=null;
+let _adminPreviewUid=null;
+
+function _refreshAthleteCoachView(){
+  const body=document.getElementById('coach-view-body');
+  if(!body) return;
+  body.innerHTML='';
+  renderAthletePlan(body);
+}
 
 function closeAthleteCoachView(){
   const ov=document.getElementById('coach-view-overlay');
   if(ov) ov.style.display='none';
   if(_adminSavedState!==null){ state=_adminSavedState; _adminSavedState=null; }
+  if(_adminSavedDbRef!==null){ dbRef=_adminSavedDbRef; _adminSavedDbRef=null; }
+  _adminPreviewUid=null;
 }
 
 async function openAthleteCoachView(uid, name){
@@ -2591,11 +2602,13 @@ async function openAthleteCoachView(uid, name){
     if(!resp.ok) throw new Error(`Erreur serveur ${resp.status}: ${json.error||'inconnue'}`);
     const data=json.data;
     const athleteState=(data||{}).state||{};
+    // Sauvegarder et remplacer state + dbRef pour que save() écrive chez l'athlète
     _adminSavedState=state;
+    _adminSavedDbRef=dbRef;
+    _adminPreviewUid=uid;
     state=athleteState;
-    const body=document.getElementById('coach-view-body');
-    body.innerHTML='';
-    renderAthletePlan(body);
+    dbRef=firebase.database().ref('users/'+uid+'/state');
+    _refreshAthleteCoachView();
   } catch(e){
     document.getElementById('coach-view-body').innerHTML=`<p style="color:#e53e3e;padding:20px;">Erreur : ${e.message}</p>`;
   }
@@ -10705,6 +10718,7 @@ function saveAdd(ws){
   rendered.stats=false;
   renderPlan();
   renderHome();
+  if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
 function showAddError(msg){
@@ -10938,6 +10952,7 @@ function saveExtraEdit(ws, ei){
   }
   state[`extra_w${ws}_s${ei}`]=JSON.stringify(updatedExtra);
   save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
+  if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
 function selectExEditEfPace(p){
@@ -10968,6 +10983,7 @@ function updateExEditEfPreview(){
 function deleteExtra(ws, ei){
   delete state[`extra_w${ws}_s${ei}`];
   save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
+  if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
 
