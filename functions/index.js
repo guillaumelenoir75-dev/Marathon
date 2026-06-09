@@ -2023,7 +2023,7 @@ exports.dbAdmin = onRequest(
     const{action,path:dbPath,value}=req.body||{};
     if(!dbPath){res.status(400).json({error:'path requis'});return;}
     try{
-      const db=admin.database('https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app');
+      const db=admin.database();
       const ref=db.ref(dbPath);
       if(action==='read'){
         const snap=await ref.once('value');
