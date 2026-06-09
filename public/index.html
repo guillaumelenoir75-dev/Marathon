@@ -3035,11 +3035,24 @@ async function saveFcMax(fc){
 async function deleteAthletePlan(){
   const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
   if(!hasPlan) return;
-  if(!confirm('Supprimer entièrement le plan d\'entraînement ?\n\nToutes les séances planifiées seront effacées. Cette action est irréversible.')) return;
-  // Supprimer toutes les clés extra_w* du state
-  const keysToDelete=Object.keys(state).filter(k=>/^extra_w/.test(k));
+  await new Promise(resolve=>{
+    _showConfirmModal({
+      icon:'🗑️',
+      title:'Supprimer le plan ?',
+      message:'Toutes les séances planifiées seront effacées. Cette action est irréversible.',
+      confirmLabel:'Supprimer',
+      confirmStyle:'background:#DC2626;color:#fff;',
+      onConfirm:resolve,
+    });
+  });
+  // Toutes les clés liées au plan
+  const planKeyPatterns=[
+    k=>/^extra_w/.test(k),               // séances, done, km, perf
+    k=>/^_last_validation_w/.test(k),     // timestamps de validation
+    k=>k==='plan_start_date',             // date de début du plan
+  ];
+  const keysToDelete=Object.keys(state).filter(k=>planKeyPatterns.some(fn=>fn(k)));
   keysToDelete.forEach(k=>delete state[k]);
-  // Supprimer dans Firebase
   if(dbRef){
     const updates={};
     keysToDelete.forEach(k=>{ updates[k]=null; });
