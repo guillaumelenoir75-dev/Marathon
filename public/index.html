@@ -2551,8 +2551,15 @@ async function changePassword(){
   }
 }
 
+let _adminSavedState=null;
+
+function closeAthleteCoachView(){
+  const ov=document.getElementById('coach-view-overlay');
+  if(ov) ov.style.display='none';
+  if(_adminSavedState!==null){ state=_adminSavedState; _adminSavedState=null; }
+}
+
 async function openAthleteCoachView(uid, name){
-  // Créer ou réutiliser l'overlay
   let ov=document.getElementById('coach-view-overlay');
   if(!ov){
     ov=document.createElement('div');
@@ -2562,18 +2569,17 @@ async function openAthleteCoachView(uid, name){
   }
   ov.style.display='flex';
   ov.innerHTML=`
-    <div style="background:#0C447C;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top,0px));color:#fff;display:flex;align-items:center;gap:12px;flex-shrink:0;">
-      <button onclick="document.getElementById('coach-view-overlay').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:34px;height:34px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;">←</button>
+    <div style="background:#0C447C;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top,0px));color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div>
         <div style="font-size:16px;font-weight:700;">${name}</div>
-        <div style="font-size:12px;opacity:0.7;">Vue coach</div>
+        <div style="font-size:12px;opacity:0.7;">Vue plan</div>
       </div>
+      <button onclick="closeAthleteCoachView()" style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:34px;height:34px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;">✕</button>
     </div>
     <div id="coach-view-body" style="flex:1;overflow-y:auto;padding:16px;">
       <p style="text-align:center;color:#888;padding:40px 0;">Chargement…</p>
     </div>`;
 
-  // Charger les données via dbAdmin
   try {
     const token=await getAuthToken();
     const resp=await fetch(FUNCTIONS_BASE+'/dbAdmin',{
@@ -2582,7 +2588,12 @@ async function openAthleteCoachView(uid, name){
       body:JSON.stringify({action:'read',path:`users/${uid}`})
     });
     const {data}=await resp.json();
-    renderAthleteCoachView(data||{}, uid, name);
+    const athleteState=(data||{}).state||{};
+    _adminSavedState=state;
+    state=athleteState;
+    const body=document.getElementById('coach-view-body');
+    body.innerHTML='';
+    renderAthletePlan(body);
   } catch(e){
     document.getElementById('coach-view-body').innerHTML=`<p style="color:#e53e3e;padding:20px;">Erreur : ${e.message}</p>`;
   }
