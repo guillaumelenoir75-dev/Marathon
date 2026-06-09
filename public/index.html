@@ -9153,6 +9153,14 @@ function renderAthletePlan(el){
       ei++;
     }
   }
+  // Bouton suppression du plan (vue coach admin uniquement)
+  if(_adminPreviewUid){
+    const delBanner=document.createElement('div');
+    delBanner.style.cssText='display:flex;justify-content:flex-end;margin-bottom:12px;';
+    delBanner.innerHTML=`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer le plan</button>`;
+    el.appendChild(delBanner);
+  }
+
   let currentRenderMonth=-1; // pour séparateurs de mois
 
   sortedWeeks.forEach((ws,wsIdx)=>{
