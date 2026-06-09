@@ -2588,7 +2588,9 @@ async function openAthleteCoachView(uid, name){
       body:JSON.stringify({action:'read',path:`users/${uid}`})
     });
     const {data}=await resp.json();
+    console.log('[admin plan] data keys:', data?Object.keys(data):null);
     const athleteState=(data||{}).state||{};
+    console.log('[admin plan] athleteState keys:', Object.keys(athleteState).length, Object.keys(athleteState).slice(0,10));
     _adminSavedState=state;
     state=athleteState;
     const body=document.getElementById('coach-view-body');
