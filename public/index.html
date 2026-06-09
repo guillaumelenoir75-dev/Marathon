@@ -6233,6 +6233,15 @@ async function saveValidationExtra(w,ei){
       meteoSeance=await fetchWeatherIfGranted(_seanceHeure,dateVal||null);
     }
   }
+  // Sauvegarder la météo dans perf pour l'affichage dans Stats
+  if(meteoSeance){
+    const perfKey=k+'_perf';
+    const existing=state[perfKey]?JSON.parse(state[perfKey]):{};
+    existing.meteo=meteoSeance;
+    state[perfKey]=JSON.stringify(existing);
+    if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
+    rendered.stats=false;
+  }
   if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance); }
   else showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance);
 }
@@ -6482,6 +6491,15 @@ async function saveValidation(idx){
   }
   // Réinitialiser pour la prochaine validation
   window._meteoValidationData = null;
+  // Sauvegarder la météo dans perf pour l'affichage dans Stats
+  if(meteoSeance){
+    const perfKey=k+'perf';
+    const existing=state[perfKey]?JSON.parse(state[perfKey]):{};
+    existing.meteo=meteoSeance;
+    state[perfKey]=JSON.stringify(existing);
+    if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
+    rendered.stats=false;
+  }
   if(isAdmin()) showCoachFeedback(s, km, pace, hr, amImproved, idx, meteoSeance);
   else showAthleteFeedback(s, km, pace, hr, perf, meteoSeance);
 }
