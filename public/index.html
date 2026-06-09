@@ -1490,6 +1490,9 @@ function showOnboarding(editMode){
   _obSaving=false; // reset au cas où la précédente sauvegarde avait planté
   _obData={course:null,date:null,sessions:null,niveau:null,km_semaine:null,generate_plan:null};
   if(editMode && state.onboarding) Object.assign(_obData,state.onboarding);
+  // En vue coach admin, l'onboarding doit passer au-dessus de l'overlay (z-index 400)
+  const obOv=document.getElementById('onboarding-overlay');
+  if(obOv) obOv.style.zIndex=_adminPreviewUid?'500':'300';
   // Remplir les jours (1-31)
   const dayEl=document.getElementById('ob-date-day');
   if(dayEl && dayEl.options.length<=1){
