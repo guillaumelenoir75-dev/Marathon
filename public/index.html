@@ -2130,25 +2130,38 @@ function generateAthletePlan(ob){
   const recovRatio=()=>0.85;
 
   const weekKms=[];
-  let cur=baseKm;
-  for(let w=1;w<=numWeeks;w++){
-    if(recovery.has(w)){
-      const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
-      const recovKm=Math.max(Math.round(lastBuild*recovRatio()), Math.max(2,Math.round(baseKm*0.85)));
-      weekKms.push(recovKm);
-      // cur inchangé : l'adaptation est maintenue, seule la fatigue aiguë est réduite
-    } else {
-      let km=Math.round(Math.min(cur,peakKm));
-      // Post-récupération : reprise à ~95% du volume avant décharge (continuité, pas de saut)
-      if(w>1 && recovery.has(w-1)){
-        const preRecov=weekKms[w-2]||cur; // volume de la décharge elle-même
-        const beforeRecov=weekKms.filter((_,i)=>!recovery.has(i+1)&&i<w-1).slice(-1)[0]||preRecov;
-        km=Math.min(km, Math.round(beforeRecov*1.05)); // max +5% vs avant-décharge
+  if(isPlaisir && nbSess<=2){
+    // Plaisir 2 séances : volume STABLE autour de la base — pas de progression cumulée.
+    // La richesse vient de la variété des séances, pas du volume.
+    // Vague légère : normal → +10% → normal → décharge (cycle 4 sem avec récup à S4/S8/…)
+    for(let w=1;w<=numWeeks;w++){
+      if(recovery.has(w)){
+        weekKms.push(Math.max(Math.round(baseKm*0.85),4));
+      } else {
+        // +10% la 3ème semaine du cycle pour briser la monotonie sans progresser globalement
+        const mult=w%3===0?1.10:1.0;
+        weekKms.push(Math.round(baseKm*mult));
       }
-      weekKms.push(km);
-      if(cur<peakKm){
-        // +1.5 km/sem pour faibles volumes, +7% au-dessus de 12 km/sem
-        cur=cur<12 ? cur+1.5 : cur*1.07;
+    }
+  } else {
+    // Plan avec progression (Course ou Plaisir 3+ séances)
+    let cur=baseKm;
+    for(let w=1;w<=numWeeks;w++){
+      if(recovery.has(w)){
+        const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
+        const recovKm=Math.max(Math.round(lastBuild*recovRatio()), Math.max(2,Math.round(baseKm*0.85)));
+        weekKms.push(recovKm);
+      } else {
+        let km=Math.round(Math.min(cur,peakKm));
+        if(w>1 && recovery.has(w-1)){
+          const preRecov=weekKms[w-2]||cur;
+          const beforeRecov=weekKms.filter((_,i)=>!recovery.has(i+1)&&i<w-1).slice(-1)[0]||preRecov;
+          km=Math.min(km, Math.round(beforeRecov*1.05));
+        }
+        weekKms.push(km);
+        if(cur<peakKm){
+          cur=cur<12 ? cur+1.5 : cur*1.07;
+        }
       }
     }
   }
@@ -2409,16 +2422,28 @@ function generateAthletePlan(ob){
       if(nbSess===1){
         sessions=[{d:makeD('ef'),km:total,type:'ef',shoe:null}];
       } else {
-        // La longue doit toujours être plus longue que l'EF/tempo
+        // La longue toujours plus longue que la séance courte
         const kL=longKm(Math.max(Math.round(total*0.55),sFloor));
         const kEF=Math.max(total-kL,sFloor);
         const dL=useSpecificLong?makeSpecificMarathon(kL):makeD('long');
-        // Plaisir à partir de S4, base ≥ 20km : tempo 1 semaine sur 3
-        const hasTempo2=isPlaisir && w>=4 && baseKm>=20 && hasTempo && w%3===0;
+
+        // Plaisir : rotation de variété sur cycle de 3 semaines par phase
+        // Phase 1 (W1-8)  → EF partout (installer l'habitude)
+        // Phase 2 (W9-16) → w%3=1 : Fartlek ; reste : EF
+        // Phase 3 (W17-24)→ w%3=1 : Fartlek ; w%3=2 : Tempo ; reste : EF
+        // Semaines de récup et base < 20km → toujours EF
+        let shortD=makeD('ef'), shortType='ef';
+        if(isPlaisir && !isRecoveryWeek && _plaisirPhase>=2 && baseKm>=20){
+          if(w%3===1){
+            shortD=makeD('fartlek');
+            // fartlek conserve le type 'ef' pour les stats (intensité intermédiaire)
+          } else if(w%3===2 && _plaisirPhase>=3 && tempo){
+            shortD=makeD('tempo',tempo);
+            shortType='tempo';
+          }
+        }
         sessions=[
-          hasTempo2
-            ? {d:makeD('tempo',tempo),km:kEF,type:'tempo',shoe:null}
-            : {d:makeD('ef'),km:kEF,type:'ef',shoe:null},
+          {d:shortD,km:kEF,type:shortType,shoe:null},
           {d:dL,km:kL,type:'long',shoe:null},
         ];
       }
