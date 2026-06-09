@@ -2258,18 +2258,18 @@ function generateAthletePlan(ob){
       return            {rep:2,dur:12,recup:'3:00'};
     }
     if(niveau==='Confirmé'){
-      if(age<2)  return {rep:2,dur:8, recup:'2:30'};
-      if(age<4)  return {rep:2,dur:10,recup:'2:30'};
-      if(age<6)  return {rep:3,dur:10,recup:'2:30'};
-      if(age<10) return {rep:3,dur:12,recup:'2:00'};
-      return            {rep:3,dur:15,recup:'2:00'};
+      if(age<2)  return {rep:2,dur:8, recup:'3:00'};
+      if(age<4)  return {rep:2,dur:10,recup:'3:00'};
+      if(age<6)  return {rep:3,dur:10,recup:'3:00'};
+      if(age<10) return {rep:3,dur:12,recup:'3:00'};
+      return            {rep:3,dur:15,recup:'3:00'};
     }
     // Intermédiaire
     if(age<2)  return {rep:1,dur:8, recup:'3:00'};
     if(age<4)  return {rep:2,dur:8, recup:'3:00'};
     if(age<6)  return {rep:2,dur:10,recup:'3:00'};
     if(age<10) return {rep:2,dur:12,recup:'3:00'};
-    return            {rep:3,dur:12,recup:'2:30'};
+    return            {rep:3,dur:12,recup:'3:00'};
   };
 
   const fracProgression=(w)=>{
@@ -10965,7 +10965,7 @@ function saveAdd(ws){
     const dur  = parseInt((document.getElementById('add-dur')      || {}).value) || 2;
     const pMin = ((document.getElementById('add-pace-min') || {}).value || '4:30').trim();
     const pMax = ((document.getElementById('add-pace-max') || {}).value || '4:50').trim();
-    const recup = ((document.getElementById('add-recup')   || {}).value || '2:00').trim();
+    const recup = ((document.getElementById('add-recup')   || {}).value || '3:00').trim();
     const efP  = ((document.getElementById('add-ef-pace')  || {}).value || '').trim();
     name   = 'Fractionné ' + reps + '×' + dur + ' min';
     detail = pMin + ' — ' + pMax + ' /km';
@@ -11081,7 +11081,7 @@ function openEditExtraModal(ws, ei){
     const exPMaxSec=exPMinSec?exPMinSec+10:null;
     const exPMax=exPMaxSec?Math.floor(exPMaxSec/60)+':'+(exPMaxSec%60<10?'0':'')+exPMaxSec%60:defPMax;
     const recupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
-    const exRecup=recupMatch?parseInt(recupMatch[1]):'2:00';
+    const exRecup=recupMatch?parseInt(recupMatch[1]):'3:00';
     const accentCol=s.type==='frac'?'#C4141B':'#E8530A';
     fieldsHtml=buildTempoFieldsHtml('exedit',exReps,exDur,exRecup,exPMin,exPMax,accentCol);
   } else {
