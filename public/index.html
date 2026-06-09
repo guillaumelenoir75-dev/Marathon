@@ -10288,9 +10288,12 @@ function openEditModal(ws, si){
   const repMatch=title.match(/(\d+)×(\d+)/);
   const editReps=repMatch?repMatch[1]:(isFrac?'6':'2');
   const editDur=repMatch?repMatch[2]:(isFrac?'2':'8');
-  const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
-  const editPMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:(isFrac?'4:30':'5:00');
-  const editPMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:(isFrac?'4:50':'5:20');
+  // Extraire l'allure cible depuis "X'XX/km" ou "X:XX/km" (évite de capturer la récup 3:00 comme allure lente)
+  const paceKmMatch=detail.match(/(\d+)['':](\d+)\/km/);
+  const editPMin=paceKmMatch?paceKmMatch[1]+':'+paceKmMatch[2]:(isFrac?'4:30':'5:00');
+  const editPMinSec=paceKmMatch?parseInt(paceKmMatch[1])*60+parseInt(paceKmMatch[2]):null;
+  const editPMaxSec=editPMinSec?editPMinSec+10:null;
+  const editPMax=editPMaxSec?Math.floor(editPMaxSec/60)+':'+(editPMaxSec%60<10?'0':'')+editPMaxSec%60:(isFrac?'4:50':'5:20');
   const editRecupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
   const editRecup=editRecupMatch?editRecupMatch[1]:(isFrac?'2':'3');
 
@@ -11071,9 +11074,12 @@ function openEditExtraModal(ws, ei){
     const defPMax=s.type==='frac'?'4:50':'5:20';
     const exReps=repMatch?parseInt(repMatch[1]):defReps;
     const exDur=repMatch?parseInt(repMatch[2]):defDur;
-    const paceMatch=detail.match(/(\d+)['':]?(\d+)[^0-9]+?(\d+)['':]?(\d+)/);
-    const exPMin=paceMatch?paceMatch[1]+':'+paceMatch[2]:defPMin;
-    const exPMax=paceMatch?paceMatch[3]+':'+paceMatch[4]:defPMax;
+    // Extraire l'allure cible depuis "X'XX/km" ou "X:XX/km" (évite de capturer la récup comme allure lente)
+    const paceKmMatchEx=detail.match(/(\d+)['':](\d+)\/km/);
+    const exPMin=paceKmMatchEx?paceKmMatchEx[1]+':'+paceKmMatchEx[2]:defPMin;
+    const exPMinSec=paceKmMatchEx?parseInt(paceKmMatchEx[1])*60+parseInt(paceKmMatchEx[2]):null;
+    const exPMaxSec=exPMinSec?exPMinSec+10:null;
+    const exPMax=exPMaxSec?Math.floor(exPMaxSec/60)+':'+(exPMaxSec%60<10?'0':'')+exPMaxSec%60:defPMax;
     const recupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
     const exRecup=recupMatch?parseInt(recupMatch[1]):'2:00';
     const accentCol=s.type==='frac'?'#C4141B':'#E8530A';
