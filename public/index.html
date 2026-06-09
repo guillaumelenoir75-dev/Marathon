@@ -2587,8 +2587,10 @@ async function openAthleteCoachView(uid, name){
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({action:'read',path:`users/${uid}`})
     });
-    const {data}=await resp.json();
-    console.log('[admin plan] data keys:', data?Object.keys(data):null);
+    const json=await resp.json();
+    console.log('[admin plan] status:', resp.status, 'json:', JSON.stringify(json).slice(0,200));
+    if(!resp.ok) throw new Error(`dbAdmin ${resp.status}: ${json.error||JSON.stringify(json)}`);
+    const data=json.data;
     const athleteState=(data||{}).state||{};
     console.log('[admin plan] athleteState keys:', Object.keys(athleteState).length, Object.keys(athleteState).slice(0,10));
     _adminSavedState=state;
