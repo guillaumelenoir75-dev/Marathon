@@ -2074,19 +2074,19 @@ exports.fcReposReminder14hWeekend = onSchedule(
 exports.sessionReminder = onSchedule(
   {schedule:'*/30 7-21 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
   async()=>{
+    const db=admin.database();
+    const cw=getWeekFromDB();
+    const now=new Date();
+    // Utiliser l'heure Paris (et non UTC) pour comparer avec sched.time stocké en Paris
+    const parisStr=now.toLocaleString('en-US',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit',hour12:false});
+    const parisH=parseInt(parisStr.split(':')[0]);
+    const parisM=parseInt(parisStr.split(':')[1]);
+    const parisDate=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Paris'}));
+    const dayOfWeek=parisDate.getDay()===0?7:parisDate.getDay();
+    const nowMinutes=parisH*60+parisM;
+    const ts=now.toISOString().slice(0,10);
+    // ── Admin : séances run et extra ──────────────────────────────────────────
     try{
-      const db=admin.database();
-      const cw=getWeekFromDB();
-      const now=new Date();
-      // Utiliser l'heure Paris (et non UTC) pour comparer avec sched.time stocké en Paris
-      const parisStr=now.toLocaleString('en-US',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit',hour12:false});
-      const parisH=parseInt(parisStr.split(':')[0]);
-      const parisM=parseInt(parisStr.split(':')[1]);
-      const parisDate=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Paris'}));
-      const dayOfWeek=parisDate.getDay()===0?7:parisDate.getDay();
-      const nowMinutes=parisH*60+parisM;
-      const ts=now.toISOString().slice(0,10);
-      // ── Admin
       if(await getUserPref(db,ADMIN_STATE,'notif_seance')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
         for(let si=0;si<5;si++){
@@ -2100,14 +2100,12 @@ exports.sessionReminder = onSchedule(
           const rk=`_rappel_sent_w${cw}_s${si}`;
           if(state[rk]===ts)continue;
           const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
-          // Météo uniquement pour les séances run (pas renfo — en intérieur)
           const isRunSession=['ef','tempo','frac','long','race'].includes((ed.type||'').toLowerCase());
           let meteoStr='';
           if(isRunSession){
             try{
               const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
               const loc=locSnap.val();
-              // Fallback : Paris 75015 si pas de localisation stockée ou > 30 jours
               const locFresh = loc && loc.lat && (Date.now()-loc.ts)<30*24*3600*1000;
               const lat=locFresh?loc.lat:48.8417;
               const lng=locFresh?loc.lng:2.2945;
@@ -2130,7 +2128,7 @@ exports.sessionReminder = onSchedule(
           await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
           break;
         }
-        // Rappel séances extra admin 1h avant
+        // Séances extra admin
         let extraRi=0;
         while(state[`extra_w${cw}_s${extraRi}`]){
           const done=!!state[`extra_w${cw}_s${extraRi}_done`];
@@ -2153,25 +2151,35 @@ exports.sessionReminder = onSchedule(
           }
           extraRi++;
         }
+      }
+    }catch(e){console.error('sessionReminder admin run/extra:',e.message);}
+    // ── Admin : renfo — bloc isolé pour ne pas être bloqué par une erreur run ─
+    try{
+      if(await getUserPref(db,ADMIN_STATE,'notif_seance')){
+        const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
         const allRenfoNames={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
         const renfoNames={1:allRenfoNames[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:allRenfoNames[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
         for(let ri=1;ri<=2;ri++){
           const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
           let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
           if(!sched.day||!sched.time)continue;
-          if(sched.day!==dayOfWeek)continue;
+          // Forcer la comparaison numérique (sched.day peut être stocké comme nombre ou comme string)
+          if(Number(sched.day)!==dayOfWeek)continue;
           const[h,m]=sched.time.split(':').map(Number);
           const sm=h*60+m;
           if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
           const rk=`_rappel_renfo_sent_w${cw}_r${ri}`;
           if(state[rk]===ts)continue;
           const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
+          console.log(`sessionReminder: renfo R${ri} planifié ${sched.time} J${sched.day} → push envoyé`);
           await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Renfo dans 1h',`💪 ${renfoNames[ri]} à ${sched.time}. Prépare-toi !`,'session-reminder','/');
           await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
           break;
         }
       }
-      // ── Athlètes : rappel séances extra 1h avant
+    }catch(e){console.error('sessionReminder admin renfo:',e.message);}
+    // ── Athlètes : rappel séances extra 1h avant ──────────────────────────────
+    try{
       const subsSnap=await db.ref('_push_subscribers').once('value');
       const allSubs=subsSnap.val()||{};
       for(const [uid,sub] of Object.entries(allSubs)){
@@ -2201,7 +2209,7 @@ exports.sessionReminder = onSchedule(
           extraRi++;
         }
       }
-    }catch(e){console.error('sessionReminder:',e.message);}
+    }catch(e){console.error('sessionReminder athletes:',e.message);}
   }
 );
 
