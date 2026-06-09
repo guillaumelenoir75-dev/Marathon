@@ -2883,13 +2883,23 @@ function renderAthleteCoachView(userData, uid, name){
 
 // ── Suppression du plan athlète ───────────────────────────────────────────────
 async function cvDeletePlan(){
-  if(!confirm(`Supprimer tout le plan de ${_adminPreviewName||'cet athlète'} ? Cette action est irréversible.`)) return;
-  // Supprimer toutes les clés extra_w* du state athlète (state = state athlète, dbRef = dbRef athlète)
-  const keysToDelete=Object.keys(state).filter(k=>/^extra_w\d/.test(k));
-  if(keysToDelete.length===0) return;
+  const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
+  if(!hasPlan) return;
+  await new Promise(resolve=>{
+    _showConfirmModal({
+      icon:'🗑️',
+      title:`Supprimer le plan de ${_adminPreviewName||'cet athlète'} ?`,
+      message:'Toutes les séances planifiées seront effacées. Cette action est irréversible.',
+      confirmLabel:'Supprimer',
+      confirmStyle:'background:#DC2626;color:#fff;',
+      onConfirm:resolve,
+    });
+  });
+  const keysToDelete=Object.keys(state).filter(k=>/^extra_w/.test(k)||/^_last_validation_w/.test(k)||k==='plan_start_date');
+  keysToDelete.forEach(k=>delete state[k]);
   const updates={};
-  keysToDelete.forEach(k=>{ updates[k]=null; delete state[k]; });
-  await dbRef.update(updates);
+  keysToDelete.forEach(k=>{ updates[k]=null; });
+  await dbRef.update(updates).catch(()=>{});
   _refreshAthleteCoachView();
 }
 
