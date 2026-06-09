@@ -9051,7 +9051,10 @@ function renderAthletePlan(el){
   el.appendChild(addEl);
 }
 
-function toggleAthleteWeek(ws){if(openWeeks.has(ws))openWeeks.delete(ws);else openWeeks.add(ws);renderPlan();}
+function toggleAthleteWeek(ws){
+  if(openWeeks.has(ws))openWeeks.delete(ws);else openWeeks.add(ws);
+  if(_adminPreviewUid) _refreshAthleteCoachView(); else renderPlan();
+}
 
 function moveExtraSession(ws,rowIdx,dir){
   // Collecter les indices existants
@@ -9070,7 +9073,7 @@ function moveExtraSession(ws,rowIdx,dir){
   });
   save();
   rendered.plan=false;
-  renderPlan();
+  if(_adminPreviewUid) _refreshAthleteCoachView(); else renderPlan();
 }
 
 function renderPlan(){
