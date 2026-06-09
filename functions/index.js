@@ -2246,7 +2246,7 @@ exports.briefAfterFcRepos = onSchedule(
       const dow=new Date().getDay();
       const dayOfWeekNum=dow===0?7:dow; // 1=lun...7=dim
       const _rAllN={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
-      const renfoNoms={1:_rAllN[parseInt(uState.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllN[parseInt(uState.renfo_prog2)||2]||'Bas du dos'};
+      const renfoNoms={1:_rAllN[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllN[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
       const renfoAujourdHui=[];
       for(let ri=1;ri<=2;ri++){
         const done=!!state[`rf${cw}r${ri}done`];
