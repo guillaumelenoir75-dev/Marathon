@@ -5936,8 +5936,8 @@ function openValidationModalExtra(w,ei){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm:ss ou mm:ss)</p>
-          <input type="text" id="val-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="7" oninput="calcPace()"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
+          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="7" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
@@ -5949,8 +5949,8 @@ function openValidationModalExtra(w,ei){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moyenne</p>
-          <input type="number" id="val-hr" value="${prev.hr||''}" placeholder="145" min="50" max="220"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moy. <span style="font-size:10px;font-weight:400;color:#aaa;">(optionnel)</span></p>
+          <input type="number" id="val-hr" value="${prev.hr||''}" placeholder="—" min="50" max="220"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
         </div>
@@ -6213,8 +6213,8 @@ function openValidationModal(idx){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm:ss ou mm:ss)</p>
-          <input type="text" id="val-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="7" oninput="calcPace()"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
+          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="7" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
@@ -6226,8 +6226,8 @@ function openValidationModal(idx){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moyenne</p>
-          <input type="number" id="val-hr" value="${prev.hr||''}" placeholder="145" min="50" max="220"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moy. <span style="font-size:10px;font-weight:400;color:#aaa;">(optionnel)</span></p>
+          <input type="number" id="val-hr" value="${prev.hr||''}" placeholder="—" min="50" max="220"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
         </div>
@@ -6267,6 +6267,17 @@ function openValidationModal(idx){
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   _lockBodyScroll();
   mc.appendChild(overlay);
+}
+
+function onDurInput(el){
+  const digits=el.value.replace(/\D/g,'').slice(0,6);
+  let fmt;
+  if(digits.length<=2) fmt=digits;
+  else if(digits.length<=4) fmt=digits.slice(0,2)+':'+digits.slice(2);
+  else fmt=digits.slice(0,2)+':'+digits.slice(2,4)+':'+digits.slice(4);
+  el.value=fmt;
+  if(el.id==='pedit-dur'&&typeof calcPerfEditPace==='function') calcPerfEditPace();
+  else if(typeof calcPace==='function') calcPace();
 }
 
 function calcPace(){
@@ -9656,8 +9667,8 @@ function openPerfEditModal(ws, si){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée (h:mm:ss ou mm:ss)</p>
-          <input type="text" id="pedit-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="7" oninput="calcPerfEditPace()"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
+          <input type="text" inputmode="numeric" id="pedit-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="7" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
@@ -9669,8 +9680,8 @@ function openPerfEditModal(ws, si){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moyenne</p>
-          <input type="number" id="pedit-hr" value="${prev.hr||''}" placeholder="145" min="50" max="220"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moy. <span style="font-size:10px;font-weight:400;color:#aaa;">(optionnel)</span></p>
+          <input type="number" id="pedit-hr" value="${prev.hr||''}" placeholder="—" min="50" max="220"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
         </div>
