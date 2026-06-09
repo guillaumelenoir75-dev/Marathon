@@ -340,6 +340,7 @@ input[type=number]:focus{border-color:var(--orange);}
   <div style="position:relative;width:100%;height:180px;margin-bottom:8px;"><canvas id="chart-fc-repos"></canvas></div>
   <div id="fc-repos-detail" style="margin-bottom:20px;"></div>
   </div>
+  <div id="stats-gels-section">
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
     <div style="display:grid;grid-template-columns:72px 52px 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
@@ -348,6 +349,7 @@ input[type=number]:focus{border-color:var(--orange);}
       <span style="font-size:11px;font-weight:600;color:var(--muted);">Timing</span>
     </div>
     <div id="gels-rows"></div>
+  </div>
   </div>
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
@@ -1200,13 +1202,16 @@ function applyRoleUI(){
   const navCoach=document.getElementById('nav-coach');
   const scCoach=document.getElementById('sc-coach');
   const calSec=document.getElementById('stats-calories-section');
+  const gelSec=document.getElementById('stats-gels-section');
   if(!isAdmin()){
     if(navCoach) navCoach.style.display='none';
     if(scCoach) scCoach.style.display='none';
     if(calSec) calSec.style.display='none';
+    if(gelSec) gelSec.style.display='none';
   } else {
     if(navCoach) navCoach.style.display='';
     if(calSec) calSec.style.display='';
+    if(gelSec) gelSec.style.display='';
   }
 }
 
@@ -11047,49 +11052,84 @@ function deleteShoe(name){
   renderStats();
   renderHome();
 }
+function _shoeModalHtml({title, namePlaceholder='ex: Nike Pegasus 41', nameVal='', color='#1438A8', maxVal=600, saveBtn, colors=['#1438A8','#E8530A','#3B6D11','#534AB7','#D4537E','#C4960A','#888780','#0C447C']}){
+  const colorBtns=colors.map(c=>`<button type="button" onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
+    style="width:36px;height:36px;border-radius:50%;background:${c};border:3px solid ${c===color?'#fff':'transparent'};cursor:pointer;transition:all 0.15s;box-shadow:${c===color?'0 0 0 2px '+c:'none'};flex-shrink:0;"
+    ></button>`).join('');
+  const maxOptions=[400,500,600,700,800,1000];
+  const maxBtns=maxOptions.map(v=>`<button type="button" onclick="selectShoeMax(${v})" id="sm-${v}"
+    style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid ${v===maxVal?'#1B4FD8':'var(--border)'};background:${v===maxVal?'#EEF2FD':'var(--bg2)'};color:${v===maxVal?'#1B4FD8':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;">
+    ${v}</button>`).join('');
+  return `<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#0C447C,#1B4FD8);padding:20px 20px 16px;border-radius:var(--radius) var(--radius) 0 0;flex-shrink:0;">
+      <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.3);margin:0 auto 14px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <p style="font-size:10px;font-weight:800;opacity:0.7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;color:#fff;">👟 Chaussures</p>
+          <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;color:#fff;">${title}</p>
+        </div>
+        <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+      </div>
+      <div id="shoe-preview-strip" style="margin-top:14px;height:6px;border-radius:4px;background:rgba(255,255,255,0.2);overflow:hidden;">
+        <div id="shoe-preview-bar" style="height:100%;width:100%;background:${color};border-radius:4px;transition:background 0.2s;"></div>
+      </div>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Nom</p>
+        <input type="text" id="new-shoe-name" placeholder="${namePlaceholder}" value="${nameVal}"
+          style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:12px 14px;font-size:16px;font-weight:600;color:var(--text);width:100%;outline:none;box-sizing:border-box;"
+          oninput="document.getElementById('shoe-preview-bar')&&(document.getElementById('shoe-preview-bar').style.background=document.getElementById('new-shoe-color').value)">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">Couleur</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;" id="shoe-color-picker">${colorBtns}</div>
+        <input type="hidden" id="new-shoe-color" value="${color}">
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Durée de vie (km)</p>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">Distance maximale recommandée par le fabricant</p>
+        <div style="display:flex;gap:6px;" id="shoe-max-picker">${maxBtns}</div>
+        <input type="hidden" id="new-shoe-max" value="${maxVal}">
+      </div>
+      <p id="shoe-add-error" style="display:none;color:#E24B4A;font-size:12px;text-align:center;margin:0;"></p>
+      <button onclick="${saveBtn}" style="width:100%;padding:14px;background:#1B4FD8;border:none;border-radius:14px;font-size:15px;font-weight:800;color:#fff;cursor:pointer;letter-spacing:-0.01em;">${title}</button>
+    </div>
+  </div>`;
+}
+
 function openAddShoeModal(){
   const mc=document.getElementById('modal-container');
-  const colors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
-  const colorBtns=colors.map(c=>`<button onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
-    style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid transparent;cursor:pointer;transition:border 0.15s;"
-    ></button>`).join('');
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
-  overlay.innerHTML=`<div class="modal-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <p style="font-size:16px;font-weight:600;color:var(--text);">Ajouter une paire</p>
-      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom de la chaussure</p>
-        <input type="text" id="new-shoe-name" placeholder="ex: Asics Gel Nimbus" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Couleur</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="shoe-color-picker">${colorBtns}</div>
-        <input type="hidden" id="new-shoe-color" value="${colors[0]}">
-      </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Kilométrage max (km)</p>
-        <input type="number" id="new-shoe-max" value="600" min="100" max="2000" step="50" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
-    </div>
-    <button onclick="saveNewShoe()" style="width:100%;margin-top:20px;padding:13px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Ajouter</button>
-  </div>`;
+  overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
+  overlay.innerHTML=_shoeModalHtml({title:'Nouvelle paire', saveBtn:'saveNewShoe()'});
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   _lockBodyScroll();
   mc.appendChild(overlay);
-  // Select first color
-  selectShoeColor(colors[0]);
+  _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
+  selectShoeColor('#1438A8');
 }
+
 function selectShoeColor(c){
   document.getElementById('new-shoe-color').value=c;
   document.querySelectorAll('[id^="sc-"]').forEach(btn=>{
     btn.style.border='3px solid transparent';
+    btn.style.boxShadow='none';
   });
   const btn=document.getElementById('sc-'+c.replace('#',''));
-  if(btn) btn.style.border='3px solid var(--text)';
+  if(btn){ btn.style.border='3px solid #fff'; btn.style.boxShadow='0 0 0 2px '+c; }
+  const bar=document.getElementById('shoe-preview-bar');
+  if(bar) bar.style.background=c;
+}
+
+function selectShoeMax(v){
+  document.getElementById('new-shoe-max').value=v;
+  document.querySelectorAll('[id^="sm-"]').forEach(btn=>{
+    btn.style.background='var(--bg2)'; btn.style.color='var(--muted)'; btn.style.borderColor='var(--border)';
+  });
+  const btn=document.getElementById('sm-'+v);
+  if(btn){ btn.style.background='#EEF2FD'; btn.style.color='#1B4FD8'; btn.style.borderColor='#1B4FD8'; }
 }
 function openShoeHistory(shoeName){
   const sh=getShoes().find(s=>s.name===shoeName);
@@ -11172,37 +11212,26 @@ function openEditShoeModal(name){
   const arr=getShoes();
   const sh=arr.find(s=>s.name===name);
   if(!sh) return;
-  const colors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780','#C4960A'];
-  const colorBtns=colors.map(c=>`<button onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
-    style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===sh.color?'var(--text)':'transparent'};cursor:pointer;"></button>`).join('');
   const mc=document.getElementById('modal-container');
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
-  overlay.innerHTML=`<div class="modal-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <p style="font-size:16px;font-weight:600;color:var(--text);">Modifier la chaussure</p>
-      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Nom</p>
-        <input type="text" id="edit-shoe-name" value="${sh.name}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Couleur</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="shoe-color-picker">${colorBtns}</div>
-        <input type="hidden" id="new-shoe-color" value="${sh.color}">
-      </div>
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Kilométrage max (km)</p>
-        <input type="number" id="new-shoe-max" value="${sh.max}" min="100" max="2000" step="50" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-      </div>
-    </div>
-    <button onclick="saveEditShoe('${name}')" style="width:100%;margin-top:20px;padding:13px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">Enregistrer</button>
-  </div>`;
+  overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
+  overlay.innerHTML=_shoeModalHtml({
+    title:'Modifier la paire',
+    nameVal:sh.name,
+    color:sh.color,
+    maxVal:sh.max,
+    saveBtn:`saveEditShoe('${name}')`
+  });
+  // Remplacer le hidden id="new-shoe-name" par id="edit-shoe-name" pour saveEditShoe
+  const nameInput=overlay.querySelector('#new-shoe-name');
+  if(nameInput) nameInput.id='edit-shoe-name';
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   _lockBodyScroll();
   mc.appendChild(overlay);
+  _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
+  selectShoeColor(sh.color);
+  selectShoeMax(sh.max);
 }
 
 function saveEditShoe(oldName){
@@ -11223,11 +11252,19 @@ function saveEditShoe(oldName){
 
 function saveNewShoe(){
   const name=document.getElementById('new-shoe-name').value.trim();
-  if(!name){alert('Donnez un nom à la chaussure');return;}
+  if(!name){
+    const err=document.getElementById('shoe-add-error');
+    if(err){err.textContent='Donne un nom à la chaussure.';err.style.display='block';}
+    return;
+  }
   const color=document.getElementById('new-shoe-color').value;
   const max=parseInt(document.getElementById('new-shoe-max').value)||600;
   const arr=getShoes();
-  if(arr.find(s=>s.name===name)){alert('Cette chaussure existe déjà');return;}
+  if(arr.find(s=>s.name===name)){
+    const err=document.getElementById('shoe-add-error');
+    if(err){err.textContent='Cette chaussure existe déjà.';err.style.display='block';}
+    return;
+  }
   arr.push({name,color,max});
   saveShoes(arr);
   closeModal();
