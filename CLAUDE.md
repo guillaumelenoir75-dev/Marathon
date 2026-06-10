@@ -25,3 +25,10 @@ PWA personnelle de préparation marathon, en cours de passage en multi-utilisate
 - Toujours répondre et commenter en français.
 - Privilégier des commits petits et clairs, directement sur `main`.
 - Ne pas committer le dossier `node_modules/` ni aucun fichier de secret.
+
+## Suivi de déploiement (OBLIGATOIRE après chaque push sur main)
+Après chaque `git push` vers `main`, TOUJOURS :
+1. Attendre ~10 secondes, puis appeler `mcp__github__actions_list` (method: `list_workflow_runs`, owner: `guillaumelenoir75-dev`, repo: `Marathon`, per_page: 1) pour récupérer l'ID du dernier run.
+2. Appeler `mcp__github__actions_get` (method: `get_workflow_run`) en boucle toutes les 15 secondes jusqu'à ce que `status === "completed"`.
+3. Conclure en français : déploiement **vert ✅** ou **rouge ❌** avec le commit SHA, et indiquer que l'app est testable sur https://prepa-marathon.web.app.
+Ne jamais terminer un tour après un push sans avoir attendu et rapporté le statut du déploiement.
