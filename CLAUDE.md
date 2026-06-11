@@ -19,6 +19,9 @@ PWA personnelle de préparation marathon, en cours de passage en multi-utilisate
 - Côté GitHub Actions : GCP_SA_KEY (clé du compte de service de déploiement).
 - Ne JAMAIS mettre une vraie clé/valeur de secret dans le code ou dans un fichier commité.
 
+## Évolutions futures planifiées
+- **Migration mono-fichier → Vite + vanilla JS** : découper `public/index.html` en composants (`src/components/Plan.js`, `src/components/Coach.js`, etc.). Migrer progressivement écran par écran. À planifier quand une fenêtre calme se présente (pas en plein ajout de features).
+
 ## Règles de travail
 - Avant de livrer une modification du backend, vérifier la syntaxe : `node --check functions/index.js`.
 - Le frontend est un fichier unique très volumineux : faire des modifications ciblées et précises, ne pas réécrire des blocs entiers inutilement.
