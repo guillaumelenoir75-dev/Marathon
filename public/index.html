@@ -10385,12 +10385,13 @@ function openEditModal(ws, si){
   const repMatch=title.match(/(\d+)×(\d+)/);
   const editReps=repMatch?repMatch[1]:(isFrac?'6':'2');
   const editDur=repMatch?repMatch[2]:(isFrac?'2':'8');
-  // Extraire l'allure cible depuis "X'XX/km" ou "X:XX/km" (évite de capturer la récup 3:00 comme allure lente)
-  const paceKmMatch=detail.match(/(\d+)['':](\d+)\/km/);
-  const editPMin=paceKmMatch?paceKmMatch[1]+':'+paceKmMatch[2]:(isFrac?'4:30':'5:00');
-  const editPMinSec=paceKmMatch?parseInt(paceKmMatch[1])*60+parseInt(paceKmMatch[2]):null;
-  const editPMaxSec=editPMinSec?editPMinSec+10:null;
-  const editPMax=editPMaxSec?Math.floor(editPMaxSec/60)+':'+(editPMaxSec%60<10?'0':'')+editPMaxSec%60:(isFrac?'4:50':'5:20');
+  // Extraire l'allure cible depuis "X'XX/km", "X:XX/km", "X:XX — Y:YY /km" ou "X:XX /km"
+  const paceRangeMatch=detail.match(/(\d+)['':](\d+)\s*[–—-]\s*(\d+)['':](\d+)\s*\/km/);
+  const paceKmMatch=paceRangeMatch?null:detail.match(/(\d+)['':](\d+)\s*\/km/);
+  const editPMin=paceRangeMatch?paceRangeMatch[1]+':'+paceRangeMatch[2]:paceKmMatch?paceKmMatch[1]+':'+paceKmMatch[2]:(isFrac?'4:30':'5:00');
+  const editPMax=paceRangeMatch?paceRangeMatch[3]+':'+paceRangeMatch[4]:(()=>{const s=paceKmMatch?parseInt(paceKmMatch[1])*60+parseInt(paceKmMatch[2]):null;return s?Math.floor((s+10)/60)+':'+((s+10)%60<10?'0':'')+((s+10)%60):(isFrac?'4:50':'5:20');})();
+  const editPMinSec=paceRangeMatch?parseInt(paceRangeMatch[1])*60+parseInt(paceRangeMatch[2]):paceKmMatch?parseInt(paceKmMatch[1])*60+parseInt(paceKmMatch[2]):null;
+  const editPMaxSec=null; // unused, kept for compat
   const editRecupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
   const editRecup=editRecupMatch?editRecupMatch[1]:(isFrac?'2':'3');
 
@@ -11171,12 +11172,11 @@ function openEditExtraModal(ws, ei){
     const defPMax=s.type==='frac'?'4:50':'5:20';
     const exReps=repMatch?parseInt(repMatch[1]):defReps;
     const exDur=repMatch?parseInt(repMatch[2]):defDur;
-    // Extraire l'allure cible depuis "X'XX/km" ou "X:XX/km" (évite de capturer la récup comme allure lente)
-    const paceKmMatchEx=detail.match(/(\d+)['':](\d+)\/km/);
-    const exPMin=paceKmMatchEx?paceKmMatchEx[1]+':'+paceKmMatchEx[2]:defPMin;
-    const exPMinSec=paceKmMatchEx?parseInt(paceKmMatchEx[1])*60+parseInt(paceKmMatchEx[2]):null;
-    const exPMaxSec=exPMinSec?exPMinSec+10:null;
-    const exPMax=exPMaxSec?Math.floor(exPMaxSec/60)+':'+(exPMaxSec%60<10?'0':'')+exPMaxSec%60:defPMax;
+    // Extraire l'allure cible depuis "X'XX/km", "X:XX/km", "X:XX — Y:YY /km" ou "X:XX /km"
+    const paceRangeMatchEx=detail.match(/(\d+)['':](\d+)\s*[–—-]\s*(\d+)['':](\d+)\s*\/km/);
+    const paceKmMatchEx=paceRangeMatchEx?null:detail.match(/(\d+)['':](\d+)\s*\/km/);
+    const exPMin=paceRangeMatchEx?paceRangeMatchEx[1]+':'+paceRangeMatchEx[2]:paceKmMatchEx?paceKmMatchEx[1]+':'+paceKmMatchEx[2]:defPMin;
+    const exPMax=paceRangeMatchEx?paceRangeMatchEx[3]+':'+paceRangeMatchEx[4]:(()=>{const sx=paceKmMatchEx?parseInt(paceKmMatchEx[1])*60+parseInt(paceKmMatchEx[2]):null;return sx?Math.floor((sx+10)/60)+':'+((sx+10)%60<10?'0':'')+((sx+10)%60):defPMax;})();
     const recupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
     const exRecup=recupMatch?parseInt(recupMatch[1]):'3:00';
     const accentCol=s.type==='frac'?'#C4141B':'#E8530A';
