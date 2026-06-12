@@ -193,3 +193,6 @@ function initFirebase(){
   document.head.appendChild(script);
 }
 
+
+let rendered={};
+let coachHistory=[];

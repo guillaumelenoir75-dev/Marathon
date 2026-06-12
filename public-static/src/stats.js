@@ -629,8 +629,6 @@ if(todayEl) todayEl.textContent = joursArr[now.getDay()]+' '+now.getDate()+' '+m
 
 initFirebase();
 
-let rendered={};
-let coachHistory = [];
 
 function showScreen(name, renfoTab){
   ['home','plan','renfo','stats','coach','compte'].forEach(s=>{
