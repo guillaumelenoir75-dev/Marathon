@@ -245,7 +245,9 @@ function renderCompteScreen(){
   if(sub&&user){const prenom=user.displayName||user.email?.split('@')[0]||'';sub.textContent=prenom?prenom+' · '+user.email:user.email;}
   const adminPanel=document.getElementById('admin-panel');
   if(adminPanel) adminPanel.style.display=isAdmin()?'block':'none';
-  if(isAdmin()) loadAdminUsersList();
+  const adminIntegrations=document.getElementById('admin-integrations');
+  if(adminIntegrations) adminIntegrations.style.display=isAdmin()?'block':'none';
+  if(isAdmin()) { loadAdminUsersList(); checkStravaStatus(); }
   renderAthletePanel();
 }
 
@@ -333,5 +335,53 @@ async function adminDeleteUser(uid,label){
 }
 
 
+
+// ── STRAVA ADMIN ─────────────────────────────────────────────────────────────
+async function checkStravaStatus() {
+  const label = document.getElementById('strava-status-label');
+  const btn = document.getElementById('strava-connect-btn');
+  if (!label || !btn) return;
+  try {
+    const resp = await fetch(FUNCTIONS_BASE + '/stravaFetch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+    });
+    const data = await resp.json();
+    if (data.needsAuth) {
+      label.textContent = 'Non connecté';
+      label.style.color = '#e53e3e';
+      btn.style.display = 'block';
+    } else {
+      label.textContent = 'Connecté ✓';
+      label.style.color = '#3B6D11';
+      btn.textContent = 'Reconnecter';
+      btn.style.background = '#888';
+      btn.style.display = 'block';
+    }
+  } catch(e) {
+    label.textContent = 'Statut inconnu';
+  }
+}
+
+async function adminConnectStrava() {
+  const btn = document.getElementById('strava-connect-btn');
+  const label = document.getElementById('strava-status-label');
+  if (btn) { btn.textContent = '⏳ Connexion…'; btn.disabled = true; }
+  const authWin = window.open(FUNCTIONS_BASE + '/stravaAuth', '_blank', 'width=600,height=700');
+  const check = setInterval(async () => {
+    try {
+      const resp = await fetch(FUNCTIONS_BASE + '/stravaFetch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+      });
+      const data = await resp.json();
+      if (!data.needsAuth) {
+        clearInterval(check);
+        if (authWin) authWin.close();
+        if (label) { label.textContent = 'Connecté ✓'; label.style.color = '#3B6D11'; }
+        if (btn) { btn.textContent = 'Reconnecter'; btn.style.background = '#888'; btn.disabled = false; }
+      }
+    } catch(e) {}
+  }, 2000);
+  setTimeout(() => { clearInterval(check); if (btn) { btn.textContent = 'Connecter'; btn.disabled = false; } }, 120000);
+}
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
