@@ -14,7 +14,7 @@ const {
   sendPush,
   sendPushToAll,
   sendPushToUser,
-  getWeekFromDB,
+  getCurrentWeek,
   buildNotifContext,
   callAnthropic,
 } = require('./helpers');
@@ -43,7 +43,7 @@ exports.sessionReminder = onSchedule(
   {schedule:'*/30 7-21 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
   async()=>{
     const db=admin.database();
-    const cw=getWeekFromDB();
+    const cw=getCurrentWeek();
     const now=new Date();
     const parisStr=now.toLocaleString('en-US',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit',hour12:false});
     const parisH=parseInt(parisStr.split(':')[0]);
@@ -152,7 +152,7 @@ exports.sessionReminder = onSchedule(
         const uState=userStates[i];
         const prefs=uState._prefs?(typeof uState._prefs==='string'?JSON.parse(uState._prefs):uState._prefs):{};
         if(prefs.notif_seance===false)continue;
-        const ucw=getWeekFromDB(uState.plan_start_date);
+        const ucw=getCurrentWeek(uState.plan_start_date);
         let sent=false;
         for(let si=0;si<5;si++){
           const done=!!uState[`s${ucw}i${si}done`];if(done)continue;
@@ -228,7 +228,7 @@ exports.briefAfterFcRepos = onSchedule(
         return null;
       });
       if (!triggerClaimed) return;
-      const cw=getWeekFromDB();
+      const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;
 
@@ -312,7 +312,7 @@ exports.unvalidatedSessionReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getWeekFromDB();
+      const cw=getCurrentWeek();
       const now=new Date();
       const dayOfWeek=now.getDay()===0?7:now.getDay();
       if(await getUserPref(db,ADMIN_STATE,'notif_unvalidated')){
@@ -384,7 +384,7 @@ exports.weekCompleteCongrats = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getWeekFromDB();
+      const cw=getCurrentWeek();
       const now=Date.now();
       if(await getUserPref(db,ADMIN_STATE,'notif_congrats')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
@@ -463,7 +463,7 @@ exports.weeklyPlanifReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getWeekFromDB();
+      const cw=getCurrentWeek();
       const cwNext=Math.min(cw+1,32);
       if(await getUserPref(db,ADMIN_STATE,'notif_planif')){
         const body=`Vérifie tes horaires de séances et renfos pour la semaine ! 🏃💪`;
@@ -486,7 +486,7 @@ exports.weeklyDebriefNotif = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getWeekFromDB();
+      const cw=getCurrentWeek();
       const cwNext=Math.min(cw+1,32);
       if(await getUserPref(db,ADMIN_STATE,'notif_debrief_semaine')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};

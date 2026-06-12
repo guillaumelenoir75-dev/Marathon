@@ -32,7 +32,7 @@ function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 async function checkRateLimit(db, uid, endpoint, minIntervalMs) {
-  const key = `users/${uid}/_ratelimit/${endpoint}`;
+  const key = `users/${uid}/state/_ratelimit/${endpoint}`;
   const snap = await db.ref(key).once('value');
   const lastCall = snap.val();
   if (lastCall && (Date.now() - lastCall) < minIntervalMs) {
@@ -42,7 +42,7 @@ async function checkRateLimit(db, uid, endpoint, minIntervalMs) {
   await db.ref(key).set(Date.now());
 }
 
-async function callAnthropic(apiKey, system, messages, maxTokens) {
+async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-5') {
   const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -51,7 +51,7 @@ async function callAnthropic(apiKey, system, messages, maxTokens) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model,
       max_tokens: maxTokens,
       system,
       messages
@@ -133,7 +133,7 @@ async function sendPushToUser(db, uid, sub, vapidPublic, vapidPrivate, title, bo
   }
 }
 
-function getWeekFromDB() {
+function getCurrentWeek() {
   const weekDates = [
     '2026-03-09','2026-03-16','2026-03-23','2026-03-30',
     '2026-04-06','2026-04-13','2026-04-20','2026-04-27',
@@ -224,7 +224,7 @@ module.exports = {
   sendPush,
   sendPushToAll,
   sendPushToUser,
-  getWeekFromDB,
+  getCurrentWeek,
   buildNotifContext,
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,

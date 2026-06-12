@@ -259,11 +259,15 @@ INTERDIT : "c'est bien équilibré" sans vérifier les 6 points. INTERDIT : inve
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
-        const streamRes = await fetch('https://api.anthropic.com/v1/messages', {
+        const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 500, stream: true, system, messages: [{role:'user', content: userMsg}] })
-        });
+        }, 55000);
+        if (!streamRes.ok) {
+          res.write('data: ' + JSON.stringify({token: 'Erreur temporaire, réessaie dans quelques secondes.'}) + '\n\n');
+          res.write('data: [DONE]\n\n'); res.end(); return;
+        }
         let buffer = '';
         for await (const chunk of streamRes.body) {
           buffer += Buffer.from(chunk).toString('utf-8');
@@ -784,41 +788,31 @@ exports.quickBrief = onRequest(
       res.set('Cache-Control', 'no-cache');
       res.set('X-Accel-Buffering', 'no');
 
-      const https = require('https');
-      const body = JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 200,
-        stream: true,
-        system,
-        messages: [{role: 'user', content: userMsg}]
-      });
-
-      await new Promise((resolve, reject) => {
-        const r = https.request({
-          hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
-          headers: {'Content-Type':'application/json','x-api-key':ANTHROPIC_API_KEY.value(),'anthropic-version':'2023-06-01'}
-        }, apiRes => {
-          apiRes.on('data', chunk => {
-            const lines = chunk.toString().split('\n');
-            for(const line of lines) {
-              if(!line.startsWith('data: ')) continue;
-              const d = line.slice(6).trim();
-              if(d === '[DONE]') continue;
-              try {
-                const p = JSON.parse(d);
-                if(p.type === 'content_block_delta' && p.delta?.text) {
-                  res.write(`data: ${JSON.stringify({token: p.delta.text})}\n\n`);
-                }
-              } catch(e) {}
-            }
-          });
-          apiRes.on('end', () => { res.write('data: [DONE]\n\n'); res.end(); resolve(); });
-          apiRes.on('error', reject);
-        });
-        r.on('error', reject);
-        r.write(body);
-        r.end();
-      });
+      const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 200, stream: true, system, messages: [{role:'user', content: userMsg}] })
+      }, 28000);
+      if (!streamRes.ok) {
+        res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');
+        res.write('data: [DONE]\n\n'); res.end(); return;
+      }
+      let _buf = '';
+      for await (const chunk of streamRes.body) {
+        _buf += Buffer.from(chunk).toString('utf-8');
+        const lines = _buf.split('\n'); _buf = lines.pop();
+        for(const line of lines) {
+          if(!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          try {
+            const p = JSON.parse(d);
+            if(p.type === 'content_block_delta' && p.delta?.text)
+              res.write(`data: ${JSON.stringify({token: p.delta.text})}\n\n`);
+            if(p.type === 'message_stop') res.write('data: [DONE]\n\n');
+          } catch(e) {}
+        }
+      }
+      res.end();
     } catch(e) {
       console.error('quickBrief error:', e.message);
       res.status(500).json({error: e.message});
@@ -882,11 +876,15 @@ Consignes : ${context.consignes_ef||''}`;
 
       res.writeHead(200, {'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});
 
-      const streamRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
-      });
+      }, 85000);
+      if (!streamRes.ok) {
+        res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');
+        res.write('data: [DONE]\n\n'); res.end(); return;
+      }
       let buffer = '';
       for await (const chunk of streamRes.body) {
         buffer += Buffer.from(chunk).toString('utf-8');
