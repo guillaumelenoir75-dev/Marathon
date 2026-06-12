@@ -491,6 +491,7 @@ function openValidationModalExtra(w,ei){
   const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
   const kmVal=state[`extra_w${w}_s${ei}_km`]!=null?state[`extra_w${w}_s${ei}_km`]:s.km||0;
   const prev=state[`extra_w${w}_s${ei}_perf`]?JSON.parse(state[`extra_w${w}_s${ei}_perf`]):{};
+  const isAlreadySkipped=!!state[`extra_w${w}_s${ei}_skip`];
   // Stocker le contexte pour Strava (_applyStravaToValidation)
   window._currentValidationSession = { s, idx: ei, ws: w, isExtra: true, ei };
   const mc=document.getElementById('modal-container');
@@ -579,7 +580,10 @@ function openValidationModalExtra(w,ei){
         <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">Annuler</button>
         <button onclick="saveValidationExtra(${w},${ei})" style="padding:13px;background:${_headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Valider</button>
       </div>
-      <button onclick="toggleSkipReasonPicker()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">✕ Séance non réalisée</button>
+      ${isAlreadySkipped
+        ?`<button onclick="clearSkipExtra(${w},${ei})" style="width:100%;margin-top:10px;padding:11px;background:#FEF3F2;border:1.5px solid #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">↩ Annuler — Remettre en attente</button>`
+        :`<button onclick="toggleSkipReasonPicker()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">✕ Séance non réalisée</button>`
+      }
       <div id="skip-reason-picker" style="display:none;margin-top:10px;">
         <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-align:center;">Pourquoi cette séance n'a pas été réalisée ?</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;" id="skip-reason-chips"></div>
@@ -645,6 +649,22 @@ async function saveSkipValidation(idx){
   state[k+'done']=false; delete state[k+'km']; delete state[k+'perf'];
   state[k+'skip']=true; state[k+'skip_reason']=reason;
   window._selectedSkipReason=null;
+  save(); closeModal(); renderHome();
+  rendered.plan=false;
+  if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
+}
+
+function clearSkipValidation(idx){
+  const k=gk(CW,idx);
+  delete state[k+'skip']; delete state[k+'skip_reason'];
+  save(); closeModal(); renderHome();
+  rendered.plan=false;
+  if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
+}
+
+function clearSkipExtra(w,ei){
+  const k=`extra_w${w}_s${ei}`;
+  delete state[k+'_skip']; delete state[k+'_skip_reason'];
   save(); closeModal(); renderHome();
   rendered.plan=false;
   if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
@@ -856,6 +876,7 @@ function openValidationModal(idx){
   const lbl=typeLabel[s.type]||'EF';
   const prev=state[gk(CW,idx)+'perf']?JSON.parse(state[gk(CW,idx)+'perf']):{};
   const kmVal=state[gk(CW,idx)+'km']!=null?state[gk(CW,idx)+'km']:s.km;
+  const isAlreadySkipped=!!state[gk(CW,idx)+'skip'];
   const mc=document.getElementById('modal-container');
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
@@ -942,7 +963,10 @@ function openValidationModal(idx){
         <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">Annuler</button>
         <button onclick="saveValidation(${idx})" style="padding:13px;background:${_headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Valider</button>
       </div>
-      <button onclick="toggleSkipReasonPicker()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">✕ Séance non réalisée</button>
+      ${isAlreadySkipped
+        ?`<button onclick="clearSkipValidation(${idx})" style="width:100%;margin-top:10px;padding:11px;background:#FEF3F2;border:1.5px solid #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">↩ Annuler — Remettre en attente</button>`
+        :`<button onclick="toggleSkipReasonPicker()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">✕ Séance non réalisée</button>`
+      }
       <div id="skip-reason-picker" style="display:none;margin-top:10px;">
         <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-align:center;">Pourquoi cette séance n'a pas été réalisée ?</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;" id="skip-reason-chips"></div>
