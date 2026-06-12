@@ -423,16 +423,15 @@ function generateAthletePlan(ob){
     },
   };
 
-  // Phase du plan — proportions adaptées au niveau
-  // Confirmé : Phase 1 réduite (15%), arrive vite à la qualité
-  // Débutant  : Phase 1 longue (35%), plus de base aérobie avant l'intensité
-  // Intermédiaire : Phase 1 classique (25%)
-  const p1Ratio={Débutant:0.35,Intermédiaire:0.25,Confirmé:0.15}[niveau]||0.25;
-  const p2Ratio={Débutant:0.35,Intermédiaire:0.30,Confirmé:0.30}[niveau]||0.30;
+  // Phase du plan — durée Phase 1 fixe selon le niveau (indépendante de la durée du plan)
+  // Débutant   : 7 semaines de base → qualité démarre autour de S08
+  // Intermédiaire : 4 semaines → qualité démarre autour de S05
+  // Confirmé   : 2 semaines → qualité démarre dès S03
+  const p1Weeks={Débutant:7,Intermédiaire:4,Confirmé:2}[niveau]||4;
   const getPhase=(w)=>{
     if(w>=taperStartW) return 4;
-    const p1End=Math.max(Math.ceil(numWeeks*p1Ratio),2);
-    const p2End=Math.ceil(numWeeks*(p1Ratio+p2Ratio));
+    const p1End=Math.min(p1Weeks, taperStartW-4); // garde au moins 4 semaines de qualité
+    const p2End=Math.min(p1End+Math.round(numWeeks*0.30), taperStartW-1);
     if(w<=p1End) return 1;
     if(w<=p2End) return 2;
     return 3;
