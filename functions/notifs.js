@@ -491,3 +491,30 @@ exports.weeklyDebriefNotif = onSchedule(
     }catch(e){console.error('weeklyDebriefNotif:',e.message);}
   }
 );
+
+// Purge mensuelle des subscriptions push inactives (> 90 jours sans re-subscribe)
+exports.cleanupPushSubscribers = onSchedule(
+  { schedule: '0 3 1 * *', timeZone: 'Europe/Paris' },
+  async () => {
+    try {
+      const admin = require('firebase-admin');
+      if (!admin.apps.length) admin.initializeApp();
+      const db = admin.database();
+      const snap = await db.ref('_push_subscribers').once('value');
+      const subs = snap.val() || {};
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      let purged = 0;
+      for (const [uid, sub] of Object.entries(subs)) {
+        const subscribedAt = sub && sub.subscribedAt ? sub.subscribedAt : 0;
+        if (subscribedAt < cutoff) {
+          await db.ref(`_push_subscribers/${uid}`).remove().catch(() => {});
+          await db.ref(`users/${uid}/state/_push_sub`).remove().catch(() => {});
+          purged++;
+        }
+      }
+      console.log(`cleanupPushSubscribers : ${purged} subscription(s) purgée(s) sur ${Object.keys(subs).length}`);
+    } catch (e) {
+      console.error('cleanupPushSubscribers:', e.message);
+    }
+  }
+);

@@ -147,7 +147,7 @@ async function subscribeToPush() {
     });
     // Sauvegarder dans Firebase DB sous users/{uid}/state/_push_sub
     if (dbRef) {
-      const subObj = JSON.parse(JSON.stringify(sub));
+      const subObj = { ...JSON.parse(JSON.stringify(sub)), subscribedAt: Date.now() };
       await dbRef.child('_push_sub').set(subObj);
       // Aussi dans _push_subscribers/{uid} pour les notifications multi-utilisateurs
       const uid = firebase.auth().currentUser?.uid;
