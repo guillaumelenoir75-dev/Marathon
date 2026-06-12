@@ -1,0 +1,833 @@
+async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData) {
+  try {
+    let coachMemos = '';
+    try { const ms = await dbRef.child('_coach_memos').once('value'); coachMemos = ms.val()||''; } catch(e){}
+    // Construire le compact context pour accéder aux variables locales
+    const _cc = buildCompactContext(coachMemos, [], 'maintenant', new Date().getHours());
+    const response = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/analyzeSession', {
+      method: 'POST',
+      headers: await authHeaders(true),
+      body: JSON.stringify({
+        sessionData: analysisContext,
+        historyData: historyData || [],
+        planContext: Object.assign({}, _cc, {
+          // Champs spécifiques au débrief de séance
+          semaineActuelle: CW, totalSemaines: 32,
+          allureMarathon: getMarathonPaceStr(),
+          semaines_restantes: 32-CW,
+          type_semaine: [8,12,16,20,26,30].includes(CW) ? 'DÉCHARGE' : 'NORMALE',
+          fc_repos: state['fc_repos'] || 51,
+          date_reelle: (()=>{
+            const _n=new Date();
+            const _jNoms=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+            const _mNoms=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+            return {complet:_jNoms[_n.getDay()]+' '+_n.getDate()+' '+_mNoms[_n.getMonth()]+' '+_n.getFullYear(),jour:_jNoms[_n.getDay()],numero:_n.getDate(),heure:_n.getHours()+'h'+String(_n.getMinutes()).padStart(2,'0'),note:'Utilise UNIQUEMENT cette date. Ne jamais deviner ou calculer.'};
+          })(),
+          renfoStatus: [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].map(rd=>{
+            const done=!!state[rfk(CW,rd.r)+'done'];
+            const schedRaw=state[rfk(CW,rd.r)+'sched'];
+            const sched=schedRaw?JSON.parse(schedRaw):null;
+            const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+            const quand=sched&&sched.day?jours[sched.day]+(sched.time?' à '+sched.time:''):'non planifié';
+            return `${rd.name}: ${done?'✓ fait':'à faire ('+quand+')'}`;
+          }).join(' | '),
+          date_marathon: '18 octobre 2026',
+          km_semaine_en_cours: {planifie: getWeekTotalKm(CW), realise: calcWeekDoneKm()},
+          seances_recentes_detail: (()=>{const det=[];for(let ws=CW;ws>=Math.max(1,CW-8);ws--){weeks[ws-1].sessions.forEach((sess,si)=>{const k=gk(ws,si);if(!state[k+'done'])return;const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,strava:perf.strava||null});});let ei=0;while(state["extra_w"+ws+"_s"+ei]){if(state["extra_w"+ws+"_s"+ei+"_done"]){const es=JSON.parse(state["extra_w"+ws+"_s"+ei]);const perf=state["extra_w"+ws+"_s"+ei+"_perf"]?JSON.parse(state["extra_w"+ws+"_s"+ei+"_perf"]):{};det.push({semaine:ws,type:es.type,titre:es.d.split('|')[0],extra:true,km:state["extra_w"+ws+"_s"+ei+"_km"]||es.km,allure:perf.pace||null,fc_moy:perf.hr||null,strava:null});}ei++;}}return det.slice(0,15);})(),
+          derniere_seance: _cc.derniere_seance || null,
+          seances_a_venir: (()=>{
+            const av=[]; const joursC=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+            const nowD=new Date(); const tDow=nowD.getDay()===0?7:nowD.getDay(); const hA=nowD.getHours()+nowD.getMinutes()/60;
+            getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei})=>{
+              if(av.length>=3)return;
+              const done=extra?!!state['extra_w'+CW+'_s'+ei+'_done']:!!state[gk(CW,si)+'done'];
+              if(done)return;
+              const edRaw=!extra&&state['edit_w'+CW+'_s'+si];
+              const ed=edRaw?JSON.parse(edRaw):null;
+              const titre=ed?ed.d.split('|')[0]:s2.d.split('|')[0];
+              const type=ed?ed.type:s2.type; const km=ed?ed.km:s2.km;
+              const jourC=ed&&ed.sched_day?joursC[ed.sched_day]:'';
+              const heure=ed&&ed.sched_time?ed.sched_time:'';
+              let hAvant=null;
+              if(ed&&ed.sched_day){const dJ=((ed.sched_day-tDow)+7)%7;const hS=heure?parseInt(heure.split(':')[0])+parseInt(heure.split(':')[1]||0)/60:12;hAvant=Math.round(dJ*24+(hS-hA));}
+              av.push({type,titre,km,quand:jourC+(heure?' à '+heure:'non planifié'),heures_avant_seance:hAvant!==null?hAvant+'h':'?'});
+            });
+            return av;
+          })(),
+          charge_semaine: (()=>{const kmF=calcWeekDoneKm();const kmP=getWeekTotalKm(CW);const kmPrev=CW>1?getWeekTotalKm(CW-1):kmP;return {realise:kmF,planifie:kmP,ratio_vs_precedente:kmPrev>0?Math.round(kmP/kmPrev*100)/100:null,statut:kmF<kmP?'EN_COURS':'TERMINÉE'};})(),
+          infos_importantes_Guillaume: coachMemos||undefined,
+          absences_semaine: state['absences_cw'+CW]||null,
+          chaussures_plan_verite: "Zoom Fly : première utilisation planifiée S26 (31/08/2026), jamais avant.",
+        }),
+        chatHistoriqueRecent: coachHistory.slice(-6).map(m=>({
+          role: m.role==='user'?'Guillaume':'Coach',
+          contenu: m.content.slice(0,200)
+        }))
+      })
+    });
+    // Lire tout le stream puis afficher d'un coup avec fade-in
+    const container = document.getElementById('coach-messages');
+    const textEl = document.getElementById('coach-analysis-stream');
+    if(textEl) {
+      textEl.style.opacity = '1';
+      textEl.innerHTML = '<div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div>';
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '', buffer = '';
+
+    while(true) {
+      const {done, value} = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if(data==='[DONE]') continue;
+        try { const parsed = JSON.parse(data); if(parsed.token) fullText += parsed.token; } catch(e) {}
+      }
+    }
+
+    // Afficher d'un coup avec fade-in
+    if(textEl) {
+      textEl.style.transition = 'opacity 0.35s ease';
+      textEl.innerHTML = fullText
+        ? renderCoachText(cleanTruncated(fullText))
+        : '<p style="color:var(--muted);font-style:italic;">Analyse non disponible.</p>';
+      requestAnimationFrame(() => { textEl.style.opacity = '1'; });
+      if(container) container.scrollTop = container.scrollHeight;
+    }
+
+        // ── Mise à jour automatique des mémos après débrief ─────────────────
+    // Le débrief contient les données réelles de la séance → parfait pour
+    // détecter si un problème mémorisé est résolu (ex: allures respectées)
+    if(fullText) {
+      // Injecter le débrief dans l'historique temporairement pour extractMemos
+      const debriefContext = [
+        {role:'assistant', content: '[DEBRIEF SÉANCE] ' + fullText}
+      ];
+      extractAndSaveMemosWithContext(debriefContext);
+    }
+  } catch(e) {
+    const textEl = document.getElementById('coach-analysis-stream');
+    if(textEl) textEl.innerHTML = '<p style="color:var(--muted);font-style:italic;">Analyse temporairement indisponible.</p>';
+  }
+}
+
+// ── GARMIN IMPORT ─────────────────────────────────────────────────────────────
+// ── MÉTÉO VALIDATION — bouton "Météo" dans le modal ─────────────────────────
+
+// Stocker la météo importée manuellement pour la validation en cours
+window._meteoValidationData = null;
+
+async function _getCityFromCoords(lat, lng) {
+  // Reverse geocoding via Nominatim (OSM) — gratuit, sans clé
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`, {
+      headers: { 'Accept-Language': 'fr', 'User-Agent': 'PrepaMarathonApp/1.0' }
+    });
+    const d = await r.json();
+    // Préférer la ville, puis le village, puis le comté
+    const city = d.address?.city || d.address?.town || d.address?.village || d.address?.municipality || d.address?.county || 'Position GPS';
+    const country = d.address?.country || '';
+    return country && country !== 'France' ? `${city}, ${country}` : city;
+  } catch(e) {
+    return 'Position GPS';
+  }
+}
+
+async function importMeteoValidation() {
+  const btn = document.getElementById('meteo-val-btn');
+  const preview = document.getElementById('meteo-val-preview');
+  if (!btn) return;
+
+  // ── Icône soleil SVG réutilisable ─────────────────────────────────────────
+  const SVG_SUN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+
+  // ── Skeleton loader dans le preview ──────────────────────────────────────
+  function showSkeleton(step) {
+    if (!preview) return;
+    preview.style.display = 'block';
+    preview.style.opacity = '1';
+    const pulseStyle = 'background:linear-gradient(90deg,rgba(12,68,124,0.07) 25%,rgba(12,68,124,0.13) 50%,rgba(12,68,124,0.07) 75%);background-size:200% 100%;animation:_skPulse 1.4s ease-in-out infinite;border-radius:6px;';
+    if (step === 1) {
+      preview.innerHTML = `
+        <style>@keyframes _skPulse{0%,100%{background-position:200% 0}50%{background-position:0 0}}</style>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="${pulseStyle}width:32px;height:32px;border-radius:50%;"></div>
+            <div>
+              <div style="${pulseStyle}width:90px;height:13px;margin-bottom:5px;"></div>
+              <div style="${pulseStyle}width:60px;height:10px;"></div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="${pulseStyle}width:48px;height:22px;margin-bottom:5px;margin-left:auto;"></div>
+            <div style="${pulseStyle}width:70px;height:10px;margin-left:auto;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="${pulseStyle}width:100px;height:22px;"></div>
+          <div style="${pulseStyle}width:80px;height:22px;"></div>
+          <div style="${pulseStyle}width:120px;height:22px;"></div>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:#888;">📍 Localisation en cours…</div>`;
+    } else if (step === 2) {
+      preview.innerHTML = preview.innerHTML.replace(
+        '📍 Localisation en cours…',
+        '🌡️ Récupération des données météo…'
+      );
+    }
+  }
+
+  // ── Démarrer ──────────────────────────────────────────────────────────────
+  btn.innerHTML = SVG_SUN + ' <span style="opacity:0.7">Localisation…</span>';
+  btn.disabled = true;
+  showSkeleton(1);
+
+  try {
+    const pos = await _getPosition();
+    if (!pos) {
+      if (preview) {
+        preview.innerHTML = '<div style="text-align:center;padding:10px;color:#999;font-size:12px;">📍 Géolocalisation refusée — autorise-la dans les réglages du navigateur</div>';
+      }
+      btn.innerHTML = SVG_SUN + ' Météo';
+      btn.style.background = '#0C447C';
+      btn.disabled = false;
+      return;
+    }
+
+    // Étape 2 : on a la position, on fetch météo + ville
+    btn.innerHTML = SVG_SUN + ' <span style="opacity:0.7">Météo…</span>';
+    showSkeleton(2);
+
+    const { lat, lng } = pos;
+    const [city, meteo] = await Promise.all([
+      _getCityFromCoords(lat, lng),
+      fetchWeatherForContext(null, null)
+    ]);
+
+    if (!meteo) {
+      if (preview) {
+        preview.style.display = 'block';
+        preview.innerHTML = '<div style="text-align:center;padding:10px;color:#999;font-size:12px;">📡 Réseau indisponible — <span onclick="importMeteoValidation()" style="color:#0C447C;cursor:pointer;text-decoration:underline;font-weight:600;">Réessayer ↺</span></div>';
+      }
+      btn.innerHTML = SVG_SUN + ' Météo';
+      btn.style.background = '#0C447C';
+      btn.disabled = false;
+      return;
+    }
+
+    meteo.ville = city;
+    meteo.coordonnees = { lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000 };
+    window._meteoValidationData = meteo;
+
+    // ── Couleurs & labels impact ────────────────────────────────────────────
+    const impactColors  = { IDEAL:'#2E7D32', MODERE:'#E65100', ELEVE:'#C62828', EXTREME:'#B71C1C', HUMIDE:'#1565C0', FROID:'#37474F' };
+    const impactLabels  = { IDEAL:'Idéal ✅', MODERE:'Chaleur modérée', ELEVE:'Forte chaleur', EXTREME:'Chaleur extrême ⚠️', HUMIDE:'Humide', FROID:'Froid' };
+    const niveau        = meteo.impact_performance?.niveau || 'IDEAL';
+    const impactColor   = impactColors[niveau] || '#2E7D32';
+    const impactLabel   = impactLabels[niveau] || niveau;
+    const condIcon      = meteo.conditions?.split(' ').pop() || '🌤️';
+    const elevFC        = meteo.impact_performance?.elevation_fc_bpm || 0;
+
+    // ── Afficher le résultat avec une légère animation d'entrée ────────────
+    if (preview) {
+      preview.style.opacity = '0';
+      preview.style.transition = 'opacity 0.3s ease';
+      preview.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:22px;line-height:1;">${condIcon}</span>
+            <div>
+              <p style="font-size:13px;font-weight:700;color:#0C447C;margin:0;">${city}</p>
+              <p style="font-size:10px;color:#888;margin:2px 0 0;">${meteo.conditions}</p>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <p style="font-size:24px;font-weight:800;color:#0C447C;margin:0;line-height:1;">${meteo.temperature}°C</p>
+            <p style="font-size:10px;color:#888;margin:3px 0 0;">Ressenti <b>${meteo.ressenti}°C</b></p>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:${niveau !== 'IDEAL' ? '6px' : '4px'};">
+          <span style="background:rgba(12,68,124,0.08);border-radius:12px;padding:4px 10px;font-size:11px;color:#0C447C;">💧 ${meteo.humidite}%</span>
+          <span style="background:rgba(12,68,124,0.08);border-radius:12px;padding:4px 10px;font-size:11px;color:#0C447C;">💨 ${meteo.vent_kmh} km/h</span>
+          <span style="background:${impactColor}18;border-radius:12px;padding:4px 10px;font-size:11px;font-weight:700;color:${impactColor};">${impactLabel}</span>
+          ${elevFC > 0 ? `<span style="background:#FF6F0018;border-radius:12px;padding:4px 10px;font-size:11px;font-weight:600;color:#E65100;">❤️ FC +${elevFC} bpm attendus</span>` : ''}
+        </div>
+        ${niveau !== 'IDEAL' ? `<p style="font-size:10px;color:#666;margin:0 0 4px;font-style:italic;line-height:1.4;">${meteo.impact_performance?.conseil}</p>` : ''}
+        <p style="font-size:9px;color:#aaa;margin:0;">${isAdmin()?'✅ Transmis au Coach IA pour l\'analyse de ta séance':'📊 Météo enregistrée pour cette séance'}</p>`;
+      // Fade in
+      requestAnimationFrame(() => { preview.style.opacity = '1'; });
+    }
+
+    btn.innerHTML = `✅ ${city}`;
+    btn.style.background = '#2E7D32';
+    btn.disabled = false;
+
+  } catch(e) {
+    if (preview) preview.innerHTML = '<div style="padding:8px;color:#c00;font-size:11px;">❌ Erreur : ' + (e.message||'inconnue') + '</div>';
+    btn.innerHTML = SVG_SUN + ' Météo';
+    btn.style.background = '#0C447C';
+    btn.disabled = false;
+  }
+}
+
+
+async function importFromStrava() {
+  const btn = document.getElementById('garmin-val-btn');
+  if(btn) { btn.textContent = '⏳ Chargement…'; btn.disabled = true; }
+
+  try {
+    const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await resp.json();
+
+    if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
+
+    // Strava non connecté → ouvrir la page d'auth
+    if(data.needsAuth) {
+      const authWin = window.open('https://us-central1-prepa-marathon.cloudfunctions.net/stravaAuth', '_blank', 'width=600,height=700');
+      if(btn) { btn.textContent = '⏳ Connexion Strava…'; btn.disabled = true; }
+      // Vérifier toutes les 2s si l'auth est terminée
+      const check = setInterval(async () => {
+        try {
+          const r2 = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+          });
+          const d2 = await r2.json();
+          if(d2.success && d2.activities) {
+            clearInterval(check);
+            if(authWin) authWin.close();
+            if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
+            _showStravaPicker(d2.activities);
+          } else if(!d2.needsAuth) {
+            clearInterval(check);
+            if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
+          }
+        } catch(e) {}
+      }, 2000);
+      setTimeout(() => clearInterval(check), 120000); // stop après 2min
+      return;
+    }
+
+    if(!data.success || !data.activities || data.activities.length === 0) {
+      if(btn) { btn.textContent = data.error ? `❌ ${data.error.slice(0,25)}` : '❌ Aucune course'; btn.disabled = false; }
+      setTimeout(() => { if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }, 3000);
+      return;
+    }
+
+    _showStravaPicker(data.activities);
+
+  } catch(e) {
+    console.error('Strava import error:', e);
+    if(btn) { btn.textContent = '❌ Erreur'; btn.disabled = false; }
+    setTimeout(() => { if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }, 3000);
+  }
+}
+
+function _showStravaPicker(activities) {
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = document.getElementById('garmin-val-picker');
+  if(existing) existing.remove();
+
+  const picker = document.createElement('div');
+  picker.id = 'garmin-val-picker';
+  picker.style.cssText = 'position:fixed;inset:0;z-index:600;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
+  picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
+    <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">Dernières courses Strava</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Sélectionne la séance à importer</p>
+    ${activities.slice(0, 3).map(a => {
+      const isToday = a.date === today;
+      const d = new Date(a.date + 'T12:00:00');
+      const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+      const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+      const dateLabel = isToday ? '' : `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+      return `<div onclick="document.getElementById('garmin-val-picker').remove();_fetchAndApplyStravaDetail(${JSON.stringify(a).replace(/"/g,'&quot;')},'validation');document.getElementById('garmin-val-btn').innerHTML='⏳ Détails…';"
+        style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isToday?'#FC4C02':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isToday?'#FFF0EB':'var(--bg2)'};">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <p style="font-size:13px;font-weight:700;color:var(--text);margin:0;">${a.nom}</p>
+            ${isToday ? '<span style="background:#FC4C02;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;">Aujourd\'hui</span>' : ''}
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${dateLabel}${dateLabel?' · ':''}${a.duree}</p>
+        </div>
+        <div style="text-align:right;">
+          <p style="font-size:15px;font-weight:700;color:#FC4C02;margin:0;">${a.distanceKm} km</p>
+          <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${a.allure}/km${a.fcMoyenne?' · FC '+a.fcMoyenne:''}</p>
+        </div>
+      </div>`;
+    }).join('')}
+    <button onclick="document.getElementById('garmin-val-picker').remove();" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;">Annuler</button>
+  </div>`;
+  document.body.appendChild(picker);
+}
+// ── DÉTECTION BLOCS TEMPO DEPUIS LAPS STRAVA ─────────────────────────────────
+function _detectTempoBlocsFromLaps(laps, sessionDetail) {
+  if (!laps || laps.length === 0) return null;
+
+  function paceToSec(allure) {
+    if (!allure) return null;
+    const p = String(allure).replace("'", ':').split(':');
+    if (p.length < 2) return null;
+    return parseInt(p[0]) * 60 + parseInt(p[1]);
+  }
+
+  // ── Parse la cible de séance ─────────────────────────────────────────────
+  // "4'55 — 5'00 /km" → paceMinSec=295, paceMaxSec=300
+  // "1x18min" → nbBlocs=1, blocDurMin=18
+  let paceMinSec = null, paceMaxSec = null;
+  let nbBlocsPlanned = 1, blocDurMin = null;
+  if (sessionDetail) {
+    const mPace = sessionDetail.replace(/'/g, ':').match(/(\d+):(\d+)\s*[—–-]\s*(\d+):(\d+)/);
+    if (mPace) {
+      paceMinSec = parseInt(mPace[1]) * 60 + parseInt(mPace[2]);
+      paceMaxSec = parseInt(mPace[3]) * 60 + parseInt(mPace[4]);
+    }
+    const mBloc = sessionDetail.match(/(\d+)\s*[x×]\s*(\d+)\s*min/i);
+    if (mBloc) { nbBlocsPlanned = parseInt(mBloc[1]); blocDurMin = parseInt(mBloc[2]); }
+  }
+
+  // ── MODE 1 : laps structurés Garmin/Strava ───────────────────────────────
+  // (intervalles avec durée variable > 5min — workout structuré)
+  const hasStructuredLaps = laps.some(l => l.duree_sec && l.duree_sec > 400);
+  if (hasStructuredLaps) {
+    const wFast = paceMinSec ? paceMinSec - 30 : 240;
+    const wSlow = paceMaxSec ? paceMaxSec + 20 : 330;
+    const found = [];
+    laps.forEach((lap, i) => {
+      if (i === 0 || lap.duree_sec < 300) return;
+      const ps = paceToSec(lap.allure);
+      if (ps && ps >= wFast && ps <= wSlow) {
+        found.push({ allure: lap.allure, duree_sec: lap.duree_sec, fc: lap.fc });
+      }
+    });
+    if (found.length > 0) return found;
+    // Laps présents mais aucun dans la fenêtre → fallback splits
+  }
+
+  // ── MODE 2 : splits par km ───────────────────────────────────────────────
+  const splits = laps
+    .map(l => ({ km: l.km || l.index, sec: paceToSec(l.allure), fc: parseInt(l.fc) || 0, allure: l.allure }))
+    .filter(s => s.sec && s.km);
+
+  if (splits.length < 3) return null;
+
+  // ── Étape 1 : détecter la fin du warmup via saut de FC ──────────────────
+  // Le warmup se termine au km où la FC fait un bond >= 12 bpm d'un coup
+  // Ex: km3=FC149 → km4=FC166 : bond +17 → warmup fini après km3
+  const FC_JUMP_THRESHOLD = 12;
+  let blocStartIdx = null;
+  for (let i = 1; i < splits.length; i++) {
+    if (splits[i].fc - splits[i - 1].fc >= FC_JUMP_THRESHOLD) {
+      blocStartIdx = i; // le bloc commence à cet index
+      break;
+    }
+  }
+  // Fallback : pas de saut FC détecté → commencer après le 1er km
+  if (blocStartIdx === null) blocStartIdx = 1;
+
+  // ── Étape 2 : détecter les N blocs en accumulant la durée planifiée ──────
+  // Pour chaque bloc, on accumule des km depuis le départ jusqu'à atteindre
+  // la durée prévue (ex: 18min = 1080s), en pondérant le dernier km partiellement.
+  // On s'arrête si le km est clairement en récupération (allure > paceMax + 20s).
+  const blocDurSec = blocDurMin ? blocDurMin * 60 : null;
+  const recoveryThreshold = paceMaxSec ? paceMaxSec + 20 : 340; // 5:40 fallback
+  const result = [];
+  let curIdx = blocStartIdx;
+
+  for (let b = 0; b < nbBlocsPlanned && curIdx < splits.length; b++) {
+    // Chercher le début du prochain bloc : premier km non-récupération depuis curIdx
+    while (curIdx < splits.length && splits[curIdx].sec > recoveryThreshold) curIdx++;
+    if (curIdx >= splits.length) break;
+
+    // Accumuler les km de ce bloc
+    let accumulated = 0;
+    const blocKms = [];
+    for (let j = curIdx; j < splits.length; j++) {
+      const s = splits[j];
+      // Stop si on rentre clairement en récupération (après au moins 2 kms de bloc)
+      if (blocKms.length >= 2 && s.sec > recoveryThreshold) break;
+      blocKms.push(s);
+      accumulated += s.sec;
+      if (blocDurSec && accumulated >= blocDurSec) break;
+    }
+
+    if (blocKms.length === 0) break;
+
+    // Calcul de l'allure moyenne pondérée :
+    // Si on a une durée cible, on utilise exactement blocDurSec en ajustant
+    // la contribution du dernier km proportionnellement
+    let totalTime, totalDist;
+    if (blocDurSec && accumulated > blocDurSec) {
+      // Le dernier km dépasse la cible → le tronquer
+      const lastKm = blocKms[blocKms.length - 1];
+      const prevAcc = accumulated - lastKm.sec;
+      const fraction = (blocDurSec - prevAcc) / lastKm.sec;
+      totalTime = blocDurSec;
+      totalDist = (blocKms.length - 1) + fraction;
+    } else {
+      totalTime = accumulated;
+      totalDist = blocKms.length;
+    }
+
+    const avgPaceSec = Math.round(totalTime / totalDist);
+    const avgFc = Math.round(blocKms.reduce((s, k) => s + k.fc, 0) / blocKms.length);
+    const mm = Math.floor(avgPaceSec / 60), ss = avgPaceSec % 60;
+
+    result.push({
+      allure: mm + ':' + String(ss).padStart(2, '0'),
+      duree_sec: blocDurSec || accumulated,
+      fc: avgFc,
+      nb_kms: blocKms.length,
+      _fromSplits: true
+    });
+
+    // Avancer curIdx après ce bloc (sauter les km de récupération)
+    curIdx += blocKms.length;
+    while (curIdx < splits.length && splits[curIdx].sec > recoveryThreshold) curIdx++;
+  }
+
+  return result.length > 0 ? result : null;
+}
+
+// ── FETCH DÉTAIL STRAVA PUIS APPLIQUER ───────────────────────────────────────
+async function _fetchAndApplyStravaDetail(activity, mode, ws, si) {
+  try {
+    const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetchDetail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activityId: activity.activityId })
+    });
+    const data = await resp.json();
+    if (data.success && data.detail) {
+      // Fusionner les détails dans l'activité
+      Object.assign(activity, data.detail);
+    }
+  } catch(e) {
+    console.warn('stravaFetchDetail failed, applying without details:', e);
+  }
+  if (mode === 'validation') {
+    _applyGarminToValidation(activity);
+    const btn = document.getElementById('garmin-val-btn');
+    if(btn) btn.innerHTML = '✅ Importé';
+  } else if (mode === 'perfedit') {
+    _applyGarminToPerfEdit(activity, ws, si);
+  }
+}
+
+function _applyGarminToValidation(activity) {
+  // Stocker l'activité complète pour le coach IA
+  window._garminActivityData = activity;
+
+  // KM réels
+  const kmEl = document.getElementById('val-km');
+  if(kmEl && activity.distanceKm) {
+    kmEl.value = activity.distanceKm;
+    kmEl.dispatchEvent(new Event('input'));
+  }
+  // Durée
+  const durEl = document.getElementById('val-dur');
+  if(durEl && activity.duree) {
+    durEl.value = activity.duree;
+    durEl.dispatchEvent(new Event('input'));
+  }
+  // Allure
+  const paceEl = document.getElementById('val-pace');
+  if(paceEl && activity.allure) paceEl.value = activity.allure;
+  // FC
+  const hrEl = document.getElementById('val-hr');
+  if(hrEl && activity.fcMoyenne) hrEl.value = activity.fcMoyenne;
+  // Date
+  const dateEl = document.getElementById('val-date');
+  if(dateEl && activity.date) dateEl.value = activity.date;
+
+  // ── Pré-remplissage blocs TEMPO depuis les laps ──
+  const ctx = window._currentValidationSession;
+  if (ctx && ctx.s && (ctx.s.type === 'tempo' || ctx.s.type === 'frac')) {
+    const sessionDetail = (ctx.s.d || '').split('|')[1] || '';
+    const blocs = _detectTempoBlocsFromLaps(activity.laps || activity.splits, sessionDetail);
+    const blocsContainer = document.getElementById('val-blocs-container');
+    const existing = document.getElementById('val-blocs-strava-msg');
+    if (existing) existing.remove();
+    if (blocs && blocs.length > 0) {
+      blocs.forEach((bloc, i) => {
+        const el = document.getElementById('val-bloc-' + i);
+        if (el) {
+          el.value = bloc.allure;
+          el.style.borderColor = '#3B6D11';
+          el.style.background = '#EAF3DE';
+          setTimeout(() => { el.style.borderColor = '#1B4FD830'; el.style.background = ''; }, 3000);
+        }
+      });
+      if (blocsContainer) {
+        const msg = document.createElement('p');
+        msg.id = 'val-blocs-strava-msg';
+        msg.style.cssText = 'font-size:10px;color:#3B6D11;font-weight:600;margin-top:4px;text-align:center;';
+        const dureesMins = blocs.map(b => Math.round(b.duree_sec / 60) + 'min').join(' · ');
+        const sourceLabel = blocs[0]._fromSplits ? 'splits km' : 'laps Strava';
+        msg.textContent = `✓ ${blocs.length} bloc${blocs.length > 1 ? 's' : ''} détecté${blocs.length > 1 ? 's' : ''} (${dureesMins}) via ${sourceLabel}`;
+        blocsContainer.appendChild(msg);
+      }
+    } else {
+      // Pas de laps ou aucun bloc détecté dans la plage d'allure
+      if (blocsContainer) {
+        const msg = document.createElement('p');
+        msg.id = 'val-blocs-strava-msg';
+        msg.style.cssText = 'font-size:10px;color:#E8530A;font-weight:600;margin-top:4px;text-align:center;';
+        msg.textContent = activity.laps && activity.laps.length > 0
+          ? '⚠️ Activité sans laps tempo — à renseigner manuellement'
+          : '⚠️ Pas de laps dans cette activité — à renseigner manuellement';
+        blocsContainer.appendChild(msg);
+      }
+    }
+  }
+
+  // Feedback visuel — bordure bleue 2s
+  ['val-km','val-dur','val-pace','val-hr'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el && el.value) { el.style.borderColor = '#1382E4'; setTimeout(() => el.style.borderColor = '', 2000); }
+  });
+
+  // Afficher le bloc de données enrichies Garmin sous les champs
+  const existing = document.getElementById('garmin-detail-block');
+  if(existing) existing.remove();
+
+  const block = document.createElement('div');
+  block.id = 'garmin-detail-block';
+  block.style.cssText = 'margin-top:12px;background:#EDF5FF;border-radius:12px;padding:12px 14px;border:1.5px solid #1382E430;';
+
+  let html = '<p style="font-size:11px;font-weight:700;color:#1382E4;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">🟠 Données Strava importées</p>';
+
+  // Ligne 1 : cadence + dénivelé + puissance
+  const extras = [];
+  if(activity.cadence) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Cadence</p><p style="font-size:15px;font-weight:700;color:#1a2e4a;">${activity.cadence} <span style="font-size:10px;font-weight:400;">spm</span></p></div>`);
+  if(activity.denivele_pos != null) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Dénivelé +</p><p style="font-size:15px;font-weight:700;color:#3B6D11;">${activity.denivele_pos} <span style="font-size:10px;font-weight:400;">m</span></p></div>`);
+  if(activity.fcMax) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">FC max</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${activity.fcMax} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
+  if(activity.calories) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#E8530A;">${activity.calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
+  if(activity.best_400m) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Meilleur 400m</p><p style="font-size:15px;font-weight:700;color:#1B4FD8;">${activity.best_400m} <span style="font-size:10px;font-weight:400;">/km</span></p></div>`);
+
+  if(extras.length > 0) {
+    html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(extras.length,3)},1fr);gap:8px;margin-bottom:10px;">${extras.join('')}</div>`;
+  }
+
+  // Zones FC
+  if(activity.zones_fc && activity.zones_fc.length > 0) {
+    html += '<p style="font-size:10px;font-weight:700;color:#6B8DB5;margin-bottom:6px;text-transform:uppercase;">Zones FC</p>';
+    html += '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">';
+    const zoneColors = ['#6B8DB5','#3B6D11','#1382E4','#E8530A','#E24B4A'];
+    activity.zones_fc.forEach((z, i) => {
+      const col = zoneColors[i] || '#888';
+      const mins = Math.floor(z.temps_sec / 60);
+      const secs = z.temps_sec % 60;
+      const timeStr = mins > 0 ? `${mins}min${secs > 0 ? String(secs).padStart(2,'0')+'s' : ''}` : `${secs}s`;
+      const pct = z.pourcentage || Math.round(z.temps_sec / activity.duree * 100) || 0;
+      html += `<div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:10px;font-weight:700;color:${col};width:50px;">${z.nom||'Z'+(i+1)}</span>
+        <div style="flex:1;background:#e0e0e0;border-radius:4px;height:6px;overflow:hidden;">
+          <div style="width:${pct}%;background:${col};height:100%;border-radius:4px;"></div>
+        </div>
+        <span style="font-size:10px;color:#6B8DB5;width:40px;text-align:right;">${timeStr}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Splits par km
+  if(activity.splits && activity.splits.length > 0) {
+    html += '<p style="font-size:10px;font-weight:700;color:#6B8DB5;margin-bottom:6px;text-transform:uppercase;">Splits par km</p>';
+    html += '<div style="overflow-x:hidden;"><table style="width:100%;border-collapse:collapse;font-size:11px;">';
+    html += '<tr style="color:#6B8DB5;"><th style="text-align:left;padding:2px 4px;font-weight:600;">Km</th><th style="text-align:center;padding:2px 4px;font-weight:600;">Allure</th><th style="text-align:center;padding:2px 4px;font-weight:600;">FC</th></tr>';
+    activity.splits.filter(sp => sp.distanceKm && sp.distanceKm >= 0.5).forEach(sp => {
+      html += `<tr style="border-top:1px solid #d0dff5;"><td style="padding:3px 4px;font-weight:700;color:#1a2e4a;">${sp.km}</td><td style="padding:3px 4px;text-align:center;color:#1B4FD8;font-weight:600;">${sp.allure||'—'}</td><td style="padding:3px 4px;text-align:center;color:#E24B4A;">${sp.fc||'—'}</td></tr>`;
+    });
+    html += '</table></div>';
+  }
+
+  block.innerHTML = html;
+
+  // Insérer avant les boutons Annuler/Valider
+  const btnRow = document.querySelector('#modal-container .modal-box div[style*="grid-template-columns:1fr 1fr"]');
+  if(btnRow) btnRow.parentNode.insertBefore(block, btnRow);
+
+  // Scroller vers le bas pour rendre les boutons Annuler/Valider visibles
+  setTimeout(() => {
+    const scrollBody = document.querySelector('#modal-container .modal-scroll-body');
+    if(scrollBody) scrollBody.scrollTop = scrollBody.scrollHeight;
+  }, 50);
+}
+
+// ── STRAVA RESYNC POUR SÉANCES DÉJÀ VALIDÉES ─────────────────────────────────
+async function importFromStravaForPerfEdit(ws, si) {
+  const btn = document.getElementById('garmin-pedit-btn');
+  if(btn) { btn.textContent = '⏳…'; btn.disabled = true; }
+
+  try {
+    const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+    });
+    const data = await resp.json();
+    if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
+
+    if(data.needsAuth) {
+      const authWin = window.open('https://us-central1-prepa-marathon.cloudfunctions.net/stravaAuth', '_blank', 'width=600,height=700');
+      if(btn) { btn.textContent = '⏳ Connexion…'; btn.disabled = true; }
+      const check = setInterval(async () => {
+        try {
+          const r2 = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+          });
+          const d2 = await r2.json();
+          if(d2.success && d2.activities) {
+            clearInterval(check);
+            if(authWin) authWin.close();
+            if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
+            _showStravaPickerForPerfEdit(d2.activities, ws, si);
+          } else if(!d2.needsAuth) { clearInterval(check); if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }
+        } catch(e) {}
+      }, 2000);
+      setTimeout(() => clearInterval(check), 120000);
+      return;
+    }
+    if(!data.success || !data.activities || data.activities.length === 0) {
+      if(btn) { btn.textContent = '❌ Aucune course'; btn.disabled = false; }
+      setTimeout(() => { if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }, 3000);
+      return;
+    }
+    _showStravaPickerForPerfEdit(data.activities, ws, si);
+  } catch(e) {
+    if(btn) { btn.textContent = '❌ Erreur'; btn.disabled = false; }
+    setTimeout(() => { if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }, 3000);
+  }
+}
+
+function _showStravaPickerForPerfEdit(activities, ws, si) {
+  const k = gk(ws, si);
+  const prev = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+  const sessionDate = prev.date || ''; // YYYY-MM-DD
+
+  // Trier par proximité de date avec la séance
+  const sorted = [...activities].sort((a, b) => {
+    const da = sessionDate ? Math.abs(new Date(a.date) - new Date(sessionDate)) : 0;
+    const db = sessionDate ? Math.abs(new Date(b.date) - new Date(sessionDate)) : 0;
+    return da - db;
+  });
+  const top3 = sorted.slice(0, 3);
+
+  const existing = document.getElementById('strava-pedit-picker');
+  if(existing) existing.remove();
+
+  const picker = document.createElement('div');
+  picker.id = 'strava-pedit-picker';
+  picker.style.cssText = 'position:fixed;inset:0;z-index:400;display:flex;align-items:flex-end;justify-content:center;background:transparent;';
+
+  picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
+    <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px;">Resync Strava</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">3 courses les plus proches de la date de la séance</p>
+    ${top3.map(a => {
+      const d = new Date(a.date + 'T12:00:00');
+      const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+      const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+      const dateLabel = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+      const diffDays = sessionDate ? Math.round((new Date(a.date) - new Date(sessionDate)) / 86400000) : null;
+      const diffLabel = diffDays === 0 ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
+        : diffDays != null ? `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>` : '';
+      return `<div onclick="document.getElementById('strava-pedit-picker').remove();_fetchAndApplyStravaDetail(${JSON.stringify(a).replace(/"/g,'&quot;')},'perfedit',${ws},${si});"
+        style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${diffDays===0?'#3B6D11':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${diffDays===0?'#F0F9E8':'var(--bg2)'};">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <p style="font-size:13px;font-weight:700;color:var(--text);margin:0;">${a.nom}</p>
+            ${diffLabel}
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${dateLabel} · ${a.duree}</p>
+        </div>
+        <div style="text-align:right;">
+          <p style="font-size:15px;font-weight:700;color:#FC4C02;margin:0;">${a.distanceKm} km</p>
+          <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${a.allure}/km${a.fcMoyenne?' · FC '+a.fcMoyenne:''}</p>
+        </div>
+      </div>`;
+    }).join('')}
+    <button onclick="document.getElementById('strava-pedit-picker').remove();" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;">Annuler</button>
+  </div>`;
+  document.body.appendChild(picker);
+}
+
+function _applyGarminToPerfEdit(activity, ws, si) {
+  const k = gk(ws, si);
+  const existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+  const s = getSession(ws, si);
+
+  // Construire les données Strava
+  const stravaData = {};
+  if(activity.cadence) stravaData.cadence = activity.cadence;
+  if(activity.fcMax) stravaData.fcMax = activity.fcMax;
+  if(activity.denivele_pos != null) stravaData.denivele_pos = activity.denivele_pos;
+  if(activity.calories) stravaData.calories = activity.calories;
+  if(activity.best_400m) stravaData.best_400m = activity.best_400m;
+  if(activity.splits && activity.splits.length > 0) stravaData.splits = activity.splits;
+  if(activity.laps && activity.laps.length > 0) stravaData.laps = activity.laps;
+  if(activity.zones_fc && activity.zones_fc.length > 0) stravaData.zones_fc = activity.zones_fc;
+
+  existing.strava = stravaData;
+  state[k+'perf'] = JSON.stringify(existing);
+  save();
+
+  // Pré-remplir les blocs tempo si applicable
+  if((s.type === 'tempo' || s.type === 'frac') && (activity.laps || activity.splits)) {
+    const sessionDetail = (s.d || '').split('|')[1] || '';
+    const blocs = _detectTempoBlocsFromLaps(activity.laps || activity.splits, sessionDetail);
+    if(blocs && blocs.length > 0) {
+      blocs.forEach((bloc, i) => {
+        const el = document.getElementById('pedit-bloc-' + i);
+        if(el) {
+          el.value = bloc.allure;
+          el.style.borderColor = '#3B6D11';
+          el.style.background = '#EAF3DE';
+          setTimeout(() => { el.style.borderColor = '#1B4FD830'; el.style.background = ''; }, 3000);
+        }
+      });
+    }
+  }
+
+  // Mettre à jour le bouton
+  const btn = document.getElementById('garmin-pedit-btn');
+  if(btn) { btn.innerHTML = '✅ Strava'; btn.style.background = '#3B6D11'; }
+
+  // Rafraîchir le bloc Strava dans le modal sans le fermer
+  const stravaBlocExist = document.getElementById('pedit-strava-block');
+  if(stravaBlocExist) stravaBlocExist.remove();
+  const btnRow = document.querySelector('#modal-container .modal-box div[style*="grid-template-columns:1fr 1fr"][style*="margin-top:20px"]');
+  if(btnRow) {
+    const block = document.createElement('div');
+    block.id = 'pedit-strava-block';
+    const st = stravaData;
+    let html = '<div style="background:#EDF5FF;border-radius:12px;padding:12px 14px;border:1.5px solid #1382E430;margin-bottom:4px;">';
+    html += '<p style="font-size:11px;font-weight:700;color:#1382E4;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">📡 Données Strava importées</p>';
+    const extras = [];
+    if(st.cadence) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Cadence</p><p style="font-size:15px;font-weight:700;color:#1a2e4a;">${st.cadence} <span style="font-size:10px;font-weight:400;">pas/min</span></p></div>`);
+    if(st.denivele_pos != null) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Dénivelé +</p><p style="font-size:15px;font-weight:700;color:#3B6D11;">${st.denivele_pos} <span style="font-size:10px;font-weight:400;">m</span></p></div>`);
+    if(st.fcMax) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">FC max</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${st.fcMax} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
+    if(st.calories) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#E8530A;">${st.calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
+    if(st.best_400m) extras.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Meilleur 400m</p><p style="font-size:15px;font-weight:700;color:#1B4FD8;">${st.best_400m} <span style="font-size:10px;font-weight:400;">/km</span></p></div>`);
+    if(extras.length > 0) html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(extras.length,3)},1fr);gap:8px;margin-bottom:${st.splits?'10px':'0'};">${extras.join('')}</div>`;
+    if(st.splits && st.splits.length > 0) {
+      html += '<p style="font-size:10px;font-weight:700;color:#6B8DB5;margin-bottom:6px;text-transform:uppercase;">Splits par km</p>';
+      html += '<div style="overflow-x:hidden;"><table style="width:100%;border-collapse:collapse;font-size:11px;">';
+      html += '<tr style="color:#6B8DB5;"><th style="text-align:left;padding:2px 4px;">Km</th><th style="text-align:center;padding:2px 4px;">Allure</th><th style="text-align:center;padding:2px 4px;">FC</th></tr>';
+      st.splits.filter(sp => sp.distanceKm && sp.distanceKm >= 0.5).forEach(sp => {
+        html += `<tr style="border-top:1px solid #d0dff5;"><td style="padding:3px 4px;font-weight:700;color:#1a2e4a;">${sp.km}</td><td style="padding:3px 4px;text-align:center;color:#1B4FD8;font-weight:600;">${sp.allure||'—'}</td><td style="padding:3px 4px;text-align:center;color:#E24B4A;">${sp.fc||'—'}</td></tr>`;
+      });
+      html += '</table></div>';
+    }
+    html += '</div>';
+    block.innerHTML = html;
+    btnRow.parentNode.insertBefore(block, btnRow);
+  }
+}
+
+// ── VO2MAX MODAL ─────────────────────────────────────────────────────────────
