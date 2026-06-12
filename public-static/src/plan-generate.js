@@ -256,27 +256,41 @@ function generateAthletePlan(ob){
       :`Sortie longue EF|allure confort, durée prioritaire sur la vitesse · base aérobie`;
   };
 
+  // Allure tempo réduite pour décharge (+10-15s/km sur la allure normale)
+  const tempoRecovLbl=tempoPaceSec?fmtPace(tempoPaceSec+12):null;
+  // Allure frac réduite pour décharge (+8-10s/km)
+  const fracRecovLbl=fracPaceSec?fmtPace(fracPaceSec+9):null;
+
   // Tempo — seuil lactate
-  const descTempo=(tp,isTaper=false)=>{
+  // isRecov : séance de décharge — durée réduite, allure légèrement plus lente
+  // isTaper : semaine d'affûtage — qualité maintenue, volume réduit
+  const descTempo=(tp,isTaper=false,isRecov=false)=>{
     const {rep,dur,recup}=tp;
     const isBlock=recup==='0:00';
-    const pLbl=course==='Semi-marathon'&&semiLbl?semiLbl:tempoLbl;
-    const pDesc=course==='Semi-marathon'?'allure semi-marathon':'allure seuil lactate';
+    const pLblBase=course==='Semi-marathon'&&semiLbl?semiLbl:tempoLbl;
+    const pLbl=isRecov&&tempoRecovLbl?tempoRecovLbl:pLblBase; // allure légèrement réduite en décharge
+    const pDesc=course==='Semi-marathon'?'allure semi-marathon':'allure seuil';
     const pStr=pLbl?`${pLbl}/km · `:'';
-    const taperNote=isTaper?' · séance d\'affûtage : qualité maintenue, volume réduit':'';
-    const body=`3 km EF · ${rep}×${dur} min ${pStr}${pDesc} · ${tempoFCStr}${taperNote}`;
+    const note=isRecov
+      ?' · semaine décharge : durée réduite, allure légèrement inférieure — récupérer sans perdre les acquis'
+      :isTaper?' · affûtage : qualité maintenue, volume réduit':'';
+    const body=`3 km EF · ${rep}×${dur} min ${pStr}${pDesc} · ${tempoFCStr}${note}`;
     return isBlock
-      ?`Tempo continu ${rep}×${dur} min|${body} · EF de fin`
-      :`Tempo ${rep}×${dur} min|${body} · récup ${recup} min trot · EF de fin`;
+      ?`Tempo décharge ${rep}×${dur} min|${body} · EF de fin`
+      :`Tempo ${isRecov?'décharge ':''}${rep}×${dur} min|${body} · récup ${recup} min trot · EF de fin`;
   };
 
   // Fractionné VO2max
-  const descFrac=(fp,isTaper=false)=>{
+  // isRecov : séance de décharge — reps réduites, allure légèrement inférieure
+  const descFrac=(fp,isTaper=false,isRecov=false)=>{
     const {rep,dur,recup}=fp;
     const pDesc={'5 km':'VMA / allure 5km','10 km':'VO₂max / allure 5-10km','Semi-marathon':'VO₂max','Marathon':'VO₂max'}[course]||'VO₂max';
-    const pStr=fracLbl?(fracMinLbl?`${fracMinLbl}–${fracLbl}/km · `:`${fracLbl}/km · `):'';
-    const taperNote=isTaper?' · séance courte d\'affûtage : vitesse maintenue':'';
-    return `Fractionné ${rep}×${dur} min|3 km EF · ${rep}×${dur} min ${pStr}${pDesc} · récup ${recup} min trot · ${fracFCStr}${taperNote} · EF de fin`;
+    const pLbl=isRecov&&fracRecovLbl?fracRecovLbl:fracLbl;
+    const pStr=pLbl?(fracMinLbl&&!isRecov?`${fracMinLbl}–${pLbl}/km · `:`${pLbl}/km · `):'';
+    const note=isRecov
+      ?' · décharge : reps réduites, allure légèrement inférieure — maintenir les sensations sans se fatiguer'
+      :isTaper?' · affûtage : vivacité maintenue':'';
+    return `Fractionné ${isRecov?'décharge ':''}${rep}×${dur} min|3 km EF · ${rep}×${dur} min ${pStr}${pDesc} · récup ${recup} min trot · ${fracFCStr}${note} · EF de fin`;
   };
 
   // Côtes — progressive selon la phase (court → moyen → long)
@@ -424,20 +438,23 @@ function generateAthletePlan(ob){
 
   // Résoudre un type de séance qualité → {d, type}
   // weekInPhase : position dans la phase (pour progression intra-phase du tempo)
-  const resolveQ=(qt,phase,weekInPhase,isTaper=false,allowReduce=false)=>{
+  // isRecov : semaine de décharge → durée/reps réduits, allure légèrement inférieure
+  const resolveQ=(qt,phase,weekInPhase,isTaper=false,isRecov=false,allowReduce=false)=>{
     const tp=tempoProgByWeek(weekInPhase,phase);
     const fp=fracByPhase(phase);
-    const tpR=allowReduce&&tp?{rep:Math.max(1,tp.rep-1),dur:Math.max(4,tp.dur-2),recup:tp.recup}:tp;
-    const fpR=allowReduce&&fp?{rep:Math.max(1,fp.rep-1),dur:Math.max(3,fp.dur-1),recup:fp.recup}:fp;
-    if(qt==='frac'&&fpR)    return {d:descFrac(fpR,isTaper),type:'frac'};
-    if(qt==='cotes')        return {d:descCotes(phase),type:'ef'};
-    if(qt==='fartlek')      return {d:descFartlek(phase),type:'ef'};
-    if(qt==='tempo'&&tpR)   return {d:descTempo(tpR,isTaper),type:'tempo'};
-    if(qt==='progression')  return {d:descProgression(phase),type:'tempo'};
+    // En décharge : réduire significativement (≈ -40 à -50% du volume qualité)
+    const reduce=(p,minDur=4)=>p?{rep:Math.max(1,p.rep-1),dur:Math.max(minDur,Math.round(p.dur*0.55)),recup:p.recup}:null;
+    const tpR=isRecov?reduce(tp,5):(allowReduce&&tp?{rep:Math.max(1,tp.rep-1),dur:Math.max(4,tp.dur-2),recup:tp.recup}:tp);
+    const fpR=isRecov?reduce(fp,1):(allowReduce&&fp?{rep:Math.max(1,fp.rep-1),dur:Math.max(3,fp.dur-1),recup:fp.recup}:fp);
+    if(qt==='frac'&&fpR)    return {d:descFrac(fpR,isTaper,isRecov),type:'frac'};
+    if(qt==='cotes')        return {d:descCotes(isRecov?1:phase),type:'ef'}; // côtes courtes en décharge
+    if(qt==='fartlek')      return {d:descFartlek(isRecov?1:phase),type:'ef'}; // fartlek découverte en décharge
+    if(qt==='tempo'&&tpR)   return {d:descTempo(tpR,isTaper,isRecov),type:'tempo'};
+    if(qt==='progression')  return isRecov?{d:descFartlek(1),type:'ef'}:{d:descProgression(phase),type:'tempo'}; // pas de progression en décharge
     if(qt==='mpace')        return null; // géré séparément
     // Fallback : pas encore de tempo/frac → côtes ou fartlek
-    if(qt==='frac')         return {d:descCotes(phase),type:'ef'};
-    if(qt==='tempo')        return isPlaisir?{d:descFartlek(phase),type:'ef'}:{d:descCotes(phase),type:'ef'};
+    if(qt==='frac')         return {d:descCotes(isRecov?1:phase),type:'ef'};
+    if(qt==='tempo')        return isPlaisir?{d:descFartlek(isRecov?1:phase),type:'ef'}:{d:descCotes(isRecov?1:phase),type:'ef'};
     return null;
   };
 
@@ -472,11 +489,14 @@ function generateAthletePlan(ob){
     const sFloor=total<10?2:3;
     const capLong=(base)=>Math.min(Math.max(base,sFloor),longRunCap);
 
-    // RÈGLE FONDAMENTALE : semaines de décharge = 100% EF, zéro intensité
-    // Les décharges servent à absorber les acquis, pas à maintenir la qualité
-    const blockQuality=isRecov||noIntensity;
+    // Semaines de décharge : on garde UNE séance qualité (réduite et ralentie)
+    // mais on supprime la 2ème séance qualité des plans 4 sessions.
+    // La qualité maintient les acquis neuromusculaires sans surcharger l'organisme.
+    // Semaines d'affûtage (noIntensity) : aucune qualité du tout.
+    const blockQuality=noIntensity; // décharge autorisée, noIntensity bloquée
+    const blockQ2=isRecov||noIntensity; // Q2 supprimée en décharge ET affûtage
     const qType=blockQuality?null:getQType(phase,weekInPhase);
-    const q2Type=blockQuality||nbSess<4?null:getQ2Type(phase,weekInPhase);
+    const q2Type=blockQ2||nbSess<4?null:getQ2Type(phase,weekInPhase);
     const hasQuality=!!qType&&nbSess>=3;
     const hasQuality2=!!q2Type&&nbSess===4;
 
@@ -514,8 +534,8 @@ function generateAthletePlan(ob){
         // Plaisir 2 sessions : quelques tempos à semaines fixes
         s0={d:descTempo(PLAISIR2_TEMPO[w]),km:kEF,type:'tempo',shoe:null};
       } else if(!isPlaisir&&phase>=2&&qType){
-        // Plans course 2 sessions Phase 2/3 : substituer EF par qualité légère
-        const q=resolveQ(qType,phase,weekInPhase,isTaper);
+        // Plans course 2 sessions Phase 2/3 : substituer EF par qualité (réduite si décharge)
+        const q=resolveQ(qType,phase,weekInPhase,isTaper,isRecov);
         s0=q?{d:q.d,km:kEF,type:q.type,shoe:null}:{d:descEF(),km:kEF,type:'ef',shoe:null};
       } else {
         s0={d:useStrides?descEFStrides():descEF(),km:kEF,type:'ef',shoe:null};
@@ -527,8 +547,8 @@ function generateAthletePlan(ob){
         const kEF=Math.max(Math.round(total*0.30),sFloor);
         const kQ =Math.max(Math.round(total*0.27),sFloor);
         const kL =capLong(total-kEF-kQ);
-        const q=resolveQ(qType,phase,weekInPhase,isTaper);
-        const dEF=useStrides?descEFStrides():descEF();
+        const q=resolveQ(qType,phase,weekInPhase,isTaper,isRecov);
+        const dEF=isRecov?descEFRecov():(useStrides?descEFStrides():descEF());
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
           q?{d:q.d,km:kQ,type:q.type,shoe:null}:{d:descEF(),km:kQ,type:'ef',shoe:null},
@@ -556,8 +576,8 @@ function generateAthletePlan(ob){
       const kL =capLong(total-kEF-kQ1-kQ2);
 
       if(hasQuality){
-        const q1=resolveQ(qType,phase,weekInPhase,isTaper,false);
-        const q2=hasQuality2?resolveQ(q2Type,phase,weekInPhase,isTaper,true):null; // Q2 légèrement réduite
+        const q1=resolveQ(qType,phase,weekInPhase,isTaper,isRecov,false);
+        const q2=hasQuality2?resolveQ(q2Type,phase,weekInPhase,isTaper,isRecov,true):null; // Q2 légèrement réduite
         const dEF=isRecov?descEFRecov():(useStrides?descEFStrides():descEF());
 
         // Séance M-pace marathon (Phase 3, Marathon, Q2 = 'mpace')
