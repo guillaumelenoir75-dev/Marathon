@@ -938,6 +938,10 @@ async function saveValidation(idx){
   save();
   // Enregistrer le timestamp de dernière validation pour les félicitations
   if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
+  // Rappel shaker 30 min après la validation d'une séance de course (admin uniquement)
+  if(isAdmin() && dbRef && s.type !== 'rest') {
+    dbRef.child('_shaker_run_ts').set(Date.now() + 30 * 60 * 1000).catch(()=>{});
+  }
   closeModal();
   renderHome();
   rendered.plan=false;

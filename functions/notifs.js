@@ -522,6 +522,49 @@ exports.weeklyDebriefNotif = onSchedule(
   }
 );
 
+// Rappel shaker post-run — vérifie toutes les 5 min si le délai de 30 min est écoulé
+exports.shakerAfterRun = onSchedule(
+  {schedule:'*/5 6-23 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
+  async()=>{
+    try{
+      const db=admin.database();
+      const snap=await db.ref(`${ADMIN_STATE}/_shaker_run_ts`).once('value');
+      const ts=snap.val();
+      if(!ts) return;
+      const now=Date.now();
+      if(now<ts) return; // pas encore 30 min
+      if(now-ts>90*60*1000){ await db.ref(`${ADMIN_STATE}/_shaker_run_ts`).remove(); return; } // expiré
+      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),
+        '🥤 Rappel protéines !',
+        'Belle séance ! N\'oublie pas ton shaker de récupération 💪',
+        'shaker-post-run','/');
+      await db.ref(`${ADMIN_STATE}/_shaker_run_ts`).remove();
+    }catch(e){console.error('shakerAfterRun:',e.message);}
+  }
+);
+
+// Rappel shaker à 14h si pas de run validé aujourd'hui
+exports.shakerNoon = onSchedule(
+  {schedule:'0 14 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
+  async()=>{
+    try{
+      const db=admin.database();
+      const todayParis=new Date().toLocaleString('sv',{timeZone:'Europe/Paris'}).slice(0,10);
+      const cw=getCurrentWeek();
+      const snap=await db.ref(`${ADMIN_STATE}/_last_validation_w${cw}`).once('value');
+      const lastTs=snap.val();
+      if(lastTs){
+        const lastDateParis=new Date(lastTs).toLocaleString('sv',{timeZone:'Europe/Paris'}).slice(0,10);
+        if(lastDateParis===todayParis) return; // run déjà validé aujourd'hui
+      }
+      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),
+        '🥤 Pense à ton shaker !',
+        'Pas de séance ce matin ? Prends quand même tes protéines du midi 💪',
+        'shaker-noon','/');
+    }catch(e){console.error('shakerNoon:',e.message);}
+  }
+);
+
 // Purge mensuelle des subscriptions push inactives (> 90 jours sans re-subscribe)
 exports.cleanupPushSubscribers = onSchedule(
   { schedule: '0 3 1 * *', timeZone: 'Europe/Paris' },
