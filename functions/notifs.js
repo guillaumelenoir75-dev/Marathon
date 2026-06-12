@@ -1,4 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
@@ -562,6 +563,24 @@ exports.shakerNoon = onSchedule(
         'Pas de séance ce matin ? Prends quand même tes protéines du midi 💪',
         'shaker-noon','/');
     }catch(e){console.error('shakerNoon:',e.message);}
+  }
+);
+
+// ⚠️ TEMPORAIRE — test shaker push (à supprimer après test)
+exports.testShakerPush = onRequest(
+  {secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
+  async(req,res)=>{
+    try{
+      const {verifyAdmin,corsHeaders}=require('./helpers');
+      corsHeaders(res);
+      if(req.method==='OPTIONS'){res.status(204).send('');return;}
+      await verifyAdmin(req);
+      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),
+        '🥤 Rappel protéines !',
+        'Belle séance ! N\'oublie pas ton shaker de récupération 💪',
+        'shaker-post-run','/');
+      res.json({ok:true});
+    }catch(e){res.status(500).json({error:e.message});}
   }
 );
 
