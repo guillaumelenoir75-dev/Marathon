@@ -295,6 +295,32 @@ exports.coachChat = onRequest(
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    // Rate limiting : max 20 appels/minute
+    try {
+      const db = admin.database();
+      const ratePath = `users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/_coach_rate`;
+      const rateSnap = await db.ref(ratePath).once('value');
+      const rateData = rateSnap.val() || { count: 0, windowStart: 0 };
+      const now = Date.now();
+      if (now - rateData.windowStart > 60000) {
+        await db.ref(ratePath).set({ count: 1, windowStart: now });
+      } else if (rateData.count >= 20) {
+        res.status(429).json({ error: 'Trop de requêtes. Attends 1 minute.' }); return;
+      } else {
+        await db.ref(ratePath).set({ count: rateData.count + 1, windowStart: rateData.windowStart });
+      }
+    } catch(e) { console.warn('rate limit check failed:', e.message); }
+    // Validation entrées
+    const rawBody = req.body || {};
+    if (!rawBody.message || typeof rawBody.message !== 'string' || rawBody.message.trim().length === 0) {
+      res.status(400).json({ error: 'message requis (string non vide)' }); return;
+    }
+    if (rawBody.message.length > 4000) {
+      res.status(400).json({ error: 'message trop long (max 4000 caractères)' }); return;
+    }
+    if (rawBody.history && (!Array.isArray(rawBody.history) || rawBody.history.length > 50)) {
+      res.status(400).json({ error: 'history invalide (max 50 entrées)' }); return;
+    }
     try {
       const { message, history, stateContext, responseMode } = req.body;
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
@@ -713,7 +739,7 @@ Génère le bilan de semaine.`;
 );
 
 exports.quickBrief = onRequest(
-  {cors: true, invoker: 'public', secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 30, memory: '256MiB'},
+  {cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 30, memory: '256MiB'},
   async (req, res) => {
     if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');
@@ -795,7 +821,7 @@ exports.quickBrief = onRequest(
 );
 
 exports.morningBrief = onRequest(
-  {cors: true, invoker: 'public', secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'},
+  {cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'},
   async (req, res) => {
     if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');

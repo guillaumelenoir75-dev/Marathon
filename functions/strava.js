@@ -49,7 +49,7 @@ exports.stravaCallback = onRequest(
       if (!tokenData.access_token) throw new Error('Token non reçu');
 
       const db = admin.database();
-      await db.ref('marathon/strava_token').set({
+      await db.ref('users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/strava_token').set({
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         expires_at: tokenData.expires_at,
@@ -82,7 +82,7 @@ exports.stravaFetch = onRequest(
       const https = require('https');
       const db = admin.database();
 
-      const tokenSnap = await db.ref('marathon/strava_token').once('value');
+      const tokenSnap = await db.ref('users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/strava_token').once('value');
       const tokenData = tokenSnap.val();
       if (!tokenData) {
         res.json({ success: false, needsAuth: true, message: 'Strava non connecté' });
@@ -111,7 +111,7 @@ exports.stravaFetch = onRequest(
           r.end();
         });
         accessToken = refreshed.access_token;
-        await db.ref('marathon/strava_token').update({
+        await db.ref('users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/strava_token').update({
           access_token: refreshed.access_token,
           expires_at: refreshed.expires_at,
           updatedAt: new Date().toISOString()
@@ -193,7 +193,7 @@ exports.stravaFetchDetail = onRequest(
       const { activityId } = req.body;
       if (!activityId) { res.json({ success: false, message: 'activityId manquant' }); return; }
 
-      const tokenSnap = await db.ref('marathon/strava_token').once('value');
+      const tokenSnap = await db.ref('users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/strava_token').once('value');
       const tokenData = tokenSnap.val();
       if (!tokenData) { res.json({ success: false, message: 'Strava non connecté' }); return; }
 
@@ -219,7 +219,7 @@ exports.stravaFetchDetail = onRequest(
           r.end();
         });
         accessToken = refreshed.access_token;
-        await db.ref('marathon/strava_token').update({
+        await db.ref('users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/strava_token').update({
           access_token: refreshed.access_token,
           expires_at: refreshed.expires_at,
           updatedAt: new Date().toISOString()

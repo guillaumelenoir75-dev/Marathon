@@ -93,14 +93,12 @@ exports.dbAdmin = onRequest(
   async(req,res)=>{
     res.setHeader('Access-Control-Allow-Origin','*');
     res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, x-claude-key');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
     if(req.method==='OPTIONS'){res.status(204).send('');return;}
-    const claudeKey=req.headers['x-claude-key']||'';
-    if(claudeKey!=='claude-marathon-db-2026'){
-      try{await verifyAdmin(req);}catch(e){res.status(403).json({error:e.message});return;}
-    }
+    try{await verifyAdmin(req);}catch(e){res.status(403).json({error:e.message});return;}
     const{action,path:dbPath,value}=req.body||{};
-    if(!dbPath){res.status(400).json({error:'path requis'});return;}
+    const ALLOWED_PREFIXES=['users/','_push_subscribers/'];
+    if(!dbPath||!ALLOWED_PREFIXES.some(p=>dbPath.startsWith(p))){res.status(403).json({error:'Chemin non autorisé'});return;}
     try{
       const db=admin.database();
       const ref=db.ref(dbPath);
