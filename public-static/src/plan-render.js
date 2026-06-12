@@ -639,9 +639,11 @@ function renderAthletePlan(el){
       try{
         const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
         const done=!!state[`extra_w${ws}_s${ei}_done`];
+        const skip=!!state[`extra_w${ws}_s${ei}_skip`];
+        const skipReason=state[`extra_w${ws}_s${ei}_skip_reason`]||'';
         const kmDone=state[`extra_w${ws}_s${ei}_km`]!=null?parseFloat(state[`extra_w${ws}_s${ei}_km`]):null;
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
-        sessions.push({s,ei,done,kmDone,perf});
+        sessions.push({s,ei,done,skip,skipReason,kmDone,perf});
       }catch(e){}
       ei++;
     }
@@ -693,7 +695,7 @@ function renderAthletePlan(el){
     if(isPeakWeek) badges.push(`<span class="plan-badge" style="background:#FEF2F2;color:#DC2626;">Pic</span>`);
     if(phaseInfo&&!isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:${phaseInfo.bg};color:${phaseInfo.c};opacity:0.85;">${phaseInfo.l}</span>`);
 
-    const sessionRowsHtml=isOpen?sessions.map(({s,ei:eid,done,kmDone,perf},rowIdx)=>{
+    const sessionRowsHtml=isOpen?sessions.map(({s,ei:eid,done,skip,skipReason,kmDone,perf},rowIdx)=>{
       const typeC=typeColor[s.type]||'#888';
       const typeBgC=typeBg[s.type]||'#f5f5f5';
       const lbl=typeLabel[s.type]||s.type;
@@ -702,9 +704,11 @@ function renderAthletePlan(el){
       const clickFn=done?`openPerfEditExtraModal(${ws},${eid})`:`openEditExtraModal(${ws},${eid})`;
       const iconContent=done
         ?`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        :skip
+        ?`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
         :`<span style="font-size:9px;font-weight:800;color:${typeC};">${lbl}</span>`;
-      const iconBg=done?'#EAF3DE':typeBgC;
-      const iconBorder=done?'#3B6D11':typeC;
+      const iconBg=done?'#EAF3DE':skip?'#FDECEA':typeBgC;
+      const iconBorder=done?'#3B6D11':skip?'#C0392B':typeC;
       const kmShow=done&&kmDone!=null?kmDone:s.km;
       const kmSub=done&&kmDone!=null?`<span style="font-size:9px;font-weight:400;color:#3B6D11aa;"> /&nbsp;${s.km}</span>`:'';
       const canUp=rowIdx>0, canDown=rowIdx<sessions.length-1;
@@ -751,13 +755,14 @@ function renderAthletePlan(el){
         if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';
         return '';
       })();
-      return `<div class="plan-session-card" style="${done?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':''}">
+      return `<div class="plan-session-card" style="${done?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':skip?'background:linear-gradient(90deg,rgba(192,57,43,0.03),transparent);':''}">
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
           <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}22;">${iconContent}</div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-              <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'var(--text)'};">${title}</span>
+              <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}</span>
               ${done?`<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>`:''}
+              ${skip?`<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 6px;border-radius:8px;">✕ ${skipReason||'Non réalisée'}</span>`:''}
             </div>
             ${detail?`<p style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;">${detail}</p>`:''}
             ${durHtml}${schedHtml}

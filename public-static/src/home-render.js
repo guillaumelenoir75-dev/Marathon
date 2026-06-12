@@ -315,6 +315,8 @@ function renderHome(){
   el.innerHTML='';
   getOrderedWeekSessions(w).forEach(({s:s2,si,extra,ei},i)=>{
     const done=extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done'];
+    const skip=extra?!!state[`extra_w${w}_s${ei}_skip`]:false;
+    const skipReason=extra?state[`extra_w${w}_s${ei}_skip_reason`]||'':''
     const rv=extra?state[`extra_w${w}_s${ei}_km`]:state[gk(w,si)+'km'];
     const typeC=typeColor[s2.type]||'#888';
     const typeBgC=typeBg[s2.type]||'#f5f5f5';
@@ -350,14 +352,18 @@ function renderHome(){
     div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;cursor:default;'
       +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15;`
       :done?`border:1px solid ${typeC}30;background:linear-gradient(90deg,${typeBgC}50,var(--bg));`
+      :skip?'border:1px solid #e5c6c6;background:linear-gradient(90deg,#fff5f550,var(--bg));'
       :'border:1px solid var(--border);')
-      +(isPast&&!done?'opacity:0.65;':'');
+      +(isPast&&!done&&!skip?'opacity:0.65;':'');
     div.innerHTML=`
       ${isRunToday?`<span style="position:absolute;top:-1px;right:12px;background:${typeC};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">Aujourd'hui</span>`:''}
-      ${isPast&&!done?`<span style="position:absolute;top:-1px;right:12px;background:#aaa;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">Non faite</span>`:''}
-      <div style="width:40px;height:40px;border-radius:12px;background:${typeBgC};border:1.5px solid ${typeC}25;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      ${skip?`<span style="position:absolute;top:-1px;right:12px;background:#C0392B;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">✕ ${skipReason||'Non réalisée'}</span>`
+      :isPast&&!done?`<span style="position:absolute;top:-1px;right:12px;background:#aaa;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">Non faite</span>`:''}
+      <div style="width:40px;height:40px;border-radius:12px;background:${skip?'#FDECEA':typeBgC};border:1.5px solid ${skip?'#C0392B':typeC}25;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         ${done
           ?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${typeC}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+          :skip
+          ?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
           :`<span style="font-size:10px;font-weight:800;color:${typeC};">${lbl}</span>`
         }
       </div>
@@ -393,10 +399,13 @@ function renderHome(){
         ${canEdit?`<div onclick="${editFn}" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${rv!=null?typeC:'#d0dff5'};background:${rv!=null?typeBgC:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?typeC:'#6B8DB5'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>`:''}
-        ${isCurrent?`<div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?typeC:'#d0dff5'};background:${done?typeC:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
-          ${done?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`:''}
+        ${isCurrent?`<div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?typeC:skip?'#C0392B':'#d0dff5'};background:${done?typeC:skip?'#FDECEA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
+          ${done?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+          :skip?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>`:''}
         </div>`:done?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid ${typeC};background:${typeC};display:flex;align-items:center;justify-content:center;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>`:skip?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid #C0392B;background:#FDECEA;display:flex;align-items:center;justify-content:center;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>
         </div>`:''}
       </div>`;
     el.appendChild(div);
@@ -425,12 +434,18 @@ function toggleDoneExtra(w,ei){
   const k=`extra_w${w}_s${ei}`;
   const doneK=k+'_done';
   const wasDone=!!state[doneK];
-  if(!wasDone){
+  const wasSkip=!!state[k+'_skip'];
+  if(!wasDone&&!wasSkip){
+    openValidationModalExtra(w,ei);
+  } else if(wasSkip){
+    // Clic sur une séance non-réalisée → rouvrir la validation pour modifier
     openValidationModalExtra(w,ei);
   } else {
     state[doneK]=false;
     delete state[k+'_km'];
     delete state[k+'_perf'];
+    delete state[k+'_skip'];
+    delete state[k+'_skip_reason'];
     // Si la bannière d'adaptation concerne cette semaine, la retirer
     if(state._plan_adapted){
       try{
@@ -543,6 +558,12 @@ function openValidationModalExtra(w,ei){
         <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">Annuler</button>
         <button onclick="saveValidationExtra(${w},${ei})" style="padding:13px;background:${_headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Valider</button>
       </div>
+      <button onclick="toggleSkipReasonPicker()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">✕ Séance non réalisée</button>
+      <div id="skip-reason-picker" style="display:none;margin-top:10px;">
+        <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-align:center;">Pourquoi cette séance n'a pas été réalisée ?</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;" id="skip-reason-chips"></div>
+        <button id="skip-confirm-btn" onclick="saveSkipExtra(${w},${ei})" disabled style="width:100%;margin-top:12px;padding:11px;background:#C0392B;border:none;border-radius:14px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;opacity:0.4;">Confirmer — Non réalisée</button>
+      </div>
     </div>
     </div>
     </div><!-- /modal-scroll-body -->
@@ -551,6 +572,49 @@ function openValidationModalExtra(w,ei){
   _lockBodyScroll();
   mc.appendChild(overlay);
   _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
+}
+
+const _SKIP_REASONS=['Malade','Blessé(e)','Fatigue','Manque de temps','Météo','Travail','Flemme','Autre'];
+
+function toggleSkipReasonPicker(){
+  const picker=document.getElementById('skip-reason-picker');
+  if(!picker) return;
+  const isOpen=picker.style.display!=='none';
+  picker.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    const chipsEl=document.getElementById('skip-reason-chips');
+    chipsEl.innerHTML=_SKIP_REASONS.map(r=>`
+      <button onclick="selectSkipReason(this,'${r}')" style="padding:6px 14px;background:var(--bg2);border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;" data-reason="${r}">${r}</button>
+    `).join('');
+  }
+}
+
+function selectSkipReason(btn, reason){
+  document.querySelectorAll('#skip-reason-chips button').forEach(b=>{
+    b.style.background='var(--bg2)';b.style.borderColor='var(--border)';b.style.color='var(--text)';
+  });
+  btn.style.background='#FDECEA';btn.style.borderColor='#C0392B';btn.style.color='#C0392B';
+  const confirmBtn=document.getElementById('skip-confirm-btn');
+  if(confirmBtn){confirmBtn.disabled=false;confirmBtn.style.opacity='1';}
+  window._selectedSkipReason=reason;
+}
+
+async function saveSkipExtra(w,ei){
+  const reason=window._selectedSkipReason||'';
+  if(!reason) return;
+  const k=`extra_w${w}_s${ei}`;
+  // Effacer done/km/perf si la séance était précédemment validée
+  state[k+'_done']=false;
+  delete state[k+'_km'];
+  delete state[k+'_perf'];
+  state[k+'_skip']=true;
+  state[k+'_skip_reason']=reason;
+  window._selectedSkipReason=null;
+  save();
+  closeModal();
+  renderHome();
+  rendered.plan=false;
+  if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
 }
 
 function dismissPlanAdapted(){
@@ -645,6 +709,8 @@ async function saveValidationExtra(w,ei){
   const k=`extra_w${w}_s${ei}`;
   state[k+'_done']=true;
   state[k+'_km']=(!isNaN(km)&&km>=0)?km:0;
+  delete state[k+'_skip'];
+  delete state[k+'_skip_reason'];
   const perf={};
   if(dur) perf.dur=dur;
   if(pace) perf.pace=pace;
