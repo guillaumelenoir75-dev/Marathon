@@ -92,6 +92,7 @@ function generateDecouvertePlan(ob){
   };
 
   const updates={};
+  // Stocker les séances au format extra_w${w}_s${ei} pour que renderAthletePlan les affiche
   for(let w=1;w<=numWeeks;w++){
     for(let si=0;si<nbSess;si++){
       const s=getSession(w);
@@ -101,15 +102,12 @@ function generateDecouvertePlan(ob){
         s.km=Math.max(2,Math.round(s.km*factor*10)/10);
         s.d=s.d.replace(/(\d+) min/,(_,n)=>`${Math.round(parseInt(n)*factor)} min`);
       }
-      updates[`s${w}i${si}`]=JSON.stringify(s);
+      updates[`extra_w${w}_s${si}`]=JSON.stringify(s);
     }
   }
 
   const planConfig={course,niveau:'Découverte',nbSess,numWeeks,baseKm:6,date:ob.date||null};
   updates.plan_config=JSON.stringify(planConfig);
-  updates.ef_pace=ob.ef_pace||null;
-  updates.fc_max=ob.fc_max||null;
-  updates.onboarding=ob;
   return updates;
 }
 
