@@ -135,6 +135,16 @@ function _obGoTo(step){
   // Initialiser l'étape jours avec la bonne limite
   if(step===5) setTimeout(initObDaysStep, 0);
   if(step===8) setTimeout(_initObTargetTime, 0);
+  // Step 2 (sessions) : chip 1 visible uniquement pour Découverte ; chips 3,4 masquées pour Découverte
+  if(step===2){
+    const isDecouv=_obData.niveau==='Découverte';
+    const el1=document.getElementById('ob-sessions-1');
+    if(el1) el1.style.display=isDecouv?'':'none';
+    ['3','4'].forEach(n=>{
+      const el=document.getElementById('ob-sessions-'+n);
+      if(el) el.style.display=isDecouv?'none':'';
+    });
+  }
   // Étape 6 (EF) : gérer l'état du champ selon si EF déjà saisie ou non
   if(step===6){
     const wrap=document.getElementById('ob-ef-input-wrap');
@@ -172,6 +182,12 @@ function _obGoTo(step){
 
 function onboardingSelect(field,val){
   _obData[field]=val;
+  // Niveau Découverte : si sessions > 2, on ramène à 2
+  if(field==='niveau'&&val==='Découverte'){
+    if(_obData.sessions&&!['1','2'].includes(_obData.sessions)){
+      _obData.sessions='2';
+    }
+  }
   if(field!=='date'){
     document.querySelectorAll('[id^="ob-'+field+'-"]').forEach(el=>el.classList.remove('selected'));
     const c=document.getElementById('ob-'+field+'-'+val);
@@ -383,6 +399,12 @@ function onboardingNext(){
     _obData.date=null;
     next=2;
   }
+  // Niveau Découverte : sauter km_semaine (step 4), fixer km à 6, limiter sessions à 2 max
+  if(_obStep===3&&_obData.niveau==='Découverte'){
+    _obData.km_semaine='6';
+    if(!_obData.sessions||!['1','2'].includes(_obData.sessions)) _obData.sessions='2';
+    next=5;
+  }
   _obGoTo(next);
 }
 
@@ -390,6 +412,8 @@ function onboardingBack(){
   let prev=_obStep-1;
   // Sauter l'étape date au retour aussi
   if(prev===1&&_obData.course==='Plaisir') prev=0;
+  // Sauter km_semaine au retour si niveau Découverte
+  if(prev===4&&_obData.niveau==='Découverte') prev=3;
   _obGoTo(prev);
 }
 

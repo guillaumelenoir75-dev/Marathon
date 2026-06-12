@@ -1,4 +1,99 @@
+// ── Plan Découverte (ultra débutant marche-course) ────────────────────────────
+function generateDecouvertePlan(ob){
+  const nbSess=Math.min(2,Math.max(1,parseInt(ob.sessions)||2));
+  const course=ob.course||'5 km';
+
+  // Durée : 8 semaines minimum, 12 max
+  let numWeeks=8;
+  if(ob.date){
+    const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
+    if(diff>0) numWeeks=Math.min(Math.max(diff,8),12);
+  }
+
+  // Allure EF si fournie
+  const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
+  const efRaw=ob.ef_pace||null;
+  let efSec=null;
+  if(efRaw){const p=efRaw.replace("'",":").split(':');if(p.length===2)efSec=parseInt(p[0])*60+parseInt(p[1]);}
+  const efLabel=efSec?fmtPace(efSec):null;
+  const efHint=efLabel?`allure ${efLabel}/km`:'allure très confort, on parle facilement';
+
+  const fcMax=parseInt(ob.fc_max)||0;
+  const efFCStr=fcMax?`FC ${Math.round(fcMax*0.68)}-${Math.round(fcMax*0.74)} bpm`:'FC basse, effort très léger';
+
+  // Phases : 1=Marche-Course (s1-3), 2=Progressif (s4-5), 3=Course continue (s6-8), 4=EF+accél (s9-12)
+  const getPhase=w=>w<=3?1:w<=5?2:w<=8?3:4;
+
+  const descMarche=w=>{
+    const runMin=[0,1.5,2,2.5][Math.min(w-1,3)];
+    const walkMin=runMin<=1.5?2:1.5;
+    const reps=w<=2?7:6;
+    const totalMin=Math.round((runMin+walkMin)*reps);
+    const runStr=runMin===1.5?'1\'30"':`${runMin}'`;
+    const walkStr=walkMin===2?'2\'':`${walkMin}'`;
+    const km=Math.round((runMin/6)*reps*10)/10;
+    return {type:'ef',km:Math.max(2.5,km),d:`Marche-Course|${runStr} course / ${walkStr} marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · bien respirer, ne jamais être essoufflé(e)`};
+  };
+
+  const descProgressif=w=>{
+    const runMin=w<=4?4:5;
+    const reps=4;
+    const totalMin=Math.round((runMin+1)*reps)+5;
+    const km=Math.round(runMin/6*reps*10)/10+0.5;
+    return {type:'ef',km:Math.max(3,km),d:`Course progressive|${runMin}' course / 1' marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · allonger progressivement les blocs, confort avant tout`};
+  };
+
+  const descContinue=(w,phase)=>{
+    const minRun=phase===3?(w<=6?20:w<=7?25:28):(w<=10?30:32);
+    const km=Math.round(minRun/6*10)/10;
+    const msg=phase===3?`félicite-toi, c'est une grande étape !`:`rythme confort, foulée relâchée · construire la confiance et la régularité`;
+    return {type:'ef',km:Math.max(phase===3?3:4,km),d:`Footing EF|${minRun} min continue · ${efHint} · ${efFCStr} · allure conversationnelle, jamais essoufflé(e) · ${msg}`};
+  };
+
+  const descAccel=w=>{
+    const minRun=w<=10?25:w<=11?28:30;
+    const km=Math.round(minRun/6*10)/10+0.3;
+    const nbAccel=w<=10?2:w<=11?3:4;
+    return {type:'ef',km:Math.max(4,km),d:`EF + accélérations|${minRun} min EF · ${efHint} · ${efFCStr} · finir par ${nbAccel}×30-40" accélérations progressives (marcher entre chaque) · sensation de légèreté, ne pas sprinter`};
+  };
+
+  const getSession=w=>{
+    const phase=getPhase(w);
+    if(phase===1) return descMarche(w);
+    if(phase===2) return descProgressif(w);
+    if(phase===3) return descContinue(w,3);
+    return descAccel(w);
+  };
+
+  const phaseLabels=['','Marche-Course','Progressif','Course continue','EF + accélérations'];
+  const updates={};
+
+  for(let w=1;w<=numWeeks;w++){
+    const phase=getPhase(w);
+    for(let si=0;si<nbSess;si++){
+      const s=getSession(w);
+      // Séance 2 : légèrement plus courte
+      if(si===1){
+        const factor=0.85;
+        s.km=Math.round(s.km*factor*10)/10;
+        s.d=s.d.replace(/(\d+) min/,m=>`${Math.round(parseInt(m)*factor)} min`);
+      }
+      updates[`s${w}i${si}`]=JSON.stringify(s);
+    }
+  }
+
+  const planConfig={course,niveau:'Découverte',nbSess,numWeeks,baseKm:6,date:ob.date||null};
+  updates.plan_config=JSON.stringify(planConfig);
+  updates.ef_pace=ob.ef_pace||null;
+  updates.fc_max=ob.fc_max||null;
+  updates.onboarding=ob;
+  return updates;
+}
+
 function generateAthletePlan(ob){
+  // Niveau Découverte : plan marche-course ultra débutant
+  if((ob.niveau||'Intermédiaire')==='Découverte') return generateDecouvertePlan(ob);
+
   // ── Paramètres ───────────────────────────────────────────────────────────────
   const baseKm   = parseInt(ob.km_semaine)||20;
   const nbSess   = Math.min(4,Math.max(1,parseInt(ob.sessions)||3));
