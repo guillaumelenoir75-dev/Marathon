@@ -112,7 +112,7 @@ async function sendPushToAll(vapidPublic, vapidPrivate, title, body, tag, url, e
         const pSnap = await db.ref(`users/${uid}/state/_prefs`).once('value');
         const prefs = pSnap.val() ? JSON.parse(pSnap.val()) : {};
         if (prefs[prefKey] === false) return;
-      } catch(e) {}
+      } catch(e) { console.warn(`sendPushToAll prefs parse [${uid}]:`, e.message); }
     }
     try {
       await webpush.sendNotification(sub, JSON.stringify({ title, body, tag, url: url || '/' }));

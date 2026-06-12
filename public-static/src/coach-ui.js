@@ -217,9 +217,9 @@ async function sendCoachMeteo() {
 function isAtBottom(el){ return el.scrollHeight - el.scrollTop - el.clientHeight < 80; }
 function smartScroll(el){ if(isAtBottom(el)) el.scrollTo({top:el.scrollHeight,behavior:"smooth"}); }
 
-async function sendCoachMessage(){
+async function sendCoachMessage(retryMsg){
   const input = document.getElementById('coach-input');
-  const msg = input.value.trim();
+  const msg = retryMsg || input.value.trim();
   if(!msg) return;
   input.value = '';
   input.style.height='auto';
@@ -609,7 +609,7 @@ async function sendCoachMessage(){
 function saveCoachHistory(){
   if(!dbRef) return;
   const toSave = coachHistory.slice(-50);
-  dbRef.child('_coach_history').set(JSON.stringify(toSave));
+  dbRef.child('_coach_history').set(JSON.stringify(toSave)).catch(e => console.warn('saveCoachHistory:', e.message));
   // Extraire les mémos tous les 6 messages
   if(coachHistory.length % 6 === 0) extractAndSaveMemos();
 }
