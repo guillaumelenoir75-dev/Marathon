@@ -447,7 +447,7 @@ function toggleDoneExtra(w,ei){
 function openValidationModalExtra(w,ei){
   // Reset Strava et météo comme pour openValidationModal
   window._meteoValidationData = null;
-  window._garminActivityData = null;
+  window._stravaActivityData = null;
   const s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');
   const parts=(s.d||'').split('|');
   const title=parts[0];
@@ -455,7 +455,7 @@ function openValidationModalExtra(w,ei){
   const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
   const kmVal=state[`extra_w${w}_s${ei}_km`]!=null?state[`extra_w${w}_s${ei}_km`]:s.km||0;
   const prev=state[`extra_w${w}_s${ei}_perf`]?JSON.parse(state[`extra_w${w}_s${ei}_perf`]):{};
-  // Stocker le contexte pour Strava (_applyGarminToValidation)
+  // Stocker le contexte pour Strava (_applyStravaToValidation)
   window._currentValidationSession = { s, idx: ei, ws: w, isExtra: true, ei };
   const mc=document.getElementById('modal-container');
   const overlay=document.createElement('div');
@@ -471,7 +471,7 @@ function openValidationModalExtra(w,ei){
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
         <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
-          <button id="garmin-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
+          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
           <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Météo</button>
           <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
@@ -660,8 +660,8 @@ async function saveValidationExtra(w,ei){
     if(blocsAllure.some(b=>b)) perf.blocsAllure=blocsAllure;
   }
   // Strava — même logique que saveValidation
-  if(window._garminActivityData){
-    const g=window._garminActivityData;
+  if(window._stravaActivityData){
+    const g=window._stravaActivityData;
     const stravaData={};
     if(g.cadence) stravaData.cadence=g.cadence;
     if(g.fcMax) stravaData.fcMax=g.fcMax;
@@ -677,7 +677,7 @@ async function saveValidationExtra(w,ei){
       Object.assign(perf,ex);
       perf.strava=stravaData;
     }
-    window._garminActivityData=null;
+    window._stravaActivityData=null;
   }
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   save();
@@ -722,7 +722,7 @@ async function saveValidationExtra(w,ei){
 function openValidationModal(idx){
   // Réinitialiser météo et données Strava précédentes
   window._meteoValidationData = null;
-  window._garminActivityData = null;
+  window._stravaActivityData = null;
   // Reset le preview météo pour ne pas afficher les résultats d'une session précédente
   const _prevReset = document.getElementById('meteo-val-preview');
   if (_prevReset) { _prevReset.style.display = 'none'; _prevReset.innerHTML = ''; }
@@ -758,7 +758,7 @@ function openValidationModal(idx){
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
         <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
-          <button id="garmin-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
+          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
           <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Météo</button>
           <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
@@ -916,8 +916,8 @@ async function saveValidation(idx){
   }
   if(Object.keys(perf).length>0) state[k+'perf']=JSON.stringify(perf);
   // Sauvegarder les données Strava si importées
-  if(window._garminActivityData) {
-    const g = window._garminActivityData;
+  if(window._stravaActivityData) {
+    const g = window._stravaActivityData;
     const stravaData = {};
     if(g.cadence) stravaData.cadence = g.cadence;
     if(g.fcMax) stravaData.fcMax = g.fcMax;
@@ -933,7 +933,7 @@ async function saveValidation(idx){
       existing.strava = stravaData;
       state[k+'perf'] = JSON.stringify(existing);
     }
-    window._garminActivityData = null;
+    window._stravaActivityData = null;
   }
   save();
   // Enregistrer le timestamp de dernière validation pour les félicitations

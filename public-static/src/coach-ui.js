@@ -452,7 +452,7 @@ async function sendCoachMessage(){
         + (lastSession.pace ? ' @' + lastSession.pace : '')
         + (lastSession.hr ? ' FC' + lastSession.hr : '')
         + ') il y a moins de 30 minutes.';
-      // Ajouter les données Garmin enrichies si disponibles
+      // Ajouter les données Strava enrichies si disponibles
       if(lastSession.garmin) {
         const g = lastSession.garmin;
         if(g.cadence) sessionCtx += ` Cadence: ${g.cadence} pas/min.`;

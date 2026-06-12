@@ -116,7 +116,6 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
   }
 }
 
-// ── GARMIN IMPORT ─────────────────────────────────────────────────────────────
 // ── MÉTÉO VALIDATION — bouton "Météo" dans le modal ─────────────────────────
 
 // Stocker la météo importée manuellement pour la validation en cours
@@ -303,7 +302,7 @@ async function _stravaOpenAuth() {
 }
 
 async function importFromStrava() {
-  const btn = document.getElementById('garmin-val-btn');
+  const btn = document.getElementById('strava-val-btn');
   if(btn) { btn.textContent = '⏳ Chargement…'; btn.disabled = true; }
 
   try {
@@ -350,11 +349,11 @@ async function importFromStrava() {
 
 function _showStravaPicker(activities) {
   const today = new Date().toISOString().slice(0, 10);
-  const existing = document.getElementById('garmin-val-picker');
+  const existing = document.getElementById('strava-val-picker');
   if(existing) existing.remove();
 
   const picker = document.createElement('div');
-  picker.id = 'garmin-val-picker';
+  picker.id = 'strava-val-picker';
   picker.style.cssText = 'position:fixed;inset:0;z-index:600;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
   picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
     <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">Dernières courses Strava</p>
@@ -365,7 +364,7 @@ function _showStravaPicker(activities) {
       const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
       const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
       const dateLabel = isToday ? '' : `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
-      return `<div onclick="document.getElementById('garmin-val-picker').remove();_fetchAndApplyStravaDetail(${JSON.stringify(a).replace(/"/g,'&quot;')},'validation');document.getElementById('garmin-val-btn').innerHTML='⏳ Détails…';"
+      return `<div onclick="document.getElementById('strava-val-picker').remove();_fetchAndApplyStravaDetail(${JSON.stringify(a).replace(/"/g,'&quot;')},'validation');document.getElementById('strava-val-btn').innerHTML='⏳ Détails…';"
         style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isToday?'#FC4C02':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isToday?'#FFF0EB':'var(--bg2)'};">
         <div>
           <div style="display:flex;align-items:center;gap:6px;">
@@ -380,7 +379,7 @@ function _showStravaPicker(activities) {
         </div>
       </div>`;
     }).join('')}
-    <button onclick="document.getElementById('garmin-val-picker').remove();" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;">Annuler</button>
+    <button onclick="document.getElementById('strava-val-picker').remove();" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;">Annuler</button>
   </div>`;
   document.body.appendChild(picker);
 }
@@ -403,17 +402,17 @@ async function _fetchAndApplyStravaDetail(activity, mode, ws, si) {
     console.warn('stravaFetchDetail failed, applying without details:', e);
   }
   if (mode === 'validation') {
-    _applyGarminToValidation(activity);
-    const btn = document.getElementById('garmin-val-btn');
+    _applyStravaToValidation(activity);
+    const btn = document.getElementById('strava-val-btn');
     if(btn) btn.innerHTML = '✅ Importé';
   } else if (mode === 'perfedit') {
-    _applyGarminToPerfEdit(activity, ws, si);
+    _applyStravaToPerfEdit(activity, ws, si);
   }
 }
 
-function _applyGarminToValidation(activity) {
+function _applyStravaToValidation(activity) {
   // Stocker l'activité complète pour le coach IA
-  window._garminActivityData = activity;
+  window._stravaActivityData = activity;
 
   // KM réels
   const kmEl = document.getElementById('val-km');
@@ -459,11 +458,11 @@ function _applyGarminToValidation(activity) {
   });
 
   // Afficher le bloc de données enrichies Garmin sous les champs
-  const existing = document.getElementById('garmin-detail-block');
+  const existing = document.getElementById('strava-detail-block');
   if(existing) existing.remove();
 
   const block = document.createElement('div');
-  block.id = 'garmin-detail-block';
+  block.id = 'strava-detail-block';
   block.style.cssText = 'margin-top:12px;background:#EDF5FF;border-radius:12px;padding:12px 14px;border:1.5px solid #1382E430;';
 
   let html = '<p style="font-size:11px;font-weight:700;color:#1382E4;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">🟠 Données Strava importées</p>';
@@ -528,7 +527,7 @@ function _applyGarminToValidation(activity) {
 
 // ── STRAVA RESYNC POUR SÉANCES DÉJÀ VALIDÉES ─────────────────────────────────
 async function importFromStravaForPerfEdit(ws, si) {
-  const btn = document.getElementById('garmin-pedit-btn');
+  const btn = document.getElementById('strava-pedit-btn');
   if(btn) { btn.textContent = '⏳…'; btn.disabled = true; }
 
   try {
@@ -615,7 +614,7 @@ function _showStravaPickerForPerfEdit(activities, ws, si) {
   document.body.appendChild(picker);
 }
 
-function _applyGarminToPerfEdit(activity, ws, si) {
+function _applyStravaToPerfEdit(activity, ws, si) {
   const k = gk(ws, si);
   const existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
   const s = getSession(ws, si);
@@ -638,7 +637,7 @@ function _applyGarminToPerfEdit(activity, ws, si) {
 
 
   // Mettre à jour le bouton
-  const btn = document.getElementById('garmin-pedit-btn');
+  const btn = document.getElementById('strava-pedit-btn');
   if(btn) { btn.innerHTML = '✅ Strava'; btn.style.background = '#3B6D11'; }
 
   // Rafraîchir le bloc Strava dans le modal sans le fermer

@@ -514,12 +514,12 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     hr: hr,
     semaine: CW,
     timestamp: Date.now(),
-    garmin: window._garminActivityData || null
+    garmin: window._stravaActivityData || null
   };
 
   // Ajouter les données Strava enrichies au contexte d'analyse si disponibles
-  if(window._garminActivityData) {
-    const g = window._garminActivityData;
+  if(window._stravaActivityData) {
+    const g = window._stravaActivityData;
     const splitsClean = g.splits ? g.splits.filter(sp => sp.distanceKm && sp.distanceKm >= 0.5) : null;
     analysisContext.strava = {
       cadence: g.cadence || null,
@@ -545,7 +545,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
       ].filter(Boolean)
     };
     // Réinitialiser après utilisation
-    window._garminActivityData = null;
+    window._stravaActivityData = null;
   }
 
   fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData);
