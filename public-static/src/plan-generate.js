@@ -42,7 +42,7 @@ function generateDecouvertePlan(ob){
     const totalMin=Math.round((rs+walkSec)*reps/60);
     const fmt=s=>s%60===0?`${s/60}'`:(s===90?`1'30"`:s===150?`2'30"`:s===210?`3'30"`:`${Math.floor(s/60)}'${s%60}"`);
     // Allure réaliste débutant ~8 min/km (pas 6 min/km)
-    const km=Math.max(2.5,Math.round(rs/60/8*reps*10)/10);
+    const km=Math.max(3,Math.round(rs/60/8*reps));
     return {type:'ef',km,d:`Marche-Course|${fmt(rs)} course / ${fmt(walkSec)} marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · bien respirer, jamais essoufflé(e)`};
   };
 
@@ -54,7 +54,7 @@ function generateDecouvertePlan(ob){
     const reps=4;
     const totalMin=Math.round((runMin+1)*reps)+3;
     // Allure réaliste débutant ~8 min/km
-    const km=Math.max(3,Math.round(runMin/8*reps*10)/10+0.3);
+    const km=Math.max(3,Math.round(runMin/8*reps));
     return {type:'ef',km,d:`Course progressive|${runMin}' course / 1' marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · allonger progressivement les blocs, confort avant tout`};
   };
 
@@ -64,7 +64,7 @@ function generateDecouvertePlan(ob){
     const durees=[22,25,27,29,31,33,35];
     const minRun=durees[Math.min(step,durees.length-1)];
     // Allure réaliste débutant ~8 min/km
-    const km=Math.max(2.7,Math.round(minRun/8*10)/10);
+    const km=Math.max(3,Math.round(minRun/8));
     const msg=step===0?`félicite-toi, c'est une vraie étape — tu cours sans t'arrêter !`:`rythme confort, foulée relâchée · construire la confiance`;
     return {type:'ef',km,d:`Footing EF|${minRun} min continue · ${efHint} · ${efFCStr} · allure conversationnelle, jamais essoufflé(e) · ${msg}`};
   };
@@ -78,7 +78,7 @@ function generateDecouvertePlan(ob){
     const lastP3=p3Durees[Math.min(p3Steps-1,p3Durees.length-1)];
     const minRun=Math.min(lastP3+2+step*2,42);
     // Allure réaliste débutant ~8 min/km
-    const km=Math.max(3,Math.round(minRun/8*10)/10+0.2);
+    const km=Math.max(3,Math.round(minRun/8));
     const nbAccel=Math.min(2+Math.floor(step/2),5);
     return {type:'ef',km,d:`EF + accélérations|${minRun} min EF · ${efHint} · ${efFCStr} · finir par ${nbAccel}×30-40" accélérations progressives (marcher entre chaque) · sensation de légèreté, ne pas sprinter`};
   };
@@ -99,7 +99,7 @@ function generateDecouvertePlan(ob){
       // Séance 2 : 85% de la durée — même type, légèrement plus courte
       if(si===1){
         const factor=0.85;
-        s.km=Math.max(2,Math.round(s.km*factor*10)/10);
+        s.km=Math.max(2,Math.round(s.km*factor));
         s.d=s.d.replace(/(\d+) min/,(_,n)=>`${Math.round(parseInt(n)*factor)} min`);
       }
       updates[`extra_w${w}_s${si}`]=JSON.stringify(s);
