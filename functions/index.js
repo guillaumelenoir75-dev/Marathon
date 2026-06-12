@@ -63,7 +63,7 @@ exports.stravaCallback = onRequest(
 
       // Sauvegarder les tokens dans Firebase
       const db = admin.database();
-      await db.ref('marathon/strava_token').set({
+      await db.ref(`users/${ADMIN_UID}/state/strava_token`).set({
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         expires_at: tokenData.expires_at,
@@ -99,7 +99,7 @@ exports.stravaFetch = onRequest(
       const db = admin.database();
 
       // Récupérer le token stocké
-      const tokenSnap = await db.ref('marathon/strava_token').once('value');
+      const tokenSnap = await db.ref(`users/${ADMIN_UID}/state/strava_token`).once('value');
       const tokenData = tokenSnap.val();
       if (!tokenData) {
         res.json({ success: false, needsAuth: true, message: 'Strava non connecté' });
@@ -129,7 +129,7 @@ exports.stravaFetch = onRequest(
           r.end();
         });
         accessToken = refreshed.access_token;
-        await db.ref('marathon/strava_token').update({
+        await db.ref(`users/${ADMIN_UID}/state/strava_token`).update({
           access_token: refreshed.access_token,
           expires_at: refreshed.expires_at,
           updatedAt: new Date().toISOString()
@@ -214,7 +214,7 @@ exports.stravaFetchDetail = onRequest(
       const { activityId } = req.body;
       if (!activityId) { res.json({ success: false, message: 'activityId manquant' }); return; }
 
-      const tokenSnap = await db.ref('marathon/strava_token').once('value');
+      const tokenSnap = await db.ref(`users/${ADMIN_UID}/state/strava_token`).once('value');
       const tokenData = tokenSnap.val();
       if (!tokenData) { res.json({ success: false, message: 'Strava non connecté' }); return; }
 
@@ -240,7 +240,7 @@ exports.stravaFetchDetail = onRequest(
           r.end();
         });
         accessToken = refreshed.access_token;
-        await db.ref('marathon/strava_token').update({
+        await db.ref(`users/${ADMIN_UID}/state/strava_token`).update({
           access_token: refreshed.access_token,
           expires_at: refreshed.expires_at,
           updatedAt: new Date().toISOString()
@@ -1554,7 +1554,7 @@ Génère le bilan de semaine.`;
 // ── QUICK BRIEF — Brief ultra-court pour tap sur notification ────────────────
 // Uniquement : FC repos du jour (si saisie) + programme de la journée
 exports.quickBrief = onRequest(
-  {cors: true, invoker: 'public', secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 30, memory: '256MiB'},
+  {cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 30, memory: '256MiB'},
   async (req, res) => {
     if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');
@@ -1636,7 +1636,7 @@ exports.quickBrief = onRequest(
 );
 
 exports.morningBrief = onRequest(
-  {cors: true, invoker: 'public', secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'},
+  {cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'},
   async (req, res) => {
     if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');
@@ -2050,11 +2050,13 @@ exports.dbAdmin = onRequest(
     res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, x-claude-key');
     if(req.method==='OPTIONS'){res.status(204).send('');return;}
-    const claudeKey=req.headers['x-claude-key']||'';
-    if(claudeKey!=='claude-marathon-db-2026'){
-      try{await verifyAdmin(req);}catch(e){res.status(403).json({error:e.message});return;}
-    }
+    try{await verifyAdmin(req);}catch(e){res.status(403).json({error:e.message});return;}
     const{action,path:dbPath,value}=req.body||{};
+    // Whitelist : seuls les chemins users/* et _push_subscribers/* sont autorisés
+    const ALLOWED_PREFIXES = ['users/', '_push_subscribers/'];
+    if (!dbPath || !ALLOWED_PREFIXES.some(p => dbPath.startsWith(p))) {
+      res.status(403).json({ error: 'Chemin non autorisé' }); return;
+    }
     if(!dbPath){res.status(400).json({error:'path requis'});return;}
     try{
       const db=admin.database();
@@ -2214,12 +2216,17 @@ exports.sessionReminder = onSchedule(
     }catch(e){console.error('sessionReminder admin renfo:',e.message);}
     // ── Athlètes : rappel séances normales + extra 1h avant ──────────────────
     try{
+      // Charger tous les états utilisateurs en parallèle (1 lecture par user au lieu de 2)
       const subsSnap=await db.ref('_push_subscribers').once('value');
       const allSubs=subsSnap.val()||{};
-      for(const [uid,sub] of Object.entries(allSubs)){
-        if(uid===ADMIN_UID)continue;
-        if(!await getUserPref(db,`users/${uid}/state`,'notif_seance'))continue;
-        const uState=(await db.ref(`users/${uid}/state`).once('value')).val()||{};
+      const uids=Object.keys(allSubs).filter(uid=>uid!==ADMIN_UID);
+      const userStates=await Promise.all(uids.map(uid=>db.ref(`users/${uid}/state`).once('value').then(s=>s.val()||{})));
+      for(let i=0;i<uids.length;i++){
+        const uid=uids[i];const sub=allSubs[uid];
+        const uState=userStates[i];
+        // Extraire la préf depuis l'état déjà chargé (évite une requête supplémentaire)
+        const prefs=uState._prefs?(typeof uState._prefs==='string'?JSON.parse(uState._prefs):uState._prefs):{};
+        if(prefs.notif_seance===false)continue;
         const ucw=getWeekFromDB(uState.plan_start_date);
         let sent=false;
         // Séances normales
@@ -2296,8 +2303,14 @@ exports.briefAfterFcRepos = onSchedule(
         await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
         return;
       }
-      // Supprimer le trigger immédiatement pour éviter doublons
-      await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+      // Transaction atomique pour éviter la race condition entre 2 crons simultanés
+      let triggerClaimed = false;
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).transaction(current => {
+        if (!current) { triggerClaimed = false; return; } // déjà supprimé
+        triggerClaimed = true;
+        return null; // supprime le nœud
+      });
+      if (!triggerClaimed) return;
       const cw=getWeekFromDB();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;

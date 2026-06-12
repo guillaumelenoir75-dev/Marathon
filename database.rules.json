@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        "state": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')"
+        },
+        "role": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
+          ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
+        }
+      }
+    },
+    "_push_subscribers": {
+      ".read": false,
+      ".write": false
+    },
+    "marathon": {
+      ".read": false,
+      ".write": false
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

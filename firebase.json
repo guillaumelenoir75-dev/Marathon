@@ -29,6 +29,9 @@
       }
     ]
   },
+  "database": {
+    "rules": "database.rules.json"
+  },
   "functions": [
     {
       "source": "functions",
