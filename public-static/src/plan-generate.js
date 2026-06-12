@@ -544,11 +544,8 @@ function generateAthletePlan(ob){
       } else if(isPlaisir&&PLAISIR2_TEMPO[w]){
         // Plaisir 2 sessions : quelques tempos à semaines fixes
         s0={d:descTempo(PLAISIR2_TEMPO[w]),km:kEF,type:'tempo',shoe:null};
-      } else if(!isPlaisir&&phase>=2&&qType){
-        // Plans course 2 sessions Phase 2/3 : substituer EF par qualité (réduite si décharge)
-        const q=resolveQ(qType,phase,weekInPhase,isTaper,isRecov);
-        s0=q?{d:q.d,km:kEF,type:q.type,shoe:null}:{d:descEF(),km:kEF,type:'ef',shoe:null};
       } else {
+        // Tous les plans course 2 sessions : EF avec accélérations (jamais qualité seule)
         s0={d:useStrides?descEFStrides():descEF(),km:kEF,type:'ef',shoe:null};
       }
       sessions=[s0,{d:dL,km:kL,type:'long',shoe:null}];
@@ -588,23 +585,18 @@ function generateAthletePlan(ob){
 
       if(hasQuality){
         const q1=resolveQ(qType,phase,weekInPhase,isTaper,isRecov,false);
-        const q2=hasQuality2?resolveQ(q2Type,phase,weekInPhase,isTaper,isRecov,true):null; // Q2 légèrement réduite
         const dEF=isRecov?descEFRecov():(useStrides?descEFStrides():descEF());
 
-        // Séance M-pace marathon (Phase 3, Marathon, Q2 = 'mpace')
+        // 4 séances : Q1 = qualité principale (frac ou tempo), Q2 = TOUJOURS EF/accélérations
+        // Règle : jamais 2 frac ni 2 tempo dans la même semaine
         let sQ1,sQ2;
         if(qType==='mpace'){
           sQ1={d:descMPace(kQ1),km:kQ1,type:'tempo',shoe:null};
         } else {
           sQ1=q1?{d:q1.d,km:kQ1,type:q1.type,shoe:null}:{d:descEF(),km:kQ1,type:'ef',shoe:null};
         }
-        if(q2Type==='mpace'){
-          sQ2={d:descMPace(kQ2),km:kQ2,type:'tempo',shoe:null};
-        } else if(q2){
-          sQ2={d:q2.d,km:kQ2,type:q2.type,shoe:null};
-        } else {
-          sQ2={d:useStrides?descEFStrides():descEF(),km:kQ2,type:'ef',shoe:null};
-        }
+        // Q2 : toujours EF avec accélérations (jamais qualité intensive)
+        sQ2={d:isRecov?descEFRecov():descEFStrides(),km:kQ2,type:'ef',shoe:null};
 
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
