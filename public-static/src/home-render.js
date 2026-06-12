@@ -523,7 +523,7 @@ function openValidationModalExtra(w,ei){
         const nbRows=Math.ceil(nbBlocs/3);
         const _bColor=s.type==='frac'?'#C4141B':'#1B4FD8';
         const _bLabel=s.type==='frac'?'⚡ Allure par bloc fractionné':'⚡ Allure par bloc tempo';
-        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:'+_bColor+';margin-bottom:8px;">'+_bLabel+'</p>';
+        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:'+_bColor+';margin-bottom:4px;">'+_bLabel+'</p><p style="font-size:10px;color:#888;margin-bottom:8px;">Facultatif — renseigne l\'allure de chaque bloc d\'après ta montre.</p>';
         for(let row=0;row<nbRows;row++){
           const s2=row*3,e2=Math.min(s2+3,nbBlocs),cnt=e2-s2;
           html+='<div style="display:grid;grid-template-columns:repeat('+cnt+',1fr);gap:8px;'+(row>0?'margin-top:8px;':'')+'">';

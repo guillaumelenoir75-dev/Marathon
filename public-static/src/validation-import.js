@@ -384,134 +384,6 @@ function _showStravaPicker(activities) {
   </div>`;
   document.body.appendChild(picker);
 }
-// ── DÉTECTION BLOCS TEMPO DEPUIS LAPS STRAVA ─────────────────────────────────
-function _detectTempoBlocsFromLaps(laps, sessionDetail) {
-  if (!laps || laps.length === 0) return null;
-
-  function paceToSec(allure) {
-    if (!allure) return null;
-    const p = String(allure).replace("'", ':').split(':');
-    if (p.length < 2) return null;
-    return parseInt(p[0]) * 60 + parseInt(p[1]);
-  }
-
-  // ── Parse la cible de séance ─────────────────────────────────────────────
-  // "4'55 — 5'00 /km" → paceMinSec=295, paceMaxSec=300
-  // "1x18min" → nbBlocs=1, blocDurMin=18
-  let paceMinSec = null, paceMaxSec = null;
-  let nbBlocsPlanned = 1, blocDurMin = null;
-  if (sessionDetail) {
-    const mPace = sessionDetail.replace(/'/g, ':').match(/(\d+):(\d+)\s*[—–-]\s*(\d+):(\d+)/);
-    if (mPace) {
-      paceMinSec = parseInt(mPace[1]) * 60 + parseInt(mPace[2]);
-      paceMaxSec = parseInt(mPace[3]) * 60 + parseInt(mPace[4]);
-    }
-    const mBloc = sessionDetail.match(/(\d+)\s*[x×]\s*(\d+)\s*min/i);
-    if (mBloc) { nbBlocsPlanned = parseInt(mBloc[1]); blocDurMin = parseInt(mBloc[2]); }
-  }
-
-  // ── MODE 1 : laps structurés Garmin/Strava ───────────────────────────────
-  // (intervalles avec durée variable > 5min — workout structuré)
-  const hasStructuredLaps = laps.some(l => l.duree_sec && l.duree_sec > 400);
-  if (hasStructuredLaps) {
-    const wFast = paceMinSec ? paceMinSec - 30 : 240;
-    const wSlow = paceMaxSec ? paceMaxSec + 20 : 330;
-    const found = [];
-    laps.forEach((lap, i) => {
-      if (i === 0 || lap.duree_sec < 300) return;
-      const ps = paceToSec(lap.allure);
-      if (ps && ps >= wFast && ps <= wSlow) {
-        found.push({ allure: lap.allure, duree_sec: lap.duree_sec, fc: lap.fc });
-      }
-    });
-    if (found.length > 0) return found;
-    // Laps présents mais aucun dans la fenêtre → fallback splits
-  }
-
-  // ── MODE 2 : splits par km ───────────────────────────────────────────────
-  const splits = laps
-    .map(l => ({ km: l.km || l.index, sec: paceToSec(l.allure), fc: parseInt(l.fc) || 0, allure: l.allure }))
-    .filter(s => s.sec && s.km);
-
-  if (splits.length < 3) return null;
-
-  // ── Étape 1 : détecter la fin du warmup via saut de FC ──────────────────
-  // Le warmup se termine au km où la FC fait un bond >= 12 bpm d'un coup
-  // Ex: km3=FC149 → km4=FC166 : bond +17 → warmup fini après km3
-  const FC_JUMP_THRESHOLD = 12;
-  let blocStartIdx = null;
-  for (let i = 1; i < splits.length; i++) {
-    if (splits[i].fc - splits[i - 1].fc >= FC_JUMP_THRESHOLD) {
-      blocStartIdx = i; // le bloc commence à cet index
-      break;
-    }
-  }
-  // Fallback : pas de saut FC détecté → commencer après le 1er km
-  if (blocStartIdx === null) blocStartIdx = 1;
-
-  // ── Étape 2 : détecter les N blocs en accumulant la durée planifiée ──────
-  // Pour chaque bloc, on accumule des km depuis le départ jusqu'à atteindre
-  // la durée prévue (ex: 18min = 1080s), en pondérant le dernier km partiellement.
-  // On s'arrête si le km est clairement en récupération (allure > paceMax + 20s).
-  const blocDurSec = blocDurMin ? blocDurMin * 60 : null;
-  const recoveryThreshold = paceMaxSec ? paceMaxSec + 20 : 340; // 5:40 fallback
-  const result = [];
-  let curIdx = blocStartIdx;
-
-  for (let b = 0; b < nbBlocsPlanned && curIdx < splits.length; b++) {
-    // Chercher le début du prochain bloc : premier km non-récupération depuis curIdx
-    while (curIdx < splits.length && splits[curIdx].sec > recoveryThreshold) curIdx++;
-    if (curIdx >= splits.length) break;
-
-    // Accumuler les km de ce bloc
-    let accumulated = 0;
-    const blocKms = [];
-    for (let j = curIdx; j < splits.length; j++) {
-      const s = splits[j];
-      // Stop si on rentre clairement en récupération (après au moins 2 kms de bloc)
-      if (blocKms.length >= 2 && s.sec > recoveryThreshold) break;
-      blocKms.push(s);
-      accumulated += s.sec;
-      if (blocDurSec && accumulated >= blocDurSec) break;
-    }
-
-    if (blocKms.length === 0) break;
-
-    // Calcul de l'allure moyenne pondérée :
-    // Si on a une durée cible, on utilise exactement blocDurSec en ajustant
-    // la contribution du dernier km proportionnellement
-    let totalTime, totalDist;
-    if (blocDurSec && accumulated > blocDurSec) {
-      // Le dernier km dépasse la cible → le tronquer
-      const lastKm = blocKms[blocKms.length - 1];
-      const prevAcc = accumulated - lastKm.sec;
-      const fraction = (blocDurSec - prevAcc) / lastKm.sec;
-      totalTime = blocDurSec;
-      totalDist = (blocKms.length - 1) + fraction;
-    } else {
-      totalTime = accumulated;
-      totalDist = blocKms.length;
-    }
-
-    const avgPaceSec = Math.round(totalTime / totalDist);
-    const avgFc = Math.round(blocKms.reduce((s, k) => s + k.fc, 0) / blocKms.length);
-    const mm = Math.floor(avgPaceSec / 60), ss = avgPaceSec % 60;
-
-    result.push({
-      allure: mm + ':' + String(ss).padStart(2, '0'),
-      duree_sec: blocDurSec || accumulated,
-      fc: avgFc,
-      nb_kms: blocKms.length,
-      _fromSplits: true
-    });
-
-    // Avancer curIdx après ce bloc (sauter les km de récupération)
-    curIdx += blocKms.length;
-    while (curIdx < splits.length && splits[curIdx].sec > recoveryThreshold) curIdx++;
-  }
-
-  return result.length > 0 ? result : null;
-}
 
 // ── FETCH DÉTAIL STRAVA PUIS APPLIQUER ───────────────────────────────────────
 async function _fetchAndApplyStravaDetail(activity, mode, ws, si) {
@@ -565,44 +437,18 @@ function _applyGarminToValidation(activity) {
   const dateEl = document.getElementById('val-date');
   if(dateEl && activity.date) dateEl.value = activity.date;
 
-  // ── Pré-remplissage blocs TEMPO depuis les laps ──
+  // Blocs tempo/frac : message d'aide, saisie manuelle uniquement
   const ctx = window._currentValidationSession;
   if (ctx && ctx.s && (ctx.s.type === 'tempo' || ctx.s.type === 'frac')) {
-    const sessionDetail = (ctx.s.d || '').split('|')[1] || '';
-    const blocs = _detectTempoBlocsFromLaps(activity.laps || activity.splits, sessionDetail);
     const blocsContainer = document.getElementById('val-blocs-container');
     const existing = document.getElementById('val-blocs-strava-msg');
     if (existing) existing.remove();
-    if (blocs && blocs.length > 0) {
-      blocs.forEach((bloc, i) => {
-        const el = document.getElementById('val-bloc-' + i);
-        if (el) {
-          el.value = bloc.allure;
-          el.style.borderColor = '#3B6D11';
-          el.style.background = '#EAF3DE';
-          setTimeout(() => { el.style.borderColor = '#1B4FD830'; el.style.background = ''; }, 3000);
-        }
-      });
-      if (blocsContainer) {
-        const msg = document.createElement('p');
-        msg.id = 'val-blocs-strava-msg';
-        msg.style.cssText = 'font-size:10px;color:#3B6D11;font-weight:600;margin-top:4px;text-align:center;';
-        const dureesMins = blocs.map(b => Math.round(b.duree_sec / 60) + 'min').join(' · ');
-        const sourceLabel = blocs[0]._fromSplits ? 'splits km' : 'laps Strava';
-        msg.textContent = `✓ ${blocs.length} bloc${blocs.length > 1 ? 's' : ''} détecté${blocs.length > 1 ? 's' : ''} (${dureesMins}) via ${sourceLabel}`;
-        blocsContainer.appendChild(msg);
-      }
-    } else {
-      // Pas de laps ou aucun bloc détecté dans la plage d'allure
-      if (blocsContainer) {
-        const msg = document.createElement('p');
-        msg.id = 'val-blocs-strava-msg';
-        msg.style.cssText = 'font-size:10px;color:#E8530A;font-weight:600;margin-top:4px;text-align:center;';
-        msg.textContent = activity.laps && activity.laps.length > 0
-          ? '⚠️ Activité sans laps tempo — à renseigner manuellement'
-          : '⚠️ Pas de laps dans cette activité — à renseigner manuellement';
-        blocsContainer.appendChild(msg);
-      }
+    if (blocsContainer) {
+      const msg = document.createElement('p');
+      msg.id = 'val-blocs-strava-msg';
+      msg.style.cssText = 'font-size:10px;color:#888;margin-top:6px;text-align:center;';
+      msg.textContent = 'Facultatif — renseigne l\'allure de chaque bloc manuellement d\'après ta montre.';
+      blocsContainer.appendChild(msg);
     }
   }
 
@@ -789,22 +635,7 @@ function _applyGarminToPerfEdit(activity, ws, si) {
   state[k+'perf'] = JSON.stringify(existing);
   save();
 
-  // Pré-remplir les blocs tempo si applicable
-  if((s.type === 'tempo' || s.type === 'frac') && (activity.laps || activity.splits)) {
-    const sessionDetail = (s.d || '').split('|')[1] || '';
-    const blocs = _detectTempoBlocsFromLaps(activity.laps || activity.splits, sessionDetail);
-    if(blocs && blocs.length > 0) {
-      blocs.forEach((bloc, i) => {
-        const el = document.getElementById('pedit-bloc-' + i);
-        if(el) {
-          el.value = bloc.allure;
-          el.style.borderColor = '#3B6D11';
-          el.style.background = '#EAF3DE';
-          setTimeout(() => { el.style.borderColor = '#1B4FD830'; el.style.background = ''; }, 3000);
-        }
-      });
-    }
-  }
+
 
   // Mettre à jour le bouton
   const btn = document.getElementById('garmin-pedit-btn');
