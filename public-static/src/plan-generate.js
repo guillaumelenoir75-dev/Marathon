@@ -545,8 +545,13 @@ function generateAthletePlan(ob){
         // Plaisir 2 sessions : quelques tempos à semaines fixes
         s0={d:descTempo(PLAISIR2_TEMPO[w]),km:kEF,type:'tempo',shoe:null};
       } else {
-        // Tous les plans course 2 sessions : EF avec accélérations (jamais qualité seule)
-        s0={d:useStrides?descEFStrides():descEF(),km:kEF,type:'ef',shoe:null};
+        // Plans course 2 sessions : EF pur en début de plan, accélérations à partir du seuil de niveau
+        // Débutant      → accélérations dès S(p1Weeks+1) = S08
+        // Intermédiaire → accélérations dès S(p1Weeks)   = S04
+        // Confirmé      → accélérations dès S(p1Weeks)   = S02
+        const stridesStartW=niveau==='Débutant'?p1Weeks+1:p1Weeks;
+        const use2sStrides=w>=stridesStartW&&!isRecov&&!isTaper;
+        s0={d:use2sStrides?descEFStrides():descEF(),km:kEF,type:'ef',shoe:null};
       }
       sessions=[s0,{d:dL,km:kL,type:'long',shoe:null}];
 
