@@ -543,23 +543,34 @@ exports.shakerAfterRun = onSchedule(
   }
 );
 
-// Rappel shaker à 14h si pas de run validé aujourd'hui
+// Rappel shaker à 14h si aucun run n'est planifié aujourd'hui dans le plan admin
 exports.shakerNoon = onSchedule(
   {schedule:'0 14 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
   async()=>{
     try{
       const db=admin.database();
-      const todayParis=new Date().toLocaleString('sv',{timeZone:'Europe/Paris'}).slice(0,10);
       const cw=getCurrentWeek();
-      const snap=await db.ref(`${ADMIN_STATE}/_last_validation_w${cw}`).once('value');
-      const lastTs=snap.val();
-      if(lastTs){
-        const lastDateParis=new Date(lastTs).toLocaleString('sv',{timeZone:'Europe/Paris'}).slice(0,10);
-        if(lastDateParis===todayParis) return; // run déjà validé aujourd'hui
+      // Jour de la semaine Paris : 1=lundi … 7=dimanche (même convention que sched_day)
+      const jsDay=new Date().toLocaleString('en-US',{timeZone:'Europe/Paris',weekday:'long'});
+      const dayMap={Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5,Saturday:6,Sunday:7};
+      const todayDay=dayMap[jsDay]||1;
+      // Lire le plan de la semaine courante
+      const stateSnap=await db.ref(ADMIN_STATE).once('value');
+      const st=stateSnap.val()||{};
+      let runPlanifieAujourdhui=false;
+      for(let si=0;si<5;si++){
+        const edRaw=st[`edit_w${cw}_s${si}`];
+        if(!edRaw||st[`del_w${cw}_s${si}`]) continue;
+        try{
+          const ed=JSON.parse(edRaw);
+          if(ed.type==='rest') continue;
+          if(ed.sched_day===todayDay){runPlanifieAujourdhui=true;break;}
+        }catch(e){}
       }
+      if(runPlanifieAujourdhui) return; // run prévu au planning → pas de notif shaker
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),
         '🥤 Pense à ton shaker !',
-        'Pas de séance ce matin ? Prends quand même tes protéines du midi 💪',
+        'Pas de séance aujourd\'hui ? Prends quand même tes protéines du midi 💪',
         'shaker-noon','/');
     }catch(e){console.error('shakerNoon:',e.message);}
   }
