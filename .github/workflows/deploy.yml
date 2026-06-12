@@ -35,4 +35,4 @@ jobs:
       - name: Deploy to Firebase
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
-        run: firebase deploy --project prepa-marathon --non-interactive
+        run: firebase deploy --project prepa-marathon --non-interactive --force
