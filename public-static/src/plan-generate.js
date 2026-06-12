@@ -7,11 +7,13 @@ function generateAthletePlan(ob){
   const isPlaisir= course==='Plaisir';
 
   // ── Durée minimale recommandée par distance ───────────────────────────────────
-  const minW={Plaisir:24,'5 km':8,'10 km':10,'Semi-marathon':12,'Marathon':16}[course]||16;
+  // Durée minimale par distance (respecter les minima physiologiques)
+  const minW={Plaisir:8,'5 km':8,'10 km':10,'Semi-marathon':12,'Marathon':16}[course]||8;
+  const maxW=24; // 6 mois max
   let numWeeks=minW;
   if(ob.date){
     const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
-    if(diff>0) numWeeks=Math.min(Math.max(diff,minW),32);
+    if(diff>0) numWeeks=Math.min(Math.max(diff,minW),maxW);
   }
 
   // ── Plafond de volume (pic du plan) ──────────────────────────────────────────
@@ -356,9 +358,9 @@ function generateAthletePlan(ob){
   // Côtes supprimées : privilégier fartlek en Phase 1 (moins traumatisant, plus ludique)
   const Q_MATRIX={
     Plaisir:{
-      1:['fartlek'],
-      2:['fartlek','tempo'],
-      3:['tempo','fartlek','tempo'],
+      1:['fartlek'],                   // Phase 1 : accélérations libres, aucune pression
+      2:['tempo','tempo','tempo'],     // Phase 2 : tempo progressif (montée en puissance)
+      3:['tempo','fartlek','tempo'],   // Phase 3 : tempo dominant, fartlek pour varier
       4:['tempo'],
     },
     '5 km':{
@@ -421,12 +423,16 @@ function generateAthletePlan(ob){
     },
   };
 
-  // Phase du plan : proportions adaptées à la durée totale
-  // Phase 1 : 25% (min 2 semaines) — Phase 2 : 30% — Phase 3 : reste avant taper
+  // Phase du plan — proportions adaptées au niveau
+  // Confirmé : Phase 1 réduite (15%), arrive vite à la qualité
+  // Débutant  : Phase 1 longue (35%), plus de base aérobie avant l'intensité
+  // Intermédiaire : Phase 1 classique (25%)
+  const p1Ratio={Débutant:0.35,Intermédiaire:0.25,Confirmé:0.15}[niveau]||0.25;
+  const p2Ratio={Débutant:0.35,Intermédiaire:0.30,Confirmé:0.30}[niveau]||0.30;
   const getPhase=(w)=>{
     if(w>=taperStartW) return 4;
-    const p1End=Math.max(Math.ceil(numWeeks*0.25),2);
-    const p2End=Math.ceil(numWeeks*0.55);
+    const p1End=Math.max(Math.ceil(numWeeks*p1Ratio),2);
+    const p2End=Math.ceil(numWeeks*(p1Ratio+p2Ratio));
     if(w<=p1End) return 1;
     if(w<=p2End) return 2;
     return 3;
