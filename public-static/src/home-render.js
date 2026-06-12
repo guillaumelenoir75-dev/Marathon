@@ -336,8 +336,8 @@ function renderHome(){
   el.innerHTML='';
   getOrderedWeekSessions(w).forEach(({s:s2,si,extra,ei},i)=>{
     const done=extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done'];
-    const skip=extra?!!state[`extra_w${w}_s${ei}_skip`]:false;
-    const skipReason=extra?state[`extra_w${w}_s${ei}_skip_reason`]||'':''
+    const skip=extra?!!state[`extra_w${w}_s${ei}_skip`]:!!state[gk(w,si)+'skip'];
+    const skipReason=extra?state[`extra_w${w}_s${ei}_skip_reason`]||'':state[gk(w,si)+'skip_reason']||''
     const rv=extra?state[`extra_w${w}_s${ei}_km`]:state[gk(w,si)+'km'];
     const typeC=typeColor[s2.type]||'#888';
     const typeBgC=typeBg[s2.type]||'#f5f5f5';
@@ -638,6 +638,18 @@ async function saveSkipExtra(w,ei){
   if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
 }
 
+async function saveSkipValidation(idx){
+  const reason=window._selectedSkipReason||'';
+  if(!reason) return;
+  const k=gk(CW,idx);
+  state[k+'done']=false; delete state[k+'km']; delete state[k+'perf'];
+  state[k+'skip']=true; state[k+'skip_reason']=reason;
+  window._selectedSkipReason=null;
+  save(); closeModal(); renderHome();
+  rendered.plan=false;
+  if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
+}
+
 function dismissEFAutoBanner(){
   state.ef_pace_auto_seen='true';
   if(dbRef) dbRef.child('ef_pace_auto_seen').set('true').catch(()=>{});
@@ -930,6 +942,12 @@ function openValidationModal(idx){
         <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">Annuler</button>
         <button onclick="saveValidation(${idx})" style="padding:13px;background:${_headerColor};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Valider</button>
       </div>
+      <button onclick="toggleSkipReasonPicker()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed #C0392B;border-radius:14px;font-size:13px;font-weight:700;color:#C0392B;cursor:pointer;">✕ Séance non réalisée</button>
+      <div id="skip-reason-picker" style="display:none;margin-top:10px;">
+        <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-align:center;">Pourquoi cette séance n'a pas été réalisée ?</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;" id="skip-reason-chips"></div>
+        <button id="skip-confirm-btn" onclick="saveSkipValidation(${idx})" disabled style="width:100%;margin-top:12px;padding:11px;background:#C0392B;border:none;border-radius:14px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;opacity:0.4;">Confirmer — Non réalisée</button>
+      </div>
     </div>
     </div><!-- /padding -->
     </div><!-- /modal-scroll-body -->
@@ -998,6 +1016,7 @@ async function saveValidation(idx){
   const k=gk(CW,idx);
   const s=getSession(CW,idx);
   state[k+'done']=true;
+  delete state[k+'skip']; delete state[k+'skip_reason'];
   if(!isNaN(km)&&km>=0) state[k+'km']=km;
   const perf={};
   if(dur) perf.dur=dur;

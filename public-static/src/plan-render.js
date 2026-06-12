@@ -550,14 +550,19 @@ function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHo
 function toggleDone(idx){
   const k=gk(CW,idx)+'done';
   const wasDone=!!state[k];
-  if(!wasDone){
-    // Ouvrir le modal de validation
+  const wasSkip=!!state[gk(CW,idx)+'skip'];
+  if(!wasDone&&!wasSkip){
+    openValidationModal(idx);
+  } else if(wasSkip){
+    // Ré-ouvrir le modal pour permettre de valider ou changer
     openValidationModal(idx);
   } else {
     // Décocher — supprimer done, km réels et perf
     state[k]=false;
     delete state[gk(CW,idx)+'km'];
     delete state[gk(CW,idx)+'perf'];
+    delete state[gk(CW,idx)+'skip'];
+    delete state[gk(CW,idx)+'skip_reason'];
     save();
     renderHome();
     rendered.stats=false;
@@ -1022,6 +1027,8 @@ function renderPlan(){
       const detail=filterDetailDisplay(title, parts[1]||null);
       const edited=!extra&&state[`edit_w${w.s}_s${si}`];
       const isDone=extra ? !!state[`extra_w${w.s}_s${eid}_done`] : !!state[gk(w.s,si)+'done'];
+      const isSkip=extra ? !!state[`extra_w${w.s}_s${eid}_skip`] : !!state[gk(w.s,si)+'skip'];
+      const skipReason=extra ? (state[`extra_w${w.s}_s${eid}_skip_reason`]||'') : (state[gk(w.s,si)+'skip_reason']||'');
       const clickFn=extra
         ? (isDone ? `openPerfEditExtraModal(${w.s},${eid})` : `openEditExtraModal(${w.s},${eid})`)
         : (isDone ? `openPerfEditModal(${w.s},${si})` : `openEditModal(${w.s},${si})`);
@@ -1051,22 +1058,25 @@ function renderPlan(){
 
       const iconContent = isDone
         ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        : isSkip
+        ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
         : `<span style="font-size:9px;font-weight:800;color:${typeC};">${lbl}</span>`;
-      const iconBg = isDone ? '#EAF3DE' : typeBgC;
-      const iconBorder = isDone ? '#3B6D11' : typeC;
+      const iconBg = isDone ? '#EAF3DE' : isSkip ? '#FDECEA' : typeBgC;
+      const iconBorder = isDone ? '#3B6D11' : isSkip ? '#C0392B' : typeC;
 
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
-      return `<div class="plan-session-card" style="${isDone?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':''}">
+      return `<div class="plan-session-card" style="${isDone?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':isSkip?'background:linear-gradient(90deg,rgba(192,57,43,0.03),transparent);':''}">
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
           <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}22;">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-              <span style="font-size:13px;font-weight:600;color:${isDone?'#3B6D11':'var(--text)'};">${title}</span>
+              <span style="font-size:13px;font-weight:600;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}</span>
               ${edited?`<span style="font-size:10px;color:var(--blue);">✎</span>`:''}
               ${isDone?`<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>`:''}
+              ${isSkip?`<span style="font-size:10px;background:#FDECEA;color:#C0392B;padding:1px 6px;border-radius:10px;font-weight:600;">✕ ${skipReason||'Non réalisée'}</span>`:''}
             </div>
             ${detail?`<p style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;">${detail}</p>`:''}
             ${(()=>{
