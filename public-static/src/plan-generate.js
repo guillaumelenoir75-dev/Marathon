@@ -55,7 +55,8 @@ function generateAthletePlan(ob){
     {'Marathon':32,'Semi-marathon':22,'10 km':16,'5 km':12}[course]||32;
 
   const weekKms=[];
-  let cur=baseKm;
+  // Départ plus doux selon le niveau : évite le choc en début de plan
+  let cur=baseKm*(niveau==='Débutant'?0.85:niveau==='Intermédiaire'?0.92:1.0);
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
       const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
@@ -73,6 +74,8 @@ function generateAthletePlan(ob){
       weekKms[numWeeks-taperCfg.r.length+i]=Math.max(Math.round(peakVol*ratio),3);
     });
   }
+  // Semaine de pic de charge (avant application du taper)
+  const peakWeekNum=weekKms.indexOf(Math.max(...weekKms))+1;
 
   // ── Calcul des allures (Jack Daniels VDOT) ────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
@@ -478,6 +481,11 @@ function generateAthletePlan(ob){
 
   // ── Boucle principale ─────────────────────────────────────────────────────────
   const updates={};
+  // Métadonnées du plan (version, config, pic de charge)
+  updates['plan_version']=2;
+  updates['plan_peak_week']=peakWeekNum;
+  updates['plan_config']=JSON.stringify({course,niveau,nbSess,numWeeks,baseKm,date:ob.date||null});
+
   let _phaseStartW=1;
   let _lastPhase=1;
 
@@ -497,6 +505,9 @@ function generateAthletePlan(ob){
     const sFloor=total<10?2:3;
     const longSFloor=Math.max(sFloor,5); // sortie longue : minimum réaliste 5 km
     const capLong=(base)=>Math.min(Math.max(base,longSFloor),longRunCap);
+
+    // Métadonnées de semaine (phase, décharge, pic) — lues par plan-render pour les badges
+    updates[`meta_w${w}`]=JSON.stringify({phase,isRecov,isPeak:w===peakWeekNum,isTaper});
 
     // Semaines de décharge : on garde UNE séance qualité (réduite et ralentie)
     // mais on supprime la 2ème séance qualité des plans 4 sessions.
@@ -615,11 +626,11 @@ function generateAthletePlan(ob){
           {d:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
         ];
       } else {
-        // Phase 1 ou décharge : 3 EF + longue
-        const k1=Math.max(Math.round(total*0.25),sFloor);
-        const k2=Math.max(Math.round(total*0.20),sFloor);
-        const k3=Math.max(Math.round(total*0.20),sFloor);
-        const kL2=capLong(total-k1-k2-k3);
+        // Phase 1 ou décharge : 3 EF + longue (long run ≥35% volume)
+        const k1=Math.max(Math.round(total*0.22),sFloor);
+        const k2=Math.max(Math.round(total*0.18),sFloor);
+        const k3=Math.max(Math.round(total*0.18),sFloor);
+        const kL2=capLong(Math.max(total-k1-k2-k3,Math.round(total*0.35)));
         sessions=[
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           {d:descEF(),km:k2,type:'ef',shoe:null},

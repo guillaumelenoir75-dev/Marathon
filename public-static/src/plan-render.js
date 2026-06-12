@@ -613,13 +613,13 @@ function renderAthletePlan(el){
       ei++;
     }
   }
-  // Bouton suppression du plan (vue coach admin uniquement)
-  if(_adminPreviewUid){
-    const delBanner=document.createElement('div');
-    delBanner.style.cssText='display:flex;justify-content:flex-end;margin-bottom:12px;';
-    delBanner.innerHTML=`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer le plan</button>`;
-    el.appendChild(delBanner);
-  }
+  // Boutons de gestion du plan
+  const actionBanner=document.createElement('div');
+  actionBanner.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;';
+  const regenBtn=`<button onclick="showOnboarding(true)" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
+  const delBtn=_adminPreviewUid?`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>`:'';
+  actionBanner.innerHTML=regenBtn+delBtn;
+  el.appendChild(actionBanner);
 
   let currentRenderMonth=-1; // pour séparateurs de mois
 
@@ -677,11 +677,21 @@ function renderAthletePlan(el){
     const isOpen=openWeeks.has(ws);
     const chevron=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
 
+    // Lire les métadonnées de semaine stockées à la génération du plan
+    let metaW={};
+    try{if(state['meta_w'+ws]) metaW=JSON.parse(state['meta_w'+ws]);}catch(e){}
+    const phaseLabels={1:{l:'Base',bg:'#F3F4F6',c:'#4B5563'},2:{l:'Construction',bg:'#FEF3EE',c:'#C2410C'},3:{l:'Spécifique',bg:'#EEF2FD',c:'#1B4FD8'},4:{l:'Affûtage',bg:'#EDF7EF',c:'#2F6E44'}};
+    const phaseInfo=metaW.phase?phaseLabels[metaW.phase]:null;
+    const isPeakWeek=metaW.isPeak&&!isRaceWeekCard&&!metaW.isTaper;
+    const planPeakWeek=parseInt(state['plan_peak_week'])||0;
+
     const badges=[];
     if(isCur) badges.push(`<span class="plan-badge" style="background:#EEF2FD;color:#1438A8;">En cours</span>`);
     if(isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:#FEF9E7;color:#B7791F;">🏆 Course</span>`);
-    else if(isAffutage) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">🔽 Affûtage</span>`);
-    else if(isDecharge) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
+    else if(isAffutage||metaW.isTaper) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">Affûtage</span>`);
+    else if(isDecharge||metaW.isRecov) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
+    if(isPeakWeek) badges.push(`<span class="plan-badge" style="background:#FEF2F2;color:#DC2626;">Pic</span>`);
+    if(phaseInfo&&!isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:${phaseInfo.bg};color:${phaseInfo.c};opacity:0.85;">${phaseInfo.l}</span>`);
 
     const sessionRowsHtml=isOpen?sessions.map(({s,ei:eid,done,kmDone,perf},rowIdx)=>{
       const typeC=typeColor[s.type]||'#888';
