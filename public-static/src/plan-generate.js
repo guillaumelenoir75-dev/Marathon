@@ -207,12 +207,12 @@ function generateAthletePlan(ob){
 
   // ── Descriptions de séances ────────────────────────────────────────────────────
 
-  // EF — rotation de 4 variantes
+  // EF — même séance, sous-titres variés pour éviter la redondance visuelle
   const EF_V=[
-    efLabel?`Séance EF|${efLabel}/km · ${efFCStr} · conversation fluide, effort très contrôlé`:`Séance EF|allure confort, conversation possible`,
-    efLabel?`Footing EF|${efLabel}/km · ${efFCStr} · respiration rythmée, pas relâché`:`Footing EF|respiration rythmée, foulée relâchée`,
-    efLabel?`Endurance fondamentale|${efLabel}/km · ${efFCStr} · aérobie pur, jambes légères`:`Endurance fondamentale|aérobie pur, allure conversationnelle`,
-    efLabel?`Footing aérobie|${efLabel}/km · ${efFCStr} · construire la base, rester à l'aise`:`Footing aérobie|allure confort, construction de la base aérobie`,
+    efLabel?`Footing EF|${efLabel}/km · ${efFCStr} · conversation fluide, effort très contrôlé`:`Footing EF|allure confort, conversation possible`,
+    efLabel?`Footing EF|${efLabel}/km · ${efFCStr} · respiration rythmée, foulée relâchée · bonne posture`:`Footing EF|respiration rythmée, foulée relâchée`,
+    efLabel?`Footing EF|${efLabel}/km · ${efFCStr} · jambes légères, aérobie pur · ne pas forcer`:`Footing EF|aérobie pur, allure conversationnelle`,
+    efLabel?`Footing EF|${efLabel}/km · ${efFCStr} · construire la base, rester à l'aise sur toute la durée`:`Footing EF|allure confort, construction de la base aérobie`,
   ];
   let _efV=0;
   const descEF=()=>EF_V[_efV++%EF_V.length];
