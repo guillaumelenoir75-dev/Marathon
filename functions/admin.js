@@ -4,24 +4,6 @@ if (!admin.apps.length) admin.initializeApp();
 
 const { corsHeaders, verifyAdmin, ADMIN_EMAIL, ADMIN_UID } = require('./helpers');
 
-exports.initAdminPassword = onRequest(
-  { cors: true },
-  async (req, res) => {
-    corsHeaders(res);
-    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-    const { uid, password, secret } = req.body || {};
-    if (secret !== 'marathon2026-init') { res.status(403).json({ error: 'Secret invalide' }); return; }
-    if (!uid || !password) { res.status(400).json({ error: 'uid et password requis' }); return; }
-    try {
-      await admin.auth().updateUser(uid, { password, email: ADMIN_EMAIL });
-      const db = admin.database();
-      await db.ref(`users/${uid}/role`).set('admin');
-      res.json({ success: true, message: 'Mot de passe ajouté au compte existant' });
-    } catch(e) {
-      res.status(500).json({ error: e.message });
-    }
-  }
-);
 
 exports.createUser = onRequest(
   { cors: true },
