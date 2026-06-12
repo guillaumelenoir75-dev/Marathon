@@ -38,10 +38,17 @@ function generateAthletePlan(ob){
     '5 km':          {w:1,r:[0.48],          noInt:[1]},
   }[course]||{w:2,r:[0.65,0.30],noInt:[2]};
 
+  // taperStartW calculé ici pour que recovery ne chevauche jamais le taper
+  const taperStartW=taperCfg.w>0?numWeeks-taperCfg.w+1:numWeeks+1;
+
   // ── Semaines de décharge — pattern 3:1 (Higdon/Daniels) ─────────────────────
-  const recovPeriod=baseKm<15?3:4;
+  // Plans courts (≤12s) → période de 3 semaines pour garantir 2 décharges minimum
+  // Les semaines de taper sont exclues pour éviter une double réduction de volume
+  const recovPeriod=(baseKm<15||numWeeks<=12)?3:4;
   const recovery=new Set();
-  for(let w=recovPeriod;w<=numWeeks;w+=recovPeriod) recovery.add(w);
+  for(let w=recovPeriod;w<=numWeeks;w+=recovPeriod){
+    if(w<taperStartW) recovery.add(w);
+  }
 
   // ── Volume hebdomadaire ───────────────────────────────────────────────────────
   const longRunCap=isPlaisir?Math.min(Math.max(16,Math.round(baseKm*1.1)),26):
@@ -66,7 +73,6 @@ function generateAthletePlan(ob){
       weekKms[numWeeks-taperCfg.r.length+i]=Math.max(Math.round(peakVol*ratio),3);
     });
   }
-  const taperStartW=taperCfg.w>0?numWeeks-taperCfg.w+1:numWeeks+1;
 
   // ── Calcul des allures (Jack Daniels VDOT) ────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
@@ -469,15 +475,6 @@ function generateAthletePlan(ob){
     return null;
   };
 
-  // Plaisir 2 sessions : quelques tempos ponctuels aux semaines clés
-  const PLAISIR2_TEMPO={
-    4:{rep:1,dur:5,recup:'0:00'},
-    7:{rep:1,dur:7,recup:'0:00'},
-    10:{rep:1,dur:9,recup:'0:00'},
-    13:{rep:1,dur:12,recup:'0:00'},
-    17:{rep:2,dur:8,recup:'3:00'},
-    21:{rep:2,dur:10,recup:'3:00'},
-  };
 
   // ── Boucle principale ─────────────────────────────────────────────────────────
   const updates={};
@@ -498,7 +495,8 @@ function generateAthletePlan(ob){
     const weekInPhase=w-_phaseStartW; // 0-indexé
 
     const sFloor=total<10?2:3;
-    const capLong=(base)=>Math.min(Math.max(base,sFloor),longRunCap);
+    const longSFloor=Math.max(sFloor,5); // sortie longue : minimum réaliste 5 km
+    const capLong=(base)=>Math.min(Math.max(base,longSFloor),longRunCap);
 
     // Semaines de décharge : on garde UNE séance qualité (réduite et ralentie)
     // mais on supprime la 2ème séance qualité des plans 4 sessions.
@@ -539,14 +537,21 @@ function generateAthletePlan(ob){
     } else if(nbSess===2){
       const kL=capLong(Math.max(Math.round(total*0.55),sFloor));
       const kEF=Math.max(total-kL,sFloor);
-      const dL=descLong(kL,phase,isRecov);
+      const isLastPlaisirWeek=isPlaisir&&w===numWeeks;
+      const dL=isLastPlaisirWeek
+        ?(efLabel
+          ?`Sortie bilan de fin de plan|${efLabel}/km · courir à ton rythme habituel · profite de chaque foulée, mesure le chemin parcouru depuis le début du plan · pas d'objectif, juste du plaisir`
+          :`Sortie bilan de fin de plan|courir à ton rythme, sans objectif · profite de chaque foulée et mesure le chemin parcouru depuis le début`)
+        :descLong(kL,phase,isRecov);
 
       let s0;
       if(isRecov){
         s0={d:descEFRecov(),km:kEF,type:'ef',shoe:null};
-      } else if(isPlaisir&&PLAISIR2_TEMPO[w]){
-        // Plaisir 2 sessions : quelques tempos à semaines fixes
-        s0={d:descTempo(PLAISIR2_TEMPO[w]),km:kEF,type:'tempo',shoe:null};
+      } else if(isPlaisir&&phase>=2&&!isTaper){
+        // Plaisir 2 sessions : qualité selon Q_MATRIX (tempo Phase 2+, fartlek alterné)
+        // S'adapte à toute durée de plan grâce à la logique par phase
+        const qPlaisir=resolveQ(getQType(phase,weekInPhase),phase,weekInPhase,isTaper,false);
+        s0=qPlaisir?{d:qPlaisir.d,km:kEF,type:qPlaisir.type,shoe:null}:{d:descEFStrides(),km:kEF,type:'ef',shoe:null};
       } else {
         // Plans course 2 sessions : EF pur en Phase 1, accélérations dès Phase 2+
         // S'adapte automatiquement à la durée du plan (court ou long)
