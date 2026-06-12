@@ -2,7 +2,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
-const { corsHeaders, verifyAdmin, ADMIN_EMAIL } = require('./helpers');
+const { corsHeaders, verifyAdmin, ADMIN_EMAIL, ADMIN_UID } = require('./helpers');
 
 exports.initAdminPassword = onRequest(
   { cors: true },
@@ -77,6 +77,7 @@ exports.deleteUser = onRequest(
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     const { uid } = req.body || {};
     if (!uid) { res.status(400).json({ error: 'UID requis' }); return; }
+    if (uid === ADMIN_UID) { res.status(403).json({ error: 'Impossible de supprimer le compte administrateur' }); return; }
     try {
       await admin.auth().deleteUser(uid);
       const db = admin.database();

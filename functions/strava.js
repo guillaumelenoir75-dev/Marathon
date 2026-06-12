@@ -6,36 +6,27 @@ if (!admin.apps.length) admin.initializeApp();
 const STRAVA_CLIENT_ID = defineSecret("STRAVA_CLIENT_ID");
 const STRAVA_CLIENT_SECRET = defineSecret("STRAVA_CLIENT_SECRET");
 
-// Vérifie le Bearer token Firebase et retourne l'UID
-async function verifyUser(req) {
-  const authHeader = req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ')) throw new Error('Non authentifié');
-  const decoded = await admin.auth().verifyIdToken(authHeader.slice(7));
-  return decoded.uid;
-}
+const { verifyUser, fetchWithTimeout } = require('./helpers');
 
 // Rafraîchit le token Strava si expiré et retourne l'access_token valide
 async function getValidAccessToken(db, uid, clientId, clientSecret) {
-  const https = require('https');
   const tokenSnap = await db.ref(`users/${uid}/state/strava_token`).once('value');
   const tokenData = tokenSnap.val();
   if (!tokenData) return null;
 
   if (Date.now() / 1000 <= tokenData.expires_at - 300) return tokenData.access_token;
 
-  const body = JSON.stringify({
-    client_id: clientId,
-    client_secret: clientSecret,
-    refresh_token: tokenData.refresh_token,
-    grant_type: 'refresh_token'
-  });
-  const refreshed = await new Promise((resolve, reject) => {
-    const r = https.request('https://www.strava.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
-    }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => resolve(JSON.parse(d))); });
-    r.on('error', reject); r.write(body); r.end();
-  });
+  const refreshRes = await fetchWithTimeout('https://www.strava.com/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: tokenData.refresh_token,
+      grant_type: 'refresh_token'
+    })
+  }, 15000);
+  const refreshed = await refreshRes.json();
   await db.ref(`users/${uid}/state/strava_token`).update({
     access_token: refreshed.access_token,
     expires_at: refreshed.expires_at,
@@ -73,21 +64,17 @@ exports.stravaCallback = onRequest(
     if (!uid || uid === 'unknown') { res.status(400).send('Utilisateur non identifié'); return; }
 
     try {
-      const https = require('https');
-      const body = JSON.stringify({
-        client_id: STRAVA_CLIENT_ID.value(),
-        client_secret: STRAVA_CLIENT_SECRET.value(),
-        code,
-        grant_type: 'authorization_code'
-      });
-
-      const tokenData = await new Promise((resolve, reject) => {
-        const r = https.request('https://www.strava.com/oauth/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
-        }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => resolve(JSON.parse(d))); });
-        r.on('error', reject); r.write(body); r.end();
-      });
+      const tokenRes = await fetchWithTimeout('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: STRAVA_CLIENT_ID.value(),
+          client_secret: STRAVA_CLIENT_SECRET.value(),
+          code,
+          grant_type: 'authorization_code'
+        })
+      }, 15000);
+      const tokenData = await tokenRes.json();
 
       if (!tokenData.access_token) throw new Error('Token non reçu');
 
@@ -111,7 +98,7 @@ exports.stravaCallback = onRequest(
 
     } catch(e) {
       console.error('stravaCallback error:', e.message);
-      res.status(500).send('Erreur: ' + e.message);
+      res.status(500).send('Erreur lors de la connexion Strava. Réessaie depuis l\'app.');
     }
   }
 );
@@ -128,7 +115,6 @@ exports.stravaFetch = onRequest(
     try { uid = await verifyUser(req); } catch(e) { res.status(401).json({ success: false, error: 'Non authentifié' }); return; }
 
     try {
-      const https = require('https');
       const db = admin.database();
 
       const accessToken = await getValidAccessToken(db, uid, STRAVA_CLIENT_ID.value(), STRAVA_CLIENT_SECRET.value());
@@ -137,14 +123,12 @@ exports.stravaFetch = onRequest(
         return;
       }
 
-      const activities = await new Promise((resolve, reject) => {
-        const r = https.request(
-          'https://www.strava.com/api/v3/athlete/activities?per_page=200&page=1',
-          { headers: { 'Authorization': `Bearer ${accessToken}` } },
-          resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => resolve(JSON.parse(d))); }
-        );
-        r.on('error', reject); r.end();
-      });
+      const activitiesRes = await fetchWithTimeout(
+        'https://www.strava.com/api/v3/athlete/activities?per_page=200&page=1',
+        { headers: { 'Authorization': `Bearer ${accessToken}` } },
+        25000
+      );
+      const activities = await activitiesRes.json();
 
       if (!Array.isArray(activities)) {
         res.json({ success: false, message: 'Erreur API Strava' });
@@ -205,7 +189,6 @@ exports.stravaFetchDetail = onRequest(
     try { uid = await verifyUser(req); } catch(e) { res.status(401).json({ success: false, error: 'Non authentifié' }); return; }
 
     try {
-      const https = require('https');
       const db = admin.database();
       const { activityId } = req.body;
       if (!activityId) { res.json({ success: false, message: 'activityId manquant' }); return; }
@@ -213,14 +196,12 @@ exports.stravaFetchDetail = onRequest(
       const accessToken = await getValidAccessToken(db, uid, STRAVA_CLIENT_ID.value(), STRAVA_CLIENT_SECRET.value());
       if (!accessToken) { res.json({ success: false, message: 'Strava non connecté' }); return; }
 
-      const detail = await new Promise((resolve, reject) => {
-        const r = https.request(
-          `https://www.strava.com/api/v3/activities/${activityId}`,
-          { headers: { 'Authorization': `Bearer ${accessToken}` } },
-          resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve({}); } }); }
-        );
-        r.on('error', () => resolve({})); r.end();
-      });
+      const detailRes = await fetchWithTimeout(
+        `https://www.strava.com/api/v3/activities/${activityId}`,
+        { headers: { 'Authorization': `Bearer ${accessToken}` } },
+        25000
+      );
+      const detail = detailRes.ok ? await detailRes.json() : {};
 
       const result = { calories: null, best_400m: null, splits: null, laps: null, zones_fc: null };
 

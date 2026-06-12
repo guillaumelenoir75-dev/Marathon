@@ -15,6 +15,13 @@ function corsHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
+async function verifyUser(req) {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) throw new Error('Non authentifié');
+  const decoded = await admin.auth().verifyIdToken(authHeader.slice(7));
+  return decoded.uid;
+}
+
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) throw new Error('Non authentifié');
@@ -216,6 +223,7 @@ module.exports = {
   ADMIN_UID,
   ADMIN_STATE,
   corsHeaders,
+  verifyUser,
   verifyAdmin,
   callAnthropic,
   fetchWithTimeout,
