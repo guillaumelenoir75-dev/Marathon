@@ -23,7 +23,8 @@
       {
         "source": "**",
         "headers": [
-          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
+          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://www.gstatic.com https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://us-central1-prepa-marathon.cloudfunctions.net https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app wss://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app https://api.open-meteo.com https://archive-api.open-meteo.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; img-src 'self' data: blob:; frame-src 'none'; object-src 'none'; worker-src 'self';" }
         ]
       }
     ]
