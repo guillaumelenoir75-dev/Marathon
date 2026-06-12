@@ -276,31 +276,48 @@ async function importMeteoValidation() {
 }
 
 
+async function _stravaGetToken() {
+  const user = firebase.auth().currentUser;
+  if (!user) return null;
+  return user.getIdToken();
+}
+
+async function _stravaFetch(body = {}) {
+  const token = await _stravaGetToken();
+  return fetch(FUNCTIONS_BASE + '/stravaFetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(body)
+  }).then(r => r.json());
+}
+
+async function _stravaOpenAuth() {
+  const token = await _stravaGetToken();
+  const resp = await fetch(FUNCTIONS_BASE + '/stravaAuth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({})
+  });
+  const data = await resp.json();
+  return data.url ? window.open(data.url, '_blank', 'width=600,height=700') : null;
+}
+
 async function importFromStrava() {
   const btn = document.getElementById('garmin-val-btn');
   if(btn) { btn.textContent = '⏳ Chargement…'; btn.disabled = true; }
 
   try {
-    const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-    const data = await resp.json();
+    const data = await _stravaFetch();
 
     if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
 
     // Strava non connecté → ouvrir la page d'auth
     if(data.needsAuth) {
-      const authWin = window.open('https://us-central1-prepa-marathon.cloudfunctions.net/stravaAuth', '_blank', 'width=600,height=700');
+      const authWin = await _stravaOpenAuth();
       if(btn) { btn.textContent = '⏳ Connexion Strava…'; btn.disabled = true; }
-      // Vérifier toutes les 2s si l'auth est terminée
       const check = setInterval(async () => {
         try {
-          const r2 = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
-          });
-          const d2 = await r2.json();
+          const d2 = await _stravaFetch();
           if(d2.success && d2.activities) {
             clearInterval(check);
             if(authWin) authWin.close();
@@ -312,7 +329,7 @@ async function importFromStrava() {
           }
         } catch(e) {}
       }, 2000);
-      setTimeout(() => clearInterval(check), 120000); // stop après 2min
+      setTimeout(() => clearInterval(check), 120000);
       return;
     }
 
@@ -499,9 +516,10 @@ function _detectTempoBlocsFromLaps(laps, sessionDetail) {
 // ── FETCH DÉTAIL STRAVA PUIS APPLIQUER ───────────────────────────────────────
 async function _fetchAndApplyStravaDetail(activity, mode, ws, si) {
   try {
-    const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetchDetail', {
+    const token = await _stravaGetToken();
+    const resp = await fetch(FUNCTIONS_BASE + '/stravaFetchDetail', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ activityId: activity.activityId })
     });
     const data = await resp.json();
@@ -668,21 +686,15 @@ async function importFromStravaForPerfEdit(ws, si) {
   if(btn) { btn.textContent = '⏳…'; btn.disabled = true; }
 
   try {
-    const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
-    });
-    const data = await resp.json();
+    const data = await _stravaFetch();
     if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; }
 
     if(data.needsAuth) {
-      const authWin = window.open('https://us-central1-prepa-marathon.cloudfunctions.net/stravaAuth', '_blank', 'width=600,height=700');
+      const authWin = await _stravaOpenAuth();
       if(btn) { btn.textContent = '⏳ Connexion…'; btn.disabled = true; }
       const check = setInterval(async () => {
         try {
-          const r2 = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/stravaFetch', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
-          });
-          const d2 = await r2.json();
+          const d2 = await _stravaFetch();
           if(d2.success && d2.activities) {
             clearInterval(check);
             if(authWin) authWin.close();
