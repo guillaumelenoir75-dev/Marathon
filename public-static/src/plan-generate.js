@@ -156,7 +156,7 @@ function generateAthletePlan(ob){
   const tempoByPhase=(phase)=>{
     if(niveau==='Débutant'){
       if(phase===2) return {rep:1,dur:6,recup:'3:00'};
-      if(phase===3) return {rep:2,dur:8,recup:'3:00'};
+      if(phase===3) return {rep:2,dur:6,recup:'3:00'}; // progression douce : 1×6→2×6 (→2×10 via bonus)
       if(phase===4) return {rep:1,dur:6,recup:'3:00'}; // court affûtage
       return null;
     }
@@ -334,8 +334,15 @@ function generateAthletePlan(ob){
 
   // Course en progression — départ EF, crescendo vers allure cible
   const descProgression=(phase)=>{
-    const targetLbl=course==='Semi-marathon'&&semiLbl?semiLbl:course==='Marathon'&&racePaceLbl?racePaceLbl:tempoLbl;
-    const targetDesc=course==='Semi-marathon'?'allure semi':course==='Marathon'?'allure marathon':'allure seuil';
+    const targetLbl=course==='Semi-marathon'&&semiLbl?semiLbl
+      :course==='Marathon'&&racePaceLbl?racePaceLbl
+      :(course==='5 km'||course==='10 km')&&racePaceLbl?racePaceLbl
+      :tempoLbl;
+    const targetDesc=course==='Semi-marathon'?'allure semi'
+      :course==='Marathon'?'allure marathon'
+      :course==='5 km'?'allure 5km'
+      :course==='10 km'?'allure 10km'
+      :'allure seuil';
     const durFast=phase===3?18:12;
     if(targetLbl&&efLabel)
       return `Course en progression|${efLabel}/km (début) · crescendo naturel · finir ${durFast} min à ${targetLbl}/km (${targetDesc}) · ne jamais forcer au départ, laisser venir le rythme · confiance en l'allure cible`;
@@ -373,15 +380,15 @@ function generateAthletePlan(ob){
       4:['tempo'],
     },
     '5 km':{
-      1:[null],                    // Phase 1 : EF pur, accélérations contrôlées par stridesStartQ
-      2:['frac','frac','frac'],    // Phase 2 : fractionné dominant
-      3:['frac','frac','frac'],    // Phase 3 : fractionné dominant
+      1:[null],                              // Phase 1 : EF pur, accélérations contrôlées par stridesStartQ
+      2:['frac','frac','frac'],              // Phase 2 : fractionné dominant
+      3:['frac','progression','frac'],       // Phase 3 : fractionné + progression allure 5km
       4:['frac'],
     },
     '10 km':{
-      1:[null],                    // Phase 1 : EF pur
-      2:['frac','frac','frac'],    // Phase 2 : fractionné
-      3:['frac','frac','frac'],    // Phase 3 : fractionné dominant
+      1:[null],                              // Phase 1 : EF pur
+      2:['frac','frac','frac'],              // Phase 2 : fractionné
+      3:['tempo','frac','tempo'],            // Phase 3 : tempo seuil + frac (spécifique 10km)
       4:['frac'],
     },
     'Semi-marathon':{
@@ -397,41 +404,6 @@ function generateAthletePlan(ob){
       4:['tempo'],
     },
   };
-  // 2ème séance qualité (4 sessions uniquement, Phase 2+)
-  // Règle stricte : si Q1=tempo → Q2=fartlek (jamais frac) ; si Q1=frac → Q2=fartlek ou frac (jamais tempo)
-  const Q2_MATRIX={
-    Plaisir:{
-      1:[null],
-      2:['fartlek'],
-      3:['fartlek','tempo'],
-      4:[null],
-    },
-    '5 km':{
-      1:[null],
-      2:['fartlek','frac'],   // Q1=frac → Q2=fartlek ou 2ème frac léger
-      3:['frac','fartlek'],   // alternance
-      4:[null],
-    },
-    '10 km':{
-      1:[null],
-      2:['fartlek','frac'],   // Q1=frac → Q2=fartlek ou 2ème frac
-      3:['frac','fartlek'],   // alternance
-      4:[null],
-    },
-    'Semi-marathon':{
-      1:[null],
-      2:['fartlek'],          // Q1=tempo → Q2=fartlek uniquement (pas frac : trop éprouvant)
-      3:['fartlek'],          // Q1=tempo/progression → Q2=fartlek
-      4:[null],
-    },
-    'Marathon':{
-      1:[null],
-      2:['fartlek','mpace'],  // Q1=tempo → Q2=fartlek ou allure spécifique
-      3:['mpace','fartlek'],  // alternance mpace/fartlek
-      4:[null],
-    },
-  };
-
   // Phase du plan — durée Phase 1 fixe selon le niveau (indépendante de la durée du plan)
   // Débutant   : 7 semaines de base → qualité démarre autour de S08
   // Intermédiaire : 4 semaines → qualité démarre autour de S05
@@ -451,12 +423,6 @@ function generateAthletePlan(ob){
     if(!m||!m.length) return null;
     return m[weekInPhase%m.length]||null;
   };
-  const getQ2Type=(phase,weekInPhase)=>{
-    const m=(Q2_MATRIX[course]||Q2_MATRIX.Marathon)[phase];
-    if(!m||!m.length) return null;
-    return m[weekInPhase%m.length]||null;
-  };
-
   // Résoudre un type de séance qualité → {d, type}
   // weekInPhase : position dans la phase (pour progression intra-phase du tempo)
   // isRecov : semaine de décharge → durée/reps réduits, allure légèrement inférieure
@@ -514,11 +480,8 @@ function generateAthletePlan(ob){
     // La qualité maintient les acquis neuromusculaires sans surcharger l'organisme.
     // Semaines d'affûtage (noIntensity) : aucune qualité du tout.
     const blockQuality=noIntensity; // décharge autorisée, noIntensity bloquée
-    const blockQ2=isRecov||noIntensity; // Q2 supprimée en décharge ET affûtage
     const qType=blockQuality?null:getQType(phase,weekInPhase);
-    const q2Type=blockQ2||nbSess<4?null:getQ2Type(phase,weekInPhase);
     const hasQuality=!!qType&&nbSess>=3;
-    const hasQuality2=!!q2Type&&nbSess===4;
 
     // Strides en fin de footing EF : Phase 2+, non décharge, non affûtage
     const useStrides=phase>=2&&!isRecov&&!isTaper;
@@ -528,6 +491,10 @@ function generateAthletePlan(ob){
     const useStridesP1=w>=stridesStartQ&&!isRecov&&!isTaper;
 
     let sessions=[];
+    const isLastPlaisirWeek=isPlaisir&&w===numWeeks;
+    const bilanDesc=efLabel
+      ?`Sortie bilan de fin de plan|${efLabel}/km · courir à ton rythme habituel · profite de chaque foulée, mesure le chemin parcouru depuis le début du plan · pas d'objectif, juste du plaisir`
+      :`Sortie bilan de fin de plan|courir à ton rythme, sans objectif · profite de chaque foulée et mesure le chemin parcouru depuis le début`;
 
     if(isRaceWeek){
       // Semaine de course : activation légère + Jour J
@@ -548,12 +515,7 @@ function generateAthletePlan(ob){
     } else if(nbSess===2){
       const kL=capLong(Math.max(Math.round(total*0.55),sFloor));
       const kEF=Math.max(total-kL,sFloor);
-      const isLastPlaisirWeek=isPlaisir&&w===numWeeks;
-      const dL=isLastPlaisirWeek
-        ?(efLabel
-          ?`Sortie bilan de fin de plan|${efLabel}/km · courir à ton rythme habituel · profite de chaque foulée, mesure le chemin parcouru depuis le début du plan · pas d'objectif, juste du plaisir`
-          :`Sortie bilan de fin de plan|courir à ton rythme, sans objectif · profite de chaque foulée et mesure le chemin parcouru depuis le début`)
-        :descLong(kL,phase,isRecov);
+      const dL=isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov);
 
       let s0;
       if(isRecov){
@@ -581,7 +543,7 @@ function generateAthletePlan(ob){
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
           q?{d:q.d,km:kQ,type:q.type,shoe:null}:{d:descEF(),km:kQ,type:'ef',shoe:null},
-          {d:descLong(kL,phase,false),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,false),km:kL,type:'long',shoe:null},
         ];
       } else {
         // Phase 1 ou décharge : 2 EF + longue
@@ -592,17 +554,19 @@ function generateAthletePlan(ob){
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           // Phase 1 : accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k2,type:'ef',shoe:null},
-          {d:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
         ];
       }
 
     } else {
       // 4 séances : EF → Q2 (légère) → Q1 (principale) → Long
       // L'ordre garantit une récupération entre les 2 séances qualité
+      // Pour les petits volumes (total<14), on calcule d'abord la longue pour éviter le dépassement
       const kEF=Math.max(Math.round(total*0.20),sFloor);
       const kQ1=Math.max(Math.round(total*0.22),sFloor);
       const kQ2=Math.max(Math.round(total*0.20),sFloor);
-      const kL =capLong(total-kEF-kQ1-kQ2);
+      const kLraw=total-kEF-kQ1-kQ2;
+      const kL =total>=14?capLong(kLraw):Math.min(Math.max(kLraw,sFloor),longRunCap);
 
       if(hasQuality){
         const q1=resolveQ(qType,phase,weekInPhase,isTaper,isRecov,false);
@@ -623,20 +587,21 @@ function generateAthletePlan(ob){
           {d:dEF,km:kEF,type:'ef',shoe:null},
           sQ2, // 2ème qualité en 1er (plus légère) pour permettre récupération avant Q1
           sQ1, // 1ère qualité principale
-          {d:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
         ];
       } else {
         // Phase 1 ou décharge : 3 EF + longue (long run ≥35% volume)
         const k1=Math.max(Math.round(total*0.22),sFloor);
         const k2=Math.max(Math.round(total*0.18),sFloor);
         const k3=Math.max(Math.round(total*0.18),sFloor);
-        const kL2=capLong(Math.max(total-k1-k2-k3,Math.round(total*0.35)));
+        const kL2raw=total-k1-k2-k3;
+        const kL2=total>=14?capLong(Math.max(kL2raw,Math.round(total*0.35))):Math.min(Math.max(kL2raw,sFloor),longRunCap);
         sessions=[
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           {d:descEF(),km:k2,type:'ef',shoe:null},
           // Accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k3,type:'ef',shoe:null},
-          {d:descLong(kL2,phase,isRecov),km:kL2,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL2,phase,isRecov),km:kL2,type:'long',shoe:null},
         ];
       }
     }
