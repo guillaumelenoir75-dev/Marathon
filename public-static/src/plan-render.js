@@ -1,3 +1,10 @@
+// Normalise les anciens titres de séances EF stockés en base vers "Footing EF"
+function normalizeSessionTitle(title){
+  if(!title) return title;
+  if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(title)) return 'Footing EF';
+  return title;
+}
+
 function onEditTypeChange(){
   const type=document.getElementById('hm-type').value;
   const container=document.getElementById('hm-detail-container');
@@ -679,7 +686,7 @@ function renderAthletePlan(el){
       const typeC=typeColor[s.type]||'#888';
       const typeBgC=typeBg[s.type]||'#f5f5f5';
       const lbl=typeLabel[s.type]||s.type;
-      const title=s.d?s.d.split('|')[0]:'';
+      const title=normalizeSessionTitle(s.d?s.d.split('|')[0]:'');
       const detail=s.d&&s.d.includes('|')?s.d.split('|')[1]:null;
       const clickFn=done?`openPerfEditExtraModal(${ws},${eid})`:`openEditExtraModal(${ws},${eid})`;
       const iconContent=done
@@ -995,7 +1002,7 @@ function renderPlan(){
       const typeBgC=typeBg[s2.type]||'#f5f5f5';
       const lbl=typeLabel[s2.type]||'EF';
       const parts=s2.d.split('|');
-      const title=parts[0];
+      const title=normalizeSessionTitle(parts[0]);
       const detail=filterDetailDisplay(title, parts[1]||null);
       const edited=!extra&&state[`edit_w${w.s}_s${si}`];
       const isDone=extra ? !!state[`extra_w${w.s}_s${eid}_done`] : !!state[gk(w.s,si)+'done'];

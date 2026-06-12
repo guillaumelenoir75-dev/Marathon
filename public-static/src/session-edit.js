@@ -702,7 +702,7 @@ function saveAdd(ws){
     // EF
     const efPaceEl = document.getElementById('add-ef-pace');
     const efPace = efPaceEl ? efPaceEl.value.trim() : (getBestEfPace() || '6:40');
-    name   = 'Séance EF';
+    name   = 'Footing EF';
     detail = efPace + '/km';
   }
 
@@ -935,7 +935,7 @@ function saveExtraEdit(ws, ei){
     const efPaceEl=document.getElementById('exedit-ef-pace');
     const efPaceStr=efPaceEl?efPaceEl.value.trim():'';
     const existing3=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
-    name=existing3.d.split('|')[0]||'Séance EF';
+    name=existing3.d.split('|')[0]||'Footing EF';
     detail=efPaceStr?efPaceStr+'/km':'';  // même format que saveEdit
   }
   const d=detail?`${name}|${detail}`:name;
