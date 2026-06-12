@@ -21,22 +21,22 @@ const {
 
 exports.fcReposReminderWeekday = onSchedule(
   {schedule:'58 7 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
 );
 
 exports.fcReposReminderWeekend = onSchedule(
   {schedule:'30 9 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
 );
 
 exports.fcReposReminder14hWeekday = onSchedule(
   {schedule:'0 14 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"N'oublie pas de rentrer ta FC repos aujourd'hui ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
 );
 
 exports.fcReposReminder14hWeekend = onSchedule(
   {schedule:'0 14 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();if(!await getUserPref(db,ADMIN_STATE,'notif_fc_repos'))return;const today=new Date().toISOString().slice(0,10);const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(snap.val())return;await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"N'oublie pas de rentrer ta FC repos aujourd'hui ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
 );
 
 exports.sessionReminder = onSchedule(
@@ -141,23 +141,47 @@ exports.sessionReminder = onSchedule(
         }
       }
     }catch(e){console.error('sessionReminder admin renfo:',e.message);}
+    // ── Athlètes : rappel séances normales + extra 1h avant ──────────────────
     try{
       const subsSnap=await db.ref('_push_subscribers').once('value');
       const allSubs=subsSnap.val()||{};
-      for(const [uid,sub] of Object.entries(allSubs)){
-        if(uid===ADMIN_UID)continue;
-        if(!await getUserPref(db,`users/${uid}/state`,'notif_seance'))continue;
-        const uState=(await db.ref(`users/${uid}/state`).once('value')).val()||{};
+      const uids=Object.keys(allSubs).filter(uid=>uid!==ADMIN_UID);
+      const userStates=await Promise.all(uids.map(uid=>db.ref(`users/${uid}/state`).once('value').then(s=>s.val()||{})));
+      for(let i=0;i<uids.length;i++){
+        const uid=uids[i];const sub=allSubs[uid];
+        const uState=userStates[i];
+        const prefs=uState._prefs?(typeof uState._prefs==='string'?JSON.parse(uState._prefs):uState._prefs):{};
+        if(prefs.notif_seance===false)continue;
+        const ucw=getWeekFromDB(uState.plan_start_date);
+        let sent=false;
+        for(let si=0;si<5;si++){
+          const done=!!uState[`s${ucw}i${si}done`];if(done)continue;
+          const edRaw=uState[`edit_w${ucw}_s${si}`];if(!edRaw)continue;
+          let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+          if(ed.type==='rest')continue;
+          if(ed.sched_day!==dayOfWeek||!ed.sched_time)continue;
+          const[h,m]=ed.sched_time.split(':').map(Number);
+          const sm=h*60+m;
+          if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
+          const rk=`_rappel_sent_w${ucw}_s${si}`;
+          if(uState[rk]===ts)continue;
+          const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+          const body=`🏃 ${titre}${ed.km?' — '+ed.km+'km':''} à ${ed.sched_time}. Prépare ton équipement ! 💪`;
+          await sendPushToUser(db,uid,sub,VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder');
+          await db.ref(`users/${uid}/state/${rk}`).set(ts);
+          sent=true;break;
+        }
+        if(sent)continue;
         let extraRi=0;
-        while(uState[`extra_w${cw}_s${extraRi}`]){
-          const done=!!uState[`extra_w${cw}_s${extraRi}_done`];
+        while(uState[`extra_w${ucw}_s${extraRi}`]){
+          const done=!!uState[`extra_w${ucw}_s${extraRi}_done`];
           if(!done){
-            let es;try{es=JSON.parse(uState[`extra_w${cw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
+            let es;try{es=JSON.parse(uState[`extra_w${ucw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
             if(es.sched_day===dayOfWeek&&es.sched_time){
               const[h,m]=es.sched_time.split(':').map(Number);
               const sm=h*60+m;
               if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
-                const rk=`_rappel_extra_sent_w${cw}_s${extraRi}`;
+                const rk=`_rappel_extra_sent_w${ucw}_s${extraRi}`;
                 if(uState[rk]!==ts){
                   const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
                   const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
@@ -197,7 +221,13 @@ exports.briefAfterFcRepos = onSchedule(
         await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
         return;
       }
-      await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+      let triggerClaimed = false;
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).transaction(current => {
+        if (!current) { triggerClaimed = false; return; }
+        triggerClaimed = true;
+        return null;
+      });
+      if (!triggerClaimed) return;
       const cw=getWeekFromDB();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;

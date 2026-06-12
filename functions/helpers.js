@@ -51,7 +51,10 @@ async function getUserPref(db, statePath, key, defaultVal = true) {
     if (!raw) return defaultVal;
     const prefs = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return prefs[key] !== undefined ? prefs[key] : defaultVal;
-  } catch(e) { return defaultVal; }
+  } catch(e) {
+    console.warn('getUserPref error (DB?):', statePath, key, e.message);
+    return false;
+  }
 }
 
 async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
@@ -71,7 +74,7 @@ async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   }
 }
 
-async function sendPushToAll(vapidPublic, vapidPrivate, title, body, tag, url, prefKey) {
+async function sendPushToAll(vapidPublic, vapidPrivate, title, body, tag, url, excludeUid, prefKey) {
   const webpush = require('web-push');
   webpush.setVapidDetails('mailto:guillaumelenoir75@gmail.com', vapidPublic, vapidPrivate);
   const db = admin.database();
@@ -96,7 +99,7 @@ async function sendPushToAll(vapidPublic, vapidPrivate, title, body, tag, url, p
       }
     }
   };
-  await Promise.all(Object.entries(subs).map(([uid, sub]) => sendOne(uid, sub)));
+  await Promise.all(Object.entries(subs).filter(([uid]) => uid !== excludeUid).map(([uid, sub]) => sendOne(uid, sub)));
 }
 
 async function sendPushToUser(db, uid, sub, vapidPublic, vapidPrivate, title, body, tag) {
