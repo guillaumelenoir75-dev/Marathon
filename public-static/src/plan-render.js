@@ -1124,4 +1124,23 @@ function renderPlan(){
     el.appendChild(card);
     } catch(e) { console.error('renderPlan error S'+w.s+':', e); }
   });
+
+  // Carte Jour J — Marathon 18 octobre 2026
+  const jourJCard=document.createElement('div');
+  jourJCard.style.cssText='margin:8px 0 4px;border:2px solid #D97706;border-radius:var(--radius);background:linear-gradient(135deg,#FFFBEB,#FEF3C7);overflow:hidden;';
+  jourJCard.innerHTML=`
+    <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;">
+      <div style="font-size:36px;line-height:1;">🏆</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:700;color:#D97706;text-transform:uppercase;letter-spacing:0.08em;">Jour J</div>
+        <div style="font-size:16px;font-weight:800;color:#92400E;margin-top:2px;">Marathon</div>
+        <div style="font-size:12px;color:#B45309;font-weight:600;margin-top:3px;">Dimanche 18 octobre 2026</div>
+      </div>
+      <div style="background:#D97706;color:#fff;border-radius:12px;padding:8px 14px;text-align:center;flex-shrink:0;">
+        <div style="font-size:22px;font-weight:900;line-height:1;">42</div>
+        <div style="font-size:10px;font-weight:600;opacity:0.9;">km</div>
+      </div>
+    </div>
+    <div style="height:3px;background:linear-gradient(90deg,#FCD34D,#D97706,#92400E);"></div>`;
+  el.appendChild(jourJCard);
 }
