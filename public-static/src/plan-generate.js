@@ -21,15 +21,14 @@ function generateDecouvertePlan(ob){
   const fcMax=parseInt(ob.fc_max)||0;
   const efFCStr=fcMax?`FC ${Math.round(fcMax*0.68)}-${Math.round(fcMax*0.74)} bpm`:'FC basse, effort très léger';
 
-  // Phases selon numWeeks — chaque phase s'étire proportionnellement sur le plan
-  // Phase 1 : Marche-Course (≈ 25%)
-  // Phase 2 : Progressif blocs (≈ 17%)
-  // Phase 3 : Course continue courte (≈ 25%)
-  // Phase 4 : EF + accélérations (≈ 33%)
-  const p1End=Math.round(numWeeks*0.25);         // ex. 24s → sem 1-6
-  const p2End=p1End+Math.round(numWeeks*0.17);   // ex. 24s → sem 7-10
-  const p3End=p2End+Math.round(numWeeks*0.25);   // ex. 24s → sem 11-16
-  // Phase 4 : sem p3End+1 → numWeeks
+  // Phases avec minimums pour éviter des transitions trop brutales sur plans courts
+  // Phase 1 : Marche-Course (≈ 25%, min 3 sem)
+  // Phase 2 : Progressif blocs (≈ 17%, min 2 sem)
+  // Phase 3 : Course continue (≈ 25%, min 2 sem)
+  // Phase 4 : EF + accélérations (reste, min 1 sem)
+  const p1End=Math.max(3,Math.round(numWeeks*0.25));
+  const p2End=Math.min(p1End+Math.max(2,Math.round(numWeeks*0.17)),numWeeks-3);
+  const p3End=Math.min(p2End+Math.max(2,Math.round(numWeeks*0.25)),numWeeks-1);
   const getPhase=w=>w<=p1End?1:w<=p2End?2:w<=p3End?3:4;
 
   // Progression marche-course : 1' → 1'30" → 2' → 2'30" → 3' → 4' sur la phase 1
@@ -42,37 +41,44 @@ function generateDecouvertePlan(ob){
     const reps=rs<=90?7:rs<=150?6:5;
     const totalMin=Math.round((rs+walkSec)*reps/60);
     const fmt=s=>s%60===0?`${s/60}'`:(s===90?`1'30"`:s===150?`2'30"`:s===210?`3'30"`:`${Math.floor(s/60)}'${s%60}"`);
-    const km=Math.max(2.5,Math.round(rs/60/6*reps*10)/10);
+    // Allure réaliste débutant ~8 min/km (pas 6 min/km)
+    const km=Math.max(2.5,Math.round(rs/60/8*reps*10)/10);
     return {type:'ef',km,d:`Marche-Course|${fmt(rs)} course / ${fmt(walkSec)} marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · bien respirer, jamais essoufflé(e)`};
   };
 
-  // Progression blocs : 4' → 5' → 6' → 8' / 1' marche
+  // Progression blocs : 4' → 5' → 6' / 1' marche (cap à 6' pour adoucir la transition vers EF continu)
   const descProgressif=w=>{
     const step=w-p1End-1;
-    const runMins=[4,5,6,8];
+    const runMins=[4,5,6];
     const runMin=runMins[Math.min(step,runMins.length-1)];
-    const reps=runMin<=5?4:3;
+    const reps=4;
     const totalMin=Math.round((runMin+1)*reps)+3;
-    const km=Math.max(3,Math.round(runMin/6*reps*10)/10+0.5);
+    // Allure réaliste débutant ~8 min/km
+    const km=Math.max(3,Math.round(runMin/8*reps*10)/10+0.3);
     return {type:'ef',km,d:`Course progressive|${runMin}' course / 1' marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · allonger progressivement les blocs, confort avant tout`};
   };
 
-  // Course continue : 20 min → 25 → 30 → 35 min
+  // Course continue : démarre à 22min pour assurer une continuité de charge avec la phase 2
   const descContinue=w=>{
     const step=w-p2End-1;
-    const durees=[20,22,25,28,30,32,35];
+    const durees=[22,25,27,29,31,33,35];
     const minRun=durees[Math.min(step,durees.length-1)];
-    const km=Math.max(3,Math.round(minRun/6*10)/10);
-    const msg=step===0?`félicite-toi, c'est une vraie étape !`:`rythme confort, foulée relâchée · construire la confiance`;
+    // Allure réaliste débutant ~8 min/km
+    const km=Math.max(2.7,Math.round(minRun/8*10)/10);
+    const msg=step===0?`félicite-toi, c'est une vraie étape — tu cours sans t'arrêter !`:`rythme confort, foulée relâchée · construire la confiance`;
     return {type:'ef',km,d:`Footing EF|${minRun} min continue · ${efHint} · ${efFCStr} · allure conversationnelle, jamais essoufflé(e) · ${msg}`};
   };
 
-  // EF + accélérations : 25 → 30 → 35 → 40 min + 2-5 accélérations
+  // EF + accélérations : repart du niveau atteint en phase 3, monte jusqu'à 42min
   const descAccel=w=>{
     const step=w-p3End-1;
-    const durees=[25,28,30,32,35,38,40,42];
-    const minRun=durees[Math.min(step,durees.length-1)];
-    const km=Math.max(4,Math.round(minRun/6*10)/10+0.3);
+    // Durée de départ = dernier palier phase 3 + 2 min
+    const p3Steps=p3End-p2End;
+    const p3Durees=[20,23,26,28,30,32,35];
+    const lastP3=p3Durees[Math.min(p3Steps-1,p3Durees.length-1)];
+    const minRun=Math.min(lastP3+2+step*2,42);
+    // Allure réaliste débutant ~8 min/km
+    const km=Math.max(3,Math.round(minRun/8*10)/10+0.2);
     const nbAccel=Math.min(2+Math.floor(step/2),5);
     return {type:'ef',km,d:`EF + accélérations|${minRun} min EF · ${efHint} · ${efFCStr} · finir par ${nbAccel}×30-40" accélérations progressives (marcher entre chaque) · sensation de légèreté, ne pas sprinter`};
   };
