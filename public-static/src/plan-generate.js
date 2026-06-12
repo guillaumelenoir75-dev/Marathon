@@ -8,7 +8,7 @@ function generateAthletePlan(ob){
 
   // ── Durée minimale recommandée par distance ───────────────────────────────────
   // Durée minimale par distance (respecter les minima physiologiques)
-  const minW={Plaisir:8,'5 km':8,'10 km':10,'Semi-marathon':12,'Marathon':16}[course]||8;
+  const minW={Plaisir:8,'5 km':8,'10 km':8,'Semi-marathon':10,'Marathon':12}[course]||8;
   const maxW=24; // 6 mois max
   let numWeeks=minW;
   if(ob.date){
@@ -431,7 +431,7 @@ function generateAthletePlan(ob){
   const getPhase=(w)=>{
     if(w>=taperStartW) return 4;
     const p1End=Math.min(p1Weeks, taperStartW-4); // garde au moins 4 semaines de qualité
-    const p2End=Math.min(p1End+Math.round(numWeeks*0.30), taperStartW-1);
+    const p2End=Math.min(p1End+Math.round(numWeeks*0.30), taperStartW-2); // garde ≥1 semaine Phase 3
     if(w<=p1End) return 1;
     if(w<=p2End) return 2;
     return 3;
@@ -548,12 +548,9 @@ function generateAthletePlan(ob){
         // Plaisir 2 sessions : quelques tempos à semaines fixes
         s0={d:descTempo(PLAISIR2_TEMPO[w]),km:kEF,type:'tempo',shoe:null};
       } else {
-        // Plans course 2 sessions : EF pur en début de plan, accélérations à partir du seuil de niveau
-        // Débutant      → accélérations dès S(p1Weeks+1) = S08
-        // Intermédiaire → accélérations dès S(p1Weeks)   = S04
-        // Confirmé      → accélérations dès S(p1Weeks)   = S02
-        const stridesStartW=niveau==='Débutant'?p1Weeks+1:p1Weeks;
-        const use2sStrides=w>=stridesStartW&&!isRecov&&!isTaper;
+        // Plans course 2 sessions : EF pur en Phase 1, accélérations dès Phase 2+
+        // S'adapte automatiquement à la durée du plan (court ou long)
+        const use2sStrides=phase>=2&&!isRecov&&!isTaper;
         s0={d:use2sStrides?descEFStrides():descEF(),km:kEF,type:'ef',shoe:null};
       }
       sessions=[s0,{d:dL,km:kL,type:'long',shoe:null}];

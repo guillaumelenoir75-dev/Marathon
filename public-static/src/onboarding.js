@@ -91,7 +91,7 @@ function obDateChanged(){
   const m=document.getElementById('ob-date-month')?.value;
   const y=document.getElementById('ob-date-year')?.value;
   const errEl=document.getElementById('ob-date-error');
-  const minWByCourse={Plaisir:8,'5 km':8,'10 km':10,'Semi-marathon':12,'Marathon':16};
+  const minWByCourse={Plaisir:8,'5 km':8,'10 km':8,'Semi-marathon':10,'Marathon':12};
   if(d&&m&&y){
     const chosen=new Date(y+'-'+m+'-'+d);
     const now=new Date(); now.setHours(0,0,0,0);
