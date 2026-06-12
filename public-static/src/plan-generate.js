@@ -3,11 +3,11 @@ function generateDecouvertePlan(ob){
   const nbSess=Math.min(2,Math.max(1,parseInt(ob.sessions)||2));
   const course=ob.course||'5 km';
 
-  // Durée : 8 semaines minimum, 12 max
+  // Durée : 8 semaines minimum, 24 max
   let numWeeks=8;
   if(ob.date){
     const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
-    if(diff>0) numWeeks=Math.min(Math.max(diff,8),12);
+    if(diff>0) numWeeks=Math.min(Math.max(diff,8),24);
   }
 
   // Allure EF si fournie
@@ -21,62 +21,79 @@ function generateDecouvertePlan(ob){
   const fcMax=parseInt(ob.fc_max)||0;
   const efFCStr=fcMax?`FC ${Math.round(fcMax*0.68)}-${Math.round(fcMax*0.74)} bpm`:'FC basse, effort très léger';
 
-  // Phases : 1=Marche-Course (s1-3), 2=Progressif (s4-5), 3=Course continue (s6-8), 4=EF+accél (s9-12)
-  const getPhase=w=>w<=3?1:w<=5?2:w<=8?3:4;
+  // Phases selon numWeeks — chaque phase s'étire proportionnellement sur le plan
+  // Phase 1 : Marche-Course (≈ 25%)
+  // Phase 2 : Progressif blocs (≈ 17%)
+  // Phase 3 : Course continue courte (≈ 25%)
+  // Phase 4 : EF + accélérations (≈ 33%)
+  const p1End=Math.round(numWeeks*0.25);         // ex. 24s → sem 1-6
+  const p2End=p1End+Math.round(numWeeks*0.17);   // ex. 24s → sem 7-10
+  const p3End=p2End+Math.round(numWeeks*0.25);   // ex. 24s → sem 11-16
+  // Phase 4 : sem p3End+1 → numWeeks
+  const getPhase=w=>w<=p1End?1:w<=p2End?2:w<=p3End?3:4;
 
+  // Progression marche-course : 1' → 1'30" → 2' → 2'30" → 3' → 4' sur la phase 1
   const descMarche=w=>{
-    const runMin=[0,1.5,2,2.5][Math.min(w-1,3)];
-    const walkMin=runMin<=1.5?2:1.5;
-    const reps=w<=2?7:6;
-    const totalMin=Math.round((runMin+walkMin)*reps);
-    const runStr=runMin===1.5?'1\'30"':`${runMin}'`;
-    const walkStr=walkMin===2?'2\'':`${walkMin}'`;
-    const km=Math.round((runMin/6)*reps*10)/10;
-    return {type:'ef',km:Math.max(2.5,km),d:`Marche-Course|${runStr} course / ${walkStr} marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · bien respirer, ne jamais être essoufflé(e)`};
+    const step=w-1; // 0-indexé dans la phase
+    // Durées de course : 1' sem1, 1'30" sem2, 2' sem3, 2'30" sem4, 3' sem5, 4' sem6+
+    const runSecs=[60,90,120,150,180,240];
+    const rs=runSecs[Math.min(step,runSecs.length-1)];
+    const walkSec=rs<=90?120:rs<=150?90:60; // marche de plus en plus courte
+    const reps=rs<=90?7:rs<=150?6:5;
+    const totalMin=Math.round((rs+walkSec)*reps/60);
+    const fmt=s=>s%60===0?`${s/60}'`:(s===90?`1'30"`:s===150?`2'30"`:s===210?`3'30"`:`${Math.floor(s/60)}'${s%60}"`);
+    const km=Math.max(2.5,Math.round(rs/60/6*reps*10)/10);
+    return {type:'ef',km,d:`Marche-Course|${fmt(rs)} course / ${fmt(walkSec)} marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · bien respirer, jamais essoufflé(e)`};
   };
 
+  // Progression blocs : 4' → 5' → 6' → 8' / 1' marche
   const descProgressif=w=>{
-    const runMin=w<=4?4:5;
-    const reps=4;
-    const totalMin=Math.round((runMin+1)*reps)+5;
-    const km=Math.round(runMin/6*reps*10)/10+0.5;
-    return {type:'ef',km:Math.max(3,km),d:`Course progressive|${runMin}' course / 1' marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · allonger progressivement les blocs, confort avant tout`};
+    const step=w-p1End-1;
+    const runMins=[4,5,6,8];
+    const runMin=runMins[Math.min(step,runMins.length-1)];
+    const reps=runMin<=5?4:3;
+    const totalMin=Math.round((runMin+1)*reps)+3;
+    const km=Math.max(3,Math.round(runMin/6*reps*10)/10+0.5);
+    return {type:'ef',km,d:`Course progressive|${runMin}' course / 1' marche × ${reps} répétitions · ${efHint} · ${efFCStr} · ${totalMin} min environ · allonger progressivement les blocs, confort avant tout`};
   };
 
-  const descContinue=(w,phase)=>{
-    const minRun=phase===3?(w<=6?20:w<=7?25:28):(w<=10?30:32);
-    const km=Math.round(minRun/6*10)/10;
-    const msg=phase===3?`félicite-toi, c'est une grande étape !`:`rythme confort, foulée relâchée · construire la confiance et la régularité`;
-    return {type:'ef',km:Math.max(phase===3?3:4,km),d:`Footing EF|${minRun} min continue · ${efHint} · ${efFCStr} · allure conversationnelle, jamais essoufflé(e) · ${msg}`};
+  // Course continue : 20 min → 25 → 30 → 35 min
+  const descContinue=w=>{
+    const step=w-p2End-1;
+    const durees=[20,22,25,28,30,32,35];
+    const minRun=durees[Math.min(step,durees.length-1)];
+    const km=Math.max(3,Math.round(minRun/6*10)/10);
+    const msg=step===0?`félicite-toi, c'est une vraie étape !`:`rythme confort, foulée relâchée · construire la confiance`;
+    return {type:'ef',km,d:`Footing EF|${minRun} min continue · ${efHint} · ${efFCStr} · allure conversationnelle, jamais essoufflé(e) · ${msg}`};
   };
 
+  // EF + accélérations : 25 → 30 → 35 → 40 min + 2-5 accélérations
   const descAccel=w=>{
-    const minRun=w<=10?25:w<=11?28:30;
-    const km=Math.round(minRun/6*10)/10+0.3;
-    const nbAccel=w<=10?2:w<=11?3:4;
-    return {type:'ef',km:Math.max(4,km),d:`EF + accélérations|${minRun} min EF · ${efHint} · ${efFCStr} · finir par ${nbAccel}×30-40" accélérations progressives (marcher entre chaque) · sensation de légèreté, ne pas sprinter`};
+    const step=w-p3End-1;
+    const durees=[25,28,30,32,35,38,40,42];
+    const minRun=durees[Math.min(step,durees.length-1)];
+    const km=Math.max(4,Math.round(minRun/6*10)/10+0.3);
+    const nbAccel=Math.min(2+Math.floor(step/2),5);
+    return {type:'ef',km,d:`EF + accélérations|${minRun} min EF · ${efHint} · ${efFCStr} · finir par ${nbAccel}×30-40" accélérations progressives (marcher entre chaque) · sensation de légèreté, ne pas sprinter`};
   };
 
   const getSession=w=>{
     const phase=getPhase(w);
     if(phase===1) return descMarche(w);
     if(phase===2) return descProgressif(w);
-    if(phase===3) return descContinue(w,3);
+    if(phase===3) return descContinue(w);
     return descAccel(w);
   };
 
-  const phaseLabels=['','Marche-Course','Progressif','Course continue','EF + accélérations'];
   const updates={};
-
   for(let w=1;w<=numWeeks;w++){
-    const phase=getPhase(w);
     for(let si=0;si<nbSess;si++){
       const s=getSession(w);
-      // Séance 2 : légèrement plus courte
+      // Séance 2 : 85% de la durée — même type, légèrement plus courte
       if(si===1){
         const factor=0.85;
-        s.km=Math.round(s.km*factor*10)/10;
-        s.d=s.d.replace(/(\d+) min/,m=>`${Math.round(parseInt(m)*factor)} min`);
+        s.km=Math.max(2,Math.round(s.km*factor*10)/10);
+        s.d=s.d.replace(/(\d+) min/,(_,n)=>`${Math.round(parseInt(n)*factor)} min`);
       }
       updates[`s${w}i${si}`]=JSON.stringify(s);
     }
