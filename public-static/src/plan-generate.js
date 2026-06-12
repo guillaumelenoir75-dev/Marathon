@@ -358,31 +358,31 @@ function generateAthletePlan(ob){
   // Côtes supprimées : privilégier fartlek en Phase 1 (moins traumatisant, plus ludique)
   const Q_MATRIX={
     Plaisir:{
-      1:['fartlek'],                   // Phase 1 : accélérations libres, aucune pression
+      1:[null],                        // Phase 1 : EF pur, accélérations contrôlées par stridesStartQ
       2:['tempo','tempo','tempo'],     // Phase 2 : tempo progressif (montée en puissance)
       3:['tempo','fartlek','tempo'],   // Phase 3 : tempo dominant, fartlek pour varier
       4:['tempo'],
     },
     '5 km':{
-      1:['fartlek'],               // Phase 1 : fartlek (pas côtes)
+      1:[null],                    // Phase 1 : EF pur, accélérations contrôlées par stridesStartQ
       2:['frac','frac','frac'],    // Phase 2 : fractionné dominant
       3:['frac','frac','frac'],    // Phase 3 : fractionné dominant
       4:['frac'],
     },
     '10 km':{
-      1:['fartlek'],               // Phase 1 : fartlek
+      1:[null],                    // Phase 1 : EF pur
       2:['frac','frac','frac'],    // Phase 2 : fractionné
       3:['frac','frac','frac'],    // Phase 3 : fractionné dominant
       4:['frac'],
     },
     'Semi-marathon':{
-      1:['fartlek'],               // Phase 1 : fartlek
+      1:[null],                    // Phase 1 : EF pur
       2:['tempo','tempo','tempo'], // Phase 2 : tempo dominant
       3:['tempo','progression','tempo'], // Phase 3 : seuil + progression
       4:['tempo'],
     },
     'Marathon':{
-      1:['fartlek'],               // Phase 1 : fartlek
+      1:[null],                    // Phase 1 : EF pur
       2:['tempo','tempo','tempo'], // Phase 2 : tempo dominant
       3:['tempo','progression','tempo'], // Phase 3 : seuil + progression
       4:['tempo'],
@@ -512,8 +512,11 @@ function generateAthletePlan(ob){
     const hasQuality2=!!q2Type&&nbSess===4;
 
     // Strides en fin de footing EF : Phase 2+, non décharge, non affûtage
-    // (gain neuromusculaire important, coût énergétique minimal)
     const useStrides=phase>=2&&!isRecov&&!isTaper;
+    // Seuil d'introduction des accélérations en Phase 1 (plans 3 et 4 séances)
+    // Débutant → S04 · Intermédiaire → S02 · Confirmé → S01
+    const stridesStartQ=niveau==='Débutant'?4:niveau==='Confirmé'?1:2;
+    const useStridesP1=w>=stridesStartQ&&!isRecov&&!isTaper;
 
     let sessions=[];
 
@@ -574,8 +577,8 @@ function generateAthletePlan(ob){
         const kL=capLong(total-k1-k2);
         sessions=[
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
-          // Phase 1 non-décharge : EF + strides pour travailler la foulée sans intensité
-          {d:(!isRecov&&phase===1&&useStrides)?descEFStrides():descEF(),km:k2,type:'ef',shoe:null},
+          // Phase 1 : accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
+          {d:useStridesP1?descEFStrides():descEF(),km:k2,type:'ef',shoe:null},
           {d:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
         ];
       }
@@ -618,7 +621,8 @@ function generateAthletePlan(ob){
         sessions=[
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           {d:descEF(),km:k2,type:'ef',shoe:null},
-          {d:(!isRecov&&phase===1&&useStrides)?descEFStrides():descEF(),km:k3,type:'ef',shoe:null},
+          // Accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
+          {d:useStridesP1?descEFStrides():descEF(),km:k3,type:'ef',shoe:null},
           {d:descLong(kL2,phase,isRecov),km:kL2,type:'long',shoe:null},
         ];
       }
