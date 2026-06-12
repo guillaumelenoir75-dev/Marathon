@@ -287,7 +287,7 @@ exports.briefAfterFcRepos = onSchedule(
 
       let brief = null;
       try {
-        brief = await callAnthropic(ANTHROPIC_API_KEY.value(),'Coach running. 1 phrase courte complète, jamais coupée, max 100 caractères.',[{role:'user',content:prompt}],60);
+        brief = await callAnthropic(ANTHROPIC_API_KEY.value(),'Coach running. 1 phrase courte complète, jamais coupée, max 100 caractères.',[{role:'user',content:prompt}],60,'claude-haiku-4-5-20251001');
       } catch(aiErr) { console.error('briefAfterFcRepos AI error:',aiErr.message); }
 
       let body = (brief || activitesMsg).trim();
@@ -418,7 +418,7 @@ exports.weekCompleteCongrats = onSchedule(
             }
             const perfsStr=perfsDetail.length>0?perfsDetail.join(', '):`${doneRun} séances`;
             const prompt=`Félicitations à Guillaume pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant le marathon.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;
-            const msg=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running enthousiaste. Réponds en 2 phrases courtes, maximum 180 caractères, jamais de phrase coupée.',[{role:'user',content:prompt}],180);
+            const msg=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running enthousiaste. Réponds en 2 phrases courtes, maximum 180 caractères, jamais de phrase coupée.',[{role:'user',content:prompt}],180,'claude-haiku-4-5-20251001');
             let body = msg || `S${cw} 100% complète ! Run + renfo : tout validé. Belle semaine Guillaume 💪`;
             const lastPunct = Math.max(body.lastIndexOf('.'), body.lastIndexOf('!'), body.lastIndexOf('?'));
             if (lastPunct > 0 && lastPunct < body.length - 1) body = body.slice(0, lastPunct + 1);
@@ -492,7 +492,7 @@ exports.weeklyDebriefNotif = onSchedule(
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
         const ctx=await buildNotifContext(state,cw);
         const prompt=`Tu es le coach running de Guillaume. Débrief fin de semaine en 3 phrases max pour notification iPhone.\nBilan S${cw} (${ctx.typeSem}) : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?' — '+ctx.kmSemaine+'km':''}. ${ctx.seancesRestantes.length>0?'Manquées : '+ctx.seancesRestantes.join(', ')+'.':'Toutes faites 🎉'} EF : ${ctx.efPace||'?'}.\nS${ctx.cwNext} (${ctx.typeSemNext}) : ${ctx.seancesNext.join(', ')||'à planifier'}.\nPhrase 1 = bilan 📊, phrase 2 = point clé 📈 ou ⚠️, phrase 3 = aperçu S${ctx.cwNext} + "Ouvre le Coach pour le détail 👇"`;
-        const debrief=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running concis et motivant.',[{role:'user',content:prompt}],200);
+        const debrief=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running concis et motivant.',[{role:'user',content:prompt}],200,'claude-haiku-4-5-20251001');
         const body=debrief||`📊 S${cw} terminée : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?', '+ctx.kmSemaine+'km':''}. S${ctx.cwNext} arrive. Ouvre l'app pour le détail 👇`;
         const today=new Date().toISOString().slice(0,10);
         await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:body,date:today,type:'weekly_debrief'});

@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID } = require('./helpers');
 
 exports.analyzeSession = onRequest(
   { secrets: [ANTHROPIC_API_KEY] },
@@ -304,7 +304,7 @@ exports.coachChat = onRequest(
     // Rate limiting : max 20 appels/minute
     try {
       const db = admin.database();
-      const ratePath = `users/WkEWrmnYWuUNkGLrwXf9HhaJWfh1/state/_coach_rate`;
+      const ratePath = `users/${ADMIN_UID}/state/_coach_rate`;
       const rateSnap = await db.ref(ratePath).once('value');
       const rateData = rateSnap.val() || { count: 0, windowStart: 0 };
       const now = Date.now();
@@ -659,6 +659,10 @@ Génère le briefing lundi matin.`;
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 55000);
+      if (!streamRes.ok) {
+        res.write('data: ' + JSON.stringify({token: 'Briefing indisponible momentanément, réessaie dans quelques secondes.'}) + '\n\n');
+        res.write('data: [DONE]\n\n'); res.end(); return;
+      }
       let buffer = '';
       for await (const chunk of streamRes.body) {
         buffer += Buffer.from(chunk).toString('utf-8');
@@ -724,6 +728,10 @@ Génère le bilan de semaine.`;
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 55000);
+      if (!streamRes.ok) {
+        res.write('data: ' + JSON.stringify({token: 'Bilan indisponible momentanément, réessaie dans quelques secondes.'}) + '\n\n');
+        res.write('data: [DONE]\n\n'); res.end(); return;
+      }
       let buffer = '';
       for await (const chunk of streamRes.body) {
         buffer += Buffer.from(chunk).toString('utf-8');
@@ -821,7 +829,7 @@ exports.quickBrief = onRequest(
 );
 
 exports.morningBrief = onRequest(
-  {cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'},
+  {cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120, memory: '256MiB'},
   async (req, res) => {
     if(req.method==='OPTIONS'){res.set('Access-Control-Allow-Origin','*');res.set('Access-Control-Allow-Headers','Content-Type,Accept,Authorization');res.status(204).send('');return;}
     res.set('Access-Control-Allow-Origin','*');
