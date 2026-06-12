@@ -1084,6 +1084,36 @@ exports.coachChat = onRequest(
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    // Rate limiting : max 20 appels par minute (guard anti-boucle client)
+    try {
+      const db = admin.database();
+      const ratePath = `${ADMIN_STATE}/_coach_rate`;
+      const rateSnap = await db.ref(ratePath).once('value');
+      const rateData = rateSnap.val() || { count: 0, windowStart: 0 };
+      const now = Date.now();
+      if (now - rateData.windowStart > 60000) {
+        await db.ref(ratePath).set({ count: 1, windowStart: now });
+      } else if (rateData.count >= 20) {
+        res.status(429).json({ error: 'Trop de requêtes. Attends 1 minute.' });
+        return;
+      } else {
+        await db.ref(ratePath).set({ count: rateData.count + 1, windowStart: rateData.windowStart });
+      }
+    } catch(e) { console.warn('rate limit check failed:', e.message); }
+    // Validation entrée
+    const rawBody = req.body || {};
+    if (!rawBody.message || typeof rawBody.message !== 'string') {
+      res.status(400).json({ error: 'message requis (string)' }); return;
+    }
+    if (rawBody.message.trim().length === 0) {
+      res.status(400).json({ error: 'message vide' }); return;
+    }
+    if (rawBody.message.length > 4000) {
+      res.status(400).json({ error: 'message trop long (max 4000 caractères)' }); return;
+    }
+    if (rawBody.history && (!Array.isArray(rawBody.history) || rawBody.history.length > 50)) {
+      res.status(400).json({ error: 'history invalide (max 50 entrées)' }); return;
+    }
     try {
       const { message, history, stateContext, responseMode } = req.body;
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
@@ -1775,7 +1805,11 @@ async function getUserPref(db, statePath, key, defaultVal=true){
     if(!raw) return defaultVal;
     const prefs=typeof raw==='string'?JSON.parse(raw):raw;
     return prefs[key]!==undefined?prefs[key]:defaultVal;
-  }catch(e){return defaultVal;}
+  }catch(e){
+    // DB inaccessible → on ne force pas l'envoi (retourne false sauf si defaultVal est explicitement passé à false)
+    console.warn('getUserPref error (DB?):', statePath, key, e.message);
+    return false;
+  }
 }
 
 async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
@@ -2178,7 +2212,7 @@ exports.sessionReminder = onSchedule(
         }
       }
     }catch(e){console.error('sessionReminder admin renfo:',e.message);}
-    // ── Athlètes : rappel séances extra 1h avant ──────────────────────────────
+    // ── Athlètes : rappel séances normales + extra 1h avant ──────────────────
     try{
       const subsSnap=await db.ref('_push_subscribers').once('value');
       const allSubs=subsSnap.val()||{};
@@ -2186,16 +2220,38 @@ exports.sessionReminder = onSchedule(
         if(uid===ADMIN_UID)continue;
         if(!await getUserPref(db,`users/${uid}/state`,'notif_seance'))continue;
         const uState=(await db.ref(`users/${uid}/state`).once('value')).val()||{};
+        const ucw=getWeekFromDB(uState.plan_start_date);
+        let sent=false;
+        // Séances normales
+        for(let si=0;si<5;si++){
+          const done=!!uState[`s${ucw}i${si}done`];if(done)continue;
+          const edRaw=uState[`edit_w${ucw}_s${si}`];if(!edRaw)continue;
+          let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+          if(ed.type==='rest')continue;
+          if(ed.sched_day!==dayOfWeek||!ed.sched_time)continue;
+          const[h,m]=ed.sched_time.split(':').map(Number);
+          const sm=h*60+m;
+          if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
+          const rk=`_rappel_sent_w${ucw}_s${si}`;
+          if(uState[rk]===ts)continue;
+          const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+          const body=`🏃 ${titre}${ed.km?' — '+ed.km+'km':''} à ${ed.sched_time}. Prépare ton équipement ! 💪`;
+          await sendPushToUser(db,uid,sub,VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder');
+          await db.ref(`users/${uid}/state/${rk}`).set(ts);
+          sent=true;break;
+        }
+        if(sent)continue;
+        // Séances extra
         let extraRi=0;
-        while(uState[`extra_w${cw}_s${extraRi}`]){
-          const done=!!uState[`extra_w${cw}_s${extraRi}_done`];
+        while(uState[`extra_w${ucw}_s${extraRi}`]){
+          const done=!!uState[`extra_w${ucw}_s${extraRi}_done`];
           if(!done){
-            let es;try{es=JSON.parse(uState[`extra_w${cw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
+            let es;try{es=JSON.parse(uState[`extra_w${ucw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
             if(es.sched_day===dayOfWeek&&es.sched_time){
               const[h,m]=es.sched_time.split(':').map(Number);
               const sm=h*60+m;
               if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
-                const rk=`_rappel_extra_sent_w${cw}_s${extraRi}`;
+                const rk=`_rappel_extra_sent_w${ucw}_s${extraRi}`;
                 if(uState[rk]!==ts){
                   const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
                   const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
