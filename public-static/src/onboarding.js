@@ -91,15 +91,23 @@ function obDateChanged(){
   const m=document.getElementById('ob-date-month')?.value;
   const y=document.getElementById('ob-date-year')?.value;
   const errEl=document.getElementById('ob-date-error');
+  const minWByCourse={Plaisir:8,'5 km':8,'10 km':10,'Semi-marathon':12,'Marathon':16};
   if(d&&m&&y){
     const chosen=new Date(y+'-'+m+'-'+d);
-    const minDate=new Date(); minDate.setDate(minDate.getDate()+14);
-    minDate.setHours(0,0,0,0);
-    if(chosen<minDate){
-      if(errEl) errEl.style.display='block';
+    const now=new Date(); now.setHours(0,0,0,0);
+    const diffW=Math.floor((chosen-now)/(7*24*3600*1000));
+    const minW=minWByCourse[_obData.course]||8;
+    const maxW=24;
+    const showErr=(msg)=>{
+      if(errEl){errEl.textContent=msg;errEl.style.display='block';}
       _obData.date=null;
       const next=document.getElementById('ob-btn-next');
       if(next){next.disabled=true;next.style.opacity='0.4';}
+    };
+    if(diffW<minW){
+      showErr(`⚠️ La date est trop proche : il faut au minimum ${minW} semaines de préparation pour ${_obData.course||'cette distance'}. Choisissez une date après le ${new Date(now.getTime()+minW*7*24*3600*1000).toLocaleDateString('fr-FR')}.`);
+    } else if(diffW>maxW){
+      showErr(`⚠️ La date est trop loin : les plans sont limités à ${maxW} semaines (6 mois). Choisissez une date avant le ${new Date(now.getTime()+maxW*7*24*3600*1000).toLocaleDateString('fr-FR')}.`);
     } else {
       if(errEl) errEl.style.display='none';
       onboardingSelect('date',y+'-'+m+'-'+d);
