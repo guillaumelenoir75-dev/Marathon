@@ -347,15 +347,13 @@ function generateAthletePlan(ob){
   // Clé du coaching pro : les séances DOIVENT varier selon la phase du plan,
   // pas juste le numéro de semaine. Chaque phase a ses propres objectifs.
   //
-  // Phase 1 (Base) : construire la capacité aérobie et la solidité musculaire
-  //   → côtes (force, foulée) ou fartlek (plaisir). Zéro seuil, zéro VO2max.
+  // Phase 1 (Base) : construire la capacité aérobie — fartlek ludique, zéro intensité structurée
   // Phase 2 (Build) : introduire le travail qualitatif progressivement
-  //   → tempo (seuil lactate) + fractionné selon la distance
+  //   → tempo (seuil) pour semi/marathon · fractionné (VO2max) pour 5km/10km
   // Phase 3 (Spécifique) : simuler la course, travailler les allures cibles
-  //   → sorties spécifiques, progressions, VMA
   // Phase 4 (Affûtage) : séances courtes pour maintenir la vivacité
-  //   → tempo ou frac réduit (si autorisé par noInt)
-  // Semaines de décharge : AUCUNE séance qualité → 100% EF récupération
+  // Règle : Q1 et Q2 ne peuvent pas être (tempo + frac) la même semaine → trop éprouvant
+  // Côtes supprimées : privilégier fartlek en Phase 1 (moins traumatisant, plus ludique)
   const Q_MATRIX={
     Plaisir:{
       1:['fartlek'],
@@ -364,31 +362,32 @@ function generateAthletePlan(ob){
       4:['tempo'],
     },
     '5 km':{
-      1:['cotes'],
-      2:['frac','cotes','frac'],
-      3:['frac','tempo','frac'],
+      1:['fartlek'],               // Phase 1 : fartlek (pas côtes)
+      2:['frac','frac','frac'],    // Phase 2 : fractionné dominant
+      3:['frac','frac','frac'],    // Phase 3 : fractionné dominant
       4:['frac'],
     },
     '10 km':{
-      1:['cotes'],
-      2:['tempo','frac','cotes'],
-      3:['frac','tempo','frac'],
-      4:['tempo'],
+      1:['fartlek'],               // Phase 1 : fartlek
+      2:['frac','frac','frac'],    // Phase 2 : fractionné
+      3:['frac','frac','frac'],    // Phase 3 : fractionné dominant
+      4:['frac'],
     },
     'Semi-marathon':{
-      1:['cotes'],
-      2:['tempo','fartlek','tempo'],
-      3:['tempo','progression','tempo'],
+      1:['fartlek'],               // Phase 1 : fartlek
+      2:['tempo','tempo','tempo'], // Phase 2 : tempo dominant
+      3:['tempo','progression','tempo'], // Phase 3 : seuil + progression
       4:['tempo'],
     },
     'Marathon':{
-      1:['cotes'],
-      2:['tempo','fartlek','cotes'],
-      3:['tempo','progression','tempo'],
+      1:['fartlek'],               // Phase 1 : fartlek
+      2:['tempo','tempo','tempo'], // Phase 2 : tempo dominant
+      3:['tempo','progression','tempo'], // Phase 3 : seuil + progression
       4:['tempo'],
     },
   };
-  // 2ème séance qualité (4 sessions, à partir de Phase 2 uniquement)
+  // 2ème séance qualité (4 sessions uniquement, Phase 2+)
+  // Règle stricte : si Q1=tempo → Q2=fartlek (jamais frac) ; si Q1=frac → Q2=fartlek ou frac (jamais tempo)
   const Q2_MATRIX={
     Plaisir:{
       1:[null],
@@ -398,26 +397,26 @@ function generateAthletePlan(ob){
     },
     '5 km':{
       1:[null],
-      2:['cotes','frac'],
-      3:['tempo','frac'],
+      2:['fartlek','frac'],   // Q1=frac → Q2=fartlek ou 2ème frac léger
+      3:['frac','fartlek'],   // alternance
       4:[null],
     },
     '10 km':{
       1:[null],
-      2:['frac','cotes'],
-      3:['cotes','frac'],
+      2:['fartlek','frac'],   // Q1=frac → Q2=fartlek ou 2ème frac
+      3:['frac','fartlek'],   // alternance
       4:[null],
     },
     'Semi-marathon':{
       1:[null],
-      2:['frac','cotes'],
-      3:['frac','cotes'],
+      2:['fartlek'],          // Q1=tempo → Q2=fartlek uniquement (pas frac : trop éprouvant)
+      3:['fartlek'],          // Q1=tempo/progression → Q2=fartlek
       4:[null],
     },
     'Marathon':{
       1:[null],
-      2:['frac','cotes'],
-      3:['mpace','frac'],  // M-pace + VO2max en alternance : le cœur du marathon pro
+      2:['fartlek','mpace'],  // Q1=tempo → Q2=fartlek ou allure spécifique
+      3:['mpace','fartlek'],  // alternance mpace/fartlek
       4:[null],
     },
   };
@@ -460,9 +459,8 @@ function generateAthletePlan(ob){
     if(qt==='tempo'&&tpR)   return {d:descTempo(tpR,isTaper,isRecov),type:'tempo'};
     if(qt==='progression')  return isRecov?{d:descFartlek(1),type:'ef'}:{d:descProgression(phase),type:'tempo'}; // pas de progression en décharge
     if(qt==='mpace')        return null; // géré séparément
-    // Fallback : pas encore de tempo/frac → côtes ou fartlek
-    if(qt==='frac')         return {d:descCotes(isRecov?1:phase),type:'ef'};
-    if(qt==='tempo')        return isPlaisir?{d:descFartlek(isRecov?1:phase),type:'ef'}:{d:descCotes(isRecov?1:phase),type:'ef'};
+    // Fallback : pas encore de tempo/frac disponible → fartlek (plus côtes)
+    if(qt==='frac'||qt==='tempo') return {d:descFartlek(isRecov?1:phase),type:'ef'};
     return null;
   };
 
