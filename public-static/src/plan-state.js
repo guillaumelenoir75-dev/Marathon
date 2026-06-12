@@ -206,6 +206,64 @@ function getBestEfPace(){
   return `${m}'${s.toString().padStart(2,'0')}`;
 }
 
+// ── Auto-calcul EF depuis les séances de la semaine 1 ────────────────────────
+// Déclenché après validation d'une séance S1 si ef_pace n'a jamais été défini.
+// Utilise l'allure la plus lente des séances EF/longues validées de S1
+// (estimation conservative : on prend la valeur la plus facile pour ne pas
+// prescrire un EF trop soutenu).
+// Regénère ensuite le plan entier pour injecter les allures dans les descriptions S2+.
+async function tryAutoCalculateEF(){
+  if(state.ef_pace) return null;
+  if(isAdmin()) return null;
+  const efPaces=[];
+  let ei=0;
+  while(state[`extra_w1_s${ei}`]!==undefined){
+    try{
+      const s=JSON.parse(state[`extra_w1_s${ei}`]);
+      if((s.type==='ef'||s.type==='long')&&state[`extra_w1_s${ei}_done`]){
+        const perf=state[`extra_w1_s${ei}_perf`]?JSON.parse(state[`extra_w1_s${ei}_perf`]):{};
+        if(perf.pace){
+          const sec=paceStrToSec(perf.pace);
+          if(sec!==null&&sec>200) efPaces.push(sec); // sanity: >3:20/km
+        }
+      }
+    }catch(e){}
+    ei++;
+    if(ei>10) break;
+  }
+  if(efPaces.length===0) return null;
+  // Prendre l'allure la plus lente parmi les séances validées (estimation conservative)
+  const efSec=Math.max(...efPaces);
+  const m=Math.floor(efSec/60);
+  const s=efSec%60;
+  const efStr=`${m}'${s.toString().padStart(2,'0')}`;
+  state.ef_pace=efStr;
+  state.ef_pace_auto='true';
+  const dbUpdates={ef_pace:efStr,ef_pace_auto:'true'};
+  // Regénérer le plan avec la nouvelle allure EF (descriptions S2+ mises à jour)
+  try{
+    const cfg=state.plan_config?JSON.parse(state.plan_config):null;
+    if(cfg){
+      const runDays=typeof state.run_days==='string'?JSON.parse(state.run_days||'[]'):(state.run_days||[]);
+      const runTimes=typeof state.run_times==='string'?JSON.parse(state.run_times||'{}'):(state.run_times||{});
+      const ob={
+        course:cfg.course,niveau:cfg.niveau,
+        sessions:String(cfg.nbSess),km_semaine:String(cfg.baseKm),
+        date:cfg.date||'',
+        ef_pace:efStr,
+        target_time:state.target_time||'',
+        fc_max:state.fc_max||'',
+        run_days:runDays,run_times:runTimes,run_time:state.run_time||'',
+      };
+      const planUpdates=generateAthletePlan(ob);
+      Object.entries(planUpdates).forEach(([k,v])=>{ state[k]=v; });
+      Object.assign(dbUpdates,planUpdates);
+    }
+  }catch(e){ console.warn('tryAutoCalculateEF regen:',e); }
+  if(dbRef) await dbRef.update(dbUpdates).catch(e=>console.warn('autoEF save:',e));
+  return efStr;
+}
+
 function calcMarathonTime(amStr){
   // AM format "5'40" ou "5'35" → temps sur 42.195 km
   if(!amStr) return null;

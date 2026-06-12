@@ -297,6 +297,27 @@ function renderHome(){
     }
   }
 
+  // ── Bannière EF auto-calculée (S1) ──────────────────────────────────────────
+  if(!isAdmin()){
+    const efAutoEl=document.getElementById('home-ef-auto-banner');
+    if(efAutoEl){
+      if(state.ef_pace_auto==='true'&&!state.ef_pace_auto_seen){
+        efAutoEl.style.display='flex';
+        const msgEl=document.getElementById('home-ef-auto-msg');
+        if(msgEl) msgEl.innerHTML=`Allure EF estimée : <b>${state.ef_pace}/km</b> — calculée d'après ta première semaine. Tu peux l'ajuster dans les paramètres.`;
+      } else {
+        efAutoEl.style.display='none';
+      }
+    }
+    // Tentative auto-calcul EF au chargement (si S1 validée et EF pas encore défini)
+    if(!state.ef_pace&&!window._autoEFChecked){
+      window._autoEFChecked=true;
+      tryAutoCalculateEF().then(newEF=>{
+        if(newEF){ rendered.home=false; rendered.plan=false; renderHome(); }
+      });
+    }
+  }
+
   // ── Bannière adaptation plan ─────────────────────────────────────────────────
   if(!isAdmin()){
     const adapted=state._plan_adapted?JSON.parse(state._plan_adapted):null;
@@ -617,6 +638,13 @@ async function saveSkipExtra(w,ei){
   if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
 }
 
+function dismissEFAutoBanner(){
+  state.ef_pace_auto_seen='true';
+  if(dbRef) dbRef.child('ef_pace_auto_seen').set('true').catch(()=>{});
+  const el=document.getElementById('home-ef-auto-banner');
+  if(el) el.style.display='none';
+}
+
 function dismissPlanAdapted(){
   if(state._plan_adapted){
     try{
@@ -761,6 +789,13 @@ async function saveValidationExtra(w,ei){
   if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
   if(document.getElementById('sc-stats').style.display!=='none') renderStats();
   const amImproved=updateMarathonPace();
+  // Auto-calcul EF depuis S1 si jamais renseigné
+  if(w===1&&!state.ef_pace&&!isAdmin()){
+    window._autoEFChecked=true; // éviter doublon dans renderHome
+    tryAutoCalculateEF().then(newEF=>{
+      if(newEF){ rendered.plan=false; renderHome(); }
+    });
+  }
   // Météo — identique à saveValidation : await + sched_time de la séance extra
   let meteoSeance=window._meteoValidationData||null;
   window._meteoValidationData=null;
