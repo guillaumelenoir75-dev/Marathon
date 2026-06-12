@@ -4,15 +4,17 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit } = require('./helpers');
 
 exports.analyzeSession = onRequest(
   { secrets: [ANTHROPIC_API_KEY] },
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    let _uid; try { _uid = await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
+      const db = admin.database();
+      await checkRateLimit(db, _uid, 'analyzeSession', 5000);
       const { sessionData, historyData, planContext } = req.body;
       const system = `Tu es le coach running personnel de Guillaume. Tu analyses ses séances de manière experte, honnête et personnalisée.
 
@@ -557,7 +559,7 @@ ${modeInstructions}${rappelPlanification}${rappelTemporel}`;
             await new Promise(r => setTimeout(r, Math.pow(2, attempt - 1) * 1000));
             console.log(`coachChat retry attempt ${attempt + 1}`);
           }
-          streamRes = await fetch('https://api.anthropic.com/v1/messages', {
+          streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -565,7 +567,7 @@ ${modeInstructions}${rappelPlanification}${rappelTemporel}`;
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: maxTokens, stream: true, system, messages })
-          });
+          }, 110000);
           console.log(`Anthropic coachChat attempt ${attempt + 1} status:`, streamRes.status);
           if(streamRes.ok || ![429, 503, 529].includes(streamRes.status)) break;
           const errText = await streamRes.text().catch(()=>'no body');
@@ -614,8 +616,9 @@ exports.weeklyBriefing = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    let _uid; try { _uid = await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
+      await checkRateLimit(admin.database(), _uid, 'weeklyBriefing', 30000);
       const { contextWeek } = req.body;
       const system = `Tu es le coach IA de Guillaume Lenoir. C'est lundi matin — briefing de la semaine.
 Profil : FCmax 196 bpm, FC repos = voir fc_repos_context (valeur datée fournie dans le contexte), zone EF standard 140-148 bpm (à ajuster en chaleur : +8-12 bpm à 30°C). Objectif Sub 4h le 18 oct 2026. Semi-marathon Bois d'Arcy 7 sept 2026 (S27). Bodyhit chaque lundi 12h30. Renfo kiné 2x/semaine. Garmin Forerunner 165.
@@ -647,11 +650,11 @@ Génère le briefing lundi matin.`;
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      const streamRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
-      });
+      }, 55000);
       let buffer = '';
       for await (const chunk of streamRes.body) {
         buffer += Buffer.from(chunk).toString('utf-8');
@@ -669,6 +672,7 @@ Génère le briefing lundi matin.`;
       }
       res.end();
     } catch(e) {
+      if(e.status === 429) { res.status(429).json({ error: e.message }); return; }
       console.error('weeklyBriefing error:', e.message);
       if(!res.headersSent) res.status(500).json({ error: e.message });
     }
@@ -680,8 +684,9 @@ exports.weeklyReport = onRequest(
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    let _uid; try { _uid = await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
+      await checkRateLimit(admin.database(), _uid, 'weeklyReport', 30000);
       const { contextBilan } = req.body;
       const system = `Tu es le coach IA de Guillaume Lenoir. C'est dimanche soir — bilan de semaine.
 Profil : FCmax 196 bpm, FC repos = voir fc_repos_context (valeur datée fournie dans le contexte), zone EF 140-148 bpm. Objectif Sub 4h le 18 oct 2026. Semi-marathon Bois d'Arcy 7 sept 2026 (S27). Bodyhit lundi 12h30. Renfo kiné 2x/semaine. Garmin Forerunner 165.
@@ -710,11 +715,11 @@ Génère le bilan de semaine.`;
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      const streamRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
-      });
+      }, 55000);
       let buffer = '';
       for await (const chunk of streamRes.body) {
         buffer += Buffer.from(chunk).toString('utf-8');
@@ -732,6 +737,7 @@ Génère le bilan de semaine.`;
       }
       res.end();
     } catch(e) {
+      if(e.status === 429) { res.status(429).json({ error: e.message }); return; }
       console.error('weeklyReport error:', e.message);
       if(!res.headersSent) res.status(500).json({ error: e.message });
     }

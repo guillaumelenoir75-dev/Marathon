@@ -24,8 +24,26 @@ async function verifyAdmin(req) {
   return decoded.uid;
 }
 
+function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+async function checkRateLimit(db, uid, endpoint, minIntervalMs) {
+  const key = `users/${uid}/_ratelimit/${endpoint}`;
+  const snap = await db.ref(key).once('value');
+  const lastCall = snap.val();
+  if (lastCall && (Date.now() - lastCall) < minIntervalMs) {
+    const waitSec = Math.ceil((minIntervalMs - (Date.now() - lastCall)) / 1000);
+    throw Object.assign(new Error(`Trop de demandes — réessaie dans ${waitSec}s`), { status: 429 });
+  }
+  await db.ref(key).set(Date.now());
+}
+
 async function callAnthropic(apiKey, system, messages, maxTokens) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -38,7 +56,7 @@ async function callAnthropic(apiKey, system, messages, maxTokens) {
       system,
       messages
     })
-  });
+  }, 55000);
   const data = await response.json();
   console.log('Anthropic status:', response.status, 'data:', JSON.stringify(data).substring(0, 300));
   return data.content?.[0]?.text || null;
@@ -200,6 +218,8 @@ module.exports = {
   corsHeaders,
   verifyAdmin,
   callAnthropic,
+  fetchWithTimeout,
+  checkRateLimit,
   getUserPref,
   sendPush,
   sendPushToAll,
