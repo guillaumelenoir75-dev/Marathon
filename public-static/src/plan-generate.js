@@ -308,17 +308,17 @@ function generateAthletePlan(ob){
     return `Côtes longues|3 km EF · 6×(45 sec côte soutenue + descente active récup) · endurance musculaire, puissance aérobie, force de finisseur · EF de fin`;
   };
 
-  // Fartlek — 3 niveaux selon la phase du plan
+  // Footing avec accélérations — 3 niveaux selon la phase du plan
   const descFartlek=(phase)=>{
     if(phase===1) return efLabel
-      ?`Fartlek découverte|${efLabel}/km base · 6×(30 sec allure comfortable+vive + 2 min trot) · jeu de rythme naturel, aucune montre sur les accélérations`
-      :`Fartlek découverte|6×(30 sec allure vive + 2 min trot) · jeu de rythme libre, liberté d'allure`;
+      ?`Footing avec accélérations|${efLabel}/km base · 6×(30 sec allure vive + 2 min trot) · jeu de rythme libre, aucune montre sur les accélérations`
+      :`Footing avec accélérations|6×(30 sec allure vive + 2 min trot) · jeu de rythme libre, liberté d'allure`;
     if(phase===2) return efLabel
-      ?`Fartlek progressif|${efLabel}/km base · 8×(40 sec vive + 90 sec trot) · les 3 dernières répétitions légèrement plus rapides · variété des efforts`
-      :`Fartlek progressif|8×(40 sec vive + 90 sec trot) · accélérations progressives, sensations libres`;
+      ?`Footing avec accélérations|${efLabel}/km base · 8×(40 sec vive + 90 sec trot) · les 3 dernières répétitions légèrement plus rapides · variété des efforts`
+      :`Footing avec accélérations|8×(40 sec vive + 90 sec trot) · accélérations progressives, sensations libres`;
     return efLabel
-      ?`Fartlek structuré|${efLabel}/km base · 2×(5 min tempo + récup 3 min trot) + 6×(30 sec rapide + 1 min trot) · polyvalence aérobie, travailler les changements de rythme`
-      :`Fartlek structuré|blocs tempo + accélérations courtes + récup · polyvalence, adaptabilité au rythme`;
+      ?`Footing avec accélérations|${efLabel}/km base · 2×(5 min soutenu + récup 3 min trot) + 6×(30 sec rapide + 1 min trot) · polyvalence aérobie, changements de rythme`
+      :`Footing avec accélérations|blocs soutenus + accélérations courtes + récup · polyvalence, adaptabilité au rythme`;
   };
 
   // Course en progression — départ EF, crescendo vers allure cible

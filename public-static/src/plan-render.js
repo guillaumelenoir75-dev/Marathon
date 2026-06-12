@@ -1,7 +1,8 @@
-// Normalise les anciens titres de séances EF stockés en base vers "Footing EF"
+// Normalise les anciens titres de séances stockés en base
 function normalizeSessionTitle(title){
   if(!title) return title;
   if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(title)) return 'Footing EF';
+  if(/^Fartlek/.test(title)) return title.replace(/^Fartlek [a-zéèàû]+/, 'Footing avec accélérations');
   return title;
 }
 
