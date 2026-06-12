@@ -166,9 +166,3 @@ async function subscribeToPush() {
 // Lancer l'init notifications au chargement de l'app
 // (appelé après que Firebase est prêt, dans le bloc firebase.auth)
 
-const loadingEl=document.createElement('div');
-loadingEl.id='loading-overlay';
-loadingEl.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
-loadingEl.innerHTML='<div style="width:44px;height:44px;border:3px solid #EEF2FD;border-top:3px solid #1B4FD8;border-radius:50%;animation:spin 0.8s linear infinite;"></div><p style="font-size:14px;color:#888;font-family:sans-serif;">Chargement…</p><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
-document.body.appendChild(loadingEl);
-
