@@ -36,11 +36,12 @@ function getOrderedWeekSessions(ws){
   const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
   let ei=0;
   while(state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
-  const savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]):null;
-  const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>JSON.stringify(b)===JSON.stringify(o))).filter(Boolean):baseOrder;
+  const sessionMatch=(a,b)=>!!a.extra===!!b.extra&&(a.extra?a.ei===b.ei:a.si===b.si);
+  const savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]).filter(Boolean):null;
+  const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>sessionMatch(b,o))).filter(Boolean):[...baseOrder];
   // Add any new sessions not in saved order
   baseOrder.forEach(b=>{
-    if(!ordered.find(o=>JSON.stringify(o)===JSON.stringify(b))) ordered.push(b);
+    if(!ordered.find(o=>sessionMatch(o,b))) ordered.push(b);
   });
   return ordered.map(({si,extra,ei})=>{
     let s=extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si);
