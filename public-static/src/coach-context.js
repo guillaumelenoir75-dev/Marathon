@@ -252,14 +252,14 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   return {
     semaine_actuelle: CW,
     date_marathon: '18 octobre 2026',
-    semi_marathon: CW >= 20 ? {date:'07/09/2026', semaine:27, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 27-CW} : undefined,
+    semi_marathon: CW >= 24 ? {date:'07/09/2026', semaine:27, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 27-CW} : undefined,
     semaines_restantes: 32-CW,
     infos_importantes_Guillaume: coachMemos||undefined,
     type_semaine: isDecharge
       ? `DÉCHARGE (${kmCW}km vs ${Math.max(kmPrev,kmNext)}km semaine adjacente) — objectif récupération, pas de performance`
       : `NORMALE (${kmCW}km)`,
     consignes_ef_semaine: isDecharge
-      ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < 140 bpm idéalement. Si Guillaume court plus vite, ce n'est PAS une bonne séance.`
+      ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < 140 bpm idéalement (correction thermique applicable si > 25°C : ajouter +3 à +12 bpm selon la chaleur). Si Guillaume court plus vite, ce n'est PAS une bonne séance.`
       : `Allure EF normale : entre ${zoneMin} et ${zoneMax} /km. FC < 148 bpm.`,
     maintenant: {
       jour: jourActuel,
