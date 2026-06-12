@@ -196,3 +196,5 @@ function initFirebase(){
 
 let rendered={};
 let coachHistory=[];
+let chartKm=null;
+let chartFcRepos=null;
