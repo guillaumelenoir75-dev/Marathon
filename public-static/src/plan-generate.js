@@ -129,7 +129,7 @@ function generateAthletePlan(ob){
   const fracLbl=fracPaceSec?fmtPace(fracPaceSec):null;
   const fracMinLbl=fracMinPaceSec?fmtPace(fracMinPaceSec):null;
 
-  const semiPaceSec=course==='Semi-marathon'&&racePaceSec?racePaceSec:racePaceSec?Math.round(racePaceSec*0.955):null;
+  const semiPaceSec=course==='Semi-marathon'&&racePaceSec?Math.round(racePaceSec):racePaceSec?Math.round(racePaceSec*0.955):null;
   const semiLbl=semiPaceSec?fmtPace(semiPaceSec):null;
   const racePaceLbl=racePaceSec?fmtPace(Math.round(racePaceSec)):null;
 
@@ -245,6 +245,14 @@ function generateAthletePlan(ob){
       if(course==='Semi-marathon'&&semiLbl&&efLabel){
         const specKm=km>=18?6:km>=14?4:3;
         return `Sortie longue spécifique semi|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${semiLbl}/km (allure semi) · simulation du finish · ${tempoFCStr}`;
+      }
+      if(course==='10 km'&&racePaceLbl&&efLabel){
+        const specKm=km>=14?4:km>=12?3:2;
+        return `Sortie longue spécifique 10km|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${racePaceLbl}/km (allure 10km) · habituer l'organisme à courir vite en état de fatigue · ${tempoFCStr}`;
+      }
+      if(course==='5 km'&&racePaceLbl&&efLabel){
+        const specKm=km>=10?2:1;
+        return `Sortie longue spécifique 5km|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${racePaceLbl}/km (allure 5km) · simulation du finish, tolérance à l'inconfort · ${fracFCStr}`;
       }
       if(efLabel) return `Sortie longue soutenue|${efLabel}/km · 20 dernières min légèrement plus vite (naturellement) · construire l'endurance du finisseur`;
     }
