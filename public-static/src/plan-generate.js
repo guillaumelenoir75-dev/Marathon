@@ -144,13 +144,13 @@ function generateAthletePlan(ob){
   }
 
   // ── Plafond de volume (pic du plan) ──────────────────────────────────────────
-  // Plaisir : max 12 km/séance — l'objectif est la progression qualitative, pas volumique.
-  // Progression modeste : +50% ou +10 km selon le plus grand des deux, plafonné à nbSess×12 km.
-  // Quelqu'un à 20 km/sem avec 2 séances ne dépasse pas 24 km (12 km/séance max).
+  // Plaisir : max 9 km/séance — progression qualitative, pas volumique.
+  // Pic = min(nbSess×9, max(base×1.3, base+6)) — monte naturellement depuis 80%, varie via décharges.
+  // Sessions qualité (tempo/fartlek) plafonnées à 10 km max.
   let peakKm;
   if(isPlaisir){
-    const weekCap=nbSess*12; // {2:24, 3:36, 4:48}
-    const growthCap=Math.round(Math.max(baseKm*1.5, baseKm+10));
+    const weekCap=nbSess*9; // {2:18, 3:27, 4:36}
+    const growthCap=Math.round(Math.max(baseKm*1.3, baseKm+6));
     peakKm=Math.min(weekCap,growthCap);
   } else {
     const absMax={
@@ -177,9 +177,9 @@ function generateAthletePlan(ob){
   const taperStartW=taperCfg.w>0?numWeeks-taperCfg.w+1:numWeeks+1;
 
   // ── Semaines de décharge — pattern 3:1 (Higdon/Daniels) ─────────────────────
-  // Plans courts (≤12s) → période de 3 semaines pour garantir 2 décharges minimum
+  // Plans courts (≤12s) ou Plaisir → période de 3 semaines (plus de variation)
   // Les semaines de taper sont exclues pour éviter une double réduction de volume
-  const recovPeriod=(baseKm<15||numWeeks<=12)?3:4;
+  const recovPeriod=(isPlaisir||baseKm<15||numWeeks<=12)?3:4;
   const recovery=new Set();
   for(let w=recovPeriod;w<=numWeeks;w+=recovPeriod){
     if(w<taperStartW) recovery.add(w);
@@ -192,7 +192,8 @@ function generateAthletePlan(ob){
 
   const weekKms=[];
   // Départ plus doux selon le niveau : évite le choc en début de plan
-  let cur=baseKm*(niveau==='Débutant'?0.85:niveau==='Intermédiaire'?0.92:1.0);
+  // Plaisir : départ toujours à 80% quelle que soit le niveau (plus de progression visible)
+  let cur=baseKm*(isPlaisir?0.80:niveau==='Débutant'?0.85:niveau==='Intermédiaire'?0.92:1.0);
   for(let w=1;w<=numWeeks;w++){
     if(recovery.has(w)){
       const lastBuild=weekKms.filter((_,i)=>!recovery.has(i+1)).slice(-1)[0]||cur;
@@ -658,9 +659,10 @@ function generateAthletePlan(ob){
         s0={d:descEFRecov(),km:kEF,type:'ef',shoe:null};
       } else if(isPlaisir&&phase>=2&&!isTaper){
         // Plaisir 2 sessions : qualité selon Q_MATRIX (tempo Phase 2+, fartlek alterné)
-        // S'adapte à toute durée de plan grâce à la logique par phase
+        // Qualité plafonnée à 10 km max — tempo court = plus d'intensité, moins de fatigue
         const qPlaisir=resolveQ(getQType(phase,weekInPhase),phase,weekInPhase,isTaper,false);
-        s0=qPlaisir?{d:qPlaisir.d,km:kEF,type:qPlaisir.type,shoe:null}:{d:descEFStrides(),km:kEF,type:'ef',shoe:null};
+        const kQual=Math.min(kEF,10);
+        s0=qPlaisir?{d:qPlaisir.d,km:kQual,type:qPlaisir.type,shoe:null}:{d:descEFStrides(),km:kEF,type:'ef',shoe:null};
       } else {
         // Plans course 2 sessions : EF pur en Phase 1, accélérations dès Phase 2+
         // S'adapte automatiquement à la durée du plan (court ou long)
