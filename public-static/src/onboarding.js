@@ -493,9 +493,8 @@ function _updateObDaysUI(){
     if(!btn) continue;
     const selected=arr.includes(d);
     btn.classList.toggle('selected',selected);
-    const full=arr.length>=max;
-    btn.disabled=full&&!selected;
-    btn.style.opacity=(full&&!selected)?'0.35':'1';
+    btn.disabled=false;
+    btn.style.opacity=selected?'1':'0.5';
   }
   _renderDayTimeRows();
   const next=document.getElementById('ob-btn-next');
@@ -514,8 +513,8 @@ function toggleObDay(dayIdx){
   if(i>=0){
     arr.splice(i,1);
   } else {
-    if(arr.length>=max) return; // déjà au max
-    arr.push(dayIdx);
+    if(arr.length>=max) _obData.run_days=[]; // remplace la sélection au lieu de bloquer
+    _obData.run_days.push(dayIdx);
   }
   _updateObDaysUI();
 }
