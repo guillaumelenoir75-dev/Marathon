@@ -215,6 +215,9 @@ function getBestEfPace(){
 async function tryAutoCalculateEF(){
   if(state.ef_pace) return null;
   if(isAdmin()) return null;
+  // Plan Découverte : allure inclut la marche → ne pas auto-calculer l'EF
+  const cfg=state.plan_config?JSON.parse(state.plan_config):null;
+  if(cfg&&cfg.niveau==='Découverte') return null;
   const efPaces=[];
   let ei=0;
   while(state[`extra_w1_s${ei}`]!==undefined){

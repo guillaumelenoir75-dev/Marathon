@@ -301,8 +301,13 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   // Allure attendue pour cette séance
   (()=>{
     const efActuelle = getBestEfPace() || "6'40";
+    const sessionTitle = (s.d||'').split('|')[0]||'';
+    const isMarcheCourse = sessionTitle.toLowerCase().includes('marche');
     if(s.type==='ef' || s.type==='long') {
-      if(analysisContext.blocs_am && analysisContext.blocs_am.present){
+      if(isMarcheCourse){
+        // Séance marche-course : allure globale inclut les phases marche → forcément lente
+        analysisContext.allure_attendue = `Séance marche-course : allure globale inclut les phases de marche — ne pas comparer à une allure de course pure. L'important est de respecter les intervalles et de rester confortable.`;
+      } else if(analysisContext.blocs_am && analysisContext.blocs_am.present){
         analysisContext.allure_attendue = `Structure mixte : phases EF à ${efActuelle}/km + ${analysisContext.blocs_am.km_am||'X'} km AM à ${analysisContext.blocs_am.allure_cible_am} — allure globale = moyenne des deux`;
       } else {
         analysisContext.allure_attendue = efActuelle + '/km (allure EF actuelle)';
