@@ -474,9 +474,9 @@ function initObDaysStep(){
   const hint=document.getElementById('ob-days-count');
   if(hint) hint.textContent=max;
   if(_obData.run_days && _obData.run_days.length>max) _obData.run_days=[];
-  // Pré-sélection par défaut : Mar(1), Jeu(3), Sam(5) — 3 jours; adapter si max différent
+  // Pré-sélection par défaut selon le nombre de séances
   if(!_obData.run_days || _obData.run_days.length===0){
-    const defaults=[[1,3,5],[1,3],[1,3,5,6]][Math.min(max,4)===2?1:max>=4?2:0];
+    const defaults=max===1?[1]:max===2?[1,3]:max>=4?[1,3,5,6]:[1,3,5];
     _obData.run_days=[...defaults];
     if(!_obData.run_times) _obData.run_times={};
     _obData.run_days.forEach(d=>{ if(!_obData.run_times[d]) _obData.run_times[d]='12:00'; });
