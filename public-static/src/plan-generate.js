@@ -135,7 +135,7 @@ function generateAthletePlan(ob){
 
   // ── Durée minimale recommandée par distance ───────────────────────────────────
   // Durée minimale par distance (respecter les minima physiologiques)
-  const minW={Plaisir:8,'5 km':8,'10 km':8,'Semi-marathon':10,'Marathon':12}[course]||8;
+  const minW={Plaisir:24,'5 km':8,'10 km':8,'Semi-marathon':10,'Marathon':12}[course]||8;
   const maxW=24; // 6 mois max
   let numWeeks=minW;
   if(ob.date){
