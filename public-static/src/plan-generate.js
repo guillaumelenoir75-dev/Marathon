@@ -34,12 +34,12 @@ function generateDecouvertePlan(ob){
   // Progression km : 3 km (S1) → 6 km (dernière semaine), entiers, linéaire
   const kmSemaine=w=>Math.round(3+(w-1)/(numWeeks-1)*3);
 
-  // Progression marche-course : 1' → 1'30" → 2' → 2'30" → 3' → 4' sur la phase 1
+  // Progression marche-course : 1'30" → 2' → 2'30" → 3' → 4' sur la phase 1
   const descMarche=w=>{
     const step=w-1;
-    const runSecs=[60,90,120,150,180,240];
+    const runSecs=[90,120,150,180,240];
     const rs=runSecs[Math.min(step,runSecs.length-1)];
-    const walkSec=rs<=90?120:rs<=150?90:60;
+    const walkSec=rs<=150?90:60;
     const reps=rs<=90?7:rs<=150?6:5;
     const totalMin=Math.round((rs+walkSec)*reps/60);
     const fmt=s=>s%60===0?`${s/60}'`:(s===90?`1'30"`:s===150?`2'30"`:s===210?`3'30"`:`${Math.floor(s/60)}'${s%60}"`);
