@@ -144,17 +144,25 @@ function generateAthletePlan(ob){
   }
 
   // ── Plafond de volume (pic du plan) ──────────────────────────────────────────
-  // Plafonds absolus par distance × nb séances — sécurité anti-surcharge
-  const absMax={
-    Plaisir:        {2:40, 3:58, 4:75},
-    '5 km':         {2:32, 3:42, 4:52},
-    '10 km':        {2:38, 3:52, 4:65},
-    'Semi-marathon':{2:50, 3:65, 4:82},
-    'Marathon':     {2:60, 3:82, 4:105},
-  }[course]||{2:50,3:70,4:90};
-  const baseMult={Plaisir:1.8,'5 km':1.55,'10 km':1.75,'Semi-marathon':2.0,'Marathon':2.2}[course]||1.8;
-  const sessMult={2:0.90,3:1.0,4:1.18}[nbSess]||1.0;
-  const peakKm=Math.min(Math.round(baseKm*baseMult*sessMult),absMax[nbSess]||70);
+  // Plaisir : max 12 km/séance — l'objectif est la progression qualitative, pas volumique.
+  // Progression modeste : +50% ou +10 km selon le plus grand des deux, plafonné à nbSess×12 km.
+  // Quelqu'un à 20 km/sem avec 2 séances ne dépasse pas 24 km (12 km/séance max).
+  let peakKm;
+  if(isPlaisir){
+    const weekCap=nbSess*12; // {2:24, 3:36, 4:48}
+    const growthCap=Math.round(Math.max(baseKm*1.5, baseKm+10));
+    peakKm=Math.min(weekCap,growthCap);
+  } else {
+    const absMax={
+      '5 km':         {2:32, 3:42, 4:52},
+      '10 km':        {2:38, 3:52, 4:65},
+      'Semi-marathon':{2:50, 3:65, 4:82},
+      'Marathon':     {2:60, 3:82, 4:105},
+    }[course]||{2:50,3:70,4:90};
+    const baseMult={'5 km':1.55,'10 km':1.75,'Semi-marathon':2.0,'Marathon':2.2}[course]||1.8;
+    const sessMult={2:0.90,3:1.0,4:1.18}[nbSess]||1.0;
+    peakKm=Math.min(Math.round(baseKm*baseMult*sessMult),absMax[nbSess]||70);
+  }
 
   // ── Affûtage (Pfitzinger & Douglas) ──────────────────────────────────────────
   // noInt = semaines d'affûtage sans aucune intensité (en comptant depuis taperStartW)
@@ -178,7 +186,8 @@ function generateAthletePlan(ob){
   }
 
   // ── Volume hebdomadaire ───────────────────────────────────────────────────────
-  const longRunCap=isPlaisir?Math.min(Math.max(16,Math.round(baseKm*1.1)),26):
+  // Plaisir : sortie longue plafonnée à 12 km max (≈55% du pic hebdo, min 6 km)
+  const longRunCap=isPlaisir?Math.min(12,Math.max(6,Math.round(peakKm*0.55))):
     {'Marathon':32,'Semi-marathon':22,'10 km':16,'5 km':12}[course]||32;
 
   const weekKms=[];
