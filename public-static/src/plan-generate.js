@@ -84,15 +84,34 @@ function generateDecouvertePlan(ob){
     return descAccel(w);
   };
 
+  // Planification des jours/horaires
+  const runDays=(ob.run_days||[]).slice().sort((a,b)=>a-b);
+  const runTimes=ob.run_times||{};
+  const planStart=new Date(); planStart.setHours(0,0,0,0);
+  const dow=planStart.getDay();
+  const mondayOffset=dow===0?-6:1-dow;
+  const monday=new Date(planStart);
+  monday.setDate(planStart.getDate()+mondayOffset);
+
   const updates={};
   // Stocker les séances au format extra_w${w}_s${ei} pour que renderAthletePlan les affiche
   for(let w=1;w<=numWeeks;w++){
     for(let si=0;si<nbSess;si++){
       const s=getSession(w);
-      // Séance 2 : 85% de la durée — même type, légèrement plus courte
       if(si===1){
         s.km=Math.max(2,s.km-1);
         s.d=s.d.replace(/(\d+) min/,(_,n)=>`${Math.round(parseInt(n)*0.85)} min`);
+      }
+      // Injecter jour/heure/date
+      if(runDays.length>0){
+        const dayOfWeek=runDays[si%runDays.length];
+        s.sched_day=dayOfWeek+1;
+        s.sched_time=runTimes[dayOfWeek]||ob.run_time||'12:00';
+        const weekMonday=new Date(monday);
+        weekMonday.setDate(monday.getDate()+(w-1)*7);
+        const sessionDate=new Date(weekMonday);
+        sessionDate.setDate(weekMonday.getDate()+dayOfWeek);
+        s.sched_date=sessionDate.toISOString().split('T')[0];
       }
       updates[`extra_w${w}_s${si}`]=JSON.stringify(s);
     }
