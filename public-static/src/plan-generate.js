@@ -19,7 +19,7 @@ function generateDecouvertePlan(ob){
   const efHint=efLabel?`allure ${efLabel}/km`:'allure très confort, on parle facilement';
 
   const fcMax=parseInt(ob.fc_max)||0;
-  const efFCStr=fcMax?`FC ${Math.round(fcMax*0.68)}-${Math.round(fcMax*0.74)} bpm`:'FC basse, effort très léger';
+  const efFCStr=fcMax?`FC ${Math.round(fcMax*0.70)}-${Math.round(fcMax*0.75)} bpm`:'FC basse, effort très léger';
 
   // Phases avec minimums pour éviter des transitions trop brutales sur plans courts
   // Phase 1 : Marche-Course (≈ 25%, min 3 sem)
