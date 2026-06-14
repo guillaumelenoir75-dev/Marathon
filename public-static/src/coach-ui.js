@@ -877,11 +877,18 @@ async function checkPendingBrief() {
 
   if (!p || !p.content) return false;
 
-  // Vérifier que c'est bien le brief d'aujourd'hui
-  if (p.date && p.date !== today) {
-    try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
-    delete state['_brief_pending'];
-    return false;
+  // Vérifier que le brief n'est pas trop vieux
+  // morning_brief : limité au jour même ; weekly_debrief : valable 2 jours (dimanche → lundi)
+  if (p.date) {
+    const briefDate = new Date(p.date);
+    const todayDate = new Date(today);
+    const diffDays = (todayDate - briefDate) / 86400000;
+    const maxAge = (p.type === 'weekly_debrief') ? 2 : 0;
+    if (diffDays > maxAge) {
+      try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
+      delete state['_brief_pending'];
+      return false;
+    }
   }
 
   // Si le serveur a marqué needs_full_brief → supprimer le pending et laisser

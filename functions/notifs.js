@@ -493,9 +493,10 @@ exports.weeklyDebriefNotif = onSchedule(
         const ctx=await buildNotifContext(state,cw);
         const prompt=`Tu es le coach running de Guillaume. Débrief fin de semaine en 3 phrases max pour notification iPhone.\nBilan S${cw} (${ctx.typeSem}) : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?' — '+ctx.kmSemaine+'km':''}. ${ctx.seancesRestantes.length>0?'Manquées : '+ctx.seancesRestantes.join(', ')+'.':'Toutes faites 🎉'} EF : ${ctx.efPace||'?'}.\nS${ctx.cwNext} (${ctx.typeSemNext}) : ${ctx.seancesNext.join(', ')||'à planifier'}.\nPhrase 1 = bilan 📊, phrase 2 = point clé 📈 ou ⚠️, phrase 3 = aperçu S${ctx.cwNext} + "Ouvre le Coach pour le détail 👇"`;
         const debrief=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running concis et motivant.',[{role:'user',content:prompt}],200,'claude-haiku-4-5-20251001');
-        const body=debrief||`📊 S${cw} terminée : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?', '+ctx.kmSemaine+'km':''}. S${ctx.cwNext} arrive. Ouvre l'app pour le détail 👇`;
+        const fullDebrief=debrief||`📊 S${cw} terminée : ${ctx.seancesDone.length} séances${ctx.kmSemaine>0?', '+ctx.kmSemaine+'km':''}. S${ctx.cwNext} arrive. Ouvre l'app pour le détail 👇`;
+        const body=fullDebrief.length>160?fullDebrief.slice(0,157)+'…':fullDebrief;
         const today=new Date().toISOString().slice(0,10);
-        await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:body,date:today,type:'weekly_debrief'});
+        await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:fullDebrief,date:today,type:'weekly_debrief'});
         await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
         await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`📊 Bilan S${cw}`,body,'weekly-debrief','/');
       }
