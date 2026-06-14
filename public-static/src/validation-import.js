@@ -17,6 +17,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           semaines_restantes: 32-CW,
           type_semaine: [8,12,16,20,26,30].includes(CW) ? 'DÉCHARGE' : 'NORMALE',
           fc_repos: state['fc_repos'] || 51,
+          fc_repos_context: buildFcReposContext(),
           date_reelle: (()=>{
             const _n=new Date();
             const _jNoms=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];

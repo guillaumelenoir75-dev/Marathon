@@ -896,6 +896,7 @@ RÈGLES ABSOLUES :
         ? `Météo : ${context.meteo.temperature}°C${context.meteo.conditions ? ' — '+context.meteo.conditions : ''}${context.meteo.conseil_chaleur ? ' — '+context.meteo.conseil_chaleur : ''}`
         : 'Météo non disponible';
 
+      const memosLine = context.memos ? `\nNotes coach (mémos) :\n${context.memos}` : '';
       const userMsg = `${context.jour} ${context.date}
 
 ${fcLine}
@@ -904,7 +905,7 @@ Séances du jour : ${seancesStr}
 Allure EF cible : ${context.allure_ef||'non renseignée'}
 Allure marathon cible : ${context.allure_marathon||'non renseignée'}
 ${context.allure_tempo ? 'Allure tempo : '+context.allure_tempo : ''}
-Consignes : ${context.consignes_ef||''}`;
+Consignes : ${context.consignes_ef||''}${memosLine}`;
 
       res.writeHead(200, {'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});
 

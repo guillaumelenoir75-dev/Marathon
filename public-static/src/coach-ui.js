@@ -1091,6 +1091,7 @@ async function checkMorningBrief(memos, force) {
       allure_cible: s.allure || null,
     })),
     // Consignes allure pour les séances du jour
+    memos: memos || null,
     consignes_ef: [8,12,16,20,26,30].includes(CW)
       ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`
       : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
