@@ -215,9 +215,10 @@ exports.briefAfterFcRepos = onSchedule(
         return;
       }
       const todayStr=trigger.date||new Date().toISOString().slice(0,10);
-      const briefKey='_brief_matin_'+todayStr;
-      const briefSnap=await db.ref(`${ADMIN_STATE}/`+briefKey).once('value');
-      if(briefSnap.val()){
+      // Clé dédiée pour éviter le conflit avec _brief_matin_ (posé par le client quand Coach est ouvert manuellement)
+      const fcNotifKey='_brief_fc_notif_'+todayStr;
+      const fcNotifSnap=await db.ref(`${ADMIN_STATE}/`+fcNotifKey).once('value');
+      if(fcNotifSnap.val()){
         await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
         return;
       }
@@ -300,7 +301,7 @@ exports.briefAfterFcRepos = onSchedule(
         type: 'morning_brief',
         needs_full_brief: true
       });
-      await db.ref(`${ADMIN_STATE}/`+briefKey).set('push_sent');
+      await db.ref(`${ADMIN_STATE}/`+fcNotifKey).set(true); // marquer notif envoyée (clé dédiée, indépendante du brief client)
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,body,'brief-matinal','/');
     }catch(e){console.error('briefAfterFcRepos:',e.message);}

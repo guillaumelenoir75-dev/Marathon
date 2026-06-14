@@ -908,7 +908,8 @@ async function checkPendingBrief() {
 
 async function checkMorningBrief(memos, force) {
   if(_briefShownToday) return false;
-  if(!getPref('notif_brief_matin')) return false;
+  // force=true (depuis notif) : on génère le brief même si la préf est désactivée côté client
+  if(!force && !getPref('notif_brief_matin')) return false;
   const now = new Date();
   const h = now.getHours();
   const dow = now.getDay(); // 0=dim,1=lun,...,6=sam
