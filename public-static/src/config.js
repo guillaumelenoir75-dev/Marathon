@@ -96,6 +96,13 @@ const typeColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',rest
 const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',frac:'#FEF0F0',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
 const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long',rest:'Repos',race:'Course'};
 
+function normalizeSessionTitle(title){
+  if(!title) return title;
+  if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(title)) return 'Footing EF';
+  if(/^Fartlek/.test(title)) return title.replace(/^Fartlek [a-zéèàû]+/, 'Footing avec accélérations');
+  return title;
+}
+
 const weeks=[
   {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},
   {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:10,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|11 EF",km:11,type:"long",shoe:"Pegasus"}]},
