@@ -870,9 +870,9 @@ STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
    - Bodyhit : "Électrostimulation full body à 12h30".
 
 5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km ou course :
-   - Avant : petit-déjeuner léger 2h avant (pain de mie, banane, miel), éviter les fibres.
-   - Pendant : 1 gel toutes les **45 min** à partir de **40 min** de course, eau à chaque prise de gel.
-   - Après : fenêtre de récupération de **30 min** — protéines + glucides (shaker, yaourt, fruits).
+   - Guillaume fait TOUJOURS ses sorties longues À JEUN : ne pas mentionner de petit-déjeuner avant la sortie.
+   - Pendant (à partir de **40 min**) : 1 gel toutes les **45 min**, eau à chaque prise de gel. Premier gel obligatoire avant de ressentir la faim.
+   - Après la sortie : fenêtre de récupération de **30 min** — shaker protéines + glucides rapides (banane, yaourt, jus de fruit), puis vrai repas dans l'heure.
    - Si sortie < 10km : NE PAS écrire ce bloc nutrition.
 
 RÈGLES ABSOLUES :
