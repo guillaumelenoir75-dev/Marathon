@@ -819,6 +819,13 @@ async function saveValidationExtra(w,ei){
   if(isAdmin() && dbRef && sExtra.type !== 'rest') {
     dbRef.child('_shaker_run_ts').set(Date.now() + 30 * 60 * 1000).catch(()=>{});
   }
+  // Supprimer le brief du matin si la séance validée est celle du jour (admin)
+  if(isAdmin() && dbRef && sExtra.type !== 'rest') {
+    const _todaySchedX=(d=>{return d===0?7:d;})(new Date().getDay());
+    if(sExtra.sched_day===_todaySchedX) {
+      dbRef.child('_brief_pending').remove().catch(()=>{});
+    }
+  }
   renderHome();
   rendered.plan=false;
   rendered.stats=false;
@@ -1089,6 +1096,14 @@ async function saveValidation(idx){
   // Rappel shaker 30 min après la validation d'une séance de course (admin uniquement)
   if(isAdmin() && dbRef && s.type !== 'rest') {
     dbRef.child('_shaker_run_ts').set(Date.now() + 30 * 60 * 1000).catch(()=>{});
+  }
+  // Supprimer le brief du matin si la séance validée est celle du jour (admin)
+  if(isAdmin() && dbRef && s.type !== 'rest') {
+    const _todaySched=(d=>{return d===0?7:d;})(new Date().getDay());
+    const _ed=state['edit_w'+CW+'_s'+si]?JSON.parse(state['edit_w'+CW+'_s'+si]):null;
+    if(_ed && _ed.sched_day===_todaySched) {
+      dbRef.child('_brief_pending').remove().catch(()=>{});
+    }
   }
   closeModal();
   renderHome();

@@ -857,24 +857,31 @@ STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
 
 1. ❤️ FC REPOS — commencer par ça, toujours. Donner la valeur du jour en **gras**, comparer à la moyenne 7j. Une phrase : bonne récup ou signe de fatigue.
 
-2. 🌤️ MÉTÉO — seulement si disponible dans le contexte. Une phrase : température, conditions, impact sur la séance. Si pas de météo : passer directement au point 3.
+2. 🌤️ MÉTÉO — seulement si disponible dans le contexte. Une phrase : température, conditions, impact sur la séance (ajuster la tenue, hydratation, etc.). Si pas de météo : passer directement au point 3.
 
 3. 🎯 SÉANCE DU JOUR — annoncer la ou les activités prévues (run, renfo, bodyhit). Titre, distance si run, heure si connue. Une phrase claire. IMPORTANT : le renforcement musculaire (ischio-fessiers, bas du dos) est une vraie séance — ne jamais écrire "journée de récupération" si seances_du_jour contient un renfo.
 
-4. ⚡ CONSIGNES — pour chaque activité du jour, 1 à 2 phrases max :
-   - EF : allure cible en **gras**, FC cible en **gras**, rappel "si FC > 148 → ralentir"
-   - Tempo : allure des blocs en **gras**, rappel structure
-   - EF Longue : allure en **gras**, gels si ≥ 12km
-   - Renfo ischio-fessiers ou bas du dos : nommer les exercices clés (ponts fessiers, hip thrust, nordic curls, gainage...), rappeler de progresser en séries
-   - Bodyhit : "Électrostimulation full body à 12h30"
+4. ⚡ CONSIGNES ALLURE & TECHNIQUE — pour chaque activité run du jour, OBLIGATOIREMENT :
+   - EF : allure cible en **gras** (ex: **6'30-6'50/km**), FC cible en **gras** (ex: **140-148 bpm**), rappel "si FC > 148 → ralentir". Si décharge : **+30s/km** sur l'allure EF normale.
+   - Tempo : allure des blocs intenses en **gras**, rappel structure (ex: échauffement + blocs + récup).
+   - Fractionné : allure des répétitions en **gras**, récupération en **gras**.
+   - EF Longue : allure en **gras**, FC cible en **gras**. OBLIGATOIRE si ≥ 10km : stratégie gel (ex: 1 gel toutes les **45 min**, premier gel à **40 min**, boire eau à chaque ravitaillement).
+   - Renfo ischio-fessiers ou bas du dos : nommer les exercices clés (ponts fessiers, hip thrust, nordic curls, gainage...), rappeler de progresser en séries.
+   - Bodyhit : "Électrostimulation full body à 12h30".
+
+5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km ou course :
+   - Avant : petit-déjeuner léger 2h avant (pain de mie, banane, miel), éviter les fibres.
+   - Pendant : 1 gel toutes les **45 min** à partir de **40 min** de course, eau à chaque prise de gel.
+   - Après : fenêtre de récupération de **30 min** — protéines + glucides (shaker, yaourt, fruits).
+   - Si sortie < 10km : NE PAS écrire ce bloc nutrition.
 
 RÈGLES ABSOLUES :
-- 4 blocs maximum. Jamais plus.
-- INTERDIT : parler du reste de la semaine, des séances passées, du marathon, du Sub-4h.
+- Jamais plus de 5 blocs.
+- INTERDIT : parler du reste de la semaine, des séances passées, du marathon général, du Sub-4h.
 - INTERDIT : écrire "journée de récupération" ou "aucune séance" si seances_du_jour contient quoi que ce soit.
 - SI seances_du_jour est vraiment vide ET bodyhit=false : alors seulement écrire "journée de récupération".
 - Ton direct, coach, sans fioritures. Pas de tirets.
-- Données chiffrées en **gras**.`;
+- Données chiffrées TOUJOURS en **gras**.`;
 
       const seancesStr = (context.seances_du_jour||[]).map(s => {
         const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', renfo:'Renforcement', race:'Course'}[s.type] || s.type;
@@ -894,6 +901,9 @@ RÈGLES ABSOLUES :
 ${fcLine}
 ${meteoLine}
 Séances du jour : ${seancesStr}
+Allure EF cible : ${context.allure_ef||'non renseignée'}
+Allure marathon cible : ${context.allure_marathon||'non renseignée'}
+${context.allure_tempo ? 'Allure tempo : '+context.allure_tempo : ''}
 Consignes : ${context.consignes_ef||''}`;
 
       res.writeHead(200, {'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});

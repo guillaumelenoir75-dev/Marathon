@@ -1094,6 +1094,14 @@ async function checkMorningBrief(memos, force) {
     consignes_ef: [8,12,16,20,26,30].includes(CW)
       ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`
       : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
+    // Allures explicites pour que le coach puisse donner des chiffres précis
+    allure_ef: getBestEfPace() || null,
+    allure_marathon: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })() || null,
+    allure_tempo: (()=>{
+      const ef=paceStrToSec(getBestEfPace()||"6'40");
+      const t=Math.max(ef-70,ef*0.85); // tempo ~70s plus vite que EF (approx)
+      return Math.floor(t/60)+"'"+(Math.round(t%60)+'').padStart(2,'0')+'/km';
+    })(),
   };
   try {
     // ── Afficher le loader "Le Coach écrit" immédiatement ──
@@ -1137,10 +1145,37 @@ async function checkMorningBrief(memos, force) {
       coachHistory.push({role:'assistant', content: full, date: new Date().toISOString().slice(0,10)});
       saveCoachHistory();
       try { await dbRef.child('_brief_pending').set({content: full, date: todayStr, type:'morning_brief'}); } catch(e){}
+      // Boutons Conserver / Effacer sous le brief
+      _addBriefActionButtons();
     }
     return true;
   } catch(e) { console.error('morningBrief error:', e); }
   return true;
+}
+
+function _addBriefActionButtons(){
+  const container=document.getElementById('coach-messages');
+  if(!container) return;
+  const div=document.createElement('div');
+  div.id='brief-actions';
+  div.style.cssText='display:flex;gap:8px;justify-content:flex-end;padding:4px 0 8px;';
+  div.innerHTML=`<button onclick="dismissBrief()" style="background:#E8F0FE;color:#0C447C;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Effacer</button>`
+    +`<button onclick="keepBrief()" style="background:#EAF3DE;color:#3B6D11;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">✓ Garder</button>`;
+  container.appendChild(div);
+  container.scrollTop=container.scrollHeight;
+}
+
+function dismissBrief(){
+  // Supprimer le brief pending + les boutons
+  if(dbRef) dbRef.child('_brief_pending').remove().catch(()=>{});
+  const btns=document.getElementById('brief-actions');
+  if(btns) btns.remove();
+}
+
+function keepBrief(){
+  // Juste retirer les boutons, laisser le brief en DB
+  const btns=document.getElementById('brief-actions');
+  if(btns) btns.remove();
 }
 
 async function loadCoachHistory(){
