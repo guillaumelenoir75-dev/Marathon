@@ -815,6 +815,10 @@ async function saveValidationExtra(w,ei){
   }
   // Timestamp Firebase comme saveValidation
   if(dbRef) dbRef.child('_last_validation_w'+w).set(Date.now()).catch(()=>{});
+  // Rappel shaker 30 min après la validation d'une séance (admin uniquement)
+  if(isAdmin() && dbRef && sExtra.type !== 'rest') {
+    dbRef.child('_shaker_run_ts').set(Date.now() + 30 * 60 * 1000).catch(()=>{});
+  }
   renderHome();
   rendered.plan=false;
   rendered.stats=false;
