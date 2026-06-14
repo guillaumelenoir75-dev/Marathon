@@ -343,7 +343,7 @@ function renderHome(){
     const typeBgC=typeBg[s2.type]||'#f5f5f5';
     const lbl=typeLabel[s2.type]||'EF';
     const parts=s2.d.split('|');
-    const title=normalizeSessionTitle(parts[0]);
+    const title=normalizeSessionTitle(parts[0], s2.type);
     const detail=filterDetailDisplay(title,parts[1]||null);
     // Horaire planifié
     const _schedDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
@@ -486,7 +486,7 @@ function openValidationModalExtra(w,ei){
   window._stravaActivityData = null;
   const s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');
   const parts=(s.d||'').split('|');
-  const title=normalizeSessionTitle(parts[0]);
+  const title=normalizeSessionTitle(parts[0], s.type);
   const detail=filterDetailDisplay(title, parts[1]||null);
   const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
   const kmVal=state[`extra_w${w}_s${ei}_km`]!=null?state[`extra_w${w}_s${ei}_km`]:s.km||0;
@@ -880,7 +880,7 @@ function openValidationModal(idx){
   // Stocker le contexte pour que _applyGarminToValidation puisse accéder à la séance
   window._currentValidationSession = { s, idx, ws: CW };
   const parts=s.d.split('|');
-  const title=normalizeSessionTitle(parts[0]);
+  const title=normalizeSessionTitle(parts[0], s.type);
   const detail=filterDetailDisplay(title, parts[1]||null);
   const c=typeColor[s.type]||'#888';
   const bg=typeBg[s.type]||'#f5f5f5';

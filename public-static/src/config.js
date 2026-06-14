@@ -96,8 +96,9 @@ const typeColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',rest
 const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',frac:'#FEF0F0',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
 const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long',rest:'Repos',race:'Course'};
 
-function normalizeSessionTitle(title){
+function normalizeSessionTitle(title, type){
   if(!title) return title;
+  if(type === 'ef') return 'Footing EF';
   if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(title)) return 'Footing EF';
   if(/^Fartlek/.test(title)) return title.replace(/^Fartlek [a-zéèàû]+/, 'Footing avec accélérations');
   return title;
