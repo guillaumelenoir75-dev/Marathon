@@ -165,11 +165,11 @@ const EF_AM_TABLE=[
 ];
 
 function getBestEfPace(){
-  let lastSec=null;
-  // Fallback : EF déclarée à l'onboarding (avant d'avoir des séances validées)
+  const paces=[]; // valeurs EF valides, ordre chronologique (secondes/km)
+  // Seed : EF déclarée à l'onboarding
   if(state.ef_pace){
     const fb=paceStrToSec(state.ef_pace.replace("'",":"));
-    if(fb!==null) lastSec=fb;
+    if(fb!==null) paces.push(fb);
   }
   for(let ws=1;ws<=CW;ws++){
     // Séances base (plan Guillaume) — admin seulement
@@ -183,7 +183,7 @@ function getBestEfPace(){
         if(parseInt(perf.hr)>148) return;
         const sec=paceStrToSec(perf.pace);
         if(sec===null) return;
-        lastSec=sec;
+        paces.push(sec);
       });
     }
     // Séances extra EF
@@ -194,15 +194,38 @@ function getBestEfPace(){
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
         if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
           const sec=paceStrToSec(perf.pace);
-          if(sec!==null) lastSec=sec;
+          if(sec!==null) paces.push(sec);
         }
       }
       ei++;
     }
   }
-  if(lastSec===null) return "6'40";
-  const m=Math.floor(lastSec/60);
-  const s=lastSec%60;
+  if(paces.length===0) return "6'40";
+
+  let refSec;
+  if(paces.length<3){
+    // Moins de 3 sessions : prendre le meilleur (le plus rapide)
+    refSec=Math.min(...paces);
+  } else {
+    // Fenêtre glissante sur les 3 dernières sessions EF valides
+    const last3=paces.slice(-3);
+    const before3=paces.slice(0,-3);
+    // Référence précédente = meilleur des sessions avant la fenêtre
+    // (ou la session la plus ancienne de la fenêtre s'il n'y a rien avant)
+    const prevBest=before3.length>0?Math.min(...before3):last3[0];
+    const minLast3=Math.min(...last3);
+    const medLast3=[...last3].sort((a,b)=>a-b)[1]; // médiane des 3
+    if(minLast3<=prevBest){
+      // Au moins une bonne session dans les 3 dernières → prendre la meilleure
+      refSec=minLast3;
+    } else {
+      // Les 3 dernières sont toutes au-dessus de la référence précédente
+      // → stabilisé à ce niveau (chaleur persistante, fatigue, etc.) → médiane
+      refSec=medLast3;
+    }
+  }
+  const m=Math.floor(refSec/60);
+  const s=Math.round(refSec%60);
   return `${m}'${s.toString().padStart(2,'0')}`;
 }
 
