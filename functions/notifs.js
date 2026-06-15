@@ -208,35 +208,29 @@ exports.briefAfterFcRepos = onSchedule(
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const trigger=state['_brief_trigger'];
       if(!trigger||!trigger.ts)return;
-      const now=Date.now();
-      const age=(now-trigger.ts)/1000/60;
-      if(age<2||age>30){
-        if(age>30) await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
-        return;
-      }
-      const todayStr=trigger.date||new Date().toISOString().slice(0,10);
-      // Clé dédiée pour éviter le conflit avec _brief_matin_ (posé par le client quand Coach est ouvert manuellement)
-      const fcNotifKey='_brief_fc_notif_'+todayStr;
-      const fcNotifSnap=await db.ref(`${ADMIN_STATE}/`+fcNotifKey).once('value');
-      if(fcNotifSnap.val()){
+
+      const ageMin=(Date.now()-trigger.ts)/60000;
+      // Abandon si trigger trop vieux (1h) → trigger probablement orphelin
+      if(ageMin>60){
         await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
         return;
       }
-      let triggerClaimed = false;
-      await db.ref(`${ADMIN_STATE}/_brief_trigger`).transaction(current => {
-        if (!current) { triggerClaimed = false; return; }
-        triggerClaimed = true;
-        return null;
-      });
-      if (!triggerClaimed) return;
+
+      const todayStr=trigger.date||new Date().toISOString().slice(0,10);
+      const fcNotifKey='_brief_fc_notif_'+todayStr;
+
+      // Vérifier si déjà envoyé aujourd'hui (après un envoi réussi)
+      if(state[fcNotifKey]===true){
+        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+        return;
+      }
+
+      // Construire le résumé pour la notification push
       const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;
-
-      const seanceRunMsg=ctx.seancesAujourdHui.length>0?`Run : ${ctx.seancesAujourdHui.join(' + ')}.`:'';
-
-      const jours2=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
       const dow=new Date().getDay();
+      const jours2=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
       const dayOfWeekNum=dow===0?7:dow;
       const _rAllN={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
       const renfoNoms={1:_rAllN[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllN[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
@@ -249,61 +243,30 @@ exports.briefAfterFcRepos = onSchedule(
         let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
         if(sched.day===dayOfWeekNum) renfoAujourdHui.push(`${renfoNoms[ri]}${sched.time?' à '+sched.time:''}`);
       }
+      const seanceRunMsg=ctx.seancesAujourdHui.length>0?`Run : ${ctx.seancesAujourdHui.join(' + ')}.`:'';
       const renfoMsg=renfoAujourdHui.length>0?`Renfo : ${renfoAujourdHui.join(' + ')}.`:'';
-
       const bodyhitMsg=dow===1?'Bodyhit à 12h30.':'';
-
       const programmeItems=[seanceRunMsg,renfoMsg,bodyhitMsg].filter(Boolean);
-      const programmeMsg=programmeItems.length>0?programmeItems.join(' '):'Journée de récupération ce '+(jours2[dow]||"aujourd'hui")+'.';
+      const programmeMsg=programmeItems.length>0?programmeItems.join(' '):'Récupération.';
+      const fcMsg=fcToday?`FC repos : ${fcToday} bpm. `:'';
+      let body=`${fcMsg}${programmeMsg}`.trim();
+      if(body.length>180) body=body.slice(0,177)+'...';
 
-      let meteoMsg = '';
-      try {
-        const locSnap = await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
-        const loc = locSnap.val();
-        const lat = (loc && loc.lat && (Date.now()-loc.ts)<30*24*3600*1000) ? loc.lat : 48.8417;
-        const lng = (loc && loc.lng && (Date.now()-loc.ts)<30*24*3600*1000) ? loc.lng : 2.2945;
-        let seanceH = new Date().getHours() + 1;
-        if(ctx.seancesAujourdHui.length > 0) {
-          const match = ctx.seancesAujourdHui[0].match(/(\d{1,2})h|(\d{1,2}):(\d{2})/);
-          if(match) seanceH = parseInt(match[1] || match[2]);
-        }
-        seanceH = Math.min(23, Math.max(0, seanceH));
-        const meteoResp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code&timezone=Europe%2FParis&forecast_days=1`);
-        const meteoData = await meteoResp.json();
-        if(meteoData.hourly) {
-          const temp     = meteoData.hourly.temperature_2m?.[seanceH];
-          const apparent = meteoData.hourly.apparent_temperature?.[seanceH];
-          const wcode    = meteoData.hourly.weather_code?.[seanceH];
-          const wmoEmoji = wcode===0?'☀️':wcode<=2?'⛅':wcode<=3?'☁️':wcode<=48?'🌫️':wcode<=67?'🌧️':wcode<=77?'🌨️':wcode<=82?'🌦️':wcode<=99?'⛈️':'🌤️';
-          const t = Math.round(temp ?? 0);
-          const r = Math.round(apparent ?? t);
-          const diff = r - t;
-          meteoMsg = `Météo à ${seanceH}h : ${wmoEmoji} ${t}°C${diff >= 2 ? ' (ressenti '+r+'°C)' : ''}.`;
-        }
-      } catch(e) {}
-
-      const fcMsg=fcToday?`FC repos : ${fcToday} bpm.`:'';
-      const activitesMsg=[fcMsg,programmeMsg,meteoMsg].filter(Boolean).join(' ');
-      const prompt=`Une seule phrase courte et COMPLÈTE (max 100 caractères) pour Guillaume : ${activitesMsg}. Pas de virgule finale. Pas de tirets.`;
-
-      let brief = null;
-      try {
-        brief = await callAnthropic(ANTHROPIC_API_KEY.value(),'Coach running. 1 phrase courte complète, jamais coupée, max 100 caractères.',[{role:'user',content:prompt}],60,'claude-haiku-4-5-20251001');
-      } catch(aiErr) { console.error('briefAfterFcRepos AI error:',aiErr.message); }
-
-      let body = (brief || activitesMsg).trim();
-      if(body.length > 180) body = body.slice(0, 177) + '...';
-      if(!body.endsWith('.') && !body.endsWith('!') && !body.endsWith('?')) body += '.';
-
+      // Écrire le brief pending (le client génèrera le vrai brief complet via morningBrief CF)
       await db.ref(`${ADMIN_STATE}/_brief_pending`).set({
         content: body,
         date: todayStr,
         type: 'morning_brief',
         needs_full_brief: true
       });
-      await db.ref(`${ADMIN_STATE}/`+fcNotifKey).set(true); // marquer notif envoyée (clé dédiée, indépendante du brief client)
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+
+      // Envoyer la notification push
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,body,'brief-matinal','/');
+
+      // Marquer comme envoyé et supprimer le trigger SEULEMENT après succès
+      await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
     }catch(e){console.error('briefAfterFcRepos:',e.message);}
   }
 );
