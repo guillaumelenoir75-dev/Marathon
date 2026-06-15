@@ -1100,7 +1100,7 @@ async function saveValidation(idx){
   // Supprimer le brief du matin si la séance validée est celle du jour (admin)
   if(isAdmin() && dbRef && s.type !== 'rest') {
     const _todaySched=(d=>{return d===0?7:d;})(new Date().getDay());
-    const _ed=state['edit_w'+CW+'_s'+si]?JSON.parse(state['edit_w'+CW+'_s'+si]):null;
+    const _ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):null;
     if(_ed && _ed.sched_day===_todaySched) {
       dbRef.child('_brief_pending').remove().catch(()=>{});
     }
