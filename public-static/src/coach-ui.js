@@ -1154,29 +1154,40 @@ async function checkMorningBrief(memos, force) {
   return true;
 }
 
-function _addBriefActionButtons(){
+function _addBriefActionButtons(keepOnly){
   const container=document.getElementById('coach-messages');
   if(!container) return;
+  if(document.getElementById('brief-actions')) return; // déjà présent
   const div=document.createElement('div');
   div.id='brief-actions';
   div.style.cssText='display:flex;gap:8px;justify-content:flex-end;padding:4px 0 8px;';
-  div.innerHTML=`<button onclick="dismissBrief()" style="background:#E8F0FE;color:#0C447C;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Effacer</button>`
-    +`<button onclick="keepBrief()" style="background:#EAF3DE;color:#3B6D11;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">✓ Garder</button>`;
+  if(keepOnly){
+    // Mode "gardé" : seul le bouton Effacer est disponible
+    div.innerHTML=`<button onclick="dismissBrief()" style="background:#E8F0FE;color:#0C447C;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Effacer le brief</button>`;
+  } else {
+    div.innerHTML=`<button onclick="dismissBrief()" style="background:#E8F0FE;color:#0C447C;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Effacer</button>`
+      +`<button onclick="keepBrief()" style="background:#EAF3DE;color:#3B6D11;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">✓ Garder</button>`;
+  }
   container.appendChild(div);
   container.scrollTop=container.scrollHeight;
 }
 
 function dismissBrief(){
-  // Supprimer le brief pending + les boutons
-  if(dbRef) dbRef.child('_brief_pending').remove().catch(()=>{});
+  if(dbRef){
+    dbRef.child('_brief_pending').remove().catch(()=>{});
+    dbRef.child('_brief_kept').remove().catch(()=>{});
+  }
   const btns=document.getElementById('brief-actions');
   if(btns) btns.remove();
 }
 
 function keepBrief(){
-  // Juste retirer les boutons, laisser le brief en DB
+  // Marquer en DB pour réafficher le bouton Effacer à la prochaine ouverture
+  if(dbRef) dbRef.child('_brief_kept').set(true).catch(()=>{});
   const btns=document.getElementById('brief-actions');
   if(btns) btns.remove();
+  // Remplacer par un seul bouton Effacer discret
+  _addBriefActionButtons(true);
 }
 
 async function loadCoachHistory(){
@@ -1546,6 +1557,13 @@ async function loadCoachHistory(){
     // force=true si on vient d'une notif (needs_full_brief ou _coachOpenedFromNotif)
     const _forceBrief = _needsFullBrief || _fromPushNotif;
     try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
+  }
+  // ── Si le brief a été "gardé" (keepBrief), réafficher le bouton Effacer ──
+  if (!_briefShownToday && dbRef) {
+    try {
+      const keptSnap = await dbRef.child('_brief_kept').once('value');
+      if (keptSnap.val()) _addBriefActionButtons(true);
+    } catch(e) {}
   }
 }
 // Afficher un overlay de chargement jusqu'à ce que Firebase soit prêt

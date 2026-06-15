@@ -4,6 +4,8 @@ function renderCoachText(t, streaming){
   let cleaned = t;
   cleaned = cleaned.replace(/```[\s\S]*?```/g, ''); // Supprimer blocs code
   cleaned = cleaned.replace(/`([^`\n]*)`/g, '$1');   // Supprimer backticks inline
+  // Convertir les titres markdown ## → texte stylé (supprimer les # mais garder le contenu)
+  cleaned = cleaned.replace(/^#{1,3}\s*/gm, '');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim(); // Nettoyer lignes vides
   const f = fixAccents(cleaned);
   let h = f.replace(/\*\*([^*\n]+)\*\*/g, '<strong style="font-weight:700;">$1</strong>');
