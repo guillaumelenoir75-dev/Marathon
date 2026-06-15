@@ -277,6 +277,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
     allure_ef_actuelle: getBestEfPace()||"6'40",
     allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ 148 bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue).",
+    note_comparaison_allures: "IMPORTANT — convention allure : une allure s'exprime en min:sec PAR KILOMÈTRE. Plus le nombre est GRAND (plus de secondes/km), plus c'est LENT. Ex: 5'46/km est PLUS LENT que 5'30/km. Ne jamais confondre sens de comparaison : réalisé > cible en sec/km = plus lent, pas plus rapide.",
     projection_sub4h: (()=>{
       const objectifSec = 4*3600; // 4h00
       const objectifAllureSec = Math.ceil(objectifSec / 42.195); // ~341 sec = 5'41/km
