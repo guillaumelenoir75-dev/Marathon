@@ -59,6 +59,8 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           infos_importantes_Guillaume: coachMemos||undefined,
           absences_semaine: state['absences_cw'+CW]||null,
           chaussures_plan_verite: "Zoom Fly : première utilisation planifiée S26 (31/08/2026), jamais avant.",
+          allure_ef_reference: getBestEfPace(),
+          allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ 148 bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue). Utilise cette allure comme référence EF du moment pour contextualiser les débriefs.",
         }),
         chatHistoriqueRecent: coachHistory.slice(-6).map(m=>({
           role: m.role==='user'?'Guillaume':'Coach',
