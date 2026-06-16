@@ -200,7 +200,7 @@ exports.sessionReminder = onSchedule(
 );
 
 exports.briefAfterFcRepos = onSchedule(
-  {schedule:'*/2 6-22 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,ANTHROPIC_API_KEY]},
+  {schedule:'*/2 6-22 * * *',timeZone:'Europe/Paris',timeoutSeconds:120,secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,ANTHROPIC_API_KEY]},
   async()=>{
     try{
       const db=admin.database();
@@ -210,61 +210,124 @@ exports.briefAfterFcRepos = onSchedule(
       if(!trigger||!trigger.ts)return;
 
       const ageMin=(Date.now()-trigger.ts)/60000;
-      // Abandon si trigger trop vieux (1h) → trigger probablement orphelin
-      if(ageMin>60){
-        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
-        return;
-      }
+      if(ageMin>60){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); return; }
 
       const todayStr=trigger.date||new Date().toISOString().slice(0,10);
       const fcNotifKey='_brief_fc_notif_'+todayStr;
+      if(state[fcNotifKey]===true){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); return; }
 
-      // Vérifier si déjà envoyé aujourd'hui (après un envoi réussi)
-      if(state[fcNotifKey]===true){
-        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
-        return;
-      }
-
-      // Construire le résumé pour la notification push
       const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;
-      const dow=new Date().getDay();
-      const jours2=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+      const now=new Date();
+      const dow=now.getDay();
+      const joursLong=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+      const moisNoms=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const dateComplet=`${joursLong[dow]} ${now.getDate()} ${moisNoms[now.getMonth()]} ${now.getFullYear()}`;
+
+      // FC repos : moyenne 7 jours
+      let fcSum=0,fcCount=0;
+      for(let d=0;d<7;d++){
+        const dd=new Date(now.getTime()-d*86400000);
+        const ds=dd.toISOString().slice(0,10);
+        const v=parseFloat(state['fc_repos_'+ds]);
+        if(v&&!isNaN(v)){fcSum+=v;fcCount++;}
+      }
+      const fcMoy7j=fcCount>0?Math.round(fcSum/fcCount):null;
+
+      // Allure EF : dernière séance EF valide (FC ≤ 148)
+      let efPace=null;
+      const paceStrToSec=p=>{if(!p)return null;const m=p.replace("'",':').split(':');if(m.length<2)return null;const s=parseInt(m[0])*60+parseInt(m[1]);return isNaN(s)?null:s;};
+      const efPaces=[];
+      if(state.ef_pace){const s=paceStrToSec(state.ef_pace.replace("'",':'));if(s)efPaces.push(s);}
+      for(let ws=1;ws<=cw;ws++){
+        for(let si=0;si<5;si++){
+          const pr=state[`w${ws}_s${si}perf`]||state[`s${ws}i${si}perf`];
+          if(!pr)continue;
+          try{const p=JSON.parse(pr);if((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}
+        }
+      }
+      if(efPaces.length>0){
+        let refSec;
+        if(efPaces.length<3){refSec=Math.min(...efPaces);}
+        else{const last3=efPaces.slice(-3);const before3=efPaces.slice(0,-3);const prevBest=before3.length>0?Math.min(...before3):last3[0];const minL=Math.min(...last3);const medL=[...last3].sort((a,b)=>a-b)[1];refSec=minL<=prevBest?minL:medL;}
+        const em=Math.floor(refSec/60);const es=Math.round(refSec%60);efPace=`${em}'${(es+'').padStart(2,'0')}`;
+      }
+      efPace=efPace||"6'40";
+
+      const isDecharge=[8,12,16,20,26,30].includes(cw);
+      const consignesEf=isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF : ${efPace}/km — FC 140-148 bpm`;
+      const memos=state['_coach_memos']||'';
+      const seancesStr=ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'Récupération';
+      const fcLine=fcToday?`FC repos ce matin : ${fcToday} bpm (moyenne 7j : ${fcMoy7j||'—'} bpm)`:'FC repos non saisie ce matin';
+      const memosLine=memos?`\nNotes coach (mémos) :\n${memos}`:'';
+
+      // ── Générer le brief complet côté serveur ──────────────────────────────
+      const system=`Tu es le coach running de Guillaume. Ta mission : rédiger le brief du matin, UNIQUEMENT sur la journée d'aujourd'hui.
+
+STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
+
+1. ❤️ FC REPOS — commencer par ça, toujours. Donner la valeur du jour en **gras**, comparer à la moyenne 7j. Une phrase : bonne récup ou signe de fatigue.
+
+2. 🎯 SÉANCE DU JOUR — annoncer la ou les activités prévues (run, renfo, bodyhit). Titre, distance si run, heure si connue. Une phrase claire. IMPORTANT : le renforcement musculaire est une vraie séance — ne jamais écrire "journée de récupération" si seances_du_jour contient un renfo.
+
+3. ⚡ CONSIGNES ALLURE & TECHNIQUE — pour chaque activité run du jour, OBLIGATOIREMENT :
+   - EF : allure cible en **gras**, FC cible en **gras** (ex: **140-148 bpm**), rappel "si FC > 148 → ralentir". Si décharge : **+30s/km** sur l'allure EF normale.
+   - Tempo : allure des blocs intenses en **gras**, rappel structure.
+   - EF Longue : allure en **gras**, FC cible en **gras**. Si ≥ 10km : stratégie gel (1 gel toutes les **45 min**, premier gel à **40 min**).
+   - Renfo ischio-fessiers ou bas du dos : nommer les exercices clés, rappeler de progresser en séries.
+
+4. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km :
+   - Guillaume fait TOUJOURS ses sorties longues À JEUN.
+   - Après : fenêtre **30 min** — shaker protéines + glucides rapides.
+
+RÈGLES ABSOLUES :
+- Jamais plus de 4 blocs. Zéro #. Données chiffrées en **gras**.
+- INTERDIT : parler du reste de la semaine, des séances passées, du marathon général.
+- Ton direct, coach, sans fioritures. Pas de tirets.`;
+
+      const userMsg=`${dateComplet}\n${fcLine}\nSéances du jour : ${seancesStr}\nAllure EF cible : ${efPace}/km\nConsignes : ${consignesEf}${memosLine}`;
+
+      let briefContent='';
+      try{
+        const resp=await callAnthropic(ANTHROPIC_API_KEY.value(),system,[{role:'user',content:userMsg}],600);
+        briefContent=resp||'';
+      }catch(e){console.error('briefAfterFcRepos AI error:',e.message);}
+
+      // Fallback si l'IA échoue
+      if(!briefContent){
+        const fcMsg=fcToday?`FC repos : ${fcToday} bpm. `:'';
+        briefContent=`❤️ ${fcMsg}\n\n🎯 ${seancesStr}`;
+      }
+
+      // Notification push : résumé court
       const dayOfWeekNum=dow===0?7:dow;
-      const _rAllN={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
-      const renfoNoms={1:_rAllN[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllN[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
+      const _rAllN={1:'Ischio-fessiers',2:'Bas du dos'};
+      const renfoNoms={1:'Renfo '+(_rAllN[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers'),2:'Renfo '+(_rAllN[parseInt(state.renfo_prog2)||2]||'Bas du dos')};
       const renfoAujourdHui=[];
       for(let ri=1;ri<=2;ri++){
-        const done=!!state[`rf${cw}r${ri}done`];
-        if(done)continue;
-        const schedRaw=state[`rf${cw}r${ri}sched`];
-        if(!schedRaw)continue;
+        const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
+        const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
         let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
-        if(sched.day===dayOfWeekNum) renfoAujourdHui.push(`${renfoNoms[ri]}${sched.time?' à '+sched.time:''}`);
+        if(sched.day===dayOfWeekNum)renfoAujourdHui.push(renfoNoms[ri]);
       }
-      const seanceRunMsg=ctx.seancesAujourdHui.length>0?`Run : ${ctx.seancesAujourdHui.join(' + ')}.`:'';
-      const renfoMsg=renfoAujourdHui.length>0?`Renfo : ${renfoAujourdHui.join(' + ')}.`:'';
-      const bodyhitMsg=dow===1?'Bodyhit à 12h30.':'';
-      const programmeItems=[seanceRunMsg,renfoMsg,bodyhitMsg].filter(Boolean);
-      const programmeMsg=programmeItems.length>0?programmeItems.join(' '):'Récupération.';
-      const fcMsg=fcToday?`FC repos : ${fcToday} bpm. `:'';
-      let body=`${fcMsg}${programmeMsg}`.trim();
-      if(body.length>180) body=body.slice(0,177)+'...';
+      const programmeItems=[
+        ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'',
+        renfoAujourdHui.join(' + '),
+        dow===1?'Bodyhit 12h30':'',
+      ].filter(Boolean);
+      const fcMsg2=fcToday?`FC ${fcToday} bpm — `:'';
+      let pushBody=`${fcMsg2}${programmeItems.join(' · ')||'Récupération'}`.trim();
+      if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
 
-      // Écrire le brief pending (le client génèrera le vrai brief complet via morningBrief CF)
-      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({
-        content: body,
-        date: todayStr,
-        type: 'morning_brief',
-        needs_full_brief: true
-      });
+      // Stocker brief COMPLET → affichage instantané au clic notif
+      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:briefContent,date:todayStr,type:'morning_brief'});
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
-      // Envoyer la notification push
-      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,body,'brief-matinal','/');
+      // Envoyer la notif
+      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
 
-      // Marquer comme envoyé et supprimer le trigger SEULEMENT après succès
+      // Marquer fait + nettoyer trigger
       await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
       await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
     }catch(e){console.error('briefAfterFcRepos:',e.message);}
