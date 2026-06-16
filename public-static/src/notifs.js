@@ -74,7 +74,7 @@ async function initNotifications() {
     return;
   }
   try {
-    await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     updateNotifBtnState();
     // Refresh la subscription à chaque chargement si permission accordée
     // → garantit que Firebase a toujours l'endpoint valide (évite les expirations silencieuses)
