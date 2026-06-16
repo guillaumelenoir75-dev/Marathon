@@ -99,6 +99,11 @@ const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long',rest:'Repos',race
 function normalizeSessionTitle(title, type){
   if(!title) return title;
   if(type === 'ef') return 'Footing EF';
+  if(type === 'long') {
+    // Séances longues : ne jamais afficher "Footing EF" — normaliser vers "EF Longue"
+    if(/^(Séance EF|EF longue|Footing EF|Endurance fondamentale|Sortie longue)/i.test(title)) return 'EF Longue';
+    return title;
+  }
   if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(title)) return 'Footing EF';
   if(/^Fartlek/.test(title)) return title.replace(/^Fartlek [a-zéèàû]+/, 'Footing avec accélérations');
   return title;
