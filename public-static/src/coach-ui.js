@@ -1190,6 +1190,63 @@ function keepBrief(){
   _addBriefActionButtons(true);
 }
 
+async function _appendWeatherMessageAfterBrief() {
+  // Fetch météo silencieusement (utilise cache ou géoloc déjà accordée)
+  // Chercher l'heure de la séance du jour pour cibler la météo
+  const _todayDow = new Date().getDay();
+  const _todaySched = [7,1,2,3,4,5,6][_todayDow];
+  let _seanceHeure = null;
+  for(let si=0;si<5;si++){
+    const edRaw=state['edit_w'+CW+'_s'+si];
+    if(!edRaw)continue;
+    try{const ed=JSON.parse(edRaw);if(ed.sched_day===_todaySched&&ed.sched_time&&!state[gk(CW,si)+'done']){_seanceHeure=ed.sched_time;break;}}catch(e){}
+  }
+  let meteo=null;
+  try{ meteo=await fetchWeatherIfGranted(_seanceHeure, new Date().toISOString().slice(0,10)); }catch(e){}
+  if(!meteo||!meteo.temperature) return;
+
+  // Construire le message météo formaté
+  const temp=meteo.temperature;
+  const ressenti=meteo.ressenti||temp;
+  const conditions=meteo.conditions||'';
+  const impact=meteo.impact_performance||null;
+  const vent=meteo.vent_kmh||0;
+  const pluie=meteo.pluie_mm||0;
+
+  let msg='';
+
+  // En-tête météo
+  const icone=conditions.split(' ').pop()||'🌤️';
+  msg+=`${icone} **${temp}°C` + (ressenti!==temp?` (ressenti ${ressenti}°C)`:'') + `** — ${conditions||'conditions normales'}`;
+  if(vent>20) msg+=`, vent **${vent} km/h**`;
+  if(pluie>0.5) msg+=`, pluie **${Math.round(pluie*10)/10} mm**`;
+  msg+='\n\n';
+
+  // Impact sur la séance
+  if(impact&&impact.elevation_fc_bpm>0){
+    const elev=impact.elevation_fc_bpm;
+    const efAjust=impact.zone_ef_ajustee||`${140+elev}-${148+elev} bpm`;
+    msg+=`⚠️ Chaleur : ta FC sera naturellement **+${elev} bpm** plus haute. Zone EF effective : **${efAjust}**. Allure naturellement plus lente de **+${impact.ralent_sec_km||'?'} sec/km** — c'est normal, ne force pas.\n\n`;
+    if(temp>=28) msg+=`💧 Hydratation +++ : emporte de l'eau, bois **toutes les 20 min** même sans soif.`;
+    else msg+=`💡 Pars tôt si possible pour profiter des heures fraîches.`;
+  } else if(impact&&impact.elevation_fc_bpm<0){
+    const gain=Math.abs(impact.elevation_fc_bpm);
+    msg+=`✅ Conditions fraîches idéales — FC **${gain} bpm** plus basse qu'en été. Tu peux viser le bas de ta zone EF (**140-144 bpm**). Bonne séance !`;
+  } else if(pluie>1){
+    msg+=`🌧️ Pluie prévue — chaussures trail ou grip. Réduis un peu l'allure sur sol mouillé.`;
+  } else {
+    msg+=`✅ Conditions normales — pas d'ajustement nécessaire. Lance-toi !`;
+  }
+
+  // Délai court pour que le message apparaisse progressivement après le brief
+  await new Promise(r=>setTimeout(r,1800));
+  const container=document.getElementById('coach-messages');
+  if(!container) return;
+  addCoachMessage('coach', msg);
+  coachHistory.push({role:'assistant', content:msg, date:new Date().toISOString().slice(0,10)});
+  saveCoachHistory();
+}
+
 async function loadCoachHistory(){
   const container = document.getElementById('coach-messages');
   if(!container){
@@ -1279,6 +1336,8 @@ async function loadCoachHistory(){
           try { await dbRef.child('_brief_pending').remove(); } catch(e){}
           delete state['_brief_pending'];
         }
+        // ── Message météo asynchrone (pendant que l'utilisateur lit le brief) ──
+        if (_pendingType === 'morning_brief') _appendWeatherMessageAfterBrief();
       }
       return;
     }
