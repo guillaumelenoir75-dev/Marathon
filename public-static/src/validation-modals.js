@@ -369,33 +369,88 @@ function openFcReposModal(dateParam){
   const today = new Date().toISOString().slice(0,10);
   const targetDate = dateParam || today;
   const d = new Date(targetDate + 'T12:00:00');
-  const dateFr = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   const isToday = targetDate === today;
   const existing = state['fc_repos_'+targetDate] || '';
+
+  // Calcul moyenne 7j pour contexte
+  let fcSum=0,fcCount=0;
+  for(let i=0;i<7;i++){const dd=new Date(d.getTime()-i*86400000);const ds=dd.toISOString().slice(0,10);const v=parseFloat(state['fc_repos_'+ds]);if(v&&!isNaN(v)&&ds!==targetDate){fcSum+=v;fcCount++;}}
+  const moy7j = fcCount>0 ? Math.round(fcSum/fcCount) : null;
+
+  // Heure pour le message d'accueil
+  const hNow = new Date().getHours();
+  const greeting = hNow < 9 ? 'Bonjour !' : hNow < 12 ? 'Bonne matinée !' : 'Bonne journée !';
+
+  // Jour en français court
+  const joursNoms = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const moisNoms = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const dateLabel = isToday ? `${joursNoms[d.getDay()]} ${d.getDate()} ${moisNoms[d.getMonth()]}` : d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+
   const mc=document.getElementById('modal-container');
   const overlay=document.createElement('div');
   overlay.className='modal-overlay';
-  overlay.innerHTML=`<div class="modal-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div>
-        <p style="font-size:16px;font-weight:700;color:var(--text);">FC au repos</p>
-        <p style="font-size:12px;color:${isToday?'var(--muted)':'#1B4FD8'};margin-top:2px;font-weight:${isToday?'400':'600'};">${dateFr.charAt(0).toUpperCase()+dateFr.slice(1)}${isToday?'':' — modification'}</p>
+  overlay.style.cssText='align-items:flex-end;padding:0;';
+  overlay.innerHTML=`
+  <div style="
+    background:#fff;
+    border-radius:24px 24px 0 0;
+    width:100%;
+    max-width:480px;
+    padding:0 0 max(20px,env(safe-area-inset-bottom)) 0;
+    box-shadow:0 -8px 40px rgba(0,0,0,0.18);
+    overflow:hidden;
+    animation:slideUpSheet 0.3s cubic-bezier(0.32,0.72,0,1) both;
+  ">
+    <!-- En-tête dégradé -->
+    <div style="background:linear-gradient(135deg,#B91C1C 0%,#E24B4A 60%,#F87171 100%);padding:24px 20px 28px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(255,255,255,0.08);border-radius:50%;"></div>
+      <div style="position:absolute;bottom:-20px;right:40px;width:80px;height:80px;background:rgba(255,255,255,0.06);border-radius:50%;"></div>
+      <button onclick="closeModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;">×</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+        <div style="width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;">❤️</div>
+        <div>
+          <p style="font-size:19px;font-weight:800;color:#fff;margin:0;line-height:1.1;">${greeting}</p>
+          <p style="font-size:13px;color:rgba(255,255,255,0.8);margin:2px 0 0;font-weight:500;">${isToday?dateLabel:dateLabel+' — modification'}</p>
+        </div>
       </div>
-      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Mesurée au réveil, avant de se lever (bpm)</p>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-      <input id="fc-repos-input" type="number" min="30" max="100" value="${existing}" placeholder="ex: 48"
-        style="flex:1;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg2);font-size:22px;font-weight:700;color:var(--text);text-align:center;-moz-appearance:textfield;">
-      <span style="font-size:16px;color:var(--muted);font-weight:600;">bpm</span>
+
+    <!-- Corps -->
+    <div style="padding:24px 20px 8px;">
+      <p style="font-size:13px;color:#6B7280;margin:0 0 16px;text-align:center;font-weight:500;">Mesurée au réveil, <strong>avant de te lever</strong></p>
+
+      <!-- Input principal -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:${moy7j?'12px':'20px'};">
+        <input id="fc-repos-input" type="number" min="30" max="100" value="${existing}" placeholder="—"
+          style="width:130px;padding:14px 10px;border-radius:16px;border:2.5px solid #F3F4F6;background:#FAFAFA;font-size:36px;font-weight:800;color:#111827;text-align:center;-moz-appearance:textfield;outline:none;transition:border-color 0.2s;"
+          onfocus="this.style.borderColor='#E24B4A'"
+          onblur="this.style.borderColor='#F3F4F6'">
+        <span style="font-size:18px;color:#9CA3AF;font-weight:700;">bpm</span>
+      </div>
+
+      ${moy7j ? `
+      <!-- Contexte 7j -->
+      <div style="background:#FEF2F2;border-radius:12px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;">📊</span>
+        <p style="font-size:13px;color:#991B1B;margin:0;font-weight:500;">Moyenne 7 derniers jours : <strong>${moy7j} bpm</strong></p>
+      </div>` : '<div style="height:8px;"></div>'}
+
+      <!-- Bouton -->
+      <button onclick="saveFcRepos('${targetDate}')"
+        style="width:100%;padding:15px;background:linear-gradient(135deg,#B91C1C,#E24B4A);border:none;border-radius:16px;font-size:16px;font-weight:800;color:#fff;cursor:pointer;letter-spacing:0.02em;box-shadow:0 4px 16px rgba(226,75,74,0.35);transition:opacity 0.15s;"
+        onmousedown="this.style.opacity='0.85'" onmouseup="this.style.opacity='1'" ontouchstart="this.style.opacity='0.85'" ontouchend="this.style.opacity='1'">
+        Enregistrer ma FC ❤️
+      </button>
     </div>
-    <button onclick="saveFcRepos('${targetDate}')" style="width:100%;padding:13px;background:#3B6D11;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;color:#fff;cursor:pointer;">Enregistrer</button>
-  </div>`;
+  </div>
+  <style>
+    @keyframes slideUpSheet{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+    #fc-repos-input::-webkit-inner-spin-button,#fc-repos-input::-webkit-outer-spin-button{-webkit-appearance:none;}
+  </style>`;
   overlay.onclick=e=>{if(e.target===overlay)closeModal();};
   _lockBodyScroll();
   mc.appendChild(overlay);
-  setTimeout(()=>{ const inp=document.getElementById('fc-repos-input'); if(inp) inp.focus(); },100);
+  setTimeout(()=>{ const inp=document.getElementById('fc-repos-input'); if(inp){inp.focus();inp.select();} },350);
 }
 
 function saveFcRepos(dateParam){
