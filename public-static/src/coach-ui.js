@@ -839,7 +839,7 @@ async function generateFullBriefFromNotif(memos) {
       // Fallback si le serveur ne répond pas
       const fallbackSeances = seancesAujourdHui.length > 0
         ? seancesAujourdHui.map(s => {
-            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', race:'Course'}[s.type] || s.type;
+            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Long', race:'Course'}[s.type] || s.type;
             return t + ' ' + s.km + 'km' + (s.heure ? ' à ' + s.heure : '');
           }).join(' + ')
         : 'Pas de séance prévue ce matin';

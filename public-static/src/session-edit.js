@@ -325,7 +325,7 @@ function saveEdit(ws, si){
   } else if(type==='long'){
     const existing=getSession(ws,si);
     const nameElLong=document.getElementById('edit-name');
-    name=(nameElLong&&nameElLong.value.trim())||existing.d.split('|')[0]||'Séance EF longue';
+    name=(nameElLong&&nameElLong.value.trim())||existing.d.split('|')[0]||'EF Long';
     const blocks=getLongBlocksData();
     if(blocks.length>0){
       const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
@@ -670,7 +670,7 @@ function saveAdd(ws){
   let name = '', detail = '';
   if(type === 'long'){
     const blocks = getLongBlocksData();
-    name = 'EF longue';
+    name = 'EF Long';
     if(blocks.length > 0){
       const total = Math.round(blocks.reduce((a,b) => a+b.km, 0) * 10) / 10;
       if(Math.abs(total - km) >= 0.1){ showAddError('Total des blocs (' + total + ' km) ≠ distance (' + km + ' km). Ajuste les blocs.'); return; }
@@ -911,7 +911,7 @@ function saveExtraEdit(ws, ei){
   let name='', detail='';
   if(type==='long'){
     const existing=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-    name=existing.d.split('|')[0]||'EF longue';
+    name=existing.d.split('|')[0]||'EF Long';
     const blocks=getLongBlocksData();
     if(blocks.length>0){
       const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
