@@ -49,7 +49,7 @@ async function checkRateLimit(db, uid, endpoint, minIntervalMs) {
   await db.ref(key).set(Date.now());
 }
 
-async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-5') {
+async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-6') {
   const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -88,13 +88,16 @@ async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   const db = admin.database();
   const snap = await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
   const sub = snap.val();
-  if (!sub) { console.log('Pas de subscription push — skip'); return; }
+  if (!sub) { console.log('Pas de subscription push — skip'); return false; }
   try {
     await webpush.sendNotification(sub, JSON.stringify({ title, body, tag, url: url || '/' }));
     console.log(`Push envoyé : [${tag}] ${title}`);
+    return true;
   } catch (err) {
     if (err.statusCode === 410 || err.statusCode === 404) {
+      console.log(`Push subscription expirée (${err.statusCode}) — supprimée`);
       await db.ref(`${ADMIN_STATE}/_push_sub`).remove();
+      return false;
     } else { throw err; }
   }
 }

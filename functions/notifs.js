@@ -216,6 +216,13 @@ exports.briefAfterFcRepos = onSchedule(
       const fcNotifKey='_brief_fc_notif_'+todayStr;
       if(state[fcNotifKey]===true){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); return; }
 
+      // Vérifier la subscription avant de lancer l'IA (évite de dépenser des tokens si pas de push possible)
+      const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
+      if(!subSnap.val()){
+        console.log('briefAfterFcRepos: pas de subscription push — trigger conservé, retry dans 2 min');
+        return; // Ne pas supprimer le trigger : l'app va re-souscrire au prochain lancement
+      }
+
       const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;
@@ -325,11 +332,17 @@ RÈGLES ABSOLUES :
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
       // Envoyer la notif
-      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
+      const pushSent=await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
 
-      // Marquer fait + nettoyer trigger
-      await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
-      await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+      if(pushSent){
+        // Marquer fait + nettoyer trigger uniquement si push envoyée
+        await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
+        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+      } else {
+        // Subscription expirée → conserver le trigger pour retry quand l'app rouvrira et re-souscrira
+        console.log('briefAfterFcRepos: push non envoyée (subscription expirée) — trigger conservé');
+        await db.ref(`${ADMIN_STATE}/_push_sub`).remove().catch(()=>{}); // Assurer nettoyage
+      }
     }catch(e){console.error('briefAfterFcRepos:',e.message);}
   }
 );
