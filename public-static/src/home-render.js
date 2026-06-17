@@ -1174,7 +1174,7 @@ function openEditEFModal(){
       <button onclick="saveEditEF()" style="margin-top:12px;width:100%;padding:16px;background:linear-gradient(135deg,#0C447C,#1565C0);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(12,68,124,0.35);">Enregistrer</button>
     </div>`;
   overlay.onclick = e => { if(e.target === overlay) closeEditEFModal(); };
-  document.getElementById('mc').appendChild(overlay);
+  document.getElementById('modal-container').appendChild(overlay);
   setTimeout(() => { const inp = document.getElementById('ef-pace-input'); if(inp){ inp.focus(); inp.select(); } }, 300);
   if(typeof _lockBodyScroll === 'function') _lockBodyScroll();
 }
