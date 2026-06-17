@@ -1103,6 +1103,9 @@ async function saveValidation(idx){
     const _ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):null;
     if(_ed && _ed.sched_day===_todaySched) {
       dbRef.child('_brief_pending').remove().catch(()=>{});
+      dbRef.child('_brief_kept').remove().catch(()=>{});
+      // Supprimer aussi du DOM et de l'historique coach
+      if(typeof dismissBrief === 'function') dismissBrief();
     }
   }
   closeModal();

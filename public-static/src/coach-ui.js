@@ -1160,16 +1160,15 @@ function _addBriefActionButtons(keepOnly){
   if(document.getElementById('brief-actions')) return; // déjà présent
   const div=document.createElement('div');
   div.id='brief-actions';
-  div.style.cssText='display:flex;gap:8px;justify-content:flex-end;padding:4px 0 8px;';
+  div.style.cssText='display:flex;gap:8px;padding:0 0 12px 44px;animation:msg-enter 0.3s ease;';
   if(keepOnly){
-    // Mode "gardé" : seul le bouton Effacer est disponible
-    div.innerHTML=`<button onclick="dismissBrief()" style="background:#E8F0FE;color:#0C447C;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Effacer le brief</button>`;
+    div.innerHTML=`<button onclick="dismissBrief()" style="padding:8px 18px;background:rgba(226,75,74,0.09);color:#C0392B;border:1.5px solid rgba(226,75,74,0.22);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.01em;">🗑️ Effacer le brief</button>`;
   } else {
-    div.innerHTML=`<button onclick="dismissBrief()" style="background:#E8F0FE;color:#0C447C;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Effacer</button>`
-      +`<button onclick="keepBrief()" style="background:#EAF3DE;color:#3B6D11;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">✓ Garder</button>`;
+    div.innerHTML=`<button onclick="dismissBrief()" style="padding:8px 18px;background:rgba(226,75,74,0.09);color:#C0392B;border:1.5px solid rgba(226,75,74,0.22);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ Supprimer</button>`
+      +`<button onclick="keepBrief()" style="padding:8px 18px;background:rgba(12,68,124,0.08);color:#0C447C;border:1.5px solid rgba(12,68,124,0.22);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;">📌 Garder</button>`;
   }
   container.appendChild(div);
-  container.scrollTop=container.scrollHeight;
+  container.scrollTo({top:container.scrollHeight,behavior:'smooth'});
 }
 
 function dismissBrief(){
@@ -1179,6 +1178,21 @@ function dismissBrief(){
   }
   const btns=document.getElementById('brief-actions');
   if(btns) btns.remove();
+  // Supprimer le message du DOM
+  const container=document.getElementById('coach-messages');
+  if(container){
+    const briefEl=container.querySelector('[data-brief-date]');
+    if(briefEl) briefEl.remove();
+    // Supprimer le séparateur de date si plus de messages après lui
+    const seps=container.querySelectorAll('.chat-date-sep');
+    seps.forEach(sep=>{
+      let next=sep.nextElementSibling;
+      if(!next||next.classList.contains('chat-date-sep')||next.id==='brief-actions') sep.remove();
+    });
+  }
+  // Supprimer de l'historique
+  const idx=coachHistory.findIndex(m=>m.isBrief);
+  if(idx!==-1){ coachHistory.splice(idx,1); saveCoachHistory(); }
 }
 
 function keepBrief(){
@@ -1314,15 +1328,21 @@ async function loadCoachHistory(){
         // Attendre que le DOM coach soit totalement rendu
         await new Promise(r => setTimeout(r, 400));
         // Fonction d'affichage avec retry
+        const _briefDate = new Date().toISOString().slice(0,10);
         const _showBrief = () => {
           const _msgContainer = document.getElementById('coach-messages');
           if (!_msgContainer) return false;
           addCoachMessage('coach', _pendingResult.content);
-          coachHistory.push({role:'assistant', content: _pendingResult.content, date: new Date().toISOString().slice(0,10)});
+          // Tagger le dernier élément pour pouvoir le retrouver/supprimer
+          const _lastMsg = _msgContainer.lastElementChild;
+          if (_lastMsg) _lastMsg.dataset.briefDate = _briefDate;
+          coachHistory.push({role:'assistant', content: _pendingResult.content, date: _briefDate, isBrief: true});
           saveCoachHistory();
           // Nettoyer après affichage réussi
           try { dbRef.child('_brief_pending').remove(); } catch(e){}
           delete state['_brief_pending'];
+          // Afficher les boutons Garder / Supprimer
+          setTimeout(() => _addBriefActionButtons(), 200);
           return true;
         };
         if (!_showBrief()) {
