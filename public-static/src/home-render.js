@@ -1147,3 +1147,72 @@ async function saveValidation(idx){
   else showAthleteFeedback(s, km, pace, hr, perf, meteoSeance);
 }
 
+// ── MODIFICATION MANUELLE DE L'ALLURE EF ─────────────────────────────────────
+function openEditEFModal(){
+  if(document.getElementById('ef-edit-overlay')) return;
+  const current = state.ef_pace || getBestEfPace() || "6'40";
+  const overlay = document.createElement('div');
+  overlay.id = 'ef-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:flex-end;padding:0;';
+  overlay.innerHTML = `
+    <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:24px 20px max(20px,env(safe-area-inset-bottom));box-shadow:0 -4px 30px rgba(0,0,0,0.15);">
+      <div style="width:36px;height:4px;background:#E0E0E0;border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0C447C,#1565C0);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div>
+          <p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">Allure EF</p>
+          <p style="font-size:12px;color:#888;margin:2px 0 0;">Endurance fondamentale — FC 140-148 bpm</p>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#666;margin:12px 0 6px;">Saisir l'allure cible (ex : <b>5'45</b> ou <b>6'10</b>)</p>
+      <input id="ef-pace-input" type="text" inputmode="text" placeholder="ex : 5'45" value="${current}"
+        style="width:100%;box-sizing:border-box;font-size:28px;font-weight:800;color:#0C447C;text-align:center;border:2px solid #E0E0E0;border-radius:14px;padding:14px;outline:none;background:#F8FAFF;font-family:inherit;"
+        oninput="this.style.borderColor='#0C447C'">
+      <p id="ef-edit-err" style="color:#E24B4A;font-size:12px;text-align:center;margin:6px 0 0;min-height:18px;"></p>
+      <button onclick="saveEditEF()" style="margin-top:12px;width:100%;padding:16px;background:linear-gradient(135deg,#0C447C,#1565C0);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(12,68,124,0.35);">Enregistrer</button>
+    </div>`;
+  overlay.onclick = e => { if(e.target === overlay) closeEditEFModal(); };
+  document.getElementById('mc').appendChild(overlay);
+  setTimeout(() => { const inp = document.getElementById('ef-pace-input'); if(inp){ inp.focus(); inp.select(); } }, 300);
+  if(typeof _lockBodyScroll === 'function') _lockBodyScroll();
+}
+
+function closeEditEFModal(){
+  const o = document.getElementById('ef-edit-overlay');
+  if(o) o.remove();
+  if(typeof _unlockBodyScroll === 'function') _unlockBodyScroll();
+}
+
+function saveEditEF(){
+  const raw = (document.getElementById('ef-pace-input')?.value || '').trim();
+  const err = document.getElementById('ef-edit-err');
+  // Normaliser : accepte "5:45", "5'45", "545", "5.45"
+  const norm = raw.replace(/[.]/g,':').replace(/['′]/g,':');
+  const m = norm.match(/^(\d):([0-5]\d)$|^(\d{1,2})[:\']([0-5]\d)$/);
+  let mins, secs;
+  if(m){
+    mins = parseInt(m[1]||m[3]); secs = parseInt(m[2]||m[4]);
+  } else if(/^\d{3,4}$/.test(raw.replace(/[':]/g,''))){
+    const digits = raw.replace(/[':]/g,'');
+    mins = parseInt(digits.slice(0,-2)); secs = parseInt(digits.slice(-2));
+  } else {
+    if(err) err.textContent = 'Format invalide — essaie 5\'45 ou 6\'10';
+    document.getElementById('ef-pace-input')?.style && (document.getElementById('ef-pace-input').style.borderColor='#E24B4A');
+    return;
+  }
+  const total = mins * 60 + secs;
+  if(total < 240 || total > 540){
+    if(err) err.textContent = 'Allure hors plage (entre 4\'00 et 9\'00/km)';
+    return;
+  }
+  const formatted = mins + "'" + String(secs).padStart(2,'0');
+  state.ef_pace = formatted;
+  save();
+  closeEditEFModal();
+  rendered.home = false;
+  renderHome();
+  if(document.getElementById('sc-plan')?.style.display !== 'none'){ rendered.plan=false; renderPlan(); }
+}
+
