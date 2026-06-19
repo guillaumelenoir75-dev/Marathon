@@ -263,41 +263,104 @@ exports.briefAfterFcRepos = onSchedule(
       efPace=efPace||"6'40";
 
       const isDecharge=[8,12,16,20,26,30].includes(cw);
-      const consignesEf=isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF : ${efPace}/km — FC 140-148 bpm`;
+      const consignesEf=isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
       const memos=state['_coach_memos']||'';
       const seancesStr=ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'Récupération';
       const fcLine=fcToday?`FC repos ce matin : ${fcToday} bpm (moyenne 7j : ${fcMoy7j||'—'} bpm)`:'FC repos non saisie ce matin';
       const memosLine=memos?`\nNotes coach (mémos) :\n${memos}`:'';
 
+      // ── Récupérer l'heure et le type de la séance longue du jour ──────────────
+      let seanceRunAujourdhui=null;
+      for(let si=0;si<5;si++){
+        const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
+        try{
+          const ed=JSON.parse(edRaw);
+          if(ed.sched_day===ctx.dayOfWeek&&ed.type!=='rest'&&!state[`s${cw}i${si}done`]){
+            seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre:ed.d?ed.d.split('|')[0]:ed.type};
+            break;
+          }
+        }catch(e){}
+      }
+      const seanceHeure=seanceRunAujourdhui?.sched_time||null;
+      const seanceHeureDig=seanceHeure?parseInt(seanceHeure.split(':')[0]):null;
+      const estMatin=seanceHeureDig!==null?seanceHeureDig<12:true; // si pas d'heure, on suppose matin
+
+      // ── Fetch météo côté serveur à l'heure de la séance ──────────────────────
+      let meteoStr='';
+      let tempSeance=null;
+      try{
+        const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
+        const loc=locSnap.val();
+        const locFresh=loc&&loc.lat&&(Date.now()-loc.ts)<30*24*3600*1000;
+        const lat=locFresh?loc.lat:48.8417;
+        const lng=locFresh?loc.lng:2.2945;
+        const targetH=seanceHeureDig!==null?seanceHeureDig:8;
+        const meteoResp=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code,precipitation_probability&timezone=Europe%2FParis&forecast_days=1`);
+        const meteoData=await meteoResp.json();
+        if(meteoData.hourly){
+          const temp=meteoData.hourly.temperature_2m?.[targetH];
+          const apparent=meteoData.hourly.apparent_temperature?.[targetH];
+          const wcode=meteoData.hourly.weather_code?.[targetH];
+          const rainProb=meteoData.hourly.precipitation_probability?.[targetH]||0;
+          tempSeance=Math.round(temp||0);
+          const ressenti=Math.round(apparent||temp||0);
+          const wmoLabel=wcode===0?'Ensoleillé':wcode<=2?'Peu nuageux':wcode<=3?'Couvert':wcode<=48?'Brouillard':wcode<=55?'Bruine':wcode<=67?'Pluie':wcode<=77?'Neige':wcode<=82?'Averses':wcode<=99?'Orage':'Variable';
+          meteoStr=`Météo prévue à ${seanceHeure||targetH+'h'} : ${tempSeance}°C (ressenti ${ressenti}°C), ${wmoLabel}${rainProb>40?', risque pluie '+rainProb+'%':''}`;
+        }
+      }catch(e){console.warn('briefAfterFcRepos météo:',e.message);}
+
+      // ── Calcul allure ajustée chaleur ─────────────────────────────────────────
+      let allureAjusteeStr='';
+      if(tempSeance!==null&&tempSeance>=25&&efPace){
+        const efSec=parseInt(efPace.split("'")[0])*60+parseInt(efPace.split("'")[1]||'0');
+        // +8 sec/km par 3°C au-dessus de 22°C, plafonné à +60 sec
+        const deltaT=Math.max(0,tempSeance-22);
+        const ajout=Math.min(60,Math.round((deltaT/3)*8));
+        const ajustSec=efSec+ajout;
+        const am=Math.floor(ajustSec/60);const as=ajustSec%60;
+        allureAjusteeStr=`Allure AJUSTÉE chaleur (${tempSeance}°C) : ${am}'${String(as).padStart(2,'0')}/km (+${ajout} sec/km vs allure de référence)`;
+      }
+
       // ── Générer le brief complet côté serveur ──────────────────────────────
-      const system=`Tu es le coach running de Guillaume. Ta mission : rédiger le brief du matin, UNIQUEMENT sur la journée d'aujourd'hui.
+      const system=`Tu es le coach running de Guillaume. Ta mission : rédiger le brief du jour, UNIQUEMENT sur la journée d'aujourd'hui.
 
 STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
 
-1. ❤️ FC REPOS — commencer par ça, toujours. Donner la valeur du jour en **gras**, comparer à la moyenne 7j. Une phrase : bonne récup ou signe de fatigue.
+1. ❤️ FC REPOS — toujours en premier. Valeur du jour en **gras**, comparaison moyenne 7j. Une phrase sur la récup.
 
-2. 🎯 SÉANCE DU JOUR — annoncer la ou les activités prévues (run, renfo, bodyhit). Titre, distance si run, heure si connue. Une phrase claire. IMPORTANT : le renforcement musculaire est une vraie séance — ne jamais écrire "journée de récupération" si seances_du_jour contient un renfo.
+2. 🎯 SÉANCE DU JOUR — annoncer la ou les activités. Titre, distance, heure. Ne jamais écrire "récupération" si un renfo est prévu.
 
-3. ⚡ CONSIGNES ALLURE & TECHNIQUE — pour chaque activité run du jour, OBLIGATOIREMENT :
-   - EF : allure cible en **gras**, FC cible en **gras** (ex: **140-148 bpm**), rappel "si FC > 148 → ralentir". Si décharge : **+30s/km** sur l'allure EF normale.
-   - Tempo : allure des blocs intenses en **gras**, rappel structure.
-   - EF Longue : allure en **gras**, FC cible en **gras**. Si ≥ 10km : stratégie gel (1 gel toutes les **45 min**, premier gel à **40 min**).
-   - Renfo ischio-fessiers ou bas du dos : nommer les exercices clés, rappeler de progresser en séries.
+3. ⚡ CONSIGNES ALLURE & TECHNIQUE — pour chaque run du jour :
+   - Si chaleur (≥ 25°C) : donner EN PREMIER l'allure AJUSTÉE chaleur en **gras** (fournie dans le contexte), puis expliquer que c'est normal de ralentir. NE PAS donner l'allure de référence comme cible principale.
+   - Si temps normal (< 25°C) : allure de référence en **gras**, FC cible en **gras**.
+   - Si FC > 148 → ralentir immédiatement.
+   - Si décharge : **+30s/km** sur l'allure EF normale.
+   - EF Long ≥ 10km : stratégie gel — 1 gel toutes les **45 min**, premier à **40 min**. Calculer le nombre de gels selon la distance/durée estimée et l'indiquer en **gras**.
+   - Renfo : nommer les exercices clés.
 
 4. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km :
-   - Guillaume fait TOUJOURS ses sorties longues À JEUN.
-   - Après : fenêtre **30 min** — shaker protéines + glucides rapides.
+   - Si séance le MATIN (avant 11h) : Guillaume court À JEUN. Rappeler fenêtre post-run **30 min** — shaker protéines + glucides.
+   - Si séance L'APRÈS-MIDI ou LE SOIR (11h ou plus tard) : PAS À JEUN. Conseiller un repas léger 2-3h avant (riz, pâtes, banane). Fenêtre post-run **30 min** — shaker.
+   - Si chaleur ≥ 28°C : rappeler de s'hydrater avant le départ, boire toutes les **15-20 min**.
 
 RÈGLES ABSOLUES :
 - Jamais plus de 4 blocs. Zéro #. Données chiffrées en **gras**.
 - INTERDIT : parler du reste de la semaine, des séances passées, du marathon général.
-- Ton direct, coach, sans fioritures. Pas de tirets.`;
+- Ton direct, coach. Pas de tirets en début de paragraphe.`;
 
-      const userMsg=`${dateComplet}\n${fcLine}\nSéances du jour : ${seancesStr}\nAllure EF cible : ${efPace}/km\nConsignes : ${consignesEf}${memosLine}`;
+      const userMsg=`${dateComplet}
+${fcLine}
+Séances du jour : ${seancesStr}
+Heure de la séance : ${seanceHeure||'non définie'}
+${meteoStr||'Météo : non disponible'}
+${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}
+Allure EF de référence (conditions normales) : ${efPace}/km
+Consignes générales : ${consignesEf}
+${memosLine}`;
 
       let briefContent='';
       try{
-        const resp=await callAnthropic(ANTHROPIC_API_KEY.value(),system,[{role:'user',content:userMsg}],600);
+        const resp=await callAnthropic(ANTHROPIC_API_KEY.value(),system,[{role:'user',content:userMsg}],700);
         briefContent=resp||'';
       }catch(e){console.error('briefAfterFcRepos AI error:',e.message);}
 
