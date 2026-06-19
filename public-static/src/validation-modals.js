@@ -438,7 +438,9 @@ function openFcReposModal(dateParam){
       <!-- Bouton -->
       <button onclick="saveFcRepos('${targetDate}')"
         style="width:100%;padding:15px;background:linear-gradient(135deg,#B91C1C,#E24B4A);border:none;border-radius:16px;font-size:16px;font-weight:800;color:#fff;cursor:pointer;letter-spacing:0.02em;box-shadow:0 4px 16px rgba(226,75,74,0.35);transition:opacity 0.15s;"
-        onmousedown="this.style.opacity='0.85'" onmouseup="this.style.opacity='1'" ontouchstart="this.style.opacity='0.85'" ontouchend="this.style.opacity='1'">
+        onmousedown="this.style.opacity='0.85'" onmouseup="this.style.opacity='1'"
+        ontouchstart="this.style.opacity='0.85'"
+        ontouchend="this.style.opacity='1'; event.preventDefault(); saveFcRepos('${targetDate}')">
         Enregistrer ma FC ❤️
       </button>
     </div>

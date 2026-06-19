@@ -28,7 +28,7 @@
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 <div id="app">
 <div id="modal-container"></div>
-<div id="screens" style="padding-bottom:70px;">
+<div id="screens" style="padding-bottom:calc(70px + env(safe-area-inset-bottom,0px));">
 
 <!-- ACCUEIL -->
 <div id="sc-home" style="background:#EDF2FB;min-height:100vh;">

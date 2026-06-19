@@ -488,15 +488,6 @@ function generateAthletePlan(ob){
       :`Course en progression|départ très facile · crescendo progressif naturel · habituer le corps à finir fort`;
   };
 
-  // Sortie allure marathon (séance standalone, marathon phase 3, 4 sessions)
-  const descMPace=(kmTotal)=>{
-    const mpKm=Math.min(Math.round(kmTotal*0.50),14);
-    if(racePaceLbl&&efLabel)
-      return `Allure marathon|3 km EF · ${mpKm} km à ${racePaceLbl}/km (allure marathon, cœur de course) · EF de retour · ${tempoFCStr} · apprendre à sentir et maintenir l'allure cible sur distance`;
-    return efLabel
-      ?`Allure marathon|${efLabel}/km échauffement · blocs marathon par sensations · apprendre à doser la dépense énergétique`
-      :`Allure marathon|blocs à allure marathon ressentie · gestion de l'effort sur distance`;
-  };
 
   // ── Matrices de périodisation par phase et distance ───────────────────────────
   // Clé du coaching pro : les séances DOIVENT varier selon la phase du plan,
@@ -575,7 +566,6 @@ function generateAthletePlan(ob){
     if(qt==='fartlek')      return {d:descFartlek(isRecov?1:phase),type:'ef'}; // fartlek découverte en décharge
     if(qt==='tempo'&&tpR)   return {d:descTempo(tpR,isTaper,isRecov),type:'tempo'};
     if(qt==='progression')  return isRecov?{d:descFartlek(1),type:'ef'}:{d:descProgression(phase),type:'tempo'}; // pas de progression en décharge
-    if(qt==='mpace')        return null; // géré séparément
     // Fallback : pas encore de tempo/frac disponible → fartlek (plus côtes)
     if(qt==='frac'||qt==='tempo') return {d:descFartlek(isRecov?1:phase),type:'ef'};
     return null;
@@ -713,11 +703,7 @@ function generateAthletePlan(ob){
         // 4 séances : Q1 = qualité principale (frac ou tempo), Q2 = TOUJOURS EF/accélérations
         // Règle : jamais 2 frac ni 2 tempo dans la même semaine
         let sQ1,sQ2;
-        if(qType==='mpace'){
-          sQ1={d:descMPace(kQ1),km:kQ1,type:'tempo',shoe:null};
-        } else {
-          sQ1=q1?{d:q1.d,km:kQ1,type:q1.type,shoe:null}:{d:descEF(),km:kQ1,type:'ef',shoe:null};
-        }
+        sQ1=q1?{d:q1.d,km:kQ1,type:q1.type,shoe:null}:{d:descEF(),km:kQ1,type:'ef',shoe:null};
         // Q2 : toujours EF avec accélérations (jamais qualité intensive)
         sQ2={d:isRecov?descEFRecov():descEFStrides(),km:kQ2,type:'ef',shoe:null};
 
