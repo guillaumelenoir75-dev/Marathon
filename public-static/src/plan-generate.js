@@ -87,11 +87,14 @@ function generateDecouvertePlan(ob){
   // Planification des jours/horaires
   const runDays=(ob.run_days||[]).slice().sort((a,b)=>a-b);
   const runTimes=ob.run_times||{};
-  const planStart=new Date(); planStart.setHours(0,0,0,0);
-  const dow=planStart.getDay();
-  const mondayOffset=dow===0?-6:1-dow;
-  const monday=new Date(planStart);
-  monday.setDate(planStart.getDate()+mondayOffset);
+  // Calcul du lundi de départ : si la première séance de cette semaine est déjà passée, démarrer la semaine suivante
+  const _today=new Date(); _today.setHours(0,0,0,0);
+  const _todayDow=_today.getDay();
+  const _thisMon=new Date(_today); _thisMon.setDate(_today.getDate()+(_todayDow===0?-6:1-_todayDow));
+  const _firstDay=runDays.length>0?runDays[0]:0;
+  const _firstDate=new Date(_thisMon); _firstDate.setDate(_thisMon.getDate()+_firstDay);
+  const monday=new Date(_thisMon);
+  if(_firstDate<_today) monday.setDate(_thisMon.getDate()+7);
 
   const updates={};
   // Stocker les séances au format extra_w${w}_s${ei} pour que renderAthletePlan les affiche
@@ -572,6 +575,18 @@ function generateAthletePlan(ob){
   };
 
 
+  // ── Planification — lundi de départ ──────────────────────────────────────────
+  // Si la première séance de la semaine courante est déjà passée → démarrer la semaine suivante
+  const runTimes=ob.run_times||{};
+  const sortedDays=[...(ob.run_days||[])].sort((a,b)=>a-b);
+  const _t=new Date(); _t.setHours(0,0,0,0);
+  const _tDow=_t.getDay();
+  const _thisMon=new Date(_t); _thisMon.setDate(_t.getDate()+(_tDow===0?-6:1-_tDow));
+  const _fDay=sortedDays.length>0?sortedDays[0]:0;
+  const _fDate=new Date(_thisMon); _fDate.setDate(_thisMon.getDate()+_fDay);
+  const startMonday=new Date(_thisMon);
+  if(_fDate<_t) startMonday.setDate(_thisMon.getDate()+7);
+
   // ── Boucle principale ─────────────────────────────────────────────────────────
   const updates={};
   // Métadonnées du plan (version, config, pic de charge)
@@ -731,11 +746,6 @@ function generateAthletePlan(ob){
     }
 
     // ── Planification des dates ──────────────────────────────────────────────────
-    const runDays=ob.run_days||[];
-    const runTimes=ob.run_times||{};
-    const sortedDays=[...runDays].sort((a,b)=>a-b);
-    const planStart=new Date(); planStart.setHours(0,0,0,0);
-
     sessions.forEach((s,i)=>{
       if(s._isRace&&ob.date){
         const rd=new Date(ob.date+'T00:00:00');
@@ -747,14 +757,10 @@ function generateAthletePlan(ob){
         const dayOfWeek=sortedDays.length>0?sortedDays[i%sortedDays.length]:i%7;
         s.sched_day=dayOfWeek+1;
         s.sched_time=runTimes[dayOfWeek]||ob.run_time||'12:00';
-        const weekOffset=new Date(planStart);
-        weekOffset.setDate(planStart.getDate()+(w-1)*7);
-        const dow=weekOffset.getDay();
-        const mondayOffset=dow===0?-6:1-dow;
-        const monday=new Date(weekOffset);
-        monday.setDate(weekOffset.getDate()+mondayOffset);
-        const sessionDate=new Date(monday);
-        sessionDate.setDate(monday.getDate()+dayOfWeek);
+        const weekMonday=new Date(startMonday);
+        weekMonday.setDate(startMonday.getDate()+(w-1)*7);
+        const sessionDate=new Date(weekMonday);
+        sessionDate.setDate(weekMonday.getDate()+dayOfWeek);
         s.sched_date=sessionDate.toISOString().split('T')[0];
       }
       updates[`extra_w${w}_s${i}`]=JSON.stringify(s);
