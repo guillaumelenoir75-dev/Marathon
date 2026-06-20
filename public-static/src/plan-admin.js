@@ -331,49 +331,65 @@ function renderAthleteCoachView(userData, uid, name){
 // Décale les clés du nouveau plan pour ne jamais écraser les semaines déjà réalisées.
 // Exemple : si w1 est done (15 juin), le nouveau plan (22 juin) sera stocké à partir de w2.
 function _buildPlanUpdates(st, newPlan){
-  // Semaines déjà réalisées
-  const doneSessionKeys=new Set(
-    Object.keys(st).filter(k=>/^extra_w\d+_s\d+_done$/.test(k)&&st[k])
-      .map(k=>k.replace(/_done$/,''))
-  );
+  // 1. Collecter TOUTES les sessions done (clé + données) — elles ne seront jamais touchées
+  const doneSessions={}; // key → valeur de la session
+  Object.keys(st).forEach(k=>{
+    if(/^extra_w\d+_s\d+_done$/.test(k)&&st[k]){
+      const sk=k.replace(/_done$/,'');
+      doneSessions[sk]=st[sk]; // peut être undefined si la session elle-même est absente
+    }
+  });
+  const doneSessionKeys=new Set(Object.keys(doneSessions));
+
   // Numéro de semaine max parmi les done (0 si aucune)
   const maxDoneWeek=doneSessionKeys.size>0
     ?Math.max(...[...doneSessionKeys].map(k=>parseInt(k.match(/extra_w(\d+)/)?.[1])||0))
     :0;
 
-  // Décaler toutes les clés numérotées du nouveau plan (extra_wN_*, meta_wN)
+  // 2. Décaler toutes les clés numérotées du nouveau plan (extra_wN_*, meta_wN)
   const shift=maxDoneWeek;
   const shiftedPlan={};
   Object.keys(newPlan).forEach(k=>{
     const m=k.match(/^(extra_w|meta_w)(\d+)(.*)$/);
     if(m){
       shiftedPlan[`${m[1]}${parseInt(m[2])+shift}${m[3]}`]=newPlan[k];
+    } else if(k==='plan_config'){
+      try{
+        const cfg=typeof newPlan[k]==='string'?JSON.parse(newPlan[k]):newPlan[k];
+        cfg.numWeeks=(cfg.numWeeks||0)+shift;
+        shiftedPlan[k]=JSON.stringify(cfg);
+      }catch(e){shiftedPlan[k]=newPlan[k];}
     } else {
-      // plan_config : mettre à jour numWeeks pour refléter done + nouveau
-      if(k==='plan_config'){
-        try{
-          const cfg=typeof newPlan[k]==='string'?JSON.parse(newPlan[k]):newPlan[k];
-          cfg.numWeeks=(cfg.numWeeks||0)+shift;
-          shiftedPlan[k]=JSON.stringify(cfg);
-        }catch(e){shiftedPlan[k]=newPlan[k];}
-      } else {
-        shiftedPlan[k]=newPlan[k];
-      }
+      shiftedPlan[k]=newPlan[k];
     }
   });
 
   const shiftedSessionKeys=new Set(Object.keys(shiftedPlan).filter(k=>/^extra_w\d+_s\d+$/.test(k)));
   const updates={};
 
-  // 1. Clés meta/config (plan_version, plan_config, meta_wN décalés…)
+  // 3. Clés meta/config du plan décalé
   Object.keys(shiftedPlan).forEach(k=>{
     if(!/^extra_w\d+_s\d+$/.test(k)) updates[k]=shiftedPlan[k];
   });
-  // 2. Sessions du nouveau plan (décalées) : toujours écrire — elles ne chevauchent plus les done
-  shiftedSessionKeys.forEach(k=>{ updates[k]=shiftedPlan[k]; });
-  // 3. Supprimer les anciennes sessions non-réalisées absentes du plan décalé
+
+  // 4. Sessions futures (décalées) : écrire — elles ne chevauchent jamais les done
+  shiftedSessionKeys.forEach(k=>{
+    if(!doneSessionKeys.has(k)) updates[k]=shiftedPlan[k];
+  });
+
+  // 5. Supprimer les anciennes sessions non-réalisées absentes du nouveau plan
   Object.keys(st).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
-    if(!doneSessionKeys.has(k)&&!shiftedSessionKeys.has(k)) updates[k]=null;
+    if(doneSessionKeys.has(k)) return; // JAMAIS supprimer une session done
+    if(!shiftedSessionKeys.has(k)) updates[k]=null;
+  });
+
+  // 6. Filet de sécurité : s'assurer que toutes les sessions done sont bien présentes
+  doneSessionKeys.forEach(k=>{
+    if(updates[k]===null||updates[k]===undefined){
+      // Restaurer depuis l'état si accidentellement marquée pour suppression
+      if(doneSessions[k]!=null) updates[k]=doneSessions[k];
+      else delete updates[k]; // ne pas écrire null
+    }
   });
 
   const nbUpdated=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
