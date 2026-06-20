@@ -348,7 +348,7 @@ function buildLongModalHtml(detail, totalKm){
   let parsedSpecific=false;
   detailStr.split('·').forEach(part=>{
     const p=part.trim();
-    const specMatch=p.match(/(\d+)\s+km\s+EF.*finir\s+(\d+)\s+km\s+à[\s\d':\/]+\(allure\s+([\w\s-]+)\)/i);
+    const specMatch=p.match(/(\d+)\s+km\s+EF.*finir\s+(\d+)\s+km\s+à\s*[\d':\s]+\/km\s*\(allure\s+([\w\s-]+)\)/i);
     if(specMatch){
       blocks.push({km:parseInt(specMatch[1]),type:'EF'});
       const ct=specMatch[3].trim().toLowerCase();
