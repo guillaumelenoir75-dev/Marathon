@@ -388,7 +388,30 @@ async function cvRegeneratePlan(){
   const nbUpdated=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
   const nbKept=doneSessionKeys.size;
   _refreshAthleteCoachView();
-  alert(`✅ Plan mis à jour !\n${nbUpdated} séances recalculées · ${nbKept} séance${nbKept>1?'s':''} réalisée${nbKept>1?'s':''} conservée${nbKept>1?'s':''}.`);
+
+  // Modal de succès
+  const _sov=document.createElement('div');
+  _sov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  _sov.innerHTML=`
+  <div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div style="padding:28px 24px 24px;text-align:center;">
+      <div style="width:64px;height:64px;border-radius:50%;background:#EBF8F0;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <p style="font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:10px;letter-spacing:-0.02em;">Plan mis à jour !</p>
+      <p style="font-size:14px;color:#555;line-height:1.6;">
+        <span style="display:inline-block;background:#EBF0FF;color:#1B4FD8;font-weight:700;border-radius:8px;padding:3px 10px;font-size:13px;margin-bottom:8px;">${nbUpdated} séance${nbUpdated>1?'s':''} recalculée${nbUpdated>1?'s':''}</span>
+        ${nbKept>0?`<br><span style="font-size:12px;color:#888;">· ${nbKept} séance${nbKept>1?'s':''} réalisée${nbKept>1?'s':''} conservée${nbKept>1?'s':''}</span>`:''}
+      </p>
+    </div>
+    <div style="border-top:1px solid #f0f0f0;">
+      <button id="regen-ok-btn" style="width:100%;padding:16px;background:#fff;border:none;font-size:15px;font-weight:700;color:#1B4FD8;cursor:pointer;border-radius:0 0 22px 22px;">Fermer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(_sov);
+  const _closeS=()=>_sov.remove();
+  document.getElementById('regen-ok-btn').onclick=_closeS;
+  _sov.onclick=e=>{if(e.target===_sov)_closeS();};
 }
 
 // ── Suppression du plan athlète ───────────────────────────────────────────────
