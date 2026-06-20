@@ -383,26 +383,37 @@ function generateAthletePlan(ob){
   const descEFStrides=()=>EF_STRIDES_V[_efSV++%EF_STRIDES_V.length];
 
   // Long runs — évoluent selon la phase et la distance
-  const descLong=(km,phase,isRecov=false)=>{
+  // weekInPhase : position 0-indexée dans la phase 3, utilisée pour la progression douce de l'allure course
+  const descLong=(km,phase,isRecov=false,weekInPhase=0)=>{
     if(isRecov) return efLabel
       ?`Sortie longue récupération|${efLabel}/km ou plus lent · rythme conservateur, ne pas dépasser ${efFCStr} · plaisir et décontraction uniquement`
       :`Sortie longue récupération|allure très facile, priorité au plaisir et à la récupération`;
-    // Phase 3 — sorties longues spécifiques (simulation race)
+    // Phase 3 — sorties longues spécifiques (simulation race), progression douce de l'allure course
+    // Progression : 1km semaine 1-2, 2km semaines 3-4, 3km semaines 5-6… plafonné par le km total
     if(phase===3&&!isPlaisir){
+      // Plafond max selon le kilométrage (pic du plan)
+      const specCalc=(maxKm)=>{
+        const progressive=Math.ceil((weekInPhase+1)/2); // 1,1,2,2,3,3,4,4…
+        return Math.min(progressive,maxKm,km-2); // toujours ≥2km EF
+      };
       if(course==='Marathon'&&racePaceLbl&&efLabel){
-        const specKm=km>=28?10:km>=24?8:6;
+        const maxSpec=km>=28?10:km>=24?8:6;
+        const specKm=Math.max(1,specCalc(maxSpec));
         return `Sortie longue spécifique marathon|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${racePaceLbl}/km (allure marathon) · simulation race · construire la confiance et l'économie de fin de course`;
       }
       if(course==='Semi-marathon'&&semiLbl&&efLabel){
-        const specKm=km>=18?6:km>=14?4:3;
+        const maxSpec=km>=18?6:km>=14?4:3;
+        const specKm=Math.max(1,specCalc(maxSpec));
         return `Sortie longue spécifique semi|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${semiLbl}/km (allure semi) · simulation du finish · ${tempoFCStr}`;
       }
       if(course==='10 km'&&racePaceLbl&&efLabel){
-        const specKm=km>=14?4:km>=12?3:2;
+        const maxSpec=km>=14?4:km>=12?3:2;
+        const specKm=Math.max(1,specCalc(maxSpec));
         return `Sortie longue spécifique 10km|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${racePaceLbl}/km (allure 10km) · habituer l'organisme à courir vite en état de fatigue · ${tempoFCStr}`;
       }
       if(course==='5 km'&&racePaceLbl&&efLabel){
-        const specKm=km>=10?2:1;
+        const maxSpec=km>=10?2:1;
+        const specKm=Math.max(1,specCalc(maxSpec));
         return `Sortie longue spécifique 5km|${efLabel}/km · ${km-specKm} km EF → finir ${specKm} km à ${racePaceLbl}/km (allure 5km) · simulation du finish, tolérance à l'inconfort · ${fracFCStr}`;
       }
       if(efLabel) return `Sortie longue soutenue|${efLabel}/km · 20 dernières min légèrement plus vite (naturellement) · construire l'endurance du finisseur`;
@@ -657,7 +668,7 @@ function generateAthletePlan(ob){
     } else if(nbSess===2){
       const kL=capLong(Math.max(Math.round(total*0.55),sFloor));
       const kEF=Math.max(total-kL,sFloor);
-      const dL=isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov);
+      const dL=isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,weekInPhase);
 
       let s0;
       if(isRecov){
@@ -686,7 +697,7 @@ function generateAthletePlan(ob){
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
           q?{d:q.d,km:kQ,type:q.type,shoe:null}:{d:descEF(),km:kQ,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,false),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,false,weekInPhase),km:kL,type:'long',shoe:null},
         ];
       } else {
         // Phase 1 ou décharge : 2 EF + longue
@@ -697,7 +708,7 @@ function generateAthletePlan(ob){
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           // Phase 1 : accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k2,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,weekInPhase),km:kL,type:'long',shoe:null},
         ];
       }
 
@@ -726,7 +737,7 @@ function generateAthletePlan(ob){
           {d:dEF,km:kEF,type:'ef',shoe:null},
           sQ2, // 2ème qualité en 1er (plus légère) pour permettre récupération avant Q1
           sQ1, // 1ère qualité principale
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,weekInPhase),km:kL,type:'long',shoe:null},
         ];
       } else {
         // Phase 1 ou décharge : 3 EF + longue (long run ≥35% volume)
@@ -740,7 +751,7 @@ function generateAthletePlan(ob){
           {d:descEF(),km:k2,type:'ef',shoe:null},
           // Accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k3,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL2,phase,isRecov),km:kL2,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL2,phase,isRecov,weekInPhase),km:kL2,type:'long',shoe:null},
         ];
       }
     }
