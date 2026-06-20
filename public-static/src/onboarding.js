@@ -101,7 +101,15 @@ function obDateChanged(){
   const m=document.getElementById('ob-date-month')?.value;
   const y=document.getElementById('ob-date-year')?.value;
   const errEl=document.getElementById('ob-date-error');
-  const minWByCourse={Plaisir:8,'5 km':6,'10 km':8,'Semi-marathon':10,'Marathon':14};
+  // Durée minimale ajustée selon le nombre de séances : moins de séances = plus de semaines nécessaires
+  const sess=parseInt(_obData.sessions)||3;
+  const minWByCourse={
+    Plaisir:8,
+    '5 km':6,
+    '10 km':sess<=2?10:8,
+    'Semi-marathon':sess<=2?14:sess===3?10:8,
+    'Marathon':sess<=2?18:sess===3?14:12,
+  };
   if(d&&m&&y){
     const chosen=new Date(y+'-'+m+'-'+d);
     const now=new Date(); now.setHours(0,0,0,0);
@@ -147,6 +155,7 @@ function _obGoTo(step){
   if(step===8) setTimeout(_initObTargetTime, 0);
   if(step===2) setTimeout(_obCheckAndShowSessionsConstraint,0);
   if(step===3) setTimeout(_obCheckAndShowNiveauConstraint,0);
+  if(step===8) setTimeout(_obCheckAndShowTargetTimeConstraint,0);
   // Step 2 (sessions) : chip 1 visible uniquement pour Découverte ; chips 3,4 masquées pour Découverte
   if(step===2){
     const isDecouv=_obData.niveau==='Découverte';
@@ -324,6 +333,59 @@ function onTargetTimeInput(){
     _obData.target_time=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
   } else {
     delete _obData.target_time;
+  }
+  _obCheckAndShowTargetTimeConstraint();
+}
+
+function _obCheckAndShowTargetTimeConstraint(){
+  const errEl=document.getElementById('ob-target-time-error');
+  const warnEl=document.getElementById('ob-target-time-warn');
+  if(errEl) errEl.style.display='none';
+  if(warnEl) warnEl.style.display='none';
+  if(!_obData.target_time) return;
+
+  const course=_obData.course;
+  const niveau=_obData.niveau;
+  const p=_obData.target_time.split(':').map(Number);
+  const totalSec=p.length===3?p[0]*3600+p[1]*60+p[2]:p.length===2?p[0]*60+p[1]:0;
+  if(!totalSec||!course) return;
+
+  // Seuils de temps impossibles (records mondiaux arrondis à la baisse)
+  const impossibleSec={'5 km':720,'10 km':1600,'Semi-marathon':3480,'Marathon':7260}; // 12', 26'40", 58', 2h01'
+  // Seuils de temps trop lents (au-delà, le plan ne peut plus être utile)
+  const tooSlowSec={'5 km':2700,'10 km':5400,'Semi-marathon':12600,'Marathon':28800}; // 45', 1h30, 3h30, 8h
+  // Fenêtres de cohérence par niveau (min/max en secondes)
+  const niveauRange={
+    'Marathon':    {Débutant:[14400,21600],Intermédiaire:[10800,16200],Confirmé:[7200,12600]},  // 4h-6h / 3h-4h30 / 2h-3h30
+    'Semi-marathon':{Débutant:[5400,10800],Intermédiaire:[4500,7200],Confirmé:[3600,5400]},     // 1h30-3h / 1h15-2h / 1h-1h30
+    '10 km':       {Débutant:[2700,5400],Intermédiaire:[2100,3600],Confirmé:[1620,2700]},       // 45'-1h30 / 35'-60' / 27'-45'
+    '5 km':        {Débutant:[1200,2700],Intermédiaire:[900,1800],Confirmé:[720,1200]},         // 20'-45' / 15'-30' / 12'-20'
+  };
+  const courseName=course==='Semi-marathon'?'semi-marathon':course;
+  const fmtTime=sec=>{const h=Math.floor(sec/3600);const m=Math.floor((sec%3600)/60);const s=sec%60;return h>0?`${h}h${String(m).padStart(2,'0')}`:`${m}'${String(s).padStart(2,'0')}"`};
+
+  // Contrainte 3 : temps absolument impossible
+  const minSec=impossibleSec[course];
+  if(minSec&&totalSec<minSec){
+    if(errEl){errEl.textContent=`🚫 Ce temps (${fmtTime(totalSec)}) est physiquement impossible sur ${courseName}. Le record du monde est de ${fmtTime(minSec)}. Vérifie ta saisie.`;errEl.style.display='block';}
+    return; // Le bouton Suivant reste activé (le temps cible est optionnel — l'utilisateur peut cliquer "Pas de temps cible")
+  }
+
+  // Temps trop lent : warning
+  const maxSec=tooSlowSec[course];
+  if(maxSec&&totalSec>maxSec){
+    if(warnEl){warnEl.textContent=`💡 Un temps de ${fmtTime(totalSec)} sur ${courseName} est très conservateur. Le plan sera adapté, mais assure-toi que cet objectif correspond bien à tes capacités actuelles — si c'est ton premier objectif, c'est parfaitement OK.`;warnEl.style.display='block';}
+    return;
+  }
+
+  // Contraintes 4 & 5 : cohérence temps / niveau
+  if(niveau&&niveauRange[course]&&niveauRange[course][niveau]){
+    const [rMin,rMax]=niveauRange[course][niveau];
+    if(totalSec<rMin){
+      if(warnEl){warnEl.textContent=`💡 Un objectif de ${fmtTime(totalSec)} sur ${courseName} dépasse le niveau ${niveau} — c'est une performance de niveau supérieur. Soit tu es trop modeste sur ton niveau, soit cet objectif est ambitieux. Un plan sera généré, mais les allures seront exigeantes.`;warnEl.style.display='block';}
+    } else if(totalSec>rMax){
+      if(warnEl){warnEl.textContent=`💡 Un objectif de ${fmtTime(totalSec)} sur ${courseName} est en-dessous de ce qu'un coureur ${niveau} peut généralement espérer. Tu es peut-être trop modeste — un objectif plus ambitieux te poussera davantage.`;warnEl.style.display='block';}
+    }
   }
 }
 
@@ -558,18 +620,31 @@ function toggleObDay(dayIdx){
 function _obCheckAndShowSessionsConstraint(){
   const errEl=document.getElementById('ob-sessions-constraint');
   const course=_obData.course;
+  const niveau=_obData.niveau;
   const sess=parseInt(_obData.sessions)||0;
   let msg=null;
+  let isWarn=false; // true = warning non-bloquant, false = erreur bloquante
   if(course==='Marathon'&&sess>0&&sess<3){
     msg=`⚠️ Préparer un marathon nécessite au minimum 3 séances par semaine, quel que soit ton niveau. Avec ${sess} séance${sess>1?'s':''}, le corps n'a pas assez de stimuli pour s'adapter correctement — le risque de blessure ou d'abandon le jour J est très élevé. Choisis 3 ou 4 séances.`;
   } else if(course==='Semi-marathon'&&sess===1){
     msg=`⚠️ Un semi-marathon nécessite au minimum 2 séances par semaine pour une préparation sécurisée. Avec 1 séance, le corps ne peut pas s'adapter à la distance. Choisis 2 séances ou plus.`;
+  } else if(niveau==='Confirmé'&&sess===1){
+    // Contrainte 7 : Confirmé + 1 séance = warning non-bloquant
+    msg=`💡 En tant que coureur Confirmé, 1 séance par semaine est insuffisant pour progresser — à ce volume, les performances vont stagner ou régresser. Un Confirmé a besoin de 3-4 séances pour maintenir et développer sa condition. Tu peux continuer, mais tu es prévenu(e).`;
+    isWarn=true;
   }
   if(errEl){
-    if(msg){errEl.textContent=msg;errEl.style.display='block';}
-    else errEl.style.display='none';
+    if(msg){
+      errEl.textContent=msg;
+      errEl.style.display='block';
+      errEl.style.background=isWarn?'#FFFDE7':'#fff0f0';
+      errEl.style.color=isWarn?'#5C6C00':'#C4141B';
+      errEl.style.border=isWarn?'1px solid #E6D800':'none';
+    } else {
+      errEl.style.display='none';
+    }
   }
-  if(msg){
+  if(msg&&!isWarn){
     const next=document.getElementById('ob-btn-next');
     if(next){next.disabled=true;next.style.opacity='0.4';}
     return true;
@@ -583,7 +658,17 @@ function _obCheckAndShowNiveauConstraint(){
   const niveau=_obData.niveau;
   const sess=parseInt(_obData.sessions)||0;
   let msg=null;
-  if(course&&niveau&&sess){
+
+  // Contrainte 1 : Découverte + Marathon = impossible
+  if(niveau==='Découverte'&&course==='Marathon'){
+    msg=`🚫 Le niveau Découverte correspond à quelqu'un qui commence tout juste la course à pied. Un marathon est impossible à ce stade — il faut au minimum 2-3 ans de pratique régulière avant d'envisager cette distance. Commence par préparer un 5 km ou 10 km pour construire des bases solides.`;
+  }
+  // Contrainte 2 : Découverte + Semi = bloqué
+  else if(niveau==='Découverte'&&course==='Semi-marathon'){
+    msg=`🚫 Le niveau Découverte correspond à un débutant absolu. Un semi-marathon (21 km) est une distance sérieuse qui nécessite une base d'au minimum 6-12 mois de course régulière. Commence par un 5 km ou 10 km — tu pourras viser le semi l'année prochaine.`;
+  }
+  // Contrainte 3 : sessions insuffisantes pour course+niveau
+  else if(course&&niveau&&sess){
     const minMap=_OB_SESS_MIN[course];
     if(minMap){
       const minSess=minMap[niveau]||0;
@@ -645,22 +730,44 @@ function onObEfPaceChange(){
   const minEl=document.getElementById('ob-ef-min');
   const secEl=document.getElementById('ob-ef-sec');
   const warnEl=document.getElementById('ob-ef-niveau-warn');
+  const errEl=document.getElementById('ob-ef-pace-error');
+  const nextBtn=document.getElementById('ob-btn-next');
   if(!warnEl) return;
   const m=parseInt(minEl?.value)||0;
   const s=parseInt(secEl?.value)||0;
-  if(!m){warnEl.style.display='none';return;}
+  if(warnEl) warnEl.style.display='none';
+  if(errEl) errEl.style.display='none';
+  if(!m){
+    if(nextBtn){nextBtn.disabled=false;nextBtn.style.opacity='1';}
+    return;
+  }
   const paceSec=m*60+s;
+  const paceStr=`${m}'${String(s).padStart(2,'0')}/km`;
   const niveau=_obData.niveau;
+
+  // Contrainte 6 bloquante : allure hors plage réaliste
+  if(paceSec<210){ // < 3'30"/km
+    if(errEl){errEl.textContent=`🚫 Une allure EF de ${paceStr} est physiquement irréaliste — même les champions courent leur EF à 3'30"/km minimum. Vérifie ta saisie (ex : 5'30" s'écrit 5 minutes et 30 secondes).`;errEl.style.display='block';}
+    if(nextBtn){nextBtn.disabled=true;nextBtn.style.opacity='0.4';}
+    return;
+  }
+  if(paceSec>660){ // > 11'00"/km
+    if(errEl){errEl.textContent=`🚫 À ${paceStr}, c'est une allure de marche rapide, pas de course. Si tu marches encore, le niveau Découverte (marche-course) est parfaitement adapté. Reviens en arrière pour changer ton niveau.`;errEl.style.display='block';}
+    if(nextBtn){nextBtn.disabled=true;nextBtn.style.opacity='0.4';}
+    return;
+  }
+  if(nextBtn){nextBtn.disabled=false;nextBtn.style.opacity='1';}
+
+  // Warnings non-bloquants : cohérence allure / niveau
   let msg=null;
   if(niveau==='Confirmé'&&paceSec>450){
-    msg=`💡 Ton allure EF de ${m}'${String(s).padStart(2,'0')}/km est plutôt celle d'un coureur Intermédiaire (allure Confirmé = généralement < 7'30"/km). Si c'est bien ton allure de confort actuelle, un plan Intermédiaire sera mieux calibré à ta réalité.`;
+    msg=`💡 Ton allure EF de ${paceStr} est plutôt celle d'un coureur Intermédiaire (un Confirmé court généralement son EF sous 7'30"/km). Si c'est bien ton allure de confort actuelle, un plan Intermédiaire sera mieux calibré.`;
   } else if(niveau==='Débutant'&&paceSec<330){
-    msg=`💡 Ton allure EF de ${m}'${String(s).padStart(2,'0')}/km (< 5'30"/km) est rapide pour un Débutant. Si c'est ton allure de confort habituelle, tu es peut-être Intermédiaire — un plan adapté à ton vrai niveau sera plus efficace et plus stimulant.`;
+    msg=`💡 Ton allure EF de ${paceStr} (sous 5'30"/km) est rapide pour un Débutant. Si c'est ton allure de confort habituelle, tu es peut-être Intermédiaire — un plan adapté à ton vrai niveau sera plus efficace.`;
   } else if(niveau==='Intermédiaire'&&paceSec<270){
-    msg=`💡 Ton allure EF de ${m}'${String(s).padStart(2,'0')}/km (< 4'30"/km) est celle d'un coureur Confirmé. Si c'est bien ton allure de confort, un plan Confirmé sera plus adapté à ta performance.`;
+    msg=`💡 Ton allure EF de ${paceStr} (sous 4'30"/km) est celle d'un coureur Confirmé. Si c'est bien ton allure de confort, un plan Confirmé sera plus adapté à ta performance.`;
   }
-  if(msg){warnEl.textContent=msg;warnEl.style.display='block';}
-  else warnEl.style.display='none';
+  if(msg&&warnEl){warnEl.textContent=msg;warnEl.style.display='block';}
 }
 
 async function saveOnboarding(){

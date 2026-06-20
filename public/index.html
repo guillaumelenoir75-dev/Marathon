@@ -561,6 +561,7 @@
           </div>
         </div>
         <p id="ob-ef-niveau-warn" style="display:none;font-size:13px;color:#5C6C00;font-weight:600;margin-top:10px;background:#FFFDE7;padding:12px 14px;border-radius:10px;line-height:1.5;border:1px solid #E6D800;"></p>
+        <p id="ob-ef-pace-error" style="display:none;font-size:13px;color:#C4141B;font-weight:600;margin-top:6px;background:#fff0f0;padding:12px 14px;border-radius:10px;line-height:1.5;"></p>
         <button onclick="onboardingSelectEf('oui')" class="ob-chip" id="ob-ef-oui">✅ Oui, je la connais</button>
         <button onclick="onboardingSelectEf('non')" class="ob-chip" id="ob-ef-non">⏭️ Non, pas encore</button>
         <p style="font-size:12px;color:#888;margin-top:4px;line-height:1.5;padding:0 4px;">Sans allure EF, les séances seront décrites sans indication de rythme. Tu pourras la renseigner plus tard dans les paramètres.</p>
@@ -605,6 +606,8 @@
           <input id="ob-target-sec" type="number" min="0" max="59" placeholder="ss" style="width:64px;padding:10px;border:1.5px solid #e0e8f5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;" oninput="if(parseInt(this.value)>59)this.value=59;onTargetTimeInput();document.getElementById('ob-no-target-btn').style.cssText='background:#f5f5f5;color:#888;border-color:#e0e0e0;'">
         </div>
         <button id="ob-no-target-btn" onclick="clearTargetTime()" style="width:100%;padding:9px;background:#f5f5f5;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;color:#888;cursor:pointer;">⏭️ Pas de temps cible</button>
+        <p id="ob-target-time-error" style="display:none;font-size:13px;color:#C4141B;font-weight:600;margin-top:8px;background:#fff0f0;padding:12px 14px;border-radius:10px;line-height:1.5;"></p>
+        <p id="ob-target-time-warn" style="display:none;font-size:13px;color:#5C6C00;font-weight:600;margin-top:6px;background:#FFFDE7;padding:12px 14px;border-radius:10px;line-height:1.5;border:1px solid #E6D800;"></p>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('generate_plan','oui')" class="ob-chip" id="ob-generate_plan-oui">✅ Oui, génère-moi un programme</button>
