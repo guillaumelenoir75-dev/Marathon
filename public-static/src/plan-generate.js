@@ -607,6 +607,7 @@ function generateAthletePlan(ob){
 
   let _phaseStartW=1;
   let _lastPhase=1;
+  let _specWeekCount=0; // semaines effectives de phase 3 (hors décharges) — pour progression douce allure course
 
   for(let w=1;w<=numWeeks;w++){
     const total=weekKms[w-1];
@@ -618,8 +619,11 @@ function generateAthletePlan(ob){
     const isTaper=phase===4;
 
     // Tracker la semaine dans la phase (pour indexer Q_MATRIX)
-    if(phase!==_lastPhase){_phaseStartW=w;_lastPhase=phase;}
-    const weekInPhase=w-_phaseStartW; // 0-indexé
+    if(phase!==_lastPhase){_phaseStartW=w;_lastPhase=phase;_specWeekCount=0;}
+    const weekInPhase=w-_phaseStartW; // 0-indexé (pour Q_MATRIX)
+    // Pour la progression de l'allure course : ne compte que les semaines non-décharge en phase 3
+    const specWeekIndex=_specWeekCount; // 0-indexé, n'avance pas sur les décharges
+    if(phase===3&&!isRecov) _specWeekCount++;
 
     const sFloor=total<10?2:3;
     const longSFloor=Math.max(sFloor,5); // sortie longue : minimum réaliste 5 km
@@ -668,7 +672,7 @@ function generateAthletePlan(ob){
     } else if(nbSess===2){
       const kL=capLong(Math.max(Math.round(total*0.55),sFloor));
       const kEF=Math.max(total-kL,sFloor);
-      const dL=isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,weekInPhase);
+      const dL=isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,specWeekIndex);
 
       let s0;
       if(isRecov){
@@ -697,7 +701,7 @@ function generateAthletePlan(ob){
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
           q?{d:q.d,km:kQ,type:q.type,shoe:null}:{d:descEF(),km:kQ,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,false,weekInPhase),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,false,specWeekIndex),km:kL,type:'long',shoe:null},
         ];
       } else {
         // Phase 1 ou décharge : 2 EF + longue
@@ -708,7 +712,7 @@ function generateAthletePlan(ob){
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           // Phase 1 : accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k2,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,weekInPhase),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,specWeekIndex),km:kL,type:'long',shoe:null},
         ];
       }
 
@@ -737,7 +741,7 @@ function generateAthletePlan(ob){
           {d:dEF,km:kEF,type:'ef',shoe:null},
           sQ2, // 2ème qualité en 1er (plus légère) pour permettre récupération avant Q1
           sQ1, // 1ère qualité principale
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,weekInPhase),km:kL,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,specWeekIndex),km:kL,type:'long',shoe:null},
         ];
       } else {
         // Phase 1 ou décharge : 3 EF + longue (long run ≥35% volume)
@@ -751,7 +755,7 @@ function generateAthletePlan(ob){
           {d:descEF(),km:k2,type:'ef',shoe:null},
           // Accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k3,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL2,phase,isRecov,weekInPhase),km:kL2,type:'long',shoe:null},
+          {d:isLastPlaisirWeek?bilanDesc:descLong(kL2,phase,isRecov,specWeekIndex),km:kL2,type:'long',shoe:null},
         ];
       }
     }
