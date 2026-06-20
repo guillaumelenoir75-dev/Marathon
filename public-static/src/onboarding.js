@@ -241,9 +241,12 @@ function _initObTargetTime(){
     if(hEl) hEl.value=p[0]||'';
     if(mEl) mEl.value=p[1]||'';
     if(sEl) sEl.value=p[2]||'';
-  } else if(dist&&_obData.ef_pace){
+  } else if(dist){
+    // Temps par défaut selon la distance si pas d'allure EF ni de temps déjà saisi
+    const efPaceSrc=_obData.ef_pace;
+    if(efPaceSrc){
     // Suggérer un temps réaliste basé sur l'allure EF
-    const parts=(_obData.ef_pace).replace("'",":").split(':');
+    const parts=(efPaceSrc).replace("'",":").split(':');
     if(parts.length===2){
       const efSec=parseInt(parts[0])*60+parseInt(parts[1]);
       // Delta EF → allure course selon distance (s/km plus rapide que EF)
@@ -261,7 +264,20 @@ function _initObTargetTime(){
       if(sEl) sEl.value=ss>0?String(ss).padStart(2,'0'):'';
       onTargetTimeInput(); // enregistrer la suggestion dans _obData
     }
-  }
+    } else {
+      // Valeurs par défaut selon la distance
+      const defaults={'5 km':[0,30,0],'10 km':[0,55,0],'Semi-marathon':[1,50,0],'Marathon':[4,0,0]};
+      const def=defaults[course];
+      if(def){
+        const hEl=document.getElementById('ob-target-h');
+        const mEl=document.getElementById('ob-target-min');
+        const sEl=document.getElementById('ob-target-sec');
+        if(hEl) hEl.value=def[0]>0?def[0]:'';
+        if(mEl) mEl.value=def[1]>0?String(def[1]).padStart(2,'0'):'';
+        if(sEl) sEl.value=def[2]>0?String(def[2]).padStart(2,'0'):'';
+        onTargetTimeInput();
+      }
+    }
 }
 
 function clearTargetTime(){
