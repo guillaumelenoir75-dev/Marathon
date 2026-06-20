@@ -362,16 +362,23 @@ function buildLongModalHtml(detail, totalKm){
     const m=p.match(/^(\d+(?:\.\d+)?)\s*(EF|AM|A10|A5|ASEMI|SEMI)\b/i);
     if(m) blocks.push({km:parseFloat(m[1]),type:m[2].toUpperCase()});
   });
-  // Fallback intelligent selon la distance et le km total
+  // Fallback : si aucun bloc parsé, détecter si la séance est spécifique (allure course)
+  // Pour les séances EF pures (Phase 1/2), on crée un seul bloc EF — jamais de bloc race par défaut
   if(blocks.length===0){
     const km=totalKm||8;
-    const specKm=course==='Marathon'?(km>=28?10:km>=24?8:6)
-      :course==='Semi-marathon'?(km>=18?6:km>=14?4:3)
-      :course==='10 km'?(km>=14?4:km>=12?3:2)
-      :course==='5 km'?(km>=10?2:1):3;
-    const efKm=Math.max(km-specKm,1);
-    blocks.push({km:efKm,type:'EF'});
-    blocks.push({km:specKm,type:raceLabel});
+    const hasRacePace=/finir\s+\d+\s+km|allure\s*(marathon|semi|10\s*km|5\s*km|course)|\b(A10|AM|ASEMI|SEMI|A5)\b/i.test(detailStr);
+    if(hasRacePace){
+      const specKm=course==='Marathon'?(km>=28?10:km>=24?8:6)
+        :course==='Semi-marathon'?(km>=18?6:km>=14?4:3)
+        :course==='10 km'?(km>=14?4:km>=12?3:2)
+        :course==='5 km'?(km>=10?2:1):3;
+      const efKm=Math.max(km-specKm,1);
+      blocks.push({km:efKm,type:'EF'});
+      blocks.push({km:specKm,type:raceLabel});
+    } else {
+      // Séance EF pure (Phase 1/2 ou nouvelle séance vide) → un seul bloc EF
+      blocks.push({km:km,type:'EF'});
+    }
   }
   const blocksJson=JSON.stringify(blocks).replace(/"/g,'&quot;');
   const efPaces=['6:25','6:20','6:15','6:10','6:05','6:00','5:55','5:50','5:45','5:40','5:35','5:30'];
