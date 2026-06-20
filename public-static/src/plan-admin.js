@@ -414,6 +414,124 @@ async function cvRegeneratePlan(){
   _sov.onclick=e=>{if(e.target===_sov)_closeS();};
 }
 
+// ── Mise à jour de TOUS les plans athlètes ───────────────────────────────────
+async function adminUpdateAllPlans(){
+  // Confirmation
+  await new Promise(resolve=>{
+    _showConfirmModal({
+      icon:'🔄',
+      title:'Mettre à jour tous les plans ?',
+      message:'Les plans de tous les athlètes seront recalculés avec les dernières améliorations. Les séances déjà réalisées sont conservées.',
+      confirmLabel:'Mettre à jour',
+      confirmStyle:'background:#0C447C;color:#fff;',
+      onConfirm:resolve
+    });
+  });
+
+  // Modal de progression
+  const _pov=document.createElement('div');
+  _pov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  _pov.innerHTML=`
+  <div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div style="padding:28px 24px 24px;text-align:center;">
+      <div style="font-size:36px;margin-bottom:12px;">🔄</div>
+      <p style="font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:8px;">Mise à jour en cours…</p>
+      <p id="aup-status" style="font-size:13px;color:#666;margin-bottom:16px;">Chargement des athlètes…</p>
+      <div style="background:#f0f0f0;border-radius:8px;height:6px;overflow:hidden;">
+        <div id="aup-bar" style="height:100%;background:#1B4FD8;border-radius:8px;width:0%;transition:width 0.3s;"></div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(_pov);
+  const setStatus=(txt,pct)=>{
+    const s=document.getElementById('aup-status');if(s)s.textContent=txt;
+    const b=document.getElementById('aup-bar');if(b)b.style.width=pct+'%';
+  };
+
+  try {
+    // 1. Charger la liste des athlètes
+    const token=await getAuthToken();
+    const resp=await fetch(FUNCTIONS_BASE+'/listUsers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});
+    const users=await resp.json();
+    const athletes=Array.isArray(users)?users.filter(u=>u.role!=='admin'):[];
+
+    let nbDone=0, nbSkipped=0, nbErrors=0, totalUpdated=0, totalKept=0;
+
+    for(let i=0;i<athletes.length;i++){
+      const u=athletes[i];
+      setStatus(`${u.displayName||u.email||u.uid} (${i+1}/${athletes.length})…`, Math.round((i/athletes.length)*90));
+      try {
+        // Lire le state de l'athlète
+        const dr=await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({action:'read',path:`users/${u.uid}/state`})});
+        const drJson=await dr.json();
+        const st=drJson.data;
+        if(!st||typeof st!=='object'){nbSkipped++;continue;}
+
+        // Vérifier qu'il y a un plan et des données onboarding
+        const hasPlan=Object.keys(st).some(k=>/^extra_w\d+_s\d+$/.test(k));
+        if(!hasPlan){nbSkipped++;continue;}
+        let ob=st.onboarding;
+        if(typeof ob==='string'){try{ob=JSON.parse(ob);}catch(e){ob={};}}
+        if(!ob||!ob.course){nbSkipped++;continue;}
+
+        // Générer le nouveau plan
+        const newPlan=generateAthletePlan(ob);
+        const doneKeys=new Set(Object.keys(st).filter(k=>/^extra_w\d+_s\d+_done$/.test(k)&&st[k]).map(k=>k.replace(/_done$/,'')));
+        const newSessionKeys=new Set(Object.keys(newPlan).filter(k=>/^extra_w\d+_s\d+$/.test(k)));
+        const updates={};
+        Object.keys(newPlan).forEach(k=>{if(!/^extra_w\d+_s\d+$/.test(k)) updates[k]=newPlan[k];});
+        newSessionKeys.forEach(k=>{if(!doneKeys.has(k)) updates[k]=newPlan[k];});
+        Object.keys(st).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
+          if(!newSessionKeys.has(k)&&!doneKeys.has(k)) updates[k]=null;
+        });
+
+        // Écrire en DB via dbAdmin
+        const writeResp=await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({action:'update',path:`users/${u.uid}/state`,value:updates})});
+        const writeData=await writeResp.json();
+        if(writeData.error) throw new Error(writeData.error);
+
+        totalUpdated+=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
+        totalKept+=doneKeys.size;
+        nbDone++;
+      } catch(e){nbErrors++;console.warn('adminUpdateAllPlans: erreur pour '+u.uid, e);}
+    }
+
+    _pov.remove();
+
+    // Modal de succès
+    const _sov=document.createElement('div');
+    _sov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    _sov.innerHTML=`
+    <div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+      <div style="padding:28px 24px 24px;text-align:center;">
+        <div style="width:64px;height:64px;border-radius:50%;background:#EBF8F0;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <p style="font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:12px;letter-spacing:-0.02em;">Tous les plans mis à jour !</p>
+        <div style="display:flex;flex-direction:column;gap:6px;text-align:left;background:#f7f8fa;border-radius:12px;padding:12px 16px;font-size:13px;">
+          <div style="display:flex;justify-content:space-between;"><span style="color:#555;">Athlètes mis à jour</span><span style="font-weight:700;color:#1B4FD8;">${nbDone}</span></div>
+          ${nbSkipped>0?`<div style="display:flex;justify-content:space-between;"><span style="color:#555;">Sans plan (ignorés)</span><span style="font-weight:700;color:#888;">${nbSkipped}</span></div>`:''}
+          ${nbErrors>0?`<div style="display:flex;justify-content:space-between;"><span style="color:#555;">Erreurs</span><span style="font-weight:700;color:#e53e3e;">${nbErrors}</span></div>`:''}
+          <div style="display:flex;justify-content:space-between;border-top:1px solid #e8e8e8;padding-top:6px;margin-top:2px;"><span style="color:#555;">Séances recalculées</span><span style="font-weight:700;color:#1B4FD8;">${totalUpdated}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:#555;">Séances conservées</span><span style="font-weight:700;color:#3B6D11;">${totalKept}</span></div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #f0f0f0;">
+        <button id="aup-ok-btn" style="width:100%;padding:16px;background:#fff;border:none;font-size:15px;font-weight:700;color:#1B4FD8;cursor:pointer;border-radius:0 0 22px 22px;">Fermer</button>
+      </div>
+    </div>`;
+    document.body.appendChild(_sov);
+    const _close=()=>_sov.remove();
+    document.getElementById('aup-ok-btn').onclick=_close;
+    _sov.onclick=e=>{if(e.target===_sov)_close();};
+  } catch(e){
+    _pov.remove();
+    alert('Erreur : '+e.message);
+  }
+}
+
 // ── Suppression du plan athlète ───────────────────────────────────────────────
 async function cvDeletePlan(){
   const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));

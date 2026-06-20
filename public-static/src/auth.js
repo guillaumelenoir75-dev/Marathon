@@ -260,7 +260,15 @@ async function loadAdminUsersList(){
     const resp=await fetch(FUNCTIONS_BASE+'/listUsers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});
     const users=await resp.json();
     if(!Array.isArray(users)){listEl.textContent='Erreur chargement.';return;}
-    listEl.innerHTML=users.map(u=>`
+    const athletes=users.filter(u=>u.role!=='admin');
+    const allBtn=athletes.length>0
+      ?`<div style="padding:10px 0 6px;border-bottom:2px solid #e8edf5;">
+          <button onclick="adminUpdateAllPlans()" style="width:100%;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+            🔄 Mettre à jour tous les plans (${athletes.length} athlète${athletes.length>1?'s':''})
+          </button>
+        </div>`
+      :'';
+    listEl.innerHTML=allBtn+users.map(u=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
         <div ${u.role!=='admin'?`onclick="openAthleteCoachView('${u.uid}','${u.displayName||u.email||u.uid}')" style="cursor:pointer;flex:1;"`:'style="flex:1;"'}>
           <div style="font-weight:600;font-size:14px;">${u.displayName||u.email||u.uid}</div>
