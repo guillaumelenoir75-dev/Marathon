@@ -28,7 +28,7 @@ function openEditModal(ws, si){
   const editEfPaceVal = editEfPaceMatch ? editEfPaceMatch[1]+':'+editEfPaceMatch[2] : getBestEfPace()||'6:40';
   const tempoFields = s.type==='tempo' ? _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editPMax, detail)
   :s.type==='frac' ? buildTempoFieldsHtml('edit',parseInt(editReps),parseInt(editDur),editRecup,editPMin,editPMax,'#C4141B',editEfPaceVal)
-  :s.type==='long'?buildLongModalHtml(detail)
+  :s.type==='long'?buildLongModalHtml(detail, s.km)
   :(()=>{
     // Extraire l'allure depuis le detail existant
     const paceMatch2 = detail.match(/(\d+)[':](\d+)/);
@@ -501,12 +501,13 @@ function onAddTypeChange(ws){
     setTimeout(() => { calcEfRestantForPrefix('add'); selectTempoEfPace('add', document.getElementById('add-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
 
   } else if (type === 'long') {
+    const addKm=parseFloat(document.getElementById('add-km')?.value)||0;
     container.innerHTML = `
       <div class="modal-section" style="background:linear-gradient(135deg,#EEF2FD,#E8EDFF);">
         <div class="modal-section-label" style="color:#1B4FD8;">📅 Planification</div>
         ${buildSchedFieldsHtml('', '')}
       </div>`
-      + buildLongModalHtml('');
+      + buildLongModalHtml('', addKm);
     setTimeout(() => renderLongBlocks(), 0);
 
   } else {
@@ -632,7 +633,8 @@ function onEditTypeChange(){
   } else if(type==='frac'){
     container.innerHTML=buildTempoFieldsHtml('edit',6,2,'2:00','4:30','4:50','#C4141B');
   } else if(type==='long'){
-    container.innerHTML=buildLongModalHtml('');
+    const editKmVal=parseFloat(document.getElementById('edit-km')?.value)||0;
+    container.innerHTML=buildLongModalHtml('', editKmVal);
     setTimeout(()=>renderLongBlocks(),0);
   } else {
     container.innerHTML=`<div>
@@ -741,7 +743,8 @@ function onExEditTypeChange(){
   if(type==='long'){
     const detailInput=document.getElementById('exedit-detail');
     const existingDetail=detailInput?detailInput.value:'';
-    container.innerHTML=buildLongModalHtml(existingDetail);
+    const exKmVal=parseFloat(document.getElementById('exedit-km')?.value)||0;
+    container.innerHTML=buildLongModalHtml(existingDetail, exKmVal);
     renderLongBlocks();
   } else if(type==='tempo'){
     container.innerHTML=buildTempoFieldsHtml('exedit',2,8,'3:00','5:00','5:20','#E8530A');
@@ -792,7 +795,7 @@ function openEditExtraModal(ws, ei){
   // Champs selon le type
   let fieldsHtml='';
   if(s.type==='long'){
-    fieldsHtml=buildLongModalHtml(detail);
+    fieldsHtml=buildLongModalHtml(detail, s.km);
   } else if(s.type==='tempo'||s.type==='frac'){
     const repMatch=title.match(/(\d+)×(\d+)/);
     const defReps=s.type==='frac'?6:2;

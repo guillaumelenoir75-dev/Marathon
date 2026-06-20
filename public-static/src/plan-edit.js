@@ -97,14 +97,28 @@ function scrollToCurrentWeek(){
   window.scrollBy({ top: rect.top - margin, behavior: 'smooth' });
 }
 
+function getRaceBlockInfo(){
+  const ob = state.onboarding ? (typeof state.onboarding === 'string' ? JSON.parse(state.onboarding) : state.onboarding) : {};
+  const course = ob.course || 'Marathon';
+  const labelMap = {'5 km':'A5','10 km':'A10','Semi-marathon':'SEMI','Marathon':'AM'};
+  const raceLabel = labelMap[course] || 'AM';
+  if(ob.target_time){
+    const tp = ob.target_time.split(':').map(Number);
+    const ts = tp[0]*3600+tp[1]*60+(tp[2]||0);
+    const dist = {'5 km':5,'10 km':10,'Semi-marathon':21.1,'Marathon':42.195}[course]||42.195;
+    if(ts>0){const sec=ts/dist;const m=Math.floor(sec/60),s=Math.round(sec%60);return {label:raceLabel,pace:`${m}'${String(s).padStart(2,'0')}`,course};}
+  }
+  return {label:raceLabel, pace:getAmTrainingPace(), course};
+}
+
 function getSession(ws, si){
   const key = `edit_w${ws}_s${si}`;
   const sess = state[key] ? JSON.parse(state[key]) : weeks[ws-1].sessions[si];
-  // Pour les séances Long : remplacer l'allure AM du detail par getAmTrainingPace()
-  if(sess && sess.type === 'long' && sess.d && sess.d.includes('AM @')) {
-    const amPace = getAmTrainingPace();
+  // Pour les séances Long : mettre à jour l'allure du bloc course dans le detail
+  if(sess && sess.type === 'long' && sess.d && /(?:AM|A10|A5|ASEMI|SEMI)\s*@/.test(sess.d)) {
+    const {label:raceLabel, pace:racePace} = getRaceBlockInfo();
     const updated = Object.assign({}, sess, {
-      d: sess.d.replace(/AM @ [\d'':]+\/km/g, `AM @ ${amPace}/km`)
+      d: sess.d.replace(/(?:AM|A10|A5|ASEMI|SEMI)\s*@\s*[\d'':]+\/km/g, `${raceLabel} @ ${racePace}/km`)
     });
     return updated;
   }
@@ -140,10 +154,11 @@ function updateLongDuration(){
   const efPaceRaw=(efField&&efField.value.trim())||getBestEfPace()||"6'40";
   const parsePaceStr=p=>{const m=(p||'').replace("'",'!').replace(':','!').match(/(\d+)!(\d+)/);return m?parseInt(m[1])+parseInt(m[2])/60:null;};
   const efPace=parsePaceStr(efPaceRaw);
-  const amPace=parsePaceStr(getAmTrainingPace());
-  if(!efPace||!amPace){durEl.textContent='—';return;}
+  const {pace:racePaceRaw}=getRaceBlockInfo();
+  const racePace=parsePaceStr(racePaceRaw)||parsePaceStr(getAmTrainingPace());
+  if(!efPace||!racePace){durEl.textContent='—';return;}
   let totalMin=0;
-  blocks.forEach(b=>totalMin+=(b.type==='AM'?amPace:efPace)*b.km);
+  blocks.forEach(b=>totalMin+=(b.type!=='EF'?racePace:efPace)*b.km);
   const tsL=Math.round(totalMin*60),h=Math.floor(tsL/3600),m=Math.floor((tsL%3600)/60),sL=tsL%60;
   const baseL=h>0?h+'h'+String(m).padStart(2,'0')+"'":m+"'";
   durEl.textContent=baseL+(sL>0?String(sL).padStart(2,'0')+'"':'');
@@ -160,19 +175,26 @@ function renderLongBlocks(){
   if(!container||!dataEl) return;
   let blocks=[];
   try{blocks=JSON.parse(dataEl.value.replace(/&quot;/g,'"'));}catch(e){return;}
-  container.innerHTML=blocks.map((b,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;">
-      <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:12px;padding:10px 12px;border:2px solid ${b.type==='EF'?'#3B6D1130':'#534AB730'};">
-        <button onclick="toggleLongBlockType(${i})" style="padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-size:11px;font-weight:800;background:${b.type==='EF'?'#EAF3DE':'#EEEDFE'};color:${b.type==='EF'?'#3B6D11':'#1B4FD8'};flex-shrink:0;">${b.type}</button>
+  const {label:raceLabel,pace:racePace}=getRaceBlockInfo();
+  container.innerHTML=blocks.map((b,i)=>{
+    const isRace=b.type!=='EF';
+    const dispLabel=isRace?raceLabel:'EF';
+    const dispPace=isRace?racePace+'/km':'EF';
+    const bg=isRace?'#534AB730':'#3B6D1130';
+    const btnBg=isRace?'#EEEDFE':'#EAF3DE';
+    const btnColor=isRace?'#1B4FD8':'#3B6D11';
+    return `<div style="display:flex;align-items:center;gap:6px;">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:12px;padding:10px 12px;border:2px solid ${bg};">
+        <button onclick="toggleLongBlockType(${i})" style="padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-size:11px;font-weight:800;background:${btnBg};color:${btnColor};flex-shrink:0;">${dispLabel}</button>
         <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;">
           <button onclick="stepLongBlockKm(${i},-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-size:16px;color:var(--text);display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
           <span id="lb-km-${i}" style="font-size:20px;font-weight:700;color:var(--text);min-width:32px;text-align:center;">${b.km}</span>
           <button onclick="stepLongBlockKm(${i},1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-size:16px;color:var(--text);display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
         </div>
-        <span style="font-size:10px;color:var(--muted);flex-shrink:0;">${b.type==='AM'?getAmTrainingPace()+'/km':'EF'}</span>
+        <span style="font-size:10px;color:var(--muted);flex-shrink:0;">${dispPace}</span>
       </div>
       <button onclick="removeLongBlock(${i})" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:20px;padding:0 4px;flex-shrink:0;">×</button>
-    </div>`).join('');
+    </div>`;}).join('');
   updateLongBlocksTotal(blocks);
 }
 
@@ -215,7 +237,8 @@ function stepLongBlockKm(i, delta){
 }
 function toggleLongBlockType(i){
   const blocks=getLongBlocksData();
-  blocks[i].type=blocks[i].type==='EF'?'AM':'EF';
+  const {label:raceLabel}=getRaceBlockInfo();
+  blocks[i].type=blocks[i].type==='EF'?raceLabel:'EF';
   setLongBlocksData(blocks);
 }
 function updateLongBlockKm(i,val){
@@ -236,12 +259,10 @@ function removeLongBlock(i){
   setLongBlocksData(blocks);
 }
 function buildLongDetail(blocks){
-  const am=getMarathonPaceStr();
+  const {label:raceLabel,pace:racePace}=getRaceBlockInfo();
   const efField=document.getElementById('long-ef-pace');
   const efPace=efField&&efField.value.trim()?efField.value.trim():null;
-  const efDefault=(getBestEfPace()||'6:40').replace("'",'::').split('::')[0];
-  const detail=blocks.map(b=>`${b.km} ${b.type}${b.type==='AM'?' @ '+am+'/km':''}`).join(' · ');
-  // Sauvegarder l'allure EF si différente de la valeur par défaut
+  const detail=blocks.map(b=>`${b.km} ${b.type==='EF'?'EF':raceLabel}${b.type!=='EF'?' @ '+racePace+'/km':''}`).join(' · ');
   if(efPace && efPace !== (getBestEfPace()||'6:40')) return detail+' · EF @ '+efPace+'/km';
   return detail;
 }

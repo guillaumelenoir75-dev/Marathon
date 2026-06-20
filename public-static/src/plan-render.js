@@ -323,22 +323,59 @@ function calcEfRestantGeneric(prefix, displayId){
     + (kmEfRestant < 0 ? '<p style="font-size:11px;color:#ef4444;margin-top:4px;">Distance totale insuffisante pour ce format — augmente les km.</p>' : '');
 }
 
-function buildLongModalHtml(detail){
-  const am=getAmTrainingPace();
+function buildLongModalHtml(detail, totalKm){
+  totalKm=totalKm||0;
+  // Infos course depuis onboarding
+  const ob=state.onboarding?(typeof state.onboarding==='string'?JSON.parse(state.onboarding):state.onboarding):{};
+  const course=ob.course||'Marathon';
+  const raceLabelMap={'5 km':'A5','10 km':'A10','Semi-marathon':'SEMI','Marathon':'AM'};
+  const raceLabel=raceLabelMap[course]||'AM';
+  const raceNameMap={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon'};
+  // Calculer l'allure de course cible
+  let racePace=getAmTrainingPace();
+  if(ob.target_time){
+    const tp=ob.target_time.split(':').map(Number);
+    const ts=tp[0]*3600+tp[1]*60+(tp[2]||0);
+    const dist={'5 km':5,'10 km':10,'Semi-marathon':21.1,'Marathon':42.195}[course]||42.195;
+    if(ts>0){const sec=ts/dist;const m=Math.floor(sec/60),s=Math.round(sec%60);racePace=`${m}'${String(s).padStart(2,'0')}`;}
+  }
   // Extraire l'allure EF si déjà sauvegardée dans le detail
   const efPaceMatch=(detail||'').match(/EF\s*[@\s]\s*(\d+)['':](\d+)/);
   const currentEfPace=efPaceMatch?efPaceMatch[1]+':'+efPaceMatch[2]:(getBestEfPace()||'6:40').replace("'",'::').replace(/:(\d{3}).*/,'').replace('::',"'");
   const blocks=[];
-  (detail||'').split('·').forEach(part=>{
+  // Parser 1 : format généré "X km EF → finir Y km à Z/km (allure W)"
+  const detailStr=detail||'';
+  let parsedSpecific=false;
+  detailStr.split('·').forEach(part=>{
     const p=part.trim();
-    const m=p.match(/^(\d+(?:\.\d+)?)\s*(EF|AM)/i);
+    const specMatch=p.match(/(\d+)\s+km\s+EF.*finir\s+(\d+)\s+km\s+à[\s\d':\/]+\(allure\s+([\w\s-]+)\)/i);
+    if(specMatch){
+      blocks.push({km:parseInt(specMatch[1]),type:'EF'});
+      const ct=specMatch[3].trim().toLowerCase();
+      const rt=ct.includes('marathon')&&!ct.includes('semi')?'AM':ct.includes('semi')?'SEMI':ct.includes('10')?'A10':ct.includes('5')?'A5':'AM';
+      blocks.push({km:parseInt(specMatch[2]),type:rt});
+      parsedSpecific=true;
+      return;
+    }
+    if(parsedSpecific) return;
+    // Parser 2 : format sauvegardé "X EF" ou "X AM/A10/A5/SEMI @ pace"
+    const m=p.match(/^(\d+(?:\.\d+)?)\s*(EF|AM|A10|A5|ASEMI|SEMI)\b/i);
     if(m) blocks.push({km:parseFloat(m[1]),type:m[2].toUpperCase()});
   });
-  if(blocks.length===0){blocks.push({km:5,type:'EF'});blocks.push({km:3,type:'AM'});}
+  // Fallback intelligent selon la distance et le km total
+  if(blocks.length===0){
+    const km=totalKm||8;
+    const specKm=course==='Marathon'?(km>=28?10:km>=24?8:6)
+      :course==='Semi-marathon'?(km>=18?6:km>=14?4:3)
+      :course==='10 km'?(km>=14?4:km>=12?3:2)
+      :course==='5 km'?(km>=10?2:1):3;
+    const efKm=Math.max(km-specKm,1);
+    blocks.push({km:efKm,type:'EF'});
+    blocks.push({km:specKm,type:raceLabel});
+  }
   const blocksJson=JSON.stringify(blocks).replace(/"/g,'&quot;');
   const efPaces=['6:25','6:20','6:15','6:10','6:05','6:00','5:55','5:50','5:45','5:40','5:35','5:30'];
   const efChips=efPaces.map(p=>`<button type="button" id="long-ef-chip-${p.replace(':','-')}" onclick="selectLongEfPace('${p}')" style="padding:5px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all 0.15s;">${p}</button>`).join('');
-  const curEf=(getBestEfPace()||'6:40').replace("'",'::').split('::')[0] || '5';
   return '<div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
     +'<div style="background:#EAF3DE;border-radius:8px;padding:9px 12px;">'
@@ -351,8 +388,8 @@ function buildLongModalHtml(detail){
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:6px;">'
     +'<div style="background:#EEF2FD;border-radius:8px;padding:9px 12px;">'
-    +'<p style="font-size:10px;color:var(--muted);margin-bottom:3px;">Allure AM</p>'
-    +'<p style="font-size:15px;font-weight:700;color:var(--blue);">'+am+' /km</p>'
+    +'<p style="font-size:10px;color:var(--muted);margin-bottom:3px;">Allure '+raceLabel+'</p>'
+    +'<p style="font-size:15px;font-weight:700;color:var(--blue);">'+racePace+' /km</p>'
     +'</div>'
     +'<div style="background:#F0FDF4;border-radius:8px;padding:9px 12px;" id="long-duration-box">'
     +'<p style="font-size:10px;color:#3B6D11;margin-bottom:3px;">Durée estimée</p>'
@@ -360,7 +397,10 @@ function buildLongModalHtml(detail){
     +'</div>'
     +'</div>'
     +'</div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'+'<p style="font-size:10px;font-weight:800;color:#534AB7;text-transform:uppercase;letter-spacing:0.1em;">🗓 Organisation de la séance</p>'+'</div>'+'<div id="long-blocks" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>'+'<div id="long-blocks-total" style="font-size:13px;font-weight:800;padding:10px 14px;border-radius:12px;border:2px solid;margin-bottom:10px;"></div>'+'<button onclick="addLongBlock()" style="width:100%;padding:11px;background:var(--bg);border:2px dashed #534AB750;border-radius:12px;font-size:13px;font-weight:700;color:#534AB7;cursor:pointer;">+ Ajouter un bloc</button>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><p style="font-size:10px;font-weight:800;color:#534AB7;text-transform:uppercase;letter-spacing:0.1em;">🗓 Organisation de la séance</p></div>'
+    +'<div id="long-blocks" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>'
+    +'<div id="long-blocks-total" style="font-size:13px;font-weight:800;padding:10px 14px;border-radius:12px;border:2px solid;margin-bottom:10px;"></div>'
+    +'<button onclick="addLongBlock()" style="width:100%;padding:11px;background:var(--bg);border:2px dashed #534AB750;border-radius:12px;font-size:13px;font-weight:700;color:#534AB7;cursor:pointer;">+ Ajouter un bloc</button>'
     +'<input type="hidden" id="long-blocks-data" value="'+blocksJson+'">'
     +'</div>';
 }
