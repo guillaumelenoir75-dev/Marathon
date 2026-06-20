@@ -289,7 +289,10 @@ function renderAthleteCoachView(userData, uid, name){
   } else {
     html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0;">Plan — ${weeks.length} semaines</p>
-      <button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer le plan</button>
+      <div style="display:flex;gap:6px;">
+        <button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>
+        <button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>
+      </div>
     </div>`;
     weeks.forEach(w=>{
       const wd=weekData[w];
@@ -322,6 +325,70 @@ function renderAthleteCoachView(userData, uid, name){
   const nextW=(weeks.length>0?Math.max(...weeks):0)+1;
   html+=`<button onclick="cvAddWeek(${nextW})" style="width:100%;padding:13px;background:#fff;border:1.5px dashed #1B4FD8;border-radius:12px;font-size:13px;font-weight:600;color:#1B4FD8;cursor:pointer;margin-bottom:24px;">+ Ajouter une semaine (S${nextW})</button>`;
   body.innerHTML=html;
+}
+
+// ── Mise à jour du plan athlète (conserve les séances déjà réalisées) ────────
+async function cvRegeneratePlan(){
+  const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
+  if(!hasPlan){ alert('Aucun plan à mettre à jour.'); return; }
+
+  await new Promise(resolve=>{
+    _showConfirmModal({
+      icon:'🔄',
+      title:`Mettre à jour le plan de ${_adminPreviewName||'cet athlète'} ?`,
+      message:'Les séances déjà réalisées seront conservées. Les séances à venir seront recalculées avec les dernières améliorations du programme.',
+      confirmLabel:'Mettre à jour',
+      confirmStyle:'background:#0C447C;color:#fff;',
+      onConfirm:resolve,
+    });
+  });
+
+  // Onboarding de l'athlète
+  let ob=state.onboarding;
+  if(typeof ob==='string'){try{ob=JSON.parse(ob);}catch(e){ob={};}}
+  ob=ob||{};
+  if(!ob.course){ alert('Données onboarding introuvables.'); return; }
+
+  // Générer le nouveau plan avec les mêmes paramètres
+  const newPlan=generateAthletePlan(ob);
+
+  // Identifier les sessions déjà réalisées (clés extra_wN_sM avec _done=true)
+  const doneSessionKeys=new Set(
+    Object.keys(state)
+      .filter(k=>/^extra_w\d+_s\d+_done$/.test(k)&&state[k])
+      .map(k=>k.replace(/_done$/,''))
+  );
+
+  const newSessionKeys=new Set(Object.keys(newPlan).filter(k=>/^extra_w\d+_s\d+$/.test(k)));
+  const updates={};
+
+  // 1. Toutes les clés meta/config du nouveau plan (plan_version, meta_w*, plan_config…)
+  Object.keys(newPlan).forEach(k=>{
+    if(!/^extra_w\d+_s\d+$/.test(k)) updates[k]=newPlan[k];
+  });
+
+  // 2. Sessions du nouveau plan : écrire seulement si PAS déjà réalisée
+  newSessionKeys.forEach(k=>{
+    if(!doneSessionKeys.has(k)) updates[k]=newPlan[k];
+  });
+
+  // 3. Supprimer les anciennes sessions non-réalisées absentes du nouveau plan
+  Object.keys(state).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
+    if(!newSessionKeys.has(k)&&!doneSessionKeys.has(k)) updates[k]=null;
+  });
+
+  await dbRef.update(updates).catch(e=>alert('Erreur : '+e.message));
+
+  // Mettre à jour le state local
+  Object.keys(updates).forEach(k=>{
+    if(updates[k]===null) delete state[k];
+    else state[k]=updates[k];
+  });
+
+  const nbUpdated=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
+  const nbKept=doneSessionKeys.size;
+  _refreshAthleteCoachView();
+  alert(`✅ Plan mis à jour !\n${nbUpdated} séances recalculées · ${nbKept} séance${nbKept>1?'s':''} réalisée${nbKept>1?'s':''} conservée${nbKept>1?'s':''}.`);
 }
 
 // ── Suppression du plan athlète ───────────────────────────────────────────────
