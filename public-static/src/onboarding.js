@@ -278,6 +278,7 @@ function _initObTargetTime(){
         onTargetTimeInput();
       }
     }
+  }
 }
 
 function clearTargetTime(){
