@@ -327,6 +327,59 @@ function renderAthleteCoachView(userData, uid, name){
   body.innerHTML=html;
 }
 
+// ── Helper : construit les updates de régénération de plan ───────────────────
+// Décale les clés du nouveau plan pour ne jamais écraser les semaines déjà réalisées.
+// Exemple : si w1 est done (15 juin), le nouveau plan (22 juin) sera stocké à partir de w2.
+function _buildPlanUpdates(st, newPlan){
+  // Semaines déjà réalisées
+  const doneSessionKeys=new Set(
+    Object.keys(st).filter(k=>/^extra_w\d+_s\d+_done$/.test(k)&&st[k])
+      .map(k=>k.replace(/_done$/,''))
+  );
+  // Numéro de semaine max parmi les done (0 si aucune)
+  const maxDoneWeek=doneSessionKeys.size>0
+    ?Math.max(...[...doneSessionKeys].map(k=>parseInt(k.match(/extra_w(\d+)/)?.[1])||0))
+    :0;
+
+  // Décaler toutes les clés numérotées du nouveau plan (extra_wN_*, meta_wN)
+  const shift=maxDoneWeek;
+  const shiftedPlan={};
+  Object.keys(newPlan).forEach(k=>{
+    const m=k.match(/^(extra_w|meta_w)(\d+)(.*)$/);
+    if(m){
+      shiftedPlan[`${m[1]}${parseInt(m[2])+shift}${m[3]}`]=newPlan[k];
+    } else {
+      // plan_config : mettre à jour numWeeks pour refléter done + nouveau
+      if(k==='plan_config'){
+        try{
+          const cfg=typeof newPlan[k]==='string'?JSON.parse(newPlan[k]):newPlan[k];
+          cfg.numWeeks=(cfg.numWeeks||0)+shift;
+          shiftedPlan[k]=JSON.stringify(cfg);
+        }catch(e){shiftedPlan[k]=newPlan[k];}
+      } else {
+        shiftedPlan[k]=newPlan[k];
+      }
+    }
+  });
+
+  const shiftedSessionKeys=new Set(Object.keys(shiftedPlan).filter(k=>/^extra_w\d+_s\d+$/.test(k)));
+  const updates={};
+
+  // 1. Clés meta/config (plan_version, plan_config, meta_wN décalés…)
+  Object.keys(shiftedPlan).forEach(k=>{
+    if(!/^extra_w\d+_s\d+$/.test(k)) updates[k]=shiftedPlan[k];
+  });
+  // 2. Sessions du nouveau plan (décalées) : toujours écrire — elles ne chevauchent plus les done
+  shiftedSessionKeys.forEach(k=>{ updates[k]=shiftedPlan[k]; });
+  // 3. Supprimer les anciennes sessions non-réalisées absentes du plan décalé
+  Object.keys(st).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
+    if(!doneSessionKeys.has(k)&&!shiftedSessionKeys.has(k)) updates[k]=null;
+  });
+
+  const nbUpdated=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
+  return {updates, nbUpdated, nbKept:doneSessionKeys.size};
+}
+
 // ── Mise à jour du plan athlète (conserve les séances déjà réalisées) ────────
 async function cvRegeneratePlan(){
   const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
@@ -343,50 +396,16 @@ async function cvRegeneratePlan(){
     });
   });
 
-  // Onboarding de l'athlète
   let ob=state.onboarding;
   if(typeof ob==='string'){try{ob=JSON.parse(ob);}catch(e){ob={};}}
   ob=ob||{};
   if(!ob.course){ alert('Données onboarding introuvables.'); return; }
 
-  // Générer le nouveau plan avec les mêmes paramètres
   const newPlan=generateAthletePlan(ob);
-
-  // Identifier les sessions déjà réalisées (clés extra_wN_sM avec _done=true)
-  const doneSessionKeys=new Set(
-    Object.keys(state)
-      .filter(k=>/^extra_w\d+_s\d+_done$/.test(k)&&state[k])
-      .map(k=>k.replace(/_done$/,''))
-  );
-
-  const newSessionKeys=new Set(Object.keys(newPlan).filter(k=>/^extra_w\d+_s\d+$/.test(k)));
-  const updates={};
-
-  // 1. Toutes les clés meta/config du nouveau plan (plan_version, meta_w*, plan_config…)
-  Object.keys(newPlan).forEach(k=>{
-    if(!/^extra_w\d+_s\d+$/.test(k)) updates[k]=newPlan[k];
-  });
-
-  // 2. Sessions du nouveau plan : écrire seulement si PAS déjà réalisée
-  newSessionKeys.forEach(k=>{
-    if(!doneSessionKeys.has(k)) updates[k]=newPlan[k];
-  });
-
-  // 3. Supprimer les anciennes sessions non-réalisées absentes du nouveau plan
-  Object.keys(state).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
-    if(!newSessionKeys.has(k)&&!doneSessionKeys.has(k)) updates[k]=null;
-  });
+  const {updates,nbUpdated,nbKept}=_buildPlanUpdates(state,newPlan);
 
   await dbRef.update(updates).catch(e=>alert('Erreur : '+e.message));
-
-  // Mettre à jour le state local
-  Object.keys(updates).forEach(k=>{
-    if(updates[k]===null) delete state[k];
-    else state[k]=updates[k];
-  });
-
-  const nbUpdated=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
-  const nbKept=doneSessionKeys.size;
+  Object.keys(updates).forEach(k=>{ if(updates[k]===null) delete state[k]; else state[k]=updates[k]; });
   _refreshAthleteCoachView();
 
   // Modal de succès
@@ -475,16 +494,9 @@ async function adminUpdateAllPlans(){
         if(typeof ob==='string'){try{ob=JSON.parse(ob);}catch(e){ob={};}}
         if(!ob||!ob.course){nbSkipped++;continue;}
 
-        // Générer le nouveau plan
+        // Générer le nouveau plan et construire les updates (décalage automatique)
         const newPlan=generateAthletePlan(ob);
-        const doneKeys=new Set(Object.keys(st).filter(k=>/^extra_w\d+_s\d+_done$/.test(k)&&st[k]).map(k=>k.replace(/_done$/,'')));
-        const newSessionKeys=new Set(Object.keys(newPlan).filter(k=>/^extra_w\d+_s\d+$/.test(k)));
-        const updates={};
-        Object.keys(newPlan).forEach(k=>{if(!/^extra_w\d+_s\d+$/.test(k)) updates[k]=newPlan[k];});
-        newSessionKeys.forEach(k=>{if(!doneKeys.has(k)) updates[k]=newPlan[k];});
-        Object.keys(st).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
-          if(!newSessionKeys.has(k)&&!doneKeys.has(k)) updates[k]=null;
-        });
+        const {updates,nbUpdated:nu,nbKept:nk}=_buildPlanUpdates(st,newPlan);
 
         // Écrire en DB via dbAdmin
         const writeResp=await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -492,8 +504,8 @@ async function adminUpdateAllPlans(){
         const writeData=await writeResp.json();
         if(writeData.error) throw new Error(writeData.error);
 
-        totalUpdated+=Object.values(updates).filter(v=>v!==null&&/^\{/.test(String(v))).length;
-        totalKept+=doneKeys.size;
+        totalUpdated+=nu;
+        totalKept+=nk;
         nbDone++;
       } catch(e){nbErrors++;console.warn('adminUpdateAllPlans: erreur pour '+u.uid, e);}
     }
