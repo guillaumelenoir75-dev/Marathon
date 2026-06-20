@@ -215,7 +215,7 @@ function generateAthletePlan(ob){
     });
   }
   // Semaine de pic de charge (avant application du taper)
-  const peakWeekNum=weekKms.indexOf(Math.max(...weekKms))+1;
+  const peakWeekNum=weekKms.lastIndexOf(Math.max(...weekKms))+1;
 
   // ── Calcul des allures (Jack Daniels VDOT) ────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
