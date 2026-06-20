@@ -2,6 +2,16 @@ let _obStep=0;
 let _obData={course:null,date:null,sessions:null,niveau:null,km_semaine:null,generate_plan:null};
 let _obEditMode=false;
 let _obSaving=false; // garde contre double-save
+const _OB_SESS_MIN={
+  'Semi-marathon':{Débutant:2,Intermédiaire:3,Confirmé:3},
+  'Marathon':     {Débutant:3,Intermédiaire:3,Confirmé:3},
+};
+const _OB_KM_MIN_WARN={
+  'Marathon':     {Débutant:15,Intermédiaire:25,Confirmé:40},
+  'Semi-marathon':{Débutant:10,Intermédiaire:20,Confirmé:30},
+  '10 km':        {Débutant:5, Intermédiaire:10,Confirmé:20},
+  '5 km':         {Débutant:5, Intermédiaire:8, Confirmé:15},
+};
 
 function showOnboarding(editMode){
   _obEditMode=!!editMode;
@@ -91,7 +101,7 @@ function obDateChanged(){
   const m=document.getElementById('ob-date-month')?.value;
   const y=document.getElementById('ob-date-year')?.value;
   const errEl=document.getElementById('ob-date-error');
-  const minWByCourse={Plaisir:8,'5 km':8,'10 km':8,'Semi-marathon':10,'Marathon':12};
+  const minWByCourse={Plaisir:8,'5 km':6,'10 km':8,'Semi-marathon':10,'Marathon':14};
   if(d&&m&&y){
     const chosen=new Date(y+'-'+m+'-'+d);
     const now=new Date(); now.setHours(0,0,0,0);
@@ -135,6 +145,8 @@ function _obGoTo(step){
   // Initialiser l'étape jours avec la bonne limite
   if(step===5) setTimeout(initObDaysStep, 0);
   if(step===8) setTimeout(_initObTargetTime, 0);
+  if(step===2) setTimeout(_obCheckAndShowSessionsConstraint,0);
+  if(step===3) setTimeout(_obCheckAndShowNiveauConstraint,0);
   // Step 2 (sessions) : chip 1 visible uniquement pour Découverte ; chips 3,4 masquées pour Découverte
   if(step===2){
     const isDecouv=_obData.niveau==='Découverte';
@@ -192,6 +204,15 @@ function onboardingSelect(field,val){
     document.querySelectorAll('[id^="ob-'+field+'-"]').forEach(el=>el.classList.remove('selected'));
     const c=document.getElementById('ob-'+field+'-'+val);
     if(c) c.classList.add('selected');
+    if(field==='sessions'||field==='course'){
+      if(_obCheckAndShowSessionsConstraint()) return;
+    }
+    if(field==='niveau'){
+      if(_obCheckAndShowNiveauConstraint()) return;
+    }
+    if(field==='km_semaine'){
+      if(_obCheckAndShowKmConstraint(val)) return;
+    }
     setTimeout(()=>onboardingNext(),220);
   }
   const next=document.getElementById('ob-btn-next');
@@ -307,21 +328,19 @@ function onTargetTimeInput(){
 }
 
 function onKmCustomInput(val){
-  const km = parseInt(val);
-  const warn = document.getElementById('ob-km-sessions-warn');
-  if(km > 0 && km <= 300){
-    _obData.km_semaine = String(km);
-    const next = document.getElementById('ob-btn-next');
-    if(next){ next.disabled=false; next.style.opacity='1'; }
-    // Avertissement si volume trop élevé pour le nb de séances choisi
-    const sess = parseInt(_obData.sessions)||3;
-    const over = (sess<=2 && km>40) || (sess===3 && km>55);
-    if(warn) warn.style.display = over ? 'block' : 'none';
+  const km=parseInt(val);
+  if(km>0&&km<=300){
+    _obData.km_semaine=String(km);
+    const isBlock=_obCheckAndShowKmConstraint(km);
+    const next=document.getElementById('ob-btn-next');
+    if(!isBlock&&next){next.disabled=false;next.style.opacity='1';}
   } else {
     delete _obData.km_semaine;
-    const next = document.getElementById('ob-btn-next');
-    if(next){ next.disabled=true; next.style.opacity='0.4'; }
-    if(warn) warn.style.display='none';
+    const next=document.getElementById('ob-btn-next');
+    if(next){next.disabled=true;next.style.opacity='0.4';}
+    ['ob-km-plaisir-block','ob-km-base-warn'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.style.display='none';
+    });
   }
 }
 
@@ -534,6 +553,114 @@ function toggleObDay(dayIdx){
     _obData.run_days.push(dayIdx);
   }
   _updateObDaysUI();
+}
+
+function _obCheckAndShowSessionsConstraint(){
+  const errEl=document.getElementById('ob-sessions-constraint');
+  const course=_obData.course;
+  const sess=parseInt(_obData.sessions)||0;
+  let msg=null;
+  if(course==='Marathon'&&sess>0&&sess<3){
+    msg=`⚠️ Préparer un marathon nécessite au minimum 3 séances par semaine, quel que soit ton niveau. Avec ${sess} séance${sess>1?'s':''}, le corps n'a pas assez de stimuli pour s'adapter correctement — le risque de blessure ou d'abandon le jour J est très élevé. Choisis 3 ou 4 séances.`;
+  } else if(course==='Semi-marathon'&&sess===1){
+    msg=`⚠️ Un semi-marathon nécessite au minimum 2 séances par semaine pour une préparation sécurisée. Avec 1 séance, le corps ne peut pas s'adapter à la distance. Choisis 2 séances ou plus.`;
+  }
+  if(errEl){
+    if(msg){errEl.textContent=msg;errEl.style.display='block';}
+    else errEl.style.display='none';
+  }
+  if(msg){
+    const next=document.getElementById('ob-btn-next');
+    if(next){next.disabled=true;next.style.opacity='0.4';}
+    return true;
+  }
+  return false;
+}
+
+function _obCheckAndShowNiveauConstraint(){
+  const errEl=document.getElementById('ob-niveau-constraint');
+  const course=_obData.course;
+  const niveau=_obData.niveau;
+  const sess=parseInt(_obData.sessions)||0;
+  let msg=null;
+  if(course&&niveau&&sess){
+    const minMap=_OB_SESS_MIN[course];
+    if(minMap){
+      const minSess=minMap[niveau]||0;
+      if(minSess>0&&sess<minSess){
+        const courseName=course==='Semi-marathon'?'semi-marathon':course;
+        if(niveau==='Débutant'){
+          msg=`⚠️ Pour finir un ${courseName} en tant que Débutant, il faut au minimum ${minSess} séance${minSess>1?'s':''} par semaine. Avec seulement ${sess} séance${sess>1?'s':''}, le corps n'aura pas le temps de s'adapter à la distance — risque de blessure élevé. Reviens en arrière et choisis ${minSess} séances ou plus.`;
+        } else {
+          msg=`⚠️ Pour viser un chrono sur ${courseName} (niveau ${niveau}), il faut au minimum ${minSess} séances par semaine. Les séances qualité (tempo, fractionné) + la sortie longue ne peuvent pas tenir en ${sess} séance${sess>1?'s':''}. Reviens en arrière et sélectionne ${minSess} séances ou plus.`;
+        }
+      }
+    }
+  }
+  if(errEl){
+    if(msg){errEl.textContent=msg;errEl.style.display='block';}
+    else errEl.style.display='none';
+  }
+  if(msg){
+    const next=document.getElementById('ob-btn-next');
+    if(next){next.disabled=true;next.style.opacity='0.4';}
+    return true;
+  }
+  return false;
+}
+
+function _obCheckAndShowKmConstraint(kmVal){
+  const blockEl=document.getElementById('ob-km-plaisir-block');
+  const warnEl=document.getElementById('ob-km-base-warn');
+  const course=_obData.course;
+  const niveau=_obData.niveau;
+  const sess=parseInt(_obData.sessions)||3;
+  const km=parseInt(kmVal)||parseInt(_obData.km_semaine)||0;
+  if(blockEl) blockEl.style.display='none';
+  if(warnEl) warnEl.style.display='none';
+  if(!km) return false;
+  if(course==='Plaisir'){
+    const maxKm=sess*10;
+    if(km>maxKm){
+      const needed=Math.ceil(km/10);
+      const msg=`🚫 Avec ${sess} séance${sess>1?'s':''}/semaine, le volume maximum pour un plan plaisir est de ${maxKm} km/semaine (soit ${sess}×10 km max par séance). Dépasser ce seuil avec peu de séances expose à un risque élevé de surmenage et de blessure. Soit tu augmentes à ${needed} séances, soit tu réduis ton volume à ${maxKm} km maximum.`;
+      if(blockEl){blockEl.textContent=msg;blockEl.style.display='block';}
+      const next=document.getElementById('ob-btn-next');
+      if(next){next.disabled=true;next.style.opacity='0.4';}
+      return true;
+    }
+  }
+  if(course&&niveau&&_OB_KM_MIN_WARN[course]){
+    const minKm=_OB_KM_MIN_WARN[course][niveau]||0;
+    if(minKm>0&&km<minKm){
+      const courseName=course==='Semi-marathon'?'semi-marathon':course;
+      const msg=`💡 Pour préparer un ${courseName} niveau ${niveau}, un volume de base d'au moins ${minKm} km/semaine est recommandé. Avec ${km} km actuellement, le plan sera adapté mais la progression sera plus exigeante. Tu peux continuer, mais envisage de choisir un niveau inférieur ou d'allonger la durée de préparation.`;
+      if(warnEl){warnEl.textContent=msg;warnEl.style.display='block';}
+    }
+  }
+  return false;
+}
+
+function onObEfPaceChange(){
+  const minEl=document.getElementById('ob-ef-min');
+  const secEl=document.getElementById('ob-ef-sec');
+  const warnEl=document.getElementById('ob-ef-niveau-warn');
+  if(!warnEl) return;
+  const m=parseInt(minEl?.value)||0;
+  const s=parseInt(secEl?.value)||0;
+  if(!m){warnEl.style.display='none';return;}
+  const paceSec=m*60+s;
+  const niveau=_obData.niveau;
+  let msg=null;
+  if(niveau==='Confirmé'&&paceSec>450){
+    msg=`💡 Ton allure EF de ${m}'${String(s).padStart(2,'0')}/km est plutôt celle d'un coureur Intermédiaire (allure Confirmé = généralement < 7'30"/km). Si c'est bien ton allure de confort actuelle, un plan Intermédiaire sera mieux calibré à ta réalité.`;
+  } else if(niveau==='Débutant'&&paceSec<330){
+    msg=`💡 Ton allure EF de ${m}'${String(s).padStart(2,'0')}/km (< 5'30"/km) est rapide pour un Débutant. Si c'est ton allure de confort habituelle, tu es peut-être Intermédiaire — un plan adapté à ton vrai niveau sera plus efficace et plus stimulant.`;
+  } else if(niveau==='Intermédiaire'&&paceSec<270){
+    msg=`💡 Ton allure EF de ${m}'${String(s).padStart(2,'0')}/km (< 4'30"/km) est celle d'un coureur Confirmé. Si c'est bien ton allure de confort, un plan Confirmé sera plus adapté à ta performance.`;
+  }
+  if(msg){warnEl.textContent=msg;warnEl.style.display='block';}
+  else warnEl.style.display='none';
 }
 
 async function saveOnboarding(){

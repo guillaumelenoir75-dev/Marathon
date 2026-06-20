@@ -492,6 +492,7 @@
         <button onclick="onboardingSelect('sessions','3')" class="ob-chip ob-chip-sm" id="ob-sessions-3">3</button>
         <button onclick="onboardingSelect('sessions','4')" class="ob-chip ob-chip-sm" id="ob-sessions-4">4</button>
       </div>
+      <p id="ob-sessions-constraint" style="display:none;font-size:13px;color:#C4141B;font-weight:600;margin-top:14px;background:#fff0f0;padding:12px 14px;border-radius:10px;line-height:1.5;"></p>
     </div>
     <div id="ob-step-3" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 4 / 9</p>
@@ -502,6 +503,7 @@
         <button onclick="onboardingSelect('niveau','Intermédiaire')" class="ob-chip" id="ob-niveau-Intermédiaire">🔥 Intermédiaire — quelques courses</button>
         <button onclick="onboardingSelect('niveau','Confirmé')" class="ob-chip" id="ob-niveau-Confirmé">🏆 Confirmé — objectif chrono</button>
       </div>
+      <p id="ob-niveau-constraint" style="display:none;font-size:13px;color:#C4141B;font-weight:600;margin-top:14px;background:#fff0f0;padding:12px 14px;border-radius:10px;line-height:1.5;"></p>
     </div>
     <div id="ob-step-4" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 5 / 9</p>
@@ -522,6 +524,8 @@
           <p id="ob-km-sessions-warn" style="display:none;font-size:13px;color:#E8530A;font-weight:600;margin-top:8px;background:#FFF5EC;padding:10px 14px;border-radius:10px;">⚠️ Pour ce volume, ajoute une séance supplémentaire — le plan sera mieux réparti et moins risqué.</p>
         </div>
       </div>
+      <p id="ob-km-plaisir-block" style="display:none;font-size:13px;color:#C4141B;font-weight:600;margin-top:14px;background:#fff0f0;padding:12px 14px;border-radius:10px;line-height:1.5;"></p>
+      <p id="ob-km-base-warn" style="display:none;font-size:13px;color:#5C6C00;font-weight:600;margin-top:10px;background:#FFFDE7;padding:12px 14px;border-radius:10px;line-height:1.5;border:1px solid #E6D800;"></p>
     </div>
     <div id="ob-step-5" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 9</p>
@@ -550,12 +554,13 @@
         <div id="ob-ef-input-wrap" style="display:none;background:#fff;border-radius:14px;padding:16px;border:2px solid #1B4FD8;">
           <p style="font-size:13px;font-weight:600;color:#1B4FD8;margin-bottom:10px;">Allure EF (min/km)</p>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input id="ob-ef-min" type="number" min="3" max="9" placeholder="5" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
+            <input id="ob-ef-min" type="number" min="3" max="9" placeholder="5" oninput="onObEfPaceChange()" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
             <span style="font-size:20px;font-weight:700;color:#555;">:</span>
-            <input id="ob-ef-sec" type="number" min="0" max="59" placeholder="00" oninput="if(parseInt(this.value)>59)this.value=59;if(parseInt(this.value)<0)this.value=0;" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
+            <input id="ob-ef-sec" type="number" min="0" max="59" placeholder="00" oninput="if(parseInt(this.value)>59)this.value=59;if(parseInt(this.value)<0)this.value=0;onObEfPaceChange();" style="width:64px;padding:10px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;color:#1a1a1a;background:#f8faff;">
             <span style="font-size:15px;color:#888;font-weight:600;">/km</span>
           </div>
         </div>
+        <p id="ob-ef-niveau-warn" style="display:none;font-size:13px;color:#5C6C00;font-weight:600;margin-top:10px;background:#FFFDE7;padding:12px 14px;border-radius:10px;line-height:1.5;border:1px solid #E6D800;"></p>
         <button onclick="onboardingSelectEf('oui')" class="ob-chip" id="ob-ef-oui">✅ Oui, je la connais</button>
         <button onclick="onboardingSelectEf('non')" class="ob-chip" id="ob-ef-non">⏭️ Non, pas encore</button>
         <p style="font-size:12px;color:#888;margin-top:4px;line-height:1.5;padding:0 4px;">Sans allure EF, les séances seront décrites sans indication de rythme. Tu pourras la renseigner plus tard dans les paramètres.</p>
