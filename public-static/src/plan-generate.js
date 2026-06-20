@@ -137,10 +137,18 @@ function generateAthletePlan(ob){
   const isPlaisir= course==='Plaisir';
 
   // ── Durée minimale recommandée par distance ───────────────────────────────────
-  // Durée minimale par distance (respecter les minima physiologiques)
-  const minW={Plaisir:24,'5 km':8,'10 km':8,'Semi-marathon':10,'Marathon':12}[course]||8;
+  // Synchronisé avec les contraintes onboarding (obDateChanged) : minima ajustés par nombre de séances
+  const minW=(()=>{
+    if(isPlaisir) return 8;
+    if(course==='5 km') return 6;
+    if(course==='10 km') return nbSess<=2?10:8;
+    if(course==='Semi-marathon') return nbSess<=2?14:nbSess===3?10:8;
+    if(course==='Marathon') return nbSess<=2?18:nbSess===3?14:12;
+    return 8;
+  })();
   const maxW=24; // 6 mois max
-  let numWeeks=minW;
+  // Plaisir sans date : 16 semaines par défaut (un semestre), min 8
+  let numWeeks=isPlaisir?16:minW;
   if(ob.date){
     const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
     if(diff>0) numWeeks=Math.min(Math.max(diff,minW),maxW);
@@ -179,10 +187,12 @@ function generateAthletePlan(ob){
   // taperStartW calculé ici pour que recovery ne chevauche jamais le taper
   const taperStartW=taperCfg.w>0?numWeeks-taperCfg.w+1:numWeeks+1;
 
-  // ── Semaines de décharge — pattern 3:1 (Higdon/Daniels) ─────────────────────
-  // Plans courts (≤12s) ou Plaisir → période de 3 semaines (plus de variation)
-  // Les semaines de taper sont exclues pour éviter une double réduction de volume
-  const recovPeriod=(isPlaisir||baseKm<15||numWeeks<=12)?3:4;
+  // ── Semaines de décharge — pattern 3:1 / 4:1 ────────────────────────────────
+  // Débutant : toujours 3:1 (corps en apprentissage, récupération fréquente nécessaire)
+  // Intermédiaire : 3:1 standard
+  // Confirmé : 4:1 (supporte des blocs de charge plus longs)
+  // Plaisir : toujours 3:1 (priorité à la régularité sur la performance)
+  const recovPeriod=niveau==='Confirmé'&&!isPlaisir&&numWeeks>12?4:3;
   const recovery=new Set();
   for(let w=recovPeriod;w<=numWeeks;w+=recovPeriod){
     if(w<taperStartW) recovery.add(w);
@@ -216,6 +226,10 @@ function generateAthletePlan(ob){
   }
   // Semaine de pic de charge (avant application du taper)
   const peakWeekNum=weekKms.lastIndexOf(Math.max(...weekKms))+1;
+
+  // Course test intermédiaire : marathon ≥ 14 semaines, semaine ~55% du plan
+  // Permet d'évaluer la forme à mi-préparation (semi-marathon ou 10km selon séances)
+  const testRaceWeek=(course==='Marathon'&&numWeeks>=14&&!isPlaisir)?Math.round(numWeeks*0.55):0;
 
   // ── Calcul des allures (Jack Daniels VDOT) ────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
@@ -444,30 +458,36 @@ function generateAthletePlan(ob){
     const note=isRecov
       ?' · semaine décharge : durée réduite, allure légèrement inférieure — récupérer sans perdre les acquis'
       :isTaper?' · affûtage : qualité maintenue, volume réduit':'';
-    const body=`3 km EF · ${rep}×${dur} min ${pStr}${pDesc} · ${tempoFCStr}${note}`;
+    const body=`15 min EF · ${rep}×${dur} min ${pStr}${pDesc} · ${tempoFCStr}${note}`;
     return isBlock
-      ?`Tempo décharge ${rep}×${dur} min|${body} · EF de fin`
-      :`Tempo ${isRecov?'décharge ':''}${rep}×${dur} min|${body} · récup ${recup} min trot · EF de fin`;
+      ?`Tempo décharge ${rep}×${dur} min|${body} · 10-15 min retour au calme EF`
+      :`Tempo ${isRecov?'décharge ':''}${rep}×${dur} min|${body} · récup ${recup} min trot · 10-15 min retour au calme EF`;
   };
 
-  // Fractionné VO2max
-  // isRecov : séance de décharge — reps réduites, allure légèrement inférieure
+  // Fractionné — court (≤2 min) = vitesse/neuromusculaire · long (≥3 min) = VO₂max
+  // isRecov : décharge — reps réduites, allure légèrement inférieure
   const descFrac=(fp,isTaper=false,isRecov=false)=>{
     const {rep,dur,recup}=fp;
-    const pDesc={'5 km':'VMA / allure 5km','10 km':'VO₂max / allure 5-10km','Semi-marathon':'VO₂max','Marathon':'VO₂max'}[course]||'VO₂max';
+    const isShort=dur<=2;
+    const sessionTitle=isShort?'Fractionné court (vitesse)':'Fractionné VO₂max';
+    const pDesc=isShort
+      ?'VMA / stimulation neuromusculaire'
+      :({'5 km':'VMA / allure 5km','10 km':'VO₂max / allure 5-10km','Semi-marathon':'VO₂max','Marathon':'VO₂max'}[course]||'VO₂max');
     const pLbl=isRecov&&fracRecovLbl?fracRecovLbl:fracLbl;
     const pStr=pLbl?(fracMinLbl&&!isRecov?`${fracMinLbl}–${pLbl}/km · `:`${pLbl}/km · `):'';
     const note=isRecov
       ?' · décharge : reps réduites, allure légèrement inférieure — maintenir les sensations sans se fatiguer'
       :isTaper?' · affûtage : vivacité maintenue':'';
-    return `Fractionné ${isRecov?'décharge ':''}${rep}×${dur} min|3 km EF · ${rep}×${dur} min ${pStr}${pDesc} · récup ${recup} min trot · ${fracFCStr}${note} · EF de fin`;
+    const shortHint=isShort?' · accent sur la cadence et l\'économie de foulée':'';
+    const title=isRecov?'Fractionné décharge':sessionTitle;
+    return `${title} ${rep}×${dur} min|15 min EF · ${rep}×${dur} min ${pStr}${pDesc} · récup ${recup} min trot · ${fracFCStr}${note}${shortHint} · 10-15 min retour au calme EF`;
   };
 
   // Côtes — progressive selon la phase (court → moyen → long)
   const descCotes=(phase)=>{
-    if(phase===1) return `Séance côtes|3 km EF · 8×(20 sec montée vive + descente trot) · renforcement musculaire, foulée puissante, posture · EF de fin`;
-    if(phase===2) return `Côtes progressives|3 km EF · 5×(25 sec côte + descente récup) → 4×(35 sec côte + descente) · progression de l'effort, chaîne postérieure · EF de fin`;
-    return `Côtes longues|3 km EF · 6×(45 sec côte soutenue + descente active récup) · endurance musculaire, puissance aérobie, force de finisseur · EF de fin`;
+    if(phase===1) return `Séance côtes|15 min EF · 8×(20 sec montée vive + descente trot) · renforcement musculaire, foulée puissante, posture · 10 min retour au calme EF`;
+    if(phase===2) return `Côtes progressives|15 min EF · 5×(25 sec côte + descente récup) → 4×(35 sec côte + descente) · progression de l'effort, chaîne postérieure · 10 min retour au calme EF`;
+    return `Côtes longues|15 min EF · 6×(45 sec côte soutenue + descente active récup) · endurance musculaire, puissance aérobie, force de finisseur · 10 min retour au calme EF`;
   };
 
   // Footing avec accélérations — 3 niveaux selon la phase du plan
@@ -546,11 +566,14 @@ function generateAthletePlan(ob){
       4:['tempo'],
     },
   };
-  // Phase du plan — durée Phase 1 fixe selon le niveau (indépendante de la durée du plan)
-  // Débutant   : 7 semaines de base → qualité démarre autour de S08
-  // Intermédiaire : 4 semaines → qualité démarre autour de S05
-  // Confirmé   : 2 semaines → qualité démarre dès S03
-  const p1Weeks={Débutant:7,Intermédiaire:4,Confirmé:2}[niveau]||4;
+  // Phase du plan — durée Phase 1 proportionnelle au plan (évite 7/14 sem = 50% en base pour Débutant court)
+  // Débutant   : ~40% du plan (min 4, max 8 sem)
+  // Intermédiaire : ~28% du plan (min 2, max 6 sem)
+  // Confirmé   : ~18% du plan (min 1, max 4 sem)
+  const p1Ratio={Débutant:0.40,Intermédiaire:0.28,Confirmé:0.18}[niveau]||0.28;
+  const p1Min ={Débutant:4,Intermédiaire:2,Confirmé:1}[niveau]||2;
+  const p1MaxW={Débutant:8,Intermédiaire:6,Confirmé:4}[niveau]||6;
+  const p1Weeks=Math.max(p1Min,Math.min(p1MaxW,Math.round(numWeeks*p1Ratio)));
   const getPhase=(w)=>{
     if(w>=taperStartW) return 4;
     const p1End=Math.min(p1Weeks, taperStartW-4); // garde au moins 4 semaines de qualité
@@ -629,6 +652,19 @@ function generateAthletePlan(ob){
     const longSFloor=Math.max(sFloor,5); // sortie longue : minimum réaliste 5 km
     const capLong=(base)=>Math.min(Math.max(base,longSFloor),longRunCap);
 
+    // Course test intermédiaire (marathon ≥ 14 sem) — remplace la sortie longue cette semaine
+    const isTestRaceWeek=testRaceWeek>0&&w===testRaceWeek&&!isRecov;
+    const buildLongSession=(km,ph,rec,specIdx)=>{
+      if(isTestRaceWeek){
+        const testDist=nbSess>=3?21:10;
+        const testPaceLbl=racePaceSec?fmtPace(Math.round(racePaceSec*(testDist===21?0.95:0.90))):null;
+        const d=`🏁 Course test ${testDist===21?'semi-marathon':'10 km'}|${testDist} km · ${testPaceLbl?'allure indicative '+testPaceLbl+'/km pour évaluer ta forme':'courir à l\'effort, jauger tes sensations'}${racePaceLbl?' · référence marathon : '+racePaceLbl+'/km':''} · bilan précieux sur ta progression à mi-plan`;
+        return {d,km:testDist,type:'race',shoe:null};
+      }
+      const d=isLastPlaisirWeek?bilanDesc:descLong(km,ph,rec,specIdx);
+      return {d,km,type:'long',shoe:null};
+    };
+
     // Métadonnées de semaine (phase, décharge, pic) — lues par plan-render pour les badges
     updates[`meta_w${w}`]=JSON.stringify({phase,isRecov,isPeak:w===peakWeekNum,isTaper});
 
@@ -689,7 +725,7 @@ function generateAthletePlan(ob){
         const use2sStrides=phase>=2&&!isRecov&&!isTaper;
         s0={d:use2sStrides?descEFStrides():descEF(),km:kEF,type:'ef',shoe:null};
       }
-      sessions=[s0,{d:dL,km:kL,type:'long',shoe:null}];
+      sessions=[s0,buildLongSession(kL,phase,isRecov,specWeekIndex)];
 
     } else if(nbSess===3){
       if(hasQuality){
@@ -701,7 +737,7 @@ function generateAthletePlan(ob){
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
           q?{d:q.d,km:kQ,type:q.type,shoe:null}:{d:descEF(),km:kQ,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,false,specWeekIndex),km:kL,type:'long',shoe:null},
+          buildLongSession(kL,phase,false,specWeekIndex),
         ];
       } else {
         // Phase 1 ou décharge : 2 EF + longue
@@ -712,7 +748,7 @@ function generateAthletePlan(ob){
           {d:isRecov?descEFRecov():descEF(),km:k1,type:'ef',shoe:null},
           // Phase 1 : accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k2,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,specWeekIndex),km:kL,type:'long',shoe:null},
+          buildLongSession(kL,phase,isRecov,specWeekIndex),
         ];
       }
 
@@ -741,7 +777,7 @@ function generateAthletePlan(ob){
           {d:dEF,km:kEF,type:'ef',shoe:null},
           sQ2, // 2ème qualité en 1er (plus légère) pour permettre récupération avant Q1
           sQ1, // 1ère qualité principale
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,specWeekIndex),km:kL,type:'long',shoe:null},
+          buildLongSession(kL,phase,isRecov,specWeekIndex),
         ];
       } else {
         // Phase 1 ou décharge : 3 EF + longue (long run ≥35% volume)
@@ -755,7 +791,7 @@ function generateAthletePlan(ob){
           {d:descEF(),km:k2,type:'ef',shoe:null},
           // Accélérations selon seuil niveau (Débutant S04, Intermédiaire S02, Confirmé S01)
           {d:useStridesP1?descEFStrides():descEF(),km:k3,type:'ef',shoe:null},
-          {d:isLastPlaisirWeek?bilanDesc:descLong(kL2,phase,isRecov,specWeekIndex),km:kL2,type:'long',shoe:null},
+          buildLongSession(kL2,phase,isRecov,specWeekIndex),
         ];
       }
     }
