@@ -358,7 +358,7 @@ function _obGoTo(step){
   if(step===2) setTimeout(_obCheckAndShowSessionsConstraint,0);
   if(step===3) setTimeout(_obCheckAndShowNiveauConstraint,0);
   if(step===8) setTimeout(_obCheckAndShowTargetTimeConstraint,0);
-  if(step===8) setTimeout(_obShowRecap,0);
+  // Le recap s'affiche uniquement après saisie du temps cible (via onTargetTimeInput)
   if(step===8){
     const _npInfo=document.getElementById('ob-no-plan-info');
     if(_npInfo) _npInfo.style.display=_obData.generate_plan==='non'?'block':'none';
