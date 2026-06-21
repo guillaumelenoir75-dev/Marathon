@@ -1132,6 +1132,7 @@ function _obShowRecap(){
       + '</div></div>';
   }
 
+  el.style.display='block';
   el.innerHTML=`<div style="background:linear-gradient(135deg,#1B4FD8,#0C447C);border-radius:14px;padding:16px;margin-bottom:16px;color:#fff;">
     <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;opacity:0.7;margin-bottom:12px;">✅ Récapitulatif</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
