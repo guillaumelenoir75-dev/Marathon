@@ -1267,6 +1267,102 @@ async function _appendWeatherMessageAfterBrief() {
   saveCoachHistory();
 }
 
+async function generateWeeklyBilanComplet(memos) {
+  let seancesFaites = 0, seancesTotal = 0, kmFaits = 0, kmPlan = 0, seancesManquees = [], seancesFaitesDetail = [];
+  weeks[CW-1].sessions.forEach((sess,si) => {
+    if(state['del_w'+CW+'_s'+si]) return;
+    if(sess.type === 'rest') return;
+    seancesTotal++;
+    kmPlan += sess.km;
+    const done = !!state[gk(CW,si)+'done'];
+    let perf=null;try{perf=state[gk(CW,si)+'perf']?JSON.parse(state[gk(CW,si)+'perf']):null;}catch(e){}
+    if(done){
+      seancesFaites++;
+      kmFaits += state[gk(CW,si)+'km']||sess.km;
+      seancesFaitesDetail.push({type:sess.type,titre:sess.d.split('|')[0],km:state[gk(CW,si)+'km']||sess.km,allure:perf?perf.pace:null,fc:perf?perf.hr:null});
+    } else seancesManquees.push(sess.d.split('|')[0]);
+  });
+  {let ei=0;while(ei<=20&&state[`extra_w${CW}_s${ei}`]){
+    let es;try{es=JSON.parse(state[`extra_w${CW}_s${ei}`]);}catch(e){ei++;continue;}
+    if(!es){ei++;continue;}
+    if(es.type!=='rest'&&es.km>0){
+      seancesTotal++;
+      kmPlan+=es.km;
+      if(state[`extra_w${CW}_s${ei}_done`]){
+        seancesFaites++;
+        const ekm=state[`extra_w${CW}_s${ei}_km`]||es.km;
+        let eperf=null;try{eperf=state[`extra_w${CW}_s${ei}_perf`]?JSON.parse(state[`extra_w${CW}_s${ei}_perf`]):null;}catch(e){}
+        kmFaits+=ekm;
+        seancesFaitesDetail.push({type:es.type,titre:es.d.split('|')[0],km:ekm,allure:eperf?eperf.pace:null,fc:eperf?eperf.hr:null,extra:true});
+      }
+    }
+    ei++;
+  }}
+  const todayStr = new Date().toISOString().slice(0,10);
+  const contextBilan = {
+    semaine: CW,
+    type_semaine: [8,12,16,20,26,30].includes(CW) ? 'DÉCHARGE' : 'CHARGE',
+    date_marathon: '18 octobre 2026',
+    semaines_restantes: 32-CW,
+    semi_marathon: CW >= 20 ? {date:'07/09/2026', semaine:27, km:21, semaines_avant:27-CW} : undefined,
+    seances_faites: seancesFaites,
+    seances_total: seancesTotal,
+    km_faits: Math.round(kmFaits*10)/10,
+    km_plan: kmPlan,
+    seances_manquees: seancesManquees,
+    detail_seances: seancesFaitesDetail,
+    renfo_semaine: [1,2].filter(r=>!!state[rfk(CW,r)+'done']).length + '/2 renfo faits',
+    semaine_suivante: CW < 32 ? {numero:CW+1,km:getWeekTotalKm(CW+1),type:[8,12,16,20,26,30].includes(CW+1)?'DÉCHARGE':'CHARGE',nb_seances:weeks[CW].sessions.length} : null,
+    allure_ef_semaine: getBestEfPace(),
+    prediction_marathon: buildPredictionForCoach(),
+    allure_marathon_cible: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })(),
+    temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
+    fc_repos: state['fc_repos'] || 51,
+    fc_repos_context: buildFcReposContext(),
+    chaussures: (()=>{try{return getShoes().map(sh=>({name:sh.name,km:sh.km||0,max:sh.max||600}));}catch(e){return null;}})(),
+    memos: memos||undefined,
+    seances_supprimees: (()=>{const d=[];weeks[CW-1].sessions.forEach((s,si)=>{if(state['del_w'+CW+'_s'+si])d.push(s.d.split('|')[0]);});return d.length?d:null;})(),
+    seances_recentes_detail: (()=>{try{const detail=[];for(let ws=CW; ws>=1; ws--){weeks[ws-1].sessions.forEach((sess,si)=>{const k=gk(ws,si);if(!state[k+"done"]) return;const perf=state[k+"perf"]?JSON.parse(state[k+"perf"]):{};const st=perf.strava||null;detail.push({semaine:ws,type:sess.type,titre:sess.d.split("|")[0],date:perf.date||null,km:state[k+"km"]||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,blocs_tempo:perf.blocsAllure||null,strava:st?{cadence_moy:st.cadence||st.cadence_moy||null,fc_max:st.fcMax||st.fc_max||null,denivele_pos:st.denivele_pos!=null?st.denivele_pos:null,best_400m:st.best_400m||null,calories:st.calories||null}:null});});let ei=0;while(ei<=20&&state["extra_w"+ws+"_s"+ei]){if(state["extra_w"+ws+"_s"+ei+"_done"]){const es=JSON.parse(state["extra_w"+ws+"_s"+ei]);const perf=state["extra_w"+ws+"_s"+ei+"_perf"]?JSON.parse(state["extra_w"+ws+"_s"+ei+"_perf"]):{};detail.push({semaine:ws,type:es.type,titre:es.d.split("|")[0],extra:true,date:perf.date||null,km:state["extra_w"+ws+"_s"+ei+"_km"]||es.km,allure:perf.pace||null,fc_moy:perf.hr||null});}ei++;}}return detail.slice(0,30);}catch(e){return[];}})(),
+    resume_dernieres_semaines: (()=>{try{const rs=[];for(let ws=Math.max(1,CW-8);ws<CW;ws++){const sess=[];let kF=0,kP=0;weeks[ws-1].sessions.forEach((s,si)=>{if(state['del_w'+ws+'_s'+si])return;const k=gk(ws,si);const done=!!state[k+'done'];const p=state[k+'perf']?JSON.parse(state[k+'perf']):{};const kr=state[k+'km']!=null?state[k+'km']:s.km;if(done)kF+=kr;kP+=s.km;sess.push(s.type+(done?(' '+kr+'km'+(p.pace?'@'+p.pace:'')+(p.hr?'FC'+p.hr:'')):(ws<CW?' NON_FAITE':' à_faire')));});rs.push({semaine:ws,type:[8,12,16,20,26,30].includes(ws)?'DÉCHARGE':'CHARGE',km_fait:Math.round(kF*10)/10,km_plan:Math.round(kP*10)/10,seances:sess.join('|')});}return rs;}catch(e){return[];}})(),
+    allure_ef_actuelle: getBestEfPace(),
+    consignes_ef_semaine: [8,12,16,20,26,30].includes(CW)?'DÉCHARGE — récup prioritaire':'NORMALE — '+getBestEfPace()+'/km FC 140-148',
+    absences_semaine: state['absences_cw'+CW]||null,
+    infos_importantes_Guillaume: memos||undefined
+  };
+  setCoachUnread();
+  addCoachMessage('coach', 'Bilan complet de ta semaine S'+CW+' en cours...');
+  try {
+    const h = await authHeaders(true);
+    const response = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/weeklyReport', {method:'POST', headers:h, body:JSON.stringify({contextBilan})});
+    if(!response.ok || !response.body) throw new Error('HTTP '+response.status);
+    const container = document.getElementById('coach-messages');
+    const lastMsg = container ? container.lastElementChild : null;
+    const textEl = lastMsg ? lastMsg.querySelector('[data-coach-text]') : null;
+    if(textEl) textEl.textContent = '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText='', displayedText='', tokenQueue=[], streamDone=false, buf='';
+    const MS=18;
+    function flushBilan(){
+      if(tokenQueue.length>0){const b=tokenQueue.length>20?3:1;for(let i=0;i<b&&tokenQueue.length>0;i++)displayedText+=tokenQueue.shift();if(textEl)textEl.textContent=fixAccents(displayedText);if(container)container.scrollTop=container.scrollHeight;}
+      if(!streamDone||tokenQueue.length>0)setTimeout(flushBilan,MS);
+      else if(textEl)textEl.innerHTML=renderCoachText(fixAccents(fullText));
+    }
+    setTimeout(flushBilan,MS);
+    while(true){const {done,value}=await reader.read();if(done)break;buf+=decoder.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.startsWith('data: '))continue;const data=line.slice(6).trim();if(data==='[DONE]')continue;try{const p=JSON.parse(data);if(p.token){fullText+=p.token;for(const c of p.token)tokenQueue.push(c);}}catch(e){}}}
+    streamDone=true;
+    if(fullText){
+      coachHistory.push({role:'assistant', content:fullText, date:todayStr});
+      saveCoachHistory();
+    }
+  } catch(e) {
+    const container=document.getElementById('coach-messages');
+    const lastMsg=container?container.lastElementChild:null;
+    const textEl=lastMsg?lastMsg.querySelector('[data-coach-text]'):null;
+    if(textEl) textEl.textContent='Bonne semaine S'+CW+' ! '+seancesFaites+'/'+seancesTotal+' séances réalisées.';
+  }
+}
+
 async function loadCoachHistory(){
   const container = document.getElementById('coach-messages');
   if(!container){
@@ -1364,6 +1460,8 @@ async function loadCoachHistory(){
         }
         // ── Message météo asynchrone (pendant que l'utilisateur lit le brief) ──
         if (_pendingType === 'morning_brief') _appendWeatherMessageAfterBrief();
+        // ── Bilan complet après le résumé push weekly_debrief ──
+        if (_pendingType === 'weekly_debrief') setTimeout(() => generateWeeklyBilanComplet(_memos), 1500);
       }
       return;
     }
