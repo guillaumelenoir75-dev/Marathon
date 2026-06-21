@@ -1236,8 +1236,9 @@ function _obShowRecap(){
 </div>`;
   }
 
-  // Build SVG progression chart
+  // Build SVG progression chart — calcule le pic réel pour l'afficher aussi dans le récap
   let _chartHtml = '';
+  let _realPeakKm = _peakKm; // fallback si pas de km_semaine
   if (_obData.km_semaine) {
     const today2 = new Date(); today2.setHours(0,0,0,0);
     const race2 = _obData.date ? new Date(_obData.date) : null;
@@ -1248,6 +1249,7 @@ function _obShowRecap(){
     const peakKm2 = Math.round(baseKm2 * mult2);
     const wks = _obEstimateWeekProgression(numWeeks2, baseKm2, peakKm2);
     const maxKm = Math.max.apply(null, wks);
+    _realPeakKm = maxKm;
     const svgH = 60;
     const barW = Math.max(4, Math.floor(280 / numWeeks2) - 1);
     const taperW2 = numWeeks2 >= 12 ? 2 : 1;
@@ -1266,7 +1268,7 @@ function _obShowRecap(){
       + '<div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">📊 Progression hebdomadaire estimée</div>'
       + '<svg viewBox="0 0 '+numWeeks2*(barW+1)+' '+svgH+'" style="width:100%;height:'+svgH+'px;display:block;">'+bars+'</svg>'
       + '<div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;margin-top:4px;">'
-      + '<span>S1 : '+wks[0]+' km</span><span>Pic : '+peakKm2+' km</span><span>Race 🏁</span>'
+      + '<span>S1 : '+wks[0]+' km</span><span>Pic : '+maxKm+' km</span><span>Race 🏁</span>'
       + '</div></div>';
   }
 
@@ -1291,7 +1293,7 @@ function _obShowRecap(){
       </div>
       <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;grid-column:1/-1;">
         <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">📈 Volume de pointe estimé</p>
-        <p style="font-size:14px;font-weight:800;">${_peakKm} km/sem.</p>
+        <p style="font-size:14px;font-weight:800;">${_realPeakKm} km/sem.</p>
       </div>
     </div>
     <div style="background:rgba(255,255,255,0.18);border-radius:10px;padding:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.3);">
