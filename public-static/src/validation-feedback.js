@@ -468,7 +468,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     const done = extra ? !!state['extra_w'+CW+'_s'+ei+'_done'] : !!state[gk(CW,si)+'done'];
     if(done) return;
     const edRaw = !extra && state['edit_w'+CW+'_s'+si];
-    const ed = edRaw ? JSON.parse(edRaw) : null;
+    let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
     const titre = ed ? ed.d.split('|')[0] : s2.d.split('|')[0];
     const detail = ed ? (ed.d.split('|')[1]||'') : (s2.d.split('|')[1]||'');
     const type = ed ? ed.type : s2.type;
@@ -502,7 +502,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     weeks[CW].sessions.slice(0, 3-seancesAVenir.length).forEach((sess,si)=>{
       // Lire les éditions de la semaine suivante aussi
       const edRawNext = state['edit_w'+(CW+1)+'_s'+si];
-      const edNext = edRawNext ? JSON.parse(edRawNext) : null;
+      let edNext=null;try{edNext=edRawNext?JSON.parse(edRawNext):null;}catch(e){}
       const titreNext = edNext ? edNext.d.split('|')[0] : sess.d.split('|')[0];
       const typeNext = edNext ? edNext.type : sess.type;
       const kmNext = edNext ? edNext.km : sess.km;

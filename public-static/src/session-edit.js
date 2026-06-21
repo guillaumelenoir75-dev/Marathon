@@ -325,7 +325,7 @@ function saveEdit(ws, si){
     for(let w=ws+1;w<=32;w++){
       weeks[w-1].sessions.forEach((s2,si2)=>{
         if(s2.type==='tempo'){
-          const existing=state[`edit_w${w}_s${si2}`]?JSON.parse(state[`edit_w${w}_s${si2}`]):s2;
+          let existing=s2;try{if(state[`edit_w${w}_s${si2}`])existing=JSON.parse(state[`edit_w${w}_s${si2}`]);}catch(e){}
           const existingDetail=existing.d.split('|')[1]||'';
           state[`edit_w${w}_s${si2}`]=JSON.stringify({...existing,d:`Tempo ${reps}×${dur} min${existingDetail?'|'+existingDetail:''}`});
         }
@@ -337,7 +337,7 @@ function saveEdit(ws, si){
     for(let w=ws+1;w<=32;w++){
       weeks[w-1].sessions.forEach((s2,si2)=>{
         if(s2.type==='tempo'){
-          const existing=state[`edit_w${w}_s${si2}`]?JSON.parse(state[`edit_w${w}_s${si2}`]):s2;
+          let existing=s2;try{if(state[`edit_w${w}_s${si2}`])existing=JSON.parse(state[`edit_w${w}_s${si2}`]);}catch(e){}
           const existingTitle=existing.d.split('|')[0];
           state[`edit_w${w}_s${si2}`]=JSON.stringify({...existing,d:`${existingTitle}|${detail}`});
         }
@@ -911,12 +911,12 @@ function saveExtraEdit(ws, ei){
     // EF — lire depuis le pace picker (exedit-ef-pace), format identique à saveEdit
     const efPaceEl=document.getElementById('exedit-ef-pace');
     const efPaceStr=efPaceEl?efPaceEl.value.trim():'';
-    const existing3=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
+    let existing3={};try{existing3=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
     name=existing3.d.split('|')[0]||'Footing EF';
     detail=efPaceStr?efPaceStr+'/km':'';  // même format que saveEdit
   }
   const d=detail?`${name}|${detail}`:name;
-  const existing2 = JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
+  let existing2={};try{existing2=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
   const updatedExtra = {d, km, type, shoe};
   // Sauvegarder le créneau depuis le formulaire (buildSchedFieldsHtml génère sched-day/sched-hour/sched-min)
   const newSchedDay = parseInt((document.getElementById('sched-day')||{}).value)||undefined;

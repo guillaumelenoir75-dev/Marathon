@@ -3,7 +3,7 @@ function buildCoachChartData(type) {
   for(let ws=Math.max(1,CW-11); ws<=CW; ws++) {
     weeks[ws-1].sessions.forEach((sess,si) => {
       if(!state[gk(ws,si)+'done']) return;
-      const perf = state[gk(ws,si)+'perf'] ? JSON.parse(state[gk(ws,si)+'perf']) : null;
+      let perf=null;try{perf=state[gk(ws,si)+'perf']?JSON.parse(state[gk(ws,si)+'perf']):null;}catch(e){}
       if(!perf) return;
       if(type==='ef' && (sess.type==='ef'||sess.type==='long') && perf.pace) {
         const sec=paceStrToSec(perf.pace.replace("'",":"));
@@ -131,7 +131,7 @@ function sendNextRun(){
       if(state['del_w'+ws+'_s'+si]) return;
       if(state[gk(ws,si)+'done']) return;
       const edRaw = state['edit_w'+ws+'_s'+si];
-      const ed = edRaw ? JSON.parse(edRaw) : null;
+      let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
       const schedDay = ed ? ed.sched_day : null;
       if(ws === CW && schedDay && schedDay < todaySched) return;
       nextSession = {
@@ -271,7 +271,7 @@ async function sendCoachMessage(retryMsg){
         let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
         if(!es){ei++;continue;}
         const done=!!state[`extra_w${ws}_s${ei}_done`];
-        const perfExtra=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):null;
+        let perfExtra=null;try{perfExtra=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):null;}catch(e){}
         weekSessions.push({type:es.type,titre:es.d.split('|')[0],extra:true,kmPlan:es.km,chaussures:es.shoe||null,done,kmRealise:done?(state[`extra_w${ws}_s${ei}_km`]||null):null,perf:perfExtra});
         ei++;
       }
@@ -391,14 +391,14 @@ async function sendCoachMessage(retryMsg){
         return;
       }
       const edRaw=state['edit_w'+CW+'_s'+si];
-      const ed=edRaw?JSON.parse(edRaw):null;
+      let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
       const schedDay=(ed&&ed.sched_day)||s.sched_day;
       if(!schedDay) return;
       if(schedDay===todayDayNum&&!state[gk(CW,si)+'done'])
         seancesAujourdhui.push({type:(ed&&ed.type)||s.type,titre:ed&&ed.d?ed.d.split('|')[0]:s.d.split('|')[0],km:(ed&&ed.km)||s.km,heure:(ed&&ed.sched_time)||s.sched_time||null});
     });
     [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].forEach(rd=>{
-      const sched=state[rfk(CW,rd.r)+'sched']?JSON.parse(state[rfk(CW,rd.r)+'sched']):null;
+      let sched=null;try{sched=state[rfk(CW,rd.r)+'sched']?JSON.parse(state[rfk(CW,rd.r)+'sched']):null;}catch(e){}
       if(sched&&sched.day===todayDayNum&&!state[rfk(CW,rd.r)+'done'])
         seancesAujourdhui.push({type:'renfo',titre:'Renfo '+rd.name,heure:sched.time||null});
     });
@@ -420,7 +420,7 @@ async function sendCoachMessage(retryMsg){
         const done=extra?!!state['extra_w'+CW+'_s'+ei+'_done']:!!state[gk(CW,si)+'done'];
         if(done)return;
         const edRaw=!extra&&state['edit_w'+CW+'_s'+si];
-        const ed=edRaw?JSON.parse(edRaw):null;
+        let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
         const titre=ed?ed.d.split('|')[0]:s2.d.split('|')[0];
         const type=ed?ed.type:s2.type; const km=ed?ed.km:s2.km;
         const jourC=ed&&ed.sched_day?joursC[ed.sched_day]:'';
@@ -631,7 +631,7 @@ async function extractAndSaveMemosWithContext(extraMessages) {
       weeks[ws-1].sessions.forEach((sess,si) => {
         const dk = gk(ws,si);
         if(!state[dk+'done']) return;
-        const perf = state[dk+'perf'] ? JSON.parse(state[dk+'perf']) : {};
+        let perf={};try{perf=state[dk+'perf']?JSON.parse(state[dk+'perf']):{}}catch(e){}
         const parts = [];
         if(perf.pace) parts.push('allure:'+perf.pace+'/km');
         if(perf.hr) parts.push('FC:'+perf.hr+'bpm');
@@ -684,7 +684,7 @@ async function extractAndSaveMemos(){
       weeks[ws-1].sessions.forEach((sess,si) => {
         const dk = gk(ws,si);
         if(!state[dk+'done']) return;
-        const perf = state[dk+'perf'] ? JSON.parse(state[dk+'perf']) : {};
+        let perf={};try{perf=state[dk+'perf']?JSON.parse(state[dk+'perf']):{}}catch(e){}
         const parts = [];
         if(perf.pace) parts.push('allure:'+perf.pace+'/km');
         if(perf.hr) parts.push('FC:'+perf.hr+'bpm');
@@ -739,7 +739,7 @@ async function generateFullBriefFromNotif(memos) {
     weeks[CW-1].sessions.forEach((sess, si) => {
       if(sess.type === 'rest' || state['del_w'+CW+'_s'+si]) return;
       const edRaw = state['edit_w'+CW+'_s'+si];
-      const ed = edRaw ? JSON.parse(edRaw) : null;
+      let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
       const done = !!state[gk(CW,si)+'done'];
       if(done) return;
       const schedDay = (ed && ed.sched_day) || null;
@@ -763,7 +763,7 @@ async function generateFullBriefFromNotif(memos) {
     // ── Ajouter le renfo d'aujourd'hui s'il est planifié ──
     const renfoAujourdHui = [];
     [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].forEach(rd => {
-      const sched = state[rfk(CW,rd.r)+'sched'] ? JSON.parse(state[rfk(CW,rd.r)+'sched']) : null;
+      let sched=null;try{sched=state[rfk(CW,rd.r)+'sched']?JSON.parse(state[rfk(CW,rd.r)+'sched']):null;}catch(e){}
       if(sched && sched.day === todaySched && !state[rfk(CW,rd.r)+'done'])
         renfoAujourdHui.push({type:'renfo', titre:'Renfo '+rd.name, heure: sched.time||'', km: null});
     });
@@ -1019,7 +1019,7 @@ async function checkMorningBrief(memos, force) {
       if(found) return;
       const k = gk(ws,si);
       if(!state[k+'done']) return;
-      const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       derniereSeanceInfo = {
         type: sess.type,
         titre: sess.d.split('|')[0],
@@ -1399,7 +1399,7 @@ async function loadCoachHistory(){
         weeks[CW-1].sessions.forEach((sess,si) => {
           if(state['del_w'+CW+'_s'+si]) return;
           const edRaw = state['edit_w'+CW+'_s'+si];
-          const ed = edRaw ? JSON.parse(edRaw) : null;
+          let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
           const titre = ed ? ed.d.split('|')[0] : sess.d.split('|')[0];
           const km = ed ? ed.km : sess.km;
           const jour = (ed && ed.sched_day) ? jours[ed.sched_day] : '';
@@ -1517,7 +1517,7 @@ async function loadCoachHistory(){
           seancesTotal++;
           kmPlan += sess.km;
           const done = !!state[gk(CW,si)+'done'];
-          const perf = state[gk(CW,si)+'perf'] ? JSON.parse(state[gk(CW,si)+'perf']) : null;
+          let perf=null;try{perf=state[gk(CW,si)+'perf']?JSON.parse(state[gk(CW,si)+'perf']):null;}catch(e){}
           if(done){
             seancesFaites++;
             kmFaits += state[gk(CW,si)+'km']||sess.km;
@@ -1534,7 +1534,7 @@ async function loadCoachHistory(){
             if(state[`extra_w${CW}_s${ei}_done`]){
               seancesFaites++;
               const ekm=state[`extra_w${CW}_s${ei}_km`]||es.km;
-              const eperf=state[`extra_w${CW}_s${ei}_perf`]?JSON.parse(state[`extra_w${CW}_s${ei}_perf`]):null;
+              let eperf=null;try{eperf=state[`extra_w${CW}_s${ei}_perf`]?JSON.parse(state[`extra_w${CW}_s${ei}_perf`]):null;}catch(e){}
               kmFaits+=ekm;
               seancesFaitesDetail.push({type:es.type,titre:es.d.split('|')[0],km:ekm,allure:eperf?eperf.pace:null,fc:eperf?eperf.hr:null,extra:true});
             }

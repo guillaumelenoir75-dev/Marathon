@@ -27,7 +27,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           renfoStatus: [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].map(rd=>{
             const done=!!state[rfk(CW,rd.r)+'done'];
             const schedRaw=state[rfk(CW,rd.r)+'sched'];
-            const sched=schedRaw?JSON.parse(schedRaw):null;
+            let sched=null;try{sched=schedRaw?JSON.parse(schedRaw):null;}catch(e){}
             const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
             const quand=sched&&sched.day?jours[sched.day]+(sched.time?' à '+sched.time:''):'non planifié';
             return `${rd.name}: ${done?'✓ fait':'à faire ('+quand+')'}`;
@@ -44,7 +44,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
               const done=extra?!!state['extra_w'+CW+'_s'+ei+'_done']:!!state[gk(CW,si)+'done'];
               if(done)return;
               const edRaw=!extra&&state['edit_w'+CW+'_s'+si];
-              const ed=edRaw?JSON.parse(edRaw):null;
+              let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
               const titre=ed?ed.d.split('|')[0]:s2.d.split('|')[0];
               const type=ed?ed.type:s2.type; const km=ed?ed.km:s2.km;
               const jourC=ed&&ed.sched_day?joursC[ed.sched_day]:'';
@@ -570,7 +570,7 @@ async function importFromStravaForPerfEdit(ws, si) {
 
 function _showStravaPickerForPerfEdit(activities, ws, si) {
   const k = gk(ws, si);
-  const prev = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+  let prev={};try{prev=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
   const sessionDate = prev.date || ''; // YYYY-MM-DD
 
   // Trier par proximité de date avec la séance
@@ -621,7 +621,7 @@ function _showStravaPickerForPerfEdit(activities, ws, si) {
 
 function _applyStravaToPerfEdit(activity, ws, si) {
   const k = gk(ws, si);
-  const existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+  let existing={};try{existing=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
   const s = getSession(ws, si);
 
   // Construire les données Strava

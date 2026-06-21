@@ -1123,7 +1123,7 @@ function renderPlan(){
             ${(()=>{
               if(isDone){
                 const perfRaw = extra ? state[`extra_w${w.s}_s${eid}_perf`] : state[gk(w.s,si)+'perf'];
-                const perf2 = perfRaw ? JSON.parse(perfRaw) : {};
+                let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{};}catch(e){}
                 const rp = perf2.pace || null;
                 const rd = perf2.dur || null;
                 const parts=[];
