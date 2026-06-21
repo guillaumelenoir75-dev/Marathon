@@ -33,7 +33,7 @@ function openEditModal(ws, si){
     // Extraire l'allure depuis le detail existant
     const paceMatch2 = detail.match(/(\d+)[':](\d+)/);
     const efPaceVal = paceMatch2 ? paceMatch2[1]+":"+paceMatch2[2] : getBestEfPace()||'6:40';
-    const ed2 = state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};
+    let ed2={};try{ed2=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};}catch(e){}
     // Allures suggérées (plage EF Guillaume)
     const efPaces = ["6:25","6:20","6:15","6:10","6:05","6:00","5:55","5:50","5:45","5:40","5:35","5:30"];
     const paceChips = efPaces.map(p=>`<button type="button" id="pace-chip-${p.replace(':','-')}" onclick="selectEfPace('${p}')" style="padding:7px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all 0.15s;">${p}</button>`).join('');
@@ -128,7 +128,7 @@ function openEditModal(ws, si){
       ${s.type==='tempo'||s.type==='frac'||s.type==='long'?`
       <div class="modal-section" style="background:linear-gradient(135deg,#EEF2FD,#E8EDFF);">
         <div class="modal-section-label" style="color:#1B4FD8;">📅 Planification</div>
-        ${(()=>{const ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}
+        ${(()=>{let ed={};try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):{};}catch(e){}return buildSchedFieldsHtml(ed.sched_day||'',ed.sched_time||'');})()}
       </div>`:''}
 
       <!-- Champs principaux (tempo/long/ef) -->
@@ -382,7 +382,7 @@ function getWeekSessions(ws){
   });
   let ei=0;
   while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-    result.push({...JSON.parse(state[`extra_w${ws}_s${ei}`]),_si:'x'+ei,_extra:true,_ei:ei});
+    try{result.push({...JSON.parse(state[`extra_w${ws}_s${ei}`]),_si:'x'+ei,_extra:true,_ei:ei});}catch(e){}
     ei++;
   }
   return result;
@@ -757,8 +757,8 @@ function onExEditTypeChange(){
 }
 
 function openEditExtraModal(ws, ei){
-  const s=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
-  const parts=s.d.split('|');
+  let s={};try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
+  const parts=(s.d||'').split('|');
   const title=parts[0], detail=parts[1]||'';
   const mc=document.getElementById('modal-container');
   const shoeOptions=getShoeOptions(s.shoe);
@@ -887,8 +887,8 @@ function saveExtraEdit(ws, ei){
   const shoe=document.getElementById('exedit-shoe').value||null;
   let name='', detail='';
   if(type==='long'){
-    const existing=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-    name=existing.d.split('|')[0]||'EF Long';
+    let existing={};try{existing=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
+    name=(existing.d||'').split('|')[0]||'EF Long';
     const blocks=getLongBlocksData();
     if(blocks.length>0){
       const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;

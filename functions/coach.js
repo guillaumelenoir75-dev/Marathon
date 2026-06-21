@@ -849,7 +849,8 @@ exports.morningBrief = onRequest(
     res.set('Access-Control-Allow-Origin','*');
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
-      const {context} = req.body;
+      const context = req.body?.context;
+      if(!context){ res.status(400).json({error:'context requis'}); return; }
 
       const system = `Tu es le coach running de Guillaume. Ta mission : rédiger le brief du matin, UNIQUEMENT sur la journée d'aujourd'hui.
 

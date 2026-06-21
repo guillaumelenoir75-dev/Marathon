@@ -81,7 +81,7 @@ exports.stravaCallback = onRequest(
       }, 15000);
       const tokenData = await tokenRes.json();
 
-      if (!tokenData.access_token) throw new Error('Token non reçu');
+      if (!tokenData.access_token) throw new Error('Token Strava: ' + (tokenData.message || tokenData.error || 'Token non reçu'));
 
       // Vérifie que l'UID est un utilisateur Firebase valide
       await admin.auth().getUser(uid);
