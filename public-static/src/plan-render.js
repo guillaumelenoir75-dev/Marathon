@@ -1016,7 +1016,8 @@ function renderPlan(){
       while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){
         if(state[`extra_w${w.s}_s${ei}_done`]){
           const rv=state[`extra_w${w.s}_s${ei}_km`];
-          const es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);
+          let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
+          if(!es){ei++;continue;}
           total += rv!=null ? parseFloat(rv) : es.km;
         }
         ei++;
@@ -1045,16 +1046,15 @@ function renderPlan(){
     // sessionMatch tolère les anciens formats (sans champ extra:false explicite)
     const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
 
-    const savedOrder = state[`order_w${w.s}`]
-      ? JSON.parse(state[`order_w${w.s}`]).filter(Boolean)  // filter nulls
-      : null;
+    let savedOrder=null;try{savedOrder=state[`order_w${w.s}`]?JSON.parse(state[`order_w${w.s}`]).filter(Boolean):null;}catch(e){}
     const orderedSessions = savedOrder
       ? savedOrder.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
       : [...baseOrder];
     // Ajouter les séances manquantes (ex: extra ajoutée après enregistrement de l'ordre)
     baseOrder.forEach(b=>{if(!orderedSessions.find(o=>sessionMatch(o,b)))orderedSessions.push(b);});
     orderedSessions.forEach(({si,extra,ei:eid})=>{
-      const s=extra?JSON.parse(state[`extra_w${w.s}_s${eid}`]):getSession(w.s,si);
+      let s;try{s=extra?JSON.parse(state[`extra_w${w.s}_s${eid}`]):getSession(w.s,si);}catch(e){return;}
+      if(!s)return;
       allSessions.push({s,si,extra,ei:eid});
     });
     const totalRows=allSessions.length;

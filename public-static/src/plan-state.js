@@ -189,8 +189,8 @@ function getBestEfPace(){
     // Séances extra EF
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-      if(es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
+      let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+      if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
         if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
           const sec=paceStrToSec(perf.pace);
@@ -347,8 +347,8 @@ function calcMarathonPace(){
     // Extra EF
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-      if(es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
+      let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+      if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
         if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
           const sec=paceStrToSec(perf.pace);
