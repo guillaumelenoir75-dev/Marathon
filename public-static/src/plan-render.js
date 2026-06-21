@@ -647,15 +647,29 @@ function renderAthletePlan(el){
   }
   const sortedWeeks=[...weekNums].sort((a,b)=>a-b);
 
-  // Trouver la semaine de course finale (type 'race' avec _isRace:true de préférence, sinon la dernière race du plan)
+  // Trouver la semaine de course finale : priorité 1) _isRace:true, 2) d contenant '🏆', 3) dernière race trouvée
   let raceWeekNum=null,raceSessionData=null;
+  let fallbackWeekNum=null,fallbackSessionData=null;
   for(const ws of sortedWeeks){
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      try{const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);if(s.type==='race'){if(s._isRace){raceWeekNum=ws;raceSessionData=s;}else if(!raceSessionData){raceWeekNum=ws;raceSessionData=s;}}}catch(e){}
+      try{
+        const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+        if(s.type==='race'){
+          if(s._isRace||(s.d&&s.d.includes('🏆'))){
+            // Race finale confirmée
+            raceWeekNum=ws;raceSessionData=s;
+          } else {
+            // Course test ou race sans flag — garder comme fallback (la dernière gagne)
+            fallbackWeekNum=ws;fallbackSessionData=s;
+          }
+        }
+      }catch(e){}
       ei++;
     }
   }
+  // Si aucune race finale confirmée, utiliser la dernière race du plan
+  if(!raceSessionData&&fallbackSessionData){raceWeekNum=fallbackWeekNum;raceSessionData=fallbackSessionData;}
   // Boutons de gestion du plan
   const actionBanner=document.createElement('div');
   actionBanner.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;';
