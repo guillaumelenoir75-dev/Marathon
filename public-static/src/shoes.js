@@ -109,10 +109,11 @@ function openShoeHistory(shoeName){
     });
     // séances extra
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
       if(s.shoe===shoeName && s.km>0){
-        sessions.push({title:s.d.split('|')[0],km:s.km,ws});
+        const kmReal=state[`extra_w${ws}_s${ei}_km`]!=null?state[`extra_w${ws}_s${ei}_km`]:s.km;
+        sessions.push({title:s.d.split('|')[0],km:kmReal,ws});
       }
       ei++;
     }

@@ -552,7 +552,7 @@ async function importFromStravaForPerfEdit(ws, si) {
           } else if(!d2.needsAuth) { clearInterval(check); if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }
         } catch(e) {}
       }, 2000);
-      setTimeout(() => clearInterval(check), 120000);
+      setTimeout(() => { clearInterval(check); if(authWin) authWin.close(); if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }, 120000);
       return;
     }
     if(!data.success || !data.activities || data.activities.length === 0) {

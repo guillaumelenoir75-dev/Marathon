@@ -988,7 +988,20 @@ function updateExEditEfPreview(){
 }
 
 function deleteExtra(ws, ei){
-  delete state[`extra_w${ws}_s${ei}`];
+  // Supprimer toutes les clés de la séance cible
+  const suffixes=['','_done','_km','_perf','_skip','_skip_reason'];
+  suffixes.forEach(suf=>delete state[`extra_w${ws}_s${ei}${suf}`]);
+  // Renuméroter les séances suivantes pour combler le trou
+  let i=ei+1;
+  while(i<=20&&state[`extra_w${ws}_s${i}`]!==undefined){
+    suffixes.forEach(suf=>{
+      const val=state[`extra_w${ws}_s${i}${suf}`];
+      if(val!==undefined){state[`extra_w${ws}_s${i-1}${suf}`]=val;}
+      else{delete state[`extra_w${ws}_s${i-1}${suf}`];}
+      delete state[`extra_w${ws}_s${i}${suf}`];
+    });
+    i++;
+  }
   save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
   if(_adminPreviewUid) _refreshAthleteCoachView();
 }

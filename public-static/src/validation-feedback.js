@@ -20,7 +20,7 @@ function getHistoricalComparison(type, pace, hr){
     });
     // Extra sessions du même type
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
       if(es.type===type&&state[`extra_w${ws}_s${ei}_done`]){
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
@@ -407,7 +407,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     });
     // Extra sessions
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       if(state[`extra_w${ws}_s${ei}_done`]){
         const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};

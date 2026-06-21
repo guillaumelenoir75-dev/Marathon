@@ -921,7 +921,7 @@ function moveExtraSession(ws,rowIdx,dir){
   const target=rowIdx+dir;
   if(target<0||target>=keys.length) return;
   // Échanger les deux séances (toutes leurs clés associées)
-  const suffixes=['','_done','_km','_perf'];
+  const suffixes=['','_done','_km','_perf','_skip','_skip_reason'];
   suffixes.forEach(suf=>{
     const a=state[`extra_w${ws}_s${rowIdx}${suf}`];
     const b=state[`extra_w${ws}_s${target}${suf}`];

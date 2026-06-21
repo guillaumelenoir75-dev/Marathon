@@ -761,13 +761,17 @@ async function cvSaveSession(){
 
 async function cvDeleteSession(w, si){
   if(!confirm('Supprimer cette séance ?')) return;
-  const key=`extra_w${w}_s${si}`;
-  delete _cvState[key];
+  const suffixesCv=['','_done','_km','_perf','_skip','_skip_reason'];
+  suffixesCv.forEach(suf=>delete _cvState[`extra_w${w}_s${si}${suf}`]);
   // Renuméroter les séances suivantes pour combler le trou
   let i=si+1;
-  while(_cvState[`extra_w${w}_s${i}`]){
-    _cvState[`extra_w${w}_s${i-1}`]=_cvState[`extra_w${w}_s${i}`];
-    delete _cvState[`extra_w${w}_s${i}`];
+  while(i<=20&&_cvState[`extra_w${w}_s${i}`]!==undefined){
+    suffixesCv.forEach(suf=>{
+      const val=_cvState[`extra_w${w}_s${i}${suf}`];
+      if(val!==undefined){_cvState[`extra_w${w}_s${i-1}${suf}`]=val;}
+      else{delete _cvState[`extra_w${w}_s${i-1}${suf}`];}
+      delete _cvState[`extra_w${w}_s${i}${suf}`];
+    });
     i++;
   }
   // Sauvegarder dans Firebase : réécrire tout le state de l'user

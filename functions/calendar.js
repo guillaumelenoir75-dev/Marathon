@@ -60,6 +60,7 @@ exports.calendar = onRequest(async (req, res) => {
   Object.keys(state).forEach(key => {
     const match = key.match(/^edit_w(\d+)_s(\d+)$/);
     if (!match) return;
+    if (state[`del_w${match[1]}_s${match[2]}`]) return;
     try {
       const session = JSON.parse(state[key]);
       if (!session.sched_day || !session.sched_time) return;

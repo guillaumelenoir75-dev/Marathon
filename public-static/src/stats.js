@@ -283,8 +283,7 @@ function renderStats(){
       });
       pr.innerHTML='';
       Object.entries(byMonth).forEach(([month,rows])=>{
-        const bonusKm=(month==='Mars')?17:0;
-        const totalKm=rows.reduce((a,r)=>a+Number(r.km),0)+bonusKm;
+        const totalKm=rows.reduce((a,r)=>a+Number(r.km),0);
         const hid='pm_'+month.replace(/[^a-zA-Z]/g,'_');
         const card=document.createElement('div');
         card.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;';
