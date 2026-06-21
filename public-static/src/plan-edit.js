@@ -37,7 +37,7 @@ function getOrderedWeekSessions(ws){
   let ei=0;
   while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
   const sessionMatch=(a,b)=>!!a.extra===!!b.extra&&(a.extra?a.ei===b.ei:a.si===b.si);
-  const savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]).filter(Boolean):null;
+  let savedOrder=null;try{savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]).filter(Boolean):null;}catch(e){}
   const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>sessionMatch(b,o))).filter(Boolean):[...baseOrder];
   // Add any new sessions not in saved order
   baseOrder.forEach(b=>{
@@ -65,7 +65,7 @@ function moveSession(ws, rowIdx, dir){
   // Utiliser baseOrder comme source de vérité pour les objets (structure normalisée)
   // sessionMatch tolère les anciens formats (sans champ extra:false explicite)
   const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
-  const savedRaw = state[orderKey] ? JSON.parse(state[orderKey]).filter(Boolean) : null;
+  let savedRaw=null;try{savedRaw=state[orderKey]?JSON.parse(state[orderKey]).filter(Boolean):null;}catch(e){}
   // Re-mapper sur baseOrder pour garantir la structure normalisée
   const current = savedRaw
     ? savedRaw.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
@@ -98,7 +98,7 @@ function scrollToCurrentWeek(){
 }
 
 function getRaceBlockInfo(){
-  const ob = state.onboarding ? (typeof state.onboarding === 'string' ? JSON.parse(state.onboarding) : state.onboarding) : {};
+  let ob={};try{ob=state.onboarding?(typeof state.onboarding==='string'?JSON.parse(state.onboarding):state.onboarding):{};}catch(e){}
   const course = ob.course || 'Marathon';
   const labelMap = {'5 km':'A5','10 km':'A10','Semi-marathon':'SEMI','Marathon':'AM'};
   const raceLabel = labelMap[course] || 'AM';
@@ -512,7 +512,7 @@ function savePerfEdit(ws, si){
   }
   if(Object.keys(perf).length>0) {
     // Merger avec l'existant pour ne pas perdre les données Strava
-    const existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+    let existing={};try{existing=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
     state[k+'perf'] = JSON.stringify({...existing, ...perf});
   }
   save();
@@ -604,7 +604,7 @@ function _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editP
 
 function openPerfEditExtraModal(ws, ei){
   const s = JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
-  const prev = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {};
+  let prev={};try{prev=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
   const title = (s.d||'').split('|')[0];
   const _hacc = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
   const _hcls = {ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'}[s.type]||'modal-header-default';

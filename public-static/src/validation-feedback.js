@@ -358,7 +358,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
         const minA=Math.floor(allureMoyAttendueSec/60);
         const secA=Math.round(allureMoyAttendueSec%60);
         // Récupérer les allures de blocs saisies
-        const blocsAllureSaisis=(idx!=null&&state[gk(CW,idx)+'perf'])?JSON.parse(state[gk(CW,idx)+'perf']).blocsAllure||[]:[];
+        let blocsAllureSaisis=[];try{if(idx!=null&&state[gk(CW,idx)+'perf'])blocsAllureSaisis=JSON.parse(state[gk(CW,idx)+'perf']).blocsAllure||[];}catch(e){}
 
         analysisContext.tempoDetail = {
           reps, dureeMin: durMin,
