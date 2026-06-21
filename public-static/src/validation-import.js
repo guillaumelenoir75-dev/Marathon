@@ -209,7 +209,7 @@ async function importMeteoValidation() {
     const { lat, lng } = pos;
     const [city, meteo] = await Promise.all([
       _getCityFromCoords(lat, lng),
-      fetchWeatherForContext(null, null)
+      fetchWeatherForContext(lat, lng)
     ]);
 
     if (!meteo) {

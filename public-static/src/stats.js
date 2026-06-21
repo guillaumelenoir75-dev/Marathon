@@ -131,7 +131,7 @@ function renderStats(){
     const r10 = state['record_10km'];
     b10.textContent = r10 ? r10 + ' 10km' : '— 10km';
   }
-  const sb=document.getElementById('shoes-bars');sb.innerHTML='';
+  const sb=document.getElementById('shoes-bars');if(!sb) return;sb.innerHTML='';
   const dynamicShoes=getShoes();
   const shoeKm=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
   const defaultNames=[P,S,Z];
@@ -145,7 +145,7 @@ function renderStats(){
       if(s2.shoe===sh.name){
         if(extra){
           const done=!!state[`extra_w${CW}_s${ei}_done`];
-          if(done) thisWeekKm+=state[`extra_w${CW}_s${ei}_km`]!=null?parseFloat(state[`extra_w${CW}_s${ei}_km`]):s2.km;
+          if(done){const _ekm=parseFloat(state[`extra_w${CW}_s${ei}_km`]);thisWeekKm+=(!isNaN(_ekm)&&state[`extra_w${CW}_s${ei}_km`]!=null)?_ekm:s2.km;}
         } else {
           const done=state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null;
           if(done) thisWeekKm+=state[gk(CW,si)+'km']!=null?parseFloat(state[gk(CW,si)+'km']):s2.km;
@@ -182,7 +182,7 @@ function renderStats(){
 
   // Shoe management section
   const sm=document.getElementById('shoes-manage');
-  sm.innerHTML=`<button onclick="openAddShoeModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(27,79,216,0.35);">
+  if(sm) sm.innerHTML=`<button onclick="openAddShoeModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(27,79,216,0.35);">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     👟 Ajouter une paire de chaussures
   </button>`;
@@ -191,8 +191,8 @@ function renderStats(){
     {j:'Jeudi',kcal:3000},{j:'Vendredi',kcal:2500},{j:'Samedi',kcal:3300},{j:'Dimanche',kcal:2500}
   ];
   const consumed=2100;
-  const cr=document.getElementById('cal-rows');cr.innerHTML='';
-  if(!isAdmin()) return;
+  const cr=document.getElementById('cal-rows');if(cr) cr.innerHTML='';
+  if(!isAdmin()||!cr) return;
   calories.forEach((c,i)=>{
     const balance=consumed-c.kcal;
     const pct=Math.round(c.kcal/3500*100);
@@ -495,6 +495,7 @@ function switchRenfo(n){
   curRenfo=n;
   [1,2].forEach(x=>{
     const t=document.getElementById('renfo-tab-'+x);
+    if(!t) return;
     const prog=getRenfoData(x);
     const ps=t.querySelectorAll('p');
     if(ps[0]) ps[0].textContent=prog.name;

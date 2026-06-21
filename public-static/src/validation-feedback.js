@@ -12,7 +12,7 @@ function getHistoricalComparison(type, pace, hr){
       if(s.type!==type) return;
       const k=gk(ws,si);
       if(!state[k+'done']) return;
-      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       if(!perf.pace) return;
       const sec=paceStrToSec(perf.pace);
       if(!sec) return;
@@ -21,9 +21,9 @@ function getHistoricalComparison(type, pace, hr){
     // Extra sessions du même type
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+      let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
       if(es.type===type&&state[`extra_w${ws}_s${ei}_done`]){
-        const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){};
         if(perf.pace){
           const sec=paceStrToSec(perf.pace);
           if(sec) history.push({ws,sec,pace:perf.pace,hr:perf.hr?parseInt(perf.hr):null,extra:true});
@@ -190,6 +190,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   else overall='Chaque sortie te rapproche de l\'objectif 🎯';
 
   const mc=document.getElementById('modal-container');
+  if(!mc) return;
   // Vider immédiatement pour annuler tout timer de closeModal en cours
   mc.innerHTML='';
   _lockBodyScroll();
@@ -402,15 +403,15 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     weeks[ws-1].sessions.forEach((sess,si)=>{
       const k=gk(ws,si);
       if(!state[k+'done']) return;
-      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       historyData.push({semaine:ws,type:sess.type,km:state[k+'km']||sess.km,date_reelle:perf.date||null,...perf});
     });
     // Extra sessions
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       if(state[`extra_w${ws}_s${ei}_done`]){
-        const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-        const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
         historyData.push({semaine:ws,type:es.type,km:state[`extra_w${ws}_s${ei}_km`]||es.km,date_reelle:perf.date||null,extra:true,...perf});
       }
       ei++;
