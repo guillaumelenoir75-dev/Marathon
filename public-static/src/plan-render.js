@@ -872,7 +872,8 @@ function renderAthletePlan(el){
   if(raceSessionData){
     try{
       const rd=raceSessionData.sched_date?new Date(raceSessionData.sched_date+'T00:00:00'):null;
-      const courseName=(raceSessionData.d?raceSessionData.d.split('|')[0]:'Course').replace('🏆 ','');
+      let _obParsed={};try{_obParsed=state.onboarding?(typeof state.onboarding==='string'?JSON.parse(state.onboarding):state.onboarding):{};}catch(e){}
+      const courseName=(_obParsed.race_name)||((raceSessionData.d?raceSessionData.d.split('|')[0]:'Course').replace('🏆 ',''));
       const distKm=raceSessionData.km||'';
       const joursL=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
       const moisL=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
