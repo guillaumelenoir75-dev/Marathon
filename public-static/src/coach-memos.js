@@ -115,7 +115,7 @@ function smartScroll(el){if(isAtBottom(el))el.scrollTo({top:el.scrollHeight,beha
 // ── Mémos : helpers ────────────────────────────────────────────────────────
 function _setMemos(val) {
   _currentMemos = (val || '').trim();
-  if(dbRef) dbRef.child('_coach_memos').set(_currentMemos);
+  if(dbRef && _currentMemos !== null) dbRef.child('_coach_memos').set(_currentMemos);
 }
 
 async function _loadMemos() {
@@ -126,7 +126,8 @@ async function _loadMemos() {
 }
 
 function _parseMemos(raw) {
-  return (raw||'').split('\n').map(l=>l.trim()).filter(l=>l.length>0 && l!=='Aucun mémo enregistré.');
+  return (raw||'').split('\n').map(l=>l.trim()).filter(l=>l.length>0 && l!=='Aucun mémo enregistré.')
+    .map(l=>l.startsWith('- ')?l:'- '+l);
 }
 
 async function memorizeCoachNote(){

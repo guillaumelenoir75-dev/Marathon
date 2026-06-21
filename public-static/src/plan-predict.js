@@ -368,7 +368,9 @@ function openMarathonPredModal() {
 
   // Mini graphique SVG historique
   let svgGraph = '';
-  if(pred.historique && pred.historique.length >= 2) {
+  if(pred.historique && pred.historique.length === 0) {
+    svgGraph = '<p style="font-size:12px;color:var(--muted);text-align:center;margin:8px 0;">Graphique disponible à partir de la S4 avec des séances validées.</p>';
+  } else if(pred.historique && pred.historique.length >= 2) {
     const W = 300, H = 90, PAD_L = 38, PAD_R = 10, PAD_T = 8, PAD_B = 18;
     const times = pred.historique.map(p => p.tempsSec);
     const sub4Sec = 4 * 3600;

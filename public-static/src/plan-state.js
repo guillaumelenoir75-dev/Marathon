@@ -325,8 +325,9 @@ function paceStrToSec(p){
 }
 
 function secToPace(sec){
-  const m=Math.floor(sec/60);
-  const s=Math.round(sec%60);
+  let m=Math.floor(sec/60);
+  let s=Math.round(sec%60);
+  if(s===60){m++;s=0;}
   return m+"'"+(s+'').padStart(2,'0');
 }
 

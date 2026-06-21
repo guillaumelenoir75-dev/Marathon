@@ -26,7 +26,12 @@ async function getValidAccessToken(db, uid, clientId, clientSecret) {
       grant_type: 'refresh_token'
     })
   }, 15000);
+  if (!refreshRes.ok) {
+    console.error('Strava token refresh failed:', refreshRes.status);
+    return null;
+  }
   const refreshed = await refreshRes.json();
+  if (!refreshed.access_token) { console.error('Strava refresh: no access_token in response'); return null; }
   await db.ref(`users/${uid}/state/strava_token`).update({
     access_token: refreshed.access_token,
     expires_at: refreshed.expires_at,

@@ -299,7 +299,9 @@ function extractSuggestionsFromCoach(si, s, ed){
   if(blocsMatches.length>0){
     // Si 'au lieu de' présent, prendre avant; sinon prendre le premier
     const auLieuIdx = txt.toLowerCase().indexOf('au lieu de');
-    const targetBloc = auLieuIdx>0 ? blocsMatches.find(m=>m.index<auLieuIdx) || blocsMatches[0] : blocsMatches[0];
+    const targetBloc = auLieuIdx>0
+      ? (blocsMatches.filter(m=>m.index<auLieuIdx).at(-1) || blocsMatches[0])
+      : blocsMatches[0];
     reps=parseInt(targetBloc[1]);dur=parseInt(targetBloc[2]);
   }
 

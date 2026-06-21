@@ -278,8 +278,8 @@ function saveRecord10km() {
   const clean = val.replace(/'/g, ':').replace(/\s/g, '');
   const parts = clean.split(':').map(Number);
   let sec = 0;
-  if (parts.length === 3) sec = parts[0]*3600 + parts[1]*60 + parts[2];
-  else if (parts.length === 2) sec = parts[0]*60 + parts[1];
+  if (parts.length === 3) { if(parts[1]>=60||parts[2]>=60){alert('Format invalide. Exemples : 48:30 ou 1:02:15');return;} sec = parts[0]*3600 + parts[1]*60 + parts[2]; }
+  else if (parts.length === 2) { if(parts[1]>=60){alert('Format invalide. Les secondes doivent être < 60. Exemple : 48:30');return;} sec = parts[0]*60 + parts[1]; }
   if (!sec || sec < 1200 || sec > 7200) { alert('Format invalide. Exemples : 48:30 ou 1:02:15'); return; }
   state['record_10km'] = val;
   save();

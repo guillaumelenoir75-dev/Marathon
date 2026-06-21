@@ -3,6 +3,7 @@ let firebaseReady=false;
 let dbRef=null;
 let currentUserRole=null;
 let currentUserId=null;
+let _visibilityListenerAdded=false;
 function isAdmin(){return currentUserRole==='admin'||firebase.auth().currentUser?.email===ADMIN_EMAIL;}
 
 const ADMIN_EMAIL='guillaumelenoir75@gmail.com';
@@ -114,7 +115,7 @@ function initFirebase(){
               // Init Service Worker et push notifications
               initNotifications();
               // Quand l'app revient au foreground (depuis notification) → vérifier Firebase
-              document.addEventListener('visibilitychange', async function() {
+              if(!_visibilityListenerAdded){_visibilityListenerAdded=true;document.addEventListener('visibilitychange', async function() {
                 if (document.visibilityState !== 'visible' || !dbRef) return;
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
@@ -142,7 +143,7 @@ function initFirebase(){
                   // Appeler loadCoachHistory directement — pas de setTimeout
                   await loadCoachHistory();
                 } catch(e) {}
-              });
+              });} // fin guard _visibilityListenerAdded
 
               // Lire _open_coach depuis Firebase (mis par la notif brief/débrief)
               (async () => {

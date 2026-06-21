@@ -40,7 +40,7 @@ function getEffectiveCW(){
 // Km total planifié pour une semaine athlète (extra_w*)
 function getAthleteWeekKm(ws){
   let t=0,ei=0;
-  while(state[`extra_w${ws}_s${ei}`]){
+  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
     try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}
     ei++;
   }
@@ -72,7 +72,7 @@ function getGrandTotal(){
   if(!isAdmin()){
     // Pour les athlètes : total des km de leurs séances extra uniquement
     let t=0;
-    for(let ws=1;ws<=52;ws++){let ei=0;while(state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
+    for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
     return Math.round(t);
   }
   return Math.round(weeks.reduce((a,w)=>a+getWeekTotalKm(w.s),0));

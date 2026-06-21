@@ -139,7 +139,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
         if(fSecs.length>=2){
           const variation=Math.max(...fSecs)-Math.min(...fSecs);
           const avgSec=fSecs.reduce((a,v)=>a+v,0)/fSecs.length;
-          const avgStr=Math.floor(avgSec/60)+':'+(Math.round(avgSec%60)<10?'0':'')+Math.round(avgSec%60);
+          let _avgM=Math.floor(avgSec/60);let _avgS=Math.round(avgSec%60);if(_avgS===60){_avgM++;_avgS=0;}const avgStr=_avgM+':'+(_avgS<10?'0':'')+_avgS;
           lines.push('📊 Allure moy. des répétitions : '+avgStr+'/km — écart max : '+variation+' sec/km.');
           if(variation<=8) lines.push('✅ Régularité exemplaire sur les intervalles ! C\'est exactement ce qu\'on cherche. 🎯');
           else if(variation<=20) lines.push('💪 Régularité correcte — avec l\'expérience, tu doseras encore mieux l\'effort sur chaque répétition.');

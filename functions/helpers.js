@@ -201,7 +201,7 @@ async function buildNotifContext(state, cw) {
     }
   }
   let extraIdx=0;
-  while(state[`extra_w${cw}_s${extraIdx}`]){
+  while(extraIdx<=20&&state[`extra_w${cw}_s${extraIdx}`]){
     const done=!!state[`extra_w${cw}_s${extraIdx}_done`];
     if(!done){
       let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraIdx}`]);}catch(e){extraIdx++;continue;}

@@ -284,7 +284,8 @@ function generateAthletePlan(ob){
     fracMinPaceSec=Math.round(fracPaceSec*0.965);
   } else if(effectiveEfSec){
     fracPaceSec=effectiveEfSec+({'5 km':-98,'10 km':-88,'Semi-marathon':-80,'Marathon':-75}[course]||-80);
-    fracMinPaceSec=fracPaceSec-12;
+    if(fracPaceSec<150) fracPaceSec=null; // valeur aberrante (< 2'30/km)
+    else fracMinPaceSec=fracPaceSec-12;
   }
   if(fracPaceSec&&tempoPaceSec&&fracPaceSec>tempoPaceSec-18){fracPaceSec=tempoPaceSec-22;fracMinPaceSec=fracPaceSec-10;}
   const fracLbl=fracPaceSec?fmtPace(fracPaceSec):null;

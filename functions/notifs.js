@@ -72,7 +72,8 @@ exports.sessionReminder = onSchedule(
             try{
               const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
               const loc=locSnap.val();
-              const locFresh = loc && loc.lat && (Date.now()-loc.ts)<30*24*3600*1000;
+              const tsMs = loc && loc.ts ? (loc.ts < 1e10 ? loc.ts*1000 : loc.ts) : 0;
+              const locFresh = loc && loc.lat && tsMs && (Date.now()-tsMs)<30*24*3600*1000;
               const lat=locFresh?loc.lat:48.8417;
               const lng=locFresh?loc.lng:2.2945;
               const seanceH=parseInt(ed.sched_time.split(':')[0]);
@@ -95,7 +96,7 @@ exports.sessionReminder = onSchedule(
           break;
         }
         let extraRi=0;
-        while(state[`extra_w${cw}_s${extraRi}`]){
+        while(extraRi<=20&&state[`extra_w${cw}_s${extraRi}`]){
           const done=!!state[`extra_w${cw}_s${extraRi}_done`];
           if(!done){
             let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
@@ -173,7 +174,7 @@ exports.sessionReminder = onSchedule(
         }
         if(sent)continue;
         let extraRi=0;
-        while(uState[`extra_w${ucw}_s${extraRi}`]){
+        while(extraRi<=20&&uState[`extra_w${ucw}_s${extraRi}`]){
           const done=!!uState[`extra_w${ucw}_s${extraRi}_done`];
           if(!done){
             let es;try{es=JSON.parse(uState[`extra_w${ucw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
@@ -267,7 +268,7 @@ exports.briefAfterFcRepos = onSchedule(
         let refSec;
         if(efPaces.length<3){refSec=Math.min(...efPaces);}
         else{const last3=efPaces.slice(-3);const before3=efPaces.slice(0,-3);const prevBest=before3.length>0?Math.min(...before3):last3[0];const minL=Math.min(...last3);const medL=[...last3].sort((a,b)=>a-b)[1];refSec=minL<=prevBest?minL:medL;}
-        const em=Math.floor(refSec/60);const es=Math.round(refSec%60);efPace=`${em}'${(es+'').padStart(2,'0')}`;
+        let _em=Math.floor(refSec/60);let _es=Math.round(refSec%60);if(_es===60){_em++;_es=0;}efPace=`${_em}'${(_es+'').padStart(2,'0')}`;
       }
       efPace=efPace||"6'40";
 
@@ -453,7 +454,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           manquees.push(`💪 ${renfoNames[ri]}`);
         }
         let extraI=0;
-        while(state[`extra_w${cw}_s${extraI}`]){
+        while(extraI<=20&&state[`extra_w${cw}_s${extraI}`]){
           const done=!!state[`extra_w${cw}_s${extraI}_done`];
           if(!done){
             let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
@@ -477,7 +478,7 @@ exports.unvalidatedSessionReminder = onSchedule(
         const uState=(await db.ref(`users/${uid}/state`).once('value')).val()||{};
         const manquees=[];
         let extraI=0;
-        while(uState[`extra_w${cw}_s${extraI}`]){
+        while(extraI<=20&&uState[`extra_w${cw}_s${extraI}`]){
           const done=!!uState[`extra_w${cw}_s${extraI}_done`];
           if(!done){
             let es;try{es=JSON.parse(uState[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
