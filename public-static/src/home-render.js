@@ -217,7 +217,7 @@ function renderHome(){
       const doneSeries=exos.reduce((a,ex,i)=>a+(state[rfk(w,rd.r)+'e'+i+'_series']||0),0);
       const pct=Math.min(100,Math.round(doneSeries/totalSeries*100));
       const card=document.createElement('div');
-      const renfoSched=state[rfk(w,rd.r)+'sched']?JSON.parse(state[rfk(w,rd.r)+'sched']):null;
+      let renfoSched=null;try{renfoSched=state[rfk(w,rd.r)+'sched']?JSON.parse(state[rfk(w,rd.r)+'sched']):null;}catch(e){}
       const todayDayRenfo=(new Date()).getDay()===0?7:(new Date()).getDay();
       const isRenfoToday=isCurrent&&renfoSched&&renfoSched.day===todayDayRenfo&&!done;
       const rfDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
@@ -285,7 +285,7 @@ function renderHome(){
         renfoData.forEach(rd => {
           const schedKey = rfk(cwNext, rd.r)+'sched';
           if(!state[schedKey] && isAdmin()) state[schedKey] = JSON.stringify(defaults[rd.r]);
-          const sched = state[schedKey] ? JSON.parse(state[schedKey]) : {};
+          let sched={};try{sched=state[schedKey]?JSON.parse(state[schedKey]):{};}catch(e){}
           const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ')||'À planifier';
           const btn = document.createElement('div');
           btn.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border:1px solid #d0dff5;border-radius:10px;margin-bottom:6px;cursor:pointer;';
@@ -484,13 +484,13 @@ function openValidationModalExtra(w,ei){
   // Reset Strava et météo comme pour openValidationModal
   window._meteoValidationData = null;
   window._stravaActivityData = null;
-  const s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');
+  let s={};try{s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');}catch(e){}
   const parts=(s.d||'').split('|');
   const title=normalizeSessionTitle(parts[0], s.type);
   const detail=filterDetailDisplay(title, parts[1]||null);
   const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
   const kmVal=state[`extra_w${w}_s${ei}_km`]!=null?state[`extra_w${w}_s${ei}_km`]:s.km||0;
-  const prev=state[`extra_w${w}_s${ei}_perf`]?JSON.parse(state[`extra_w${w}_s${ei}_perf`]):{};
+  let prev={};try{prev=state[`extra_w${w}_s${ei}_perf`]?JSON.parse(state[`extra_w${w}_s${ei}_perf`]):{};}catch(e){}
   const isAlreadySkipped=!!state[`extra_w${w}_s${ei}_skip`];
   // Stocker le contexte pour Strava (_applyStravaToValidation)
   window._currentValidationSession = { s, idx: ei, ws: w, isExtra: true, ei };
@@ -777,7 +777,7 @@ async function saveValidationExtra(w,ei){
   if(hr) perf.hr=hr;
   if(dateVal) perf.date=dateVal;
   // Blocs Tempo/Frac
-  const sExtra=JSON.parse(state[k]||'{}');
+  let sExtra={};try{sExtra=JSON.parse(state[k]||'{}');}catch(e){}
   if(sExtra.type==='tempo'||sExtra.type==='frac'){
     const tmatch=(sExtra.d||'').split('|')[0].match(/(\d+)[x\u00d7]/i);
     const nbB=tmatch?parseInt(tmatch[1]):2;
@@ -799,7 +799,7 @@ async function saveValidationExtra(w,ei){
     if(g.splits&&g.splits.length>0) stravaData.splits=g.splits;
     if(g.zones_fc&&g.zones_fc.length>0) stravaData.zones_fc=g.zones_fc;
     if(Object.keys(stravaData).length>0){
-      const ex=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};
+      let ex={};try{ex=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
       Object.assign(perf,ex);
       perf.strava=stravaData;
     }
@@ -853,7 +853,7 @@ async function saveValidationExtra(w,ei){
   // Sauvegarder la météo dans perf pour l'affichage dans Stats
   if(meteoSeance){
     const perfKey=k+'_perf';
-    const existing=state[perfKey]?JSON.parse(state[perfKey]):{};
+    let existing={};try{existing=state[perfKey]?JSON.parse(state[perfKey]):{}}catch(e){}
     existing.meteo=meteoSeance;
     state[perfKey]=JSON.stringify(existing);
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
@@ -885,7 +885,7 @@ function openValidationModal(idx){
   const c=typeColor[s.type]||'#888';
   const bg=typeBg[s.type]||'#f5f5f5';
   const lbl=typeLabel[s.type]||'EF';
-  const prev=state[gk(CW,idx)+'perf']?JSON.parse(state[gk(CW,idx)+'perf']):{};
+  let prev={};try{prev=state[gk(CW,idx)+'perf']?JSON.parse(state[gk(CW,idx)+'perf']):{}}catch(e){}
   const kmVal=state[gk(CW,idx)+'km']!=null?state[gk(CW,idx)+'km']:s.km;
   const isAlreadySkipped=!!state[gk(CW,idx)+'skip'];
   const mc=document.getElementById('modal-container');
@@ -1084,7 +1084,7 @@ async function saveValidation(idx){
     if(g.splits && g.splits.length > 0) stravaData.splits = g.splits;
     if(g.zones_fc && g.zones_fc.length > 0) stravaData.zones_fc = g.zones_fc;
     if(Object.keys(stravaData).length > 0) {
-      const existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+      let existing={};try{existing=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       existing.strava = stravaData;
       state[k+'perf'] = JSON.stringify(existing);
     }
@@ -1100,7 +1100,7 @@ async function saveValidation(idx){
   // Supprimer le brief du matin si la séance validée est celle du jour (admin)
   if(isAdmin() && dbRef && s.type !== 'rest') {
     const _todaySched=(d=>{return d===0?7:d;})(new Date().getDay());
-    const _ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):null;
+    let _ed=null;try{_ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):null;}catch(e){}
     if(_ed && _ed.sched_day===_todaySched) {
       dbRef.child('_brief_pending').remove().catch(()=>{});
       dbRef.child('_brief_kept').remove().catch(()=>{});
@@ -1126,7 +1126,7 @@ async function saveValidation(idx){
       // Fetch complet avec tous les fallbacks (pas de dialog géoloc surprise — utilise Paris si besoin)
       const _seanceDate = dateVal || new Date().toISOString().slice(0, 10);
       const _seanceHeure = (()=>{
-        const _ed = state['edit_w'+CW+'_s'+idx] ? JSON.parse(state['edit_w'+CW+'_s'+idx]) : null;
+        let _ed=null;try{_ed=state['edit_w'+CW+'_s'+idx]?JSON.parse(state['edit_w'+CW+'_s'+idx]):null;}catch(e){}
         return (_ed && _ed.sched_time) ? _ed.sched_time : null;
       })();
       meteoSeance = await fetchWeatherIfGranted(_seanceHeure, _seanceDate);
@@ -1137,7 +1137,7 @@ async function saveValidation(idx){
   // Sauvegarder la météo dans perf pour l'affichage dans Stats
   if(meteoSeance){
     const perfKey=k+'perf';
-    const existing=state[perfKey]?JSON.parse(state[perfKey]):{};
+    let existing={};try{existing=state[perfKey]?JSON.parse(state[perfKey]):{}}catch(e){}
     existing.meteo=meteoSeance;
     state[perfKey]=JSON.stringify(existing);
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});

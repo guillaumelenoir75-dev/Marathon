@@ -244,7 +244,7 @@ function renderStats(){
           const done=!!state[k+'_done'];
           if(!done) return;
           const kmReal=state[k+'_km']!=null?state[k+'_km']:s.km;
-          const perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};
+          let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
           const c=typeColor[s.type]||'#888';
           const title=s.d.split('|')[0];
           perfRows.push({ws,si:ei,title,km:kmReal,perf,c,type:s.type,extra:true});
@@ -254,7 +254,7 @@ function renderStats(){
         const done=!!state[k+'done']||(ws<CW&&state[k+'km']!=null);
         if(!done) return;
         const kmReal=state[k+'km']!=null?state[k+'km']:s.km;
-        const perf=state[k+'perf']?JSON.parse(state[k+'perf']):(staticPerf[k]||{});
+        let perf=staticPerf[k]||{};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):(staticPerf[k]||{});}catch(e){}
         const c=typeColor[s.type]||'#888';
         const title=s.d.split('|')[0];
         perfRows.push({ws,si,title,km:kmReal,perf,c,type:s.type});
