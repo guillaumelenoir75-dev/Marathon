@@ -410,6 +410,11 @@ function _obGoTo(step){
 
 function onboardingSelect(field,val){
   _obData[field]=val;
+  // Quand la distance change : effacer le temps cible (incompatible entre distances)
+  if(field==='course'){
+    delete _obData.target_time;
+    delete _obData.race_distance_km;
+  }
   // Revalider la date si la distance change (les minima de semaines varient)
   if((field==='course'||field==='sessions')&&_obData.date) setTimeout(obDateChanged,0);
   // Niveau Découverte : si sessions > 2, on ramène à 2
@@ -487,7 +492,14 @@ function _initObTargetTime(){
       _obData.race_distance_km=dist;
     }
   }
-  // Restaurer valeur si déjà saisie
+  // Restaurer valeur si déjà saisie (avec validation minimale selon la distance)
+  const minTimes={'5 km':600,'10 km':1200,'Semi-marathon':2700,'Marathon':5400};
+  const minSec=minTimes[course]||0;
+  if(_obData.target_time){
+    const parts2=_obData.target_time.split(':');
+    const existSec=(parseInt(parts2[0])||0)*3600+(parseInt(parts2[1])||0)*60+(parseInt(parts2[2])||0);
+    if(existSec < minSec) { delete _obData.target_time; } // temps incompatible avec la distance
+  }
   if(_obData.target_time){
     const p=_obData.target_time.split(':');
     const hEl=document.getElementById('ob-target-h');
@@ -565,6 +577,7 @@ function onTargetTimeInput(){
     if(_ntb) _ntb.style.cssText='width:100%;padding:9px;background:#EEF2FD;border:1.5px solid #1B4FD8;border-radius:10px;font-size:13px;font-weight:600;color:#1B4FD8;cursor:pointer;';
   }
   _obCheckAndShowTargetTimeConstraint();
+  if(_obStep===8) setTimeout(_obShowRecap, 0);
 }
 
 function _obCheckAndShowTargetTimeConstraint(){
