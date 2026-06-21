@@ -218,7 +218,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       if(!extra){
         // Lire directement depuis state pour avoir les données les plus fraîches
         const edRaw = state['edit_w'+CW+'_s'+si];
-        const ed = edRaw ? JSON.parse(edRaw) : s;
+        let ed = s; try{ if(edRaw) ed = JSON.parse(edRaw); }catch(e){}
         if(ed.sched_day && ed.sched_time) planifie = ` → ${jours[ed.sched_day]} ${ed.sched_time}`;
         else if(ed.sched_day) planifie = ` → ${jours[ed.sched_day]}`;
         else if(s.sched_day && s.sched_time) planifie = ` → ${jours[s.sched_day]} ${s.sched_time}`;
@@ -346,7 +346,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           const k=gk(ws,si);
           if(!state[k+'done']) return;
           const edRaw=state['edit_w'+ws+'_s'+si];
-          const ed=edRaw?JSON.parse(edRaw):null;
+          let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
           if(ed&&ed.sched_time){
             const h=parseInt(ed.sched_time.split(':')[0]);
             if(!isNaN(h)) heures.push({h, type:sess.type});
@@ -571,7 +571,8 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         let ei=0;
         while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
           if(state[`extra_w${ws}_s${ei}_done`]){
-            const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+            let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+            if(!es){ei++;continue;}
             const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
             det.push({semaine:ws,type:es.type,titre:es.d.split('|')[0],extra:true,km:state[`extra_w${ws}_s${ei}_km`]||es.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:null});
           }
@@ -587,7 +588,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       for(let ws=CW+1; ws<=Math.min(CW+4, 32); ws++){
         const sl = weeks[ws-1].sessions.map((sess,si)=>{
           const edRaw = state["edit_w"+ws+"_s"+si];
-          const ed = edRaw ? JSON.parse(edRaw) : null;
+          let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
           const d = (ed?ed.d:sess.d).split("|");
           return {type:ed?ed.type:sess.type, titre:d[0], detail:d[1]||'', km:ed?ed.km:sess.km,
             planifie: ed&&ed.sched_day?(joursAbr[ed.sched_day]||'')+(ed.sched_time?' '+ed.sched_time:''):null};
@@ -634,7 +635,8 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
       let ei=0;
       while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
         if(state[`extra_w${ws}_s${ei}_done`]){
-          const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+          let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+          if(!es){ei++;continue;}
           const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
           detail.push({
             semaine: ws, type: es.type, titre: es.d.split('|')[0], extra: true,
