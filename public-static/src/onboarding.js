@@ -156,6 +156,7 @@ function _obGoTo(step){
   if(step===2) setTimeout(_obCheckAndShowSessionsConstraint,0);
   if(step===3) setTimeout(_obCheckAndShowNiveauConstraint,0);
   if(step===8) setTimeout(_obCheckAndShowTargetTimeConstraint,0);
+  if(step===8) setTimeout(_obShowRecap,0);
   // Step 2 (sessions) : chip 1 visible uniquement pour Découverte ; chips 3,4 masquées pour Découverte
   if(step===2){
     const isDecouv=_obData.niveau==='Découverte';
@@ -203,6 +204,8 @@ function _obGoTo(step){
 
 function onboardingSelect(field,val){
   _obData[field]=val;
+  // Revalider la date si la distance change (les minima de semaines varient)
+  if(field==='course'&&_obData.date) setTimeout(obDateChanged,0);
   // Niveau Découverte : si sessions > 2, on ramène à 2
   if(field==='niveau'&&val==='Découverte'){
     if(_obData.sessions&&!['1','2'].includes(_obData.sessions)){
@@ -221,8 +224,19 @@ function onboardingSelect(field,val){
     }
     if(field==='km_semaine'){
       if(_obCheckAndShowKmConstraint(val)) return;
+      // Ne pas auto-avancer si un warning est affiché (laisser l'user lire)
+      const _kmWarn=document.getElementById('ob-km-base-warn');
+      if(_kmWarn&&_kmWarn.style.display!=='none') return;
     }
-    setTimeout(()=>onboardingNext(),220);
+    // generate_plan 'non' : ne pas auto-avancer, afficher message et laisser cliquer Terminer
+    if(field==='generate_plan'&&val==='non'){
+      const infoEl=document.getElementById('ob-no-plan-info');
+      if(infoEl) infoEl.style.display='block';
+      const next=document.getElementById('ob-btn-next');
+      if(next){next.disabled=false;next.style.opacity='1';}
+      return;
+    }
+    setTimeout(()=>onboardingNext(),350);
   }
   const next=document.getElementById('ob-btn-next');
   if(next){next.disabled=false;next.style.opacity='1';}
@@ -331,6 +345,9 @@ function onTargetTimeInput(){
   const s=parseInt(document.getElementById('ob-target-sec')?.value)||0;
   if(h>0||m>0||s>0){
     _obData.target_time=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    // Remettre le bouton "Pas de temps cible" en style neutre si un temps est saisi
+    const _ntb=document.getElementById('ob-no-target-btn');
+    if(_ntb) _ntb.style.cssText='width:100%;padding:9px;background:#f5f5f5;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;color:#888;cursor:pointer;';
   } else {
     delete _obData.target_time;
   }
@@ -468,7 +485,7 @@ function onboardingSelectEf(val){
     document.querySelectorAll('[id^="ob-ef-"]').forEach(el=>el.classList.remove('selected'));
     const c=document.getElementById('ob-ef-non');
     if(c) c.classList.add('selected');
-    setTimeout(()=>onboardingNext(),220);
+    setTimeout(()=>onboardingNext(),350);
   }
 }
 
@@ -770,6 +787,60 @@ function onObEfPaceChange(){
   if(msg&&warnEl){warnEl.textContent=msg;warnEl.style.display='block';}
 }
 
+function _obShowRecap(){
+  const el=document.getElementById('ob-recap');
+  if(!el) return;
+  const course=_obData.course||'—';
+  const niveau=_obData.niveau||'—';
+  const sess=_obData.sessions||'—';
+  const km=_obData.km_semaine||'—';
+  const nbSess=parseInt(sess)||3;
+  const isPlaisir=course==='Plaisir';
+  // Calculer la durée du plan (même logique que generateAthletePlan)
+  const minW=(()=>{
+    if(isPlaisir) return 8;
+    if(course==='5 km') return 6;
+    if(course==='10 km') return nbSess<=2?10:8;
+    if(course==='Semi-marathon') return nbSess<=2?14:nbSess===3?10:8;
+    if(course==='Marathon') return nbSess<=2?18:nbSess===3?14:12;
+    return 8;
+  })();
+  let numWeeks=isPlaisir?16:minW;
+  if(_obData.date){
+    const diff=Math.floor((new Date(_obData.date)-new Date())/(7*24*3600*1000));
+    if(diff>0) numWeeks=Math.min(Math.max(diff,minW),24);
+  }
+  const dateStr=_obData.date?new Date(_obData.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'Sans date fixe';
+  const niveauEmoji={'Découverte':'🌱','Débutant':'🟢','Intermédiaire':'🔵','Confirmé':'🟠'}[niveau]||'';
+  const courseLabel=course==='Semi-marathon'?'Semi-marathon':course;
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#1B4FD8,#0C447C);border-radius:14px;padding:16px;margin-bottom:16px;color:#fff;">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;opacity:0.7;margin-bottom:12px;">✅ Récapitulatif</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
+        <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">Distance</p>
+        <p style="font-size:14px;font-weight:800;">${courseLabel}</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
+        <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">Niveau</p>
+        <p style="font-size:14px;font-weight:800;">${niveauEmoji} ${niveau}</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
+        <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">Séances / sem.</p>
+        <p style="font-size:14px;font-weight:800;">${sess} séances</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
+        <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">Volume actuel</p>
+        <p style="font-size:14px;font-weight:800;">${km} km/sem.</p>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.18);border-radius:10px;padding:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.3);">
+      <span style="font-size:13px;opacity:0.9;">📅 ${dateStr}</span>
+      <span style="font-size:15px;font-weight:900;">${numWeeks} semaines</span>
+    </div>
+  </div>`;
+  el.style.display='block';
+}
+
 async function saveOnboarding(){
   if(_obSaving) return; // évite le double-save (chip click + bouton Terminer en <220ms)
   _obSaving=true;
@@ -778,93 +849,104 @@ async function saveOnboarding(){
   // Écran de chargement
   let loadEl=null;
   if(generatePlan){
-    loadEl=document.createElement('div');
-    loadEl.style.cssText='position:fixed;inset:0;z-index:9999;background:#0C447C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;';
-    loadEl.innerHTML=`
-      <div style="font-size:48px;">🏃</div>
-      <p style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.02em;">Génération du plan…</p>
-      <p id="ob-gen-msg" style="color:rgba(255,255,255,0.7);font-size:14px;font-weight:500;">Calcul des semaines d'entraînement</p>
-      <div style="width:260px;background:rgba(255,255,255,0.2);border-radius:8px;height:8px;overflow:hidden;">
-        <div id="ob-gen-bar" style="height:8px;background:#fff;border-radius:8px;width:0%;transition:width 0.4s ease;"></div>
-      </div>
-      <p id="ob-gen-pct" style="color:#fff;font-size:13px;font-weight:700;">0%</p>`;
-    document.body.appendChild(loadEl);
+    try {
+      loadEl=document.createElement('div');
+      loadEl.style.cssText='position:fixed;inset:0;z-index:9999;background:#0C447C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;';
+      loadEl.innerHTML=`
+        <div style="font-size:48px;">🏃</div>
+        <p style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.02em;">Génération du plan…</p>
+        <p id="ob-gen-msg" style="color:rgba(255,255,255,0.7);font-size:14px;font-weight:500;">Calcul des semaines d'entraînement</p>
+        <div style="width:260px;background:rgba(255,255,255,0.2);border-radius:8px;height:8px;overflow:hidden;">
+          <div id="ob-gen-bar" style="height:8px;background:#fff;border-radius:8px;width:0%;transition:width 0.4s ease;"></div>
+        </div>
+        <p id="ob-gen-pct" style="color:#fff;font-size:13px;font-weight:700;">0%</p>`;
+      document.body.appendChild(loadEl);
 
-    const setProgress=(pct,msg)=>{
-      const bar=document.getElementById('ob-gen-bar');
-      const pctEl=document.getElementById('ob-gen-pct');
-      const msgEl=document.getElementById('ob-gen-msg');
-      if(bar) bar.style.width=pct+'%';
-      if(pctEl) pctEl.textContent=pct+'%';
-      if(msg&&msgEl) msgEl.textContent=msg;
-    };
+      const setProgress=(pct,msg)=>{
+        const bar=document.getElementById('ob-gen-bar');
+        const pctEl=document.getElementById('ob-gen-pct');
+        const msgEl=document.getElementById('ob-gen-msg');
+        if(bar) bar.style.width=pct+'%';
+        if(pctEl) pctEl.textContent=pct+'%';
+        if(msg&&msgEl) msgEl.textContent=msg;
+      };
 
-    // Générer le plan
-    setProgress(10,'Calcul des semaines d\'entraînement…');
-    await new Promise(r=>setTimeout(r,300));
-    const plan=generateAthletePlan(_obData);
-    const entries=Object.entries(plan||{});
-    setProgress(30,'Plan calculé — enregistrement…');
-    await new Promise(r=>setTimeout(r,200));
+      // Générer le plan
+      setProgress(10,'Calcul des semaines d\'entraînement…');
+      await new Promise(r=>setTimeout(r,300));
+      const plan=generateAthletePlan(_obData);
+      const entries=Object.entries(plan||{});
+      setProgress(30,'Plan calculé — enregistrement…');
+      await new Promise(r=>setTimeout(r,200));
 
-    // Sauvegarder onboarding
-    if(dbRef){
-      state.onboarding=_obData;
-      if(_adminPreviewUid){
-        const _t=await getAuthToken();
-        await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'write',path:`users/${_adminPreviewUid}/state/onboarding`,value:_obData})}).catch(()=>{});
-      } else {
-        await dbRef.child('onboarding').set(_obData).catch(()=>{});
-      }
-    }
-    setProgress(50,'Profil sauvegardé…');
-    await new Promise(r=>setTimeout(r,200));
-
-    // Sauvegarder tout le plan en un seul update Firebase
-    if(dbRef && entries.length>0){
-      const updates={};
-      // Enregistrer la date de début du plan (= aujourd'hui)
-      const startDate=new Date().toISOString().split('T')[0];
-      state.plan_start_date=startDate;
-      updates.plan_start_date=startDate;
-      // EF pace — déclarée en priorité, sinon dérivée depuis le temps cible
-      if(_obData.ef_pace){
-        state.ef_pace=_obData.ef_pace;
-        updates.ef_pace=_obData.ef_pace;
-      } else if(_obData.target_time&&_obData.race_distance_km){
-        const _rDist=parseFloat(_obData.race_distance_km)||42.195;
-        const _tp=_obData.target_time.split(':').map(Number);
-        const _ts=_tp.length===3?_tp[0]*3600+_tp[1]*60+_tp[2]:_tp.length===2?_tp[0]*60+_tp[1]:0;
-        if(_ts>0){
-          const _rps=_ts/_rDist;
-          const _niv=_obData.niveau||'Intermédiaire';
-          const _crs=_obData.course||'Marathon';
-          const _efM={'Marathon':{Débutant:1.40,Intermédiaire:1.36,Confirmé:1.32},'Semi-marathon':{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30},'10 km':{Débutant:1.35,Intermédiaire:1.31,Confirmé:1.28},'5 km':{Débutant:1.32,Intermédiaire:1.28,Confirmé:1.25}}[_crs]||{Débutant:1.38,Intermédiaire:1.36,Confirmé:1.32};
-          const _efSec=Math.round(_rps*(_efM[_niv]||1.36));
-          const _efStr=Math.floor(_efSec/60)+"'"+String(_efSec%60).padStart(2,'0');
-          state.ef_pace=_efStr; updates.ef_pace=_efStr;
+      // Sauvegarder onboarding
+      if(dbRef){
+        state.onboarding=_obData;
+        if(_adminPreviewUid){
+          const _t=await getAuthToken();
+          await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'write',path:`users/${_adminPreviewUid}/state/onboarding`,value:_obData})}).catch(()=>{});
+        } else {
+          await dbRef.child('onboarding').set(_obData).catch(()=>{});
         }
       }
-      // Jours et horaire de course
-      if(_obData.run_days){ state.run_days=_obData.run_days; updates.run_days=JSON.stringify(_obData.run_days); }
-      if(_obData.run_time){ state.run_time=_obData.run_time; updates.run_time=_obData.run_time; }
-      if(_obData.run_times){ state.run_times=_obData.run_times; updates.run_times=JSON.stringify(_obData.run_times); }
-      if(_obData.target_time){ state.target_time=_obData.target_time; updates.target_time=_obData.target_time; }
-      if(_obData.race_distance_km){ state.race_distance_km=_obData.race_distance_km; updates.race_distance_km=_obData.race_distance_km; }
-      if(_obData.fc_max){ state.fc_max=_obData.fc_max; updates.fc_max=_obData.fc_max; }
-      entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
-      if(_adminPreviewUid){
-        const _t=await getAuthToken();
-        await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'update',path:`users/${_adminPreviewUid}/state`,value:updates})}).catch(()=>{});
-      } else {
-        await dbRef.update(updates).catch(()=>{});
+      setProgress(50,'Profil sauvegardé…');
+      await new Promise(r=>setTimeout(r,200));
+
+      // Sauvegarder tout le plan en un seul update Firebase
+      if(dbRef && entries.length>0){
+        const updates={};
+        // Enregistrer la date de début du plan (= aujourd'hui)
+        const startDate=new Date().toISOString().split('T')[0];
+        state.plan_start_date=startDate;
+        updates.plan_start_date=startDate;
+        // EF pace — déclarée en priorité, sinon dérivée depuis le temps cible
+        if(_obData.ef_pace){
+          state.ef_pace=_obData.ef_pace;
+          updates.ef_pace=_obData.ef_pace;
+        } else if(_obData.target_time&&_obData.race_distance_km){
+          const _rDist=parseFloat(_obData.race_distance_km)||42.195;
+          const _tp=_obData.target_time.split(':').map(Number);
+          const _ts=_tp.length===3?_tp[0]*3600+_tp[1]*60+_tp[2]:_tp.length===2?_tp[0]*60+_tp[1]:0;
+          if(_ts>0){
+            const _rps=_ts/_rDist;
+            const _niv=_obData.niveau||'Intermédiaire';
+            const _crs=_obData.course||'Marathon';
+            const _efM={'Marathon':{Débutant:1.40,Intermédiaire:1.36,Confirmé:1.32},'Semi-marathon':{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30},'10 km':{Débutant:1.35,Intermédiaire:1.31,Confirmé:1.28},'5 km':{Débutant:1.32,Intermédiaire:1.28,Confirmé:1.25}}[_crs]||{Débutant:1.38,Intermédiaire:1.36,Confirmé:1.32};
+            const _efSec=Math.round(_rps*(_efM[_niv]||1.36));
+            const _efStr=Math.floor(_efSec/60)+"'"+String(_efSec%60).padStart(2,'0');
+            state.ef_pace=_efStr; updates.ef_pace=_efStr;
+          }
+        }
+        // Jours et horaire de course
+        if(_obData.run_days){ state.run_days=_obData.run_days; updates.run_days=JSON.stringify(_obData.run_days); }
+        if(_obData.run_time){ state.run_time=_obData.run_time; updates.run_time=_obData.run_time; }
+        if(_obData.run_times){ state.run_times=_obData.run_times; updates.run_times=JSON.stringify(_obData.run_times); }
+        if(_obData.target_time){ state.target_time=_obData.target_time; updates.target_time=_obData.target_time; }
+        if(_obData.race_distance_km){ state.race_distance_km=_obData.race_distance_km; updates.race_distance_km=_obData.race_distance_km; }
+        if(_obData.fc_max){ state.fc_max=_obData.fc_max; updates.fc_max=_obData.fc_max; }
+        entries.forEach(([k,v])=>{ state[k]=v; updates[k]=v; });
+        if(_adminPreviewUid){
+          const _t=await getAuthToken();
+          await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'update',path:`users/${_adminPreviewUid}/state`,value:updates})}).catch(()=>{});
+        } else {
+          await dbRef.update(updates).catch(()=>{});
+        }
       }
+      setProgress(85,'Séances créées…');
+      await new Promise(r=>setTimeout(r,300));
+      setProgress(100,'Prêt ! 🎉');
+      await new Promise(r=>setTimeout(r,600));
+      loadEl.remove();
+    } catch(e){
+      console.error('[plan] Erreur génération:', e);
+      if(loadEl){ try{loadEl.remove();}catch(_){} }
+      _obSaving=false;
+      const _errOv=document.createElement('div');
+      _errOv.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:24px;';
+      _errOv.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;text-align:center;"><p style="font-size:18px;font-weight:800;margin-bottom:12px;">⚠️ Erreur</p><p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">Une erreur est survenue lors de la génération du plan. Réessaie ou reviens en arrière pour vérifier tes paramètres.</p><button onclick="this.closest('div[style]').remove()" style="padding:12px 24px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">OK</button></div>`;
+      document.body.appendChild(_errOv);
+      return;
     }
-    setProgress(85,'Séances créées…');
-    await new Promise(r=>setTimeout(r,300));
-    setProgress(100,'Prêt ! 🎉');
-    await new Promise(r=>setTimeout(r,600));
-    loadEl.remove();
   } else {
     // Plan non généré : sauvegarder quand même le profil et les préférences
     if(dbRef){
