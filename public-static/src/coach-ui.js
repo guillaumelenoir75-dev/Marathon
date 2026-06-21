@@ -269,7 +269,8 @@ async function sendCoachMessage(retryMsg){
       });
       let ei=0;
       while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-        const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+        if(!es){ei++;continue;}
         const done=!!state[`extra_w${ws}_s${ei}_done`];
         const perfExtra=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):null;
         weekSessions.push({type:es.type,titre:es.d.split('|')[0],extra:true,kmPlan:es.km,chaussures:es.shoe||null,done,kmRealise:done?(state[`extra_w${ws}_s${ei}_km`]||null):null,perf:perfExtra});
@@ -306,7 +307,8 @@ async function sendCoachMessage(retryMsg){
         // ── Séances extra (ajoutées via "Ajouter une séance") ──
         let ei = 0;
         while(ei<=20&&state[`extra_w${ws}_s${ei}`]) {
-          const es = JSON.parse(state[`extra_w${ws}_s${ei}`]);
+          let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+          if(!es){ei++;continue;}
           const done = !!state[`extra_w${ws}_s${ei}_done`];
           const km = parseFloat(es.km) || 0;
           const parts = (es.d||'').split('|');
@@ -1524,7 +1526,8 @@ async function loadCoachHistory(){
         });
         // Inclure les séances extra validées cette semaine
         {let ei=0;while(ei<=20&&state[`extra_w${CW}_s${ei}`]){
-          const es=JSON.parse(state[`extra_w${CW}_s${ei}`]);
+          let es;try{es=JSON.parse(state[`extra_w${CW}_s${ei}`]);}catch(e){ei++;continue;}
+          if(!es){ei++;continue;}
           if(es.type!=='rest'&&es.km>0){
             seancesTotal++;
             kmPlan+=es.km;

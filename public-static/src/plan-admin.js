@@ -312,7 +312,7 @@ function renderAthleteCoachView(userData, uid, name){
           const lbl=typeLabel[s.type]||s.type;
           return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #f5f5f5;">
             <span style="background:${col}22;color:${col};font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;flex-shrink:0;">${lbl}</span>
-            <span style="flex:1;font-size:13px;">${s.d.split('|')[0]} · <b>${s.km} km</b></span>
+            <span style="flex:1;font-size:13px;">${(s.d||'').split('|')[0]} · <b>${s.km} km</b></span>
             ${done?`<span style="font-size:11px;color:#2d7d46;">✓ ${kmDone}km${perf.pace?' · '+perf.pace:''}</span>`:''}
             <button onclick="cvEditSession(${w},${si})" style="background:#f5f5f5;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;">✏️</button>
             ${!done?`<button onclick="cvDeleteSession(${w},${si})" style="background:none;border:none;font-size:14px;cursor:pointer;color:#ccc;flex-shrink:0;">✕</button>`:''}
