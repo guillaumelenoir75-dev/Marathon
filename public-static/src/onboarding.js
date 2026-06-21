@@ -429,18 +429,29 @@ function onboardingSelect(field,val){
     if(c) c.classList.add('selected');
     if(field==='sessions'||field==='course'){
       if(_obCheckAndShowSessionsConstraint()) return;
-      if(field==='sessions') _obShowAdaptiveTip('sessions');
+      if(field==='sessions'){
+        _obShowAdaptiveTip('sessions');
+        // Tip affiché : laisser l'utilisateur lire, pas d'auto-avance
+        const next=document.getElementById('ob-btn-next');
+        if(next){next.disabled=false;next.style.opacity='1';}
+        return;
+      }
     }
     if(field==='niveau'){
       if(_obCheckAndShowNiveauConstraint()) return;
       _obShowAdaptiveTip('niveau');
+      // Tip affiché : laisser l'utilisateur lire, pas d'auto-avance
+      const next=document.getElementById('ob-btn-next');
+      if(next){next.disabled=false;next.style.opacity='1';}
+      return;
     }
     if(field==='km_semaine'){
       if(_obCheckAndShowKmConstraint(val)) return;
       _obShowAdaptiveTip('km_semaine');
-      // Ne pas auto-avancer si un warning est affiché (laisser l'user lire)
-      const _kmWarn=document.getElementById('ob-km-base-warn');
-      if(_kmWarn&&_kmWarn.style.display!=='none') return;
+      // Tip affiché : laisser l'utilisateur lire, pas d'auto-avance
+      const next=document.getElementById('ob-btn-next');
+      if(next){next.disabled=false;next.style.opacity='1';}
+      return;
     }
     // generate_plan : gérer l'affichage du message selon le choix
     if(field==='generate_plan'){
