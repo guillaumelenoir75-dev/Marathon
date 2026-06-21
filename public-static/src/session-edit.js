@@ -207,7 +207,7 @@ function selectHmEfPace(pace){
   const inp=document.getElementById('edit-ef-pace');
   if(inp){inp.value=pace;updateEfPreview();}
   document.querySelectorAll('[id^="edit-pace-chip-"]').forEach(btn=>{
-    const sel=btn.id==='edit-ef-chip-'+pace.replace(':','-');
+    const sel=btn.id==='edit-pace-chip-'+pace.replace(':','-');
     btn.style.background=sel?'var(--blue)':'var(--bg2)';
     btn.style.color=sel?'#fff':'var(--muted)';
     btn.style.borderColor=sel?'var(--blue)':'var(--border)';

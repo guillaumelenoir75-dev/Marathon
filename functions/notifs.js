@@ -59,7 +59,7 @@ exports.sessionReminder = onSchedule(
           const done=!!state[`s${cw}i${si}done`];if(done)continue;
           const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
           let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-          if(ed.sched_day!==dayOfWeek||!ed.sched_time)continue;
+          if(Number(ed.sched_day)!==dayOfWeek||!ed.sched_time)continue;
           const[h,m]=ed.sched_time.split(':').map(Number);
           const sm=h*60+m;
           if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
@@ -100,7 +100,7 @@ exports.sessionReminder = onSchedule(
           const done=!!state[`extra_w${cw}_s${extraRi}_done`];
           if(!done){
             let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
-            if(es.sched_day===dayOfWeek&&es.sched_time){
+            if(Number(es.sched_day)===dayOfWeek&&es.sched_time){
               const[h,m]=es.sched_time.split(':').map(Number);
               const sm=h*60+m;
               if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
@@ -160,7 +160,7 @@ exports.sessionReminder = onSchedule(
           const edRaw=uState[`edit_w${ucw}_s${si}`];if(!edRaw)continue;
           let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
           if(ed.type==='rest')continue;
-          if(ed.sched_day!==dayOfWeek||!ed.sched_time)continue;
+          if(Number(ed.sched_day)!==dayOfWeek||!ed.sched_time)continue;
           const[h,m]=ed.sched_time.split(':').map(Number);
           const sm=h*60+m;
           if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
@@ -441,7 +441,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           const done=!!state[`s${cw}i${si}done`];if(done)continue;
           const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
           let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-          if(ed.sched_day!==dayOfWeek)continue;
+          if(Number(ed.sched_day)!==dayOfWeek)continue;
           const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
           manquees.push(`🏃 ${titre} ${ed.km||''}km`);
         }
@@ -459,7 +459,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           const done=!!state[`extra_w${cw}_s${extraI}_done`];
           if(!done){
             let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
-            if(es.sched_day===dayOfWeek){
+            if(Number(es.sched_day)===dayOfWeek){
               const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
               manquees.push(`🏃 ${titre} ${es.km||''}km`);
             }
@@ -483,7 +483,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           const done=!!uState[`s${cw}i${si}done`];if(done)continue;
           const edRaw=uState[`edit_w${cw}_s${si}`];if(!edRaw)continue;
           let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-          if(ed.sched_day!==dayOfWeek)continue;
+          if(Number(ed.sched_day)!==dayOfWeek)continue;
           const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
           manquees.push(`🏃 ${titre} ${ed.km||''}km`);
         }
@@ -493,7 +493,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           const done=!!uState[`extra_w${cw}_s${extraI}_done`];
           if(!done){
             let es;try{es=JSON.parse(uState[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
-            if(es.sched_day===dayOfWeek){
+            if(Number(es.sched_day)===dayOfWeek){
               const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
               manquees.push(`🏃 ${titre} ${es.km||''}km`);
             }

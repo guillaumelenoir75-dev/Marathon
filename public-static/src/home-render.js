@@ -358,7 +358,7 @@ function renderHome(){
     }
     // "Aujourd'hui" seulement sur semaine en cours
     const runEdRaw=extra?null:state['edit_w'+w+'_s'+si];
-    const runEd=runEdRaw?JSON.parse(runEdRaw):null;
+    let runEd=null;try{runEd=runEdRaw?JSON.parse(runEdRaw):null;}catch(e){}
     const todayDayRun=(new Date()).getDay()===0?7:(new Date()).getDay();
     const isRunToday=isCurrent&&!done&&(
       extra

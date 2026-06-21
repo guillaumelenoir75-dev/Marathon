@@ -54,7 +54,7 @@ function getOrderedWeekSessions(ws){
       s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
     }
     return {s,si,extra,ei};
-  });
+  }).filter(Boolean);
 }
 
 function moveSession(ws, rowIdx, dir){

@@ -185,7 +185,7 @@ async function buildNotifContext(state, cw) {
     if(done){const perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
     else{
       seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
-      if(ed.sched_day===dayOfWeek) seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
+      if(Number(ed.sched_day)===dayOfWeek) seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
     }
   }
   for(let ri=1;ri<=2;ri++){

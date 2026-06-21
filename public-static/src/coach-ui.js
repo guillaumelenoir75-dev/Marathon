@@ -221,9 +221,8 @@ async function sendCoachMessage(retryMsg){
   const input = document.getElementById('coach-input');
   const msg = retryMsg || (input ? input.value.trim() : '');
   if(!msg) return;
-  input.value = '';
-  input.style.height='auto';
-  setTimeout(()=>input.focus(),100);
+  if(input){ input.value = ''; input.style.height='auto'; }
+  if(input) setTimeout(()=>input.focus(),100);
   addCoachMessage('user', msg);
   coachHistory.push({role:'user', content: msg, date: new Date().toISOString().slice(0,10)});
   _lastUserMessageBeforeProposal = msg; // stocker pour extraction
