@@ -52,7 +52,7 @@ exports.stravaAuth = onRequest(
     try { uid = await verifyUser(req); } catch(e) { res.status(401).json({ error: 'Non authentifié' }); return; }
 
     const clientId = STRAVA_CLIENT_ID.value();
-    const redirectUri = 'https://us-central1-prepa-marathon.cloudfunctions.net/stravaCallback';
+    const redirectUri = 'https://europe-west1-prepa-marathon.cloudfunctions.net/stravaCallback';
     const scope = 'read,activity:read';
     const state = encodeURIComponent(uid);
     const url = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;

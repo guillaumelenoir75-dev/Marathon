@@ -113,7 +113,7 @@ async function sendPushToAll(vapidPublic, vapidPrivate, title, body, tag, url, e
     if (prefKey) {
       try {
         const pSnap = await db.ref(`users/${uid}/state/_prefs`).once('value');
-        const prefs = pSnap.val() ? JSON.parse(pSnap.val()) : {};
+        const _raw=pSnap.val(); const prefs = _raw ? (typeof _raw==='string'?JSON.parse(_raw):_raw) : {};
         if (prefs[prefKey] === false) return;
       } catch(e) { console.warn(`sendPushToAll prefs parse [${uid}]:`, e.message); }
     }
@@ -182,7 +182,7 @@ async function buildNotifContext(state, cw) {
     const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
     const km=ed.km||'';
     const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
-    if(done){const perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;seancesDone.push(`${titre} ${km}km${perf?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
+    if(done){const perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
     else{
       seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
       if(ed.sched_day===dayOfWeek) seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
@@ -214,7 +214,7 @@ async function buildNotifContext(state, cw) {
   }
   let efPace=null;
   for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`s${ws}i${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;}
-  let kmSemaine=0;for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}
+  let kmSemaine=0;for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}let _exi=0;while(_exi<=20&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
   const cwNext=Math.min(cw+1,32);
   const typeSemNext=cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge';
   for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
