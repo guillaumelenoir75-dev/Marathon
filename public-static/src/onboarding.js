@@ -14,29 +14,85 @@ const _OB_KM_MIN_WARN={
 };
 var KNOWN_RACES = {
   'Marathon': [
+    // Été 2026
     {name:'Marathon du Médoc', date:'2026-09-05', emoji:'🍷'},
     {name:'Berlin Marathon', date:'2026-09-27', emoji:'🇩🇪'},
+    // Octobre 2026
     {name:'Lyon Marathon', date:'2026-10-04', emoji:'🏙️'},
     {name:'Amsterdam Marathon', date:'2026-10-18', emoji:'🇳🇱'},
+    {name:'Marathon de l\'Eure', date:'2026-10-18', emoji:'🌿'},
     {name:'Toulouse Marathon', date:'2026-10-18', emoji:'🌸'},
     {name:'Lausanne Marathon', date:'2026-10-25', emoji:'🇨🇭'},
     {name:'Frankfurt Marathon', date:'2026-10-25', emoji:'🇩🇪'},
+    {name:'Dublin Marathon', date:'2026-10-25', emoji:'🇮🇪'},
+    // Novembre 2026
+    {name:'Beaujolais Marathon', date:'2026-11-15', emoji:'🍇'},
+    {name:'Marrakech Marathon', date:'2026-11-08', emoji:'🌴'},
+    {name:'Annecy Marathon', date:'2026-11-08', emoji:'🏔️'},
+    // Décembre 2026
+    {name:'Athens Classic Marathon', date:'2026-12-13', emoji:'🏛️'},
+    // Janvier 2027
+    {name:'Marseille-Cassis', date:'2027-01-17', emoji:'🌊'},
+    // Février 2027
+    {name:'Marathon de Rome', date:'2027-03-21', emoji:'🇮🇹'},
+    // Printemps 2027
     {name:'Paris Marathon', date:'2027-04-11', emoji:'🗼'},
-    {name:'Rotterdam Marathon', date:'2027-04-11', emoji:'🇳🇱'},
+    {name:'Rotterdam Marathon', date:'2027-04-13', emoji:'🇳🇱'},
+    {name:'Hambourg Marathon', date:'2027-04-25', emoji:'🇩🇪'},
+    {name:'Bordeaux Marathon', date:'2027-06-13', emoji:'🍷'},
+    // Été 2027
+    {name:'Marathon du Mont-Blanc', date:'2027-06-27', emoji:'🏔️'},
+    {name:'Marathon du Médoc', date:'2027-09-04', emoji:'🍷'},
+    {name:'Berlin Marathon', date:'2027-09-26', emoji:'🇩🇪'},
+    {name:'Lyon Marathon', date:'2027-10-03', emoji:'🏙️'},
+    {name:'Amsterdam Marathon', date:'2027-10-17', emoji:'🇳🇱'},
+    {name:'Marathon de l\'Eure', date:'2027-10-17', emoji:'🌿'},
+    {name:'Toulouse Marathon', date:'2027-10-17', emoji:'🌸'},
+    {name:'Frankfurt Marathon', date:'2027-10-31', emoji:'🇩🇪'},
+    {name:'Dublin Marathon', date:'2027-10-24', emoji:'🇮🇪'},
+    {name:'Paris Marathon', date:'2028-04-07', emoji:'🗼'},
+    {name:'Berlin Marathon', date:'2028-09-24', emoji:'🇩🇪'},
   ],
   'Semi-marathon': [
-    {name:'Semi Tours', date:'2026-09-13', emoji:'🏰'},
-    {name:'Semi Boulogne', date:'2026-09-20', emoji:'🌊'},
-    {name:'Semi de Paris', date:'2027-03-07', emoji:'🗼'},
+    // 2026
+    {name:'Semi de Tours', date:'2026-09-13', emoji:'🏰'},
+    {name:'Semi de Boulogne', date:'2026-09-20', emoji:'🌊'},
+    {name:'Semi de Strasbourg', date:'2026-10-04', emoji:'🥨'},
+    {name:'Semi de Bordeaux', date:'2026-10-04', emoji:'🍷'},
+    {name:'Semi de Nice', date:'2026-10-11', emoji:'☀️'},
+    {name:'Semi de Nantes', date:'2026-10-18', emoji:'🚢'},
+    {name:'Semi de Reims', date:'2026-10-25', emoji:'🥂'},
+    {name:'Semi de Marseille', date:'2026-11-15', emoji:'🌊'},
+    {name:'Semi de Versailles', date:'2026-11-22', emoji:'👑'},
+    // 2027
     {name:'Semi de Lyon', date:'2027-01-17', emoji:'🏙️'},
-    {name:'Semi Bordeaux', date:'2027-02-07', emoji:'🍇'},
+    {name:'Semi de Paris', date:'2027-03-07', emoji:'🗼'},
+    {name:'Semi de Bordeaux', date:'2027-02-07', emoji:'🍇'},
+    {name:'Semi de Nice', date:'2027-10-10', emoji:'☀️'},
+    {name:'Semi de Nantes', date:'2027-10-17', emoji:'🚢'},
+    {name:'Semi de Strasbourg', date:'2027-10-03', emoji:'🥨'},
+    {name:'Semi de Lyon', date:'2028-01-16', emoji:'🏙️'},
+    {name:'Semi de Paris', date:'2028-03-07', emoji:'🗼'},
   ],
   '10 km': [
-    {name:'10 km de Paris', date:'2026-11-01', emoji:'🗼'},
     {name:'10 km de Lyon', date:'2026-10-11', emoji:'🏙️'},
+    {name:'10 km de Paris', date:'2026-11-01', emoji:'🗼'},
+    {name:'10 km de Bordeaux', date:'2026-10-18', emoji:'🍷'},
+    {name:'10 km de Nantes', date:'2026-10-04', emoji:'🚢'},
+    {name:'10 km de Marseille', date:'2026-11-08', emoji:'🌊'},
+    {name:'10 km de Nice', date:'2026-11-15', emoji:'☀️'},
+    {name:'10 km de Lyon', date:'2027-10-10', emoji:'🏙️'},
+    {name:'10 km de Paris', date:'2027-10-31', emoji:'🗼'},
+    {name:'10 km de Bordeaux', date:'2027-10-17', emoji:'🍷'},
   ],
   '5 km': [
-    {name:'5 km parkrun', date:'2026-07-04', emoji:'🌳'},
+    {name:'Parkrun (hebdo)', date:'2026-07-04', emoji:'🌳'},
+    {name:'Parkrun (hebdo)', date:'2026-08-01', emoji:'🌳'},
+    {name:'Parkrun (hebdo)', date:'2026-09-05', emoji:'🌳'},
+    {name:'5 km de Paris', date:'2026-10-10', emoji:'🗼'},
+    {name:'5 km de Lyon', date:'2026-10-04', emoji:'🏙️'},
+    {name:'5 km de Bordeaux', date:'2026-11-08', emoji:'🍷'},
+    {name:'5 km de Paris', date:'2027-10-09', emoji:'🗼'},
   ],
 };
 
@@ -999,27 +1055,48 @@ function _obPopulateDateShortcuts(){
   // Courses connues pour la distance sélectionnée
   var knownList = KNOWN_RACES[_obData.course] || [];
   var today2 = new Date(); today2.setHours(0,0,0,0);
+  var maxWeeks = 32; // afficher jusqu'à 32 semaines (pas de limite stricte)
   var filtered = knownList.filter(function(r) {
     var rDate = new Date(r.date);
     var diffD = Math.round((rDate - today2) / 86400000);
-    return diffD > 0 && diffD <= 168;
+    return diffD > 0 && diffD <= maxWeeks * 7;
   });
+  // Dédupliquer par nom+date (parkrun peut apparaître plusieurs fois)
+  var seen = {};
+  filtered = filtered.filter(function(r){ var k=r.name+r.date; if(seen[k]) return false; seen[k]=1; return true; });
   if (filtered.length > 0) {
     var raceLabel = document.createElement('p');
-    raceLabel.style.cssText = 'font-size:12px;color:#666;margin:12px 0 8px;font-weight:600;';
-    raceLabel.textContent = 'Ou choisis une course :';
+    raceLabel.style.cssText = 'font-size:12px;color:#666;margin:14px 0 8px;font-weight:600;';
+    raceLabel.textContent = '🏁 Prochaines courses :';
     container.appendChild(raceLabel);
-    var raceRow = document.createElement('div');
-    raceRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;';
-    filtered.forEach(function(r) {
+    // Tableau aligné
+    var table = document.createElement('div');
+    table.style.cssText = 'background:#fff;border-radius:14px;overflow:hidden;border:1.5px solid #e0e8f5;margin-bottom:4px;';
+    var moisFr = ['jan.','fév.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+    filtered.forEach(function(r, idx) {
       var rDate = new Date(r.date);
       var rYY = rDate.getFullYear();
       var rMM = String(rDate.getMonth()+1).padStart(2,'0');
       var rDD = String(rDate.getDate()).padStart(2,'0');
-      var btn = document.createElement('button');
-      btn.style.cssText = 'padding:8px 14px;background:#fff7ed;border:1.5px solid #f97316;border-radius:20px;font-size:12px;font-weight:700;color:#c2410c;cursor:pointer;white-space:nowrap;';
-      btn.textContent = r.emoji + ' ' + r.name;
-      btn.onclick = function() {
+      var dateStr = rDate.getDate() + ' ' + moisFr[rDate.getMonth()] + ' ' + rYY;
+      var row = document.createElement('button');
+      row.style.cssText = 'display:flex;align-items:center;width:100%;padding:11px 14px;background:' + (idx%2===0?'#fff':'#f8faff') + ';border:none;border-top:'+(idx===0?'none':'1px solid #eef2f8')+';cursor:pointer;text-align:left;gap:10px;';
+      // Emoji + nom
+      var nameSpan = document.createElement('span');
+      nameSpan.style.cssText = 'flex:1;font-size:13px;font-weight:700;color:#1a1a1a;';
+      nameSpan.textContent = r.emoji + ' ' + r.name;
+      // Date badge
+      var dateBadge = document.createElement('span');
+      dateBadge.style.cssText = 'font-size:12px;font-weight:700;color:#1B4FD8;background:#EEF2FD;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;';
+      dateBadge.textContent = dateStr;
+      // Flèche
+      var arrow = document.createElement('span');
+      arrow.style.cssText = 'font-size:14px;color:#aaa;flex-shrink:0;';
+      arrow.textContent = '›';
+      row.appendChild(nameSpan);
+      row.appendChild(dateBadge);
+      row.appendChild(arrow);
+      row.onclick = function() {
         var dy = document.getElementById('ob-date-day');
         var dm = document.getElementById('ob-date-month');
         var dyr = document.getElementById('ob-date-year');
@@ -1027,10 +1104,12 @@ function _obPopulateDateShortcuts(){
         if(dm) dm.value = rMM;
         if(dyr) dyr.value = String(rYY);
         obDateChanged();
+        // Highlight la ligne sélectionnée
+        table.querySelectorAll('button').forEach(function(b){ b.style.background = b===row ? '#EEF2FD' : ''; });
       };
-      raceRow.appendChild(btn);
+      table.appendChild(row);
     });
-    container.appendChild(raceRow);
+    container.appendChild(table);
   }
 }
 
