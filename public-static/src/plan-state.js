@@ -191,7 +191,7 @@ function getBestEfPace(){
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
       if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
-        const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
         if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
           const sec=paceStrToSec(perf.pace);
           if(sec!==null) paces.push(sec);
@@ -239,7 +239,7 @@ async function tryAutoCalculateEF(){
   if(state.ef_pace) return null;
   if(isAdmin()) return null;
   // Plan Découverte : allure inclut la marche → ne pas auto-calculer l'EF
-  const cfg=state.plan_config?JSON.parse(state.plan_config):null;
+  let cfg=null;try{cfg=state.plan_config?JSON.parse(state.plan_config):null;}catch(e){}
   if(cfg&&cfg.niveau==='Découverte') return null;
   const efPaces=[];
   let ei=0;
@@ -349,7 +349,7 @@ function calcMarathonPace(){
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
       if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
-        const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
         if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
           const sec=paceStrToSec(perf.pace);
           if(sec!==null) validEF.push({ws,ei,sec,extra:true});

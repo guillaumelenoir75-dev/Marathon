@@ -604,7 +604,7 @@ function _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editP
 }
 
 function openPerfEditExtraModal(ws, ei){
-  const s = JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
+  let s={};try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
   let prev={};try{prev=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
   const title = (s.d||'').split('|')[0];
   const _hacc = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';

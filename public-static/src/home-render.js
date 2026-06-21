@@ -320,7 +320,7 @@ function renderHome(){
 
   // ── Bannière adaptation plan ─────────────────────────────────────────────────
   if(!isAdmin()){
-    const adapted=state._plan_adapted?JSON.parse(state._plan_adapted):null;
+    let adapted=null;try{adapted=state._plan_adapted?JSON.parse(state._plan_adapted):null;}catch(e){}
     const adaptedEl=document.getElementById('home-adapted-banner');
     if(adapted&&!adapted.seen&&adaptedEl){
       adaptedEl.style.display='flex';
@@ -333,6 +333,7 @@ function renderHome(){
 
   // ── Séances ─────────────────────────────────────────────────────────────────
   const el=document.getElementById('home-sessions');
+  if(!el) return;
   el.innerHTML='';
   getOrderedWeekSessions(w).forEach(({s:s2,si,extra,ei},i)=>{
     const done=extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done'];
@@ -400,7 +401,7 @@ function renderHome(){
             return dur?`<span style="font-size:10px;color:#6B8DB5;font-weight:500;">⏱ ~${dur}</span>`:'';
           }
           const perfRaw = extra ? state[`extra_w${w}_s${ei}_perf`] : state[gk(w,si)+'perf'];
-          const perf2 = perfRaw ? JSON.parse(perfRaw) : {};
+          let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{}}catch(e){}
           const realPace = perf2.pace || null;
           const realDur = perf2.dur || null;
           const parts2=[];
