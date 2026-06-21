@@ -644,7 +644,7 @@ function renderAthletePlan(el){
   for(let ws=1;ws<=52;ws++){
     if(!state['extra_w'+ws+'_s0']) continue;
     let t=0,ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}
     weekKmMap[ws]=Math.round(t*10)/10;
   }
   const sortedWeeks=[...weekNums].sort((a,b)=>a-b);
@@ -653,7 +653,7 @@ function renderAthletePlan(el){
   let raceWeekNum=null,raceSessionData=null;
   outerRace: for(const ws of sortedWeeks){
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       try{const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);if(s.type==='race'){raceWeekNum=ws;raceSessionData=s;break outerRace;}}catch(e){}
       ei++;
     }
@@ -681,7 +681,7 @@ function renderAthletePlan(el){
     // Collecter séances de cette semaine
     const sessions=[];
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       try{
         const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
         const done=!!state[`extra_w${ws}_s${ei}_done`];
@@ -821,7 +821,7 @@ function renderAthletePlan(el){
             <span style="font-size:13px;font-weight:700;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</span>
             <span style="font-size:10px;font-weight:500;color:${done?'#3B6D11aa':'var(--muted)'};">${kmSub?kmSub+'&thinsp;km':'&thinsp;km'}</span>
           </div>
-          <button onclick="event.stopPropagation();openEditModal(${ws},${eid})" style="font-size:10px;color:var(--blue);background:#EEF2FD;border:none;border-radius:8px;padding:2px 7px;cursor:pointer;font-weight:600;white-space:nowrap;">Détails →</button>
+          <button onclick="event.stopPropagation();openEditExtraModal(${ws},${eid})" style="font-size:10px;color:var(--blue);background:#EEF2FD;border:none;border-radius:8px;padding:2px 7px;cursor:pointer;font-weight:600;white-space:nowrap;">Détails →</button>
           <div class="plan-session-move">
             <button onclick="event.stopPropagation();moveExtraSession(${ws},${rowIdx},-1)" ${canUp?'':'disabled'}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
@@ -917,7 +917,7 @@ function moveExtraSession(ws,rowIdx,dir){
   // Collecter les indices existants
   const keys=[];
   let ei=0;
-  while(state[`extra_w${ws}_s${ei}`]){keys.push(ei);ei++;}
+  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){keys.push(ei);ei++;}
   const target=rowIdx+dir;
   if(target<0||target>=keys.length) return;
   // Échanger les deux séances (toutes leurs clés associées)
@@ -1013,7 +1013,7 @@ function renderPlan(){
       });
       // Ajouter les séances extra validées
       let ei=0;
-      while(state[`extra_w${w.s}_s${ei}`]){
+      while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){
         if(state[`extra_w${w.s}_s${ei}_done`]){
           const rv=state[`extra_w${w.s}_s${ei}_km`];
           const es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);
@@ -1039,7 +1039,7 @@ function renderPlan(){
     const allSessions=[];
     const baseOrder=weeks[w.s-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${w.s}_s${si}`]);
     let ei=0;
-    while(state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+    while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
 
     // Comparaison stable — ne pas utiliser JSON.stringify (sensible à l'ordre des clés)
     // sessionMatch tolère les anciens formats (sans champ extra:false explicite)

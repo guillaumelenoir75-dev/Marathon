@@ -411,7 +411,7 @@ async function sendCoachMessage(retryMsg){
     const _seancesAvChat = [];
     (()=>{
       const joursC=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
-      const tDow=now.getDay()===0?7:now.getDay(); const hA=heureActuelle;
+      const tDow=now.getDay()===0?7:now.getDay(); const _haParts=heureActuelle?heureActuelle.split(':'):[0,0]; const hA=parseInt(_haParts[0])+parseInt(_haParts[1]||0)/60;
       getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei})=>{
         if(_seancesAvChat.length>=3)return;
         const done=extra?!!state['extra_w'+CW+'_s'+ei+'_done']:!!state[gk(CW,si)+'done'];

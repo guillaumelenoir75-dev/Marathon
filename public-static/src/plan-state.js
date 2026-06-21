@@ -255,7 +255,7 @@ async function tryAutoCalculateEF(){
       }
     }catch(e){}
     ei++;
-    if(ei>10) break;
+    if(ei>20) break;
   }
   if(efPaces.length===0) return null;
   // Prendre l'allure la plus lente parmi les séances validées (estimation conservative)

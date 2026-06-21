@@ -3,7 +3,7 @@ function getWeekTotalKm(ws){
     // Pour les athlètes : seulement leurs séances extra
     let total=0;
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}
     return Math.round(total*10)/10;
   }
   const w=weeks[ws-1];
@@ -15,7 +15,7 @@ function getWeekTotalKm(ws){
     }
   });
   let ei=0;
-  while(state[`extra_w${ws}_s${ei}`]){
+  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
     total+=JSON.parse(state[`extra_w${ws}_s${ei}`]).km||0;
     ei++;
   }
@@ -27,7 +27,7 @@ function getOrderedWeekSessions(ws){
   if(!isAdmin()){
     const res=[];
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       try{res.push({s:JSON.parse(state[`extra_w${ws}_s${ei}`]),si:'x'+ei,extra:true,ei});}catch(e){}
       ei++;
     }
@@ -35,7 +35,7 @@ function getOrderedWeekSessions(ws){
   }
   const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
   let ei=0;
-  while(state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
   const sessionMatch=(a,b)=>!!a.extra===!!b.extra&&(a.extra?a.ei===b.ei:a.si===b.si);
   const savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]).filter(Boolean):null;
   const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>sessionMatch(b,o))).filter(Boolean):[...baseOrder];
@@ -60,7 +60,7 @@ function moveSession(ws, rowIdx, dir){
   const orderKey=`order_w${ws}`;
   const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
   let ei=0;
-  while(state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
 
   // Utiliser baseOrder comme source de vérité pour les objets (structure normalisée)
   // sessionMatch tolère les anciens formats (sans champ extra:false explicite)

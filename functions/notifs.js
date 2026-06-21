@@ -538,11 +538,11 @@ exports.weekCompleteCongrats = onSchedule(
             const ctx=await buildNotifContext(state,cw);
             const perfsDetail=[];
             for(let si=0;si<5;si++){
-              const perfRaw=state[`w${cw}_s${si}perf`];if(!perfRaw)continue;
+              const perfRaw=state[`s${cw}i${si}perf`];if(!perfRaw)continue;
               const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
               let perf,ed;try{perf=JSON.parse(perfRaw);ed=JSON.parse(edRaw);}catch(e){continue;}
               const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
-              const km=state[`w${cw}_s${si}km`]||ed.km||'';
+              const km=state[`s${cw}i${si}km`]||ed.km||'';
               perfsDetail.push(`${titre} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
             }
             const perfsStr=perfsDetail.length>0?perfsDetail.join(', '):`${doneRun} séances`;

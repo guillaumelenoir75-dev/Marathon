@@ -121,7 +121,7 @@ function openPlanModifModal(){
     const c = typeColor[s.type]||'#888';
     // Détecter si cette séance est la cible de la modification
     const searchForTarget = ((_lastUserMessageBeforeProposal||'').toLowerCase()+' '+(_lastCoachProposalText||'').toLowerCase());
-    const typeKW = {ef:['\bef\b','endurance fondamentale','séance ef'], tempo:['\btempo\b'], frac:['\bfrac\b','fractionn'], long:['longue','sortie longue'], rest:['\brepos\b'], race:['\bcourse\b']};
+    const typeKW = {ef:['\\bef\\b','endurance fondamentale','séance ef'], tempo:['\\btempo\\b'], frac:['\\bfrac\\b','fractionn'], long:['longue','sortie longue'], rest:['\\brepos\\b'], race:['\\bcourse\\b']};
     let targetType = null;
     for(const [t,keys] of Object.entries(typeKW)){
       if(keys.some(k=>new RegExp(k,'i').test(searchForTarget))){ targetType=t; break; }

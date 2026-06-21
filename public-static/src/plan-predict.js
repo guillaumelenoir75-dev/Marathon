@@ -3,7 +3,7 @@ function buildMarathonPrediction() {
   if(!isAdmin()){
     // Vérifier s'ils ont des séances validées avec perf
     let hasData=false;
-    for(let ws=1;ws<=52;ws++){let ei=0;while(state[`extra_w${ws}_s${ei}`]){if(state[`extra_w${ws}_s${ei}_perf`]){hasData=true;break;}ei++;}if(hasData)break;}
+    for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){if(state[`extra_w${ws}_s${ei}_perf`]){hasData=true;break;}ei++;}if(hasData)break;}
     if(!hasData) return {tempsStr:null,amPaceRecoStr:null,confiance:0};
   }
   const vo2max = getVo2max();
@@ -34,7 +34,7 @@ function buildMarathonPrediction() {
     });
     // Séances extra
     let ei=0;
-    while(state[`extra_w${ws}_s${ei}`]){
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       if(state[`extra_w${ws}_s${ei}_done`]){
         const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};

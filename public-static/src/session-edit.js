@@ -408,7 +408,7 @@ function getWeekSessions(ws){
     if(!state[`del_w${ws}_s${si}`]) result.push({...getSession(ws,si),_si:si,_extra:false});
   });
   let ei=0;
-  while(state[`extra_w${ws}_s${ei}`]){
+  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
     result.push({...JSON.parse(state[`extra_w${ws}_s${ei}`]),_si:'x'+ei,_extra:true,_ei:ei});
     ei++;
   }
@@ -710,7 +710,7 @@ function saveAdd(ws){
 
   const d = detail ? (name + '|' + detail) : name;
   let ei = 0;
-  while(state['extra_w' + ws + '_s' + ei]) ei++;
+  while(ei<=20&&state['extra_w' + ws + '_s' + ei]) ei++;
   const extraData = { d, km, type, shoe };
   if(schedDay)  extraData.sched_day  = schedDay;
   if(schedTime) extraData.sched_time = schedTime;

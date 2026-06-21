@@ -111,7 +111,7 @@ function openShoeHistory(shoeName){
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-      if(s.shoe===shoeName && s.km>0){
+      if(s.shoe===shoeName && s.km>0 && state[`extra_w${ws}_s${ei}_done`]){
         const kmReal=state[`extra_w${ws}_s${ei}_km`]!=null?state[`extra_w${ws}_s${ei}_km`]:s.km;
         sessions.push({title:s.d.split('|')[0],km:kmReal,ws});
       }
@@ -120,9 +120,9 @@ function openShoeHistory(shoeName){
   }
   // S7 en cours : séances déjà cochées
   const w=weeks[CW-1];
-  getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
+  getOrderedWeekSessions(CW).forEach(({s,si,extra,ei})=>{
     if(s.shoe!==shoeName||s.km===0) return;
-    const doneKey = extra ? `extra_w${CW}_s${si}` : gk(CW,si);
+    const doneKey = extra ? `extra_w${CW}_s${ei}` : gk(CW,si);
     const done = extra
       ? (state[doneKey+'_done']||state[doneKey+'_km']!=null)
       : (state[doneKey+'done']||state[doneKey+'km']!=null);
