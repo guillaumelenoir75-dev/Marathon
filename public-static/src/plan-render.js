@@ -647,12 +647,12 @@ function renderAthletePlan(el){
   }
   const sortedWeeks=[...weekNums].sort((a,b)=>a-b);
 
-  // Trouver la semaine de course (type 'race') pour badges et carte Jour J
+  // Trouver la semaine de course finale (type 'race' avec _isRace:true de préférence, sinon la dernière race du plan)
   let raceWeekNum=null,raceSessionData=null;
-  outerRace: for(const ws of sortedWeeks){
+  for(const ws of sortedWeeks){
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      try{const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);if(s.type==='race'){raceWeekNum=ws;raceSessionData=s;break outerRace;}}catch(e){}
+      try{const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);if(s.type==='race'){if(s._isRace){raceWeekNum=ws;raceSessionData=s;}else if(!raceSessionData){raceWeekNum=ws;raceSessionData=s;}}}catch(e){}
       ei++;
     }
   }
