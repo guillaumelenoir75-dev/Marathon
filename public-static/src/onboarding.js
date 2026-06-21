@@ -12,6 +12,140 @@ const _OB_KM_MIN_WARN={
   '10 km':        {Débutant:5, Intermédiaire:10,Confirmé:20},
   '5 km':         {Débutant:5, Intermédiaire:8, Confirmé:15},
 };
+var KNOWN_RACES = {
+  'Marathon': [
+    {name:'Marathon du Médoc', date:'2026-09-05', emoji:'🍷'},
+    {name:'Berlin Marathon', date:'2026-09-27', emoji:'🇩🇪'},
+    {name:'Lyon Marathon', date:'2026-10-04', emoji:'🏙️'},
+    {name:'Amsterdam Marathon', date:'2026-10-18', emoji:'🇳🇱'},
+    {name:'Toulouse Marathon', date:'2026-10-18', emoji:'🌸'},
+    {name:'Lausanne Marathon', date:'2026-10-25', emoji:'🇨🇭'},
+    {name:'Frankfurt Marathon', date:'2026-10-25', emoji:'🇩🇪'},
+    {name:'Paris Marathon', date:'2027-04-11', emoji:'🗼'},
+    {name:'Rotterdam Marathon', date:'2027-04-11', emoji:'🇳🇱'},
+  ],
+  'Semi-marathon': [
+    {name:'Semi Tours', date:'2026-09-13', emoji:'🏰'},
+    {name:'Semi Boulogne', date:'2026-09-20', emoji:'🌊'},
+    {name:'Semi de Paris', date:'2027-03-07', emoji:'🗼'},
+    {name:'Semi de Lyon', date:'2027-01-17', emoji:'🏙️'},
+    {name:'Semi Bordeaux', date:'2027-02-07', emoji:'🍇'},
+  ],
+  '10 km': [
+    {name:'10 km de Paris', date:'2026-11-01', emoji:'🗼'},
+    {name:'10 km de Lyon', date:'2026-10-11', emoji:'🏙️'},
+  ],
+  '5 km': [
+    {name:'5 km parkrun', date:'2026-07-04', emoji:'🌳'},
+  ],
+};
+
+function _obShowAdaptiveTip(field) {
+  if (field === 'sessions') {
+    var el = document.getElementById('ob-sessions-tip');
+    if (!el) return;
+    var v = String(_obData.sessions);
+    var msgs = {
+      '1': '⚠️ 1 séance/semaine : progression lente mais possible pour commencer.',
+      '2': '✓ 2 séances : bon équilibre, progression régulière.',
+      '3': '✓ 3 séances : format optimal — EF, tempo et sortie longue bien répartis.',
+      '4': '✓ 4 séances : programme intensif idéal pour viser un chrono précis.'
+    };
+    var msg = msgs[v];
+    if (msg) { el.textContent = msg; el.style.display = ''; }
+    else { el.style.display = 'none'; }
+  } else if (field === 'niveau') {
+    var el = document.getElementById('ob-niveau-tip');
+    if (!el) return;
+    var msgs = {
+      'Découverte': '🌱 Programme marche-course progressif sur 8-12 semaines, sans pression de chrono.',
+      'Débutant': '🏁 Plan axé sur la régularité et l\'arrivée confortable — premier objectif atteint !',
+      'Intermédiaire': '📈 Plan EF + tempo équilibré pour progresser sur ton chrono.',
+      'Confirmé': '🏆 Plan structuré avec intervalles, tempos et sorties longues — objectif chrono.'
+    };
+    var msg = msgs[_obData.niveau];
+    if (msg) { el.textContent = msg; el.style.display = ''; }
+    else { el.style.display = 'none'; }
+  } else if (field === 'km_semaine') {
+    var el = document.getElementById('ob-km-tip');
+    if (!el) return;
+    var v = String(_obData.km_semaine);
+    var presets = {
+      '10': '📦 Base modeste : le plan progressera doucement pour éviter les blessures.',
+      '20': '✓ Bonne base pour démarrer. Le plan pourra viser un pic de 45-55 km/sem.',
+      '30': '✓ Solide ! Avec 30 km/sem de base, les séances de qualité seront bien assimilées.',
+      '40': '⚡ Excellent volume de base. Plan ambitieux avec des séances longues bien chargées.'
+    };
+    if (presets[v]) {
+      el.textContent = presets[v];
+      el.style.display = '';
+    } else {
+      var km = parseInt(v, 10);
+      if (!isNaN(km) && km > 0) {
+        var mult = (_obData.course === 'Marathon') ? 1.8 : 1.5;
+        var peak = Math.round(km * mult);
+        el.textContent = '✓ Avec ' + km + ' km/sem de base, le plan pourra viser un pic estimé à ~' + peak + ' km/sem.';
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+  }
+}
+
+function _obShowDateContext() {
+  var el = document.getElementById('ob-date-context');
+  if (!el || !_obData.date) { if(el) el.style.display='none'; return; }
+  var today = new Date(); today.setHours(0,0,0,0);
+  var race = new Date(_obData.date);
+  if (isNaN(race.getTime()) || race <= today) { el.style.display='none'; return; }
+  var diffDays = Math.round((race - today) / 86400000);
+  var weeks = Math.round(diffDays / 7);
+  var course = _obData.course || 'Marathon';
+  var msg = '';
+  if (course === 'Marathon') {
+    if (weeks >= 22) msg = '📅 ' + weeks + ' semaines : longue préparation — tu auras le temps de bâtir une vraie base.';
+    else if (weeks >= 18) msg = '📅 ' + weeks + ' semaines : durée idéale pour une préparation marathon complète.';
+    else if (weeks >= 14) msg = '📅 ' + weeks + ' semaines : plan compact mais faisable pour un marathon. Chaque séance compte !';
+    else msg = '📅 ' + weeks + ' semaines avant le marathon.';
+  } else if (course === 'Semi-marathon') {
+    if (weeks >= 14) msg = '📅 ' + weeks + ' semaines : excellente base pour un semi-marathon.';
+    else if (weeks >= 10) msg = '📅 ' + weeks + ' semaines : durée standard pour un semi-marathon, parfait !';
+    else msg = '📅 ' + weeks + ' semaines avant le semi-marathon.';
+  } else if (course === '10 km') {
+    if (weeks >= 8) msg = '📅 ' + weeks + ' semaines : bonne préparation pour un 10 km.';
+    else msg = '📅 ' + weeks + ' semaines avant ton 10 km.';
+  } else {
+    msg = '📅 ' + weeks + ' semaines avant la course.';
+  }
+  if (msg) { el.textContent = msg; el.style.display = ''; }
+  else el.style.display = 'none';
+}
+
+function _obEstimateWeekProgression(numWeeks, baseKm, peakKm) {
+  var taperW = numWeeks >= 12 ? 2 : 1;
+  var buildW = numWeeks - taperW;
+  var weeks = [];
+  for (var w = 1; w <= numWeeks; w++) {
+    if (w > buildW) {
+      var t = w - buildW;
+      weeks.push(Math.round(peakKm * (t === 1 ? 0.85 : 0.70)));
+    } else {
+      var cycle = (w - 1) % 4;
+      var blockNum = Math.floor((w - 1) / 4);
+      var totalBlocks = Math.ceil(buildW / 4);
+      var blockProgress = totalBlocks > 1 ? blockNum / (totalBlocks - 1) : 1;
+      var blockPeak = Math.round(baseKm + (peakKm - baseKm) * blockProgress);
+      if (cycle === 3) {
+        weeks.push(Math.round(blockPeak * 0.75));
+      } else {
+        var intraProgress = cycle / 2;
+        weeks.push(Math.round(baseKm + (blockPeak - baseKm) * (blockProgress * 0.7 + intraProgress * 0.3)));
+      }
+    }
+  }
+  return weeks;
+}
 
 function showOnboarding(editMode){
   _obEditMode=!!editMode;
@@ -129,10 +263,12 @@ function obDateChanged(){
     } else {
       if(errEl) errEl.style.display='none';
       onboardingSelect('date',y+'-'+m+'-'+d);
+      _obShowDateContext();
     }
   } else {
     if(errEl) errEl.style.display='none';
     _obData.date=null;
+    var _dcEl=document.getElementById('ob-date-context'); if(_dcEl) _dcEl.style.display='none';
   }
 }
 
@@ -142,7 +278,15 @@ function hideOnboarding(){
 }
 
 function _obGoTo(step){
+  ['ob-sessions-tip','ob-niveau-tip','ob-km-tip','ob-date-context'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.style.display='none';
+  });
   _obStep=step;
+  // Restaurer les tips si on revient sur une étape avec une sélection déjà faite
+  if(step===1&&_obData.date) setTimeout(()=>_obShowDateContext(),50);
+  if(step===2&&_obData.sessions) setTimeout(()=>_obShowAdaptiveTip('sessions'),50);
+  if(step===3&&_obData.niveau) setTimeout(()=>_obShowAdaptiveTip('niveau'),50);
+  if(step===4&&_obData.km_semaine) setTimeout(()=>_obShowAdaptiveTip('km_semaine'),50);
   const OB_STEPS=9;
   for(let i=0;i<OB_STEPS;i++){
     const s=document.getElementById('ob-step-'+i);
@@ -224,12 +368,15 @@ function onboardingSelect(field,val){
     if(c) c.classList.add('selected');
     if(field==='sessions'||field==='course'){
       if(_obCheckAndShowSessionsConstraint()) return;
+      if(field==='sessions') _obShowAdaptiveTip('sessions');
     }
     if(field==='niveau'){
       if(_obCheckAndShowNiveauConstraint()) return;
+      _obShowAdaptiveTip('niveau');
     }
     if(field==='km_semaine'){
       if(_obCheckAndShowKmConstraint(val)) return;
+      _obShowAdaptiveTip('km_semaine');
       // Ne pas auto-avancer si un warning est affiché (laisser l'user lire)
       const _kmWarn=document.getElementById('ob-km-base-warn');
       if(_kmWarn&&_kmWarn.style.display!=='none') return;
@@ -848,6 +995,43 @@ function _obPopulateDateShortcuts(){
     row.appendChild(btn);
   });
   container.appendChild(row);
+
+  // Courses connues pour la distance sélectionnée
+  var knownList = KNOWN_RACES[_obData.course] || [];
+  var today2 = new Date(); today2.setHours(0,0,0,0);
+  var filtered = knownList.filter(function(r) {
+    var rDate = new Date(r.date);
+    var diffD = Math.round((rDate - today2) / 86400000);
+    return diffD > 0 && diffD <= 168;
+  });
+  if (filtered.length > 0) {
+    var raceLabel = document.createElement('p');
+    raceLabel.style.cssText = 'font-size:12px;color:#666;margin:12px 0 8px;font-weight:600;';
+    raceLabel.textContent = 'Ou choisis une course :';
+    container.appendChild(raceLabel);
+    var raceRow = document.createElement('div');
+    raceRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;';
+    filtered.forEach(function(r) {
+      var rDate = new Date(r.date);
+      var rYY = rDate.getFullYear();
+      var rMM = String(rDate.getMonth()+1).padStart(2,'0');
+      var rDD = String(rDate.getDate()).padStart(2,'0');
+      var btn = document.createElement('button');
+      btn.style.cssText = 'padding:8px 14px;background:#fff7ed;border:1.5px solid #f97316;border-radius:20px;font-size:12px;font-weight:700;color:#c2410c;cursor:pointer;white-space:nowrap;';
+      btn.textContent = r.emoji + ' ' + r.name;
+      btn.onclick = function() {
+        var dy = document.getElementById('ob-date-day');
+        var dm = document.getElementById('ob-date-month');
+        var dyr = document.getElementById('ob-date-year');
+        if(dy) dy.value = rDD;
+        if(dm) dm.value = rMM;
+        if(dyr) dyr.value = String(rYY);
+        obDateChanged();
+      };
+      raceRow.appendChild(btn);
+    });
+    container.appendChild(raceRow);
+  }
 }
 
 function _obShowRecap(){
@@ -924,6 +1108,65 @@ function _obShowRecap(){
       </div>
     </div>`:'';
 
+  // Build target time encart if target_time defined
+  let _targetHtml = '';
+  if (_obData.target_time) {
+    const tt = _obData.target_time;
+    let totalSec = 0;
+    const parts = tt.split(':');
+    if (parts.length === 3) totalSec = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
+    else if (parts.length === 2) totalSec = parseInt(parts[0])*3600 + parseInt(parts[1])*60;
+    const distKm = _obData.race_distance_km || (course === 'Marathon' ? 42.195 : course === 'Semi-marathon' ? 21.0975 : course === '10 km' ? 10 : 5);
+    const paceSecPerKm = totalSec / distKm;
+    const paceMin = Math.floor(paceSecPerKm / 60);
+    const paceSec = Math.round(paceSecPerKm % 60);
+    const paceStr = paceMin + "'" + String(paceSec).padStart(2,'0') + '"';
+    const niveaux = ['Découverte','Débutant','Intermédiaire','Confirmé'];
+    const nIdx = Math.max(0, niveaux.indexOf(_obData.niveau || 'Intermédiaire'));
+    const barFill = Math.round(((nIdx + 1) / niveaux.length) * 100);
+    _targetHtml = `<div style="background:#EEF2FD;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+  <div style="font-size:15px;font-weight:700;color:#1B4FD8;margin-bottom:8px;">🎯 Objectif : ${tt} &middot; ${paceStr}/km</div>
+  <div style="background:#d1d5db;border-radius:6px;height:10px;overflow:hidden;margin-bottom:4px;">
+    <div style="width:${barFill}%;background:#1B4FD8;height:100%;border-radius:6px;"></div>
+  </div>
+  <div style="font-size:12px;color:#374151;">Niveau ${_obData.niveau || 'Intermédiaire'} ✓</div>
+</div>`;
+  }
+
+  // Build SVG progression chart
+  let _chartHtml = '';
+  if (_obData.km_semaine) {
+    const today2 = new Date(); today2.setHours(0,0,0,0);
+    const race2 = _obData.date ? new Date(_obData.date) : null;
+    const diffDays2 = race2 ? Math.round((race2 - today2) / 86400000) : 0;
+    const numWeeks2 = race2 ? Math.max(4, Math.round(diffDays2 / 7)) : 16;
+    const baseKm2 = parseInt(_obData.km_semaine, 10) || 20;
+    const mult2 = (course === 'Marathon') ? 1.8 : (course === 'Semi-marathon') ? 1.5 : 1.3;
+    const peakKm2 = Math.round(baseKm2 * mult2);
+    const wks = _obEstimateWeekProgression(numWeeks2, baseKm2, peakKm2);
+    const maxKm = Math.max.apply(null, wks);
+    const svgH = 60;
+    const barW = Math.max(4, Math.floor(280 / numWeeks2) - 1);
+    const taperW2 = numWeeks2 >= 12 ? 2 : 1;
+    let bars = '';
+    wks.forEach(function(km, i) {
+      const barH = Math.round((km / maxKm) * svgH * 0.85);
+      const x = i * (barW + 1);
+      const y = svgH - barH;
+      const isTaper = i >= numWeeks2 - taperW2;
+      const isPeak = km === maxKm;
+      const fill = isTaper ? '#f97316' : isPeak ? '#1e3a8a' : '#1B4FD8';
+      const opacity = isTaper ? '0.85' : isPeak ? '1' : '0.65';
+      bars += '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+barH+'" fill="'+fill+'" opacity="'+opacity+'" rx="1"/>';
+    });
+    _chartHtml = '<div style="margin-top:14px;background:#EEF2FD;border-radius:12px;padding:12px 14px;">'
+      + '<div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">📊 Progression hebdomadaire estimée</div>'
+      + '<svg viewBox="0 0 '+numWeeks2*(barW+1)+' '+svgH+'" style="width:100%;height:'+svgH+'px;display:block;">'+bars+'</svg>'
+      + '<div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;margin-top:4px;">'
+      + '<span>S1 : '+wks[0]+' km</span><span>Pic : '+peakKm2+' km</span><span>Race 🏁</span>'
+      + '</div></div>';
+  }
+
   el.innerHTML=`<div style="background:linear-gradient(135deg,#1B4FD8,#0C447C);border-radius:14px;padding:16px;margin-bottom:16px;color:#fff;">
     <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;opacity:0.7;margin-bottom:12px;">✅ Récapitulatif</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -952,8 +1195,8 @@ function _obShowRecap(){
       <span style="font-size:13px;opacity:0.9;">📅 ${dateStr}</span>
       <span style="font-size:15px;font-weight:900;">${numWeeks} semaines</span>
     </div>
-    ${_pacesHtml}
-  </div>`;
+    ${_targetHtml}${_pacesHtml}
+  </div>${_chartHtml}`;
   el.style.display='block';
 }
 
