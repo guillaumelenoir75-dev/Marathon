@@ -121,9 +121,14 @@ function openShoeHistory(shoeName){
   const w=weeks[CW-1];
   getOrderedWeekSessions(CW).forEach(({s,si,extra})=>{
     if(s.shoe!==shoeName||s.km===0) return;
-    const done=!extra&&(state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null);
+    const doneKey = extra ? `extra_w${CW}_s${si}` : gk(CW,si);
+    const done = extra
+      ? (state[doneKey+'_done']||state[doneKey+'_km']!=null)
+      : (state[doneKey+'done']||state[doneKey+'km']!=null);
     if(!done) return;
-    const kmReal=(!extra&&state[gk(CW,si)+'km']!=null)?state[gk(CW,si)+'km']:s.km;
+    const kmReal = extra
+      ? (state[doneKey+'_km']!=null ? state[doneKey+'_km'] : s.km)
+      : (state[doneKey+'km']!=null ? state[doneKey+'km'] : s.km);
     sessions.push({title:s.d.split('|')[0],km:kmReal,ws:CW});
   });
 

@@ -810,7 +810,7 @@ function openEditExtraModal(ws, ei){
     const exPMin=paceRangeMatchEx?paceRangeMatchEx[1]+':'+paceRangeMatchEx[2]:paceKmMatchEx?paceKmMatchEx[1]+':'+paceKmMatchEx[2]:defPMin;
     const exPMax=paceRangeMatchEx?paceRangeMatchEx[3]+':'+paceRangeMatchEx[4]:(()=>{const sx=paceKmMatchEx?parseInt(paceKmMatchEx[1])*60+parseInt(paceKmMatchEx[2]):null;return sx?Math.floor((sx+10)/60)+':'+((sx+10)%60<10?'0':'')+((sx+10)%60):defPMax;})();
     const recupMatch=detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
-    const exRecup=recupMatch?parseInt(recupMatch[1]):'3:00';
+    const exRecup=recupMatch?recupMatch[1]:'3:00';
     const accentCol=s.type==='frac'?'#C4141B':'#E8530A';
     fieldsHtml=buildTempoFieldsHtml('exedit',exReps,exDur,exRecup,exPMin,exPMax,accentCol);
   } else {

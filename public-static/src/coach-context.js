@@ -569,7 +569,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null});
         });
         let ei=0;
-        while(state[`extra_w${ws}_s${ei}`]){
+        while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
           if(state[`extra_w${ws}_s${ei}_done`]){
             const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
             const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
@@ -632,7 +632,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
       });
       // Séances extra validées
       let ei=0;
-      while(state[`extra_w${ws}_s${ei}`]){
+      while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
         if(state[`extra_w${ws}_s${ei}_done`]){
           const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
           const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};

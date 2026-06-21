@@ -597,7 +597,7 @@ function cvEditSession(w, si){
 function cvAddSession(w){
   // Trouver le prochain index libre
   let si=0;
-  while(_cvState[`extra_w${w}_s${si}`]) si++;
+  while(si<=20&&_cvState[`extra_w${w}_s${si}`]) si++;
   _cvShowSessionModal({w,si,title:'',km:0,type:'ef',isNew:true});
 }
 

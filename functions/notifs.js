@@ -301,7 +301,8 @@ exports.briefAfterFcRepos = onSchedule(
       try{
         const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
         const loc=locSnap.val();
-        const locFresh=loc&&loc.lat&&(Date.now()-loc.ts)<30*24*3600*1000;
+        const _tsBrief=loc&&loc.ts?(loc.ts<1e10?loc.ts*1000:loc.ts):0;
+        const locFresh=loc&&loc.lat&&_tsBrief&&(Date.now()-_tsBrief)<30*24*3600*1000;
         const lat=locFresh?loc.lat:48.8417;
         const lng=locFresh?loc.lng:2.2945;
         const targetH=seanceHeureDig!==null?seanceHeureDig:8;

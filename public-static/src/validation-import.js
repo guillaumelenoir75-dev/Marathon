@@ -332,7 +332,7 @@ async function importFromStrava() {
           }
         } catch(e) {}
       }, 2000);
-      setTimeout(() => clearInterval(check), 120000);
+      setTimeout(() => { clearInterval(check); if(authWin) authWin.close(); if(btn) { btn.innerHTML = '🟠 Strava'; btn.disabled = false; } }, 120000);
       return;
     }
 
