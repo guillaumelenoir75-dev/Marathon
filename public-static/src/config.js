@@ -86,7 +86,7 @@ const shoeStyle={
 };
 const defaultShoeColors=['#1438A8','#D4537E','#EAB308','#3B6D11','#534AB7','#E8530A','#888780'];
 function getShoes(){
-  if(state._shoes) return JSON.parse(state._shoes);
+  if(state._shoes){try{return JSON.parse(state._shoes);}catch(e){}}
   // Les chaussures de Guillaume sont prédéfinies uniquement pour son compte admin
   if(isAdmin()) return [{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:600},{name:Z,color:'#EAB308',max:600}];
   return [];

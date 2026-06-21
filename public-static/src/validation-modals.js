@@ -46,7 +46,7 @@ function _closeAmModal(){
 }
 function openVo2maxModal() {
   const current = parseFloat(state['vo2max_current']) || 52;
-  const history = state['vo2max_history'] ? JSON.parse(state['vo2max_history']) : [];
+  let history=[];try{history=state['vo2max_history']?JSON.parse(state['vo2max_history']):[];}catch(e){}
   const mc = document.getElementById('modal-container');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -98,7 +98,7 @@ function saveVo2max() {
   // Sauvegarder valeur courante
   state['vo2max_current'] = val;
   // Ajouter à l'historique
-  const history = state['vo2max_history'] ? JSON.parse(state['vo2max_history']) : [];
+  let history=[];try{history=state['vo2max_history']?JSON.parse(state['vo2max_history']):[];}catch(e){}
   // Éviter doublons même jour
   const filtered = history.filter(e => e.date !== today);
   filtered.push({ date: today, val });

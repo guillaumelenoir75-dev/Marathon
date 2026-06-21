@@ -914,7 +914,7 @@ function formatTargetTime(t){
 function openRenfoSchedModal(r, targetWeek){
   const tw = targetWeek || CW;
   const key = rfk(tw,r)+'sched';
-  const existing = state[key] ? JSON.parse(state[key]) : {};
+  let existing={};try{existing=state[key]?JSON.parse(state[key]):{};}catch(e){}
   const renfoNames = ['','Ischio-fessiers','Bas du dos'];
   const renfoSubs  = ['','Fémoro-patellaire · 6 exos','Core stabilisation · 5 exos'];
   const name = renfoNames[r] || 'Renforcement';
