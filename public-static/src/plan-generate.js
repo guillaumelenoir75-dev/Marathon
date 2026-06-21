@@ -601,8 +601,8 @@ function generateAthletePlan(ob){
   if(course==='Marathon'&&numWeeks>=14&&!isPlaisir){
     let _p3Start=taperStartW-1;
     for(let _w=1;_w<taperStartW;_w++){if(getPhase(_w)===3){_p3Start=_w;break;}}
-    while(recovery.has(_p3Start)&&_p3Start<taperStartW-2) _p3Start++;
-    testRaceWeek=_p3Start;
+    while(recovery.has(_p3Start)&&_p3Start<taperStartW-1) _p3Start++;
+    testRaceWeek=recovery.has(_p3Start)||_p3Start>=taperStartW?0:_p3Start;
   }
 
   const getQType=(phase,weekInPhase)=>{
