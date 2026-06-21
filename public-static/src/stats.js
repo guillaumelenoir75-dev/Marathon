@@ -247,7 +247,7 @@ function renderStats(){
           const perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};
           const c=typeColor[s.type]||'#888';
           const title=s.d.split('|')[0];
-          perfRows.push({ws,title,km:kmReal,perf,c,type:s.type,extra:true});
+          perfRows.push({ws,si:ei,title,km:kmReal,perf,c,type:s.type,extra:true});
           return;
         }
         const k=gk(ws,si);

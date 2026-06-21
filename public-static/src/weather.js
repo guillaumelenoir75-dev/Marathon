@@ -858,7 +858,7 @@ function calcTotalDone(){
     let t=0;
     for(let ws=1;ws<=52;ws++){
       let ei=0;
-      while(state[`extra_w${ws}_s${ei}`]){
+      while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
         if(state[`extra_w${ws}_s${ei}_done`]){
           const rv=state[`extra_w${ws}_s${ei}_km`];
           try{t+=rv!=null?parseFloat(rv):(parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0);}catch(e){}

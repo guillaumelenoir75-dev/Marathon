@@ -260,7 +260,7 @@ INTERDIT : "c'est bien équilibré" sans vérifier les 6 points. INTERDIT : inve
         const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 500, stream: true, system, messages: [{role:'user', content: userMsg}] })
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, stream: true, system, messages: [{role:'user', content: userMsg}] })
         }, 55000);
         if (!streamRes.ok) {
           res.write('data: ' + JSON.stringify({token: 'Erreur temporaire, réessaie dans quelques secondes.'}) + '\n\n');
@@ -583,7 +583,7 @@ ${modeInstructions}${rappelPlanification}${rappelTemporel}`;
               'x-api-key': ANTHROPIC_API_KEY.value(),
               'anthropic-version': '2023-06-01'
             },
-            body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: maxTokens, stream: true, system, messages })
+            body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, stream: true, system, messages })
           }, 110000);
           console.log(`Anthropic coachChat attempt ${attempt + 1} status:`, streamRes.status);
           if(streamRes.ok || ![429, 503, 529].includes(streamRes.status)) break;
@@ -670,7 +670,7 @@ Génère le briefing lundi matin.`;
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 55000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Briefing indisponible momentanément, réessaie dans quelques secondes.'}) + '\n\n');
@@ -740,7 +740,7 @@ Génère le bilan de semaine.`;
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 55000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Bilan indisponible momentanément, réessaie dans quelques secondes.'}) + '\n\n');
@@ -813,7 +813,7 @@ exports.quickBrief = onRequest(
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 200, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 200, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 28000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');
@@ -912,7 +912,7 @@ Consignes : ${context.consignes_ef||''}${memosLine}`;
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 85000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');

@@ -16,7 +16,7 @@ function getWeekTotalKm(ws){
   });
   let ei=0;
   while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-    total+=JSON.parse(state[`extra_w${ws}_s${ei}`]).km||0;
+    try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}
     ei++;
   }
   return Math.round(total*10)/10;

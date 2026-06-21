@@ -1009,7 +1009,9 @@ function renderPlan(){
       weeks[w.s-1].sessions.forEach((_,si)=>{
         if(state[`del_w${w.s}_s${si}`]) return;
         const rv = state[gk(w.s,si)+'km'];
-        total += rv!=null ? parseFloat(rv) : getSession(w.s,si).km;
+        const done = !!state[gk(w.s,si)+'done'];
+        if(rv!=null) total += parseFloat(rv);
+        else if(done) total += getSession(w.s,si).km;
       });
       // Ajouter les séances extra validées
       let ei=0;

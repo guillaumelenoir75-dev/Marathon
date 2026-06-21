@@ -530,6 +530,7 @@ exports.weekCompleteCongrats = onSchedule(
             totalRun++;
             if(!!state[`s${cw}i${si}done`])doneRun++;
           }
+          let ei=0;while(ei<=20&&state[`extra_w${cw}_s${ei}`]){const es=state[`extra_w${cw}_s${ei}`];ei++;if(!es)continue;let ed2;try{ed2=JSON.parse(es);}catch(e){continue;}if(ed2.type==='rest')continue;totalRun++;if(!!state[`extra_w${cw}_s${ei-1}_done`])doneRun++;}
           const renfo1Done=!!state[`rf${cw}r1done`];
           const renfo2Done=!!state[`rf${cw}r2done`];
           const lastValid=state[`_last_validation_w${cw}`]||0;

@@ -182,7 +182,7 @@ async function buildNotifContext(state, cw) {
     const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
     const km=ed.km||'';
     const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
-    if(done){const perf=state[`w${cw}_s${si}perf`]?JSON.parse(state[`w${cw}_s${si}perf`]):null;seancesDone.push(`${titre} ${km}km${perf?' — '+perf.pace+'/km FC'+(perf.fc||''):' ✓'}`);}
+    if(done){const perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;seancesDone.push(`${titre} ${km}km${perf?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
     else{
       seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
       if(ed.sched_day===dayOfWeek) seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
@@ -213,8 +213,8 @@ async function buildNotifContext(state, cw) {
     extraIdx++;
   }
   let efPace=null;
-  for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`w${ws}_s${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;}
-  let kmSemaine=0;for(let si=0;si<5;si++){const pr=state[`w${cw}_s${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.km)kmSemaine+=parseFloat(p.km);}catch(e){}}
+  for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`s${ws}i${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;}
+  let kmSemaine=0;for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}
   const cwNext=Math.min(cw+1,32);
   const typeSemNext=cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge';
   for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
