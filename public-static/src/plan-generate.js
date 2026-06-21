@@ -671,7 +671,8 @@ function generateAthletePlan(ob){
     if(phase===3&&!isRecov) _specWeekCount++;
 
     const sFloor=total<10?2:3;
-    const longSFloor=Math.max(sFloor,5); // sortie longue : minimum réaliste 5 km
+    // longSFloor adaptatif : évite que les planchers individuels dépassent le volume total
+    const longSFloor=Math.max(sFloor,total>=12?5:total>=8?4:3);
     const capLong=(base)=>Math.min(Math.max(base,longSFloor),longRunCap);
 
     // Course test intermédiaire (marathon ≥ 14 sem) — remplace la sortie longue cette semaine

@@ -152,11 +152,16 @@ function _obGoTo(step){
   }
   // Initialiser l'étape jours avec la bonne limite
   if(step===5) setTimeout(initObDaysStep, 0);
+  if(step===4) setTimeout(()=>_obCheckAndShowKmConstraint(_obData.km_semaine||0),0);
   if(step===8) setTimeout(_initObTargetTime, 0);
   if(step===2) setTimeout(_obCheckAndShowSessionsConstraint,0);
   if(step===3) setTimeout(_obCheckAndShowNiveauConstraint,0);
   if(step===8) setTimeout(_obCheckAndShowTargetTimeConstraint,0);
   if(step===8) setTimeout(_obShowRecap,0);
+  if(step===8){
+    const _npInfo=document.getElementById('ob-no-plan-info');
+    if(_npInfo) _npInfo.style.display=_obData.generate_plan==='non'?'block':'none';
+  }
   // Step 2 (sessions) : chip 1 visible uniquement pour Découverte ; chips 3,4 masquées pour Découverte
   if(step===2){
     const isDecouv=_obData.niveau==='Découverte';
@@ -967,7 +972,7 @@ async function saveOnboarding(){
             const _crs=_obData.course||'Marathon';
             const _efM={'Marathon':{Débutant:1.40,Intermédiaire:1.36,Confirmé:1.32},'Semi-marathon':{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30},'10 km':{Débutant:1.35,Intermédiaire:1.31,Confirmé:1.28},'5 km':{Débutant:1.32,Intermédiaire:1.28,Confirmé:1.25}}[_crs]||{Débutant:1.38,Intermédiaire:1.36,Confirmé:1.32};
             const _efSec=Math.round(_rps*(_efM[_niv]||1.36));
-            const _efStr=Math.floor(_efSec/60)+"'"+String(_efSec%60).padStart(2,'0');
+            const _efStr=Math.floor(_efSec/60)+":"+String(_efSec%60).padStart(2,'0');
             state.ef_pace=_efStr; updates.ef_pace=_efStr;
           }
         }
