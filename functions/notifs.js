@@ -216,6 +216,15 @@ exports.briefAfterFcRepos = onSchedule(
       const fcNotifKey='_brief_fc_notif_'+todayStr;
       if(state[fcNotifKey]===true){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); return; }
 
+      // Si le client a déjà généré le brief (ouverture app avant le tick serveur), ne pas rappeler l'IA.
+      // On marque quand même fait et on nettoie le trigger pour éviter les boucles.
+      if(state['_brief_matin_'+todayStr]===true){
+        console.log('briefAfterFcRepos: brief déjà généré par le client — skip IA');
+        await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
+        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+        return;
+      }
+
       // Vérifier la subscription avant de lancer l'IA (évite de dépenser des tokens si pas de push possible)
       const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
       if(!subSnap.val()){

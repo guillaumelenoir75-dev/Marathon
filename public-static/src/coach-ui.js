@@ -980,9 +980,9 @@ async function checkMorningBrief(memos, force) {
 
   if(!force && todaySessions.length === 0 && renfoTodayGate.length === 0 && !bodyhitToday) return false;
 
-  // Marquer comme brief complet généré
-  try { await dbRef.child(briefKey).set(true); } catch(e){}
-  _briefShownToday = true; // empêche tout double affichage
+  _briefShownToday = true; // empêche tout double affichage dans la même session
+  // Note : briefKey (_brief_matin_DATE) sera posé en DB APRÈS génération réussie
+  // pour permettre une re-tentative si l'appel IA échoue ou timeout
 
   const joursNoms = ['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
 
@@ -1146,6 +1146,8 @@ async function checkMorningBrief(memos, force) {
       coachHistory.push({role:'assistant', content: full, date: new Date().toISOString().slice(0,10)});
       saveCoachHistory();
       try { await dbRef.child('_brief_pending').set({content: full, date: todayStr, type:'morning_brief'}); } catch(e){}
+      // Marquer en DB maintenant que le brief est généré (après succès, pas avant)
+      try { await dbRef.child(briefKey).set(true); } catch(e){}
       // Boutons Conserver / Effacer sous le brief
       _addBriefActionButtons();
     }
