@@ -473,8 +473,8 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     const type = ed ? ed.type : s2.type;
     const km = ed ? ed.km : s2.km;
     // Pour les extras, lire sched_day/sched_time depuis s2 directement
-    const schedDay = extra ? s2.sched_day : (ed && ed.sched_day);
-    const schedTime = extra ? s2.sched_time : (ed && ed.sched_time);
+    const schedDay = extra ? s2.sched_day : ((ed && ed.sched_day) || s2.sched_day);
+    const schedTime = extra ? s2.sched_time : ((ed && ed.sched_time) || s2.sched_time);
     const jour = schedDay ? joursAbr[schedDay] : '';
     const jourComplet = schedDay ? joursComplets[schedDay] : '';
     const heure = schedTime || '';

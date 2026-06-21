@@ -337,7 +337,7 @@ function renderStats(){
             ${(()=>{
               const st = row.perf.strava;
               if(!st) return '';
-              const sid = 'strava_' + row.ws + '_' + (row.type||'');
+              const sid = 'strava_' + row.ws + '_' + row.si;
               let sh = `<div style="margin-top:8px;background:#EDF5FF;border-radius:10px;border:1px solid #1382E420;overflow:hidden;">`;
               sh += `<div onclick="(()=>{const el=document.getElementById('${sid}');const arr=document.getElementById('arr_${sid}');el.style.display=el.style.display==='none'?'block':'none';arr.style.transform=el.style.display==='none'?'':'rotate(180deg)'})()" style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;user-select:none;">`;
               sh += `<p style="font-size:9px;font-weight:700;color:#FC4C02;text-transform:uppercase;letter-spacing:0.05em;margin:0;">🟠 Strava</p>`;

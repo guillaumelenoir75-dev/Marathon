@@ -209,6 +209,21 @@ function saveEditShoe(oldName){
   if(!sh) return;
   sh.name=newName; sh.color=color; sh.max=max;
   saveShoes(arr);
+  // Mettre à jour le champ shoe dans toutes les séances éditées qui référencent l'ancien nom
+  if(oldName !== newName){
+    Object.keys(state).forEach(k=>{
+      if(/^edit_w\d+_s\d+$/.test(k)||/^extra_w\d+_s\d+$/.test(k)){
+        try{
+          const entry = typeof state[k]==='string' ? JSON.parse(state[k]) : state[k];
+          if(entry && entry.shoe === oldName){
+            entry.shoe = newName;
+            state[k] = typeof state[k]==='string' ? JSON.stringify(entry) : entry;
+          }
+        }catch(e){}
+      }
+    });
+    save();
+  }
   closeModal();
   rendered.stats=false;
   renderStats();
