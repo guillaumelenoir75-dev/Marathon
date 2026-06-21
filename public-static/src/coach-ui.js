@@ -252,10 +252,10 @@ async function sendCoachMessage(retryMsg){
       const weekSessions = [];
       weeks[ws-1].sessions.forEach((sess,si)=>{
         if(state[`del_w${ws}_s${si}`]) return;
-        const ed = state['edit_w'+ws+'_s'+si] ? JSON.parse(state['edit_w'+ws+'_s'+si]) : null;
+        let ed=null;try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
         const k = gk(ws,si);
         const done = !!state[k+'done'];
-        const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : null;
+        let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
         weekSessions.push({
           type: ed?ed.type:sess.type,
           titre: ed?ed.d.split('|')[0]:sess.d.split('|')[0],
@@ -285,7 +285,7 @@ async function sendCoachMessage(retryMsg){
         // Séances du plan de base
         const weekSessions = weeks[ws-1].sessions.map((sess, si) => {
           if(state['del_w'+ws+'_s'+si]) return null;
-          const ed = state['edit_w'+ws+'_s'+si] ? JSON.parse(state['edit_w'+ws+'_s'+si]) : null;
+          let ed=null;try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
           const d = ed ? ed.d : sess.d;
           const parts = d.split('|');
           const type = ed ? ed.type : sess.type;
@@ -538,6 +538,7 @@ async function sendCoachMessage(retryMsg){
     // NE PAS ajouter au DOM ici — seulement quand on a le contenu
 
     // Lire tout le stream
+    if(!response.ok || !response.body) throw new Error('HTTP ' + response.status);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '', buffer = '';

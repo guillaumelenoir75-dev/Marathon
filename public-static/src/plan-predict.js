@@ -17,7 +17,7 @@ function buildMarathonPrediction() {
     weeks[ws-1].sessions.forEach((s, si) => {
       const k = gk(ws, si);
       if(!state[k+'done']) return;
-      const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       if(!perf.pace || !perf.hr) return;
       const fc = parseInt(perf.hr);
       const paceSec = paceStrToSec(perf.pace);
@@ -38,7 +38,7 @@ function buildMarathonPrediction() {
       if(state[`extra_w${ws}_s${ei}_done`]){
         let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
         if(!es){ei++;continue;}
-        const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
         if(perf.pace&&perf.hr){
           const fc=parseInt(perf.hr);
           const paceSec=paceStrToSec(perf.pace);
@@ -210,7 +210,7 @@ function buildMarathonPrediction() {
     const si = weeks[p.ws-1].sessions.findIndex(s=>s.type==='long');
     if(si<0) return false;
     const k = gk(p.ws, si);
-    const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+    let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
     return perf.strava && perf.strava.splits && perf.strava.splits.length >= 6; // min 6km pour avoir 4 après skip
   });
   if(longWithSplits.length > 0) {
@@ -219,7 +219,7 @@ function buildMarathonPrediction() {
       const si = weeks[p.ws-1].sessions.findIndex(s=>s.type==='long');
       if(si<0) return;
       const k = gk(p.ws, si);
-      const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       const allSplits = (perf.strava.splits||[]).filter(sp=>sp.fc&&sp.fc>0);
       if(allSplits.length < 6) return;
       // Ignorer les 2 premiers km (échauffement cardiaque — FC encore en montée)

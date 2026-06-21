@@ -882,7 +882,7 @@ function calcTotalDone(){
     getOrderedWeekSessions(ws).forEach(({s,si,extra,ei})=>{
       if(extra){
         const k=`extra_w${ws}_s${ei}`;
-        if(state[k+'_done']){const rv=state[k+'_km'];t+=(rv!=null?parseFloat(rv):s.km);}
+        if(state[k+'_done']){const rv=state[k+'_km'];const _p=parseFloat(rv);t+=(rv!=null&&!isNaN(_p)?_p:s.km);}
         return;
       }
       const dn=state[gk(ws,si)+'done'], rv=state[gk(ws,si)+'km'];
