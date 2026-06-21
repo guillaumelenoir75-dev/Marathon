@@ -439,6 +439,7 @@ function _initObTargetTime(){
     if(hEl) hEl.value=p[0]||'';
     if(mEl) mEl.value=p[1]||'';
     if(sEl) sEl.value=p[2]||'';
+    onTargetTimeInput(); // déclenche _obShowRecap
   } else if(dist){
     // Temps par défaut selon la distance si pas d'allure EF ni de temps déjà saisi
     const efPaceSrc=_obData.ef_pace;
