@@ -78,7 +78,7 @@ async function getUserPref(db, statePath, key, defaultVal = true) {
     return prefs[key] !== undefined ? prefs[key] : defaultVal;
   } catch(e) {
     console.warn('getUserPref error (DB?):', statePath, key, e.message);
-    return false;
+    return defaultVal;
   }
 }
 

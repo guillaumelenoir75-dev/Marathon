@@ -390,21 +390,26 @@ ${memosLine}`;
       let pushBody=`${fcMsg2}${programmeItems.join(' · ')||'Récupération'}`.trim();
       if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
 
-      // Stocker brief COMPLET → affichage instantané au clic notif
+      // Stocker brief COMPLET → affichage instantané au clic notif ou à la prochaine ouverture
       await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:briefContent,date:todayStr,type:'morning_brief'});
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
-      // Envoyer la notif
-      const pushSent=await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
+      // Marquer fait et nettoyer le trigger AVANT d'envoyer la push.
+      // Ainsi, même si la push échoue ou lève une exception, l'IA ne sera pas
+      // rappelée en boucle toutes les 2 min — le brief est déjà sauvegardé en DB.
+      await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
 
-      if(pushSent){
-        // Marquer fait + nettoyer trigger uniquement si push envoyée
-        await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
-        await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
-      } else {
-        // Subscription expirée → conserver le trigger pour retry quand l'app rouvrira et re-souscrira
-        console.log('briefAfterFcRepos: push non envoyée (subscription expirée) — trigger conservé');
-        await db.ref(`${ADMIN_STATE}/_push_sub`).remove().catch(()=>{}); // Assurer nettoyage
+      // Envoyer la notif (non-bloquant : une éventuelle erreur ne doit pas remettre le trigger)
+      try{
+        const pushSent=await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
+        if(!pushSent){
+          // Subscription expirée — le brief est lisible via _brief_pending / _open_coach à la prochaine ouverture
+          console.log('briefAfterFcRepos: push non envoyée (subscription expirée) — brief disponible dans l\'app');
+        }
+      }catch(ePush){
+        // Erreur réseau ou VAPID — le brief est déjà sauvegardé, l'utilisateur le verra à l'ouverture
+        console.warn('briefAfterFcRepos: push échouée (erreur technique) — brief disponible dans l\'app:',ePush.message);
       }
     }catch(e){console.error('briefAfterFcRepos:',e.message);}
   }
