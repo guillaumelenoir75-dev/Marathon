@@ -227,9 +227,18 @@ function generateAthletePlan(ob){
   // Semaine de pic de charge (avant application du taper)
   const peakWeekNum=weekKms.lastIndexOf(Math.max(...weekKms))+1;
 
-  // Course test intermédiaire : marathon ≥ 14 semaines, semaine ~55% du plan
-  // Permet d'évaluer la forme à mi-préparation (semi-marathon ou 10km selon séances)
-  const testRaceWeek=(course==='Marathon'&&numWeeks>=14&&!isPlaisir)?Math.round(numWeeks*0.55):0;
+  // Course test intermédiaire : marathon ≥ 14 semaines, placée au début de la Phase 3
+  // (après le bloc build, avant le bloc spécifique — moment idéal pour jauger la forme)
+  // Si la semaine calculée est en décharge, on décale à la suivante non-décharge.
+  let testRaceWeek=0;
+  if(course==='Marathon'&&numWeeks>=14&&!isPlaisir){
+    // Trouver le début de Phase 3
+    let _p3Start=taperStartW-1; // fallback
+    for(let _w=1;_w<taperStartW;_w++){if(getPhase(_w)===3){_p3Start=_w;break;}}
+    // Décaler si semaine de décharge
+    while(recovery.has(_p3Start)&&_p3Start<taperStartW-2) _p3Start++;
+    testRaceWeek=_p3Start;
+  }
 
   // ── Calcul des allures (Jack Daniels VDOT) ────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
@@ -346,6 +355,13 @@ function generateAthletePlan(ob){
         if(phase===4) return {rep:4,dur:1,recup:'2:00'};
         return null;
       }
+      if(niveau==='Confirmé'){
+        if(phase===2) return {rep:8,dur:1,recup:'1:00'};
+        if(phase===3) return {rep:10,dur:2,recup:'1:30'};
+        if(phase===4) return {rep:6,dur:1,recup:'1:00'};
+        return null;
+      }
+      // Intermédiaire
       if(phase===2) return {rep:6,dur:1,recup:'1:30'};
       if(phase===3) return {rep:8,dur:2,recup:'2:00'};
       if(phase===4) return {rep:5,dur:1,recup:'1:30'};
@@ -368,6 +384,15 @@ function generateAthletePlan(ob){
     if(phase===3) return {rep:5,dur:3,recup:'2:30'};
     if(phase===4) return {rep:3,dur:2,recup:'2:30'};
     return null;
+  };
+
+  // Progression du fractionné semaine après semaine dans la phase (+1 rep toutes les 2 semaines, max +3)
+  const fracProgByWeek=(weekInPhase,phase)=>{
+    const base=fracByPhase(phase);
+    if(!base) return null;
+    const bonus=Math.min(Math.floor(weekInPhase/2),3);
+    const maxRep=niveau==='Confirmé'?14:10;
+    return {rep:Math.min(base.rep+bonus,maxRep),dur:base.dur,recup:base.recup};
   };
 
   // ── Descriptions de séances ────────────────────────────────────────────────────
@@ -514,9 +539,9 @@ function generateAthletePlan(ob){
       :course==='5 km'?'allure 5km'
       :course==='10 km'?'allure 10km'
       :'allure seuil';
-    const durFast=phase===3?18:12;
+    const fastPart=phase===3?'dernier quart de séance':'derniers 20%';
     if(targetLbl&&efLabel)
-      return `Course en progression|${efLabel}/km (début) · crescendo naturel · finir ${durFast} min à ${targetLbl}/km (${targetDesc}) · ne jamais forcer au départ, laisser venir le rythme · confiance en l'allure cible`;
+      return `Course en progression|${efLabel}/km (début) · crescendo naturel · ${fastPart} à ${targetLbl}/km (${targetDesc}) · ne jamais forcer au départ, laisser venir le rythme · confiance en l'allure cible`;
     return efLabel
       ?`Course en progression|${efLabel}/km départ très facile · crescendo naturel sur toute la durée · finir à effort soutenu, jamais essoufflé`
       :`Course en progression|départ très facile · crescendo progressif naturel · habituer le corps à finir fort`;
@@ -593,7 +618,7 @@ function generateAthletePlan(ob){
   // isRecov : semaine de décharge → durée/reps réduits, allure légèrement inférieure
   const resolveQ=(qt,phase,weekInPhase,isTaper=false,isRecov=false,allowReduce=false)=>{
     const tp=tempoProgByWeek(weekInPhase,phase);
-    const fp=fracByPhase(phase);
+    const fp=fracProgByWeek(weekInPhase,phase);
     // En décharge : réduire significativement (≈ -40 à -50% du volume qualité)
     const reduce=(p,minDur=4)=>p?{rep:Math.max(1,p.rep-1),dur:Math.max(minDur,Math.round(p.dur*0.55)),recup:p.recup}:null;
     const tpR=isRecov?reduce(tp,5):(allowReduce&&tp?{rep:Math.max(1,tp.rep-1),dur:Math.max(4,tp.dur-2),recup:tp.recup}:tp);
@@ -708,7 +733,6 @@ function generateAthletePlan(ob){
     } else if(nbSess===2){
       const kL=capLong(Math.max(Math.round(total*0.55),sFloor));
       const kEF=Math.max(total-kL,sFloor);
-      const dL=isLastPlaisirWeek?bilanDesc:descLong(kL,phase,isRecov,specWeekIndex);
 
       let s0;
       if(isRecov){
