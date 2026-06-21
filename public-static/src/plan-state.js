@@ -378,7 +378,6 @@ function updateMarathonPace(){
     if(storedTimeSec && storedTimeSec < pred.tempsSec - 600) {
       // La valeur stockée est > 10 min trop optimiste vs le modèle → reset
       state._am_pace = am;
-      save();
     }
   }
   state._am_pace=am;

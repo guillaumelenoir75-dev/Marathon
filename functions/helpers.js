@@ -194,7 +194,7 @@ async function buildNotifContext(state, cw) {
     const schedRaw=state[`rf${cw}r${ri}sched`];
     if(!schedRaw)continue;
     let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
-    if(sched.day===dayOfWeek){
+    if(Number(sched.day)===dayOfWeek){
       const _rnAll={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
       const renfoNoms={1:'Renfo '+(_rnAll[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers'),2:'Renfo '+(_rnAll[parseInt(state.renfo_prog2)||2]||'Bas du dos')};
       seancesAujourdHui.push(`${renfoNoms[ri]}${sched.time?' à '+sched.time:''}`);
