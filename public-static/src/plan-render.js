@@ -1079,8 +1079,8 @@ function renderPlan(){
       if(!extra){
         const edRaw=state[`edit_w${w.s}_s${si}`];
         if(edRaw){
-          const ed=JSON.parse(edRaw);
-          if(ed.sched_day||ed.sched_time){
+          let ed;try{ed=JSON.parse(edRaw);}catch(e){}
+          if(ed&&(ed.sched_day||ed.sched_time)){
             const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
             const dayStr=ed.sched_day?days[ed.sched_day]:'';
             const timeStr=ed.sched_time||'';

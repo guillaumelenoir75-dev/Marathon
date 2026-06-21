@@ -171,7 +171,7 @@ function renderHome(){
         } else amPredElU.textContent='—';
       } else amPredElU.textContent='—';
     }
-    document.getElementById('home-marathon-time-block').style.cursor='pointer';
+    const _htb=document.getElementById('home-marathon-time-block');if(_htb)_htb.style.cursor='pointer';
   } else {
     if(predLabelEl) predLabelEl.textContent='/km prédit';
     if(amTrainLabelEl) amTrainLabelEl.textContent='/km AM entr.';
@@ -181,7 +181,7 @@ function renderHome(){
     if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
     const amPredEl = document.getElementById('h-am-pred');
     if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
-    document.getElementById('home-marathon-time-block').style.cursor=isAdmin()?'pointer':'default';
+    const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor=isAdmin()?'pointer':'default';
   }
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
@@ -350,7 +350,7 @@ function renderHome(){
     let schedHtml='';
     if(!extra){
       const edRaw=state['edit_w'+w+'_s'+si];
-      if(edRaw){const ed=JSON.parse(edRaw);if(ed.sched_day||ed.sched_time){
+      if(edRaw){let ed;try{ed=JSON.parse(edRaw);}catch(e){}if(ed&&(ed.sched_day||ed.sched_time)){
         schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
       }}
     } else if(s2.sched_day||s2.sched_time){

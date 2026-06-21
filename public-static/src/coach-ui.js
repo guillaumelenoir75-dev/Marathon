@@ -219,7 +219,7 @@ function smartScroll(el){ if(isAtBottom(el)) el.scrollTo({top:el.scrollHeight,be
 
 async function sendCoachMessage(retryMsg){
   const input = document.getElementById('coach-input');
-  const msg = retryMsg || input.value.trim();
+  const msg = retryMsg || (input ? input.value.trim() : '');
   if(!msg) return;
   input.value = '';
   input.style.height='auto';
@@ -1447,7 +1447,7 @@ async function loadCoachHistory(){
           temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
           fc_repos: state['fc_repos'] || 51,
           fc_repos_context: buildFcReposContext(),
-          chaussures: shoesSummary,
+          chaussures: (()=>{try{return getShoes().map(sh=>({name:sh.name,km:sh.km||0,max:sh.max||600}));}catch(e){return null;}})(),
           memos: memos||undefined,
           bodyhit_semaine: (()=>{const _d=new Date();const _dow=_d.getDay()===0?7:_d.getDay();const _h=_d.getHours()+_d.getMinutes()/60;const _m=memos||'';const _rm=_m.match(/bodyhit[^,.]*?(lundi|mardi|mercredi|jeudi|vendredi)/i)||_m.match(/(lundi|mardi|mercredi|jeudi|vendredi)[^,.]*?bodyhit/i);const _jr=_rm?_rm[1].toLowerCase():null;const _jd={lundi:1,mardi:2,mercredi:3,jeudi:4,vendredi:5,samedi:6,dimanche:7};const _dw=_jr?_jd[_jr]:1;const _fait=_dow>_dw||(_dow===_dw&&_h>=12.5);return {fait:_fait,statut:_fait?'FAIT ('+(_jr||'lundi')+' 12h30)':'À VENIR ('+(_jr||'lundi')+' 12h30)',jour:_jr||'lundi',note:_jr?'Report détecté dans mémos: '+_jr:'Horaire normal lundi 12h30.'};})(),
           renfoStatus: [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].map(rd=>`${rd.name}: ${!!state[rfk(CW,rd.r)+'done']?'✓ fait':'à faire'}`).join(' | '),
@@ -1567,7 +1567,7 @@ async function loadCoachHistory(){
           temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
           fc_repos: state['fc_repos'] || 51,
           fc_repos_context: buildFcReposContext(),
-          chaussures: shoesSummary,
+          chaussures: (()=>{try{return getShoes().map(sh=>({name:sh.name,km:sh.km||0,max:sh.max||600}));}catch(e){return null;}})(),
           memos: memos||undefined,
           seances_supprimees: (()=>{const d=[];weeks[CW-1].sessions.forEach((s,si)=>{if(state['del_w'+CW+'_s'+si])d.push(s.d.split('|')[0]);});return d.length?d:null;})(),
     seances_recentes_detail: (()=>{const detail=[];for(let ws=CW; ws>=1; ws--){weeks[ws-1].sessions.forEach((sess,si)=>{const k=gk(ws,si);if(!state[k+"done"]) return;const perf=state[k+"perf"]?JSON.parse(state[k+"perf"]):{};const st=perf.strava||null;detail.push({semaine:ws,type:sess.type,titre:sess.d.split("|")[0],date:perf.date||null,km:state[k+"km"]||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,blocs_tempo:perf.blocsAllure||null,strava:st?{cadence_moy:st.cadence||st.cadence_moy||null,fc_max:st.fcMax||st.fc_max||null,denivele_pos:st.denivele_pos!=null?st.denivele_pos:null,best_400m:st.best_400m||null,calories:st.calories||null,splits_par_km:(st.splits||st.splits_par_km)?((st.splits||st.splits_par_km).filter(sp=>sp.distanceKm&&sp.distanceKm>=0.5).map(sp=>({km:sp.km,allure:sp.allure,fc:sp.fc}))):null}:null});});let ei=0;while(ei<=20&&state["extra_w"+ws+"_s"+ei]){if(state["extra_w"+ws+"_s"+ei+"_done"]){const es=JSON.parse(state["extra_w"+ws+"_s"+ei]);const perf=state["extra_w"+ws+"_s"+ei+"_perf"]?JSON.parse(state["extra_w"+ws+"_s"+ei+"_perf"]):{};detail.push({semaine:ws,type:es.type,titre:es.d.split("|")[0],extra:true,date:perf.date||null,km:state["extra_w"+ws+"_s"+ei+"_km"]||es.km,allure:perf.pace||null,fc_moy:perf.hr||null,blocs_tempo:perf.blocsAllure||null,strava:null});}ei++;}}return detail.slice(0,30);})(),

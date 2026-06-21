@@ -285,7 +285,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
 
   // Écart avec objectif Sub4h
   (()=>{
-    const objectifSec = Math.ceil(4*3600/42.195); // ~341 sec = 5'41/km
+    const objectifSec = Math.floor(4*3600/42.195); // 341 sec/km = 5'41/km
     const amSec = paceStrToSec(getMarathonPaceStr());
     if(amSec) {
       const ecart = amSec - objectifSec;

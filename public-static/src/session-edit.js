@@ -263,7 +263,7 @@ function saveEdit(ws, si){
   const applyAll = document.getElementById('edit-apply-all');
   const applyFormat = document.getElementById('edit-apply-format');
   let name = '', detail = '';
-  if(type==='ef'||type==='long'&&document.getElementById('edit-ef-pace')){
+  if(type==='ef'||(type==='long'&&document.getElementById('edit-ef-pace'))){
     // Cas EF simple : récupérer l'allure
     if(type==='ef'){
       const paceEl2=document.getElementById('edit-ef-pace');
