@@ -182,7 +182,7 @@ async function buildNotifContext(state, cw) {
     const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
     const km=ed.km||'';
     const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
-    if(done){const perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
+    if(done){let perf=null;try{perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;}catch(e){}seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
     else{
       seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
       if(Number(ed.sched_day)===dayOfWeek) seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
@@ -205,7 +205,7 @@ async function buildNotifContext(state, cw) {
     const done=!!state[`extra_w${cw}_s${extraIdx}_done`];
     if(!done){
       let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraIdx}`]);}catch(e){extraIdx++;continue;}
-      if(es.sched_day===dayOfWeek){
+      if(Number(es.sched_day)===dayOfWeek){
         const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
         seancesAujourdHui.push(`${titre} — ${es.km}km, prévu à ${es.sched_time||'horaire non défini'}`);
       }

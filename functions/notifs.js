@@ -178,7 +178,7 @@ exports.sessionReminder = onSchedule(
           const done=!!uState[`extra_w${ucw}_s${extraRi}_done`];
           if(!done){
             let es;try{es=JSON.parse(uState[`extra_w${ucw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
-            if(es.sched_day===dayOfWeek&&es.sched_time){
+            if(Number(es.sched_day)===dayOfWeek&&es.sched_time){
               const[h,m]=es.sched_time.split(':').map(Number);
               const sm=h*60+m;
               if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
@@ -285,7 +285,7 @@ exports.briefAfterFcRepos = onSchedule(
         const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
         try{
           const ed=JSON.parse(edRaw);
-          if(ed.sched_day===ctx.dayOfWeek&&ed.type!=='rest'&&!state[`s${cw}i${si}done`]){
+          if(Number(ed.sched_day)===ctx.dayOfWeek&&ed.type!=='rest'&&!state[`s${cw}i${si}done`]){
             seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre:ed.d?ed.d.split('|')[0]:ed.type};
             break;
           }
@@ -712,7 +712,7 @@ exports.shakerNoon = onSchedule(
         try{
           const ed=JSON.parse(edRaw);
           if(ed.type==='rest') continue;
-          if(ed.sched_day===todayDay){runPlanifieAujourdhui=true;break;}
+          if(Number(ed.sched_day)===todayDay){runPlanifieAujourdhui=true;break;}
         }catch(e){}
       }
       if(runPlanifieAujourdhui) return; // run prévu au planning → pas de notif shaker
