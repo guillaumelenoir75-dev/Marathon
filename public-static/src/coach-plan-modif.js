@@ -81,6 +81,8 @@ function checkForPlanProposal(text, bubble){
 
 
 function openPlanModifModal(){
+  _selectedModifSi = null;
+  _prefilledModif = null;
   const mc = document.getElementById('modal-container');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -114,7 +116,7 @@ function openPlanModifModal(){
     if(done && !userAskedModifGlobal) return;
     if(targetTypeDisplay && s.type !== targetTypeDisplay) return;
     const titre = s.d.split('|')[0];
-    const ed = state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;
+    let ed=null;try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
     const jourActuelSess = ed&&ed.sched_day?joursAbr[ed.sched_day]:'';
     const heureActuelSess = ed&&ed.sched_time?ed.sched_time:'';
     const schedStr = [jourActuelSess, heureActuelSess].filter(Boolean).join(' ');
@@ -149,7 +151,7 @@ function openPlanModifModal(){
   if(!sessionsHtml) {
     sessionsForWS.forEach(({s,si,ws})=>{
       const titre = s.d.split('|')[0];
-      const ed2 = state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;
+      let ed2=null;try{ed2=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
       const jour2 = ed2&&ed2.sched_day?joursAbr[ed2.sched_day]:'';
       const heure2 = ed2&&ed2.sched_time?ed2.sched_time:'';
       const sched2 = [jour2,heure2].filter(Boolean).join(' ');
@@ -331,7 +333,7 @@ function selectSessionToModif(si, el, ws){
   document.querySelectorAll('[id^="modif-sess-"]').forEach(e=>e.style.background='');
   el.style.background='var(--bg2)';
   const s = getSession(resolvedWS, si);
-  const ed = state['edit_w'+resolvedWS+'_s'+si]?JSON.parse(state['edit_w'+resolvedWS+'_s'+si]):null;
+  let ed=null;try{ed=state['edit_w'+resolvedWS+'_s'+si]?JSON.parse(state['edit_w'+resolvedWS+'_s'+si]):null;}catch(e){}
   const form = document.getElementById('modif-form');
   form.style.display='block';
   const jours = ['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -469,7 +471,7 @@ function selectSessionToModif(si, el, ws){
   const showTempoExtra = suggestedType==='tempo' && (suggestedReps||suggestedPaceMin||suggestedRecup);
   let tempoExtraHtml = '';
   if(showTempoExtra){
-    const curEd = state['edit_w'+resolvedWS+'_s'+si]?JSON.parse(state['edit_w'+resolvedWS+'_s'+si]):null;
+    let curEd=null;try{curEd=state['edit_w'+resolvedWS+'_s'+si]?JSON.parse(state['edit_w'+resolvedWS+'_s'+si]):null;}catch(e){}
     const curTitle = (curEd?curEd.d:s.d).split('|')[0];
     const curRepsM = curTitle.match(/(\d+)[×x](\d+)/i);
     const repsVal = suggestedReps || (curRepsM?parseInt(curRepsM[1]):2);
@@ -521,7 +523,7 @@ async function applyPlanModif(){
   const modifWS = _targetModifWS || CW;
   const s0 = getSession(modifWS, _selectedModifSi);
   const ed0Raw = state['edit_w'+modifWS+'_s'+_selectedModifSi];
-  const ed0 = ed0Raw ? JSON.parse(ed0Raw) : {...s0};
+  let ed0;try{ed0=ed0Raw?JSON.parse(ed0Raw):{...s0};}catch(e){ed0={...s0};}
 
   let km, type, day, time, reason;
   if(formOpen){
@@ -543,7 +545,7 @@ async function applyPlanModif(){
   }
   const s = getSession(modifWS, _selectedModifSi);
   const edRaw = state['edit_w'+modifWS+'_s'+_selectedModifSi];
-  const ed = edRaw ? JSON.parse(edRaw) : {...s};
+  let ed;try{ed=edRaw?JSON.parse(edRaw):{...s};}catch(e){ed={...s};}
   ed.km = km;
   ed.type = type;
   if(day) ed.sched_day = day;

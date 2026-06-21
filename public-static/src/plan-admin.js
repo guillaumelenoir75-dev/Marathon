@@ -595,6 +595,7 @@ function cvEditSession(w, si){
 }
 
 function cvAddSession(w){
+  if(!_cvState) return;
   // Trouver le prochain index libre
   let si=0;
   while(si<=20&&_cvState[`extra_w${w}_s${si}`]) si++;
@@ -719,6 +720,7 @@ function _cvPickType(t){
 }
 
 function _cvPickWeek(wk){
+  if(!_cvState) return;
   const modal=document.getElementById('cv-session-modal');
   if(!modal) return;
   const prev=modal._cvW;
@@ -738,6 +740,7 @@ function _cvPickWeek(wk){
 }
 
 async function cvSaveSession(){
+  if(!_cvState) return;
   const modal=document.getElementById('cv-session-modal');
   const w=modal?._cvW||0;
   const si=modal?._cvSi||0;
@@ -760,6 +763,7 @@ async function cvSaveSession(){
 }
 
 async function cvDeleteSession(w, si){
+  if(!_cvState) return;
   if(!confirm('Supprimer cette séance ?')) return;
   const suffixesCv=['','_done','_km','_perf','_skip','_skip_reason'];
   suffixesCv.forEach(suf=>delete _cvState[`extra_w${w}_s${si}${suf}`]);
@@ -787,10 +791,12 @@ function renderAthletePanel(){
   if(!panel) return;
   panel.style.display=currentUserRole==='athlete'?'block':'none';
   if(currentUserRole!=='athlete') return;
-  const ob=state.onboarding;
+  let ob=state.onboarding;
+  if(typeof ob==='string'){try{ob=JSON.parse(ob);}catch(e){ob={};}}
+  ob=ob||{};
   const content=document.getElementById('athlete-profile-content');
   if(!content) return;
-  if(!ob){
+  if(!ob.course && !ob.date && !ob.sessions){
     content.innerHTML='<p style="color:#888;font-style:italic;">Profil non renseigné.</p>';
     return;
   }

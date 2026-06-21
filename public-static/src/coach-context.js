@@ -135,7 +135,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       if(state[`del_w${ws}_s${si}`]) return;
       const k = gk(ws, si);
       const done = !!state[k+'done'];
-      const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : null;
+      let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
       const kmReel = state[k+'km'] != null ? state[k+'km'] : sess.km;
       sessions.push({
         type: sess.type,
@@ -287,7 +287,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         weeks[ws-1].sessions.forEach((sess,si)=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
           const k = gk(ws,si);
-          const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : null;
+          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
           if(!perf||!perf.pace||!perf.hr||parseInt(perf.hr)>148) return;
           efPoints.push({ws, sec: paceStrToSec(perf.pace)});
         });
@@ -378,7 +378,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         weeks[ws-1].sessions.forEach((sess,si)=>{
           const k=gk(ws,si);
           if(!state[k+'done']) return;
-          const perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;
+          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
           const dateStr=perf&&perf.date?perf.date:null;
           if(dateStr) seancesDates.push({date:new Date(dateStr),type:sess.type,ws});
         });
@@ -412,7 +412,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           weeks[ws-1].sessions.forEach((sess,si)=>{
             if(sess.type!=='ef'&&sess.type!=='long') return;
             const k=gk(ws,si);
-            const perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;
+            let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
             if(perf&&perf.hr&&parseInt(perf.hr)<=148) efFCRecent.push({ws,hr:parseInt(perf.hr)});
           });
         }
@@ -442,7 +442,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         weeks[ws-1].sessions.forEach((sess,si)=>{
           if(sess.type!=='tempo'&&sess.type!=='frac') return;
           const k=gk(ws,si);
-          const perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;
+          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
           if(!perf||!perf.blocsAllure||!perf.blocsAllure.some(b=>b)) return;
           const blocs=perf.blocsAllure.filter(Boolean).map(a=>paceStrToSec(a.replace("'",":")));
           if(blocs.length>=2&&blocs.every(b=>b>0)) tempoAvecBlocs.push({ws,blocs,titre:sess.d.split('|')[0]});
@@ -479,7 +479,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         weeks[ws-1].sessions.forEach((sess,si)=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
           const k = gk(ws,si);
-          const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : null;
+          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
           if(!perf || !perf.pace || !perf.hr) return;
           const sec = paceStrToSec(perf.pace);
           const hr = parseInt(perf.hr);
@@ -514,7 +514,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         weeks[ws-1].sessions.forEach((sess,si)=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
           const k = gk(ws,si);
-          const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : null;
+          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
           if(!perf || !perf.pace || !perf.hr) return;
           if(parseInt(perf.hr) > 148) return;
           const sec = paceStrToSec(perf.pace);
@@ -565,7 +565,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       for(let ws=CW;ws>=Math.max(1,CW-8);ws--){
         weeks[ws-1].sessions.forEach((sess,si)=>{
           const k=gk(ws,si); if(!state[k+'done']) return;
-          const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+          let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};} catch(e){}
           det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null});
         });
         let ei=0;
@@ -573,7 +573,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           if(state[`extra_w${ws}_s${ei}_done`]){
             let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
             if(!es){ei++;continue;}
-            const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+            let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};} catch(e){}
             det.push({semaine:ws,type:es.type,titre:es.d.split('|')[0],extra:true,km:state[`extra_w${ws}_s${ei}_km`]||es.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:null});
           }
           ei++;
@@ -612,7 +612,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
       weeks[ws-1].sessions.forEach((sess, si) => {
         const k = gk(ws, si);
         if(!state[k+'done']) return;
-        const perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+        let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};} catch(e){}
         const st = perf.strava || null;
         detail.push({
           semaine: ws, type: sess.type, titre: sess.d.split('|')[0],
@@ -637,7 +637,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
         if(state[`extra_w${ws}_s${ei}_done`]){
           let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
           if(!es){ei++;continue;}
-          const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
+          let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};} catch(e){}
           detail.push({
             semaine: ws, type: es.type, titre: es.d.split('|')[0], extra: true,
             date: perf.date||null, km: state[`extra_w${ws}_s${ei}_km`]||es.km,
