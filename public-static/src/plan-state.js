@@ -337,7 +337,7 @@ function calcMarathonPace(){
       if(s.type!=='ef') return;
       const k=gk(ws,si);
       if(!state[k+'done']) return;
-      const perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       if(!perf.pace||!perf.hr) return;
       if(parseInt(perf.hr)>148) return;
       const sec=paceStrToSec(perf.pace);
