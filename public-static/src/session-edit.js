@@ -967,7 +967,7 @@ function deleteExtra(ws, ei){
   suffixes.forEach(suf=>delete state[`extra_w${ws}_s${ei}${suf}`]);
   // Renuméroter les séances suivantes pour combler le trou
   let i=ei+1;
-  while(i<=20&&state[`extra_w${ws}_s${i}`]!==undefined){
+  while(i<=20&&state[`extra_w${ws}_s${i}`]){
     suffixes.forEach(suf=>{
       const val=state[`extra_w${ws}_s${i}${suf}`];
       if(val!==undefined){state[`extra_w${ws}_s${i-1}${suf}`]=val;}

@@ -48,7 +48,7 @@ function checkForPlanProposal(text, bubble){
   const seance = '(tempo|séance|ef|ef long|long|sortie|entraînement|run|course|renfo|récup|récupération)';
   const proposalPatterns = [
     // Je propose / je suggère (avec mots intercalaires)
-    new RegExp('je (te )?(suggère|propose)([\s\w]{0,30})\s+de (réduire|passer|supprimer|remplacer|décaler|déplacer|changer|annuler|raccourcir|allonger|transformer|convertir|couper|sauter|faire|ajouter|mettre)', 'i'),
+    new RegExp('je (te )?(suggère|propose)([\\s\\w]{0,30})\\s+de (réduire|passer|supprimer|remplacer|décaler|déplacer|changer|annuler|raccourcir|allonger|transformer|convertir|couper|sauter|faire|ajouter|mettre)', 'i'),
     new RegExp('je (te )?(suggère|propose) (une modification|un changement|quand même|tout de même|néanmoins)', 'i'),
     new RegExp('je (te )?(suggère|propose) (qu\'on|que tu) (modifies?|changes?|remplaces?|supprimes?|annules?|décales?|passes?|réduises?|sautes?)', 'i'),
     // Impératifs directs

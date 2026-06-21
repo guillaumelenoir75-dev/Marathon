@@ -251,8 +251,7 @@ function renderStats(){
           return;
         }
         const k=gk(ws,si);
-        const isPast=ws<CW;
-        const done=isPast||!!state[k+'done'];
+        const done=!!state[k+'done']||(ws<CW&&state[k+'km']!=null);
         if(!done) return;
         const kmReal=state[k+'km']!=null?state[k+'km']:s.km;
         const perf=state[k+'perf']?JSON.parse(state[k+'perf']):(staticPerf[k]||{});

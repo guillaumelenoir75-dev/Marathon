@@ -389,10 +389,12 @@ async function sendCoachMessage(retryMsg){
           seancesAujourdhui.push({type:s.type,titre:s.d.split('|')[0],km:s.km,heure:s.sched_time||null});
         return;
       }
-      const edRaw=state['edit_w'+CW+'_s'+si]; if(!edRaw) return;
-      const ed=JSON.parse(edRaw);
-      if(ed.sched_day===todayDayNum&&!state[gk(CW,si)+'done'])
-        seancesAujourdhui.push({type:ed.type||s.type,titre:ed.d?ed.d.split('|')[0]:s.d.split('|')[0],km:ed.km||s.km,heure:ed.sched_time||null});
+      const edRaw=state['edit_w'+CW+'_s'+si];
+      const ed=edRaw?JSON.parse(edRaw):null;
+      const schedDay=(ed&&ed.sched_day)||s.sched_day;
+      if(!schedDay) return;
+      if(schedDay===todayDayNum&&!state[gk(CW,si)+'done'])
+        seancesAujourdhui.push({type:(ed&&ed.type)||s.type,titre:ed&&ed.d?ed.d.split('|')[0]:s.d.split('|')[0],km:(ed&&ed.km)||s.km,heure:(ed&&ed.sched_time)||s.sched_time||null});
     });
     [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].forEach(rd=>{
       const sched=state[rfk(CW,rd.r)+'sched']?JSON.parse(state[rfk(CW,rd.r)+'sched']):null;

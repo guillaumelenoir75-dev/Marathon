@@ -738,8 +738,8 @@ exports.cleanupPushSubscribers = onSchedule(
       const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
       let purged = 0;
       for (const [uid, sub] of Object.entries(subs)) {
-        const subscribedAt = sub && sub.subscribedAt ? sub.subscribedAt : 0;
-        if (subscribedAt < cutoff) {
+        const subscribedAt = sub && sub.subscribedAt ? sub.subscribedAt : null;
+        if (subscribedAt !== null && subscribedAt < cutoff) {
           await db.ref(`_push_subscribers/${uid}`).remove().catch(() => {});
           await db.ref(`users/${uid}/state/_push_sub`).remove().catch(() => {});
           purged++;
