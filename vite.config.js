@@ -33,8 +33,9 @@ function bundleClassicScripts() {
       const htmlPath = resolve(process.cwd(), 'dist/index.html');
       let html = readFileSync(htmlPath, 'utf-8');
       let injected = false;
+      const buildTs = Date.now();
       html = html.replace(/<script defer src="\/src\/[^"]+\.js[^"]*"><\/script>\n?/g, () => {
-        if (!injected) { injected = true; return '<script defer src="/src/bundle.js"></script>\n'; }
+        if (!injected) { injected = true; return `<script defer src="/src/bundle.js?v=${buildTs}"></script>\n`; }
         return '';
       });
       writeFileSync(htmlPath, html);
