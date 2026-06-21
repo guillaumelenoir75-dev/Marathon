@@ -227,19 +227,6 @@ function generateAthletePlan(ob){
   // Semaine de pic de charge (avant application du taper)
   const peakWeekNum=weekKms.lastIndexOf(Math.max(...weekKms))+1;
 
-  // Course test intermédiaire : marathon ≥ 14 semaines, placée au début de la Phase 3
-  // (après le bloc build, avant le bloc spécifique — moment idéal pour jauger la forme)
-  // Si la semaine calculée est en décharge, on décale à la suivante non-décharge.
-  let testRaceWeek=0;
-  if(course==='Marathon'&&numWeeks>=14&&!isPlaisir){
-    // Trouver le début de Phase 3
-    let _p3Start=taperStartW-1; // fallback
-    for(let _w=1;_w<taperStartW;_w++){if(getPhase(_w)===3){_p3Start=_w;break;}}
-    // Décaler si semaine de décharge
-    while(recovery.has(_p3Start)&&_p3Start<taperStartW-2) _p3Start++;
-    testRaceWeek=_p3Start;
-  }
-
   // ── Calcul des allures (Jack Daniels VDOT) ────────────────────────────────────
   const fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}`;};
 
@@ -607,6 +594,16 @@ function generateAthletePlan(ob){
     if(w<=p2End) return 2;
     return 3;
   };
+
+  // Course test intermédiaire : marathon ≥ 14 semaines, placée au début de la Phase 3
+  // Doit être calculé APRÈS getPhase (const arrow — pas de hoisting)
+  let testRaceWeek=0;
+  if(course==='Marathon'&&numWeeks>=14&&!isPlaisir){
+    let _p3Start=taperStartW-1;
+    for(let _w=1;_w<taperStartW;_w++){if(getPhase(_w)===3){_p3Start=_w;break;}}
+    while(recovery.has(_p3Start)&&_p3Start<taperStartW-2) _p3Start++;
+    testRaceWeek=_p3Start;
+  }
 
   const getQType=(phase,weekInPhase)=>{
     const m=(Q_MATRIX[course]||Q_MATRIX.Marathon)[phase];

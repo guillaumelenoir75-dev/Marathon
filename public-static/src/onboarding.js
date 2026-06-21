@@ -228,10 +228,12 @@ function onboardingSelect(field,val){
       const _kmWarn=document.getElementById('ob-km-base-warn');
       if(_kmWarn&&_kmWarn.style.display!=='none') return;
     }
-    // generate_plan 'non' : ne pas auto-avancer, afficher message et laisser cliquer Terminer
-    if(field==='generate_plan'&&val==='non'){
+    // generate_plan : gérer l'affichage du message selon le choix
+    if(field==='generate_plan'){
       const infoEl=document.getElementById('ob-no-plan-info');
-      if(infoEl) infoEl.style.display='block';
+      if(infoEl) infoEl.style.display=val==='non'?'block':'none';
+    }
+    if(field==='generate_plan'&&val==='non'){
       const next=document.getElementById('ob-btn-next');
       if(next){next.disabled=false;next.style.opacity='1';}
       return;
@@ -343,13 +345,15 @@ function onTargetTimeInput(){
   const h=parseInt(document.getElementById('ob-target-h')?.value)||0;
   const m=parseInt(document.getElementById('ob-target-min')?.value)||0;
   const s=parseInt(document.getElementById('ob-target-sec')?.value)||0;
+  const _ntb=document.getElementById('ob-no-target-btn');
   if(h>0||m>0||s>0){
     _obData.target_time=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
     // Remettre le bouton "Pas de temps cible" en style neutre si un temps est saisi
-    const _ntb=document.getElementById('ob-no-target-btn');
     if(_ntb) _ntb.style.cssText='width:100%;padding:9px;background:#f5f5f5;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:600;color:#888;cursor:pointer;';
   } else {
     delete _obData.target_time;
+    // Remettre le bouton "Pas de temps cible" en style actif si tous les champs sont vides
+    if(_ntb) _ntb.style.cssText='width:100%;padding:9px;background:#EEF2FD;border:1.5px solid #1B4FD8;border-radius:10px;font-size:13px;font-weight:600;color:#1B4FD8;cursor:pointer;';
   }
   _obCheckAndShowTargetTimeConstraint();
 }
@@ -628,7 +632,21 @@ function toggleObDay(dayIdx){
   if(i>=0){
     arr.splice(i,1);
   } else {
-    if(arr.length>=max) _obData.run_days=[]; // remplace la sélection au lieu de bloquer
+    if(arr.length>=max){
+      // Afficher un toast explicatif au lieu d'effacer silencieusement
+      let _toast=document.getElementById('ob-days-toast');
+      if(!_toast){
+        _toast=document.createElement('div');
+        _toast.id='ob-days-toast';
+        _toast.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1B4FD8;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;pointer-events:none;transition:opacity 0.3s;';
+        document.body.appendChild(_toast);
+      }
+      _toast.textContent=`${max} jour${max>1?'s':''} maximum — retire un jour avant d'en ajouter un autre`;
+      _toast.style.opacity='1';
+      clearTimeout(_toast._t);
+      _toast._t=setTimeout(()=>{_toast.style.opacity='0';},2200);
+      return;
+    }
     _obData.run_days.push(dayIdx);
   }
   _updateObDaysUI();
@@ -813,6 +831,41 @@ function _obShowRecap(){
   const dateStr=_obData.date?new Date(_obData.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'Sans date fixe';
   const niveauEmoji={'Découverte':'🌱','Débutant':'🟢','Intermédiaire':'🔵','Confirmé':'🟠'}[niveau]||'';
   const courseLabel=course==='Semi-marathon'?'Semi-marathon':course;
+  // Calcul des allures clés pour l'aperçu
+  const _fmtPace=sec=>{const m=Math.floor(sec/60);const s=sec%60;return `${m}'${String(s).padStart(2,'0')}"/km`;};
+  let _efSec=null;
+  if(_obData.ef_pace){
+    const _p=_obData.ef_pace.replace("'",":").split(':');
+    if(_p.length===2) _efSec=parseInt(_p[0])*60+parseInt(_p[1]);
+  }
+  let _racePaceSec=null;
+  if(_obData.target_time&&_obData.race_distance_km){
+    const _tp=_obData.target_time.split(':').map(Number);
+    const _ts=_tp.length===3?_tp[0]*3600+_tp[1]*60+_tp[2]:_tp.length===2?_tp[0]*60+_tp[1]:0;
+    if(_ts>0) _racePaceSec=_ts/parseFloat(_obData.race_distance_km);
+  }
+  if(!_efSec&&_racePaceSec){
+    const _efM={'Marathon':{Débutant:1.40,Intermédiaire:1.36,Confirmé:1.32},'Semi-marathon':{Débutant:1.38,Intermédiaire:1.34,Confirmé:1.30},'10 km':{Débutant:1.35,Intermédiaire:1.31,Confirmé:1.28},'5 km':{Débutant:1.32,Intermédiaire:1.28,Confirmé:1.25}}[course]||{Débutant:1.38,Intermédiaire:1.36,Confirmé:1.32};
+    _efSec=Math.round(_racePaceSec*(_efM[niveau]||1.36));
+  }
+  let _tempoPaceSec=null;
+  if(_racePaceSec){
+    const _tm={'Marathon':{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940},'Semi-marathon':{Débutant:0.960,Intermédiaire:0.945,Confirmé:0.930},'10 km':{Débutant:0.965,Intermédiaire:0.950,Confirmé:0.940},'5 km':{Débutant:0.980,Intermédiaire:0.972,Confirmé:0.962}}[course]||{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940};
+    _tempoPaceSec=Math.round(_racePaceSec*(_tm[niveau]||0.952));
+  } else if(_efSec){
+    _tempoPaceSec=_efSec+(niveau==='Débutant'?-52:niveau==='Confirmé'?-78:-62);
+  }
+  if(_tempoPaceSec&&_efSec&&_tempoPaceSec>_efSec-25) _tempoPaceSec=_efSec-30;
+  const _pacesHtml=(_efSec||_tempoPaceSec)&&!isPlaisir?`
+    <div style="background:rgba(255,255,255,0.10);border-radius:10px;padding:10px;margin-top:8px;">
+      <p style="font-size:10px;opacity:0.7;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Tes allures d'entraînement</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${_efSec?`<span style="background:rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:800;">🟦 EF ${_fmtPace(_efSec)}</span>`:''}
+        ${_tempoPaceSec?`<span style="background:rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:800;">🟠 Tempo ${_fmtPace(_tempoPaceSec)}</span>`:''}
+        ${_racePaceSec?`<span style="background:rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:800;">🏁 Objectif ${_fmtPace(Math.round(_racePaceSec))}</span>`:''}
+      </div>
+    </div>`:'';
+
   el.innerHTML=`<div style="background:linear-gradient(135deg,#1B4FD8,#0C447C);border-radius:14px;padding:16px;margin-bottom:16px;color:#fff;">
     <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;opacity:0.7;margin-bottom:12px;">✅ Récapitulatif</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -837,6 +890,7 @@ function _obShowRecap(){
       <span style="font-size:13px;opacity:0.9;">📅 ${dateStr}</span>
       <span style="font-size:15px;font-weight:900;">${numWeeks} semaines</span>
     </div>
+    ${_pacesHtml}
   </div>`;
   el.style.display='block';
 }
