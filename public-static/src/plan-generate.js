@@ -671,8 +671,9 @@ function generateAthletePlan(ob){
     if(phase===3&&!isRecov) _specWeekCount++;
 
     const sFloor=total<10?2:3;
-    // longSFloor adaptatif : évite que les planchers individuels dépassent le volume total
-    const longSFloor=Math.max(sFloor,total>=12?5:total>=8?4:3);
+    // longSFloor adaptatif : plancher long run ne peut pas dépasser ~40% du volume total
+    const longSFloorRaw=Math.max(sFloor,total>=12?5:total>=8?4:3);
+    const longSFloor=Math.min(longSFloorRaw,Math.max(sFloor,Math.floor(total*0.40)));
     const capLong=(base)=>Math.min(Math.max(base,longSFloor),longRunCap);
 
     // Course test intermédiaire (marathon ≥ 14 sem) — remplace la sortie longue cette semaine
@@ -759,7 +760,7 @@ function generateAthletePlan(ob){
         sessions=[
           {d:dEF,km:kEF,type:'ef',shoe:null},
           q?{d:q.d,km:kQ,type:q.type,shoe:null}:{d:descEF(),km:kQ,type:'ef',shoe:null},
-          buildLongSession(kL,phase,false,specWeekIndex),
+          buildLongSession(kL,phase,isRecov,specWeekIndex),
         ];
       } else {
         // Phase 1 ou décharge : 2 EF + longue

@@ -152,6 +152,7 @@ function _obGoTo(step){
   }
   // Initialiser l'étape jours avec la bonne limite
   if(step===5) setTimeout(initObDaysStep, 0);
+  if(step===1) setTimeout(_obPopulateDateShortcuts,0);
   if(step===4) setTimeout(()=>_obCheckAndShowKmConstraint(_obData.km_semaine||0),0);
   if(step===8) setTimeout(_initObTargetTime, 0);
   if(step===2) setTimeout(_obCheckAndShowSessionsConstraint,0);
@@ -210,7 +211,7 @@ function _obGoTo(step){
 function onboardingSelect(field,val){
   _obData[field]=val;
   // Revalider la date si la distance change (les minima de semaines varient)
-  if(field==='course'&&_obData.date) setTimeout(obDateChanged,0);
+  if((field==='course'||field==='sessions')&&_obData.date) setTimeout(obDateChanged,0);
   // Niveau Découverte : si sessions > 2, on ramène à 2
   if(field==='niveau'&&val==='Découverte'){
     if(_obData.sessions&&!['1','2'].includes(_obData.sessions)){
@@ -810,6 +811,45 @@ function onObEfPaceChange(){
   if(msg&&warnEl){warnEl.textContent=msg;warnEl.style.display='block';}
 }
 
+function _obPopulateDateShortcuts(){
+  const container=document.getElementById('ob-date-shortcuts');
+  if(!container) return;
+  const sess=parseInt(_obData.sessions)||3;
+  const minWByCourse={Plaisir:8,'5 km':6,'10 km':sess<=2?10:8,'Semi-marathon':sess<=2?14:sess===3?10:8,'Marathon':sess<=2?18:sess===3?14:12};
+  const minW=minWByCourse[_obData.course]||8;
+  const raw=[minW,Math.round(minW*1.3),Math.min(24,Math.round(minW*1.6))];
+  const suggestions=raw.filter((v,i,a)=>a.indexOf(v)===i);
+  container.innerHTML='';
+  const label=document.createElement('p');
+  label.style.cssText='font-size:12px;color:#666;margin:10px 0 8px;font-weight:600;';
+  label.textContent='Ou choisis une durée :';
+  container.appendChild(label);
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;';
+  suggestions.forEach(w=>{
+    const d=new Date(); d.setHours(0,0,0,0);
+    d.setDate(d.getDate()+w*7);
+    const dow=d.getDay(); if(dow!==0) d.setDate(d.getDate()+(7-dow));
+    const yy=d.getFullYear();
+    const mm=String(d.getMonth()+1).padStart(2,'0');
+    const dd=String(d.getDate()).padStart(2,'0');
+    const btn=document.createElement('button');
+    btn.style.cssText='padding:8px 14px;background:#EEF2FD;border:1.5px solid #1B4FD8;border-radius:20px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;white-space:nowrap;';
+    btn.textContent=`Dans ${w} sem.`;
+    btn.onclick=()=>{
+      const dy=document.getElementById('ob-date-day');
+      const dm=document.getElementById('ob-date-month');
+      const dyr=document.getElementById('ob-date-year');
+      if(dy) dy.value=dd;
+      if(dm) dm.value=mm;
+      if(dyr) dyr.value=String(yy);
+      obDateChanged();
+    };
+    row.appendChild(btn);
+  });
+  container.appendChild(row);
+}
+
 function _obShowRecap(){
   const el=document.getElementById('ob-recap');
   if(!el) return;
@@ -834,6 +874,19 @@ function _obShowRecap(){
     if(diff>0) numWeeks=Math.min(Math.max(diff,minW),24);
   }
   const dateStr=_obData.date?new Date(_obData.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'Sans date fixe';
+  // Estimation du volume de pointe (même logique que generateAthletePlan)
+  const _baseKm=parseInt(_obData.km_semaine)||20;
+  let _peakKm;
+  if(isPlaisir){
+    const weekCap=nbSess*9;
+    const growthCap=Math.round(Math.max(_baseKm*1.3,_baseKm+6));
+    _peakKm=Math.min(weekCap,growthCap);
+  } else {
+    const absMax={'5 km':{2:32,3:42,4:52},'10 km':{2:38,3:52,4:65},'Semi-marathon':{2:50,3:65,4:82},'Marathon':{2:60,3:82,4:105}}[course]||{2:50,3:70,4:90};
+    const baseMult={'5 km':1.55,'10 km':1.75,'Semi-marathon':2.0,'Marathon':2.2}[course]||1.8;
+    const sessMult={2:0.90,3:1.0,4:1.18}[nbSess]||1.0;
+    _peakKm=Math.min(Math.round(_baseKm*baseMult*sessMult),(absMax[nbSess]||70));
+  }
   const niveauEmoji={'Découverte':'🌱','Débutant':'🟢','Intermédiaire':'🔵','Confirmé':'🟠'}[niveau]||'';
   const courseLabel=course==='Semi-marathon'?'Semi-marathon':course;
   // Calcul des allures clés pour l'aperçu
@@ -889,6 +942,10 @@ function _obShowRecap(){
       <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
         <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">Volume actuel</p>
         <p style="font-size:14px;font-weight:800;">${km} km/sem.</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;grid-column:1/-1;">
+        <p style="font-size:10px;opacity:0.7;margin-bottom:3px;">📈 Volume de pointe estimé</p>
+        <p style="font-size:14px;font-weight:800;">${_peakKm} km/sem.</p>
       </div>
     </div>
     <div style="background:rgba(255,255,255,0.18);border-radius:10px;padding:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.3);">
