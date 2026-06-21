@@ -62,8 +62,13 @@ exports.deleteUser = onRequest(
     if (uid === ADMIN_UID) { res.status(403).json({ error: 'Impossible de supprimer le compte administrateur' }); return; }
     try {
       await admin.auth().deleteUser(uid);
-      const db = admin.database();
-      await db.ref(`users/${uid}`).remove();
+      try {
+        const db = admin.database();
+        await db.ref(`users/${uid}`).remove();
+        await db.ref(`_push_subscribers/${uid}`).remove();
+      } catch(eDb) {
+        console.error(`deleteUser: compte Auth supprimé mais données DB non nettoyées pour ${uid}:`, eDb.message);
+      }
       res.json({ success: true });
     } catch(e) {
       res.status(500).json({ error: e.message });

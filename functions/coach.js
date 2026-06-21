@@ -526,8 +526,8 @@ ${reglesCommunes}
 
 ${modeInstructions}${rappelPlanification}${rappelTemporel}`;
 
-      const todayDate = stateContext?.date_reelle
-        ? `${stateContext.date_reelle.annee}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`
+      const todayDate = (stateContext?.date_reelle?.annee && stateContext?.date_reelle?.mois && stateContext?.date_reelle?.jour)
+        ? `${stateContext.date_reelle.annee}-${String(stateContext.date_reelle.mois).padStart(2,'0')}-${String(stateContext.date_reelle.jour).padStart(2,'0')}`
         : new Date().toISOString().slice(0,10);
 
       const anchoredHistory = (history || []).slice(-30).map(m => {
