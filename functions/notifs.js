@@ -530,7 +530,7 @@ exports.weekCompleteCongrats = onSchedule(
             totalRun++;
             if(!!state[`s${cw}i${si}done`])doneRun++;
           }
-          let ei=0;while(ei<=20&&state[`extra_w${cw}_s${ei}`]){const es=state[`extra_w${cw}_s${ei}`];ei++;if(!es)continue;let ed2;try{ed2=JSON.parse(es);}catch(e){continue;}if(ed2.type==='rest')continue;totalRun++;if(!!state[`extra_w${cw}_s${ei-1}_done`])doneRun++;}
+          let ei=0;while(ei<=20&&state[`extra_w${cw}_s${ei}`]){let ed2;try{ed2=JSON.parse(state[`extra_w${cw}_s${ei}`]);}catch(e){ei++;continue;}if(ed2&&ed2.type!=='rest'){totalRun++;if(!!state[`extra_w${cw}_s${ei}_done`])doneRun++;}ei++;}
           const renfo1Done=!!state[`rf${cw}r1done`];
           const renfo2Done=!!state[`rf${cw}r2done`];
           const lastValid=state[`_last_validation_w${cw}`]||0;
@@ -700,9 +700,8 @@ exports.shakerNoon = onSchedule(
       const db=admin.database();
       const cw=getCurrentWeek();
       // Jour de la semaine Paris : 1=lundi … 7=dimanche (même convention que sched_day)
-      const jsDay=new Date().toLocaleString('en-US',{timeZone:'Europe/Paris',weekday:'long'});
-      const dayMap={Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5,Saturday:6,Sunday:7};
-      const todayDay=dayMap[jsDay]||1;
+      const _parisDate=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));
+      const todayDay=_parisDate.getDay()===0?7:_parisDate.getDay();
       // Lire le plan de la semaine courante
       const stateSnap=await db.ref(ADMIN_STATE).once('value');
       const st=stateSnap.val()||{};
