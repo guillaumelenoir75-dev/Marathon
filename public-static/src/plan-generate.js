@@ -753,9 +753,12 @@ function generateAthletePlan(ob){
 
     } else if(nbSess===3){
       if(hasQuality){
-        const kEF=Math.max(Math.round(total*0.30),sFloor);
-        const kQ =Math.max(Math.round(total*0.27),sFloor);
-        const kL =capLong(total-kEF-kQ);
+        // Marathon : réduire légèrement Q et EF pour laisser plus au long run
+        const isMarLong=course==='Marathon'&&phase>=2&&!isRecov&&!isTaper&&total>=40;
+        const kEF=Math.max(Math.round(total*(isMarLong?0.27:0.30)),sFloor);
+        const kQ =Math.max(Math.round(total*(isMarLong?0.24:0.27)),sFloor);
+        const kLraw=total-kEF-kQ;
+        const kL =capLong(isMarLong?Math.max(kLraw,24):kLraw);
         const q=resolveQ(qType,phase,weekInPhase,isTaper,isRecov);
         const dEF=isRecov?descEFRecov():(useStrides?descEFStrides():descEF());
         sessions=[
@@ -780,11 +783,16 @@ function generateAthletePlan(ob){
       // 4 séances : EF → Q2 (légère) → Q1 (principale) → Long
       // L'ordre garantit une récupération entre les 2 séances qualité
       // Pour les petits volumes (total<14), on calcule d'abord la longue pour éviter le dépassement
-      const kEF=Math.max(Math.round(total*0.20),sFloor);
-      const kQ1=Math.max(Math.round(total*0.22),sFloor);
-      const kQ2=Math.max(Math.round(total*0.20),sFloor);
+      // Marathon phase 2-3 : réduire EF+Q pour donner plus au long run (objectif ≥28 km)
+      const isMarLong=course==='Marathon'&&phase>=2&&!isRecov&&!isTaper&&total>=45;
+      const kEF=Math.max(Math.round(total*(isMarLong?0.17:0.20)),sFloor);
+      const kQ1=Math.max(Math.round(total*(isMarLong?0.19:0.22)),sFloor);
+      const kQ2=Math.max(Math.round(total*(isMarLong?0.17:0.20)),sFloor);
       const kLraw=total-kEF-kQ1-kQ2;
-      const kL =total>=14?capLong(kLraw):Math.min(Math.max(kLraw,sFloor),longRunCap);
+      // Marathon : plancher long run 26 km en phase build (si volume le permet)
+      const marathonLongMin=isMarLong?26:0;
+      const kLadjusted=Math.max(kLraw,marathonLongMin);
+      const kL =total>=14?capLong(kLadjusted):Math.min(Math.max(kLraw,sFloor),longRunCap);
 
       if(hasQuality){
         const q1=resolveQ(qType,phase,weekInPhase,isTaper,isRecov,false);
