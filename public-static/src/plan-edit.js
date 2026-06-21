@@ -44,7 +44,8 @@ function getOrderedWeekSessions(ws){
     if(!ordered.find(o=>sessionMatch(o,b))) ordered.push(b);
   });
   return ordered.map(({si,extra,ei})=>{
-    let s=extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si);
+    let s;try{s=extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si);}catch(e){return null;}
+    if(!s) return null;
     // Frac extra sauvées avec mauvais titre : correction à la volée
     if(s && s.type==='frac' && s.d && !s.d.startsWith('Fractionné')){
       const parts=s.d.split('|');
@@ -113,7 +114,7 @@ function getRaceBlockInfo(){
 
 function getSession(ws, si){
   const key = `edit_w${ws}_s${si}`;
-  const sess = state[key] ? JSON.parse(state[key]) : weeks[ws-1].sessions[si];
+  let sess;try{sess=state[key]?JSON.parse(state[key]):weeks[ws-1].sessions[si];}catch(e){sess=weeks[ws-1].sessions[si];}
   // Pour les séances Long : mettre à jour l'allure du bloc course dans le detail
   if(sess && sess.type === 'long' && sess.d && /(?:AM|A10|A5|ASEMI|SEMI)\s*@/.test(sess.d)) {
     const {label:raceLabel, pace:racePace} = getRaceBlockInfo();
@@ -298,7 +299,7 @@ function buildSchedFieldsHtml(day, time){
 function openPerfEditModal(ws, si){
   const s = getSession(ws, si);
   const k = gk(ws, si);
-  let prev = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {};
+  let prev={};try{prev=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
   // Injecter la météo à la volée si absente pour s11i2 (23/05 Villiers-Saint-Georges)
   if(ws===11 && si===2 && !prev.meteo){
     prev.meteo = {
@@ -676,7 +677,7 @@ function _savePerfExtra(ws, ei){
   const hr = parseInt((document.getElementById('pex-hr')||{}).value)||null;
   const k = `extra_w${ws}_s${ei}`;
   if(!isNaN(km)&&km>=0) state[k+'_km'] = km;
-  const perf = state[k+'_perf'] ? JSON.parse(state[k+'_perf']) : {};
+  let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
   if(dur) perf.dur=dur; else delete perf.dur;
   if(pace) perf.pace=pace; else delete perf.pace;
   if(hr) perf.hr=hr; else delete perf.hr;

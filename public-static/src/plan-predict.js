@@ -36,7 +36,8 @@ function buildMarathonPrediction() {
     let ei=0;
     while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
       if(state[`extra_w${ws}_s${ei}_done`]){
-        const es=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+        if(!es){ei++;continue;}
         const perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};
         if(perf.pace&&perf.hr){
           const fc=parseInt(perf.hr);

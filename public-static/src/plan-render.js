@@ -324,7 +324,7 @@ function calcEfRestantGeneric(prefix, displayId){
 function buildLongModalHtml(detail, totalKm){
   totalKm=totalKm||0;
   // Infos course depuis onboarding
-  const ob=state.onboarding?(typeof state.onboarding==='string'?JSON.parse(state.onboarding):state.onboarding):{};
+  let ob={};try{ob=state.onboarding?(typeof state.onboarding==='string'?JSON.parse(state.onboarding):state.onboarding):{};}catch(e){}
   const course=ob.course||'Marathon';
   const raceLabelMap={'5 km':'A5','10 km':'A10','Semi-marathon':'SEMI','Marathon':'AM'};
   const raceLabel=raceLabelMap[course]||'AM';
