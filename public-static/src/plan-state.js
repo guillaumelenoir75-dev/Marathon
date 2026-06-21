@@ -243,19 +243,18 @@ async function tryAutoCalculateEF(){
   if(cfg&&cfg.niveau==='Découverte') return null;
   const efPaces=[];
   let ei=0;
-  while(state[`extra_w1_s${ei}`]!==undefined){
+  while(ei<=20&&state[`extra_w1_s${ei}`]!==undefined){
     try{
       const s=JSON.parse(state[`extra_w1_s${ei}`]);
       if((s.type==='ef'||s.type==='long')&&state[`extra_w1_s${ei}_done`]){
         const perf=state[`extra_w1_s${ei}_perf`]?JSON.parse(state[`extra_w1_s${ei}_perf`]):{};
         if(perf.pace){
           const sec=paceStrToSec(perf.pace);
-          if(sec!==null&&sec>200) efPaces.push(sec); // sanity: >3:20/km
+          if(sec!==null&&sec>200) efPaces.push(sec);
         }
       }
     }catch(e){}
     ei++;
-    if(ei>20) break;
   }
   if(efPaces.length===0) return null;
   // Prendre l'allure la plus lente parmi les séances validées (estimation conservative)

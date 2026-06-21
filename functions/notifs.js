@@ -390,7 +390,7 @@ ${memosLine}`;
         const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
         const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
         let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
-        if(sched.day===dayOfWeekNum)renfoAujourdHui.push(renfoNoms[ri]);
+        if(Number(sched.day)===dayOfWeekNum)renfoAujourdHui.push(renfoNoms[ri]);
       }
       const programmeItems=[
         ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'',

@@ -142,8 +142,6 @@ function onTempoRepsChange(prefix){
   calcEfRestantForPrefix(prefix);
 }
 
-function calcEfRestant(){ calcEfRestantGeneric('hm', 'ef-restant-hm-display'); }
-
 // Alias for backward compatibility
 function calcSessionDuration(s){ return estimateDuration(s); }
 

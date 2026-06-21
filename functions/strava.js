@@ -140,7 +140,7 @@ exports.stravaFetch = onRequest(
         return;
       }
 
-      const runs = activities.filter(a => a.type === 'Run' || a.sport_type === 'Run');
+      const runs = activities.filter(a => a.type === 'Run' || a.sport_type === 'Run' || a.sport_type === 'TrailRun');
       console.log(`Strava [${uid}]: ${activities.length} activités, ${runs.length} courses`);
 
       if (runs.length === 0) {
@@ -156,7 +156,7 @@ exports.stravaFetch = onRequest(
           ? `${Math.floor(dMin/60)}:${String(dMin%60).padStart(2,'0')}:${String(durSec%60).padStart(2,'0')}`
           : `${dMin}:${String(durSec%60).padStart(2,'0')}`;
         const pace = distKm > 0 ? durSec / distKm : 0;
-        const paceStr = `${Math.floor(pace/60)}:${String(Math.round(pace%60)).padStart(2,'0')}`;
+        const _rawSec=Math.round(pace%60); const paceStr = `${Math.floor(pace/60)+(_rawSec===60?1:0)}:${String(_rawSec===60?0:_rawSec).padStart(2,'0')}`;
         const date = new Date(a.start_date_local);
         return {
           activityId: a.id,

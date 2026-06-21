@@ -493,7 +493,8 @@ function _applyStravaToValidation(activity) {
       const mins = Math.floor(z.temps_sec / 60);
       const secs = z.temps_sec % 60;
       const timeStr = mins > 0 ? `${mins}min${secs > 0 ? String(secs).padStart(2,'0')+'s' : ''}` : `${secs}s`;
-      const pct = z.pourcentage || Math.round(z.temps_sec / activity.duree * 100) || 0;
+      const _totalSec = activity.zones_fc.reduce((a, z2) => a + (z2.temps_sec || 0), 0);
+      const pct = z.pourcentage || (_totalSec > 0 ? Math.round(z.temps_sec / _totalSec * 100) : 0);
       html += `<div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:10px;font-weight:700;color:${col};width:50px;">${z.nom||'Z'+(i+1)}</span>
         <div style="flex:1;background:#e0e0e0;border-radius:4px;height:6px;overflow:hidden;">

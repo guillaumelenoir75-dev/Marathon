@@ -722,7 +722,7 @@ async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
 
   // Séances non-validées de la semaine en cours
   const wStr=`extra_w${w}_s`;
-  Object.keys(state).filter(k=>k.startsWith(wStr)&&!k.includes('_done')&&!k.includes('_km')&&!k.includes('_perf')&&!k.includes('_skip')).forEach(k=>{
+  Object.keys(state).filter(k=>/^extra_w\d+_s\d+$/.test(k)&&k.startsWith(wStr)).forEach(k=>{
     const eiOther=parseInt(k.replace(wStr,''));
     if(eiOther===ei) return;
     if(state[`extra_w${w}_s${eiOther}_done`]) return;

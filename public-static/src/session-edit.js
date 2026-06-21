@@ -214,33 +214,6 @@ function selectHmEfPace(pace){
   });
 }
 
-function updateEfPreview(){
-  const paceEl=document.getElementById('edit-ef-pace');
-  const kmEl=document.getElementById('edit-km');
-  const timeEl=document.getElementById('edit-ef-preview-time');
-  if(!paceEl||!kmEl||!timeEl) return;
-  const m=paceEl.value.match(/(\d+)[':](\d+)/);
-  const km=parseFloat(kmEl.value)||0;
-  if(!m||km===0){timeEl.textContent='—';return;}
-  const totalSec=(parseInt(m[1])*60+parseInt(m[2]))*km;
-  const h=Math.floor(totalSec/3600);
-  const min=Math.floor((totalSec%3600)/60);
-  const sec=Math.round(totalSec%60);
-  timeEl.textContent=h>0?h+'h'+String(min).padStart(2,'0'):min+"'"+(sec?String(sec).padStart(2,'0')+'"':'');
-  document.querySelectorAll('[id^="edit-pace-chip-"]').forEach(btn=>{
-    const sel=btn.id==='edit-ef-chip-'+paceEl.value.replace(':','-');
-    btn.style.background=sel?'var(--blue)':'var(--bg2)';
-    btn.style.color=sel?'#fff':'var(--muted)';
-    btn.style.borderColor=sel?'var(--blue)':'var(--border)';
-  });
-  // Synchroniser le header modal
-  const hdrElHm=document.querySelector('.modal-box p[style*="color:var(--blue)"][style*="font-weight:600"]');
-  if(hdrElHm&&hdrElHm.textContent.includes('estimées')&&km>0&&m){
-    const dur=h>0?h+'h'+String(min).padStart(2,'0')+"'"+( sec?String(sec).padStart(2,'0')+'"':''):min+"'"+(sec?String(sec).padStart(2,'0')+'"':'');
-    hdrElHm.textContent='⏱ ~'+dur+' estimées';
-  }
-}
-
 function selectEfPace(pace){
   const inp = document.getElementById('edit-ef-pace');
   if(inp){ inp.value = pace; updateEfPreview(); }
@@ -711,6 +684,7 @@ function saveAdd(ws){
   const d = detail ? (name + '|' + detail) : name;
   let ei = 0;
   while(ei<=20&&state['extra_w' + ws + '_s' + ei]) ei++;
+  if(ei>20){ alert('Limite de 21 séances extra atteinte pour cette semaine.'); return; }
   const extraData = { d, km, type, shoe };
   if(schedDay)  extraData.sched_day  = schedDay;
   if(schedTime) extraData.sched_time = schedTime;
