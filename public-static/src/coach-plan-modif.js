@@ -603,6 +603,7 @@ async function applyPlanModif(){
     const today = new Date().toLocaleDateString('fr-FR');
     const updated = existing + (existing?'\n':'') + '- '+memoNote+' ('+today+')';
     dbRef.child('_coach_memos').set(updated);
+    if(typeof _currentMemos !== 'undefined') _currentMemos = updated;
   }
   addCoachMessage('coach', 'Modification appliquée. La séance a été mise à jour dans ton plan.');
 }

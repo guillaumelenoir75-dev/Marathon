@@ -725,7 +725,7 @@ function _cvPickWeek(wk){
   modal._cvW=wk;
   // Recalculer si pour la nouvelle semaine
   let si=0;
-  while(_cvState[`extra_w${wk}_s${si}`]) si++;
+  while(si<=20&&_cvState[`extra_w${wk}_s${si}`]) si++;
   modal._cvSi=si;
   // Mettre à jour les boutons
   document.querySelectorAll('[id^="cv-wk-"]').forEach(btn=>{

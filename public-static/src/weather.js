@@ -983,7 +983,7 @@ function openRenfoSchedModal(r, targetWeek){
 
       <!-- Boutons action -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">
-        <button onclick="clearRenfoSched(${r})" style="padding:14px;background:var(--bg2);border:2px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">↺ Effacer</button>
+        <button onclick="clearRenfoSched(${r},${tw})" style="padding:14px;background:var(--bg2);border:2px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">↺ Effacer</button>
         <button onclick="saveRenfoSched(${r},${tw})" class="modal-btn-primary" style="background:#0C447C;">Enregistrer ✓</button>
       </div>
 
@@ -1013,8 +1013,9 @@ function saveRenfoSched(r, targetWeek){
   renderHome();
 }
 
-function clearRenfoSched(r){
-  delete state[rfk(CW,r)+'sched'];
+function clearRenfoSched(r,tw){
+  const w=tw||CW;
+  delete state[rfk(w,r)+'sched'];
   save();
   closeModal();
   renderHome();

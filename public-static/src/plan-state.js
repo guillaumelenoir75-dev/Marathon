@@ -1,8 +1,8 @@
 function migrateState(){
   const rfDefaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
   // Injection météo séance S11 EF longue 23/05 — Villiers-Saint-Georges 11h canicule
-  // Sans condition — injecte toujours pour garantir la présence de la météo
-  (function(){
+  // Admin seulement — données personnelles de Guillaume
+  if(isAdmin()) (function(){
     const k = gk(11,2)+'perf';
     let p = {};
     try{ p = typeof state[k]==='string' ? JSON.parse(state[k]) : (state[k]||{}); }catch(e){}
@@ -42,9 +42,9 @@ function migrateState(){
       });
     });
   }
-  // Inject historical sessions S1-S6 if not already done
+  // Inject historical sessions S1-S6 if not already done — admin seulement
   const historyKey='_history_injected_v6';
-  if(!state[historyKey]){
+  if(isAdmin()&&!state[historyKey]){
     const history=[
       {ws:1,si:1,shoe:'Pegasus',km:8},{ws:1,si:2,shoe:'Pegasus',km:8},
       {ws:2,si:0,shoe:'Pegasus',km:9},{ws:2,si:1,shoe:'Pegasus',km:10},{ws:2,si:2,shoe:'Pegasus',km:11},

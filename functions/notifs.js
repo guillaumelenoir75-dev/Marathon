@@ -645,12 +645,21 @@ exports.weeklyDebriefNotif = onSchedule(
         if(!await getUserPref(db,`users/${uid}/state`,'notif_debrief_semaine'))continue;
         const uState=(await db.ref(`users/${uid}/state`).once('value')).val()||{};
         let totalSessions=0,doneSessions=0;
+        // Séances normales du plan
+        for(let si=0;si<5;si++){
+          const deleted=!!uState[`del_w${cw}_s${si}`];if(deleted)continue;
+          const edRaw=uState[`edit_w${cw}_s${si}`];if(!edRaw)continue;
+          let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+          if(ed.type==='rest')continue;
+          totalSessions++;
+          if(!!uState[`s${cw}i${si}done`])doneSessions++;
+        }
+        // Séances extra
         let si=0;
-        while(uState[`extra_w${cw}_s${si}`]!==undefined&&uState[`extra_w${cw}_s${si}`]!==null){
+        while(si<=20&&uState[`extra_w${cw}_s${si}`]!==undefined&&uState[`extra_w${cw}_s${si}`]!==null){
           let es;try{es=JSON.parse(uState[`extra_w${cw}_s${si}`]);}catch(e){si++;continue;}
           if(es&&es.type!=='rest'){totalSessions++;if(!!uState[`extra_w${cw}_s${si}_done`])doneSessions++;}
           si++;
-          if(si>20)break;
         }
         const body=totalSessions>0?
           `S${cw} : ${doneSessions}/${totalSessions} séance${totalSessions>1?'s':''} validée${doneSessions>1?'s':''}. S${cwNext} arrive, prépare-toi ! 🏃`:
