@@ -451,7 +451,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
           const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
           let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
-          if(!sched.day||sched.day!==dayOfWeek)continue;
+          if(!sched.day||Number(sched.day)!==dayOfWeek)continue;
           manquees.push(`💪 ${renfoNames[ri]}`);
         }
         let extraI=0;

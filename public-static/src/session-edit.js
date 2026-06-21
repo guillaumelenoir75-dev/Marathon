@@ -757,7 +757,7 @@ function onExEditTypeChange(){
 }
 
 function openEditExtraModal(ws, ei){
-  const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+  const s=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');
   const parts=s.d.split('|');
   const title=parts[0], detail=parts[1]||'';
   const mc=document.getElementById('modal-container');
