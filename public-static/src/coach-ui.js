@@ -949,22 +949,42 @@ async function checkMorningBrief(memos, force) {
   const dowToSched = [7,1,2,3,4,5,6]; // JS day → sched_day
   const todaySched = dowToSched[dow];
   const todaySessions = [];
-  weeks[CW-1].sessions.forEach((sess, si) => {
-    if(sess.type === 'rest') return;
-    if(state['del_w'+CW+'_s'+si]) return;
-    if(state[gk(CW,si)+'done']) return;
-    const edRaw = state['edit_w'+CW+'_s'+si];
-    const ed = edRaw ? JSON.parse(edRaw) : null;
-    if(ed && ed.sched_day === todaySched) {
-      todaySessions.push({
-        type: sess.type,
-        titre: (ed||sess).d.split('|')[0],
-        km: (ed||sess).km,
-        heure: ed && ed.sched_time ? ed.sched_time : '',
-        allure: (ed||sess).d.split('|')[1] || ''
-      });
+  // Nouveau format de plan (extra_w) : séances avec sched_date ou sched_day
+  const useExtraFormat = !!state['extra_w'+CW+'_s0'];
+  if(useExtraFormat){
+    let ei=0;
+    while(ei<=20&&state['extra_w'+CW+'_s'+ei]){
+      try{
+        const s=JSON.parse(state['extra_w'+CW+'_s'+ei]);
+        if(s.type==='rest'){ei++;continue;}
+        if(state[gk(CW,ei)+'done']){ei++;continue;}
+        const matchDate = s.sched_date && s.sched_date===todayStr;
+        const matchDay = !s.sched_date && s.sched_day===todaySched;
+        if(matchDate||matchDay){
+          todaySessions.push({type:s.type,titre:s.d.split('|')[0],km:s.km,heure:s.sched_time||'',allure:s.d.split('|')[1]||''});
+        }
+      }catch(e){}
+      ei++;
     }
-  });
+  } else {
+    // Ancien format (weeks hardcodé) avec overrides edit_w
+    weeks[CW-1].sessions.forEach((sess, si) => {
+      if(sess.type === 'rest') return;
+      if(state['del_w'+CW+'_s'+si]) return;
+      if(state[gk(CW,si)+'done']) return;
+      const edRaw = state['edit_w'+CW+'_s'+si];
+      const ed = edRaw ? JSON.parse(edRaw) : null;
+      if(ed && ed.sched_day === todaySched) {
+        todaySessions.push({
+          type: sess.type,
+          titre: (ed||sess).d.split('|')[0],
+          km: (ed||sess).km,
+          heure: ed && ed.sched_time ? ed.sched_time : '',
+          allure: (ed||sess).d.split('|')[1] || ''
+        });
+      }
+    });
+  }
 
   // Renfo prévu aujourd'hui
   const renfoTodayGate = [];
@@ -993,23 +1013,41 @@ async function checkMorningBrief(memos, force) {
   // Appel IA pour le conseil personnalisé
   // Séances des jours suivants (pour que le coach ne les invente pas)
   const seancesJoursSuivants = [];
-  weeks[CW-1].sessions.forEach((sess, si) => {
-    if(sess.type === 'rest') return;
-    if(state['del_w'+CW+'_s'+si]) return;
-    if(state[gk(CW,si)+'done']) return;
-    const edRaw = state['edit_w'+CW+'_s'+si];
-    const ed = edRaw ? JSON.parse(edRaw) : null;
-    if(ed && ed.sched_day > todaySched) {
-      const jourNom = joursNoms[ed.sched_day] || ('jour '+ed.sched_day);
-      seancesJoursSuivants.push({
-        type: sess.type,
-        titre: (ed||sess).d.split('|')[0],
-        km: (ed||sess).km,
-        jour: jourNom,
-        heure: ed.sched_time || '',
-      });
+  if(useExtraFormat){
+    let ei=0;
+    while(ei<=20&&state['extra_w'+CW+'_s'+ei]){
+      try{
+        const s=JSON.parse(state['extra_w'+CW+'_s'+ei]);
+        if(s.type==='rest'){ei++;continue;}
+        if(state[gk(CW,ei)+'done']){ei++;continue;}
+        const afterToday = s.sched_date ? s.sched_date>todayStr : (s.sched_day&&s.sched_day>todaySched);
+        if(afterToday){
+          const d=s.sched_date?new Date(s.sched_date+'T00:00:00'):null;
+          const jourNom=d?joursNoms[d.getDay()===0?7:d.getDay()]:(joursNoms[s.sched_day]||('jour '+s.sched_day));
+          seancesJoursSuivants.push({type:s.type,titre:s.d.split('|')[0],km:s.km,jour:jourNom,heure:s.sched_time||''});
+        }
+      }catch(e){}
+      ei++;
     }
-  });
+  } else {
+    weeks[CW-1].sessions.forEach((sess, si) => {
+      if(sess.type === 'rest') return;
+      if(state['del_w'+CW+'_s'+si]) return;
+      if(state[gk(CW,si)+'done']) return;
+      const edRaw = state['edit_w'+CW+'_s'+si];
+      const ed = edRaw ? JSON.parse(edRaw) : null;
+      if(ed && ed.sched_day > todaySched) {
+        const jourNom = joursNoms[ed.sched_day] || ('jour '+ed.sched_day);
+        seancesJoursSuivants.push({
+          type: sess.type,
+          titre: (ed||sess).d.split('|')[0],
+          km: (ed||sess).km,
+          jour: jourNom,
+          heure: ed.sched_time || '',
+        });
+      }
+    });
+  }
 
   // Récupérer la dernière séance validée
   let derniereSeanceInfo = null;
