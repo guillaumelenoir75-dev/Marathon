@@ -29,6 +29,8 @@ function buildEvent(uid, title, description, startDate, durationMinutes) {
     'BEGIN:VEVENT',
     `UID:${uid}@prepa-marathon`,
     `DTSTAMP:${fmt(now)}`,
+    `LAST-MODIFIED:${fmt(now)}`,
+    `SEQUENCE:0`,
     `DTSTART;TZID=Europe/Paris:${fmt(startDate)}`,
     `DTEND;TZID=Europe/Paris:${fmt(end)}`,
     `SUMMARY:${title}`,
