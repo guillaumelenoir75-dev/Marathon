@@ -57,9 +57,12 @@ exports.calendar = onRequest(async (req, res) => {
   }
   const events = [];
 
+  // Ancien format (weeks hardcodé) avec overrides edit_w
+  // Ignorer les edit_w qui correspondent à des sessions extra_w (traitées ci-dessous)
   Object.keys(state).forEach(key => {
     const match = key.match(/^edit_w(\d+)_s(\d+)$/);
     if (!match) return;
+    if (state[`extra_w${match[1]}_s${match[2]}`]) return; // géré par la boucle extra_w
     if (state[`del_w${match[1]}_s${match[2]}`]) return;
     try {
       const session = JSON.parse(state[key]);
@@ -73,24 +76,43 @@ exports.calendar = onRequest(async (req, res) => {
       const title = typeToTitle[session.type] || "Run - EF";
       const parts = (session.d || '').split('|');
       const desc = [`${session.km} km`, parts[1]||''].filter(Boolean).join(' · ');
-      events.push(buildEvent(`run_w${ws}_s${match[2]}`, title, desc, eventDate, 60));
+      events.push(buildEvent(`run_w${match[1]}_s${match[2]}`, title, desc, eventDate, 60));
     } catch(e) {}
   });
 
+  // Nouveau format (extra_w) — applique les overrides edit_w si présents
   Object.keys(state).forEach(key => {
     const match = key.match(/^extra_w(\d+)_s(\d+)$/);
     if (!match) return;
     try {
-      const session = JSON.parse(state[key]);
-      if (!session.sched_day || !session.sched_time) return;
-      if (session.type === 'rest') return;
+      const base = JSON.parse(state[key]);
+      if (base.type === 'rest') return;
       const ws = parseInt(match[1]);
       const ei = parseInt(match[2]);
+      // Fusionner avec l'override edit_w si présent
+      const editRaw = state[`edit_w${ws}_s${ei}`];
+      const edit = editRaw ? JSON.parse(editRaw) : null;
+      const session = edit ? { ...base, ...edit } : base;
+      if (!session.sched_time) return;
       const [h, m] = session.sched_time.split(":").map(Number);
-      const weekStart = getWeekStartDate(ws);
-      const eventDate = new Date(weekStart);
-      eventDate.setDate(weekStart.getDate() + (session.sched_day - 1));
-      eventDate.setHours(h, m, 0, 0);
+      let eventDate;
+      if (edit && edit.sched_day) {
+        // Jour modifié par l'utilisateur → recalcul depuis le lundi de la semaine
+        const weekStart = getWeekStartDate(ws);
+        eventDate = new Date(weekStart);
+        eventDate.setDate(weekStart.getDate() + (edit.sched_day - 1));
+        eventDate.setHours(h, m, 0, 0);
+      } else if (base.sched_date) {
+        // Utiliser la date réelle stockée dans la séance générée
+        eventDate = new Date(base.sched_date + 'T' + session.sched_time + ':00');
+      } else if (session.sched_day) {
+        const weekStart = getWeekStartDate(ws);
+        eventDate = new Date(weekStart);
+        eventDate.setDate(weekStart.getDate() + (session.sched_day - 1));
+        eventDate.setHours(h, m, 0, 0);
+      } else {
+        return;
+      }
       const title = typeToTitle[session.type] || "Run - EF";
       const parts = (session.d || '').split('|');
       const desc = [`${session.km} km`, parts[1]||''].filter(Boolean).join(' · ');
