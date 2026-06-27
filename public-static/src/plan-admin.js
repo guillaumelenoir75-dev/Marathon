@@ -845,6 +845,7 @@ function renderAthletePanel(){
 function openFcMaxEdit(){
   const cur=state.fc_max||'';
   const overlay=document.createElement('div');
+  overlay.id='fcmax-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center;';
   overlay.innerHTML=`<div style="background:#fff;border-radius:20px;padding:24px;width:min(340px,90vw);display:flex;flex-direction:column;gap:16px;">
     <p style="font-size:17px;font-weight:800;margin:0;">Modifier la FC max</p>
@@ -858,8 +859,8 @@ function openFcMaxEdit(){
       <input id="fcmax-edit-age" type="number" min="10" max="90" placeholder="35" style="width:100%;padding:12px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;box-sizing:border-box;" oninput="const a=parseInt(this.value);if(a>=10&&a<=90){document.getElementById('fcmax-edit-val').value=220-a;}">
     </div>
     <div style="display:flex;gap:10px;">
-      <button onclick="this.closest('div[style]').remove()" style="flex:1;padding:13px;background:#f5f5f5;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
-      <button onclick="saveFcMax(parseInt(document.getElementById('fcmax-edit-val').value));this.closest('div[style]').remove();" style="flex:1;padding:13px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Enregistrer</button>
+      <button onclick="document.getElementById('fcmax-overlay').remove()" style="flex:1;padding:13px;background:#f5f5f5;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
+      <button onclick="saveFcMax(parseInt(document.getElementById('fcmax-edit-val').value));document.getElementById('fcmax-overlay').remove();" style="flex:1;padding:13px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Enregistrer</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
