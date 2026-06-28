@@ -998,6 +998,7 @@ function onDurInput(el){
   let fmt;
   if(digits.length<=2) fmt=digits;
   else if(digits.length<=4) fmt=digits.slice(0,2)+':'+digits.slice(2);
+  else if(digits.length===5) fmt=digits.slice(0,1)+':'+digits.slice(1,3)+':'+digits.slice(3);
   else fmt=digits.slice(0,2)+':'+digits.slice(2,4)+':'+digits.slice(4);
   el.value=fmt;
   if(el.id==='pedit-dur'&&typeof calcPerfEditPace==='function') calcPerfEditPace();
