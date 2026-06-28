@@ -428,7 +428,7 @@ function _applyStravaToValidation(activity) {
   const durEl = document.getElementById('val-dur');
   if(durEl && activity.duree) {
     durEl.value = activity.duree;
-    durEl.dispatchEvent(new Event('input'));
+    if(typeof calcPace === 'function') calcPace();
   }
   // Allure
   const paceEl = document.getElementById('val-pace');

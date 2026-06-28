@@ -535,7 +535,7 @@ function openValidationModalExtra(w,ei){
         </div>
         <div>
           <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
-          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="7" oninput="onDurInput(this)"
+          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="8" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
@@ -929,7 +929,7 @@ function openValidationModal(idx){
         </div>
         <div>
           <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
-          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="7" oninput="onDurInput(this)"
+          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="8" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
