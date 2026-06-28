@@ -27,15 +27,16 @@ function bundleClassicScripts() {
       // 2. Minifie avec esbuild (inclus dans Vite)
       const { transform } = await import('esbuild');
       const { code } = await transform(combined, { minify: true, target: 'es2020' });
-      writeFileSync(resolve(distSrc, 'bundle.js'), code);
+      const buildTs = Date.now();
+      const bundleName = `bundle-${buildTs}.js`;
+      writeFileSync(resolve(distSrc, bundleName), code);
 
       // 3. Met à jour dist/index.html : 23 tags → 1 seul
       const htmlPath = resolve(process.cwd(), 'dist/index.html');
       let html = readFileSync(htmlPath, 'utf-8');
       let injected = false;
-      const buildTs = Date.now();
       html = html.replace(/<script defer src="\/src\/[^"]+\.js[^"]*"><\/script>\n?/g, () => {
-        if (!injected) { injected = true; return `<script defer src="/src/bundle.js?v=${buildTs}"></script>\n`; }
+        if (!injected) { injected = true; return `<script defer src="/src/${bundleName}"></script>\n`; }
         return '';
       });
       writeFileSync(htmlPath, html);
@@ -44,7 +45,7 @@ function bundleClassicScripts() {
       scriptFiles.forEach(f => { try { unlinkSync(resolve(distSrc, f)); } catch(e) {} });
 
       const sizeKb = Math.round(Buffer.byteLength(code) / 1024);
-      console.log(`[bundle] bundle.js créé — ${sizeKb} Ko minifié (${scriptFiles.length} fichiers fusionnés)`);
+      console.log(`[bundle] ${bundleName} créé — ${sizeKb} Ko minifié (${scriptFiles.length} fichiers fusionnés)`);
     },
   };
 }
