@@ -153,7 +153,7 @@ exports.stravaFetch = onRequest(
         const durSec = Math.round(a.moving_time || 0);
         const dMin = Math.floor(durSec / 60);
         const duree = dMin >= 60
-          ? `${Math.floor(dMin/60)}:${String(dMin%60).padStart(2,'0')}:${String(durSec%60).padStart(2,'0')}`
+          ? `${String(Math.floor(dMin/60)).padStart(2,'0')}:${String(dMin%60).padStart(2,'0')}:${String(durSec%60).padStart(2,'0')}`
           : `${dMin}:${String(durSec%60).padStart(2,'0')}`;
         const pace = distKm > 0 ? durSec / distKm : 0;
         const _rawSec=Math.round(pace%60); const paceStr = `${Math.floor(pace/60)+(_rawSec===60?1:0)}:${String(_rawSec===60?0:_rawSec).padStart(2,'0')}`;
