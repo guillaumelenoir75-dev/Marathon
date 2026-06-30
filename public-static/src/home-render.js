@@ -1190,9 +1190,9 @@ function closeEditEFModal(){
 function saveEditEF(){
   const raw = (document.getElementById('ef-pace-input')?.value || '').trim();
   const err = document.getElementById('ef-edit-err');
-  // Normaliser : accepte "5:45", "5'45", "545", "5.45"
-  const norm = raw.replace(/[.]/g,':').replace(/['′]/g,':');
-  const m = norm.match(/^(\d):([0-5]\d)$|^(\d{1,2})[:\']([0-5]\d)$/);
+  // Normaliser : accepte "5:45", "5'45", "5′45", "545", "5.45" et toute variante typographique
+  const norm = raw.replace(/[^0-9]/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
+  const m = norm.match(/^(\d):([0-5]\d)$|^(\d{1,2}):([0-5]\d)$/);
   let mins, secs;
   if(m){
     mins = parseInt(m[1]||m[3]); secs = parseInt(m[2]||m[4]);
