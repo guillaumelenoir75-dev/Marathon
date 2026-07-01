@@ -1,8 +1,18 @@
-// sw.js — Service Worker Plan Marathon v5
+// sw.js — Service Worker Plan Marathon v6
 // Gère les push notifications et le tap sur une notification
 
 self.addEventListener('install', event => { self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(clients.claim()); });
+
+// Force index.html à toujours venir du réseau (bypass du cache iOS PWA)
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
+    );
+  }
+});
 
 self.addEventListener('push', event => {
   if (!event.data) return;
