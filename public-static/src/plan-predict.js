@@ -96,7 +96,7 @@ function buildMarathonPrediction() {
     // Ratio empirique 0.965 : calibré sur niveau S10 actuel
     // (marathon ≈ EF normalisée × 0.965 pour coureur 4h en phase de prépa)
     // Monte vers 0.95 avec l'endurance spécifique (longues > 20km, S18+)
-    const efRatioBase = Math.max(0.945, 0.965 - (Math.max(0, efPts.length - 8) * 0.002));
+    const efRatioBase = Math.max(0.875, 0.905 - (Math.max(0, efPts.length - 6) * 0.003));
     amFromEf = weightedNormPace * efRatioBase;
     efHistory = last3Ef.map((p,i) => ({
       ws: p.ws, pace: p.paceSec, fc: p.fc,
@@ -266,7 +266,7 @@ function buildMarathonPrediction() {
   const r10pred = getRecord10kmPredictions();
   const totalSecR10 = r10pred ? r10pred.marSec : null;
   const totalSec = totalSecR10
-    ? Math.round((totalSecBase + totalSecR10) / 2)
+    ? Math.round(totalSecBase * 0.35 + totalSecR10 * 0.65)
     : totalSecBase;
   const tempsStr = fmtTime(totalSec);
 
