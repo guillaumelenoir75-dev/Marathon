@@ -131,7 +131,7 @@ function buildMarathonPrediction() {
       // Moyenne pondérée des moyennes de séance
       const weightedPace = last3Tempo.reduce((a,s,i)=>a+s.avgPace*tWeights[i],0)/tTotalW;
       bestTempoPaceSec = weightedPace;
-      amFromTempo = bestTempoPaceSec * 1.17;
+      amFromTempo = bestTempoPaceSec * 1.06;
       // Historique individuel
       tempoHistory = last3Tempo.map(s => ({
         ws: s.ws, avgPace: s.avgPace, blocs: s.blocs,
@@ -266,7 +266,7 @@ function buildMarathonPrediction() {
   const r10pred = getRecord10kmPredictions();
   const totalSecR10 = r10pred ? r10pred.marSec : null;
   const totalSec = totalSecR10
-    ? Math.round(totalSecBase * 0.35 + totalSecR10 * 0.65)
+    ? Math.round(totalSecBase * 0.10 + totalSecR10 * 0.90)
     : totalSecBase;
   const tempsStr = fmtTime(totalSec);
 
