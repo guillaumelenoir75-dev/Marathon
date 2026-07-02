@@ -266,7 +266,7 @@ function buildMarathonPrediction() {
   const r10pred = getRecord10kmPredictions();
   const totalSecR10 = r10pred ? r10pred.marSec : null;
   const totalSec = totalSecR10
-    ? Math.round(totalSecBase * 0.10 + totalSecR10 * 0.90)
+    ? Math.round(totalSecBase * 0.25 + totalSecR10 * 0.75)
     : totalSecBase;
   const tempsStr = fmtTime(totalSec);
 
