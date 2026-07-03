@@ -16,7 +16,7 @@ async function sendWelcomeEmail(toEmail, displayName, password, gender) {
     : (gender === 'F' ? 'Bienvenue !' : 'Bienvenu !');
   const sub4 = gender === 'F' ? 'une future marathonienne' : 'un futur marathonien';
 
-  await resend.emails.send({
+  const { error: resendError } = await resend.emails.send({
     from: 'En Piste <contact@enpiste.net>',
     replyTo: 'contact@enpiste.net',
     to: toEmail,
@@ -103,6 +103,7 @@ async function sendWelcomeEmail(toEmail, displayName, password, gender) {
 </html>
     `
   });
+  if (resendError) throw new Error(resendError.message || JSON.stringify(resendError));
 }
 
 
