@@ -289,9 +289,9 @@ function renderAthleteCoachView(userData, uid, name){
   } else {
     html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0;">Plan — ${weeks.length} semaines</p>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
         <button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>
-        <button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Régénérer à partir de...</button>
+        <button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Regen. date</button>
         <button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>
       </div>
     </div>`;
