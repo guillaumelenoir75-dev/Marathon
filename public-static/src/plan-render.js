@@ -675,8 +675,10 @@ function renderAthletePlan(el){
   actionBanner.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;';
   const regenBtn=_adminPreviewUid?'':`<button onclick="showOnboarding(true)" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
   const updateBtn=_adminPreviewUid?`<button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>`:'';
+  const regenDateBtn=_adminPreviewUid?`<button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Regen. date</button>`:'';
   const delBtn=_adminPreviewUid?`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>`:'';
-  actionBanner.innerHTML=regenBtn+updateBtn+delBtn;
+  actionBanner.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-bottom:12px;';
+  actionBanner.innerHTML=regenBtn+updateBtn+regenDateBtn+delBtn;
   el.appendChild(actionBanner);
 
   let currentRenderMonth=-1; // pour séparateurs de mois
