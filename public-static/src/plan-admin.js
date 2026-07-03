@@ -381,7 +381,11 @@ function _buildPlanUpdates(st, newPlan){
   // 5. Supprimer les anciennes sessions non-réalisées absentes du nouveau plan
   Object.keys(st).filter(k=>/^extra_w\d+_s\d+$/.test(k)).forEach(k=>{
     if(doneSessionKeys.has(k)) return; // JAMAIS supprimer une session done
-    if(!shiftedSessionKeys.has(k)) updates[k]=null;
+    if(!shiftedSessionKeys.has(k)){
+      updates[k]=null;
+      // Nettoyer aussi les métadonnées orphelines de cette session
+      ['_done','_km','_perf','_skip','_skip_reason'].forEach(sfx=>{ if(st[k+sfx]!=null) updates[k+sfx]=null; });
+    }
   });
 
   // 6. Filet de sécurité : s'assurer que toutes les sessions done sont bien présentes
@@ -504,15 +508,22 @@ function openRegenFromDateModal(){
     ob={...ob,plan_start_date:dateVal};
     const newPlan=generateAthletePlan(ob);
     const {updates,nbUpdated,nbKept}=_buildPlanUpdates(state,newPlan);
+    // BUG FIX : plan_start_date et onboarding doivent être persistés après regen
+    updates.plan_start_date=dateVal;
+    updates.onboarding=ob;
     const targetRef=_adminPreviewUid?firebase.database().ref('users/'+_adminPreviewUid+'/state'):dbRef;
     await targetRef.update(updates).catch(e=>alert('Erreur : '+e.message));
     Object.keys(updates).forEach(k=>{if(updates[k]===null)delete state[k];else state[k]=updates[k];});
+    state.plan_start_date=dateVal;
+    state.onboarding=ob;
     if(_adminPreviewUid) _refreshAthleteCoachView(); else{renderHome();renderPlan();}
     // Succès
     const sv=document.createElement('div');
     sv.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-    sv.innerHTML=`<div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);"><div style="padding:28px 24px 24px;text-align:center;"><div style="font-size:40px;margin-bottom:12px;">📅</div><p style="font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:10px;">Plan régénéré !</p><p style="font-size:14px;color:#555;">${nbUpdated} séance${nbUpdated>1?'s':''} recalculée${nbUpdated>1?'s':''}${nbKept>0?` · ${nbKept} réalisée${nbKept>1?'s':''} conservée${nbKept>1?'s':''}`:''}</p></div><div style="border-top:1px solid #f0f0f0;"><button onclick="this.closest('div[style]').parentElement.remove()" style="width:100%;padding:16px;background:#fff;border:none;font-size:15px;font-weight:700;color:#1B4FD8;cursor:pointer;">Fermer</button></div></div>`;
+    sv.innerHTML=`<div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);"><div style="padding:28px 24px 24px;text-align:center;"><div style="font-size:40px;margin-bottom:12px;">📅</div><p style="font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:10px;">Plan régénéré !</p><p style="font-size:14px;color:#555;">${nbUpdated} séance${nbUpdated>1?'s':''} recalculée${nbUpdated>1?'s':''}${nbKept>0?` · ${nbKept} réalisée${nbKept>1?'s':''} conservée${nbKept>1?'s':''}`:''}</p></div><div style="border-top:1px solid #f0f0f0;"><button id="regen-date-ok-btn" style="width:100%;padding:16px;background:#fff;border:none;font-size:15px;font-weight:700;color:#1B4FD8;cursor:pointer;">Fermer</button></div></div>`;
     document.body.appendChild(sv);
+    document.getElementById('regen-date-ok-btn').onclick=()=>sv.remove();
+    sv.onclick=e=>{if(e.target===sv)sv.remove();};
   };
 }
 

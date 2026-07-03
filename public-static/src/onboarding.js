@@ -1258,8 +1258,8 @@ async function saveOnboarding(){
       // Sauvegarder tout le plan en un seul update Firebase
       if(dbRef && entries.length>0){
         const updates={};
-        // Enregistrer la date de début du plan (= aujourd'hui)
-        const startDate=new Date().toISOString().split('T')[0];
+        // Enregistrer la date de début du plan (choisie en step 9, sinon aujourd'hui)
+        const startDate=_obData.plan_start_date||new Date().toISOString().split('T')[0];
         state.plan_start_date=startDate;
         updates.plan_start_date=startDate;
         // EF pace — déclarée en priorité, sinon dérivée depuis le temps cible
