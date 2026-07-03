@@ -87,14 +87,19 @@ function generateDecouvertePlan(ob){
   // Planification des jours/horaires
   const runDays=(ob.run_days||[]).slice().sort((a,b)=>a-b);
   const runTimes=ob.run_times||{};
-  // Calcul du lundi de départ : si la première séance de cette semaine est déjà passée, démarrer la semaine suivante
+  // Calcul du lundi de départ
   const _today=new Date(); _today.setHours(0,0,0,0);
   const _todayDow=_today.getDay();
   const _thisMon=new Date(_today); _thisMon.setDate(_today.getDate()+(_todayDow===0?-6:1-_todayDow));
-  const _firstDay=runDays.length>0?runDays[0]:0;
-  const _firstDate=new Date(_thisMon); _firstDate.setDate(_thisMon.getDate()+_firstDay);
   const monday=new Date(_thisMon);
-  if(_firstDate<_today) monday.setDate(_thisMon.getDate()+7);
+  if(ob.plan_start_date){
+    const _d=new Date(ob.plan_start_date+'T00:00:00'); const _dw=_d.getDay();
+    monday.setTime(_d.getTime()); monday.setDate(_d.getDate()+(_dw===0?-6:1-_dw));
+  } else {
+    const _firstDay=runDays.length>0?runDays[0]:0;
+    const _firstDate=new Date(_thisMon); _firstDate.setDate(_thisMon.getDate()+_firstDay);
+    if(_firstDate<_today) monday.setDate(_thisMon.getDate()+7);
+  }
 
   const updates={};
   // Stocker les séances au format extra_w${w}_s${ei} pour que renderAthletePlan les affiche
@@ -633,16 +638,20 @@ function generateAthletePlan(ob){
 
 
   // ── Planification — lundi de départ ──────────────────────────────────────────
-  // Si la première séance de la semaine courante est déjà passée → démarrer la semaine suivante
   const runTimes=ob.run_times||{};
   const sortedDays=[...(ob.run_days||[])].sort((a,b)=>a-b);
   const _t=new Date(); _t.setHours(0,0,0,0);
   const _tDow=_t.getDay();
   const _thisMon=new Date(_t); _thisMon.setDate(_t.getDate()+(_tDow===0?-6:1-_tDow));
-  const _fDay=sortedDays.length>0?sortedDays[0]:0;
-  const _fDate=new Date(_thisMon); _fDate.setDate(_thisMon.getDate()+_fDay);
   const startMonday=new Date(_thisMon);
-  if(_fDate<_t) startMonday.setDate(_thisMon.getDate()+7);
+  if(ob.plan_start_date){
+    const _d=new Date(ob.plan_start_date+'T00:00:00'); const _dw=_d.getDay();
+    startMonday.setTime(_d.getTime()); startMonday.setDate(_d.getDate()+(_dw===0?-6:1-_dw));
+  } else {
+    const _fDay=sortedDays.length>0?sortedDays[0]:0;
+    const _fDate=new Date(_thisMon); _fDate.setDate(_thisMon.getDate()+_fDay);
+    if(_fDate<_t) startMonday.setDate(_thisMon.getDate()+7);
+  }
 
   // ── Boucle principale ─────────────────────────────────────────────────────────
   const updates={};

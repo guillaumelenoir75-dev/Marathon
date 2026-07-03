@@ -291,6 +291,7 @@ function renderAthleteCoachView(userData, uid, name){
       <p style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0;">Plan — ${weeks.length} semaines</p>
       <div style="display:flex;gap:6px;">
         <button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>
+        <button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Régénérer à partir de...</button>
         <button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>
       </div>
     </div>`;
@@ -447,6 +448,72 @@ async function cvRegeneratePlan(){
   const _closeS=()=>_sov.remove();
   document.getElementById('regen-ok-btn').onclick=_closeS;
   _sov.onclick=e=>{if(e.target===_sov)_closeS();};
+}
+
+// ── Régénérer le plan à partir d'une date choisie ────────────────────────────
+function openRegenFromDateModal(){
+  const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
+  if(!hasPlan){ alert('Aucun plan à régénérer.'); return; }
+
+  // Date par défaut = prochain lundi
+  const t=new Date(); t.setHours(0,0,0,0);
+  const dow=t.getDay(); const offset=dow===0?1:8-dow;
+  const defDate=new Date(t); defDate.setDate(t.getDate()+offset);
+  const defIso=defDate.toISOString().split('T')[0];
+
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);';
+  ov.innerHTML=`
+  <div style="background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:390px;padding:24px 20px 32px;box-sizing:border-box;">
+    <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 20px;"></div>
+    <p style="font-size:18px;font-weight:800;color:#1a1a1a;margin:0 0 6px;">📅 Régénérer à partir de...</p>
+    <p style="font-size:13px;color:#666;margin:0 0 20px;line-height:1.5;">Choisis une date de début pour régénérer le plan. Les séances déjà réalisées seront conservées.</p>
+    <div style="margin-bottom:16px;">
+      <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Date de début</p>
+      <input id="regen-start-date" type="date" value="${defIso}" style="width:100%;padding:12px;border:1.5px solid #d0dff5;border-radius:10px;font-size:16px;font-weight:600;color:#1a1a1a;box-sizing:border-box;" oninput="_regenDateLabel()">
+      <p id="regen-date-label" style="font-size:13px;color:#1B4FD8;font-weight:600;margin-top:8px;"></p>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button id="regen-cancel-btn" style="flex:1;padding:14px;background:#f5f5f5;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#555;cursor:pointer;">Annuler</button>
+      <button id="regen-confirm-btn" style="flex:2;padding:14px;background:#E8530A;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;">Régénérer →</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  function _regenDateLabel(){
+    const el=document.getElementById('regen-start-date');
+    const lbl=document.getElementById('regen-date-label');
+    if(!el||!el.value||!lbl){return;}
+    const d=new Date(el.value+'T00:00:00'); const dw=d.getDay();
+    const mon=new Date(d); mon.setDate(d.getDate()+(dw===0?-6:1-dw));
+    lbl.textContent='→ Plan débutera le lundi '+mon.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  }
+  _regenDateLabel();
+
+  const _close=()=>ov.remove();
+  document.getElementById('regen-cancel-btn').onclick=_close;
+  ov.onclick=e=>{if(e.target===ov)_close();};
+  document.getElementById('regen-confirm-btn').onclick=async()=>{
+    const dateVal=document.getElementById('regen-start-date')?.value;
+    if(!dateVal){alert('Sélectionne une date.');return;}
+    _close();
+    let ob=state.onboarding;
+    if(typeof ob==='string'){try{ob=JSON.parse(ob);}catch(e){ob={};}}
+    ob=ob||{};
+    if(!ob.course){alert('Données onboarding introuvables.');return;}
+    ob={...ob,plan_start_date:dateVal};
+    const newPlan=generateAthletePlan(ob);
+    const {updates,nbUpdated,nbKept}=_buildPlanUpdates(state,newPlan);
+    const targetRef=_adminPreviewUid?firebase.database().ref('users/'+_adminPreviewUid+'/state'):dbRef;
+    await targetRef.update(updates).catch(e=>alert('Erreur : '+e.message));
+    Object.keys(updates).forEach(k=>{if(updates[k]===null)delete state[k];else state[k]=updates[k];});
+    if(_adminPreviewUid) _refreshAthleteCoachView(); else{renderHome();renderPlan();}
+    // Succès
+    const sv=document.createElement('div');
+    sv.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    sv.innerHTML=`<div style="background:#fff;border-radius:22px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);"><div style="padding:28px 24px 24px;text-align:center;"><div style="font-size:40px;margin-bottom:12px;">📅</div><p style="font-size:18px;font-weight:800;color:#1a1a1a;margin-bottom:10px;">Plan régénéré !</p><p style="font-size:14px;color:#555;">${nbUpdated} séance${nbUpdated>1?'s':''} recalculée${nbUpdated>1?'s':''}${nbKept>0?` · ${nbKept} réalisée${nbKept>1?'s':''} conservée${nbKept>1?'s':''}`:''}</p></div><div style="border-top:1px solid #f0f0f0;"><button onclick="this.closest('div[style]').parentElement.remove()" style="width:100%;padding:16px;background:#fff;border:none;font-size:15px;font-weight:700;color:#1B4FD8;cursor:pointer;">Fermer</button></div></div>`;
+    document.body.appendChild(sv);
+  };
 }
 
 // ── Mise à jour de TOUS les plans athlètes ───────────────────────────────────
@@ -838,8 +905,10 @@ function renderAthletePanel(){
   const hasPlan=Object.keys(state).some(k=>/^extra_w\d+_s\d+$/.test(k));
   const delBtn=document.getElementById('btn-delete-plan');
   const genBtn=document.getElementById('btn-generate-plan');
+  const regenBtn=document.getElementById('btn-regen-from-date');
   if(delBtn) delBtn.style.display=hasPlan?'block':'none';
   if(genBtn) genBtn.style.display=hasPlan?'none':'block';
+  if(regenBtn) regenBtn.style.display=hasPlan?'block':'none';
 }
 
 function openFcMaxEdit(){

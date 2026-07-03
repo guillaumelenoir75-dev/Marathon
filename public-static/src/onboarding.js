@@ -260,7 +260,7 @@ function _obGoTo(step){
   if(step===2&&_obData.sessions) setTimeout(()=>_obShowAdaptiveTip('sessions'),50);
   if(step===3&&_obData.niveau) setTimeout(()=>_obShowAdaptiveTip('niveau'),50);
   if(step===4&&_obData.km_semaine) setTimeout(()=>_obShowAdaptiveTip('km_semaine'),50);
-  const OB_STEPS=9;
+  const OB_STEPS=10;
   for(let i=0;i<OB_STEPS;i++){
     const s=document.getElementById('ob-step-'+i);
     if(s) s.style.display=i===step?'block':'none';
@@ -647,7 +647,37 @@ function onboardingSelectEf(val){
   }
 }
 
+function obOnStartDateChange(){
+  const el=document.getElementById('ob-start-date');
+  const lbl=document.getElementById('ob-start-date-label');
+  if(!el||!el.value){if(lbl)lbl.textContent='';return;}
+  _obData.plan_start_date=el.value;
+  const d=new Date(el.value+'T00:00:00');
+  const dow=d.getDay(); const offset=dow===0?-6:1-dow;
+  const mon=new Date(d); mon.setDate(d.getDate()+offset);
+  const opts={weekday:'long',day:'numeric',month:'long'};
+  if(lbl) lbl.textContent='→ Plan débutera le lundi '+mon.toLocaleDateString('fr-FR',opts);
+  const btn=document.getElementById('ob-btn-next');
+  if(btn){btn.disabled=false;btn.style.opacity='1';}
+}
+function obSetDefaultStartDate(){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const dow=t.getDay(); const offset=dow===0?1:8-dow;
+  const next=new Date(t); next.setDate(t.getDate()+offset);
+  const iso=next.toISOString().split('T')[0];
+  const el=document.getElementById('ob-start-date');
+  if(el){el.value=iso;}
+  _obData.plan_start_date=iso;
+  obOnStartDateChange();
+}
+
 function onboardingNext(){
+  // Avant-dernière étape (date début) → lire la valeur et avancer vers récap
+  if(_obStep===9){
+    const el=document.getElementById('ob-start-date');
+    if(el&&el.value) _obData.plan_start_date=el.value;
+    _obGoTo(8); return;
+  }
   // Dernière étape → sauvegarder
   if(_obStep===8){saveOnboarding();return;}
   // Étape 5 (jours) : lire l'horaire avant de passer
@@ -678,6 +708,9 @@ function onboardingNext(){
     if(!_obData.sessions||!['1','2'].includes(_obData.sessions)) _obData.sessions='2';
     next=5;
   }
+  // Après step 7 (horaires), aller au step 9 (date début) avant le récap (step 8)
+  if(_obStep===7) next=9;
+  if(next===9) setTimeout(()=>{obSetDefaultStartDate();const b=document.getElementById('ob-btn-next');if(b){b.disabled=false;b.style.opacity='1';}},0);
   _obGoTo(next);
 }
 
@@ -687,6 +720,10 @@ function onboardingBack(){
   if(prev===1&&_obData.course==='Plaisir') prev=0;
   // Sauter km_semaine au retour si niveau Découverte
   if(prev===4&&_obData.niveau==='Découverte') prev=3;
+  // Depuis récap (8), retour vers date début (9)
+  if(_obStep===8) prev=9;
+  // Depuis date début (9), retour vers step 7
+  if(_obStep===9) prev=7;
   _obGoTo(prev);
 }
 
