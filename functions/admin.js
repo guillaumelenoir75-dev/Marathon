@@ -2,20 +2,17 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 const { corsHeaders, verifyAdmin, ADMIN_EMAIL, ADMIN_UID } = require('./helpers');
 
-const GMAIL_APP_PASSWORD = defineSecret("GMAIL_APP_PASSWORD");
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 
 async function sendWelcomeEmail(toEmail, displayName, password) {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: ADMIN_EMAIL, pass: GMAIL_APP_PASSWORD.value() }
-  });
+  const resend = new Resend(RESEND_API_KEY.value());
   const prenom = displayName ? displayName.split(' ')[0] : 'à toi';
-  await transporter.sendMail({
-    from: `"En Piste 🏃" <${ADMIN_EMAIL}>`,
+  await resend.emails.send({
+    from: 'En Piste <contact@enpiste.net>',
     to: toEmail,
     subject: "Ton accès En Piste est prêt !",
     html: `
@@ -45,7 +42,7 @@ async function sendWelcomeEmail(toEmail, displayName, password) {
         </div>
 
         <p style="font-size:13px;color:#6b6b6b;text-align:center;margin:0;">
-          Des questions ? Réponds directement à cet email.<br>
+          Des questions ? Réponds à cet email.<br>
           <strong style="color:#1a1a1a;">Bonne prépa ! 💪</strong>
         </p>
       </div>
@@ -55,7 +52,7 @@ async function sendWelcomeEmail(toEmail, displayName, password) {
 
 
 exports.createUser = onRequest(
-  { cors: true, secrets: [GMAIL_APP_PASSWORD] },
+  { cors: true, secrets: [RESEND_API_KEY] },
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
