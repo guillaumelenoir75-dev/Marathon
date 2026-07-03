@@ -118,11 +118,15 @@ exports.createUser = onRequest(
       const userRecord = await admin.auth().createUser({ email, password, displayName: displayName || email });
       const db = admin.database();
       await db.ref(`users/${userRecord.uid}/role`).set('athlete');
-      // Envoi email de bienvenue (non bloquant)
-      sendWelcomeEmail(email, displayName, password, gender).catch(e =>
-        console.error('sendWelcomeEmail error:', e.message)
-      );
-      res.json({ uid: userRecord.uid, email: userRecord.email });
+      // Envoi email de bienvenue
+      let emailStatus = 'sent';
+      try {
+        await sendWelcomeEmail(email, displayName, password, gender);
+      } catch(e) {
+        emailStatus = 'error: ' + e.message;
+        console.error('sendWelcomeEmail error:', e.message);
+      }
+      res.json({ uid: userRecord.uid, email: userRecord.email, emailStatus });
     } catch(e) {
       res.status(500).json({ error: e.message });
     }
