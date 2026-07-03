@@ -14,7 +14,7 @@ async function sendWelcomeEmail(toEmail, displayName, password, gender) {
   const salut = prenom
     ? `Bienvenue ${prenom} !`
     : (gender === 'F' ? 'Bienvenue !' : 'Bienvenu !');
-  const sub4 = gender === 'F' ? 'une future marathonienne' : 'un futur marathonien';
+  const sub4 = gender === 'F' ? 'une coureuse accomplie' : 'un coureur accompli';
 
   const { error: resendError } = await resend.emails.send({
     from: 'En Piste <contact@enpiste.net>',
@@ -34,7 +34,7 @@ async function sendWelcomeEmail(toEmail, displayName, password, gender) {
     <tr><td style="background:linear-gradient(135deg,#1B4FD8 0%,#2563EB 100%);padding:36px 32px;text-align:center;">
       <div style="font-size:52px;line-height:1;">🏃</div>
       <h1 style="margin:14px 0 6px;font-size:26px;font-weight:800;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${salut}</h1>
-      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.82);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Ton plan marathon personnalisé t'attend.</p>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.82);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Ton plan de course personnalisé t'attend.</p>
     </td></tr>
 
     <!-- Body -->
