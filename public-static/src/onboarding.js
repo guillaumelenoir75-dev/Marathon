@@ -666,7 +666,7 @@ function obSetDefaultStartDate(){
   const next=new Date(t); next.setDate(t.getDate()+offset);
   const iso=next.toISOString().split('T')[0];
   const el=document.getElementById('ob-start-date');
-  if(el){el.value=iso;}
+  if(el){el.value=iso;el.min=iso;}
   _obData.plan_start_date=iso;
   obOnStartDateChange();
 }

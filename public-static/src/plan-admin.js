@@ -470,7 +470,7 @@ function openRegenFromDateModal(){
     <p style="font-size:13px;color:#666;margin:0 0 20px;line-height:1.5;">Choisis une date de début pour régénérer le plan. Les séances déjà réalisées seront conservées.</p>
     <div style="margin-bottom:16px;">
       <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Date de début</p>
-      <input id="regen-start-date" type="date" value="${defIso}" style="width:100%;padding:12px;border:1.5px solid #d0dff5;border-radius:10px;font-size:16px;font-weight:600;color:#1a1a1a;box-sizing:border-box;" oninput="_regenDateLabel()">
+      <input id="regen-start-date" type="date" value="${defIso}" min="${defIso}" step="7" style="width:100%;padding:12px;border:1.5px solid #d0dff5;border-radius:10px;font-size:16px;font-weight:600;color:#1a1a1a;box-sizing:border-box;" oninput="_regenDateLabel()">
       <p id="regen-date-label" style="font-size:13px;color:#1B4FD8;font-weight:600;margin-top:8px;"></p>
     </div>
     <div style="display:flex;gap:10px;">
