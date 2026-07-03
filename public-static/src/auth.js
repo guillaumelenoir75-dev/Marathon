@@ -319,11 +319,11 @@ function selectGender(g){
 
 async function adminCreateUser(){
   const email=(document.getElementById('admin-new-email')?.value||'').trim();
-  const password=document.getElementById('admin-new-password')?.value||'';
+  const password='password';
   const displayName=(document.getElementById('admin-new-name')?.value||'').trim();
   const gender=_adminNewGender||null;
   const msgEl=document.getElementById('admin-create-msg');
-  if(!email||!password){if(msgEl){msgEl.textContent='Email et mot de passe requis.';msgEl.style.color='#e53e3e';msgEl.style.display='block';}return;}
+  if(!email){if(msgEl){msgEl.textContent='Email requis.';msgEl.style.color='#e53e3e';msgEl.style.display='block';}return;}
   const btn=document.querySelector('#admin-panel button[onclick="adminCreateUser()"]');
   if(btn){btn.textContent='Création...';btn.disabled=true;}
   try {
@@ -337,7 +337,6 @@ async function adminCreateUser(){
     }
     if(msgEl){msgEl.textContent='✅ Compte créé pour '+data.email;msgEl.style.color='#2d7d46';msgEl.style.display='block';}
     document.getElementById('admin-new-email').value='';
-    document.getElementById('admin-new-password').value='';
     document.getElementById('admin-new-name').value='';
     _adminNewGender='';selectGender('');
     loadAdminUsersList();
