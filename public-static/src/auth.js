@@ -247,9 +247,33 @@ function renderCompteScreen(){
   if(adminPanel) adminPanel.style.display=isAdmin()?'block':'none';
   const adminIntegrations=document.getElementById('user-integrations');
   if(adminIntegrations) adminIntegrations.style.display='block';
-  if(isAdmin()) loadAdminUsersList();
+  // La liste des comptes se charge à la demande via openUsersListModal()
   checkStravaStatus();
   renderAthletePanel();
+}
+
+function openUsersListModal(){
+  let overlay=document.getElementById('users-list-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='users-list-overlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;';
+    overlay.innerHTML=`
+      <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:390px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.18);">
+        <div style="padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+          <p style="margin:0;font-size:16px;font-weight:800;color:#1a1a1a;">👥 Comptes</p>
+          <button onclick="document.getElementById('users-list-overlay').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#666;">×</button>
+        </div>
+        <div id="admin-users-list" style="flex:1;overflow-y:auto;padding:12px 16px 32px;font-size:13px;color:#555;">
+          <div style="text-align:center;padding:24px;color:#888;">Chargement…</div>
+        </div>
+      </div>`;
+    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+    document.body.appendChild(overlay);
+  } else {
+    overlay.style.display='flex';
+  }
+  loadAdminUsersList();
 }
 
 async function loadAdminUsersList(){
@@ -259,25 +283,25 @@ async function loadAdminUsersList(){
     const token=await getAuthToken();
     const resp=await fetch(FUNCTIONS_BASE+'/listUsers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});
     const users=await resp.json();
-    if(!Array.isArray(users)){listEl.textContent='Erreur chargement.';return;}
+    if(!Array.isArray(users)){listEl.innerHTML='<p style="color:#e53e3e;">Erreur chargement.</p>';return;}
     const athletes=users.filter(u=>u.role!=='admin');
     const allBtn=athletes.length>0
-      ?`<div style="padding:10px 0 6px;border-bottom:2px solid #e8edf5;">
-          <button onclick="adminUpdateAllPlans()" style="width:100%;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+      ?`<div style="margin-bottom:12px;">
+          <button onclick="adminUpdateAllPlans()" style="width:100%;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
             🔄 Mettre à jour tous les plans (${athletes.length} athlète${athletes.length>1?'s':''})
           </button>
         </div>`
       :'';
     listEl.innerHTML=allBtn+users.map(u=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
-        <div ${u.role!=='admin'?`onclick="openAthleteCoachView('${u.uid}','${u.displayName||u.email||u.uid}')" style="cursor:pointer;flex:1;"`:'style="flex:1;"'}>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #f0f0f0;">
+        <div ${u.role!=='admin'?`onclick="openAthleteCoachView('${u.uid}','${u.displayName||u.email||u.uid}');document.getElementById('users-list-overlay').remove();" style="cursor:pointer;flex:1;"`:'style="flex:1;"'}>
           <div style="font-weight:600;font-size:14px;">${u.displayName||u.email||u.uid}</div>
           <div style="font-size:11px;color:#888;">${u.email||''} · ${u.role==='admin'?'Admin':'Athlète'}</div>
           ${u.role!=='admin'?'<div style="font-size:11px;color:#1B4FD8;margin-top:2px;">Voir le plan →</div>':''}
         </div>
-        ${u.role!=='admin'?`<button onclick="event.stopPropagation();adminDeleteUser('${u.uid}','${u.email||u.uid}')" style="background:none;border:1px solid #ffcdd2;border-radius:8px;padding:4px 10px;font-size:11px;color:#e53e3e;cursor:pointer;flex-shrink:0;">Suppr.</button>`:''}
+        ${u.role!=='admin'?`<button onclick="event.stopPropagation();adminDeleteUser('${u.uid}','${u.email||u.uid}')" style="background:none;border:1px solid #ffcdd2;border-radius:8px;padding:4px 10px;font-size:11px;color:#e53e3e;cursor:pointer;flex-shrink:0;margin-left:8px;">Suppr.</button>`:''}
       </div>`).join('');
-  } catch(e){listEl.textContent='Erreur : '+e.message;}
+  } catch(e){listEl.innerHTML='<p style="color:#e53e3e;">Erreur : '+e.message+'</p>';}
 }
 
 let _adminNewGender='';
