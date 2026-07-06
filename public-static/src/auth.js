@@ -252,28 +252,88 @@ function renderCompteScreen(){
   renderAthletePanel();
 }
 
+let _usersCache=[];
+
 function openUsersListModal(){
   let overlay=document.getElementById('users-list-overlay');
-  if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='users-list-overlay';
-    overlay.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;';
-    overlay.innerHTML=`
-      <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:390px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.18);">
-        <div style="padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
-          <p style="margin:0;font-size:16px;font-weight:800;color:#1a1a1a;">👥 Comptes</p>
-          <button onclick="document.getElementById('users-list-overlay').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#666;">×</button>
+  if(overlay){overlay.style.display='flex';_renderUsersList(document.getElementById('ul-search')?.value||'');return;}
+  overlay=document.createElement('div');
+  overlay.id='users-list-overlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;';
+  overlay.innerHTML=`
+    <div style="background:#f5f7fb;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:92vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.22);overflow:hidden;">
+      <!-- En-tête -->
+      <div style="background:#fff;padding:16px 18px 0;flex-shrink:0;border-radius:24px 24px 0 0;">
+        <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 14px;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <p style="margin:0;font-size:18px;font-weight:800;color:#1a1a1a;">👥 Comptes</p>
+            <p id="ul-count" style="margin:2px 0 0;font-size:12px;color:#888;font-weight:500;"></p>
+          </div>
+          <button onclick="document.getElementById('users-list-overlay').remove()" style="background:#f0f0f0;border:none;border-radius:50%;width:34px;height:34px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555;line-height:1;">×</button>
         </div>
-        <div id="admin-users-list" style="flex:1;overflow-y:auto;padding:12px 16px 32px;font-size:13px;color:#555;">
-          <div style="text-align:center;padding:24px;color:#888;">Chargement…</div>
+        <!-- Barre de recherche -->
+        <div style="position:relative;margin-bottom:14px;">
+          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:0.4;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="ul-search" type="search" placeholder="Rechercher par nom ou email…"
+            oninput="_renderUsersList(this.value)"
+            style="width:100%;box-sizing:border-box;padding:10px 12px 10px 36px;border:1.5px solid #e0e8f5;border-radius:12px;font-size:14px;color:#1a1a1a;background:#f9fbff;outline:none;font-family:sans-serif;">
         </div>
-      </div>`;
-    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
-    document.body.appendChild(overlay);
-  } else {
-    overlay.style.display='flex';
-  }
+        <!-- Bouton mise à jour globale -->
+        <div id="ul-update-all-wrap" style="margin-bottom:14px;display:none;">
+          <button onclick="adminUpdateAllPlans()" style="width:100%;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+            🔄 <span id="ul-update-label">Mettre à jour tous les plans</span>
+          </button>
+        </div>
+      </div>
+      <!-- Liste scrollable -->
+      <div id="admin-users-list" style="flex:1;overflow-y:auto;padding:8px 12px 40px;">
+        <div style="text-align:center;padding:32px;color:#aaa;font-size:13px;">Chargement…</div>
+      </div>
+    </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+  document.body.appendChild(overlay);
   loadAdminUsersList();
+}
+
+function _renderUsersList(query){
+  const listEl=document.getElementById('admin-users-list');
+  if(!listEl||!_usersCache.length) return;
+  const q=(query||'').toLowerCase().trim();
+  const filtered=q
+    ?_usersCache.filter(u=>(u.displayName||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q))
+    :[..._usersCache];
+  const countEl=document.getElementById('ul-count');
+  if(countEl){
+    const ath=_usersCache.filter(u=>u.role!=='admin').length;
+    countEl.textContent=q?`${filtered.length} résultat${filtered.length>1?'s':''} sur ${_usersCache.length}`:`${ath} athlète${ath>1?'s':''} · ${_usersCache.length} compte${_usersCache.length>1?'s':''}`;
+  }
+  if(!filtered.length){
+    listEl.innerHTML=`<div style="text-align:center;padding:40px 20px;color:#bbb;"><div style="font-size:32px;margin-bottom:10px;">🔍</div><p style="font-size:13px;">Aucun résultat pour "${query}"</p></div>`;
+    return;
+  }
+  const colors=['#1B4FD8','#7C3AED','#0F766E','#C2610A','#BE185D','#15803D'];
+  listEl.innerHTML=filtered.map((u,i)=>{
+    const name=u.displayName||u.email||u.uid;
+    const initial=(name[0]||'?').toUpperCase();
+    const color=colors[name.charCodeAt(0)%colors.length];
+    const isAdmin=u.role==='admin';
+    return `
+    <div style="background:#fff;border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <div style="width:42px;height:42px;border-radius:50%;background:${color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="font-size:17px;font-weight:800;color:${color};">${initial}</span>
+      </div>
+      <div style="flex:1;min-width:0;${isAdmin?'':'cursor:pointer;'}" ${isAdmin?'':
+        `onclick="openAthleteCoachView('${u.uid}','${name.replace(/'/g,"\\'")}');document.getElementById('users-list-overlay').remove();"`}>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:1px;">
+          <span style="font-size:14px;font-weight:700;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">${name}</span>
+          ${isAdmin?`<span style="font-size:10px;font-weight:700;color:#7C3AED;background:#F3EEFF;border-radius:6px;padding:1px 7px;">Admin</span>`:`<span style="font-size:10px;font-weight:600;color:#15803D;background:#ECFDF5;border-radius:6px;padding:1px 7px;">Athlète</span>`}
+        </div>
+        <div style="font-size:11px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.email||''}</div>
+        ${isAdmin?'':`<div style="font-size:11px;color:#1B4FD8;font-weight:600;margin-top:2px;">Voir le plan →</div>`}
+      </div>
+      ${isAdmin?'':`<button onclick="event.stopPropagation();adminDeleteUser('${u.uid}','${(u.email||u.uid).replace(/'/g,"\\'")}');_usersCache=_usersCache.filter(x=>x.uid!=='${u.uid}');_renderUsersList(document.getElementById('ul-search')?.value||'')" style="background:#FEF2F2;border:1px solid #fecaca;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;color:#DC2626;cursor:pointer;flex-shrink:0;white-space:nowrap;">🗑 Suppr.</button>`}
+    </div>`}).join('');
 }
 
 async function loadAdminUsersList(){
@@ -283,25 +343,22 @@ async function loadAdminUsersList(){
     const token=await getAuthToken();
     const resp=await fetch(FUNCTIONS_BASE+'/listUsers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});
     const users=await resp.json();
-    if(!Array.isArray(users)){listEl.innerHTML='<p style="color:#e53e3e;">Erreur chargement.</p>';return;}
-    const athletes=users.filter(u=>u.role!=='admin');
-    const allBtn=athletes.length>0
-      ?`<div style="margin-bottom:12px;">
-          <button onclick="adminUpdateAllPlans()" style="width:100%;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-            🔄 Mettre à jour tous les plans (${athletes.length} athlète${athletes.length>1?'s':''})
-          </button>
-        </div>`
-      :'';
-    listEl.innerHTML=allBtn+users.map(u=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #f0f0f0;">
-        <div ${u.role!=='admin'?`onclick="openAthleteCoachView('${u.uid}','${u.displayName||u.email||u.uid}');document.getElementById('users-list-overlay').remove();" style="cursor:pointer;flex:1;"`:'style="flex:1;"'}>
-          <div style="font-weight:600;font-size:14px;">${u.displayName||u.email||u.uid}</div>
-          <div style="font-size:11px;color:#888;">${u.email||''} · ${u.role==='admin'?'Admin':'Athlète'}</div>
-          ${u.role!=='admin'?'<div style="font-size:11px;color:#1B4FD8;margin-top:2px;">Voir le plan →</div>':''}
-        </div>
-        ${u.role!=='admin'?`<button onclick="event.stopPropagation();adminDeleteUser('${u.uid}','${u.email||u.uid}')" style="background:none;border:1px solid #ffcdd2;border-radius:8px;padding:4px 10px;font-size:11px;color:#e53e3e;cursor:pointer;flex-shrink:0;margin-left:8px;">Suppr.</button>`:''}
-      </div>`).join('');
-  } catch(e){listEl.innerHTML='<p style="color:#e53e3e;">Erreur : '+e.message+'</p>';}
+    if(!Array.isArray(users)){listEl.innerHTML='<p style="color:#e53e3e;padding:16px;">Erreur chargement.</p>';return;}
+    // Tri alphabétique — admin en dernier
+    _usersCache=users.slice().sort((a,b)=>{
+      if(a.role==='admin'&&b.role!=='admin') return 1;
+      if(b.role==='admin'&&a.role!=='admin') return -1;
+      return (a.displayName||a.email||'').localeCompare(b.displayName||b.email||'','fr',{sensitivity:'base'});
+    });
+    const athletes=_usersCache.filter(u=>u.role!=='admin');
+    const wrap=document.getElementById('ul-update-all-wrap');
+    const lbl=document.getElementById('ul-update-label');
+    if(wrap&&athletes.length>0){
+      wrap.style.display='block';
+      if(lbl) lbl.textContent=`Mettre à jour tous les plans (${athletes.length} athlète${athletes.length>1?'s':''})`;
+    }
+    _renderUsersList('');
+  } catch(e){listEl.innerHTML='<p style="color:#e53e3e;padding:16px;">Erreur : '+e.message+'</p>';}
 }
 
 let _adminNewGender='';
