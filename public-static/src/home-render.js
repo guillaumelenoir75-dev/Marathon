@@ -861,7 +861,7 @@ async function saveValidationExtra(w,ei){
     rendered.stats=false;
   }
   if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance); }
-  else showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance);
+  else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
 }
 
 function openValidationModal(idx){

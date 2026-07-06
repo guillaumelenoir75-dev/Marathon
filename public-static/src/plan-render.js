@@ -610,12 +610,36 @@ function toggleDone(idx){
 
 const openWeeks=new Set();
 function getAthleteCW(){
-  // Semaine courante de l'athlète = semaines écoulées depuis plan_start_date
   if(!state.plan_start_date) return 1;
-  const start=new Date(state.plan_start_date);
   const now=new Date();
-  const diffDays=Math.floor((now-start)/(1000*60*60*24));
-  return Math.max(1, Math.floor(diffDays/7)+1);
+  let startDate=new Date(state.plan_start_date);
+  const diffDays=Math.floor((now-startDate)/(1000*60*60*24));
+  let cw=Math.max(1,Math.floor(diffDays/7)+1);
+  // Auto-correction : si CW dépasse le nombre de semaines du plan,
+  // recalculer plan_start_date depuis le sched_date de la première séance.
+  // Couvre les plans créés avant le fix du 06/07/2026 (plan_start_date = jour de création au lieu du lundi de départ).
+  const maxW=getAthleteMaxWeek();
+  if(cw>maxW&&maxW>0){
+    for(let w=1;w<=52;w++){
+      if(!state['extra_w'+w+'_s0']) continue;
+      try{
+        const s=JSON.parse(state['extra_w'+w+'_s0']);
+        if(!s.sched_date) break;
+        const d=new Date(s.sched_date+'T00:00:00'); const dw=d.getDay();
+        const mon=new Date(d); mon.setDate(d.getDate()+(dw===0?-6:1-dw));
+        const iso=mon.toISOString().split('T')[0];
+        if(iso!==state.plan_start_date){
+          state.plan_start_date=iso;
+          if(dbRef) dbRef.child('plan_start_date').set(iso).catch(()=>{});
+        }
+        startDate=mon;
+        const d2=Math.floor((now-startDate)/(1000*60*60*24));
+        cw=Math.max(1,Math.floor(d2/7)+1);
+        break;
+      }catch(e){ break; }
+    }
+  }
+  return cw;
 }
 
 function renderAthletePlan(el){
