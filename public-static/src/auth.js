@@ -249,6 +249,16 @@ function renderCompteScreen(){
   if(adminIntegrations) adminIntegrations.style.display='block';
   // La liste des comptes se charge à la demande via openUsersListModal()
   checkStravaStatus();
+  const whoopPanel=document.getElementById('whoop-panel');
+  if(whoopPanel) whoopPanel.style.display=isAdmin()?'block':'none';
+  if(isAdmin()){
+    if(typeof initWhoopStatus==='function') initWhoopStatus();
+    const wd=state&&state.whoop_data;
+    if(wd&&wd.recoveries&&wd.recoveries.length>0){
+      const dp=document.getElementById('whoop-data-panel');
+      if(dp&&typeof _renderWhoopPanel==='function') _renderWhoopPanel(wd,dp);
+    }
+  }
   renderAthletePanel();
 }
 

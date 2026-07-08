@@ -581,6 +581,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       }
       return det.slice(0,15);
     })(),
+    whoop: typeof buildWhoopContext==='function' ? buildWhoopContext() : null,
     absences_semaine: state['absences_cw'+CW]||null,
     prochaines_semaines: (()=>{
       const r = [];
