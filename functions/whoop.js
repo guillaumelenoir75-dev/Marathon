@@ -132,17 +132,19 @@ exports.whoopSync = onRequest(
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }, 20000);
         if (!r.ok) {
-          console.warn(`WHOOP API ${path} failed: ${r.status}`);
+          const body = await r.text().catch(() => '');
+          console.warn(`WHOOP API ${path} failed: ${r.status} — ${body}`);
           return { records: [] };
         }
         return r.json();
       };
 
-      // 30 derniers jours
+      // 30 derniers jours — limit 25 (max WHOOP), dates sans millisecondes
       const now = new Date();
-      const startDate = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString();
-      const endDate = now.toISOString();
-      const qs = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&limit=30`;
+      const toWhoopDate = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+      const startDate = toWhoopDate(new Date(now.getTime() - 30 * 24 * 3600 * 1000));
+      const endDate = toWhoopDate(now);
+      const qs = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&limit=25`;
 
       const [recoveryResp, sleepResp, workoutResp, cycleResp] = await Promise.all([
         whoopGet(`/recovery${qs}`),
