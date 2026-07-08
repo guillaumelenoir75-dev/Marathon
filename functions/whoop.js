@@ -161,8 +161,8 @@ exports.whoopSync = onRequest(
       const qs = '?limit=14';
       const [recoveryResp, sleepResp, workoutResp, cycleResp] = await Promise.all([
         whoopGet('recovery', `/recovery${qs}`),
-        whoopGet('sleep', `/activity/sleep${qs}`),
-        whoopGet('workout', `/activity/workout${qs}`),
+        whoopGet('sleep', `/sleep${qs}`),
+        whoopGet('workout', `/workout${qs}`),
         whoopGet('cycle', `/cycle${qs}`)
       ]);
 
