@@ -9,7 +9,7 @@ const scriptFiles = [
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
-  'coach-memos.js', 'coach-ui.js', 'notifs.js',
+  'coach-memos.js', 'coach-ui.js', 'notifs.js', 'whoop.js',
 ];
 
 function bundleClassicScripts() {
