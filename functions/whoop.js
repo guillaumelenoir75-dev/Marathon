@@ -128,7 +128,9 @@ exports.whoopSync = onRequest(
       if (!accessToken) { res.json({ success: false, needsAuth: true }); return; }
 
       const whoopGet = async (path) => {
-        const r = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
+        const url = `${WHOOP_API_BASE}${path}`;
+        console.log(`WHOOP GET ${url}`);
+        const r = await fetchWithTimeout(url, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }, 20000);
         if (!r.ok) {
@@ -139,12 +141,13 @@ exports.whoopSync = onRequest(
         return r.json();
       };
 
-      // 30 derniers jours — limit 25 (max WHOOP), dates sans millisecondes
-      const now = new Date();
-      const toWhoopDate = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-      const startDate = toWhoopDate(new Date(now.getTime() - 30 * 24 * 3600 * 1000));
-      const endDate = toWhoopDate(now);
-      const qs = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&limit=25`;
+      // Vérifier que le token est valide avec un appel profil
+      const profileResp = await whoopGet('/user/profile/basic');
+      console.log('WHOOP profile:', JSON.stringify(profileResp));
+
+      // Récupérer les 14 derniers enregistrements sans filtre de date
+      // (le filtre start/end cause des 400 sur certains comptes WHOOP)
+      const qs = '?limit=14';
 
       const [recoveryResp, sleepResp, workoutResp, cycleResp] = await Promise.all([
         whoopGet(`/recovery${qs}`),
