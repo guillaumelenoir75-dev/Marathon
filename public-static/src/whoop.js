@@ -97,6 +97,27 @@ async function syncWhoop() {
     });
     const data = await resp.json();
 
+    // Affichage debug temporaire
+    if (data._debug) {
+      const dp = document.getElementById('whoop-data-panel');
+      if (dp) {
+        dp.style.display = 'block';
+        const d = data._debug;
+        dp.innerHTML = `<div style="background:#f1f5f9;border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:#334155;margin-top:8px;">
+          <p style="margin:0 0 4px;font-weight:700;">DEBUG WHOOP API</p>
+          <p style="margin:2px 0;">recovery: ${d.recovery_raw_count} records, status: ${d.recovery_status}</p>
+          <p style="margin:2px 0;">sleep: ${d.sleep_raw_count} records, status: ${d.sleep_status}</p>
+          <p style="margin:2px 0;">workout: ${d.workout_raw_count} records, status: ${d.workout_status}</p>
+          <p style="margin:2px 0;">cycle: ${d.cycle_raw_count} records, status: ${d.cycle_status}</p>
+          ${d.recovery_error ? `<p style="margin:4px 0;color:#ef4444;">recovery err: ${d.recovery_error}</p>` : ''}
+          ${d.sleep_error ? `<p style="margin:2px 0;color:#ef4444;">sleep err: ${d.sleep_error}</p>` : ''}
+          ${d.workout_error ? `<p style="margin:2px 0;color:#ef4444;">workout err: ${d.workout_error}</p>` : ''}
+          ${d.profile ? `<p style="margin:4px 0;color:#22c55e;">profil: ${JSON.stringify(d.profile)}</p>` : ''}
+          ${d.recovery_first ? `<p style="margin:4px 0;color:#0ea5e9;">recovery[0]: ${JSON.stringify(d.recovery_first).slice(0,200)}</p>` : ''}
+        </div>`;
+      }
+    }
+
     if (data.needsAuth) {
       if (status) { status.textContent = 'Session expirée — reconnecte-toi'; status.style.color = '#ef4444'; }
       if (btn) { btn.disabled = false; btn.textContent = '⚡ Connecter WHOOP'; btn.onclick = connectWhoop; }

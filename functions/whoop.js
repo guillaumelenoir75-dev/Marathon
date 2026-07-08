@@ -127,33 +127,43 @@ exports.whoopSync = onRequest(
       const accessToken = await getValidWhoopToken(db);
       if (!accessToken) { res.json({ success: false, needsAuth: true }); return; }
 
-      const whoopGet = async (path) => {
+      const debugInfo = {};
+
+      const whoopGet = async (key, path) => {
         const url = `${WHOOP_API_BASE}${path}`;
-        console.log(`WHOOP GET ${url}`);
         const r = await fetchWithTimeout(url, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }, 20000);
+        debugInfo[`${key}_status`] = r.status;
         if (!r.ok) {
           const body = await r.text().catch(() => '');
-          console.warn(`WHOOP API ${path} failed: ${r.status} — ${body}`);
+          debugInfo[`${key}_error`] = body.slice(0, 300);
+          console.warn(`WHOOP ${key} ${r.status}: ${body}`);
           return { records: [] };
         }
-        return r.json();
+        const json = await r.json();
+        debugInfo[`${key}_raw_count`] = (json.records || []).length;
+        if (key === 'recovery' && json.records && json.records[0]) debugInfo.recovery_first = json.records[0];
+        if (key === 'sleep' && json.records && json.records[0]) debugInfo.sleep_first = json.records[0];
+        return json;
       };
 
-      // Vérifier que le token est valide avec un appel profil
-      const profileResp = await whoopGet('/user/profile/basic');
-      console.log('WHOOP profile:', JSON.stringify(profileResp));
+      // Profil pour vérifier le token
+      const profileRaw = await fetchWithTimeout(`${WHOOP_API_BASE}/user/profile/basic`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }, 10000);
+      if (profileRaw.ok) {
+        debugInfo.profile = await profileRaw.json();
+      } else {
+        debugInfo.profile_error = profileRaw.status;
+      }
 
-      // Récupérer les 14 derniers enregistrements sans filtre de date
-      // (le filtre start/end cause des 400 sur certains comptes WHOOP)
       const qs = '?limit=14';
-
       const [recoveryResp, sleepResp, workoutResp, cycleResp] = await Promise.all([
-        whoopGet(`/recovery${qs}`),
-        whoopGet(`/activity/sleep${qs}`),
-        whoopGet(`/activity/workout${qs}`),
-        whoopGet(`/cycle${qs}`)
+        whoopGet('recovery', `/recovery${qs}`),
+        whoopGet('sleep', `/activity/sleep${qs}`),
+        whoopGet('workout', `/activity/workout${qs}`),
+        whoopGet('cycle', `/cycle${qs}`)
       ]);
 
       const recoveries = (recoveryResp.records || []).map(r => ({
@@ -222,14 +232,7 @@ exports.whoopSync = onRequest(
         hrv: latestRecovery ? latestRecovery.hrv : null,
         recoveries: recoveries.slice(0, 7),
         sleeps: sleeps.slice(0, 7),
-        _debug: {
-          recovery_raw_count: (recoveryResp.records || []).length,
-          sleep_raw_count: (sleepResp.records || []).length,
-          workout_raw_count: (workoutResp.records || []).length,
-          cycle_raw_count: (cycleResp.records || []).length,
-          recovery_first: (recoveryResp.records || [])[0] || null,
-          sleep_first: (sleepResp.records || [])[0] || null
-        }
+        _debug: debugInfo
       });
     } catch(e) {
       console.error('whoopSync error:', e.message);
