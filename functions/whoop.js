@@ -131,7 +131,10 @@ exports.whoopSync = onRequest(
         const r = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }, 20000);
-        if (!r.ok) throw new Error(`WHOOP API ${path} failed: ${r.status}`);
+        if (!r.ok) {
+          console.warn(`WHOOP API ${path} failed: ${r.status}`);
+          return { records: [] };
+        }
         return r.json();
       };
 
