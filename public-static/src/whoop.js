@@ -121,7 +121,7 @@ async function syncWhoop() {
           debugDiv.style.cssText = 'background:#f1f5f9;border-radius:8px;padding:10px;font-size:10px;font-family:monospace;color:#334155;margin-top:8px;word-break:break-all;';
           debugDiv.innerHTML = `<p style="margin:0 0 4px;font-weight:700;font-size:11px;">🔍 DEBUG WHOOP</p>
             <p style="margin:2px 0;">profil: ${d.profile ? JSON.stringify(d.profile).slice(0,100) : (d.profile_error ? '❌ '+d.profile_error : '—')}</p>
-            <p style="margin:2px 0;">recovery: status=${d.recovery_status ?? '?'} | ${d.recovery_raw_count ?? 0} records ${d.recovery_error ? '❌ '+d.recovery_error.slice(0,80) : ''}</p>
+            <p style="margin:2px 0;">recovery: ${d.recovery_fetched ?? 0} fetched via /cycle/{id}/recovery ${d.recovery_fetched === 0 ? '❌' : '✅'}</p>
             <p style="margin:2px 0;">sleep: status=${d.sleep_status ?? '?'} | ${d.sleep_raw_count ?? 0} records ${d.sleep_error ? '❌ '+d.sleep_error.slice(0,80) : ''}</p>
             <p style="margin:2px 0;">workout: status=${d.workout_status ?? '?'} | ${d.workout_raw_count ?? 0} records ${d.workout_error ? '❌ '+d.workout_error.slice(0,80) : ''}</p>
             <p style="margin:2px 0;">cycle: status=${d.cycle_status ?? '?'} | ${d.cycle_raw_count ?? 0} records</p>

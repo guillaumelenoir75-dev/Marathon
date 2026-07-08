@@ -159,20 +159,36 @@ exports.whoopSync = onRequest(
       }
 
       const qs = '?limit=14';
-      const [recoveryResp, sleepResp, workoutResp, cycleResp] = await Promise.all([
-        whoopGet('recovery', `/recovery${qs}`),
+      const [sleepResp, workoutResp, cycleResp] = await Promise.all([
         whoopGet('sleep', `/sleep${qs}`),
         whoopGet('workout', `/workout${qs}`),
         whoopGet('cycle', `/cycle${qs}`)
       ]);
 
-      const recoveries = (recoveryResp.records || []).map(r => ({
-        date: r.created_at ? r.created_at.slice(0, 10) : null,
-        score: r.score ? r.score.recovery_score : null,
-        rhr: r.score ? r.score.resting_heart_rate : null,
-        hrv: r.score ? r.score.hrv_rms_sd : null,
-        spo2: r.score ? r.score.spo2_percentage : null
-      })).filter(r => r.date);
+      // Recovery est rattachée à chaque cycle : GET /cycle/{id}/recovery
+      const cycleRecords = (cycleResp.records || []).slice(0, 14);
+      const recoveryResults = await Promise.all(
+        cycleRecords.map(async (cy) => {
+          const url = `${WHOOP_API_BASE}/cycle/${cy.id}/recovery`;
+          const r = await fetchWithTimeout(url, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          }, 10000);
+          debugInfo[`recovery_cycle_${cy.id}_status`] = r.status;
+          if (!r.ok) return null;
+          return r.json();
+        })
+      );
+      debugInfo.recovery_fetched = recoveryResults.filter(Boolean).length;
+
+      const recoveries = recoveryResults
+        .filter(r => r && r.cycle_id)
+        .map(r => ({
+          date: r.created_at ? r.created_at.slice(0, 10) : null,
+          score: r.score ? r.score.recovery_score : null,
+          rhr: r.score ? r.score.resting_heart_rate : null,
+          hrv: r.score ? r.score.hrv_rms_sd : null,
+          spo2: r.score ? r.score.spo2_percentage : null
+        })).filter(r => r.date);
 
       const sleeps = (sleepResp.records || []).map(s => {
         const ss = s.score && s.score.stage_summary;
