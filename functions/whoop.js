@@ -61,7 +61,18 @@ exports.whoopCallback = onRequest(
   { secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET], cors: true },
   async (req, res) => {
     const code = req.query.code;
-    if (!code) { res.status(400).send('Code manquant'); return; }
+    const error = req.query.error;
+    const errorDesc = req.query.error_description;
+    if (!code) {
+      console.error('whoopCallback: pas de code. Params:', JSON.stringify(req.query));
+      res.status(400).send(`<html><body style="font-family:sans-serif;padding:20px;background:#0a0a0a;color:#fff;">
+        <h3 style="color:#ef4444;">❌ Erreur WHOOP</h3>
+        <p>Erreur : <strong>${error || 'inconnue'}</strong></p>
+        ${errorDesc ? `<p>Détail : ${errorDesc}</p>` : ''}
+        <p style="font-size:12px;color:#888;">Paramètres reçus : ${JSON.stringify(req.query)}</p>
+      </body></html>`);
+      return;
+    }
     try {
       const body = new URLSearchParams({
         client_id: WHOOP_CLIENT_ID.value(),
