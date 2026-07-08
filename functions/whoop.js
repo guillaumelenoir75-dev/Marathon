@@ -51,7 +51,8 @@ exports.whoopAuth = onRequest(
   { secrets: [WHOOP_CLIENT_ID], cors: true },
   (req, res) => {
     const scope = 'read:recovery read:sleep read:workout read:cycles read:body_measurement offline';
-    const url = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${WHOOP_CLIENT_ID.value()}&redirect_uri=${encodeURIComponent(CALLBACK_URL)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+    const state = require('crypto').randomBytes(16).toString('hex');
+    const url = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${WHOOP_CLIENT_ID.value()}&redirect_uri=${encodeURIComponent(CALLBACK_URL)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${state}`;
     res.redirect(url);
   }
 );
