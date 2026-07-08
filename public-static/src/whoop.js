@@ -24,12 +24,35 @@ async function initWhoopStatus() {
     status.style.color = '#22c55e';
     btn.textContent = '🔄 Synchroniser WHOOP';
     btn.onclick = syncWhoop;
+    // Bouton déconnecter
+    if (!document.getElementById('whoop-disconnect-btn')) {
+      const dis = document.createElement('button');
+      dis.id = 'whoop-disconnect-btn';
+      dis.textContent = 'Déconnecter';
+      dis.style.cssText = 'background:none;border:none;color:#9ca3af;font-size:11px;cursor:pointer;padding:4px 0;text-decoration:underline;display:block;margin-top:4px;';
+      dis.onclick = disconnectWhoop;
+      btn.parentNode.insertBefore(dis, btn.nextSibling);
+    }
   } else {
     status.textContent = 'Non connecté';
     status.style.color = '#f59e0b';
     btn.textContent = '⚡ Connecter WHOOP';
     btn.onclick = connectWhoop;
   }
+}
+
+async function disconnectWhoop() {
+  if (!confirm('Déconnecter WHOOP ? Tu devras te reconnecter pour synchroniser.')) return;
+  if (dbRef) {
+    await dbRef.child('whoop_token').remove();
+    await dbRef.child('whoop_data').remove();
+    state.whoop_token = null;
+    state.whoop_data = null;
+  }
+  document.getElementById('whoop-disconnect-btn')?.remove();
+  document.getElementById('whoop-data-panel').style.display = 'none';
+  document.getElementById('whoop-data-panel').innerHTML = '';
+  initWhoopStatus();
 }
 
 function connectWhoop() {
