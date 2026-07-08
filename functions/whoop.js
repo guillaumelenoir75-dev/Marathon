@@ -221,7 +221,15 @@ exports.whoopSync = onRequest(
         recovery_score: latestRecovery ? latestRecovery.score : null,
         hrv: latestRecovery ? latestRecovery.hrv : null,
         recoveries: recoveries.slice(0, 7),
-        sleeps: sleeps.slice(0, 7)
+        sleeps: sleeps.slice(0, 7),
+        _debug: {
+          recovery_raw_count: (recoveryResp.records || []).length,
+          sleep_raw_count: (sleepResp.records || []).length,
+          workout_raw_count: (workoutResp.records || []).length,
+          cycle_raw_count: (cycleResp.records || []).length,
+          recovery_first: (recoveryResp.records || [])[0] || null,
+          sleep_first: (sleepResp.records || [])[0] || null
+        }
       });
     } catch(e) {
       console.error('whoopSync error:', e.message);
