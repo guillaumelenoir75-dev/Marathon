@@ -50,7 +50,7 @@ async function getValidWhoopToken(db) {
 exports.whoopAuth = onRequest(
   { secrets: [WHOOP_CLIENT_ID], cors: true },
   (req, res) => {
-    const scope = 'read:recovery read:sleep read:workout read:cycles read:body_measurement offline';
+    const scope = 'read:recovery read:sleep read:workout read:cycles read:body_measurement read:profile offline';
     const state = require('crypto').randomBytes(16).toString('hex');
     const url = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${WHOOP_CLIENT_ID.value()}&redirect_uri=${encodeURIComponent(CALLBACK_URL)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${state}`;
     res.redirect(url);
@@ -160,8 +160,8 @@ exports.whoopSync = onRequest(
 
       const qs = '?limit=14';
       const [sleepResp, workoutResp, cycleResp] = await Promise.all([
-        whoopGet('sleep', `/sleep${qs}`),
-        whoopGet('workout', `/workout${qs}`),
+        whoopGet('sleep', `/activity/sleep${qs}`),
+        whoopGet('workout', `/activity/workout${qs}`),
         whoopGet('cycle', `/cycle${qs}`)
       ]);
 
