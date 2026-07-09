@@ -162,14 +162,14 @@ exports.whoopSync = onRequest(
         .filter(s => s.start)
         .map(s => {
           const ss = s.score?.stage_summary;
-          const totalMs = ss?.total_in_bed_time_milli || 0;
+          const sleepMs = ss?.total_sleep_time_milli || 0;
           const remMs = ss?.total_rem_sleep_time_milli || 0;
           return {
             date: s.start.slice(0, 10),
-            duration_hours: totalMs ? Math.round(totalMs / 36000) / 100 : null,
+            duration_hours: sleepMs ? Math.round(sleepMs / 36000) / 100 : null,
             performance_pct: s.score?.sleep_performance_percentage ?? null,
             efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
-            rem_pct: totalMs && remMs ? Math.round(remMs / totalMs * 100) : null
+            rem_pct: sleepMs && remMs ? Math.round(remMs / sleepMs * 100) : null
           };
         });
 
