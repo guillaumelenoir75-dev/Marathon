@@ -25,7 +25,6 @@ async function initWhoopStatus() {
     btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser';
     btn.onclick = syncWhoop;
     if (disBtn) disBtn.style.display = 'block';
-    if (data) _renderWhoopPanel(data, document.getElementById('whoop-data-panel'));
   } else {
     status.textContent = 'Non connecté';
     status.style.color = '#f59e0b';
@@ -43,8 +42,6 @@ async function disconnectWhoop() {
     state.whoop_token = null;
     state.whoop_data = null;
   }
-  const panel = document.getElementById('whoop-data-panel');
-  if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
   document.getElementById('whoop-stats-section')?.style && (document.getElementById('whoop-stats-section').style.display = 'none');
   initWhoopStatus();
 }
@@ -106,7 +103,6 @@ async function syncWhoop() {
         const wd = snap.val();
         if (wd) {
           state.whoop_data = wd;
-          _renderWhoopPanel(wd, panel);
           if (typeof renderWhoopStats === 'function') renderWhoopStats();
         }
       });
@@ -229,6 +225,39 @@ function _renderWhoopPanel(wd, panel) {
   panel.innerHTML = html;
   panel.style.display = 'block';
 }
+
+// Bouton "Je suis réveillé" : sync WHOOP + brief matinal
+async function onWakeup() {
+  const btn = document.getElementById('wakeup-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  try {
+    if (state.whoop_token && state.whoop_token.access_token) {
+      await syncWhoop();
+    }
+    if (typeof checkMorningBrief === 'function') {
+      let memos = [];
+      try { memos = state._memos ? JSON.parse(state._memos) : []; } catch(_) {}
+      await checkMorningBrief(memos, true);
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
+// Auto-sync WHOOP toutes les 30 min si connecté + au retour en foreground
+(function _initWhoopAutoSync() {
+  setInterval(() => {
+    if (state.whoop_token && state.whoop_token.access_token && !_whoopSyncing) syncWhoop();
+  }, 30 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.whoop_token && state.whoop_token.access_token && !_whoopSyncing) {
+      const wd = state.whoop_data;
+      const updatedAt = wd && wd.updatedAt ? new Date(wd.updatedAt) : null;
+      const minAgo = updatedAt ? (Date.now() - updatedAt.getTime()) / 60000 : Infinity;
+      if (minAgo > 15) syncWhoop();
+    }
+  });
+})();
 
 // Enrichir le contexte coach avec les données WHOOP
 function buildWhoopContext() {

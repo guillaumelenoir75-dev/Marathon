@@ -469,9 +469,6 @@ function saveFcRepos(dateParam){
   closeModal();
   renderHome();
   if(document.getElementById('sc-stats').style.display!=='none') renderStats();
-  if(targetDate === today && dbRef) {
-    dbRef.child("_brief_trigger").set({date: today, ts: Date.now()}).catch(()=>{});
-  }
 }
 
 // ── FC REPOS CONTEXT BUILDER ─────────────────────────────────────────────────

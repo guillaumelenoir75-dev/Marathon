@@ -200,6 +200,8 @@ function renderHome(){
   // Visibilité selon préférences
   const fcReposWrap=document.getElementById('fc-repos-btn');
   if(fcReposWrap) fcReposWrap.parentElement.style.display=getPref('show_fc_repos')?'flex':'none';
+  const wakeupBtn = document.getElementById('wakeup-btn');
+  if(wakeupBtn) wakeupBtn.style.display = isAdmin() ? 'flex' : 'none';
   const vo2Wrap=vo2El?vo2El.closest('div[onclick]'):null;
   if(vo2Wrap) vo2Wrap.style.display=getPref('show_vo2max')?'flex':'none';
   const wtEl=document.getElementById('week-total-km');

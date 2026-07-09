@@ -80,6 +80,10 @@
             <span style="font-size:10px;opacity:0.6;">bpm repos</span>
             <span id="fc-repos-badge" style="display:none;position:absolute;top:-6px;right:-6px;width:14px;height:14px;border-radius:50%;background:#E24B4A;border:2px solid #0C447C;box-shadow:0 0 0 2px rgba(226,75,74,0.4);"></span>
           </div>
+          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);border-radius:9px;padding:5px 10px;cursor:pointer;width:fit-content;">
+            <span style="font-size:14px;">☀️</span>
+            <span style="font-size:12px;font-weight:700;color:#fff;">Je suis réveillé</span>
+          </button>
           <div onclick="openVo2maxModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;cursor:pointer;width:fit-content;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <span style="font-size:12px;font-weight:700;" id="kpi-vo2max">—</span>
@@ -472,7 +476,6 @@
         </button>
       </div>
     </div>
-    <div id="whoop-data-panel" style="display:none;"></div>
   </div>
 
   <button onclick="logoutUser()" style="width:100%;padding:14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:14px;font-weight:600;color:#e53e3e;cursor:pointer;margin-top:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">
