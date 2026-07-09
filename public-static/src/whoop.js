@@ -127,7 +127,8 @@ async function syncWhoop() {
             <p style="margin:2px 0;">/activity/workout: ${d.workout_status ?? '?'} ${d.workout_error ? '❌ '+d.workout_error.slice(0,50) : (d.workout_raw_count > 0 ? '✅ '+d.workout_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">/workout: ${d.workout2_status ?? '?'} ${d.workout2_error ? '❌ '+d.workout2_error.slice(0,50) : (d.workout2_raw_count > 0 ? '✅ '+d.workout2_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">cycle: status=${d.cycle_status ?? '?'} | ${d.cycle_raw_count ?? 0} records</p>
-            ${d.cycle_first ? `<p style="margin:2px 0;color:#0ea5e9;">cycle[0]: id=${d.cycle_first.id} start=${d.cycle_first.start?.slice(0,10)} strain=${d.cycle_first.strain}</p>` : ''}
+            ${d.cycle_first ? `<p style="margin:2px 0;color:#0ea5e9;">cycle[0]: id=${d.cycle_first.id} | /cycle/${d.cycle_first.id}: ${d.single_cycle_status ?? '?'} ${d.single_cycle_error ? '❌'+d.single_cycle_error.slice(0,40) : '✅'}</p>` : ''}
+            <p style="margin:2px 0;">/user/measurement/body: ${d.body_meas_status ?? '?'} ${d.body_meas_error ? '❌ '+d.body_meas_error.slice(0,40) : '✅'}</p>
             ${d.recovery_first ? `<p style="margin:4px 0;color:#0ea5e9;">rec[0]: ${JSON.stringify(d.recovery_first).slice(0,150)}</p>` : ''}
             ${d.sleep_first ? `<p style="margin:2px 0;color:#0ea5e9;">sleep[0]: ${JSON.stringify(d.sleep_first).slice(0,150)}</p>` : ''}`;
           if (panel) { panel.style.display = 'block'; panel.appendChild(debugDiv); }

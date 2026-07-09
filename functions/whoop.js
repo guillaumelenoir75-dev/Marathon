@@ -132,7 +132,10 @@ exports.whoopSync = onRequest(
       const whoopGet = async (key, path) => {
         const url = `${WHOOP_API_BASE}${path}`;
         const r = await fetchWithTimeout(url, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
         }, 20000);
         debugInfo[`${key}_status`] = r.status;
         if (!r.ok) {
@@ -168,10 +171,24 @@ exports.whoopSync = onRequest(
         whoopGet('cycle', `/cycle${qs}`)
       ]);
 
-      // Log premier cycle pour voir sa structure
+      // Log premier cycle + tester /cycle/{id} et /user/measurement/body
       if (cycleResp.records && cycleResp.records[0]) {
         const c0 = cycleResp.records[0];
         debugInfo.cycle_first = { id: c0.id, start: c0.start, end: c0.end, strain: c0.score?.strain };
+
+        // Tester le fetch d'un cycle individuel et body measurement
+        const [singleCycle, bodyMeas] = await Promise.all([
+          fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c0.id}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+          }, 10000),
+          fetchWithTimeout(`${WHOOP_API_BASE}/user/measurement/body`, {
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+          }, 10000)
+        ]);
+        debugInfo.single_cycle_status = singleCycle.status;
+        debugInfo.body_meas_status = bodyMeas.status;
+        if (!singleCycle.ok) debugInfo.single_cycle_error = (await singleCycle.text().catch(() => '')).slice(0, 100);
+        if (!bodyMeas.ok) debugInfo.body_meas_error = (await bodyMeas.text().catch(() => '')).slice(0, 100);
       }
 
       // Recovery est rattachée à chaque cycle : GET /cycle/{id}/recovery
