@@ -411,7 +411,7 @@ function renderWhoopStats() {
     {
       label: 'Sommeil',
       value: s0?.performance_pct != null ? s0.performance_pct + '%' : '—',
-      sub: s0?.duration_hours ? s0.duration_hours + 'h · REM ' + (s0.rem_pct || '—') + '%' : '',
+      sub: s0?.duration_hours ? s0.duration_hours + ' · REM ' + (s0.rem_pct || '—') + '%' : '',
       color: s0?.performance_pct != null ? scoreColor(s0.performance_pct) : 'var(--muted)',
       bg: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
       border: isDark ? 'rgba(59,130,246,0.25)' : '#bfdbfe'

@@ -169,11 +169,16 @@ exports.whoopSync = onRequest(
         .filter(s => s.start)
         .map(s => {
           const ss = s.score?.stage_summary;
-          const sleepMs = ss?.total_sleep_time_milli || 0;
-          const remMs = ss?.total_rem_sleep_time_milli || 0;
+          const lightMs  = ss?.total_light_sleep_time_milli || 0;
+          const swsMs    = ss?.total_slow_wave_sleep_time_milli || 0;
+          const remMs    = ss?.total_rem_sleep_time_milli || 0;
+          // total_sleep_time_milli n'existe pas dans l'API v2 → somme des phases
+          const sleepMs  = ss?.total_sleep_time_milli || (lightMs + swsMs + remMs);
+          const hh = Math.floor(sleepMs / 3600000);
+          const mm = Math.round((sleepMs % 3600000) / 60000);
           return {
             date: s.start.slice(0, 10),
-            duration_hours: sleepMs ? Math.round(sleepMs / 36000) / 100 : null,
+            duration_hours: sleepMs ? `${hh}h${mm.toString().padStart(2,'0')}` : null,
             performance_pct: s.score?.sleep_performance_percentage ?? null,
             efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
             rem_pct: sleepMs && remMs ? Math.round(remMs / sleepMs * 100) : null

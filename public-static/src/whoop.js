@@ -171,7 +171,7 @@ function _renderWhoopPanel(wd, panel) {
     html += `<div style="background:#eff6ff;border-radius:10px;padding:10px;">
       <p style="font-size:10px;font-weight:700;color:#1e40af;margin:0 0 4px;text-transform:uppercase;">Sommeil</p>
       ${sp != null ? `<p style="font-size:22px;font-weight:800;color:${scoreColor(sp)};margin:0;">${sp}%</p><p style="font-size:10px;color:#555;margin:0;">Performance</p>` : '<p style="font-size:13px;color:#888;margin:0;">—</p>'}
-      ${s.duration_hours ? `<p style="font-size:11px;color:#555;margin:4px 0 0;">Durée : <strong>${s.duration_hours}h</strong></p>` : ''}
+      ${s.duration_hours ? `<p style="font-size:11px;color:#555;margin:4px 0 0;">Durée : <strong>${s.duration_hours}</strong></p>` : ''}
       ${s.rem_pct ? `<p style="font-size:11px;color:#555;margin:2px 0 0;">REM : <strong>${s.rem_pct}%</strong></p>` : ''}
     </div>`;
   }
