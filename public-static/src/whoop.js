@@ -232,7 +232,7 @@ function _setWakeupBtnDone(btn) {
   btn.disabled = true;
   btn.style.cursor = 'default';
   btn.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
-  btn.style.boxShadow = '0 4px 14px rgba(34,197,94,0.45)';
+  btn.style.boxShadow = 'none';
   btn.style.opacity = '1';
   btn.innerHTML = '<span style="font-size:15px;line-height:1;">✅</span><span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:0.2px;">Réveil enregistré</span>';
 }
