@@ -128,9 +128,10 @@ async function syncWhoop() {
             <p style="margin:2px 0;">/activity/workout: ${d.workout_status ?? '?'} ${d.workout_error ? '❌ '+d.workout_error.slice(0,50) : (d.workout_raw_count > 0 ? '✅ '+d.workout_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">/workout: ${d.workout2_status ?? '?'} ${d.workout2_error ? '❌ '+d.workout2_error.slice(0,50) : (d.workout2_raw_count > 0 ? '✅ '+d.workout2_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">cycle: status=${d.cycle_status ?? '?'} | ${d.cycle_raw_count ?? 0} records</p>
-            ${d.cycle_first ? `<p style="margin:2px 0;color:#0ea5e9;">cycle[0] raw: ${d.cycle_raw_full ? d.cycle_raw_full.slice(0,200) : (d.single_cycle_error || '?')}</p>` : ''}
+            ${d.cycle_first ? `<p style="margin:2px 0;color:#0ea5e9;">cycle[0] raw: ${d.cycle_raw_full ? d.cycle_raw_full.slice(0,500) : (d.single_cycle_error || '?')}</p>` : ''}
             <p style="margin:2px 0;">cycle[1]/recovery: ${d.cycle1_recovery_status ?? '?'} ${d.cycle1_recovery ? '✅ '+d.cycle1_recovery.slice(0,80) : (d.cycle1_recovery_error ? '❌ '+d.cycle1_recovery_error.slice(0,60) : '')}</p>
             ${d.cycle1_raw ? `<p style="margin:2px 0;color:#f59e0b;">cycle[1] raw: ${d.cycle1_raw.slice(0,200)}</p>` : ''}
+            <p style="margin:2px 0;">/recovery (direct): ${d.recovery_direct_status ?? '?'} ${d.recovery_direct_error ? '❌ '+d.recovery_direct_error.slice(0,60) : (d.recovery_direct_raw_count > 0 ? '✅ '+d.recovery_direct_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">/recovery/collection: ${d.recovery_collection_status ?? '?'} ${d.recovery_collection_data ? '✅ '+d.recovery_collection_data.slice(0,80) : (d.recovery_collection_error ? '❌ '+d.recovery_collection_error.slice(0,60) : '')}</p>
             <p style="margin:2px 0;">/user/measurement/body: ${d.body_meas_status ?? '?'} ${d.body_meas_error ? '❌ '+d.body_meas_error.slice(0,40) : '✅'}</p>
             ${d.recovery_first ? `<p style="margin:4px 0;color:#0ea5e9;">rec[0]: ${JSON.stringify(d.recovery_first).slice(0,150)}</p>` : ''}

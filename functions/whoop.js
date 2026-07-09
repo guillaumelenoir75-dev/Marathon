@@ -166,13 +166,13 @@ exports.whoopSync = onRequest(
       }
 
       const qs = '?limit=10';
-      // Tester les deux variantes de chemins pour sleep et workout, avec et sans params
-      const [sleepResp, sleepNoParam, workoutResp, workoutNoParam, cycleResp] = await Promise.all([
+      const [sleepResp, sleepNoParam, workoutResp, workoutNoParam, cycleResp, recoveryDirectResp] = await Promise.all([
         whoopGet('sleep', `/activity/sleep${qs}`),
         whoopGet('sleep2', `/sleep`),
         whoopGet('workout', `/activity/workout${qs}`),
         whoopGet('workout2', `/workout`),
-        whoopGet('cycle', `/cycle${qs}`)
+        whoopGet('cycle', `/cycle${qs}`),
+        whoopGet('recovery_direct', `/recovery?limit=5`)
       ]);
 
       // Log premier cycle + tester /cycle/{id} et /user/measurement/body
@@ -193,7 +193,7 @@ exports.whoopSync = onRequest(
         debugInfo.body_meas_status = bodyMeas.status;
         if (singleCycle.ok) {
           const raw = await singleCycle.json();
-          debugInfo.cycle_raw_full = JSON.stringify(raw).slice(0, 400);
+          debugInfo.cycle_raw_full = JSON.stringify(raw).slice(0, 1500);
         } else {
           debugInfo.single_cycle_error = (await singleCycle.text().catch(() => '')).slice(0, 100);
         }
