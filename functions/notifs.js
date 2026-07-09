@@ -309,18 +309,8 @@ exports.briefAfterFcRepos = onSchedule(
       const fcLine=fcToday?`FC repos ce matin : ${fcToday} bpm (moyenne 7j : ${fcMoy7j||'—'} bpm)`:'FC repos non saisie ce matin';
       const memosLine=memos?`\nNotes coach (mémos) :\n${memos}`:'';
 
-      // ── Récupérer l'heure et le type de la séance longue du jour ──────────────
-      let seanceRunAujourdhui=null;
-      for(let si=0;si<5;si++){
-        const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
-        try{
-          const ed=JSON.parse(edRaw);
-          if(Number(ed.sched_day)===ctx.dayOfWeek&&ed.type!=='rest'&&!state[`s${cw}i${si}done`]){
-            seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre:ed.d?ed.d.split('|')[0]:ed.type};
-            break;
-          }
-        }catch(e){}
-      }
+      // Séance run du jour — provient directement de buildNotifContext (gère suppressions, done, etc.)
+      const seanceRunAujourdhui=ctx.seanceRunAujourdhui||null;
       const seanceHeure=seanceRunAujourdhui?.sched_time||null;
       const seanceHeureDig=seanceHeure?parseInt(seanceHeure.split(':')[0]):null;
       const estMatin=seanceHeureDig!==null?seanceHeureDig<12:true; // si pas d'heure, on suppose matin

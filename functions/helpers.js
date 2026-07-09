@@ -172,6 +172,7 @@ async function buildNotifContext(state, cw) {
   const typeSem=cw<=32?(typesSemaine[cw]||'charge'):'charge';
   const fcToday=state[`fc_repos_${todayStr}`]||null;
   const seancesDone=[],seancesRestantes=[],seancesAujourdHui=[],seancesNext=[];
+  let seanceRunAujourdhui=null; // premier run non-supprimé non-fait du jour
   for(let si=0;si<5;si++){
     const edRaw=state[`edit_w${cw}_s${si}`];
     const done=!!state[`s${cw}i${si}done`];
@@ -185,7 +186,10 @@ async function buildNotifContext(state, cw) {
     if(done){let perf=null;try{perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;}catch(e){}seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
     else{
       seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
-      if(Number(ed.sched_day)===dayOfWeek) seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
+      if(Number(ed.sched_day)===dayOfWeek){
+        seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
+        if(!seanceRunAujourdhui) seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre};
+      }
     }
   }
   for(let ri=1;ri<=2;ri++){
@@ -218,7 +222,7 @@ async function buildNotifContext(state, cw) {
   const cwNext=Math.min(cw+1,32);
   const typeSemNext=cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge';
   for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
-  return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw};
+  return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw,seanceRunAujourdhui};
 }
 
 module.exports = {
