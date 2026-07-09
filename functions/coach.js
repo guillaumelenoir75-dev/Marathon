@@ -4,7 +4,10 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, sendPush } = require('./helpers');
+const { defineSecret: _ds2 } = require("firebase-functions/params");
+const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
+const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
 
 exports.analyzeSession = onRequest(
   { secrets: [ANTHROPIC_API_KEY] },
@@ -1009,6 +1012,46 @@ RÈGLES DE MISE À JOUR — ESSENTIELLES :
       res.json({ memos: memos || existingMemos || '' });
     } catch(e) {
       console.error('extractMemos error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
+exports.adminTestNotif = onRequest(
+  { secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY], cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    const { type } = req.body || {};
+    const ADMIN_STATE = `users/${ADMIN_UID}/state`;
+    try {
+      const db = admin.database();
+      const snap = await db.ref(`${ADMIN_STATE}/whoop_token`).once('value');
+      const hasWhoop = !!(snap.val()?.access_token);
+
+      const notifs = {
+        'reveil-matin': { title: '🌅 En piste !', body: 'Enregistre ton réveil pour recevoir ton brief du matin', tag: 'fc-repos' },
+        'rappel-14h':   { title: '🌅 En piste !', body: "Tu n'as pas encore enregistré ton réveil aujourd'hui 👆", tag: 'fc-repos-14h' },
+        'avant-seance': { title: '⏱️ Séance dans 1h', body: '👟 Course facile à 7:00 (exemple). Prépare-toi !', tag: 'session-reminder' },
+        'brief-matin':  null,
+      };
+
+      if (type === 'brief-matin') {
+        const today = new Date().toISOString().slice(0, 10);
+        await db.ref(`${ADMIN_STATE}/_brief_fc_notif_${today}`).remove();
+        await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).remove();
+        await db.ref(`${ADMIN_STATE}/_brief_trigger`).set({ ts: Date.now(), date: today });
+        res.json({ success: true, message: 'Brief matinal déclenché, push dans ~2 min' });
+        return;
+      }
+
+      const notif = notifs[type];
+      if (!notif) { res.json({ success: false, error: 'Type inconnu: ' + type }); return; }
+
+      await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), notif.title, notif.body, notif.tag, '/');
+      res.json({ success: true });
+    } catch(e) {
       res.status(500).json({ error: e.message });
     }
   }

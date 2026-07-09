@@ -287,22 +287,32 @@ async function onWakeup() {
   });
 })();
 
-async function adminTriggerBrief() {
-  const btn = event.currentTarget;
-  btn.disabled = true; btn.style.opacity = '0.6'; btn.querySelector('span:last-child').textContent = '⏳ Déclenchement…';
+async function adminTestNotif(type, btn) {
+  if (!btn) return;
+  const labelEl = btn.querySelector('div > div:first-child');
+  const subEl = btn.querySelector('div > div:last-child');
+  const origLabel = labelEl ? labelEl.textContent : '';
+  const origSub = subEl ? subEl.textContent : '';
+  btn.disabled = true; btn.style.opacity = '0.65';
+  if (subEl) subEl.textContent = '⏳ Envoi en cours…';
   try {
     const token = await firebase.auth().currentUser?.getIdToken();
-    const resp = await fetch(FUNCTIONS_BASE + '/adminTriggerBrief', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: '{}'
+    const resp = await fetch(FUNCTIONS_BASE + '/adminTestNotif', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ type })
     });
     const data = await resp.json();
-    if (data.success) {
-      btn.querySelector('span:last-child').textContent = '✅ Déclenché ! Push dans ~2 min…';
-      setTimeout(() => { btn.disabled = false; btn.style.opacity = '1'; btn.querySelector('span:last-child').textContent = 'Tester le brief matinal (push dans 2 min)'; }, 15000);
-    } else throw new Error(data.error);
+    if (!resp.ok || !data.success) throw new Error(data.error || 'Erreur serveur');
+    if (subEl) subEl.textContent = type === 'brief-matin' ? '✅ Déclenché ! Push dans ~2 min…' : '✅ Push envoyée !';
+    setTimeout(() => {
+      btn.disabled = false; btn.style.opacity = '1';
+      if (subEl) subEl.textContent = origSub;
+    }, type === 'brief-matin' ? 15000 : 4000);
   } catch(e) {
-    btn.querySelector('span:last-child').textContent = '❌ Erreur : ' + e.message;
+    if (subEl) subEl.textContent = '❌ ' + e.message;
     btn.disabled = false; btn.style.opacity = '1';
+    setTimeout(() => { if (subEl) subEl.textContent = origSub; }, 5000);
   }
 }
 

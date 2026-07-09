@@ -475,9 +475,49 @@
         </button>
       </div>
     </div>
-    <button onclick="adminTriggerBrief()" style="margin-top:10px;width:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-      <span>🧪</span><span>Tester le brief matinal (push dans 2 min)</span>
-    </button>
+  </div>
+
+  <!-- Panel Notifications (admin uniquement) -->
+  <div id="notif-test-panel" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;margin-top:16px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="font-size:18px;line-height:1;">🔔</span>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:700;color:#5b21b6;margin:0;">Notifications</p>
+        <p style="font-size:11px;color:#888;margin:2px 0 0;">Tester chaque type de push</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button onclick="adminTestNotif('brief-matin',this)" style="width:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
+        <span style="font-size:16px;">🌅</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:800;">Brief matinal</div>
+          <div style="font-size:10px;opacity:0.8;font-weight:500;">Déclenche le brief IA complet (push ~2 min)</div>
+        </div>
+      </button>
+      <button onclick="adminTestNotif('reveil-matin',this)" style="width:100%;background:linear-gradient(135deg,#f97316,#fbbf24);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
+        <span style="font-size:16px;">☀️</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:800;">Rappel réveil matin</div>
+          <div style="font-size:10px;opacity:0.8;font-weight:500;">Push du matin — "Enregistre ton réveil"</div>
+        </div>
+      </button>
+      <button onclick="adminTestNotif('rappel-14h',this)" style="width:100%;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
+        <span style="font-size:16px;">🕒</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:800;">Rappel 14h</div>
+          <div style="font-size:10px;opacity:0.8;font-weight:500;">Push si réveil non enregistré à 14h</div>
+        </div>
+      </button>
+      <button onclick="adminTestNotif('avant-seance',this)" style="width:100%;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
+        <span style="font-size:16px;">⏱️</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:800;">Rappel avant séance</div>
+          <div style="font-size:10px;opacity:0.8;font-weight:500;">Push "Séance dans 1h" (exemple)</div>
+        </div>
+      </button>
+    </div>
   </div>
 
   <button onclick="logoutUser()" style="width:100%;padding:14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:14px;font-weight:600;color:#e53e3e;cursor:pointer;margin-top:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">
