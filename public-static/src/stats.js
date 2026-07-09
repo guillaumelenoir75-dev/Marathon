@@ -422,16 +422,24 @@ function _renderWhoopChart(mode) {
 
   let points, color, label, unit, yMin, yMax;
 
+  const dedupeByDate = (arr) => {
+    const seen = new Map();
+    for (const item of arr) {
+      if (!seen.has(item.date)) seen.set(item.date, item);
+    }
+    return [...seen.values()];
+  };
+
   if (mode === 'recovery') {
-    const data = [...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date)).slice(-14);
+    const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: r.score }));
     color = '#22c55e'; label = 'Récupération (%)'; unit = '%'; yMin = 0; yMax = 100;
   } else if (mode === 'sleep') {
-    const data = [...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date)).slice(-14);
+    const data = dedupeByDate([...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(s => ({ x: new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: s.performance_pct }));
     color = '#3b82f6'; label = 'Sommeil (%)'; unit = '%'; yMin = 0; yMax = 100;
   } else {
-    const data = [...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date)).slice(-14);
+    const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
     color = '#f59e0b'; label = 'Charge (Strain)'; unit = ''; yMin = 0; yMax = 21;
   }
