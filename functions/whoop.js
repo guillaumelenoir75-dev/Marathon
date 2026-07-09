@@ -166,7 +166,7 @@ exports.whoopSync = onRequest(
         }));
 
       const sleeps = (sleepJson?.records || [])
-        .filter(s => s.start)
+        .filter(s => s.start && !s.is_nap) // exclure les siestes
         .map(s => {
           const ss = s.score?.stage_summary;
           const lightMs  = ss?.total_light_sleep_time_milli || 0;
@@ -176,8 +176,12 @@ exports.whoopSync = onRequest(
           const sleepMs  = ss?.total_sleep_time_milli || (lightMs + swsMs + remMs);
           const hh = Math.floor(sleepMs / 3600000);
           const mm = Math.round((sleepMs % 3600000) / 60000);
+          // Utiliser la date de réveil (end) et non de coucher (start) pour aligner
+          // avec le cycle WHOOP — un sommeil commençant à 23h le 2 juil. appartient
+          // au cycle du 3 juil. (date de réveil)
+          const date = s.end ? s.end.slice(0, 10) : s.start.slice(0, 10);
           return {
-            date: s.start.slice(0, 10),
+            date,
             duration_hours: sleepMs ? `${hh}h${mm.toString().padStart(2,'0')}` : null,
             performance_pct: s.score?.sleep_performance_percentage ?? null,
             efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
