@@ -551,11 +551,11 @@ function switchWhoopChart(mode) {
 }
 
 let curRenfo=1;
-let _fcReposChartFilter = 'all';
+let _fcReposChartFilter = '7';
 
 function switchFcReposChart(filter) {
   _fcReposChartFilter = filter;
-  ['all','14','30'].forEach(f => {
+  ['7','30','all'].forEach(f => {
     const btn = document.getElementById('fctab-' + f);
     if (!btn) return;
     if (f === filter) {
@@ -589,6 +589,7 @@ function renderFcReposChart(){
     const cutoffStr = cutoff.toISOString().slice(0, 10);
     entries = entries.filter(e => e.date >= cutoffStr);
   }
+  const allEntries = entries.slice(); // pour les KPIs (toutes les données, pas filtrées)
 
   // Section visibilité
   const section = document.getElementById('fc-repos-stats-section');
@@ -611,8 +612,8 @@ function renderFcReposChart(){
   const avg = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
   const minV = Math.min(...vals);
   const maxV = Math.max(...vals);
-  const latest = vals[vals.length - 1];
-  const trend = entries.length >= 3 ? (vals[vals.length-1] - vals[0] > 2 ? '📈 Hausse' : vals[0] - vals[vals.length-1] > 2 ? '📉 Baisse' : '→ Stable') : '→ Stable';
+  const allVals = allEntries.map(e=>e.val);
+  const latest = allVals[allVals.length - 1];
 
   // KPI tiles (même style que WHOOP)
   if (kpiRow) {
@@ -683,33 +684,7 @@ function renderFcReposChart(){
     }
   });
 
-  // Tableau historique (même style que whoop-history-table)
-  if (!detail) return;
-  let html = `<div style="display:grid;grid-template-columns:1fr 90px 80px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
-    <span style="font-size:11px;font-weight:600;color:var(--muted);">Date</span>
-    <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:center;">Tendance</span>
-    <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:right;">FC repos</span>
-  </div>`;
-  const recent = entries.slice().reverse().slice(0, 10);
-  recent.forEach((e, i) => {
-    const d = new Date(e.date);
-    const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
-    const isToday = e.date === new Date().toISOString().slice(0,10);
-    const prev = recent[i+1];
-    const delta = prev ? e.val - prev.val : null;
-    const deltaEl = delta !== null ? `<span style="font-size:11px;font-weight:600;color:${delta < -1 ? '#22c55e' : delta > 1 ? '#ef4444' : 'var(--muted)'};">${delta > 0 ? '+' : ''}${delta}</span>` : '<span style="font-size:11px;color:var(--muted);">—</span>';
-    html += `<div onclick="openFcReposModal('${e.date}')" style="display:grid;grid-template-columns:1fr 90px 80px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <span style="font-size:12px;color:var(--text);">${dateStr}${isToday?' <span style="font-size:9px;background:#EEF2FD;color:#1B4FD8;padding:1px 5px;border-radius:8px;font-weight:700;">auj.</span>':''}</span>
-      <div style="text-align:center;">${deltaEl}</div>
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
-        <span style="font-size:14px;font-weight:700;color:#E24B4A;">${e.val}</span>
-        <span style="font-size:10px;color:var(--muted);">bpm</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </div>
-    </div>`;
-  });
-  if (entries.length > 10) html += `<div style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);">${entries.length - 10} mesures supplémentaires</div>`;
-  detail.innerHTML = html;
+  if (detail) detail.innerHTML = '';
 }
 
 

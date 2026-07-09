@@ -224,16 +224,15 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>
         <div style="display:flex;gap:4px;" id="fc-repos-chart-tabs">
-          <button onclick="switchFcReposChart('all')" id="fctab-all" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">Tout</button>
-          <button onclick="switchFcReposChart('14')" id="fctab-14" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">14j</button>
+          <button onclick="switchFcReposChart('7')" id="fctab-7" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">7j</button>
           <button onclick="switchFcReposChart('30')" id="fctab-30" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">30j</button>
+          <button onclick="switchFcReposChart('all')" id="fctab-all" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Tout</button>
         </div>
       </div>
       <div style="position:relative;width:100%;height:160px;">
         <canvas id="chart-fc-repos"></canvas>
       </div>
     </div>
-    <div id="fc-repos-detail" style="background:var(--bg);border-radius:14px;border:1px solid var(--border);overflow:hidden;"></div>
   </div>
 
   <div id="whoop-stats-section" style="display:none;margin-bottom:24px;">
