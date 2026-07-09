@@ -34,7 +34,14 @@ async function getValidWhoopToken(db) {
     body
   }, 15000);
 
-  if (!res.ok) throw new Error('WHOOP token refresh failed: ' + res.status);
+  if (!res.ok) {
+    // 400/401 = refresh token expiré ou révoqué → supprimer le token pour forcer reconnexion
+    if (res.status === 400 || res.status === 401) {
+      await db.ref(`users/${ADMIN_UID}/state/whoop_token`).remove();
+      return null;
+    }
+    throw new Error('WHOOP token refresh failed: ' + res.status);
+  }
   const refreshed = await res.json();
   if (!refreshed.access_token) throw new Error('Refresh token invalide');
 

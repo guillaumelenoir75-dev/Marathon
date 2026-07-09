@@ -89,9 +89,11 @@ async function syncWhoop() {
     const data = await resp.json();
 
     if (data.needsAuth) {
-      if (status) { status.textContent = 'Session expirée — reconnecte-toi'; status.style.color = '#ef4444'; }
-      if (btn) { btn.disabled = false; btn.textContent = '⚡ Connecter WHOOP'; btn.onclick = connectWhoop; }
+      // Token expiré : nettoyer le state local et repasser en mode "non connecté"
+      state.whoop_token = null;
+      state.whoop_data = null;
       _whoopSyncing = false;
+      initWhoopStatus();
       return;
     }
 
@@ -119,18 +121,8 @@ async function syncWhoop() {
 
   } catch(e) {
     console.error('whoopSync error:', e);
-    if (status) { status.textContent = 'Erreur : ' + e.message; status.style.color = '#ef4444'; }
+    if (status) { status.textContent = 'Erreur sync'; status.style.color = '#ef4444'; }
     if (btn) { btn.disabled = false; btn.innerHTML = '🔄 Réessayer'; btn.onclick = syncWhoop; }
-    // Afficher un lien "Reconnecter" en cas d'erreur
-    const reconnectId = 'whoop-reconnect-link';
-    if (!document.getElementById(reconnectId)) {
-      const link = document.createElement('button');
-      link.id = reconnectId;
-      link.textContent = '🔗 Reconnecter WHOOP';
-      link.style.cssText = 'background:none;border:none;color:#1B4FD8;font-size:11px;cursor:pointer;padding:4px 0;text-decoration:underline;display:block;margin-top:4px;';
-      link.onclick = () => { document.getElementById(reconnectId)?.remove(); connectWhoop(); };
-      btn.parentNode.insertBefore(link, btn.nextSibling);
-    }
   }
   _whoopSyncing = false;
 }
