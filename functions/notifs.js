@@ -389,16 +389,11 @@ Performance sommeil : **88%**
 
 3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
 
-4. ⚡ ALLURES & CONSIGNES — pour chaque run :
-   - TOUJOURS adapter l'allure à l'état de récup WHOOP :
-     · Récup ROUGE (<34%) : allure EF +15 sec/km min, FC < 140 bpm max, ne pas forcer même si la séance est prévue tempo.
-     · Récup JAUNE (34-66%) : allure EF normale, attention si FC > 148.
-     · Récup VERTE (≥67%) : allure de référence, peut pousser si tempo.
-   - Si chaleur (≥25°C) : OBLIGATOIRE mentionner la chaleur et l'allure ajustée en **gras** EN PREMIER. Rappeler hydrater 500ml avant si ≥28°C. NE PAS dire que la temp est sous 25°C si les données météo indiquent ≥25°C.
-   - Si décharge : allure EF +30sec/km, FC < 140 bpm.
-   - EF Long ≥10km : gels — premier à **40 min**, puis toutes les **45 min**. Nombre total en **gras**.
-   - Renfo : exercices clés à nommer.
-   - Météo à l'heure de la séance : mentionner temp + conditions en 1 ligne.
+4. ⚡ ALLURES & CONSIGNES — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
+   Ligne 1 : allure cible en **gras** + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
+   Ligne 2 : météo à l'heure de la séance en 1 phrase courte. Si ≥28°C : rappeler hydratation en 5 mots max.
+   Ligne 3 (optionnel) : 1 consigne clé seulement (si EF Long ≥10km : gels ; si décharge : allure +30sec ; si récup rouge : réduire l'intensité). Rien d'autre.
+   NE PAS dire que la temp est sous 25°C si les données météo indiquent ≥25°C.
 
 5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥10km :
    - Matin (avant 11h) : à jeun → fenêtre post-run **30 min**, shaker protéines + glucides.
@@ -451,20 +446,16 @@ ${memosLine}`;
       // Emoji météo
       const meteoEmoji=tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
       // FC repos
-      const fcPart=fcToday?`FC ${fcToday} bpm ${recovEmoji} `.trim():(recovEmoji?`Récup ${recovEmoji} `:'');
-      // Séance du jour
+      const fcPart=fcToday?`FC ${fcToday} bpm ${recovEmoji}`.trim():(recovEmoji?`Récup ${recovEmoji}`:'');
+      // Séance run du jour (uniquement run, pas renfo)
       let seancePart='';
       if(seanceRunAujourdhui){
         const typeLabel={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'EF Long',repos:'Repos'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
-        const km=seanceRunAujourdhui.km>0?` - ${seanceRunAujourdhui.km}km`:'';
-        const heure=seanceHeure?` prévu à ${seanceHeure}`:'';
+        const km=seanceRunAujourdhui.km>0?` ${seanceRunAujourdhui.km}km`:'';
+        const heure=seanceHeure?` à ${seanceHeure}`:'';
         seancePart=`Séance ${typeLabel}${km} 🏃${heure}`;
-      }else if(renfoAujourdHui.length>0){
-        seancePart=renfoAujourdHui.join(' · ');
-      }else if(dow===1){
-        seancePart='Bodyhit 12h30';
       }else{
-        seancePart='Récupération';
+        seancePart='Pas de séance run';
       }
       let pushBody=`${fcPart}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
       if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
