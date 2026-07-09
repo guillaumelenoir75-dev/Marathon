@@ -216,6 +216,26 @@
 <div id="sc-stats" style="display:none;padding:16px;background:#EDF2FB;min-height:100vh;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;">Statistiques</p>
   <!-- Bloc WHOOP Stats (admin uniquement) -->
+  <!-- Bloc FC Repos Stats -->
+  <div id="fc-repos-stats-section" style="margin-bottom:24px;">
+    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">FC au repos — évolution</p>
+    <div id="fc-repos-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
+    <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>
+        <div style="display:flex;gap:4px;" id="fc-repos-chart-tabs">
+          <button onclick="switchFcReposChart('all')" id="fctab-all" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">Tout</button>
+          <button onclick="switchFcReposChart('14')" id="fctab-14" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">14j</button>
+          <button onclick="switchFcReposChart('30')" id="fctab-30" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">30j</button>
+        </div>
+      </div>
+      <div style="position:relative;width:100%;height:160px;">
+        <canvas id="chart-fc-repos"></canvas>
+      </div>
+    </div>
+    <div id="fc-repos-detail" style="background:var(--bg);border-radius:14px;border:1px solid var(--border);overflow:hidden;"></div>
+  </div>
+
   <div id="whoop-stats-section" style="display:none;margin-bottom:24px;">
     <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">WHOOP — Récupération & Bien-être</p>
     <!-- KPIs du jour -->
@@ -257,11 +277,6 @@
     <button onclick="setPerfFilter('long')" id="pf-long" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Long</button>
   </div>
   <div id="perf-rows" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px;"></div>
-  <div id="fc-repos-stats-section">
-  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">FC au repos — évolution</p>
-  <div style="position:relative;width:100%;height:180px;margin-bottom:8px;"><canvas id="chart-fc-repos"></canvas></div>
-  <div id="fc-repos-detail" style="margin-bottom:20px;"></div>
-  </div>
   <div id="stats-gels-section">
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">

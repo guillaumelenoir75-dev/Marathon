@@ -118,9 +118,6 @@ function renderStats(){
       }
     }
   });
-  // Section FC repos : visible selon préférence
-  const fcReposStatsSection = document.getElementById('fc-repos-stats-section');
-  if(fcReposStatsSection) fcReposStatsSection.style.display = getPref('show_fc_repos') ? 'block' : 'none';
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
   if(badge) badge.textContent = (isAdmin() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
@@ -554,10 +551,28 @@ function switchWhoopChart(mode) {
 }
 
 let curRenfo=1;
+let _fcReposChartFilter = 'all';
+
+function switchFcReposChart(filter) {
+  _fcReposChartFilter = filter;
+  ['all','14','30'].forEach(f => {
+    const btn = document.getElementById('fctab-' + f);
+    if (!btn) return;
+    if (f === filter) {
+      btn.style.background = '#E24B4A';
+      btn.style.color = '#fff';
+    } else {
+      btn.style.background = 'var(--bg2)';
+      btn.style.color = 'var(--muted)';
+    }
+  });
+  renderFcReposChart();
+}
+
 function renderFcReposChart(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
   // Collecter toutes les entrées fc_repos_YYYY-MM-DD
-  const entries = [];
+  let entries = [];
   Object.keys(state).forEach(k=>{
     if(k.startsWith('fc_repos_') && k.match(/fc_repos_\d{4}-\d{2}-\d{2}/)){
       const date = k.replace('fc_repos_','');
@@ -567,38 +582,74 @@ function renderFcReposChart(){
   });
   entries.sort((a,b)=>a.date.localeCompare(b.date));
 
-  // Graphique
-  if(chartFcRepos) chartFcRepos.destroy();
+  // Filtrage selon onglet
+  if (_fcReposChartFilter !== 'all') {
+    const days = parseInt(_fcReposChartFilter);
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    entries = entries.filter(e => e.date >= cutoffStr);
+  }
+
+  // Section visibilité
+  const section = document.getElementById('fc-repos-stats-section');
+  if (section) section.style.display = getPref('show_fc_repos') ? 'block' : 'none';
+
+  // KPIs
+  const kpiRow = document.getElementById('fc-repos-kpi-row');
   const canvas = document.getElementById('chart-fc-repos');
-  if(!canvas) return;
+  const detail = document.getElementById('fc-repos-detail');
 
   if(entries.length === 0){
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    const detail = document.getElementById('fc-repos-detail');
-    if(detail) detail.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:12px;">Aucune donnée — saisis ta FC repos chaque matin depuis l\'accueil.</p>';
+    if (kpiRow) kpiRow.innerHTML = '';
+    if(chartFcRepos) { chartFcRepos.destroy(); chartFcRepos = null; }
+    if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+    if(detail) detail.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:20px;">Aucune donnée — appuie sur ☀️ Je suis réveillé chaque matin.</p>';
     return;
   }
 
-  const labels = entries.map(e=>{
-    const d = new Date(e.date);
-    return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-  });
   const vals = entries.map(e=>e.val);
   const avg = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
   const minV = Math.min(...vals);
   const maxV = Math.max(...vals);
+  const latest = vals[vals.length - 1];
+  const trend = entries.length >= 3 ? (vals[vals.length-1] - vals[0] > 2 ? '📈 Hausse' : vals[0] - vals[vals.length-1] > 2 ? '📉 Baisse' : '→ Stable') : '→ Stable';
+
+  // KPI tiles (même style que WHOOP)
+  if (kpiRow) {
+    kpiRow.innerHTML = `
+      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:22px;font-weight:800;color:#E24B4A;line-height:1;">${latest}</div>
+        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
+      </div>
+      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:22px;font-weight:800;color:#1B4FD8;line-height:1;">${avg}</div>
+        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Moyenne</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
+      </div>
+      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:22px;font-weight:800;color:${minV < avg - 2 ? '#22c55e' : 'var(--text)'};line-height:1;">${minV}</div>
+        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
+      </div>`;
+  }
+
+  // Graphique
+  if(chartFcRepos) chartFcRepos.destroy();
+  if(!canvas) return;
 
   chartFcRepos = new Chart(canvas,{
     type:'line',
     data:{
-      labels,
+      labels: entries.map(e=>{ const d=new Date(e.date); return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }),
       datasets:[{
         data:vals,
         borderColor:'#E24B4A',
         backgroundColor:'rgba(226,75,74,0.08)',
-        borderWidth:2,
+        borderWidth:2.5,
         pointBackgroundColor:'#E24B4A',
+        pointBorderColor:'#fff',
+        pointBorderWidth:1.5,
         pointRadius:4,
         pointHoverRadius:6,
         fill:true,
@@ -610,57 +661,54 @@ function renderFcReposChart(){
       maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
-        tooltip:{callbacks:{label:c=>c.raw+' bpm'}}
+        tooltip:{
+          backgroundColor:isDark?'#1e1e2e':'#fff',
+          titleColor:isDark?'#ccc':'#333',
+          bodyColor:'#E24B4A',
+          borderColor:isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)',
+          borderWidth:1,
+          callbacks:{label:c=>c.raw+' bpm'}
+        }
       },
       scales:{
-        x:{ticks:{color:isDark?'#888':'#666',font:{size:9}},grid:{display:false}},
+        x:{ticks:{color:isDark?'#888':'#666',font:{size:9}},grid:{display:false},border:{display:false}},
         y:{
           min:Math.max(30,minV-5),
           max:maxV+5,
           ticks:{color:isDark?'#888':'#666',font:{size:9},callback:v=>v+' bpm'},
-          grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}
+          grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'},
+          border:{display:false}
         }
       }
     }
   });
 
-  // Détail : liste des 10 dernières + stats
-  const detail = document.getElementById('fc-repos-detail');
-  if(!detail) return;
-  const trend = entries.length >= 3 ? (vals[vals.length-1] - vals[0] > 2 ? '📈 Tendance à la hausse' : vals[0] - vals[vals.length-1] > 2 ? '📉 Tendance à la baisse' : '↔️ Stable') : '';
-  let html = `<div style="display:flex;gap:8px;margin-bottom:10px;">
-    <div style="flex:1;background:var(--bg);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);">
-      <div style="font-size:18px;font-weight:800;color:#E24B4A;">${avg}</div>
-      <div style="font-size:10px;color:var(--muted);">Moyenne (bpm)</div>
-    </div>
-    <div style="flex:1;background:var(--bg);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);">
-      <div style="font-size:18px;font-weight:800;color:#1B4FD8;">${minV}</div>
-      <div style="font-size:10px;color:var(--muted);">Minimum (bpm)</div>
-    </div>
-    <div style="flex:1;background:var(--bg);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);">
-      <div style="font-size:18px;font-weight:800;color:var(--text);">${entries.length}</div>
-      <div style="font-size:10px;color:var(--muted);">Mesures</div>
-    </div>
+  // Tableau historique (même style que whoop-history-table)
+  if (!detail) return;
+  let html = `<div style="display:grid;grid-template-columns:1fr 90px 80px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
+    <span style="font-size:11px;font-weight:600;color:var(--muted);">Date</span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:center;">Tendance</span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:right;">FC repos</span>
   </div>`;
-  if(trend) html += `<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">${trend} sur la période</p>`;
-  html += `<div style="background:var(--bg);border-radius:10px;border:1px solid var(--border);overflow:hidden;">
-    <div style="display:grid;grid-template-columns:1fr 80px;padding:7px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <span style="font-size:11px;font-weight:600;color:var(--muted);">Date</span>
-      <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:right;">FC repos</span>
-    </div>`;
-  entries.slice().reverse().slice(0,7).forEach(e=>{
+  const recent = entries.slice().reverse().slice(0, 10);
+  recent.forEach((e, i) => {
     const d = new Date(e.date);
     const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
     const isToday = e.date === new Date().toISOString().slice(0,10);
-    html += `<div onclick="openFcReposModal('${e.date}')" style="display:grid;grid-template-columns:1fr 80px;padding:9px 12px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <span style="font-size:13px;color:var(--text);">${dateStr}${isToday?' <span style="font-size:10px;background:#EEF2FD;color:#1B4FD8;padding:1px 6px;border-radius:8px;font-weight:600;">auj.</span>':''}</span>
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:5px;">
-        <span style="font-size:14px;font-weight:700;color:#E24B4A;text-align:right;">${e.val} <span style="font-size:11px;color:var(--muted);font-weight:400;">bpm</span></span>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    const prev = recent[i+1];
+    const delta = prev ? e.val - prev.val : null;
+    const deltaEl = delta !== null ? `<span style="font-size:11px;font-weight:600;color:${delta < -1 ? '#22c55e' : delta > 1 ? '#ef4444' : 'var(--muted)'};">${delta > 0 ? '+' : ''}${delta}</span>` : '<span style="font-size:11px;color:var(--muted);">—</span>';
+    html += `<div onclick="openFcReposModal('${e.date}')" style="display:grid;grid-template-columns:1fr 90px 80px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <span style="font-size:12px;color:var(--text);">${dateStr}${isToday?' <span style="font-size:9px;background:#EEF2FD;color:#1B4FD8;padding:1px 5px;border-radius:8px;font-weight:700;">auj.</span>':''}</span>
+      <div style="text-align:center;">${deltaEl}</div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+        <span style="font-size:14px;font-weight:700;color:#E24B4A;">${e.val}</span>
+        <span style="font-size:10px;color:var(--muted);">bpm</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
     </div>`;
   });
-  html += '</div>';
+  if (entries.length > 10) html += `<div style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);">${entries.length - 10} mesures supplémentaires</div>`;
   detail.innerHTML = html;
 }
 
