@@ -287,6 +287,15 @@ async function onWakeup() {
   });
 })();
 
+function openNotifTestModal() {
+  const m = document.getElementById('notif-test-modal');
+  if (m) { m.style.display = 'flex'; }
+}
+function closeNotifTestModal() {
+  const m = document.getElementById('notif-test-modal');
+  if (m) m.style.display = 'none';
+}
+
 async function adminTestNotif(type, btn) {
   if (!btn) return;
   const labelEl = btn.querySelector('div > div:first-child');

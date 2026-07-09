@@ -402,6 +402,16 @@
     </div>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
+  <button id="notif-test-btn" onclick="openNotifTestModal()" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:16px;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:38px;height:38px;border-radius:10px;background:#F0F0FF;display:flex;align-items:center;justify-content:center;font-size:18px;">🧪</div>
+      <div>
+        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Notifications</p>
+        <p style="font-size:12px;color:#888;margin:2px 0 0;">Tester les pushs par catégorie</p>
+      </div>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
   <div id="athlete-panel" style="display:none;margin-bottom:16px;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -477,48 +487,53 @@
     </div>
   </div>
 
-  <!-- Panel Notifications (admin uniquement) -->
-  <div id="notif-test-panel" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;margin-top:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <div style="width:36px;height:36px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <span style="font-size:18px;line-height:1;">🔔</span>
-      </div>
+
+<!-- Modal Notifications test (admin) -->
+<div id="notif-test-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeNotifTestModal()">
+  <div style="background:#f5f5f5;border-radius:20px 20px 0 0;width:100%;max-width:390px;padding:20px 16px calc(env(safe-area-inset-bottom,16px) + 20px);max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
       <div>
-        <p style="font-size:14px;font-weight:700;color:#5b21b6;margin:0;">Notifications</p>
-        <p style="font-size:11px;color:#888;margin:2px 0 0;">Tester chaque type de push</p>
+        <p style="font-size:16px;font-weight:800;color:#1a1a1a;margin:0;">Tester les notifications</p>
+        <p style="font-size:12px;color:#888;margin:3px 0 0;">Envoie une push de test immédiatement</p>
       </div>
+      <button onclick="closeNotifTestModal()" style="background:#e0e0e0;border:none;border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <button onclick="adminTestNotif('brief-matin',this)" style="width:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
-        <span style="font-size:16px;">🌅</span>
-        <div style="flex:1;">
-          <div style="font-size:12px;font-weight:800;">Brief matinal</div>
-          <div style="font-size:10px;opacity:0.8;font-weight:500;">Déclenche le brief IA complet (push ~2 min)</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button onclick="adminTestNotif('brief-matin',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🌅</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Brief matinal</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Brief IA complet — push dans ~2 min</div>
         </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-      <button onclick="adminTestNotif('reveil-matin',this)" style="width:100%;background:linear-gradient(135deg,#f97316,#fbbf24);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
-        <span style="font-size:16px;">☀️</span>
-        <div style="flex:1;">
-          <div style="font-size:12px;font-weight:800;">Rappel réveil matin</div>
-          <div style="font-size:10px;opacity:0.8;font-weight:500;">Push du matin — "Enregistre ton réveil"</div>
+      <button onclick="adminTestNotif('reveil-matin',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#f97316,#fbbf24);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">☀️</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Rappel réveil matin</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push — "Enregistre ton réveil"</div>
         </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-      <button onclick="adminTestNotif('rappel-14h',this)" style="width:100%;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
-        <span style="font-size:16px;">🕒</span>
-        <div style="flex:1;">
-          <div style="font-size:12px;font-weight:800;">Rappel 14h</div>
-          <div style="font-size:10px;opacity:0.8;font-weight:500;">Push si réveil non enregistré à 14h</div>
+      <button onclick="adminTestNotif('rappel-14h',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🕒</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Rappel 14h</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push si réveil non enregistré à 14h</div>
         </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-      <button onclick="adminTestNotif('avant-seance',this)" style="width:100%;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;">
-        <span style="font-size:16px;">⏱️</span>
-        <div style="flex:1;">
-          <div style="font-size:12px;font-weight:800;">Rappel avant séance</div>
-          <div style="font-size:10px;opacity:0.8;font-weight:500;">Push "Séance dans 1h" (exemple)</div>
+      <button onclick="adminTestNotif('avant-seance',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#16a34a,#22c55e);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">⏱️</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Rappel avant séance</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push "Séance dans 1h" (exemple)</div>
         </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
   </div>
+</div>
 
   <button onclick="logoutUser()" style="width:100%;padding:14px;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;font-size:14px;font-weight:600;color:#e53e3e;cursor:pointer;margin-top:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>

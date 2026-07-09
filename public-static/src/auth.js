@@ -251,8 +251,8 @@ function renderCompteScreen(){
   checkStravaStatus();
   const whoopPanel=document.getElementById('whoop-panel');
   if(whoopPanel) whoopPanel.style.display=isAdmin()?'block':'none';
-  const notifTestPanel=document.getElementById('notif-test-panel');
-  if(notifTestPanel) notifTestPanel.style.display=isAdmin()?'block':'none';
+  const notifTestBtn=document.getElementById('notif-test-btn');
+  if(notifTestBtn) notifTestBtn.style.display=isAdmin()?'flex':'none';
   if(isAdmin()){
     if(typeof initWhoopStatus==='function') initWhoopStatus();
     const wd=state&&state.whoop_data;
