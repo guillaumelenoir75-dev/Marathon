@@ -9,35 +9,29 @@ let _whoopSyncing = false;
 async function initWhoopStatus() {
   if (!isAdmin()) return;
   const btn = document.getElementById('whoop-connect-btn');
+  const disBtn = document.getElementById('whoop-disconnect-btn');
   const status = document.getElementById('whoop-status');
   if (!btn || !status) return;
 
-  // Vérifier si un token existe dans l'état Firebase
   const token = state.whoop_token;
   if (token && token.access_token) {
     const data = state.whoop_data;
     const updatedAt = data && data.updatedAt ? new Date(data.updatedAt) : null;
     const minutesAgo = updatedAt ? Math.round((Date.now() - updatedAt.getTime()) / 60000) : null;
     status.textContent = minutesAgo !== null
-      ? `Connecté · sync il y a ${minutesAgo < 60 ? minutesAgo + ' min' : Math.round(minutesAgo/60) + 'h'}`
+      ? `Sync il y a ${minutesAgo < 60 ? minutesAgo + ' min' : Math.round(minutesAgo/60) + 'h'}`
       : 'Connecté';
     status.style.color = '#22c55e';
-    btn.textContent = '🔄 Synchroniser WHOOP';
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser';
     btn.onclick = syncWhoop;
-    // Bouton déconnecter
-    if (!document.getElementById('whoop-disconnect-btn')) {
-      const dis = document.createElement('button');
-      dis.id = 'whoop-disconnect-btn';
-      dis.textContent = 'Déconnecter';
-      dis.style.cssText = 'background:none;border:none;color:#9ca3af;font-size:11px;cursor:pointer;padding:4px 0;text-decoration:underline;display:block;margin-top:4px;';
-      dis.onclick = disconnectWhoop;
-      btn.parentNode.insertBefore(dis, btn.nextSibling);
-    }
+    if (disBtn) disBtn.style.display = 'block';
+    if (data) _renderWhoopPanel(data, document.getElementById('whoop-data-panel'));
   } else {
     status.textContent = 'Non connecté';
     status.style.color = '#f59e0b';
-    btn.textContent = '⚡ Connecter WHOOP';
+    btn.innerHTML = '⚡ Connecter';
     btn.onclick = connectWhoop;
+    if (disBtn) disBtn.style.display = 'none';
   }
 }
 
@@ -49,9 +43,9 @@ async function disconnectWhoop() {
     state.whoop_token = null;
     state.whoop_data = null;
   }
-  document.getElementById('whoop-disconnect-btn')?.remove();
-  document.getElementById('whoop-data-panel').style.display = 'none';
-  document.getElementById('whoop-data-panel').innerHTML = '';
+  const panel = document.getElementById('whoop-data-panel');
+  if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+  document.getElementById('whoop-stats-section')?.style && (document.getElementById('whoop-stats-section').style.display = 'none');
   initWhoopStatus();
 }
 
@@ -87,7 +81,7 @@ async function syncWhoop() {
   const btn = document.getElementById('whoop-connect-btn');
   const status = document.getElementById('whoop-status');
   const panel = document.getElementById('whoop-data-panel');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sync…'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Sync…'; }
 
   try {
     const resp = await fetch(WHOOP_SYNC_URL, {
@@ -113,12 +107,13 @@ async function syncWhoop() {
         if (wd) {
           state.whoop_data = wd;
           _renderWhoopPanel(wd, panel);
+          if (typeof renderWhoopStats === 'function') renderWhoopStats();
         }
       });
     }
 
-    if (status) { status.textContent = 'Synchronisé à l\'instant'; status.style.color = '#22c55e'; }
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Synchroniser WHOOP'; btn.onclick = syncWhoop; }
+    if (status) { status.textContent = 'Sync à l\'instant'; status.style.color = '#22c55e'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser'; btn.onclick = syncWhoop; }
 
     // Auto-remplir la FC repos (vraie RHR si recovery dispo, sinon proxy avg_hr cycle)
     const rhrValue = data.rhr || data.rhr_proxy;
@@ -129,7 +124,7 @@ async function syncWhoop() {
   } catch(e) {
     console.error('whoopSync error:', e);
     if (status) { status.textContent = 'Erreur : ' + e.message; status.style.color = '#ef4444'; }
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Réessayer'; btn.onclick = syncWhoop; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔄 Réessayer'; btn.onclick = syncWhoop; }
     // Afficher un lien "Reconnecter" en cas d'erreur
     const reconnectId = 'whoop-reconnect-link';
     if (!document.getElementById(reconnectId)) {

@@ -2,6 +2,7 @@ function renderStats(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
   if(chartKm)chartKm.destroy();
   renderFcReposChart();
+  if(isAdmin()) renderWhoopStats();
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
@@ -377,6 +378,179 @@ function renderStats(){
     row.innerHTML=`<span style="font-size:13px;color:var(--text);">${typeof g.km==='number'?g.km+' km':g.km}</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
     gr.appendChild(row);
   });
+}
+
+let _whoopChart = null;
+let _whoopChartMode = 'recovery';
+
+function renderWhoopStats() {
+  const wd = state.whoop_data;
+  const section = document.getElementById('whoop-stats-section');
+  if (!section) return;
+
+  if (!wd || (!wd.recoveries?.length && !wd.cycles?.length)) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const scoreColor = s => s >= 67 ? '#22c55e' : s >= 34 ? '#f59e0b' : '#ef4444';
+
+  // ── KPIs du jour ──────────────────────────────────────────────────────────
+  const r0 = wd.recoveries?.[0];
+  const s0 = wd.sleeps?.[0];
+  const cy0 = wd.cycles?.[0];
+
+  const kpis = [
+    {
+      label: 'Récupération',
+      value: r0?.score != null ? r0.score + '%' : '—',
+      sub: r0?.rhr ? r0.rhr + ' bpm repos' : (cy0?.avg_hr ? cy0.avg_hr + ' bpm moy' : ''),
+      color: r0?.score != null ? scoreColor(r0.score) : 'var(--muted)',
+      bg: isDark ? 'rgba(34,197,94,0.12)' : '#f0fdf4',
+      border: isDark ? 'rgba(34,197,94,0.25)' : '#bbf7d0'
+    },
+    {
+      label: 'Sommeil',
+      value: s0?.performance_pct != null ? s0.performance_pct + '%' : '—',
+      sub: s0?.duration_hours ? s0.duration_hours + 'h · REM ' + (s0.rem_pct || '—') + '%' : '',
+      color: s0?.performance_pct != null ? scoreColor(s0.performance_pct) : 'var(--muted)',
+      bg: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
+      border: isDark ? 'rgba(59,130,246,0.25)' : '#bfdbfe'
+    },
+    {
+      label: 'Charge',
+      value: cy0?.strain != null ? (Math.round(cy0.strain * 10) / 10).toString() : '—',
+      sub: cy0?.calories ? cy0.calories + ' kcal' : '',
+      color: cy0?.strain != null ? (cy0.strain >= 14 ? '#ef4444' : cy0.strain >= 10 ? '#f59e0b' : '#22c55e') : 'var(--muted)',
+      bg: isDark ? 'rgba(251,191,36,0.12)' : '#fefce8',
+      border: isDark ? 'rgba(251,191,36,0.25)' : '#fde68a'
+    }
+  ];
+
+  document.getElementById('whoop-kpi-row').innerHTML = kpis.map(k => `
+    <div style="background:${k.bg};border:1px solid ${k.border};border-radius:12px;padding:12px 10px;text-align:center;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${k.label}</div>
+      <div style="font-size:26px;font-weight:800;color:${k.color};line-height:1;">${k.value}</div>
+      ${k.sub ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;">${k.sub}</div>` : ''}
+    </div>
+  `).join('');
+
+  // ── Graphique ──────────────────────────────────────────────────────────────
+  _renderWhoopChart(_whoopChartMode);
+
+  // ── Tableau historique ─────────────────────────────────────────────────────
+  const table = document.getElementById('whoop-history-table');
+  if (!table) return;
+
+  // Fusionner recovery + sleep + cycle par date
+  const byDate = {};
+  (wd.recoveries || []).forEach(r => { byDate[r.date] = byDate[r.date] || {}; byDate[r.date].recovery = r.score; byDate[r.date].rhr = r.rhr; byDate[r.date].hrv = r.hrv ? Math.round(r.hrv) : null; });
+  (wd.sleeps || []).forEach(s => { byDate[s.date] = byDate[s.date] || {}; byDate[s.date].sleep = s.performance_pct; byDate[s.date].duration = s.duration_hours; });
+  (wd.cycles || []).forEach(c => { byDate[c.date] = byDate[c.date] || {}; byDate[c.date].strain = c.strain != null ? Math.round(c.strain * 10) / 10 : null; });
+
+  const rows = Object.entries(byDate).sort((a,b) => b[0].localeCompare(a[0])).slice(0, 14);
+
+  const dot = (val, type) => {
+    if (val == null) return '<span style="color:var(--muted);">—</span>';
+    const col = type === 'strain'
+      ? (val >= 14 ? '#ef4444' : val >= 10 ? '#f59e0b' : '#22c55e')
+      : scoreColor(val);
+    return `<span style="color:${col};font-weight:700;">${val}${type !== 'strain' ? '%' : ''}</span>`;
+  };
+
+  table.innerHTML = `
+    <div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
+      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;">Date</span>
+      <span style="font-size:10px;font-weight:700;color:#22c55e;text-align:center;text-transform:uppercase;">Récup</span>
+      <span style="font-size:10px;font-weight:700;color:#3b82f6;text-align:center;text-transform:uppercase;">Sommeil</span>
+      <span style="font-size:10px;font-weight:700;color:#f59e0b;text-align:center;text-transform:uppercase;">Charge</span>
+    </div>
+    ${rows.map(([date, d], i) => {
+      const label = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+      const isLast = i === rows.length - 1;
+      return `<div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;padding:9px 12px;${!isLast ? 'border-bottom:1px solid var(--border);' : ''}align-items:center;">
+        <span style="font-size:11px;color:var(--muted);">${label}</span>
+        <span style="font-size:13px;text-align:center;">${dot(d.recovery, 'score')}</span>
+        <span style="font-size:13px;text-align:center;">${dot(d.sleep, 'score')}</span>
+        <span style="font-size:13px;text-align:center;">${dot(d.strain, 'strain')}</span>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function _renderWhoopChart(mode) {
+  const wd = state.whoop_data;
+  if (!wd) return;
+  const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const canvas = document.getElementById('chart-whoop');
+  if (!canvas) return;
+  if (_whoopChart) { _whoopChart.destroy(); _whoopChart = null; }
+
+  let points, color, label, unit, yMin, yMax;
+
+  if (mode === 'recovery') {
+    const data = [...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date)).slice(-14);
+    points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: r.score }));
+    color = '#22c55e'; label = 'Récupération (%)'; unit = '%'; yMin = 0; yMax = 100;
+  } else if (mode === 'sleep') {
+    const data = [...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date)).slice(-14);
+    points = data.map(s => ({ x: new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: s.performance_pct }));
+    color = '#3b82f6'; label = 'Sommeil (%)'; unit = '%'; yMin = 0; yMax = 100;
+  } else {
+    const data = [...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date)).slice(-14);
+    points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
+    color = '#f59e0b'; label = 'Charge (Strain)'; unit = ''; yMin = 0; yMax = 21;
+  }
+
+  if (!points.length) return;
+
+  _whoopChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: points.map(p => p.x),
+      datasets: [{
+        data: points.map(p => p.y),
+        borderColor: color,
+        backgroundColor: color + '18',
+        borderWidth: 2.5,
+        pointBackgroundColor: color,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => c.raw + unit } }
+      },
+      scales: {
+        x: { ticks: { color: isDark ? '#888' : '#999', font: { size: 9 } }, grid: { display: false } },
+        y: {
+          min: yMin, max: yMax,
+          ticks: { color: isDark ? '#888' : '#999', font: { size: 9 }, callback: v => v + unit },
+          grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+}
+
+function switchWhoopChart(mode) {
+  _whoopChartMode = mode;
+  const tabs = { recovery: '#22c55e', sleep: '#3b82f6', strain: '#f59e0b' };
+  Object.entries(tabs).forEach(([k, col]) => {
+    const t = document.getElementById('wtab-' + k);
+    if (!t) return;
+    if (k === mode) { t.style.background = col; t.style.color = '#fff'; }
+    else { t.style.background = 'var(--bg2)'; t.style.color = 'var(--muted)'; }
+  });
+  _renderWhoopChart(mode);
 }
 
 let curRenfo=1;

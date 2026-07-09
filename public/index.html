@@ -211,6 +211,29 @@
 <!-- STATS -->
 <div id="sc-stats" style="display:none;padding:16px;background:#EDF2FB;min-height:100vh;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;">Statistiques</p>
+  <!-- Bloc WHOOP Stats (admin uniquement) -->
+  <div id="whoop-stats-section" style="display:none;margin-bottom:24px;">
+    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">WHOOP — Récupération & Bien-être</p>
+    <!-- KPIs du jour -->
+    <div id="whoop-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
+    <!-- Graphique évolution -->
+    <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution sur 14 jours</p>
+        <div style="display:flex;gap:4px;" id="whoop-chart-tabs">
+          <button onclick="switchWhoopChart('recovery')" id="wtab-recovery" style="padding:3px 9px;border-radius:20px;border:none;background:#22c55e;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">Récup</button>
+          <button onclick="switchWhoopChart('sleep')" id="wtab-sleep" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Sommeil</button>
+          <button onclick="switchWhoopChart('strain')" id="wtab-strain" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Charge</button>
+        </div>
+      </div>
+      <div style="position:relative;width:100%;height:160px;">
+        <canvas id="chart-whoop"></canvas>
+      </div>
+    </div>
+    <!-- Tableau 7 derniers jours -->
+    <div id="whoop-history-table" style="background:var(--bg);border-radius:14px;border:1px solid var(--border);overflow:hidden;"></div>
+  </div>
+
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Volume par semaine (km)</p>
   <div style="position:relative;width:100%;height:260px;margin-bottom:20px;">
     <canvas id="chart-km"></canvas>
@@ -433,13 +456,21 @@
   </div>
   <!-- WHOOP Integration (admin uniquement) -->
   <div id="whoop-panel" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;margin-top:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:18px;">⚡</span>
-        <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">WHOOP</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="font-size:18px;line-height:1;">⚡</span>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;line-height:1.2;">WHOOP</p>
         <span id="whoop-status" style="font-size:11px;color:#f59e0b;">Non connecté</span>
       </div>
-      <button id="whoop-connect-btn" onclick="connectWhoop()" style="background:#1B4FD8;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;">⚡ Connecter</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <button id="whoop-disconnect-btn" onclick="disconnectWhoop()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
+        <button id="whoop-connect-btn" onclick="connectWhoop()" style="background:#1B4FD8;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+          Synchroniser
+        </button>
+      </div>
     </div>
     <div id="whoop-data-panel" style="display:none;"></div>
   </div>
