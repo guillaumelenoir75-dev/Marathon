@@ -201,7 +201,17 @@ function renderHome(){
   const fcReposWrap=document.getElementById('fc-repos-btn');
   if(fcReposWrap) fcReposWrap.parentElement.style.display=getPref('show_fc_repos')?'flex':'none';
   const wakeupBtn = document.getElementById('wakeup-btn');
-  if(wakeupBtn) wakeupBtn.style.display = isAdmin() ? 'flex' : 'none';
+  if (wakeupBtn) {
+    if (!isAdmin()) {
+      wakeupBtn.style.display = 'none';
+    } else {
+      wakeupBtn.style.display = 'flex';
+      const wakeupDate = (typeof _getWakeupDate === 'function') ? _getWakeupDate() : new Date().toISOString().slice(0, 10);
+      if (state['_wakeup_' + wakeupDate]) {
+        if (typeof _setWakeupBtnDone === 'function') _setWakeupBtnDone(wakeupBtn);
+      }
+    }
+  }
   const vo2Wrap=vo2El?vo2El.closest('div[onclick]'):null;
   if(vo2Wrap) vo2Wrap.style.display=getPref('show_vo2max')?'flex':'none';
   const wtEl=document.getElementById('week-total-km');

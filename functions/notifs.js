@@ -21,22 +21,22 @@ const {
 
 exports.fcReposReminderWeekday = onSchedule(
   {schedule:'58 7 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'🌅 En piste !',"Enregistre ton réveil pour recevoir ton brief du matin",'fc-repos','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminderWeekday:',e.message);}}
 );
 
 exports.fcReposReminderWeekend = onSchedule(
   {schedule:'30 9 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'🌅 En piste !',"Enregistre ton réveil pour recevoir ton brief du matin",'fc-repos','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel ☀️','Rentre ta FC repos avant de te lever ❤️','fc-repos','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminderWeekend:',e.message);}}
 );
 
 exports.fcReposReminder14hWeekday = onSchedule(
   {schedule:'0 14 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"N'oublie pas de rentrer ta FC repos aujourd'hui ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'🌅 En piste !',"Tu n'as pas encore enregistré ton réveil aujourd'hui 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"N'oublie pas de rentrer ta FC repos aujourd'hui ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
 );
 
 exports.fcReposReminder14hWeekend = onSchedule(
   {schedule:'0 14 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/fc_repos_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"Tu n'as pas encore rentré ta FC repos aujourd'hui ❤️",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"N'oublie pas de rentrer ta FC repos aujourd'hui ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'🌅 En piste !',"Tu n'as pas encore enregistré ton réveil aujourd'hui 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'Rappel',"N'oublie pas de rentrer ta FC repos aujourd'hui ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
 );
 
 exports.sessionReminder = onSchedule(
@@ -236,6 +236,36 @@ exports.briefAfterFcRepos = onSchedule(
       const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
       const fcToday=state['fc_repos_'+todayStr]||null;
+
+      // ── Récupérer les données WHOOP ───────────────────────────────────────────
+      const wd=state['whoop_data']||(state.whoop_data)||null;
+      let whoopBlock='';
+      if(wd){
+        const r=wd.recoveries&&wd.recoveries[0];
+        const s=wd.sleeps&&wd.sleeps[0];
+        const cy=wd.cycles&&wd.cycles[0];
+        const lines=[];
+        if(r){
+          if(r.score!=null)lines.push(`Score de récupération WHOOP : ${r.score}% (${r.score>=67?'VERT — bonne forme':r.score>=34?'JAUNE — modéré':'ROUGE — fatigue'})`);
+          if(r.rhr)lines.push(`FC repos WHOOP : ${r.rhr} bpm`);
+          if(r.hrv)lines.push(`HRV : ${Math.round(r.hrv)} ms`);
+          if(r.spo2)lines.push(`SpO2 : ${Math.round(r.spo2*10)/10}%`);
+        }
+        if(s){
+          if(s.duration_hours)lines.push(`Durée de sommeil : ${s.duration_hours}`);
+          if(s.performance_pct!=null)lines.push(`Performance sommeil : ${s.performance_pct}%`);
+          if(s.rem_pct)lines.push(`REM : ${s.rem_pct}%`);
+          if(s.efficiency_pct)lines.push(`Efficacité sommeil : ${s.efficiency_pct}%`);
+        }
+        if(cy&&cy.strain!=null)lines.push(`Charge WHOOP (strain) : ${Math.round(cy.strain*10)/10}`);
+        // Historique 7j pour comparaison
+        const hist7=(wd.recoveries||[]).slice(0,7);
+        if(hist7.length>1){
+          const scores=hist7.filter(x=>x.score!=null).map(x=>x.score);
+          if(scores.length>1){const avg7=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);lines.push(`Moyenne récup 7 derniers jours : ${avg7}%`);}
+        }
+        if(lines.length>0)whoopBlock='\nDonnées WHOOP du matin :\n'+lines.join('\n');
+      }
       const now=new Date();
       const dow=now.getDay();
       const joursLong=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
@@ -337,11 +367,13 @@ exports.briefAfterFcRepos = onSchedule(
 
 STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
 
-1. ❤️ FC REPOS — toujours en premier. Valeur du jour en **gras**, comparaison moyenne 7j. Une phrase sur la récup.
+1. 😴 RÉCUPÉRATION & SOMMEIL WHOOP — si données WHOOP disponibles : score de récupération en **gras** avec couleur (Vert/Jaune/Rouge), HRV, FC repos. Durée sommeil et qualité en **gras**. Comparaison avec les 7 derniers jours. Interprétation courte : qu'est-ce que ça dit pour l'entraînement d'aujourd'hui ?
 
-2. 🎯 SÉANCE DU JOUR — annoncer la ou les activités. Titre, distance, heure. Ne jamais écrire "récupération" si un renfo est prévu.
+2. ❤️ FC REPOS — valeur du jour en **gras**, comparaison moyenne 7j. Une phrase sur la récup.
 
-3. ⚡ CONSIGNES ALLURE & TECHNIQUE — pour chaque run du jour :
+3. 🎯 SÉANCE DU JOUR — annoncer la ou les activités. Titre, distance, heure. Ne jamais écrire "récupération" si un renfo est prévu.
+
+4. ⚡ CONSIGNES ALLURE & TECHNIQUE — pour chaque run du jour :
    - Si chaleur (≥ 25°C) : donner EN PREMIER l'allure AJUSTÉE chaleur en **gras** (fournie dans le contexte), puis expliquer que c'est normal de ralentir. NE PAS donner l'allure de référence comme cible principale.
    - Si temps normal (< 25°C) : allure de référence en **gras**, FC cible en **gras**.
    - Si FC > 148 → ralentir immédiatement.
@@ -349,18 +381,18 @@ STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
    - EF Long ≥ 10km : stratégie gel — 1 gel toutes les **45 min**, premier à **40 min**. Calculer le nombre de gels selon la distance/durée estimée et l'indiquer en **gras**.
    - Renfo : nommer les exercices clés.
 
-4. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km :
+5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km :
    - Si séance le MATIN (avant 11h) : Guillaume court À JEUN. Rappeler fenêtre post-run **30 min** — shaker protéines + glucides.
    - Si séance L'APRÈS-MIDI ou LE SOIR (11h ou plus tard) : PAS À JEUN. Conseiller un repas léger 2-3h avant (riz, pâtes, banane). Fenêtre post-run **30 min** — shaker.
    - Si chaleur ≥ 28°C : rappeler de s'hydrater avant le départ, boire toutes les **15-20 min**.
 
 RÈGLES ABSOLUES :
-- Jamais plus de 4 blocs. Zéro #. Données chiffrées en **gras**.
+- Maximum 5 blocs (4 si pas de données WHOOP). Zéro #. Données chiffrées en **gras**.
 - INTERDIT : parler du reste de la semaine, des séances passées, du marathon général.
 - Ton direct, coach. Pas de tirets en début de paragraphe.`;
 
       const userMsg=`${dateComplet}
-${fcLine}
+${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
 Heure de la séance : ${seanceHeure||'non définie'}
 ${meteoStr||'Météo : non disponible'}
@@ -371,7 +403,7 @@ ${memosLine}`;
 
       let briefContent='';
       try{
-        const resp=await callAnthropic(ANTHROPIC_API_KEY.value(),system,[{role:'user',content:userMsg}],700);
+        const resp=await callAnthropic(ANTHROPIC_API_KEY.value(),system,[{role:'user',content:userMsg}],900);
         briefContent=resp||'';
       }catch(e){console.error('briefAfterFcRepos AI error:',e.message);}
 

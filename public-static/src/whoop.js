@@ -218,21 +218,55 @@ function _renderWhoopPanel(wd, panel) {
   panel.style.display = 'block';
 }
 
-// Bouton "Je suis réveillé" : sync WHOOP + brief matinal
+function _getWakeupDate() {
+  const now = new Date();
+  if (now.getHours() < 3) {
+    const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
+    return yesterday.toISOString().slice(0, 10);
+  }
+  return now.toISOString().slice(0, 10);
+}
+
+function _setWakeupBtnDone(btn) {
+  if (!btn) return;
+  btn.disabled = true;
+  btn.innerHTML = '✓ Réveil enregistré';
+  btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+  btn.style.opacity = '1';
+}
+
+// Bouton "Je suis réveillé" : enregistre le réveil, sync WHOOP, déclenche le brief
 async function onWakeup() {
   const btn = document.getElementById('wakeup-btn');
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = '⏳ Enregistrement…'; }
+
+  const wakeupDate = _getWakeupDate();
+  const wakeupKey = '_wakeup_' + wakeupDate;
+
   try {
+    // 1. Sauvegarder le réveil en Firebase
+    if (dbRef) {
+      await dbRef.child(wakeupKey).set(true);
+      state[wakeupKey] = true;
+    }
+
+    // 2. Mettre à jour le bouton immédiatement
+    _setWakeupBtnDone(btn);
+
+    // 3. Synchroniser WHOOP
     if (state.whoop_token && state.whoop_token.access_token) {
       await syncWhoop();
     }
-    if (typeof checkMorningBrief === 'function') {
-      let memos = [];
-      try { memos = state._memos ? JSON.parse(state._memos) : []; } catch(_) {}
-      await checkMorningBrief(memos, true);
+
+    // 4. Déclencher le brief côté serveur (génération IA + push notif)
+    if (dbRef) {
+      await dbRef.child('_brief_trigger').set({ ts: Date.now(), date: wakeupDate });
     }
-  } finally {
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+
+  } catch(e) {
+    console.error('onWakeup error:', e);
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '🌅 Je suis réveillé'; btn.style.background = ''; }
   }
 }
 
