@@ -230,16 +230,18 @@ function _getWakeupDate() {
 function _setWakeupBtnDone(btn) {
   if (!btn) return;
   btn.disabled = true;
-  btn.innerHTML = '✓ Réveil enregistré';
-  btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+  btn.style.cursor = 'default';
+  btn.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
+  btn.style.boxShadow = '0 4px 14px rgba(34,197,94,0.45)';
   btn.style.opacity = '1';
+  btn.innerHTML = '<span style="font-size:15px;line-height:1;">✅</span><span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:0.2px;">Réveil enregistré</span>';
 }
 
 // Bouton "Je suis réveillé" : enregistre le réveil, sync WHOOP, déclenche le brief
 async function onWakeup() {
   const btn = document.getElementById('wakeup-btn');
   if (btn && btn.disabled) return;
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = '⏳ Enregistrement…'; }
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.innerHTML = '<span style="font-size:15px;line-height:1;">⏳</span><span style="font-size:12px;font-weight:800;color:#fff;">Enregistrement…</span>'; }
 
   const wakeupDate = _getWakeupDate();
   const wakeupKey = '_wakeup_' + wakeupDate;
@@ -266,7 +268,7 @@ async function onWakeup() {
 
   } catch(e) {
     console.error('onWakeup error:', e);
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '🌅 Je suis réveillé'; btn.style.background = ''; }
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.innerHTML = '<span style="font-size:15px;line-height:1;">☀️</span><span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:0.2px;">Je suis réveillé</span>'; btn.style.background = 'linear-gradient(135deg,#f97316,#fbbf24)'; }
   }
 }
 
