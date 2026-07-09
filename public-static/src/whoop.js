@@ -114,39 +114,16 @@ async function syncWhoop() {
           state.whoop_data = wd;
           _renderWhoopPanel(wd, panel);
         }
-        // Debug affiché APRÈS le render pour ne pas être écrasé
-        if (data._debug) {
-          const d = data._debug;
-          const debugDiv = document.createElement('div');
-          debugDiv.style.cssText = 'background:#f1f5f9;border-radius:8px;padding:10px;font-size:10px;font-family:monospace;color:#334155;margin-top:8px;word-break:break-all;';
-          debugDiv.innerHTML = `<p style="margin:0 0 4px;font-weight:700;font-size:11px;">🔍 DEBUG WHOOP</p>
-            <p style="margin:2px 0;color:#f59e0b;">scope: ${d.token_scope || '?'}</p>
-            <p style="margin:2px 0;">profil: ${d.profile ? JSON.stringify(d.profile).slice(0,100) : (d.profile_error ? '❌ '+d.profile_error : '—')}</p>
-            <p style="margin:2px 0;">recovery: ${d.recovery_fetched ?? 0} fetched | sample status=${d.recovery_sample_status ?? '?'} ${d.recovery_sample_body ? '| '+d.recovery_sample_body.slice(0,60) : ''}</p>
-            <p style="margin:2px 0;">/activity/sleep: ${d.sleep_status ?? '?'} ${d.sleep_error ? '❌ '+d.sleep_error.slice(0,50) : (d.sleep_raw_count > 0 ? '✅ '+d.sleep_raw_count+' records' : '')}</p>
-            <p style="margin:2px 0;">/sleep (no param): ${d.sleep2_status ?? '?'} ${d.sleep2_error ? '❌ '+d.sleep2_error.slice(0,50) : (d.sleep2_raw_count > 0 ? '✅ '+d.sleep2_raw_count+' records' : '')}</p>
-            <p style="margin:2px 0;">/activity/workout: ${d.workout_status ?? '?'} ${d.workout_error ? '❌ '+d.workout_error.slice(0,50) : (d.workout_raw_count > 0 ? '✅ '+d.workout_raw_count+' records' : '')}</p>
-            <p style="margin:2px 0;">/workout: ${d.workout2_status ?? '?'} ${d.workout2_error ? '❌ '+d.workout2_error.slice(0,50) : (d.workout2_raw_count > 0 ? '✅ '+d.workout2_raw_count+' records' : '')}</p>
-            <p style="margin:2px 0;">cycle: status=${d.cycle_status ?? '?'} | ${d.cycle_raw_count ?? 0} records</p>
-            ${d.cycle_first ? `<p style="margin:2px 0;color:#0ea5e9;">cycle[0] raw: ${d.cycle_raw_full ? d.cycle_raw_full.slice(0,500) : (d.single_cycle_error || '?')}</p>` : ''}
-            <p style="margin:2px 0;">cycle[1]/recovery: ${d.cycle1_recovery_status ?? '?'} ${d.cycle1_recovery ? '✅ '+d.cycle1_recovery.slice(0,80) : (d.cycle1_recovery_error ? '❌ '+d.cycle1_recovery_error.slice(0,60) : '')}</p>
-            ${d.cycle1_raw ? `<p style="margin:2px 0;color:#f59e0b;">cycle[1] raw: ${d.cycle1_raw.slice(0,200)}</p>` : ''}
-            <p style="margin:2px 0;">/recovery (direct): ${d.recovery_direct_status ?? '?'} ${d.recovery_direct_error ? '❌ '+d.recovery_direct_error.slice(0,60) : (d.recovery_direct_raw_count > 0 ? '✅ '+d.recovery_direct_raw_count+' records' : '')}</p>
-            <p style="margin:2px 0;">/recovery/collection: ${d.recovery_collection_status ?? '?'} ${d.recovery_collection_data ? '✅ '+d.recovery_collection_data.slice(0,80) : (d.recovery_collection_error ? '❌ '+d.recovery_collection_error.slice(0,60) : '')}</p>
-            <p style="margin:2px 0;">/user/measurement/body: ${d.body_meas_status ?? '?'} ${d.body_meas_error ? '❌ '+d.body_meas_error.slice(0,40) : '✅'}</p>
-            ${d.recovery_first ? `<p style="margin:4px 0;color:#0ea5e9;">rec[0]: ${JSON.stringify(d.recovery_first).slice(0,150)}</p>` : ''}
-            ${d.sleep_first ? `<p style="margin:2px 0;color:#0ea5e9;">sleep[0]: ${JSON.stringify(d.sleep_first).slice(0,150)}</p>` : ''}`;
-          if (panel) { panel.style.display = 'block'; panel.appendChild(debugDiv); }
-        }
       });
     }
 
     if (status) { status.textContent = 'Synchronisé à l\'instant'; status.style.color = '#22c55e'; }
     if (btn) { btn.disabled = false; btn.textContent = '🔄 Synchroniser WHOOP'; btn.onclick = syncWhoop; }
 
-    // Auto-remplir la FC repos si disponible
-    if (data.rhr) {
-      _autoFillFcRepos(data.rhr);
+    // Auto-remplir la FC repos (vraie RHR si recovery dispo, sinon proxy avg_hr cycle)
+    const rhrValue = data.rhr || data.rhr_proxy;
+    if (rhrValue) {
+      _autoFillFcRepos(rhrValue);
     }
 
   } catch(e) {
@@ -216,12 +193,13 @@ function _renderWhoopPanel(wd, panel) {
     </div>`;
   }
 
-  // Strain
+  // Strain / FC proxy
   if (cy) {
     html += `<div style="background:#fefce8;border-radius:10px;padding:10px;">
       <p style="font-size:10px;font-weight:700;color:#854d0e;margin:0 0 4px;text-transform:uppercase;">Charge du jour</p>
       ${cy.strain != null ? `<p style="font-size:22px;font-weight:800;color:#d97706;margin:0;">${Math.round(cy.strain * 10) / 10}</p><p style="font-size:10px;color:#555;margin:0;">Strain</p>` : '<p style="font-size:13px;color:#888;margin:0;">—</p>'}
       ${cy.calories ? `<p style="font-size:11px;color:#555;margin:4px 0 0;">Calories : <strong>${cy.calories} kcal</strong></p>` : ''}
+      ${!r && cy.avg_hr ? `<p style="font-size:11px;color:#888;margin:4px 0 0;">FC moy : <strong>${cy.avg_hr} bpm</strong></p>` : ''}
     </div>`;
   }
 
@@ -260,7 +238,7 @@ function _renderWhoopPanel(wd, panel) {
 // Enrichir le contexte coach avec les données WHOOP
 function buildWhoopContext() {
   const wd = state.whoop_data;
-  if (!wd || !wd.recoveries || wd.recoveries.length === 0) return null;
+  if (!wd || (!wd.cycles?.length && !wd.recoveries?.length)) return null;
 
   const r = wd.recoveries[0];
   const s = wd.sleeps && wd.sleeps[0];
@@ -282,8 +260,11 @@ function buildWhoopContext() {
       efficiency_pct: s.efficiency_pct,
       rem_pct: s.rem_pct
     } : null,
-    strain_today: cy ? { date: cy.date, strain: cy.strain, calories: cy.calories } : null,
-    historique_7j: wd.recoveries.slice(0, 7).map(rec => ({
+    strain_today: cy ? { date: cy.date, strain: cy.strain, calories: cy.calories, avg_hr: cy.avg_hr } : null,
+    historique_cycles_7j: (wd.cycles || []).slice(0, 7).map(c => ({
+      date: c.date, strain: c.strain, avg_hr: c.avg_hr, calories: c.calories
+    })),
+    historique_recovery_7j: (wd.recoveries || []).slice(0, 7).map(rec => ({
       date: rec.date,
       recovery_score: rec.score,
       rhr: rec.rhr,

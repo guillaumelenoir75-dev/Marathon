@@ -20,7 +20,6 @@ async function getValidWhoopToken(db) {
 
   if (Date.now() / 1000 <= token.expires_at - 300) return token.access_token;
 
-  // Rafraîchir
   const body = new URLSearchParams({
     client_id: WHOOP_CLIENT_ID.value(),
     client_secret: WHOOP_CLIENT_SECRET.value(),
@@ -46,7 +45,6 @@ async function getValidWhoopToken(db) {
   return refreshed.access_token;
 }
 
-// Étape 1 : redirige vers la page d'autorisation WHOOP
 exports.whoopAuth = onRequest(
   { secrets: [WHOOP_CLIENT_ID], cors: true },
   (req, res) => {
@@ -57,7 +55,6 @@ exports.whoopAuth = onRequest(
   }
 );
 
-// Étape 2 : WHOOP rappelle ici avec le code
 exports.whoopCallback = onRequest(
   { secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET], cors: true },
   async (req, res) => {
@@ -70,7 +67,6 @@ exports.whoopCallback = onRequest(
         <h3 style="color:#ef4444;">❌ Erreur WHOOP</h3>
         <p>Erreur : <strong>${error || 'inconnue'}</strong></p>
         ${errorDesc ? `<p>Détail : ${errorDesc}</p>` : ''}
-        <p style="font-size:12px;color:#888;">Paramètres reçus : ${JSON.stringify(req.query)}</p>
       </body></html>`);
       return;
     }
@@ -94,7 +90,6 @@ exports.whoopCallback = onRequest(
       if (!tokenData.access_token) throw new Error('Token non reçu: ' + JSON.stringify(tokenData));
 
       const db = admin.database();
-      console.log('whoopCallback token scope:', tokenData.scope);
       await db.ref(`users/${ADMIN_UID}/state/whoop_token`).set({
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
@@ -115,7 +110,6 @@ exports.whoopCallback = onRequest(
   }
 );
 
-// Étape 3 : synchroniser les données WHOOP (recovery, sleep, workout, cycles)
 exports.whoopSync = onRequest(
   { secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET], timeoutSeconds: 60, memory: '256MiB', cors: true },
   async (req, res) => {
@@ -129,191 +123,111 @@ exports.whoopSync = onRequest(
       const accessToken = await getValidWhoopToken(db);
       if (!accessToken) { res.json({ success: false, needsAuth: true }); return; }
 
-      const debugInfo = {};
-      const tokenSnap = await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value');
-      debugInfo.token_scope = tokenSnap.val()?.scope || 'non enregistré';
-
-      const whoopGet = async (key, path) => {
-        const url = `${WHOOP_API_BASE}${path}`;
-        const r = await fetchWithTimeout(url, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json'
-          }
+      const whoopGet = async (path) => {
+        const r = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
         }, 20000);
-        debugInfo[`${key}_status`] = r.status;
-        if (!r.ok) {
-          const body = await r.text().catch(() => '');
-          debugInfo[`${key}_error`] = body.slice(0, 300);
-          console.warn(`WHOOP ${key} ${r.status}: ${body}`);
-          return { records: [] };
-        }
-        const json = await r.json();
-        debugInfo[`${key}_raw_count`] = (json.records || []).length;
-        if (key === 'recovery' && json.records && json.records[0]) debugInfo.recovery_first = json.records[0];
-        if (key === 'sleep' && json.records && json.records[0]) debugInfo.sleep_first = json.records[0];
-        return json;
+        if (!r.ok) return null;
+        return r.json();
       };
 
-      // Profil pour vérifier le token
-      const profileRaw = await fetchWithTimeout(`${WHOOP_API_BASE}/user/profile/basic`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      }, 10000);
-      if (profileRaw.ok) {
-        debugInfo.profile = await profileRaw.json();
-      } else {
-        debugInfo.profile_error = profileRaw.status;
-      }
-
-      const qs = '?limit=10';
-      const [sleepResp, sleepNoParam, workoutResp, workoutNoParam, cycleResp, recoveryDirectResp] = await Promise.all([
-        whoopGet('sleep', `/activity/sleep${qs}`),
-        whoopGet('sleep2', `/sleep`),
-        whoopGet('workout', `/activity/workout${qs}`),
-        whoopGet('workout2', `/workout`),
-        whoopGet('cycle', `/cycle${qs}`),
-        whoopGet('recovery_direct', `/recovery?limit=5`)
+      // Cycles : disponibles en dev. Sleep/workout/recovery : disponibles après approbation prod WHOOP.
+      const [cycleJson, sleepJson, workoutJson, recoveryJson] = await Promise.all([
+        whoopGet('/cycle?limit=14'),
+        whoopGet('/activity/sleep?limit=14'),
+        whoopGet('/activity/workout?limit=14'),
+        whoopGet('/recovery?limit=14')
       ]);
 
-      // Log premier cycle + tester /cycle/{id} et /user/measurement/body
-      if (cycleResp.records && cycleResp.records[0]) {
-        const c0 = cycleResp.records[0];
-        debugInfo.cycle_first = { id: c0.id, start: c0.start, end: c0.end, strain: c0.score?.strain };
+      const cycles = (cycleJson?.records || [])
+        .filter(c => c.score_state === 'SCORED' && c.start)
+        .map(c => ({
+          date: c.start.slice(0, 10),
+          strain: c.score?.strain ?? null,
+          avg_hr: c.score?.average_heart_rate ?? null,
+          max_hr: c.score?.max_heart_rate ?? null,
+          calories: c.score?.kilojoule ? Math.round(c.score.kilojoule * 0.239) : null
+        }));
 
-        // Voir le raw complet d'un cycle individuel + second cycle
-        const [singleCycle, bodyMeas] = await Promise.all([
-          fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c0.id}`, {
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-          }, 10000),
-          fetchWithTimeout(`${WHOOP_API_BASE}/user/measurement/body`, {
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-          }, 10000)
-        ]);
-        debugInfo.single_cycle_status = singleCycle.status;
-        debugInfo.body_meas_status = bodyMeas.status;
-        if (singleCycle.ok) {
-          const raw = await singleCycle.json();
-          debugInfo.cycle_raw_full = JSON.stringify(raw).slice(0, 1500);
-        } else {
-          debugInfo.single_cycle_error = (await singleCycle.text().catch(() => '')).slice(0, 100);
-        }
-        if (!bodyMeas.ok) debugInfo.body_meas_error = (await bodyMeas.text().catch(() => '')).slice(0, 100);
+      const sleeps = (sleepJson?.records || [])
+        .filter(s => s.start)
+        .map(s => {
+          const ss = s.score?.stage_summary;
+          const totalMs = ss?.total_in_bed_time_milli || 0;
+          const remMs = ss?.total_rem_sleep_time_milli || 0;
+          return {
+            date: s.start.slice(0, 10),
+            duration_hours: totalMs ? Math.round(totalMs / 36000) / 100 : null,
+            performance_pct: s.score?.sleep_performance_percentage ?? null,
+            efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
+            rem_pct: totalMs && remMs ? Math.round(remMs / totalMs * 100) : null
+          };
+        });
 
-        // Tester le 2ème cycle (cycle précédent terminé) + /recovery/collection
-        if (cycleResp.records[1]) {
-          const c1 = cycleResp.records[1];
-          const [rec1, c1detail, recovColl] = await Promise.all([
-            fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c1.id}/recovery`, {
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            }, 10000),
-            fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c1.id}`, {
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            }, 10000),
-            fetchWithTimeout(`${WHOOP_API_BASE}/recovery/collection?limit=3`, {
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            }, 10000)
-          ]);
-          debugInfo.cycle1_recovery_status = rec1.status;
-          if (rec1.ok) debugInfo.cycle1_recovery = JSON.stringify(await rec1.json()).slice(0, 200);
-          else debugInfo.cycle1_recovery_error = (await rec1.text().catch(() => '')).slice(0, 80);
-          if (c1detail.ok) {
-            const c1raw = await c1detail.json();
-            debugInfo.cycle1_raw = JSON.stringify(c1raw).slice(0, 300);
-          }
-          debugInfo.recovery_collection_status = recovColl.status;
-          if (!recovColl.ok) debugInfo.recovery_collection_error = (await recovColl.text().catch(() => '')).slice(0, 80);
-          else debugInfo.recovery_collection_data = JSON.stringify(await recovColl.json()).slice(0, 200);
-        }
-      }
+      const workouts = (workoutJson?.records || [])
+        .filter(w => w.start)
+        .map(w => ({
+          date: w.start.slice(0, 10),
+          sport_id: w.sport_id,
+          strain: w.score?.strain ?? null,
+          avg_hr: w.score?.average_heart_rate ?? null,
+          max_hr: w.score?.max_heart_rate ?? null,
+          calories: w.score?.kilojoule ? Math.round(w.score.kilojoule * 0.239) : null,
+          duration_min: w.start && w.end ? Math.round((new Date(w.end) - new Date(w.start)) / 60000) : null
+        }));
 
-      // Recovery est rattachée à chaque cycle : GET /cycle/{id}/recovery
-      const cycleRecords = (cycleResp.records || []).slice(0, 5);
-      const recoveryResults = await Promise.all(
-        cycleRecords.map(async (cy) => {
-          const url = `${WHOOP_API_BASE}/cycle/${cy.id}/recovery`;
-          const r = await fetchWithTimeout(url, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          }, 10000);
-          if (!r.ok) {
-            const body = await r.text().catch(() => '');
-            debugInfo.recovery_sample_status = r.status;
-            debugInfo.recovery_sample_body = body.slice(0, 100);
-            return null;
-          }
-          return r.json();
-        })
-      );
-      debugInfo.recovery_fetched = recoveryResults.filter(Boolean).length;
-
-      const recoveries = recoveryResults
-        .filter(r => r && r.cycle_id)
+      const recoveries = (recoveryJson?.records || [])
+        .filter(r => r.created_at)
         .map(r => ({
-          date: r.created_at ? r.created_at.slice(0, 10) : null,
-          score: r.score ? r.score.recovery_score : null,
-          rhr: r.score ? r.score.resting_heart_rate : null,
-          hrv: r.score ? r.score.hrv_rms_sd : null,
-          spo2: r.score ? r.score.spo2_percentage : null
-        })).filter(r => r.date);
+          date: r.created_at.slice(0, 10),
+          score: r.score?.recovery_score ?? null,
+          rhr: r.score?.resting_heart_rate ?? null,
+          hrv: r.score?.hrv_rms_sd ?? null,
+          spo2: r.score?.spo2_percentage ?? null
+        }));
 
-      const sleeps = (sleepResp.records || []).map(s => {
-        const ss = s.score && s.score.stage_summary;
-        const totalMs = ss ? ss.total_in_bed_time_milli : 0;
-        const remMs = ss ? ss.total_rem_sleep_time_milli : 0;
-        return {
-          date: s.start ? s.start.slice(0, 10) : null,
-          duration_hours: totalMs ? Math.round(totalMs / 36000) / 100 : null,
-          performance_pct: s.score ? s.score.sleep_performance_percentage : null,
-          efficiency_pct: s.score ? s.score.sleep_efficiency_percentage : null,
-          rem_pct: totalMs && remMs ? Math.round(remMs / totalMs * 100) : null
-        };
-      }).filter(s => s.date);
-
-      const workouts = (workoutResp.records || []).map(w => ({
-        date: w.start ? w.start.slice(0, 10) : null,
-        sport_id: w.sport_id,
-        strain: w.score ? w.score.strain : null,
-        avg_hr: w.score ? w.score.average_heart_rate : null,
-        max_hr: w.score ? w.score.max_heart_rate : null,
-        calories: w.score && w.score.kilojoule ? Math.round(w.score.kilojoule * 0.239) : null,
-        duration_min: w.start && w.end ? Math.round((new Date(w.end) - new Date(w.start)) / 60000) : null
-      })).filter(w => w.date);
-
-      const cycles = (cycleResp.records || []).map(c => ({
-        date: c.start ? c.start.slice(0, 10) : null,
-        strain: c.score ? c.score.strain : null,
-        avg_hr: c.score ? c.score.average_heart_rate : null,
-        calories: c.score && c.score.kilojoule ? Math.round(c.score.kilojoule * 0.239) : null
-      })).filter(c => c.date);
-
+      // FC repos : depuis recovery si dispo, sinon avg_hr du cycle du jour (proxy)
       const latestRecovery = recoveries[0] || null;
-      const rhr = latestRecovery ? latestRecovery.rhr : null;
+      const rhr = latestRecovery?.rhr ?? null;
+
+      // Proxy FC repos depuis le cycle le plus récent complété (avg_hr journalier)
+      const latestCompletedCycle = cycles.find(c => c.avg_hr !== null);
+      const rhrProxy = rhr ?? latestCompletedCycle?.avg_hr ?? null;
+
+      const latestStrain = cycles[0]?.strain ?? null;
 
       await db.ref(`users/${ADMIN_UID}/state/whoop_data`).set({
         updatedAt: new Date().toISOString(),
-        recoveries: recoveries.slice(0, 14),
+        cycles: cycles.slice(0, 14),
         sleeps: sleeps.slice(0, 14),
         workouts: workouts.slice(0, 14),
-        cycles: cycles.slice(0, 14),
-        latest_rhr: rhr || null,
-        latest_recovery_score: latestRecovery ? latestRecovery.score : null,
-        latest_hrv: latestRecovery ? latestRecovery.hrv : null
+        recoveries: recoveries.slice(0, 14),
+        latest_strain: latestStrain,
+        latest_rhr: rhr,
+        latest_rhr_proxy: rhrProxy,
+        latest_recovery_score: latestRecovery?.score ?? null,
+        latest_hrv: latestRecovery?.hrv ?? null
       });
 
       // Auto-fill fc_repos du jour sans écraser les mesures manuelles
-      if (rhr && latestRecovery && latestRecovery.date) {
-        await db.ref(`users/${ADMIN_UID}/state/fc_repos_${latestRecovery.date}`).transaction(existing => {
-          return existing === null ? rhr : existing;
+      if (rhrProxy) {
+        const today = new Date().toISOString().slice(0, 10);
+        await db.ref(`users/${ADMIN_UID}/state/fc_repos_${today}`).transaction(existing => {
+          return existing === null ? rhrProxy : existing;
         });
       }
 
       res.json({
         success: true,
+        strain: latestStrain,
         rhr,
-        recovery_score: latestRecovery ? latestRecovery.score : null,
-        hrv: latestRecovery ? latestRecovery.hrv : null,
-        recoveries: recoveries.slice(0, 7),
-        sleeps: sleeps.slice(0, 7),
-        _debug: debugInfo
+        rhr_proxy: rhrProxy,
+        recovery_score: latestRecovery?.score ?? null,
+        hrv: latestRecovery?.hrv ?? null,
+        cycles_count: cycles.length,
+        sleeps_count: sleeps.length,
+        workouts_count: workouts.length,
+        recoveries_count: recoveries.length
       });
     } catch(e) {
       console.error('whoopSync error:', e.message);
