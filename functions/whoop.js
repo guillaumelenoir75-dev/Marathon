@@ -94,10 +94,12 @@ exports.whoopCallback = onRequest(
       if (!tokenData.access_token) throw new Error('Token non reçu: ' + JSON.stringify(tokenData));
 
       const db = admin.database();
+      console.log('whoopCallback token scope:', tokenData.scope);
       await db.ref(`users/${ADMIN_UID}/state/whoop_token`).set({
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         expires_at: Math.floor(Date.now() / 1000) + (tokenData.expires_in || 3600),
+        scope: tokenData.scope || null,
         updatedAt: new Date().toISOString()
       });
 
@@ -128,6 +130,8 @@ exports.whoopSync = onRequest(
       if (!accessToken) { res.json({ success: false, needsAuth: true }); return; }
 
       const debugInfo = {};
+      const tokenSnap = await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value');
+      debugInfo.token_scope = tokenSnap.val()?.scope || 'non enregistré';
 
       const whoopGet = async (key, path) => {
         const url = `${WHOOP_API_BASE}${path}`;

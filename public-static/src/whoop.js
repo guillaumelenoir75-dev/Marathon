@@ -120,6 +120,7 @@ async function syncWhoop() {
           const debugDiv = document.createElement('div');
           debugDiv.style.cssText = 'background:#f1f5f9;border-radius:8px;padding:10px;font-size:10px;font-family:monospace;color:#334155;margin-top:8px;word-break:break-all;';
           debugDiv.innerHTML = `<p style="margin:0 0 4px;font-weight:700;font-size:11px;">🔍 DEBUG WHOOP</p>
+            <p style="margin:2px 0;color:#f59e0b;">scope: ${d.token_scope || '?'}</p>
             <p style="margin:2px 0;">profil: ${d.profile ? JSON.stringify(d.profile).slice(0,100) : (d.profile_error ? '❌ '+d.profile_error : '—')}</p>
             <p style="margin:2px 0;">recovery: ${d.recovery_fetched ?? 0} fetched | sample status=${d.recovery_sample_status ?? '?'} ${d.recovery_sample_body ? '| '+d.recovery_sample_body.slice(0,60) : ''}</p>
             <p style="margin:2px 0;">/activity/sleep: ${d.sleep_status ?? '?'} ${d.sleep_error ? '❌ '+d.sleep_error.slice(0,50) : (d.sleep_raw_count > 0 ? '✅ '+d.sleep_raw_count+' records' : '')}</p>
