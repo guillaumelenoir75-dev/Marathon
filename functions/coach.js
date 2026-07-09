@@ -1013,3 +1013,23 @@ RÈGLES DE MISE À JOUR — ESSENTIELLES :
     }
   }
 );
+
+exports.adminTriggerBrief = onRequest(
+  { cors: true },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    try {
+      const db = admin.database();
+      const ADMIN_STATE = `users/${ADMIN_UID}/state`;
+      const today = new Date().toISOString().slice(0, 10);
+      await db.ref(`${ADMIN_STATE}/_brief_fc_notif_${today}`).remove();
+      await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).remove();
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).set({ ts: Date.now(), date: today });
+      res.json({ success: true });
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+);

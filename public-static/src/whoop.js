@@ -287,6 +287,25 @@ async function onWakeup() {
   });
 })();
 
+async function adminTriggerBrief() {
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.style.opacity = '0.6'; btn.querySelector('span:last-child').textContent = '⏳ Déclenchement…';
+  try {
+    const token = await firebase.auth().currentUser?.getIdToken();
+    const resp = await fetch(FUNCTIONS_BASE + '/adminTriggerBrief', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: '{}'
+    });
+    const data = await resp.json();
+    if (data.success) {
+      btn.querySelector('span:last-child').textContent = '✅ Déclenché ! Push dans ~2 min…';
+      setTimeout(() => { btn.disabled = false; btn.style.opacity = '1'; btn.querySelector('span:last-child').textContent = 'Tester le brief matinal (push dans 2 min)'; }, 15000);
+    } else throw new Error(data.error);
+  } catch(e) {
+    btn.querySelector('span:last-child').textContent = '❌ Erreur : ' + e.message;
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
 // Enrichir le contexte coach avec les données WHOOP
 function buildWhoopContext() {
   const wd = state.whoop_data;
