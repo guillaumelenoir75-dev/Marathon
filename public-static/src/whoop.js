@@ -254,7 +254,7 @@ async function onWakeup() {
       const wd = state.whoop_data;
       const updatedAt = wd && wd.updatedAt ? new Date(wd.updatedAt) : null;
       const minAgo = updatedAt ? (Date.now() - updatedAt.getTime()) / 60000 : Infinity;
-      if (minAgo > 15) syncWhoop();
+      if (minAgo > 5) syncWhoop();
     }
   });
 })();

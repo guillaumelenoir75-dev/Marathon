@@ -805,7 +805,17 @@ function showScreen(name, renfoTab){
       setTimeout(scrollToCurrentWeek, 50);
     }
   }
-  if(name==='stats'){rendered.stats=true;setTimeout(renderStats,50);window.scrollTo({top:0,behavior:'instant'});}
+  if(name==='stats'){
+    rendered.stats=true;
+    setTimeout(renderStats,50);
+    window.scrollTo({top:0,behavior:'instant'});
+    // Auto-sync WHOOP si données > 5 min
+    if(typeof syncWhoop === 'function' && state.whoop_token?.access_token && !_whoopSyncing) {
+      const updatedAt = state.whoop_data?.updatedAt ? new Date(state.whoop_data.updatedAt) : null;
+      const minAgo = updatedAt ? (Date.now() - updatedAt.getTime()) / 60000 : Infinity;
+      if(minAgo > 5) syncWhoop();
+    }
+  }
   if(name==='renfo'){
     if(!rendered.renfo)rendered.renfo=true;
     if(renfoTab&&renfoTab!==curRenfo) switchRenfo(renfoTab);
