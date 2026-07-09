@@ -176,7 +176,7 @@ exports.whoopSync = onRequest(
         const c0 = cycleResp.records[0];
         debugInfo.cycle_first = { id: c0.id, start: c0.start, end: c0.end, strain: c0.score?.strain };
 
-        // Tester le fetch d'un cycle individuel et body measurement
+        // Voir le raw complet d'un cycle individuel + second cycle
         const [singleCycle, bodyMeas] = await Promise.all([
           fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c0.id}`, {
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
@@ -187,8 +187,24 @@ exports.whoopSync = onRequest(
         ]);
         debugInfo.single_cycle_status = singleCycle.status;
         debugInfo.body_meas_status = bodyMeas.status;
-        if (!singleCycle.ok) debugInfo.single_cycle_error = (await singleCycle.text().catch(() => '')).slice(0, 100);
+        if (singleCycle.ok) {
+          const raw = await singleCycle.json();
+          debugInfo.cycle_raw_full = JSON.stringify(raw).slice(0, 400);
+        } else {
+          debugInfo.single_cycle_error = (await singleCycle.text().catch(() => '')).slice(0, 100);
+        }
         if (!bodyMeas.ok) debugInfo.body_meas_error = (await bodyMeas.text().catch(() => '')).slice(0, 100);
+
+        // Aussi tester le 2ème cycle (hier, devrait avoir recovery)
+        if (cycleResp.records[1]) {
+          const c1 = cycleResp.records[1];
+          const rec1 = await fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c1.id}/recovery`, {
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+          }, 10000);
+          debugInfo.cycle1_recovery_status = rec1.status;
+          if (rec1.ok) debugInfo.cycle1_recovery = JSON.stringify(await rec1.json()).slice(0, 200);
+          else debugInfo.cycle1_recovery_error = (await rec1.text().catch(() => '')).slice(0, 100);
+        }
       }
 
       // Recovery est rattachée à chaque cycle : GET /cycle/{id}/recovery
