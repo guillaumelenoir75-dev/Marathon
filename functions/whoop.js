@@ -165,29 +165,37 @@ exports.whoopSync = onRequest(
           calories: c.score?.kilojoule ? Math.round(c.score.kilojoule * 0.239) : null
         }));
 
-      const sleeps = (sleepJson?.records || [])
-        .filter(s => s.start && !s.is_nap) // exclure les siestes
+      const _sleepRaw = (sleepJson?.records || [])
+        .filter(s => s.start)
         .map(s => {
           const ss = s.score?.stage_summary;
-          const lightMs  = ss?.total_light_sleep_time_milli || 0;
-          const swsMs    = ss?.total_slow_wave_sleep_time_milli || 0;
-          const remMs    = ss?.total_rem_sleep_time_milli || 0;
-          // total_sleep_time_milli n'existe pas dans l'API v2 → somme des phases
-          const sleepMs  = ss?.total_sleep_time_milli || (lightMs + swsMs + remMs);
+          const lightMs = ss?.total_light_sleep_time_milli || 0;
+          const swsMs   = ss?.total_slow_wave_sleep_time_milli || 0;
+          const remMs   = ss?.total_rem_sleep_time_milli || 0;
+          const sleepMs = ss?.total_sleep_time_milli || (lightMs + swsMs + remMs);
           const hh = Math.floor(sleepMs / 3600000);
           const mm = Math.round((sleepMs % 3600000) / 60000);
-          // Utiliser la date de réveil (end) et non de coucher (start) pour aligner
-          // avec le cycle WHOOP — un sommeil commençant à 23h le 2 juil. appartient
-          // au cycle du 3 juil. (date de réveil)
+          // Date = réveil (end), pas coucher (start), pour aligner avec le cycle WHOOP
           const date = s.end ? s.end.slice(0, 10) : s.start.slice(0, 10);
           return {
             date,
+            sleepMs, // utilisé pour choisir le plus long (sommeil principal > sieste)
             duration_hours: sleepMs ? `${hh}h${mm.toString().padStart(2,'0')}` : null,
             performance_pct: s.score?.sleep_performance_percentage ?? null,
             efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
             rem_pct: sleepMs && remMs ? Math.round(remMs / sleepMs * 100) : null
           };
         });
+
+      // Garder uniquement le sommeil le plus long par jour (principal > sieste)
+      const _sleepByDate = new Map();
+      for (const s of _sleepRaw) {
+        const existing = _sleepByDate.get(s.date);
+        if (!existing || s.sleepMs > existing.sleepMs) _sleepByDate.set(s.date, s);
+      }
+      const sleeps = [..._sleepByDate.values()]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map(({ sleepMs: _ms, ...rest }) => rest); // retirer sleepMs du résultat final
 
       const workouts = (workoutJson?.records || [])
         .filter(w => w.start)
