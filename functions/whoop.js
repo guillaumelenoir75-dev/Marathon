@@ -45,11 +45,14 @@ async function getValidWhoopToken(db) {
   const refreshed = await res.json();
   if (!refreshed.access_token) throw new Error('Refresh token invalide');
 
-  await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update({
+  const tokenUpdate = {
     access_token: refreshed.access_token,
     expires_at: Math.floor(Date.now() / 1000) + (refreshed.expires_in || 3600),
     updatedAt: new Date().toISOString()
-  });
+  };
+  // WHOOP utilise des refresh tokens rotatifs — sauvegarder le nouveau si fourni
+  if (refreshed.refresh_token) tokenUpdate.refresh_token = refreshed.refresh_token;
+  await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update(tokenUpdate);
   return refreshed.access_token;
 }
 
