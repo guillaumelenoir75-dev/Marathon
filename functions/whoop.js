@@ -11,6 +11,7 @@ const { fetchWithTimeout } = require('./helpers');
 const ADMIN_UID = 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1';
 const WHOOP_TOKEN_URL = 'https://api.prod.whoop.com/oauth/oauth2/token';
 const WHOOP_API_BASE = 'https://api.prod.whoop.com/developer/v1';
+const WHOOP_API_V2 = 'https://api.prod.whoop.com/developer/v2';
 const CALLBACK_URL = 'https://us-central1-prepa-marathon.cloudfunctions.net/whoopCallback';
 
 async function getValidWhoopToken(db) {
@@ -131,13 +132,36 @@ exports.whoopSync = onRequest(
         return r.json();
       };
 
-      // Cycles : disponibles en dev. Sleep/workout/recovery : disponibles après approbation prod WHOOP.
-      const [cycleJson, sleepJson, workoutJson, recoveryJson] = await Promise.all([
+      // Tester v1 et v2 pour les endpoints qui retournaient 404
+      const whoopGetV2 = async (path) => {
+        const r = await fetchWithTimeout(`${WHOOP_API_V2}${path}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+        }, 20000);
+        if (!r.ok) {
+          console.warn(`WHOOP v2 ${path} → ${r.status}`);
+          return null;
+        }
+        return r.json();
+      };
+
+      const [cycleJson, sleepV1Json, sleepV2Json, workoutV1Json, workoutV2Json, recoveryV1Json, recoveryV2Json] = await Promise.all([
         whoopGet('/cycle?limit=14'),
         whoopGet('/activity/sleep?limit=14'),
+        whoopGetV2('/activity/sleep?limit=14'),
         whoopGet('/activity/workout?limit=14'),
-        whoopGet('/recovery?limit=14')
+        whoopGetV2('/activity/workout?limit=14'),
+        whoopGet('/recovery?limit=14'),
+        whoopGetV2('/recovery?limit=14')
       ]);
+
+      // Utiliser v2 si v1 échoue
+      const sleepJson = sleepV1Json || sleepV2Json;
+      const workoutJson = workoutV1Json || workoutV2Json;
+      const recoveryJson = recoveryV1Json || recoveryV2Json;
+
+      console.log('WHOOP API test — sleep v1:', !!sleepV1Json, 'v2:', !!sleepV2Json,
+        '| workout v1:', !!workoutV1Json, 'v2:', !!workoutV2Json,
+        '| recovery v1:', !!recoveryV1Json, 'v2:', !!recoveryV2Json);
 
       const cycles = (cycleJson?.records || [])
         .filter(c => c.score_state === 'SCORED' && c.start)
