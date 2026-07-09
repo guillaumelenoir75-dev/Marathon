@@ -159,22 +159,29 @@ exports.whoopSync = onRequest(
       }
 
       const qs = '?limit=14';
-      const [sleepResp, workoutResp, cycleResp] = await Promise.all([
+      // Tester les deux variantes de chemins pour sleep et workout
+      const [sleepResp, sleepAlt, workoutResp, workoutAlt, cycleResp] = await Promise.all([
         whoopGet('sleep', `/activity/sleep${qs}`),
+        whoopGet('sleep2', `/sleep${qs}`),
         whoopGet('workout', `/activity/workout${qs}`),
+        whoopGet('workout2', `/workout${qs}`),
         whoopGet('cycle', `/cycle${qs}`)
       ]);
 
       // Recovery est rattachée à chaque cycle : GET /cycle/{id}/recovery
-      const cycleRecords = (cycleResp.records || []).slice(0, 14);
+      const cycleRecords = (cycleResp.records || []).slice(0, 5);
       const recoveryResults = await Promise.all(
         cycleRecords.map(async (cy) => {
           const url = `${WHOOP_API_BASE}/cycle/${cy.id}/recovery`;
           const r = await fetchWithTimeout(url, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           }, 10000);
-          debugInfo[`recovery_cycle_${cy.id}_status`] = r.status;
-          if (!r.ok) return null;
+          if (!r.ok) {
+            const body = await r.text().catch(() => '');
+            debugInfo.recovery_sample_status = r.status;
+            debugInfo.recovery_sample_body = body.slice(0, 100);
+            return null;
+          }
           return r.json();
         })
       );
