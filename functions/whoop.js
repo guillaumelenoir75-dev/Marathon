@@ -195,15 +195,30 @@ exports.whoopSync = onRequest(
         }
         if (!bodyMeas.ok) debugInfo.body_meas_error = (await bodyMeas.text().catch(() => '')).slice(0, 100);
 
-        // Aussi tester le 2ème cycle (hier, devrait avoir recovery)
+        // Tester le 2ème cycle (cycle précédent terminé) + /recovery/collection
         if (cycleResp.records[1]) {
           const c1 = cycleResp.records[1];
-          const rec1 = await fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c1.id}/recovery`, {
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-          }, 10000);
+          const [rec1, c1detail, recovColl] = await Promise.all([
+            fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c1.id}/recovery`, {
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+            }, 10000),
+            fetchWithTimeout(`${WHOOP_API_BASE}/cycle/${c1.id}`, {
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+            }, 10000),
+            fetchWithTimeout(`${WHOOP_API_BASE}/recovery/collection?limit=3`, {
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+            }, 10000)
+          ]);
           debugInfo.cycle1_recovery_status = rec1.status;
           if (rec1.ok) debugInfo.cycle1_recovery = JSON.stringify(await rec1.json()).slice(0, 200);
-          else debugInfo.cycle1_recovery_error = (await rec1.text().catch(() => '')).slice(0, 100);
+          else debugInfo.cycle1_recovery_error = (await rec1.text().catch(() => '')).slice(0, 80);
+          if (c1detail.ok) {
+            const c1raw = await c1detail.json();
+            debugInfo.cycle1_raw = JSON.stringify(c1raw).slice(0, 300);
+          }
+          debugInfo.recovery_collection_status = recovColl.status;
+          if (!recovColl.ok) debugInfo.recovery_collection_error = (await recovColl.text().catch(() => '')).slice(0, 80);
+          else debugInfo.recovery_collection_data = JSON.stringify(await recovColl.json()).slice(0, 200);
         }
       }
 
