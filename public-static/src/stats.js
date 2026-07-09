@@ -184,31 +184,6 @@ function renderStats(){
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     👟 Ajouter une paire de chaussures
   </button>`;
-  const calories=[
-    {j:'Lundi',kcal:2800},{j:'Mardi',kcal:2900},{j:'Mercredi',kcal:2500},
-    {j:'Jeudi',kcal:3000},{j:'Vendredi',kcal:2500},{j:'Samedi',kcal:3300},{j:'Dimanche',kcal:2500}
-  ];
-  const consumed=2100;
-  const cr=document.getElementById('cal-rows');if(cr) cr.innerHTML='';
-  if(!isAdmin()||!cr) return;
-  calories.forEach((c,i)=>{
-    const balance=consumed-c.kcal;
-    const pct=Math.round(c.kcal/3500*100);
-    const barColor=c.kcal>3000?'#E24B4A':c.kcal>2800?'#F5A623':'#1B4FD8';
-    const balColor=balance>=0?'#3B6D11':'#E24B4A';
-    const balLabel=balance>=0?`+${balance} kcal surplus`:`${balance} kcal déficit`;
-    const row=document.createElement('div');
-    row.style.cssText=`padding:10px 12px;border-bottom:${i<calories.length-1?'1px solid var(--border)':'none'};display:grid;grid-template-columns:80px 1fr 72px;align-items:center;gap:8px;`;
-    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${c.j}</span>
-    <div>
-      <div style="background:var(--bg2);border-radius:3px;height:6px;margin-bottom:3px;">
-        <div style="background:${barColor};border-radius:3px;height:6px;width:${pct}%;"></div>
-      </div>
-      <span style="font-size:10px;color:${balColor};font-weight:600;">${balLabel}</span>
-    </div>
-    <span style="font-size:13px;font-weight:700;color:var(--text);text-align:right;">${c.kcal.toLocaleString()}</span>`;
-    cr.appendChild(row);
-  });
   // Tableau performances
   const pr=document.getElementById('perf-rows');
   if(pr){
