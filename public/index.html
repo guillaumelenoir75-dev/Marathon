@@ -215,32 +215,33 @@
 <!-- STATS -->
 <div id="sc-stats" style="display:none;padding:16px;background:#EDF2FB;min-height:100vh;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;">Statistiques</p>
-  <!-- Bloc WHOOP Stats (admin uniquement) -->
-  <!-- Bloc FC Repos Stats -->
-  <div id="fc-repos-stats-section" style="margin-bottom:24px;">
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">FC au repos — évolution</p>
-    <div id="fc-repos-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
-    <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>
-        <div style="display:flex;gap:4px;" id="fc-repos-chart-tabs">
-          <button onclick="switchFcReposChart('7')" id="fctab-7" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">7j</button>
-          <button onclick="switchFcReposChart('30')" id="fctab-30" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">30j</button>
-          <button onclick="switchFcReposChart('all')" id="fctab-all" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Tout</button>
-        </div>
-      </div>
-      <div style="position:relative;width:100%;height:160px;">
-        <canvas id="chart-fc-repos"></canvas>
-      </div>
-    </div>
-  </div>
 
+  <!-- 1. WHOOP KPIs + chart (admin uniquement) -->
   <div id="whoop-stats-section" style="display:none;margin-bottom:24px;">
     <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">WHOOP — Récupération & Bien-être</p>
-    <!-- KPIs du jour -->
     <div id="whoop-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
-    <!-- Graphique évolution -->
-    <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-bottom:10px;">
+
+    <!-- 2. FC repos (KPIs + graphique) -->
+    <div id="fc-repos-stats-section" style="margin-bottom:14px;">
+      <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">FC au repos — évolution</p>
+      <div id="fc-repos-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;"></div>
+      <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>
+          <div style="display:flex;gap:4px;" id="fc-repos-chart-tabs">
+            <button onclick="switchFcReposChart('7')" id="fctab-7" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">7j</button>
+            <button onclick="switchFcReposChart('30')" id="fctab-30" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">30j</button>
+            <button onclick="switchFcReposChart('all')" id="fctab-all" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Tout</button>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:160px;">
+          <canvas id="chart-fc-repos"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Évolution WHOOP sur 14 jours (Récup / Sommeil / Charge) -->
+    <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution sur 14 jours</p>
         <div style="display:flex;gap:4px;" id="whoop-chart-tabs">
@@ -253,10 +254,9 @@
         <canvas id="chart-whoop"></canvas>
       </div>
     </div>
-    <!-- Tableau 7 derniers jours -->
-    <div id="whoop-history-table" style="background:var(--bg);border-radius:14px;border:1px solid var(--border);overflow:hidden;"></div>
   </div>
 
+  <!-- 4. Volume km par semaine -->
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Volume par semaine (km)</p>
   <div style="position:relative;width:100%;height:260px;margin-bottom:20px;">
     <canvas id="chart-km"></canvas>
@@ -267,6 +267,8 @@
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     </div>
   </div>
+
+  <!-- 5. Performances -->
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Performances — séances validées</p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="perf-filters">
     <button onclick="setPerfFilter('all')" id="pf-all" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Tout</button>
@@ -276,6 +278,8 @@
     <button onclick="setPerfFilter('long')" id="pf-long" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Long</button>
   </div>
   <div id="perf-rows" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px;"></div>
+
+  <!-- 6. Gels -->
   <div id="stats-gels-section">
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
@@ -287,30 +291,11 @@
     <div id="gels-rows"></div>
   </div>
   </div>
+
+  <!-- 7. Chaussures -->
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
   <div id="shoes-manage" style="margin-bottom:20px;"></div>
-  <div id="stats-calories-section">
-  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Nutrition — calories</p>
-  <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-      <span style="font-size:13px;color:var(--text);">Consommation quotidienne</span>
-      <span style="font-size:15px;font-weight:700;color:var(--orange);">2 100 kcal</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-size:12px;color:var(--muted);">Dépenses par jour ci-dessous</span>
-      <span style="font-size:12px;color:var(--muted);">Balance = conso - dépense</span>
-    </div>
-  </div>
-  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
-    <div style="display:grid;grid-template-columns:80px 1fr 80px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <span style="font-size:11px;font-weight:600;color:var(--muted);">Jour</span>
-      <span style="font-size:11px;font-weight:600;color:var(--muted);">Balance</span>
-      <span style="font-size:11px;font-weight:600;color:var(--muted);text-align:right;">Dépensé</span>
-    </div>
-    <div id="cal-rows"></div>
-  </div>
-  </div>
 </div>
 
 <!-- RENFO -->

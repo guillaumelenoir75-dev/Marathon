@@ -434,47 +434,7 @@ function renderWhoopStats() {
     </div>
   `).join('');
 
-  // ── Graphique ──────────────────────────────────────────────────────────────
   _renderWhoopChart(_whoopChartMode);
-
-  // ── Tableau historique ─────────────────────────────────────────────────────
-  const table = document.getElementById('whoop-history-table');
-  if (!table) return;
-
-  // Fusionner recovery + sleep + cycle par date
-  const byDate = {};
-  (wd.recoveries || []).forEach(r => { byDate[r.date] = byDate[r.date] || {}; byDate[r.date].recovery = r.score; byDate[r.date].rhr = r.rhr; byDate[r.date].hrv = r.hrv ? Math.round(r.hrv) : null; });
-  (wd.sleeps || []).forEach(s => { byDate[s.date] = byDate[s.date] || {}; byDate[s.date].sleep = s.performance_pct; byDate[s.date].duration = s.duration_hours; });
-  (wd.cycles || []).forEach(c => { byDate[c.date] = byDate[c.date] || {}; byDate[c.date].strain = c.strain != null ? Math.round(c.strain * 10) / 10 : null; });
-
-  const rows = Object.entries(byDate).sort((a,b) => b[0].localeCompare(a[0])).slice(0, 14);
-
-  const dot = (val, type) => {
-    if (val == null) return '<span style="color:var(--muted);">—</span>';
-    const col = type === 'strain'
-      ? (val >= 14 ? '#ef4444' : val >= 10 ? '#f59e0b' : '#22c55e')
-      : scoreColor(val);
-    return `<span style="color:${col};font-weight:700;">${val}${type !== 'strain' ? '%' : ''}</span>`;
-  };
-
-  table.innerHTML = `
-    <div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;">Date</span>
-      <span style="font-size:10px;font-weight:700;color:#22c55e;text-align:center;text-transform:uppercase;">Récup</span>
-      <span style="font-size:10px;font-weight:700;color:#3b82f6;text-align:center;text-transform:uppercase;">Sommeil</span>
-      <span style="font-size:10px;font-weight:700;color:#f59e0b;text-align:center;text-transform:uppercase;">Charge</span>
-    </div>
-    ${rows.map(([date, d], i) => {
-      const label = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
-      const isLast = i === rows.length - 1;
-      return `<div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;padding:9px 12px;${!isLast ? 'border-bottom:1px solid var(--border);' : ''}align-items:center;">
-        <span style="font-size:11px;color:var(--muted);">${label}</span>
-        <span style="font-size:13px;text-align:center;">${dot(d.recovery, 'score')}</span>
-        <span style="font-size:13px;text-align:center;">${dot(d.sleep, 'score')}</span>
-        <span style="font-size:13px;text-align:center;">${dot(d.strain, 'strain')}</span>
-      </div>`;
-    }).join('')}
-  `;
 }
 
 function _renderWhoopChart(mode) {
@@ -590,10 +550,6 @@ function renderFcReposChart(){
     entries = entries.filter(e => e.date >= cutoffStr);
   }
   const allEntries = entries.slice(); // pour les KPIs (toutes les données, pas filtrées)
-
-  // Section visibilité
-  const section = document.getElementById('fc-repos-stats-section');
-  if (section) section.style.display = getPref('show_fc_repos') ? 'block' : 'none';
 
   // KPIs
   const kpiRow = document.getElementById('fc-repos-kpi-row');
