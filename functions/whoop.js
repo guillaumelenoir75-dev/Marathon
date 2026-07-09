@@ -158,15 +158,21 @@ exports.whoopSync = onRequest(
         debugInfo.profile_error = profileRaw.status;
       }
 
-      const qs = '?limit=14';
-      // Tester les deux variantes de chemins pour sleep et workout
-      const [sleepResp, sleepAlt, workoutResp, workoutAlt, cycleResp] = await Promise.all([
+      const qs = '?limit=10';
+      // Tester les deux variantes de chemins pour sleep et workout, avec et sans params
+      const [sleepResp, sleepNoParam, workoutResp, workoutNoParam, cycleResp] = await Promise.all([
         whoopGet('sleep', `/activity/sleep${qs}`),
-        whoopGet('sleep2', `/sleep${qs}`),
+        whoopGet('sleep2', `/sleep`),
         whoopGet('workout', `/activity/workout${qs}`),
-        whoopGet('workout2', `/workout${qs}`),
+        whoopGet('workout2', `/workout`),
         whoopGet('cycle', `/cycle${qs}`)
       ]);
+
+      // Log premier cycle pour voir sa structure
+      if (cycleResp.records && cycleResp.records[0]) {
+        const c0 = cycleResp.records[0];
+        debugInfo.cycle_first = { id: c0.id, start: c0.start, end: c0.end, strain: c0.score?.strain };
+      }
 
       // Recovery est rattachée à chaque cycle : GET /cycle/{id}/recovery
       const cycleRecords = (cycleResp.records || []).slice(0, 5);

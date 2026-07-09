@@ -123,10 +123,11 @@ async function syncWhoop() {
             <p style="margin:2px 0;">profil: ${d.profile ? JSON.stringify(d.profile).slice(0,100) : (d.profile_error ? '❌ '+d.profile_error : '—')}</p>
             <p style="margin:2px 0;">recovery: ${d.recovery_fetched ?? 0} fetched | sample status=${d.recovery_sample_status ?? '?'} ${d.recovery_sample_body ? '| '+d.recovery_sample_body.slice(0,60) : ''}</p>
             <p style="margin:2px 0;">/activity/sleep: ${d.sleep_status ?? '?'} ${d.sleep_error ? '❌ '+d.sleep_error.slice(0,50) : (d.sleep_raw_count > 0 ? '✅ '+d.sleep_raw_count+' records' : '')}</p>
-            <p style="margin:2px 0;">/sleep: ${d.sleep2_status ?? '?'} ${d.sleep2_error ? '❌ '+d.sleep2_error.slice(0,50) : (d.sleep2_raw_count > 0 ? '✅ '+d.sleep2_raw_count+' records' : '')}</p>
+            <p style="margin:2px 0;">/sleep (no param): ${d.sleep2_status ?? '?'} ${d.sleep2_error ? '❌ '+d.sleep2_error.slice(0,50) : (d.sleep2_raw_count > 0 ? '✅ '+d.sleep2_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">/activity/workout: ${d.workout_status ?? '?'} ${d.workout_error ? '❌ '+d.workout_error.slice(0,50) : (d.workout_raw_count > 0 ? '✅ '+d.workout_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">/workout: ${d.workout2_status ?? '?'} ${d.workout2_error ? '❌ '+d.workout2_error.slice(0,50) : (d.workout2_raw_count > 0 ? '✅ '+d.workout2_raw_count+' records' : '')}</p>
             <p style="margin:2px 0;">cycle: status=${d.cycle_status ?? '?'} | ${d.cycle_raw_count ?? 0} records</p>
+            ${d.cycle_first ? `<p style="margin:2px 0;color:#0ea5e9;">cycle[0]: id=${d.cycle_first.id} start=${d.cycle_first.start?.slice(0,10)} strain=${d.cycle_first.strain}</p>` : ''}
             ${d.recovery_first ? `<p style="margin:4px 0;color:#0ea5e9;">rec[0]: ${JSON.stringify(d.recovery_first).slice(0,150)}</p>` : ''}
             ${d.sleep_first ? `<p style="margin:2px 0;color:#0ea5e9;">sleep[0]: ${JSON.stringify(d.sleep_first).slice(0,150)}</p>` : ''}`;
           if (panel) { panel.style.display = 'block'; panel.appendChild(debugDiv); }
