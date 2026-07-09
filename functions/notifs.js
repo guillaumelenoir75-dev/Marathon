@@ -339,11 +339,16 @@ exports.briefAfterFcRepos = onSchedule(
         const meteoResp=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code,precipitation_probability&timezone=Europe%2FParis&forecast_days=1`);
         const meteoData=await meteoResp.json();
         if(meteoData.hourly){
+          const nowH=now.getHours();
+          const tempCurrent=meteoData.hourly.temperature_2m?.[nowH];
           const temp=meteoData.hourly.temperature_2m?.[targetH];
           const apparent=meteoData.hourly.apparent_temperature?.[targetH];
           const wcode=meteoData.hourly.weather_code?.[targetH];
           const rainProb=meteoData.hourly.precipitation_probability?.[targetH]||0;
-          tempSeance=Math.round(temp||0);
+          // Prendre le max entre temp actuelle et temp prévue à la séance
+          // (évite de sous-estimer la chaleur si le brief est généré pendant la canicule)
+          const tempEffective=Math.max(temp||0,tempCurrent||0);
+          tempSeance=Math.round(tempEffective);
           const ressenti=Math.round(apparent||temp||0);
           const wmoLabel=wcode===0?'Ensoleillé':wcode<=2?'Peu nuageux':wcode<=3?'Couvert':wcode<=48?'Brouillard':wcode<=55?'Bruine':wcode<=67?'Pluie':wcode<=77?'Neige':wcode<=82?'Averses':wcode<=99?'Orage':'Variable';
           meteoStr=`Météo prévue à ${seanceHeure||targetH+'h'} : ${tempSeance}°C (ressenti ${ressenti}°C), ${wmoLabel}${rainProb>40?', risque pluie '+rainProb+'%':''}`;
@@ -363,9 +368,9 @@ exports.briefAfterFcRepos = onSchedule(
       }
 
       // ── Générer le brief complet côté serveur ──────────────────────────────
-      const system=`Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui.
+      const system=`Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
-PROFIL DE GUILLAUME :
+PROFIL :
 - Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.
 - FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
 - Montre Garmin Forerunner 165.
@@ -373,27 +378,29 @@ PROFIL DE GUILLAUME :
 
 STRUCTURE OBLIGATOIRE — dans cet ordre exact :
 
-1. 😴 NUIT & RÉCUPÉRATION — si données WHOOP :
-   Score récup en **gras** (🟢 Vert ≥67 / 🟡 Jaune 34-66 / 🔴 Rouge <34). HRV et FC repos WHOOP en **gras**. Durée + qualité du sommeil en **gras**. Compare avec la moyenne 7j. Dis clairement si Guillaume est frais, modéré ou fatigué pour aujourd'hui. 2-3 phrases max, concis mais complet.
+1. 😴 NUIT & RÉCUPÉRATION — bloc unique fusion sommeil + FC repos. Format OBLIGATOIRE : chaque valeur sur sa propre ligne, valeur en **gras**, puis UNE phrase d'analyse après toutes les valeurs. Exemple de format attendu :
+Score de récupération WHOOP : **71%** 🟢
+FC repos WHOOP : **48 bpm**
+Durée de sommeil : **7h47**
+Performance sommeil : **88%**
+[une phrase d'analyse : compare avec moyenne 7j, charge veille, conclusion frais/modéré/fatigué]
 
-2. ❤️ FC REPOS — valeur mesurée en **gras**, comparaison moyenne 7j. 1 phrase d'interprétation. Cohérence avec le score WHOOP si disponible.
+2. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : es-tu bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes. Tu t'adresses à moi directement : "Tu arrives...", "Ta récupération...", etc.
 
-3. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : guillaume est-il bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes.
+3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
 
-4. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
-
-5. ⚡ ALLURES & CONSIGNES — pour chaque run :
+4. ⚡ ALLURES & CONSIGNES — pour chaque run :
    - TOUJOURS adapter l'allure à l'état de récup WHOOP :
      · Récup ROUGE (<34%) : allure EF +15 sec/km min, FC < 140 bpm max, ne pas forcer même si la séance est prévue tempo.
      · Récup JAUNE (34-66%) : allure EF normale, attention si FC > 148.
      · Récup VERTE (≥67%) : allure de référence, peut pousser si tempo.
-   - Si chaleur (≥25°C) : allure AJUSTÉE chaleur en **gras** EN PREMIER. Rappeler hydrater 500ml avant si ≥28°C.
+   - Si chaleur (≥25°C) : OBLIGATOIRE mentionner la chaleur et l'allure ajustée en **gras** EN PREMIER. Rappeler hydrater 500ml avant si ≥28°C. NE PAS dire que la temp est sous 25°C si les données météo indiquent ≥25°C.
    - Si décharge : allure EF +30sec/km, FC < 140 bpm.
    - EF Long ≥10km : gels — premier à **40 min**, puis toutes les **45 min**. Nombre total en **gras**.
    - Renfo : exercices clés à nommer.
    - Météo à l'heure de la séance : mentionner temp + conditions en 1 ligne.
 
-6. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥10km :
+5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥10km :
    - Matin (avant 11h) : à jeun → fenêtre post-run **30 min**, shaker protéines + glucides.
    - Après-midi/soir : repas léger 2-3h avant. Fenêtre post-run **30 min**.
    - Chaleur ≥28°C : hydratation toutes les **15-20 min**.
@@ -401,7 +408,8 @@ STRUCTURE OBLIGATOIRE — dans cet ordre exact :
 RÈGLES :
 - Zéro #. Données chiffrées en **gras**. Ton de coach direct, personnel, naturel.
 - Jamais de tirets en début de paragraphe — texte fluide.
-- Si pas de séance run aujourd'hui (repos ou renfo seul) : sauter blocs 5 et 6.
+- Jamais "Guillaume" dans le corps du texte — toujours "tu/ton/ta".
+- Si pas de séance run aujourd'hui (repos ou renfo seul) : sauter blocs 4 et 5.
 - INTERDIT : parler du reste de la semaine, des séances passées, des objectifs à long terme.`;
 
       const userMsg=`${dateComplet}
@@ -426,7 +434,7 @@ ${memosLine}`;
         briefContent=`❤️ ${fcMsg}\n\n🎯 ${seancesStr}`;
       }
 
-      // Notification push : résumé court
+      // Notification push : résumé enrichi
       const dayOfWeekNum=dow===0?7:dow;
       const _rAllN={1:'Ischio-fessiers',2:'Bas du dos'};
       const renfoNoms={1:'Renfo '+(_rAllN[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers'),2:'Renfo '+(_rAllN[parseInt(state.renfo_prog2)||2]||'Bas du dos')};
@@ -437,13 +445,28 @@ ${memosLine}`;
         let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
         if(Number(sched.day)===dayOfWeekNum)renfoAujourdHui.push(renfoNoms[ri]);
       }
-      const programmeItems=[
-        ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'',
-        renfoAujourdHui.join(' + '),
-        dow===1?'Bodyhit 12h30':'',
-      ].filter(Boolean);
-      const fcMsg2=fcToday?`FC ${fcToday} bpm — `:'';
-      let pushBody=`${fcMsg2}${programmeItems.join(' · ')||'Récupération'}`.trim();
+      // Emoji couleur récupération
+      const recovScore=wd&&wd.recoveries&&wd.recoveries[0]&&wd.recoveries[0].score!=null?wd.recoveries[0].score:null;
+      const recovEmoji=recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
+      // Emoji météo
+      const meteoEmoji=tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
+      // FC repos
+      const fcPart=fcToday?`FC ${fcToday} bpm ${recovEmoji} `.trim():(recovEmoji?`Récup ${recovEmoji} `:'');
+      // Séance du jour
+      let seancePart='';
+      if(seanceRunAujourdhui){
+        const typeLabel={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'EF Long',repos:'Repos'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
+        const km=seanceRunAujourdhui.km>0?` - ${seanceRunAujourdhui.km}km`:'';
+        const heure=seanceHeure?` prévu à ${seanceHeure}`:'';
+        seancePart=`Séance ${typeLabel}${km} 🏃${heure}`;
+      }else if(renfoAujourdHui.length>0){
+        seancePart=renfoAujourdHui.join(' · ');
+      }else if(dow===1){
+        seancePart='Bodyhit 12h30';
+      }else{
+        seancePart='Récupération';
+      }
+      let pushBody=`${fcPart}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
       if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
 
       // Stocker brief COMPLET → affichage instantané au clic notif ou à la prochaine ouverture
