@@ -190,7 +190,12 @@ exports.calendar = onRequest(async (req, res) => {
       const get = k => (lines.find(l => l.startsWith(k+':')) || '').replace(k+':', '');
       return { uid: get('UID'), summary: get('SUMMARY'), dtstart: get('DTSTART;TZID=Europe/Paris'), description: get('DESCRIPTION') };
     });
-    res.json({ count: events.length, events: debugEvents });
+    // Dump des clés brutes si ?w=N est fourni
+    const wFilter = req.query.w;
+    const rawKeys = wFilter
+      ? Object.fromEntries(Object.entries(state).filter(([k]) => k.includes(`_w${wFilter}_`) || k.includes(`_w${wFilter}r`)).map(([k,v]) => [k, (() => { try { return JSON.parse(v); } catch(e) { return v; } })()]))
+      : undefined;
+    res.json({ count: events.length, events: debugEvents, ...(rawKeys ? { rawKeys } : {}) });
     return;
   }
 
