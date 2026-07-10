@@ -1031,8 +1031,8 @@ exports.adminTestNotif = onRequest(
       const hasWhoop = !!(snap.val()?.access_token);
 
       const notifs = {
-        'reveil-matin': { title: '🌅 En piste !', body: 'Enregistre ton réveil pour recevoir ton brief du matin', tag: 'fc-repos' },
-        'rappel-14h':   { title: '🌅 En piste !', body: "Tu n'as pas encore enregistré ton réveil aujourd'hui 👆", tag: 'fc-repos-14h' },
+        'reveil-matin': { title: "💪 C'est parti pour aujourd'hui !", body: "Enregistre ton réveil → reçois ton brief du matin 🏃‍♂️", tag: 'fc-repos' },
+        'rappel-14h':   { title: "⏰ Hey, t'as oublié quelque chose !", body: "Ton brief du matin t'attend — enregistre ton réveil 👆", tag: 'fc-repos-14h' },
         'avant-seance': { title: '⏱️ Séance dans 1h', body: '👟 Course facile à 7:00 (exemple). Prépare-toi !', tag: 'session-reminder' },
         'brief-matin':  null,
       };
