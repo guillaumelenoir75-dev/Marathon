@@ -92,9 +92,9 @@ exports.calendar = onRequest(async (req, res) => {
         const session = JSON.parse(state[key]);
         const extra = JSON.parse(extraRaw);
         const sameSched = extra.sched_day && session.sched_day && extra.sched_day == session.sched_day;
-        const sameDate = extra.sched_date && session.sched_day && !sameSched ? false : true;
-        if (sameSched || (!extra.sched_day && !extra.sched_date)) return; // override réel ou pas d'info → géré par extra_w
-        if (!sameSched && !extra.sched_date) return; // pas assez d'info
+        if (sameSched) return; // même jour → override réel, géré par extra_w
+        if (!extra.sched_day && !extra.sched_date) return; // pas d'info planning dans extra_w → skip par sécurité
+        // extra.sched_day existe mais diffère → collision d'index confirmée → traiter edit_w
         if (extra.sched_date) {
           // extra_w a une date absolue — comparer avec la date calculée de edit_w
           const ws = parseInt(match[1]);
