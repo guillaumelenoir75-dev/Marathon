@@ -16,9 +16,12 @@ async function getOrCreateCalToken(db) {
 
 const typeToTitle = {
   ef: "Run - EF",
+  ef_long: "Run - EF Long",
   tempo: "Run - Tempo",
+  seuil: "Run - Seuil",
+  vma: "Run - VMA",
   frac: "Run - Fractionné",
-  long: "Run - EF Long",
+  long: "Run - Sortie Longue",
   race: "Run - Course",
   rest: "Récupération"
 };
@@ -102,17 +105,19 @@ exports.calendar = onRequest(async (req, res) => {
   Object.keys(state).forEach(key => {
     const match = key.match(/^extra_w(\d+)_s(\d+)$/);
     if (!match) return;
+    const ws = parseInt(match[1]);
+    const ei = parseInt(match[2]);
+    if (state[`del_w${ws}_s${ei}`]) return; // séance supprimée
     try {
       const base = JSON.parse(state[key]);
       if (base.type === 'rest') return;
-      const ws = parseInt(match[1]);
-      const ei = parseInt(match[2]);
       // Fusionner avec l'override edit_w si présent
       const editRaw = state[`edit_w${ws}_s${ei}`];
       const edit = editRaw ? JSON.parse(editRaw) : null;
       const session = edit ? { ...base, ...edit } : base;
-      if (!session.sched_time) return;
-      const [h, m] = session.sched_time.split(":").map(Number);
+      if (!session.sched_time && !base.sched_date) return;
+      const timeStr = session.sched_time || '09:00';
+      const [h, m] = timeStr.split(":").map(Number);
       let eventDate;
       if (edit && edit.sched_day) {
         // Jour modifié par l'utilisateur → recalcul depuis le lundi de la semaine
@@ -122,7 +127,7 @@ exports.calendar = onRequest(async (req, res) => {
         eventDate.setHours(h, m, 0, 0);
       } else if (base.sched_date) {
         // Utiliser la date réelle stockée dans la séance générée
-        eventDate = new Date(base.sched_date + 'T' + session.sched_time + ':00');
+        eventDate = new Date(base.sched_date + 'T' + timeStr + ':00');
       } else if (session.sched_day) {
         const weekStart = getWeekStartDate(ws);
         eventDate = new Date(weekStart);
