@@ -79,12 +79,37 @@ exports.calendar = onRequest(async (req, res) => {
   const events = [];
 
   // Ancien format (weeks hardcodé) avec overrides edit_w
-  // Ignorer les edit_w qui correspondent à des sessions extra_w (traitées ci-dessous)
+  // Ignorer les edit_w qui correspondent à des sessions extra_w du MÊME jour (overrides)
+  // Si extra_w existe mais est un jour différent (ajout manuel avec index collison), traiter edit_w quand même
   Object.keys(state).forEach(key => {
     const match = key.match(/^edit_w(\d+)_s(\d+)$/);
     if (!match) return;
-    if (state[`extra_w${match[1]}_s${match[2]}`]) return; // géré par la boucle extra_w
     if (state[`del_w${match[1]}_s${match[2]}`]) return;
+    const extraRaw = state[`extra_w${match[1]}_s${match[2]}`];
+    if (extraRaw) {
+      // Vérifier si l'extra_w est pour le même jour (override réel) ou un jour différent (collision d'index)
+      try {
+        const session = JSON.parse(state[key]);
+        const extra = JSON.parse(extraRaw);
+        const sameSched = extra.sched_day && session.sched_day && extra.sched_day == session.sched_day;
+        const sameDate = extra.sched_date && session.sched_day && !sameSched ? false : true;
+        if (sameSched || (!extra.sched_day && !extra.sched_date)) return; // override réel ou pas d'info → géré par extra_w
+        if (!sameSched && !extra.sched_date) return; // pas assez d'info
+        if (extra.sched_date) {
+          // extra_w a une date absolue — comparer avec la date calculée de edit_w
+          const ws = parseInt(match[1]);
+          const weekStart = getWeekStartDate(ws);
+          const editDate = new Date(weekStart);
+          editDate.setDate(weekStart.getDate() + (session.sched_day - 1));
+          const editDateStr = `${editDate.getFullYear()}-${String(editDate.getMonth()+1).padStart(2,'0')}-${String(editDate.getDate()).padStart(2,'0')}`;
+          if (extra.sched_date === editDateStr) return; // même date → override réel, géré par extra_w
+          // Dates différentes → collision d'index, traiter edit_w indépendamment
+        } else if (sameSched) {
+          return; // même sched_day → override réel
+        }
+        // Collision d'index confirmée → continuer pour traiter edit_w
+      } catch(e) { return; }
+    }
     try {
       const session = JSON.parse(state[key]);
       if (!session.sched_day || !session.sched_time) return;
