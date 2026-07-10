@@ -1031,9 +1031,15 @@ exports.adminTestNotif = onRequest(
       const hasWhoop = !!(snap.val()?.access_token);
 
       const notifs = {
-        'reveil-matin': { title: "💪 C'est parti pour aujourd'hui !", body: "Enregistre ton réveil → reçois ton brief du matin 🏃‍♂️", tag: 'fc-repos' },
-        'rappel-14h':   { title: "⏰ Hey, t'as oublié quelque chose !", body: "Ton brief du matin t'attend — enregistre ton réveil 👆", tag: 'fc-repos-14h' },
-        'avant-seance': { title: '⏱️ Séance dans 1h', body: '👟 Course facile à 7:00 (exemple). Prépare-toi !', tag: 'session-reminder' },
+        'reveil-matin':      { title: "💪 C'est parti pour aujourd'hui !", body: "Enregistre ton réveil → reçois ton brief du matin 🏃‍♂️", tag: 'fc-repos' },
+        'rappel-14h':        { title: "⏰ Hey, t'as oublié quelque chose !", body: "Ton brief du matin t'attend — enregistre ton réveil 👆", tag: 'fc-repos-14h' },
+        'avant-seance':      { title: '⏱️ Séance dans 1h', body: '👟 Course facile à 7:00 (exemple). Prépare-toi !', tag: 'session-reminder' },
+        'seance-non-validee':{ title: '⚠️ Séance non validée', body: 'Tu as une séance non validée aujourd\'hui — valide-la dans l\'app 🏃', tag: 'unvalidated-reminder' },
+        'semaine-complete':  { title: '🎉 Semaine complète !', body: 'Toutes tes séances sont faites cette semaine. Excellent travail 💪', tag: 'week-complete' },
+        'planif-semaine':    { title: '📅 Plan S+1', body: 'Vérifie tes horaires de séances et renfos pour la semaine ! 🏃💪', tag: 'planif-reminder' },
+        'bilan-hebdo':       { title: '📊 Bilan de semaine', body: 'Ta semaine est terminée — ouvre le Coach pour le débrief complet 👇', tag: 'weekly-debrief' },
+        'shaker-post-run':   { title: '🥤 Rappel protéines !', body: 'Belle séance ! N\'oublie pas ton shaker de récupération 💪', tag: 'shaker-post-run' },
+        'shaker-midi':       { title: '🥤 Pense à ton shaker !', body: 'Pas de séance aujourd\'hui ? Prends quand même tes protéines du midi 💪', tag: 'shaker-noon' },
         'brief-matin':  null,
       };
 

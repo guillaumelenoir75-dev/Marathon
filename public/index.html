@@ -531,6 +531,54 @@
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
+      <button onclick="adminTestNotif('seance-non-validee',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#dc2626,#f87171);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">⚠️</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Séance non validée</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push 20h30 — séance du jour pas validée</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button onclick="adminTestNotif('semaine-complete',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#d97706,#fbbf24);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🎉</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Semaine complète</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push félicitations toutes séances faites</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button onclick="adminTestNotif('planif-semaine',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#0891b2,#22d3ee);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">📅</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Planification semaine</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push dimanche soir — vérifie les horaires S+1</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button onclick="adminTestNotif('bilan-hebdo',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#c084fc);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">📊</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Bilan hebdo</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push dimanche 18h — débrief IA de la semaine</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button onclick="adminTestNotif('shaker-post-run',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#059669,#34d399);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🥤</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Shaker post-run</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push 30 min après une séance run</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button onclick="adminTestNotif('shaker-midi',this)" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#65a30d,#a3e635);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🥤</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Shaker midi</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">Push 14h — jour sans séance, protéines du midi</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
     </div>
   </div>
 </div>
