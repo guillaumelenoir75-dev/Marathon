@@ -287,6 +287,27 @@ async function onWakeup() {
   });
 })();
 
+async function showCalendarUrl() {
+  const btn = document.getElementById('cal-url-btn');
+  const sub = btn ? btn.querySelector('p:last-child') : null;
+  if (sub) sub.textContent = 'Chargement…';
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const resp = await fetch(FUNCTIONS_BASE + '/calendarToken', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await resp.json();
+    if (!data.url) throw new Error('Pas d\'URL');
+    await navigator.clipboard.writeText(data.url);
+    if (sub) sub.textContent = '✅ URL copiée !';
+    setTimeout(() => { if (sub) sub.textContent = 'Copier l\'URL pour Outlook / Google'; }, 3000);
+  } catch(e) {
+    if (sub) sub.textContent = 'Erreur : ' + e.message;
+    setTimeout(() => { if (sub) sub.textContent = 'Copier l\'URL pour Outlook / Google'; }, 3000);
+  }
+}
+
 function openNotifTestModal() {
   const m = document.getElementById('notif-test-modal');
   if (m) { m.style.display = 'flex'; }

@@ -1,8 +1,18 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
+const crypto = require('crypto');
 
-const { verifyAdmin, ADMIN_STATE } = require('./helpers');
+const { verifyAdmin, ADMIN_STATE, ADMIN_UID } = require('./helpers');
+
+// Génère (ou récupère) le token calendrier stocké en DB
+async function getOrCreateCalToken(db) {
+  const snap = await db.ref(`${ADMIN_STATE}/_cal_token`).once('value');
+  if (snap.val()) return snap.val();
+  const token = crypto.randomBytes(24).toString('hex');
+  await db.ref(`${ADMIN_STATE}/_cal_token`).set(token);
+  return token;
+}
 
 const typeToTitle = {
   ef: "Run - EF",
@@ -39,24 +49,33 @@ function buildEvent(uid, title, description, startDate, durationMinutes) {
   ].filter(Boolean).join('\r\n');
 }
 
-exports.calendar = onRequest(async (req, res) => {
-  try { await verifyAdmin(req); } catch(e) { res.status(403).send('Accès réservé'); return; }
+exports.calendarToken = onRequest(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: 'Accès réservé' }); return; }
   const db = admin.database();
-  const authHeader = req.headers.authorization || '';
+  const token = await getOrCreateCalToken(db);
+  const url = `https://us-central1-prepa-marathon.cloudfunctions.net/calendar?token=${token}`;
+  res.json({ token, url });
+});
+
+exports.calendar = onRequest(async (req, res) => {
+  const db = admin.database();
+  // Auth : token dans l'URL (pour clients calendrier) ou Bearer JWT (pour l'app)
+  const queryToken = req.query.token;
+  if (queryToken) {
+    const calToken = await getOrCreateCalToken(db);
+    if (queryToken !== calToken) { res.status(403).send('Token invalide'); return; }
+  } else {
+    try { await verifyAdmin(req); } catch(e) { res.status(403).send('Accès réservé'); return; }
+  }
   let state = {};
   try {
-    const token = authHeader.slice(7);
-    const decoded = await admin.auth().verifyIdToken(token);
-    const snap = await db.ref('users/' + decoded.uid + '/state').once('value');
+    const snap = await db.ref(`${ADMIN_STATE}`).once('value');
     state = snap.val() || {};
-    if (Object.keys(state).length === 0) {
-      const oldSnap = await db.ref(`${ADMIN_STATE}`).once('value');
-      state = oldSnap.val() || {};
-    }
-  } catch(e) {
-    const snapshot = await db.ref(`${ADMIN_STATE}`).once('value');
-    state = snapshot.val() || {};
-  }
+  } catch(e) {}
   const events = [];
 
   // Ancien format (weeks hardcodé) avec overrides edit_w
