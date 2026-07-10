@@ -71,6 +71,30 @@ function connectWhoop() {
   }, 1500);
 }
 
+// Sync WHOOP et attend que les données soient chargées — retourne les données WHOOP ou null
+async function syncWhoopFresh() {
+  _whoopSyncing = false; // reset au cas où un sync précédent serait bloqué
+  try {
+    const resp = await fetch(WHOOP_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await resp.json();
+    if (data.needsAuth || !data.success) return null;
+    if (dbRef) {
+      const snap = await dbRef.child('whoop_data').once('value');
+      const wd = snap.val();
+      if (wd) {
+        state.whoop_data = wd;
+        if (typeof renderWhoopStats === 'function') renderWhoopStats();
+      }
+      return wd || null;
+    }
+  } catch(e) { console.error('syncWhoopFresh error:', e); }
+  return null;
+}
+
 async function syncWhoop() {
   if (_whoopSyncing) return;
   _whoopSyncing = true;

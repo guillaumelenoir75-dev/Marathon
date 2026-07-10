@@ -463,12 +463,134 @@ function saveFcRepos(dateParam){
   }
   const today = new Date().toISOString().slice(0,10);
   const targetDate = dateParam || today;
-  state['fc_repos_'+targetDate] = val;
-  if(targetDate === today) state['fc_repos'] = val; // valeur globale uniquement pour aujourd'hui
-  save();
+  const isToday = targetDate === today;
+
+  // Enregistrer seulement si WHOOP n'est pas connecté, sinon attendre les données fraîches
+  const whoopConnected = state.whoop_token && state.whoop_token.access_token;
+  if (!isToday || !whoopConnected) {
+    // Cas normal (date passée ou pas de WHOOP) : enregistrer immédiatement
+    state['fc_repos_'+targetDate] = val;
+    if(isToday) state['fc_repos'] = val;
+    save();
+    closeModal();
+    renderHome();
+    if(document.getElementById('sc-stats').style.display!=='none') renderStats();
+    return;
+  }
+
+  // WHOOP connecté + aujourd'hui : fermer le modal et lancer le processus asynchrone
+  // La FC repos sera enregistrée après récupération des données WHOOP fraîches
   closeModal();
-  renderHome();
-  if(document.getElementById('sc-stats').style.display!=='none') renderStats();
+  _showBriefPreparationToast();
+  _waitAndTriggerMorningBrief(val, today);
+}
+
+function _showBriefPreparationToast() {
+  const existing = document.getElementById('brief-prep-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'brief-prep-toast';
+  toast.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:msg-enter 0.3s ease;max-width:320px;text-align:center;';
+  toast.innerHTML = '<span style="font-size:16px;">💤</span><span id="brief-prep-toast-msg">Brief en préparation… WHOOP traite ton sommeil</span>';
+  document.body.appendChild(toast);
+}
+
+function _updateBriefToast(msg) {
+  const el = document.getElementById('brief-prep-toast-msg');
+  if (el) el.textContent = msg;
+}
+
+function _removeBriefToast() {
+  const el = document.getElementById('brief-prep-toast');
+  if (el) el.remove();
+}
+
+async function _waitAndTriggerMorningBrief(fcVal, today) {
+  const MAX_RETRIES = 5;
+  const INITIAL_WAIT_MS = 90000; // 90 secondes
+  const RETRY_WAIT_MS = 60000;   // 60 secondes entre chaque retry
+
+  // Snapshot des données WHOOP actuelles pour comparaison
+  const prevWd = state.whoop_data;
+  const prevScore = prevWd && prevWd.recoveries && prevWd.recoveries[0] ? prevWd.recoveries[0].score : null;
+  const prevDuration = prevWd && prevWd.sleeps && prevWd.sleeps[0] ? prevWd.sleeps[0].duration_hours : null;
+  const prevDate = prevWd && prevWd.recoveries && prevWd.recoveries[0] ? prevWd.recoveries[0].date : null;
+
+  // Attente initiale de 90s pour laisser WHOOP traiter le sommeil
+  _updateBriefToast('Brief en préparation… WHOOP traite ton sommeil (1/2 min)');
+  await new Promise(r => setTimeout(r, INITIAL_WAIT_MS));
+
+  let attempts = 0;
+  let whoopFresh = false;
+
+  while (attempts < MAX_RETRIES) {
+    attempts++;
+    _updateBriefToast(`Récupération WHOOP… tentative ${attempts}/${MAX_RETRIES}`);
+
+    // Sync WHOOP fraîche (attend la réponse complète)
+    if (typeof syncWhoopFresh === 'function') {
+      await syncWhoopFresh();
+    }
+
+    const newWd = state.whoop_data;
+    const newScore = newWd && newWd.recoveries && newWd.recoveries[0] ? newWd.recoveries[0].score : null;
+    const newDuration = newWd && newWd.sleeps && newWd.sleeps[0] ? newWd.sleeps[0].duration_hours : null;
+    const newDate = newWd && newWd.recoveries && newWd.recoveries[0] ? newWd.recoveries[0].date : null;
+
+    // Triple vérification : date aujourd'hui + score différent + durée différente
+    const dateOk = newDate === today;
+    const scoreOk = newScore !== null && newScore !== prevScore;
+    const durationOk = newDuration !== null && newDuration !== prevDuration;
+
+    if (dateOk && scoreOk && durationOk) {
+      whoopFresh = true;
+      break;
+    }
+
+    if (attempts < MAX_RETRIES) {
+      _updateBriefToast(`Données WHOOP pas encore prêtes… nouvel essai dans 1 min (${attempts}/${MAX_RETRIES})`);
+      await new Promise(r => setTimeout(r, RETRY_WAIT_MS));
+    }
+  }
+
+  // Enregistrer la FC repos (RHR WHOOP si dispo, sinon valeur saisie manuellement)
+  const rhr = whoopFresh && state.whoop_data && state.whoop_data.recoveries && state.whoop_data.recoveries[0]
+    ? state.whoop_data.recoveries[0].rhr
+    : fcVal;
+  if (rhr && rhr >= 30 && rhr <= 100) {
+    state['fc_repos_'+today] = rhr;
+    state['fc_repos'] = rhr;
+    save();
+    renderHome();
+  }
+
+  if (!whoopFresh) {
+    _updateBriefToast('Brief sans données WHOOP (non disponibles) — ouvrire le Coach');
+    setTimeout(_removeBriefToast, 5000);
+  } else {
+    _removeBriefToast();
+  }
+
+  // Déclencher le brief matin si le Coach est ouvert, sinon marquer en pending pour la prochaine ouverture
+  if (typeof checkMorningBrief === 'function') {
+    const coachOpen = document.getElementById('sc-coach') && document.getElementById('sc-coach').style.display !== 'none';
+    if (coachOpen) {
+      const memos = typeof _coachMemos !== 'undefined' ? _coachMemos : [];
+      checkMorningBrief(memos, true);
+    } else {
+      // Réinitialiser le flag pour que checkMorningBrief se déclenche à la prochaine ouverture du Coach
+      if (dbRef) {
+        const briefKey = '_brief_matin_' + today;
+        try {
+          const snap = await dbRef.child(briefKey).once('value');
+          if (!snap.val() || snap.val() === 'push_sent') {
+            // Pas encore généré → OK, checkMorningBrief le générera à l'ouverture
+          }
+        } catch(e) {}
+      }
+    }
+  }
+  if(document.getElementById('sc-stats') && document.getElementById('sc-stats').style.display!=='none') renderStats();
 }
 
 // ── FC REPOS CONTEXT BUILDER ─────────────────────────────────────────────────
