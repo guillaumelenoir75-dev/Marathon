@@ -49,10 +49,7 @@ function buildEvent(uid, title, description, startDate, durationMinutes) {
   ].filter(Boolean).join('\r\n');
 }
 
-exports.calendarToken = onRequest(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+exports.calendarToken = onRequest({ cors: true }, async (req, res) => {
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: 'Accès réservé' }); return; }
   const db = admin.database();
