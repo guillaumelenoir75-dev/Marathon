@@ -514,7 +514,11 @@ function _removeBriefToast() {
   if (el) el.remove();
 }
 
+let _briefWaitRunning = false;
+
 async function _waitAndTriggerMorningBrief(fcVal, today) {
+  if (_briefWaitRunning) return; // guard anti double-tap
+  _briefWaitRunning = true;
   const MAX_RETRIES = 5;
   const INITIAL_WAIT_MS = 90000; // 90 secondes
   const RETRY_WAIT_MS = 60000;   // 60 secondes entre chaque retry
@@ -583,26 +587,27 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     _removeBriefToast();
   }
 
-  // Déclencher le brief matin si le Coach est ouvert, sinon marquer en pending pour la prochaine ouverture
+  // Déclencher le brief matin
   if (typeof checkMorningBrief === 'function') {
     const coachOpen = document.getElementById('sc-coach') && document.getElementById('sc-coach').style.display !== 'none';
     if (coachOpen) {
       const memos = typeof _coachMemos !== 'undefined' ? _coachMemos : [];
       checkMorningBrief(memos, true);
     } else {
-      // Réinitialiser le flag pour que checkMorningBrief se déclenche à la prochaine ouverture du Coach
+      // Coach fermé : effacer le flag push_sent pour que checkMorningBrief génère le brief à la prochaine ouverture
       if (dbRef) {
-        const briefKey = '_brief_matin_' + today;
         try {
+          const briefKey = '_brief_matin_' + today;
           const snap = await dbRef.child(briefKey).once('value');
-          if (!snap.val() || snap.val() === 'push_sent') {
-            // Pas encore généré → OK, checkMorningBrief le générera à l'ouverture
+          if (snap.val() === 'push_sent') {
+            await dbRef.child(briefKey).remove();
           }
         } catch(e) {}
       }
     }
   }
   if(document.getElementById('sc-stats') && document.getElementById('sc-stats').style.display!=='none') renderStats();
+  _briefWaitRunning = false;
 }
 
 // ── FC REPOS CONTEXT BUILDER ─────────────────────────────────────────────────
