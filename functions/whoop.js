@@ -21,6 +21,12 @@ async function getValidWhoopToken(db) {
 
   if (Date.now() / 1000 <= token.expires_at - 300) return token.access_token;
 
+  // Verrou optimiste : prolonger expires_at avant le refresh pour éviter
+  // que deux appels concurrents tentent tous les deux un refresh simultané
+  // (le second utiliserait l'ancien refresh_token déjà consommé → 400)
+  const lockUntil = Math.floor(Date.now() / 1000) + 60;
+  await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update({ expires_at: lockUntil });
+
   const body = new URLSearchParams({
     client_id: WHOOP_CLIENT_ID.value(),
     client_secret: WHOOP_CLIENT_SECRET.value(),
@@ -35,22 +41,24 @@ async function getValidWhoopToken(db) {
   }, 15000);
 
   if (!res.ok) {
-    // 400/401 = refresh token expiré ou révoqué → supprimer le token pour forcer reconnexion
-    if (res.status === 400 || res.status === 401) {
-      await db.ref(`users/${ADMIN_UID}/state/whoop_token`).remove();
-      return null;
-    }
-    throw new Error('WHOOP token refresh failed: ' + res.status);
+    // Ne JAMAIS supprimer le token — une erreur 400/401 peut être due à un appel
+    // concurrent qui a déjà consommé le refresh_token (rotation WHOOP).
+    // On retourne null (sync échoue) mais le token reste intact pour la prochaine sync.
+    console.error(`WHOOP token refresh failed: ${res.status} — token conservé en base`);
+    return null;
   }
   const refreshed = await res.json();
-  if (!refreshed.access_token) throw new Error('Refresh token invalide');
+  if (!refreshed.access_token) {
+    console.error('WHOOP refresh: no access_token in response — token conservé en base');
+    return null;
+  }
 
   const tokenUpdate = {
     access_token: refreshed.access_token,
     expires_at: Math.floor(Date.now() / 1000) + (refreshed.expires_in || 3600),
     updatedAt: new Date().toISOString()
   };
-  // WHOOP utilise des refresh tokens rotatifs — sauvegarder le nouveau si fourni
+  // WHOOP utilise des refresh tokens rotatifs — sauvegarder le nouveau à chaque refresh
   if (refreshed.refresh_token) tokenUpdate.refresh_token = refreshed.refresh_token;
   await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update(tokenUpdate);
   return refreshed.access_token;
