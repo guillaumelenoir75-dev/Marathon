@@ -111,34 +111,31 @@ exports.calendar = onRequest(async (req, res) => {
     try {
       const base = JSON.parse(state[key]);
       if (base.type === 'rest') return;
-      // Fusionner avec l'override edit_w si présent
+      // L'override edit_w ne fournit que le contenu (km, type, titre, heure)
+      // mais PAS le jour — on se fie toujours à base.sched_date / base.sched_day
+      // pour éviter la contamination par d'anciens edit_w d'un plan précédent
       const editRaw = state[`edit_w${ws}_s${ei}`];
       const edit = editRaw ? JSON.parse(editRaw) : null;
-      const session = edit ? { ...base, ...edit } : base;
-      if (!session.sched_time && !base.sched_date) return;
-      const timeStr = session.sched_time || '09:00';
+      // Contenu : edit_w peut changer km/type/titre/heure
+      const type = (edit && edit.type) || base.type;
+      const km = (edit && edit.km) || base.km;
+      const d = (edit && edit.d) || base.d;
+      const timeStr = (edit && edit.sched_time) || base.sched_time || '09:00';
       const [h, m] = timeStr.split(":").map(Number);
+      // Planification : toujours depuis base (date/jour réels du plan)
+      if (!base.sched_date && !base.sched_day) return;
       let eventDate;
-      if (edit && edit.sched_day) {
-        // Jour modifié par l'utilisateur → recalcul depuis le lundi de la semaine
-        const weekStart = getWeekStartDate(ws);
-        eventDate = new Date(weekStart);
-        eventDate.setDate(weekStart.getDate() + (edit.sched_day - 1));
-        eventDate.setHours(h, m, 0, 0);
-      } else if (base.sched_date) {
-        // Utiliser la date réelle stockée dans la séance générée
+      if (base.sched_date) {
         eventDate = new Date(base.sched_date + 'T' + timeStr + ':00');
-      } else if (session.sched_day) {
+      } else {
         const weekStart = getWeekStartDate(ws);
         eventDate = new Date(weekStart);
-        eventDate.setDate(weekStart.getDate() + (session.sched_day - 1));
+        eventDate.setDate(weekStart.getDate() + (base.sched_day - 1));
         eventDate.setHours(h, m, 0, 0);
-      } else {
-        return;
       }
-      const title = typeToTitle[session.type] || "Run - EF";
-      const parts = (session.d || '').split('|');
-      const desc = [`${session.km} km`, parts[1]||''].filter(Boolean).join(' · ');
+      const title = typeToTitle[type] || "Run - EF";
+      const parts = (d || '').split('|');
+      const desc = [`${km} km`, parts[1]||''].filter(Boolean).join(' · ');
       events.push(buildEvent(`extra_w${ws}_s${ei}`, title, desc, eventDate, 60));
     } catch(e) {}
   });
