@@ -368,8 +368,17 @@ function _clearTargetTime(){
 function openFcReposModal(dateParam){
   const today = new Date().toISOString().slice(0,10);
   const targetDate = dateParam || today;
-  const d = new Date(targetDate + 'T12:00:00');
   const isToday = targetDate === today;
+  const whoopConnected = state.whoop_token && state.whoop_token.access_token;
+
+  // WHOOP connecté + aujourd'hui : pas de modal, juste lancer le processus directement
+  if (isToday && whoopConnected) {
+    _showBriefPreparationToast();
+    _waitAndTriggerMorningBrief(null, today);
+    return;
+  }
+
+  const d = new Date(targetDate + 'T12:00:00');
   const existing = state['fc_repos_'+targetDate] || '';
 
   // Calcul moyenne 7j pour contexte
