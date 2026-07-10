@@ -114,6 +114,10 @@ function initFirebase(){
               checkCoachUnread();
               // Init Service Worker et push notifications
               initNotifications();
+              // Sync WHOOP au démarrage si connecté
+              setTimeout(() => {
+                if (state.whoop_token && state.whoop_token.access_token && typeof syncWhoop === 'function' && !_whoopSyncing) syncWhoop();
+              }, 3000);
               // Quand l'app revient au foreground (depuis notification) → vérifier Firebase
               if(!_visibilityListenerAdded){_visibilityListenerAdded=true;document.addEventListener('visibilitychange', async function() {
                 if (document.visibilityState !== 'visible' || !dbRef) return;
