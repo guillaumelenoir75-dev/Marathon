@@ -73,7 +73,10 @@ function connectWhoop() {
 
 // Sync WHOOP et attend que les données soient chargées — retourne les données WHOOP ou null
 async function syncWhoopFresh() {
-  _whoopSyncing = false; // reset au cas où un sync précédent serait bloqué
+  // Attendre que syncWhoop() en cours se termine avant de lancer le nôtre
+  if (_whoopSyncing) {
+    await new Promise(r => { const t = setInterval(() => { if (!_whoopSyncing) { clearInterval(t); r(); } }, 300); setTimeout(() => { clearInterval(t); r(); }, 20000); });
+  }
   try {
     const resp = await fetch(WHOOP_SYNC_URL, {
       method: 'POST',

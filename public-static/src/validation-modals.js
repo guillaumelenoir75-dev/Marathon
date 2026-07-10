@@ -546,12 +546,15 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     const newDuration = newWd && newWd.sleeps && newWd.sleeps[0] ? newWd.sleeps[0].duration_hours : null;
     const newDate = newWd && newWd.recoveries && newWd.recoveries[0] ? newWd.recoveries[0].date : null;
 
-    // Triple vérification : date aujourd'hui + score différent + durée différente
+    // Triple vérification : date aujourd'hui ET (score OU durée a changé par rapport au snapshot précédent)
+    // Note : score ou durée identiques 2 jours de suite est possible — on ne bloque pas sur les 2 à la fois
     const dateOk = newDate === today;
-    const scoreOk = newScore !== null && newScore !== prevScore;
-    const durationOk = newDuration !== null && newDuration !== prevDuration;
+    const scoreChanged = newScore !== null && newScore !== prevScore;
+    const durationChanged = newDuration !== null && newDuration !== prevDuration;
+    // Données fraîches si date = aujourd'hui + au moins un indicateur a changé (ou pas de données prev)
+    const noPrev = prevScore === null && prevDuration === null;
 
-    if (dateOk && scoreOk && durationOk) {
+    if (dateOk && (noPrev || scoreChanged || durationChanged)) {
       whoopFresh = true;
       break;
     }
@@ -562,10 +565,10 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     }
   }
 
-  // Enregistrer la FC repos (RHR WHOOP si dispo, sinon valeur saisie manuellement)
-  const rhr = whoopFresh && state.whoop_data && state.whoop_data.recoveries && state.whoop_data.recoveries[0]
-    ? state.whoop_data.recoveries[0].rhr
-    : fcVal;
+  // Enregistrer la FC repos : RHR WHOOP si dispo, sinon fcVal saisi manuellement, sinon valeur existante
+  const whoopRhr = whoopFresh && state.whoop_data && state.whoop_data.recoveries && state.whoop_data.recoveries[0]
+    ? state.whoop_data.recoveries[0].rhr : null;
+  const rhr = whoopRhr || fcVal || state['fc_repos_'+today] || null;
   if (rhr && rhr >= 30 && rhr <= 100) {
     state['fc_repos_'+today] = rhr;
     state['fc_repos'] = rhr;

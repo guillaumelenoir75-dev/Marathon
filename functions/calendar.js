@@ -104,8 +104,6 @@ exports.calendar = onRequest(async (req, res) => {
           const editDateStr = `${editDate.getFullYear()}-${String(editDate.getMonth()+1).padStart(2,'0')}-${String(editDate.getDate()).padStart(2,'0')}`;
           if (extra.sched_date === editDateStr) return; // même date → override réel, géré par extra_w
           // Dates différentes → collision d'index, traiter edit_w indépendamment
-        } else if (sameSched) {
-          return; // même sched_day → override réel
         }
         // Collision d'index confirmée → continuer pour traiter edit_w
       } catch(e) { return; }
