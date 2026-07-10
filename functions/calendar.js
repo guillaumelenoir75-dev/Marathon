@@ -158,6 +158,17 @@ exports.calendar = onRequest(async (req, res) => {
     } catch(e) {}
   });
 
+  // Mode debug : ?debug=1 retourne les événements en JSON
+  if (req.query.debug === '1') {
+    const debugEvents = events.map(e => {
+      const lines = e.split('\r\n');
+      const get = k => (lines.find(l => l.startsWith(k+':')) || '').replace(k+':', '');
+      return { uid: get('UID'), summary: get('SUMMARY'), dtstart: get('DTSTART;TZID=Europe/Paris'), description: get('DESCRIPTION') };
+    });
+    res.json({ count: events.length, events: debugEvents });
+    return;
+  }
+
   const vtimezone = [
     'BEGIN:VTIMEZONE','TZID:Europe/Paris',
     'BEGIN:STANDARD','DTSTART:19701025T030000','TZOFFSETFROM:+0200','TZOFFSETTO:+0100','TZNAME:CET','RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10','END:STANDARD',
