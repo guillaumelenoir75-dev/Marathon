@@ -1062,7 +1062,30 @@ exports.adminTestNotif = onRequest(
         await db.ref(`${ADMIN_STATE}/_brief_fc_notif_${today}`).remove();
         await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).remove();
         await db.ref(`${ADMIN_STATE}/_brief_trigger`).set({ ts: Date.now(), date: today });
-        res.json({ success: true, message: 'Brief matinal déclenché, push dans ~2 min' });
+
+        // Envoyer immédiatement une push de test avec les vraies données du jour
+        // (sans attendre la fonction schedulée) pour vérifier que la push fonctionne
+        try {
+          const stateSnap = await db.ref(ADMIN_STATE).once('value');
+          const st = stateSnap.val() || {};
+          const wd = st.whoop_data || null;
+          const whoopRecov = wd?.recoveries?.[0] || null;
+          const whoopDate = whoopRecov?.date?.slice(0,10) || null;
+          const whoopToday = whoopDate === today;
+          const recovScore = whoopToday && whoopRecov?.score != null ? whoopRecov.score : null;
+          const recovEmoji = recovScore === null ? '' : recovScore >= 67 ? '🟢' : recovScore >= 34 ? '🟡' : '🔴';
+          const fcRhr = whoopToday && whoopRecov?.rhr ? whoopRecov.rhr : null;
+          const fcToday = fcRhr || st['fc_repos_' + today] || null;
+          const recovPart = recovScore != null ? `Récup ${recovScore}%${recovEmoji ? ' ' + recovEmoji : ''}` : recovEmoji ? `Récup ${recovEmoji}` : '';
+          const fcPart = fcToday ? `FC ${fcToday} bpm` : '';
+          const parts = [recovPart, fcPart].filter(Boolean);
+          const testBody = parts.length ? parts.join(' · ') + ' — Brief IA en cours...' : 'Brief IA en cours de génération…';
+          await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), '🌅 Brief du matin — TEST', testBody, 'brief-matin-test', '/');
+        } catch(ePush) {
+          console.warn('adminTestNotif brief-matin push immédiate:', ePush.message);
+        }
+
+        res.json({ success: true, message: 'Push test envoyée + brief IA déclenché (arrive dans ~2 min si 6h-22h)' });
         return;
       }
 
