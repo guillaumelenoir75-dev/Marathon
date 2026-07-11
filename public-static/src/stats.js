@@ -395,15 +395,17 @@ function _initStatsPTR() {
 
 async function _ptrSyncWhoop(spinner) {
   try {
-    if (typeof syncWhoop === 'function' && state.whoop_token?.access_token && !_whoopSyncing) {
+    if (typeof syncWhoop === 'function' && state.whoop_token?.access_token) {
+      const prevUpdatedAt = state.whoop_data?.updatedAt;
       syncWhoop();
-      for (let i = 0; i < 40 && _whoopSyncing; i++) {
+      // Attendre que updatedAt change (max 8s), signe que le callback Firebase a terminé
+      for (let i = 0; i < 32; i++) {
         await new Promise(r => setTimeout(r, 250));
+        if (state.whoop_data?.updatedAt && state.whoop_data.updatedAt !== prevUpdatedAt) break;
       }
-      if (isAdmin()) renderWhoopStats();
     }
   } catch(e) {}
-  await new Promise(r => setTimeout(r, 600));
+  await new Promise(r => setTimeout(r, 400));
   if (spinner) spinner.style.opacity = '0';
 }
 
@@ -471,17 +473,8 @@ function _renderWhoopChart(mode) {
   const wd = state.whoop_data;
   if (!wd) return;
   const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
-  let canvas = document.getElementById('chart-whoop');
-  if (!canvas) return;
-  if (_whoopChart) { _whoopChart.destroy(); _whoopChart = null; }
-  // Remplacer le canvas pour éviter les résidus Chart.js entre onglets
-  const _parent = canvas.parentNode;
-  const _newCanvas = document.createElement('canvas');
-  _newCanvas.id = 'chart-whoop';
-  _parent.replaceChild(_newCanvas, canvas);
-  canvas = _newCanvas;
 
-  let points, color, label, unit, yMin, yMax;
+  let points, color, unit, yMin, yMax;
 
   const dedupeByDate = (arr) => {
     const seen = new Map();
@@ -494,18 +487,36 @@ function _renderWhoopChart(mode) {
   if (mode === 'recovery') {
     const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: r.score }));
-    color = '#22c55e'; label = 'Récupération (%)'; unit = '%'; yMin = 0; yMax = 100;
+    color = '#22c55e'; unit = '%'; yMin = 0; yMax = 100;
   } else if (mode === 'sleep') {
     const data = dedupeByDate([...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(s => ({ x: new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: s.performance_pct }));
-    color = '#3b82f6'; label = 'Sommeil (%)'; unit = '%'; yMin = 0; yMax = 100;
+    color = '#3b82f6'; unit = '%'; yMin = 0; yMax = 100;
   } else {
     const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
-    color = '#f59e0b'; label = 'Charge (Strain)'; unit = ''; yMin = 0; yMax = 21;
+    color = '#f59e0b'; unit = ''; yMin = 0; yMax = 21;
   }
 
   if (!points.length) return;
+
+  // Mise à jour in-place si le graphique existe déjà — évite les résidus visuels
+  if (_whoopChart) {
+    _whoopChart.data.labels = points.map(p => p.x);
+    _whoopChart.data.datasets[0].data = points.map(p => p.y);
+    _whoopChart.data.datasets[0].borderColor = color;
+    _whoopChart.data.datasets[0].backgroundColor = color + '18';
+    _whoopChart.data.datasets[0].pointBackgroundColor = color;
+    _whoopChart.options.scales.y.min = yMin;
+    _whoopChart.options.scales.y.max = yMax;
+    _whoopChart.options.plugins.tooltip.callbacks.label = c => c.raw + unit;
+    _whoopChart.options.scales.y.ticks.callback = v => v + unit;
+    _whoopChart.update('none');
+    return;
+  }
+
+  const canvas = document.getElementById('chart-whoop');
+  if (!canvas) return;
 
   _whoopChart = new Chart(canvas, {
     type: 'line',
@@ -851,6 +862,8 @@ function showScreen(name, renfoTab){
   }
   if(name==='stats'){
     rendered.stats=true;
+    // Réinitialiser le graphique WHOOP pour forcer une création propre à chaque ouverture
+    if(_whoopChart){ _whoopChart.destroy(); _whoopChart=null; }
     setTimeout(renderStats,50);
     window.scrollTo({top:0,behavior:'instant'});
     // Auto-sync WHOOP si données > 5 min
