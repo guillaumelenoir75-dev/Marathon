@@ -555,9 +555,8 @@ function _renderWhoopChart(mode) {
       labels: points.map(p => p.x),
       datasets: [{
         data: points.map(p => p.y),
-        borderColor: ctx => pointColors[ctx.p1DataIndex] || color,
-        segment: { borderColor: ctx => pointColors[ctx.p1DataIndex] || color },
-        backgroundColor: color + '18',
+        borderColor: isDark ? '#555' : '#bbb',
+        backgroundColor: (isDark ? '#555' : '#bbb') + '18',
         borderWidth: 2.5,
         pointBackgroundColor: pointColors,
         pointBorderColor: '#fff',
