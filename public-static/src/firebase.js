@@ -199,6 +199,29 @@ function initFirebase(){
 }
 
 
+// Ouvre le coach et affiche le brief — appelé depuis le listener SW postMessage
+async function openCoachFromNotif() {
+  if (!dbRef || !firebaseReady) return;
+  try {
+    const stateSnap = await dbRef.once('value');
+    if (stateSnap.val()) state = stateSnap.val();
+  } catch(e) {}
+  window._coachInitDone = false;
+  window._briefShownToday = false;
+  window._coachOpenedFromNotif = true;
+  ['home','plan','renfo','stats','coach','compte'].forEach(s => {
+    const el = document.getElementById('sc-'+s);
+    if (el) el.style.display = s === 'coach' ? 'flex' : 'none';
+    const btn = document.getElementById('nav-'+s);
+    if (btn) btn.className = 'nav-btn' + (s === 'coach' ? ' active' : '');
+  });
+  const badge = document.getElementById('coach-alert-badge');
+  if (badge) badge.style.display = 'none';
+  window._coachHasUnread = false;
+  if (dbRef) dbRef.child('_coach_unread').set(false);
+  try { await loadCoachHistory(); } catch(e) {}
+}
+
 let rendered={};
 let coachHistory=[];
 let chartKm=null;

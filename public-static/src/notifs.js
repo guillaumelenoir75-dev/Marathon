@@ -163,6 +163,14 @@ async function subscribeToPush() {
   }
 }
 
+// Écoute les messages du Service Worker (ex: clic sur notif brief → ouvrir le coach)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', async event => {
+    if (!event.data || event.data.type !== 'OPEN_COACH_BRIEF') return;
+    if (typeof openCoachFromNotif === 'function') await openCoachFromNotif();
+  });
+}
+
 // Lancer l'init notifications au chargement de l'app
 // (appelé après que Firebase est prêt, dans le bloc firebase.auth)
 

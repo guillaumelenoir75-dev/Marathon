@@ -27,13 +27,25 @@ messaging.onBackgroundMessage(payload => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  const data = event.notification.data || {};
+  const url = data.url || '/';
+  const tag = data.tag || '';
+  const isBrief = tag.includes('brief');
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async list => {
+      let target = null;
       for (const c of list) {
-        if (c.url.startsWith(self.location.origin) && 'focus' in c) return c.focus();
+        if (c.url.startsWith(self.location.origin)) { target = c; break; }
       }
-      return clients.openWindow(url);
+      if (target) {
+        await target.focus();
+      } else {
+        target = await clients.openWindow(url);
+      }
+      if (isBrief && target) {
+        target.postMessage({ type: 'OPEN_COACH_BRIEF' });
+      }
     })
   );
 });
