@@ -660,10 +660,10 @@ function renderFcReposChart(){
     : null;
   const fcTrendColor = fcTrend === '↓ forme' ? '#16a34a' : fcTrend === '↑ fatigue' ? '#dc2626' : '#ca8a04';
 
-  // Filtrage selon onglet
+  // Filtrage selon onglet (days - 1 pour inclure aujourd'hui dans le décompte)
   if (_fcReposChartFilter !== 'all') {
     const days = parseInt(_fcReposChartFilter);
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - (days - 1));
     const cutoffStr = cutoff.toISOString().slice(0, 10);
     entries = entries.filter(e => e.date >= cutoffStr);
   }
@@ -732,6 +732,25 @@ function renderFcReposChart(){
         tension:0.35
       }]
     },
+    plugins:[{
+      id:'fcLabels',
+      afterDatasetsDraw(chart){
+        const ctx=chart.ctx;
+        chart.data.datasets.forEach((ds,di)=>{
+          const meta=chart.getDatasetMeta(di);
+          meta.data.forEach((pt,i)=>{
+            const val=ds.data[i];
+            if(val==null) return;
+            ctx.save();
+            ctx.font='600 9px sans-serif';
+            ctx.fillStyle=rhrColor2(val);
+            ctx.textAlign='center';
+            ctx.fillText(val+' bpm',pt.x,pt.y-9);
+            ctx.restore();
+          });
+        });
+      }
+    }],
     options:{
       responsive:true,
       maintainAspectRatio:false,
