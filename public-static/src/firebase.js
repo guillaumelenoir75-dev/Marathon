@@ -176,6 +176,12 @@ function initFirebase(){
                 } catch(e) {}
               })();
 
+              // Clic sur notif brief → URL ?action=brief → ouvrir le coach directement
+              if (window.location.search.includes('action=brief')) {
+                history.replaceState({}, '', '/');
+                setTimeout(() => openCoachFromNotif(), 400);
+              }
+
             },(error)=>{
               migrateState();
               firebaseReady=true;
