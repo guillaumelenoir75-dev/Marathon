@@ -118,69 +118,29 @@ function initFirebase(){
               setTimeout(() => {
                 if (state.whoop_token && state.whoop_token.access_token && typeof syncWhoop === 'function' && !_whoopSyncing) syncWhoop();
               }, 3000);
-              // Quand l'app revient au foreground (depuis notification) → vérifier Firebase
+              // Quand l'app revient au foreground → vérifier _open_coach
               if(!_visibilityListenerAdded){_visibilityListenerAdded=true;document.addEventListener('visibilitychange', async function() {
                 if (document.visibilityState !== 'visible' || !dbRef) return;
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
                   if (!snap.val()) return;
                   await dbRef.child('_open_coach').remove();
-                  try {
-                    const stateSnap = await dbRef.once('value');
-                    if (stateSnap.val()) state = stateSnap.val();
-                  } catch(e) {}
-                  // Reset flags
-                  window._coachInitDone = false;
-                  _briefShownToday = false;
-                  window._coachOpenedFromNotif = true;
-                  // Afficher l'écran coach (tabs + display)
-                  ['home','plan','renfo','stats','coach','compte'].forEach(s=>{
-                    const el=document.getElementById('sc-'+s);
-                    if(el) el.style.display=s==='coach'?'flex':'none';
-                    const btn=document.getElementById('nav-'+s);
-                    if(btn) btn.className='nav-btn'+(s==='coach'?' active':'');
-                  });
-                  const badge=document.getElementById('coach-alert-badge');
-                  if(badge) badge.style.display='none';
-                  window._coachHasUnread=false;
-                  if(dbRef) dbRef.child('_coach_unread').set(false);
-                  // Appeler loadCoachHistory directement — pas de setTimeout
-                  await loadCoachHistory();
+                  await openCoachFromNotif();
                 } catch(e) {}
               });} // fin guard _visibilityListenerAdded
 
-              // Lire _open_coach depuis Firebase (mis par la notif brief/débrief)
+              // Ouverture coach : _open_coach Firebase OU URL ?action=brief (clic notif)
               (async () => {
                 try {
+                  const fromBriefUrl = window.location.search.includes('action=brief');
+                  if (fromBriefUrl) history.replaceState({}, '', '/');
                   const ocSnap = await dbRef.child('_open_coach').once('value');
-                  if (!ocSnap.val()) return;
-                  await dbRef.child('_open_coach').remove();
-                  try {
-                    const stateSnap = await dbRef.once('value');
-                    if (stateSnap.val()) state = stateSnap.val();
-                  } catch(e) {}
-                  window._coachInitDone = false;
-                  _briefShownToday = false;
-                  window._coachOpenedFromNotif = true;
-                  ['home','plan','renfo','stats','coach','compte'].forEach(s=>{
-                    const el=document.getElementById('sc-'+s);
-                    if(el) el.style.display=s==='coach'?'flex':'none';
-                    const btn=document.getElementById('nav-'+s);
-                    if(btn) btn.className='nav-btn'+(s==='coach'?' active':'');
-                  });
-                  const badge=document.getElementById('coach-alert-badge');
-                  if(badge) badge.style.display='none';
-                  window._coachHasUnread=false;
-                  if(dbRef) dbRef.child('_coach_unread').set(false);
-                  await loadCoachHistory();
+                  const hasOpenCoach = !!ocSnap.val();
+                  if (!hasOpenCoach && !fromBriefUrl) return;
+                  if (hasOpenCoach) await dbRef.child('_open_coach').remove();
+                  await openCoachFromNotif();
                 } catch(e) {}
               })();
-
-              // Clic sur notif brief → URL ?action=brief → ouvrir le coach directement
-              if (window.location.search.includes('action=brief')) {
-                history.replaceState({}, '', '/');
-                setTimeout(() => openCoachFromNotif(), 400);
-              }
 
             },(error)=>{
               migrateState();
@@ -205,7 +165,7 @@ function initFirebase(){
 }
 
 
-// Ouvre le coach et affiche le brief — appelé depuis le listener SW postMessage
+// Ouvre le coach et affiche le brief (depuis notif ou flag Firebase)
 async function openCoachFromNotif() {
   if (!dbRef || !firebaseReady) return;
   try {
@@ -213,7 +173,7 @@ async function openCoachFromNotif() {
     if (stateSnap.val()) state = stateSnap.val();
   } catch(e) {}
   window._coachInitDone = false;
-  window._briefShownToday = false;
+  _briefShownToday = false;
   window._coachOpenedFromNotif = true;
   ['home','plan','renfo','stats','coach','compte'].forEach(s => {
     const el = document.getElementById('sc-'+s);
