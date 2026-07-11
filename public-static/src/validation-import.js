@@ -690,7 +690,7 @@ async function importWhoopCharge() {
   btn.disabled = true;
 
   try {
-    const snap = await dbRef.child('state/whoop_data').once('value');
+    const snap = await dbRef.child('whoop_data').once('value');
     const whoopData = snap.val();
 
     if (!whoopData) {
@@ -859,7 +859,7 @@ async function importWhoopForPerfEdit(ws, si) {
   if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
 
   try {
-    const snap = await dbRef.child('state/whoop_data').once('value');
+    const snap = await dbRef.child('whoop_data').once('value');
     const whoopData = snap.val();
 
     if (!whoopData) {
