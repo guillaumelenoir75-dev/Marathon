@@ -137,13 +137,15 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const done = !!state[k+'done'];
       let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
       const kmReel = state[k+'km'] != null ? state[k+'km'] : sess.km;
+      const whoopStrain = perf?.whoop?.workout_strain ?? perf?.whoop?.cycle_strain ?? null;
       sessions.push({
         type: sess.type,
         km: done ? kmReel : sess.km,
         fait: done,
         allure: perf ? perf.pace : null,
         fc: perf ? perf.hr : null,
-        blocsAllure: (perf && perf.blocsAllure && perf.blocsAllure.some(b=>b)) ? perf.blocsAllure : null
+        blocsAllure: (perf && perf.blocsAllure && perf.blocsAllure.some(b=>b)) ? perf.blocsAllure : null,
+        whoop_charge: whoopStrain != null ? parseFloat(whoopStrain.toFixed(1)) : null
       });
     });
     const kmFait = sessions.filter(s=>s.fait).reduce((a,s)=>a+s.km,0);

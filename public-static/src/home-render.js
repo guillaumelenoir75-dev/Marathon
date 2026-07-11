@@ -931,6 +931,7 @@ function openValidationModal(idx){
         <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
           <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
           <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Météo</button>
+          <button id="whoop-val-btn" onclick="importWhoopCharge()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">⚡ WHOOP</button>
           <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
       </div>

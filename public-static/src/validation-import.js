@@ -726,11 +726,7 @@ async function importWhoopCharge() {
     window._whoopChargeData = {
       date: sessionDate,
       workout_strain: bestWorkout?.strain ?? null,
-      workout_avg_hr: bestWorkout?.avg_hr ?? null,
-      workout_max_hr: bestWorkout?.max_hr ?? null,
       workout_calories: bestWorkout?.calories ?? null,
-      workout_duration_min: bestWorkout?.duration_min ?? null,
-      workout_sport_id: bestWorkout?.sport_id ?? null,
       cycle_strain: dayCycle?.strain ?? null,
       cycle_calories: dayCycle?.calories ?? null
     };
@@ -892,10 +888,12 @@ async function importWhoopForPerfEdit(ws, si) {
     }
 
     // Stocker les workouts dans un tableau global pour accès par index depuis onclick
-    window._whoopPerfEditData = top3.map(w => ({
-      date: w.date, workout_strain: w.strain, workout_calories: w.calories,
-      cycle_strain: null, cycle_calories: null
-    }));
+    const cycles = whoopData.cycles || [];
+    window._whoopPerfEditData = top3.map(w => {
+      const c = cycles.find(cy => cy.date === w.date) || {};
+      return { date: w.date, workout_strain: w.strain, workout_calories: w.calories,
+               cycle_strain: c.strain ?? null, cycle_calories: c.calories ?? null };
+    });
 
     // Afficher le picker
     const existing = document.getElementById('whoop-pedit-picker');
