@@ -438,7 +438,12 @@ function renderWhoopStats() {
     {
       label: 'Sommeil',
       value: s0?.performance_pct != null ? s0.performance_pct + '%' : '—',
-      sub: s0?.duration_hours ? s0.duration_hours + ' · REM ' + (s0.rem_pct || '—') + '%' : '',
+      sub: s0?.duration_hours ? (()=>{
+        const rem=s0.rem_pct;
+        const remColor=rem==null?'var(--muted)':rem>=25?'#16a34a':rem>=20?'#ca8a04':'#dc2626';
+        const remStr=rem!=null?`<span style="color:${remColor};font-weight:700;">${rem}%</span>`:'—%';
+        return s0.duration_hours + ' · REM ' + remStr;
+      })() : '',
       color: s0?.performance_pct != null ? scoreColor(s0.performance_pct) : 'var(--muted)',
       bg: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
       border: isDark ? 'rgba(59,130,246,0.25)' : '#bfdbfe'
