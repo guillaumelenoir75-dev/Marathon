@@ -476,7 +476,8 @@ ${memosLine}`;
       // Emoji météo
       const meteoEmoji=tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
       // FC repos dans la notif : RHR WHOOP d'aujourd'hui en priorité (jamais une valeur stale)
-      const fcPart=fcToday?`FC ${fcToday} bpm${recovEmoji?' '+recovEmoji:''}`.trim():(recovEmoji?`Récup ${recovEmoji}`:'');
+      const recovPart=recovScore!=null?`Récup ${recovScore}%${recovEmoji?' '+recovEmoji:''}`:recovEmoji?`Récup ${recovEmoji}`:'';
+      const fcPart=fcToday?`FC ${fcToday} bpm`:'';
       // Séance run du jour (uniquement run, pas renfo)
       let seancePart='';
       if(seanceRunAujourdhui){
@@ -487,7 +488,7 @@ ${memosLine}`;
       }else{
         seancePart='Pas de séance run';
       }
-      let pushBody=`${fcPart}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
+      let pushBody=`${recovPart}${recovPart&&(fcPart||seancePart)?' · ':''}${fcPart}${fcPart&&seancePart?' · ':''}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
       if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
 
       // Stocker brief COMPLET → affichage instantané au clic notif ou à la prochaine ouverture

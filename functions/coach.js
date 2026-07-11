@@ -859,7 +859,7 @@ exports.morningBrief = onRequest(
 
 STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
 
-1. ❤️ FC REPOS — commencer par ça, toujours. Donner la valeur du jour en **gras**, comparer à la moyenne 7j. Une phrase : bonne récup ou signe de fatigue.
+1. ❤️ FC REPOS & RÉCUPÉRATION — commencer par ça, toujours. Si le score de récupération WHOOP est disponible, l'annoncer en premier en **gras** (ex: **Score récupération : 78 %**) avec une interprétation en une demi-phrase (≥67 % → bonne récup, 34-66 % → récup modérée, <34 % → fatigue). Puis la FC repos : valeur en **gras**, comparaison à la moyenne 7j. Une phrase globale : bonne récup ou signe de fatigue.
 
 2. 🌤️ MÉTÉO — seulement si disponible dans le contexte. Une phrase : température, conditions, impact sur la séance (ajuster la tenue, hydratation, etc.). Si pas de météo : passer directement au point 3.
 
@@ -903,6 +903,9 @@ RÈGLES ABSOLUES :
         return `${t}${s.km ? ' '+s.km+'km' : ''}${s.heure ? ' à '+s.heure : ''}${s.allure_cible ? ' — allure : '+s.allure_cible : ''}`;
       }).join(' + ') || 'Aucune séance planifiée';
 
+      const recovLine = context.whoop_recovery_score != null
+        ? `Score récupération WHOOP : ${context.whoop_recovery_score} %`
+        : null;
       const fcLine = context.fc_repos_bpm
         ? `FC repos ce matin : ${context.fc_repos_bpm} bpm (moyenne 7j : ${context.fc_repos_moyenne_7j||'—'} bpm)${context.fc_repos_alerte ? ' ⚠️ '+context.fc_repos_alerte : ''}`
         : 'FC repos non saisie ce matin';
@@ -914,7 +917,7 @@ RÈGLES ABSOLUES :
       const memosLine = context.memos ? `\nNotes coach (mémos) :\n${context.memos}` : '';
       const userMsg = `${context.jour} ${context.date}
 
-${fcLine}
+${recovLine ? recovLine+'\n' : ''}${fcLine}
 ${meteoLine}
 Séances du jour : ${seancesStr}
 Allure EF cible : ${context.allure_ef||'non renseignée'}

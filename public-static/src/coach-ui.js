@@ -1112,6 +1112,8 @@ async function checkMorningBrief(memos, force) {
     fc_repos_bpm: state['fc_repos_' + todayStr] || state['fc_repos'] || null,
     fc_repos_moyenne_7j: fcCtxBrief.stats_7j ? fcCtxBrief.stats_7j.moyenne : null,
     fc_repos_alerte: fcCtxBrief.alerte_fatigue || null,
+    // Score de récupération WHOOP du jour
+    whoop_recovery_score: state.whoop_data ? (state.whoop_data.latest_recovery_score ?? null) : null,
     // Météo
     meteo: meteoBrief ? {
       temperature: meteoBrief.temperature,
