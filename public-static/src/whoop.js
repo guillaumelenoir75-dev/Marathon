@@ -159,17 +159,14 @@ async function syncWhoop() {
 
 function _autoFillFcRepos(rhr) {
   const today = new Date().toISOString().slice(0, 10);
-  if (!state['fc_repos_' + today]) {
-    // Pas encore de mesure manuelle aujourd'hui → auto-fill
-    if (dbRef) {
-      dbRef.child('fc_repos_' + today).transaction(existing => existing === null ? rhr : existing)
-        .then(() => {
-          state['fc_repos_' + today] = rhr;
-          // Mettre à jour l'affichage du KPI FC repos
-          const el = document.getElementById('kpi-fc-repos');
-          if (el && el.textContent === '—') el.textContent = rhr + ' bpm';
-        });
-    }
+  // WHOOP est la source autoritaire pour la FC repos — toujours écraser avec la valeur du jour
+  if (dbRef) {
+    dbRef.child('fc_repos_' + today).set(rhr).then(() => {
+      state['fc_repos_' + today] = rhr;
+      const el = document.getElementById('kpi-fc-repos');
+      if (el) el.textContent = rhr + ' bpm';
+      if (typeof renderFcReposChart === 'function') renderFcReposChart();
+    });
   }
 }
 
