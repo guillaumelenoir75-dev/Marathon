@@ -848,11 +848,11 @@ function showScreen(name, renfoTab){
     rendered.stats=true;
     setTimeout(renderStats,50);
     window.scrollTo({top:0,behavior:'instant'});
-    // Auto-sync WHOOP si données > 5 min
-    if(typeof syncWhoop === 'function' && state.whoop_token?.access_token && !_whoopSyncing) {
+    // Auto-sync WHOOP si données > 5 min (syncWhoopFresh ne clear pas state.whoop_data en cas d'erreur)
+    if(typeof syncWhoopFresh === 'function' && state.whoop_token?.access_token && !_whoopSyncing) {
       const updatedAt = state.whoop_data?.updatedAt ? new Date(state.whoop_data.updatedAt) : null;
       const minAgo = updatedAt ? (Date.now() - updatedAt.getTime()) / 60000 : Infinity;
-      if(minAgo > 5) syncWhoop();
+      if(minAgo > 5) syncWhoopFresh();
     }
   }
   if(name==='renfo'){

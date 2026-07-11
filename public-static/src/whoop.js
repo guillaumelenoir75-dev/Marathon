@@ -116,11 +116,11 @@ async function syncWhoop() {
     const data = await resp.json();
 
     if (data.needsAuth) {
-      // Token expiré : nettoyer le state local et repasser en mode "non connecté"
-      state.whoop_token = null;
-      state.whoop_data = null;
+      // Token expiré : ne pas effacer les données existantes (on garde l'affichage),
+      // juste signaler que la reconnexion est nécessaire via l'écran Compte
       _whoopSyncing = false;
-      initWhoopStatus();
+      const status = document.getElementById('whoop-status');
+      if (status) { status.textContent = 'Token expiré — reconnecte WHOOP'; status.style.color = '#f59e0b'; }
       return;
     }
 
