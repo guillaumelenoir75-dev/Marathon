@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, sendPush, buildNotifContext, getCurrentWeek } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -1032,7 +1032,7 @@ RÈGLES DE MISE À JOUR — ESSENTIELLES :
 );
 
 exports.adminTestNotif = onRequest(
-  { secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY], cors: true },
+  { secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, ANTHROPIC_API_KEY], cors: true, timeoutSeconds: 120, memory: '512MiB' },
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
@@ -1059,45 +1059,32 @@ exports.adminTestNotif = onRequest(
 
       if (type === 'brief-matin') {
         const today = new Date().toISOString().slice(0, 10);
+        // Effacer les flags pour permettre une régénération complète
         await db.ref(`${ADMIN_STATE}/_brief_fc_notif_${today}`).remove();
         await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).remove();
-        await db.ref(`${ADMIN_STATE}/_brief_trigger`).set({ ts: Date.now(), date: today });
+        await db.ref(`${ADMIN_STATE}/_brief_pending`).remove();
 
-        // Envoyer immédiatement une push de test avec les vraies données du jour
-        // (sans attendre la fonction schedulée) pour vérifier que la push fonctionne
-        try {
-          const stateSnap = await db.ref(ADMIN_STATE).once('value');
-          const st = stateSnap.val() || {};
-          const wd = st.whoop_data || null;
-          const whoopRecov = wd?.recoveries?.[0] || null;
-          const whoopDate = whoopRecov?.date?.slice(0,10) || null;
-          const whoopToday = whoopDate === today;
-          const recovScore = whoopToday && whoopRecov?.score != null ? whoopRecov.score : null;
-          const recovEmoji = recovScore === null ? '' : recovScore >= 67 ? '🟢' : recovScore >= 34 ? '🟡' : '🔴';
-          const fcRhr = whoopToday && whoopRecov?.rhr ? whoopRecov.rhr : null;
-          const fcToday = fcRhr || st['fc_repos_' + today] || null;
-          const recovPart = recovScore != null ? `Récup ${recovScore}%${recovEmoji ? ' ' + recovEmoji : ''}` : recovEmoji ? `Récup ${recovEmoji}` : '';
-          const fcPart = fcToday ? `FC ${fcToday} bpm` : '';
-          // Séance run du jour (pas renfo, pas bodyhit)
-          const cw = getCurrentWeek();
-          const ctx = await buildNotifContext(st, cw);
-          const seanceRun = ctx.seanceRunAujourdhui || null;
-          let seancePart = '';
-          if (seanceRun) {
-            const typeLabel = {ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',frac:'Fractionné',marathon:'Marathon'}[seanceRun.type] || seanceRun.type.toUpperCase();
-            const km = seanceRun.km > 0 ? ` ${seanceRun.km}km` : '';
-            seancePart = `${typeLabel}${km} 🏃`;
-          } else {
-            seancePart = 'Pas de séance run';
-          }
-          const parts = [recovPart, fcPart, seancePart].filter(Boolean);
-          const testBody = parts.join(' · ');
-          await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), '🌅 Brief du matin — TEST', testBody, 'brief-matin-test', '/');
-        } catch(ePush) {
-          console.warn('adminTestNotif brief-matin push immédiate:', ePush.message);
+        // Générer le brief immédiatement (sans contrainte horaire)
+        const stateSnap = await db.ref(ADMIN_STATE).once('value');
+        const st = stateSnap.val() || {};
+        const cw = getCurrentWeek();
+
+        const { briefContent, pushBody } = await generateMorningBriefContent(
+          ANTHROPIC_API_KEY.value(), db, st, cw, today
+        );
+
+        // Stocker le brief pour que le Coach l'affiche au tap de la notif
+        if (briefContent) {
+          await db.ref(`${ADMIN_STATE}/_brief_pending`).set({ content: briefContent, date: today, type: 'morning_brief' });
+          await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).set(true);
         }
+        await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
-        res.json({ success: true, message: 'Push test envoyée + brief IA déclenché (arrive dans ~2 min si 6h-22h)' });
+        const notifTitle = '🌅 Brief du matin — TEST';
+        const notifBody = pushBody || 'Brief matinal prêt — ouvre le Coach IA 🏃';
+        await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), notifTitle, notifBody, 'brief-matin-test', '/');
+
+        res.json({ success: true, message: 'Brief généré et push envoyée.' });
         return;
       }
 

@@ -225,6 +225,214 @@ async function buildNotifContext(state, cw) {
   return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw,seanceRunAujourdhui};
 }
 
+// Génère le brief du matin complet (appel Anthropic + météo + gels + eau)
+// Utilisé par briefAfterFcRepos (scheduler) ET adminTestNotif (test immédiat)
+async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr) {
+  const ctx = await buildNotifContext(state, cw);
+  const wd = state['whoop_data'] || state.whoop_data || null;
+  const whoopRecov = wd && wd.recoveries && wd.recoveries[0] ? wd.recoveries[0] : null;
+  const whoopDate = whoopRecov && whoopRecov.date ? whoopRecov.date.slice(0,10) : null;
+  const whoopToday = (whoopDate === todayStr);
+  const fcWhoopRhr = (whoopToday && whoopRecov && whoopRecov.rhr) ? whoopRecov.rhr : null;
+  const fcToday = fcWhoopRhr || state['fc_repos_'+todayStr] || null;
+
+  let whoopBlock = '';
+  if (wd && whoopToday) {
+    const r = whoopRecov;
+    const s = wd.sleeps && wd.sleeps[0];
+    const cy = wd.cycles && wd.cycles[0];
+    const lines = [];
+    if (r) {
+      if (r.score != null) lines.push(`Score de récupération WHOOP : ${r.score}% (${r.score>=67?'VERT — bonne forme':r.score>=34?'JAUNE — modéré':'ROUGE — fatigue'})`);
+      if (r.rhr) lines.push(`FC repos WHOOP : ${r.rhr} bpm`);
+      if (r.hrv) lines.push(`HRV : ${Math.round(r.hrv)} ms`);
+      if (r.spo2) lines.push(`SpO2 : ${Math.round(r.spo2*10)/10}%`);
+    }
+    if (s) {
+      if (s.duration_hours) lines.push(`Durée de sommeil : ${s.duration_hours}`);
+      if (s.performance_pct != null) lines.push(`Performance sommeil : ${s.performance_pct}%`);
+      if (s.rem_pct) lines.push(`REM : ${s.rem_pct}%`);
+    }
+    if (cy && cy.strain != null) lines.push(`Charge WHOOP (strain) : ${Math.round(cy.strain*10)/10}`);
+    const hist7 = (wd.recoveries||[]).slice(0,7);
+    if (hist7.length > 1) {
+      const scores = hist7.filter(x=>x.score!=null).map(x=>x.score);
+      if (scores.length > 1) { const avg7=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length); lines.push(`Moyenne récup 7 derniers jours : ${avg7}%`); }
+    }
+    if (lines.length > 0) whoopBlock = '\nDonnées WHOOP du matin :\n'+lines.join('\n');
+  }
+
+  const now = new Date();
+  const dow = now.getDay();
+  const joursLong = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  const moisNoms = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const dateComplet = `${joursLong[dow]} ${now.getDate()} ${moisNoms[now.getMonth()]} ${now.getFullYear()}`;
+
+  let fcSum=0, fcCount=0;
+  for (let d=0;d<7;d++) {
+    const dd=new Date(now.getTime()-d*86400000);
+    const ds=dd.toISOString().slice(0,10);
+    const v=parseFloat(state['fc_repos_'+ds]);
+    if (v && !isNaN(v)) { fcSum+=v; fcCount++; }
+  }
+  const fcMoy7j = fcCount > 0 ? Math.round(fcSum/fcCount) : null;
+
+  const paceStrToSec = p => { if(!p)return null; const m=p.replace("'",':').split(':'); if(m.length<2)return null; const s=parseInt(m[0])*60+parseInt(m[1]); return isNaN(s)?null:s; };
+  const efPaces = [];
+  if (state.ef_pace) { const s=paceStrToSec(state.ef_pace.replace("'",':')); if(s) efPaces.push(s); }
+  for (let ws=1;ws<=cw;ws++) {
+    for (let si=0;si<5;si++) {
+      const pr=state[`w${ws}_s${si}perf`]||state[`s${ws}i${si}perf`];
+      if (!pr) continue;
+      try { const p=JSON.parse(pr); if ((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
+    }
+  }
+  let efPace = null;
+  if (efPaces.length > 0) {
+    let refSec;
+    if (efPaces.length < 3) { refSec=Math.min(...efPaces); }
+    else { const last3=efPaces.slice(-3); const before3=efPaces.slice(0,-3); const prevBest=before3.length>0?Math.min(...before3):last3[0]; const minL=Math.min(...last3); const medL=[...last3].sort((a,b)=>a-b)[1]; refSec=minL<=prevBest?minL:medL; }
+    let _em=Math.floor(refSec/60); let _es=Math.round(refSec%60); if(_es===60){_em++;_es=0;} efPace=`${_em}'${(_es+'').padStart(2,'0')}`;
+  }
+  efPace = efPace || "6'40";
+
+  const isDecharge = [8,12,16,20,26,30].includes(cw);
+  const consignesEf = isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm` : `Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
+  const memos = state['_coach_memos'] || '';
+  const seancesStr = ctx.seancesAujourdHui.length > 0 ? ctx.seancesAujourdHui.join(' + ') : 'Récupération';
+  const fcSource = fcWhoopRhr ? 'WHOOP RHR' : 'saisie manuelle';
+  const fcLine = fcToday ? `FC repos ce matin : ${fcToday} bpm [${fcSource}] (moyenne 7j : ${fcMoy7j||'—'} bpm)` : 'FC repos non saisie ce matin';
+  const memosLine = memos ? `\nNotes coach (mémos) :\n${memos}` : '';
+  const seanceRunAujourdhui = ctx.seanceRunAujourdhui || null;
+  const seanceHeure = seanceRunAujourdhui?.sched_time || null;
+  const seanceHeureDig = seanceHeure ? parseInt(seanceHeure.split(':')[0]) : null;
+
+  let meteoStr = '', tempSeance = null;
+  try {
+    const locSnap = await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
+    const loc = locSnap.val();
+    const _tsBrief = loc && loc.ts ? (loc.ts<1e10?loc.ts*1000:loc.ts) : 0;
+    const locFresh = loc && loc.lat && _tsBrief && (Date.now()-_tsBrief)<30*24*3600*1000;
+    const lat = locFresh ? loc.lat : 48.8417;
+    const lng = locFresh ? loc.lng : 2.2945;
+    const targetH = seanceHeureDig !== null ? seanceHeureDig : 8;
+    const meteoResp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code,precipitation_probability&timezone=Europe%2FParis&forecast_days=1`);
+    const meteoData = await meteoResp.json();
+    if (meteoData.hourly) {
+      const nowH = now.getHours();
+      const tempCurrent = meteoData.hourly.temperature_2m?.[nowH];
+      const temp = meteoData.hourly.temperature_2m?.[targetH];
+      const apparent = meteoData.hourly.apparent_temperature?.[targetH];
+      const wcode = meteoData.hourly.weather_code?.[targetH];
+      const rainProb = meteoData.hourly.precipitation_probability?.[targetH]||0;
+      const tempEffective = Math.max(temp||0, tempCurrent||0);
+      tempSeance = Math.round(tempEffective);
+      const ressenti = Math.round(apparent||temp||0);
+      const wmoLabel = wcode===0?'Ensoleillé':wcode<=2?'Peu nuageux':wcode<=3?'Couvert':wcode<=48?'Brouillard':wcode<=55?'Bruine':wcode<=67?'Pluie':wcode<=77?'Neige':wcode<=82?'Averses':wcode<=99?'Orage':'Variable';
+      meteoStr = `Météo prévue à ${seanceHeure||targetH+'h'} : ${tempSeance}°C (ressenti ${ressenti}°C), ${wmoLabel}${rainProb>40?', risque pluie '+rainProb+'%':''}`;
+    }
+  } catch(e) {}
+
+  const seanceKm = seanceRunAujourdhui && seanceRunAujourdhui.km > 0 ? parseFloat(seanceRunAujourdhui.km) : 0;
+  let gelInfo = 'Pas de gel (sortie <12km)';
+  if (seanceKm>=42) gelInfo='8 gels aux km 6, 12, 17, 22, 26, 30, 34 & 38';
+  else if (seanceKm>=28) gelInfo='5 gels aux km 6, 12, 17, 22 & 26';
+  else if (seanceKm>=24) gelInfo='4 gels aux km 6, 12, 17 & 22';
+  else if (seanceKm>=20) gelInfo='3 gels aux km 6, 12 & 17';
+  else if (seanceKm>=16) gelInfo='2 gels aux km 6 & 12';
+  else if (seanceKm>=12) gelInfo='1 gel au km 6';
+  let eauInfo;
+  if (seanceKm>=14) eauInfo="1L d'eau (sortie longue ≥14km)";
+  else if (seanceKm>0&&seanceKm<10) eauInfo=tempSeance!==null&&tempSeance>=28?`Chaleur ${tempSeance}°C : minimum 500ml d'eau`:"Pas d'eau (sortie <10km, <1h)";
+  else eauInfo=tempSeance!==null&&tempSeance>=28?`Chaleur ${tempSeance}°C : minimum 500ml d'eau`:'Pas d\'eau nécessaire';
+
+  let allureAjusteeStr = '';
+  if (tempSeance !== null && tempSeance >= 25 && efPace) {
+    const efSec=parseInt(efPace.split("'")[0])*60+parseInt(efPace.split("'")[1]||'0');
+    const deltaT=Math.max(0,tempSeance-22);
+    const ajout=Math.min(60,Math.round((deltaT/3)*8));
+    const ajustSec=efSec+ajout;
+    const am=Math.floor(ajustSec/60); const as=ajustSec%60;
+    allureAjusteeStr=`Allure AJUSTÉE chaleur (${tempSeance}°C) : ${am}'${String(as).padStart(2,'0')}/km (+${ajout} sec/km vs allure de référence)`;
+  }
+
+  const system = `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+
+PROFIL :
+- Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.
+- FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
+- Montre Garmin Forerunner 165.
+- Lundi midi : séance bodyhit (électrostimulation).
+
+STRUCTURE OBLIGATOIRE — dans cet ordre exact :
+
+1. 😴 NUIT & RÉCUPÉRATION — bloc unique fusion sommeil + FC repos. Format OBLIGATOIRE : chaque valeur sur sa propre ligne, valeur en **gras**, puis UNE phrase d'analyse après toutes les valeurs. Exemple de format attendu :
+Score de récupération WHOOP : **71%** 🟢
+FC repos WHOOP : **48 bpm**
+Durée de sommeil : **7h47**
+Performance sommeil : **88%**
+[une phrase d'analyse : compare avec moyenne 7j, charge veille, conclusion frais/modéré/fatigué]
+
+2. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : es-tu bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes. Tu t'adresses à moi directement : "Tu arrives...", "Ta récupération...", etc.
+
+3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
+
+4. ⚡ ALLURES & CONSIGNES — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
+   Ligne 1 : allure cible en **gras** + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
+   Ligne 2 : météo à l'heure de la séance en 1 phrase courte.
+   Ligne 3 (optionnel) : 1 consigne technique seulement. Rien d'autre.
+   INTERDIT dans ce bloc : toute mention de gel, d'eau ou d'hydratation.
+
+5. 🍌 NUTRITION — UNIQUEMENT si une séance run est planifiée. 2 points UNIQUEMENT :
+   GELS : recopier exactement la valeur du champ "Gels" fourni dans le contexte. Si "Pas de gel", ne pas écrire cette ligne.
+   EAU : recopier exactement la valeur du champ "Eau" fourni dans le contexte.
+   Format : 2 lignes courtes, valeurs en **gras**. Aucun commentaire supplémentaire.
+
+RÈGLES :
+- Zéro #. Données chiffrées en **gras**. Ton de coach direct, personnel, naturel.
+- Jamais de tirets en début de paragraphe — texte fluide.
+- Jamais "Guillaume" dans le corps du texte — toujours "tu/ton/ta".
+- Si pas de séance run aujourd'hui : sauter blocs 4 et 5.
+- INTERDIT : parler du reste de la semaine, des séances passées, des objectifs à long terme.`;
+
+  const userMsg = `${dateComplet}
+${fcLine}${whoopBlock}
+Séances du jour : ${seancesStr}
+Heure de la séance : ${seanceHeure||'non définie'}
+${meteoStr||'Météo : non disponible'}
+${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}
+Allure EF de référence (conditions normales) : ${efPace}/km
+Consignes générales : ${consignesEf}
+Gels : ${gelInfo}
+Eau : ${eauInfo}
+${memosLine}`;
+
+  let briefContent = '';
+  try {
+    briefContent = await callAnthropic(anthropicKey, system, [{role:'user',content:userMsg}], 1100) || '';
+  } catch(e) { console.error('generateMorningBriefContent AI error:', e.message); }
+
+  if (!briefContent) {
+    briefContent = `😴 NUIT & RÉCUPÉRATION\n${fcLine}\n\n🎯 ${seancesStr}`;
+  }
+
+  // Corps de la push notification (résumé)
+  const recovScore = whoopToday && whoopRecov && whoopRecov.score != null ? whoopRecov.score : null;
+  const recovEmoji = recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
+  const meteoEmoji = tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
+  const recovPart = recovScore!=null?`Récup ${recovScore}%${recovEmoji?' '+recovEmoji:''}`:recovEmoji?`Récup ${recovEmoji}`:'';
+  const fcPart = fcToday ? `FC ${fcToday} bpm` : '';
+  let seancePart = '';
+  if (seanceRunAujourdhui) {
+    const tl={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'EF Long'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
+    seancePart=`Séance ${tl}${seanceRunAujourdhui.km>0?' '+seanceRunAujourdhui.km+'km':''} 🏃${seanceHeure?' à '+seanceHeure:''}`;
+  } else { seancePart = 'Pas de séance run'; }
+  let pushBody = `${recovPart}${recovPart&&(fcPart||seancePart)?' · ':''}${fcPart}${fcPart&&seancePart?' · ':''}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
+  if (pushBody.length > 180) pushBody = pushBody.slice(0,177)+'...';
+
+  return { briefContent, pushBody };
+}
+
 module.exports = {
   ADMIN_EMAIL,
   ADMIN_UID,
@@ -243,4 +451,5 @@ module.exports = {
   buildNotifContext,
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,
+  generateMorningBriefContent,
 };
