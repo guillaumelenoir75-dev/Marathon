@@ -223,12 +223,14 @@
   <!-- 1. WHOOP KPIs + chart (admin uniquement) -->
   <div id="whoop-stats-section" style="display:none;margin-bottom:24px;">
     <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">WHOOP — Récupération & Bien-être</p>
+    <div id="whoop-synthetic-score" style="display:none;"></div>
     <div id="whoop-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
 
     <!-- 2. FC repos (KPIs + graphique) -->
     <div id="fc-repos-stats-section" style="margin-bottom:14px;">
       <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">FC au repos — évolution</p>
       <div id="fc-repos-kpi-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;"></div>
+      <div id="fc-repos-trend" style="display:none;"></div>
       <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>

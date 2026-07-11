@@ -490,6 +490,36 @@ function renderWhoopStats() {
     }
   ];
 
+  // ── Score synthétique du jour ──────────────────────────────────────────────
+  const syntheticEl = document.getElementById('whoop-synthetic-score');
+  if (syntheticEl) {
+    const scores = [];
+    if (r0?.score != null) scores.push(r0.score);
+    if (s0?.performance_pct != null) scores.push(s0.performance_pct);
+    if (fcToday != null) {
+      // FC repos : inverser (bas = bon) → mapper sur 0-100
+      const fcScore = fcToday <= 48 ? 100 : fcToday <= 55 ? 75 : fcToday <= 60 ? 50 : 25;
+      scores.push(fcScore);
+    }
+    if (scores.length) {
+      const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+      const col = scoreColor(avg);
+      const emoji = avg >= 67 ? '🟢' : avg >= 34 ? '🟡' : '🔴';
+      const label = avg >= 67 ? 'Bonne forme' : avg >= 34 ? 'Forme moyenne' : 'Récupération insuffisante';
+      syntheticEl.innerHTML = `
+        <div style="background:${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)'};border:1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+          <div style="font-size:36px;font-weight:900;color:${col};line-height:1;">${avg}<span style="font-size:16px;">%</span></div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:${col};">${emoji} ${label}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · récup + sommeil + FC repos</div>
+          </div>
+        </div>`;
+      syntheticEl.style.display = 'block';
+    } else {
+      syntheticEl.style.display = 'none';
+    }
+  }
+
   document.getElementById('whoop-kpi-row').innerHTML = kpis.map(k => `
     <div style="background:${k.bg};border:1px solid ${k.border};border-radius:12px;padding:12px 10px;text-align:center;">
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${k.label}</div>
@@ -588,16 +618,42 @@ function _renderWhoopChart(mode) {
       id: 'strainLabels',
       afterDatasetsDraw(chart) {
         const ctx = chart.ctx;
+        const area = chart.chartArea;
         chart.data.datasets.forEach((ds, di) => {
           const meta = chart.getDatasetMeta(di);
-          meta.data.forEach((pt, i) => {
-            const val = ds.data[i];
-            if (val == null) return;
+          // Calculer positions initiales
+          const positions = meta.data.map((pt, i) => ({
+            x: pt.x, y: pt.y - 20, val: ds.data[i], col: pointColors[i] || (isDark?'#aaa':'#555')
+          })).filter(p => p.val != null);
+          // Anti-chevauchement : décaler verticalement si trop proches horizontalement
+          for (let i = 1; i < positions.length; i++) {
+            const prev = positions[i-1];
+            const cur = positions[i];
+            if (Math.abs(cur.x - prev.x) < 40 && Math.abs(cur.y - prev.y) < 18) {
+              cur.y = prev.y - 18;
+            }
+          }
+          positions.forEach(({ x, y, val, col }) => {
             ctx.save();
-            ctx.font = '600 9px sans-serif';
-            ctx.fillStyle = isDark ? '#aaa' : '#555';
+            ctx.font = '600 9px -apple-system,sans-serif';
+            const text = String(val);
+            const tw = ctx.measureText(text).width;
+            const pw = tw + 10, ph = 16, r = 8;
+            let tx = x;
+            if (tx - pw/2 < area.left) tx = area.left + pw/2;
+            if (tx + pw/2 > area.right) tx = area.right - pw/2;
+            const ty = Math.max(area.top + 2, y);
+            ctx.beginPath();
+            ctx.roundRect(tx - pw/2, ty, pw, ph, r);
+            ctx.fillStyle = isDark ? 'rgba(30,30,46,0.92)' : 'rgba(255,255,255,0.95)';
+            ctx.fill();
+            ctx.strokeStyle = col + '66';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            ctx.fillStyle = col;
             ctx.textAlign = 'center';
-            ctx.fillText(val, pt.x, pt.y - 8);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, tx, ty + ph/2);
             ctx.restore();
           });
         });
@@ -706,6 +762,24 @@ function renderFcReposChart(){
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
       </div>`;
+  }
+
+  // Tendance 30j FC repos
+  const fc30 = allFcEntries.slice(-31,-1);
+  if (fc30.length >= 5 && fcToday != null) {
+    const fc30avg = Math.round(fc30.reduce((s,e)=>s+e.val,0)/fc30.length);
+    const diff = fcToday - fc30avg;
+    const trendEl = document.getElementById('fc-repos-trend');
+    if (trendEl) {
+      const col = diff <= -2 ? '#16a34a' : diff >= 2 ? '#dc2626' : '#ca8a04';
+      const msg = diff <= -2
+        ? `Ta FC repos a baissé de ${Math.abs(diff)} bpm vs ta moyenne 30j — bonne progression.`
+        : diff >= 2
+        ? `Ta FC repos a augmenté de ${diff} bpm vs ta moyenne 30j — signe de fatigue accumulée.`
+        : `Ta FC repos est stable par rapport à ta moyenne 30j (${fc30avg} bpm).`;
+      trendEl.innerHTML = `<div style="font-size:11px;color:${col};font-weight:600;padding:8px 12px;background:${col}11;border-radius:8px;border:1px solid ${col}33;margin-bottom:10px;">📈 ${msg}</div>`;
+      trendEl.style.display = 'block';
+    }
   }
 
   // Graphique
