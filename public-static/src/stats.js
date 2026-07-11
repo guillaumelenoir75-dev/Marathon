@@ -420,6 +420,7 @@ function renderWhoopStats() {
 
   const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
   const scoreColor = s => s >= 67 ? '#22c55e' : s >= 34 ? '#f59e0b' : '#ef4444';
+  const rhrColor = v => v == null ? 'var(--muted)' : v <= 50 ? '#16a34a' : v <= 60 ? '#ca8a04' : '#dc2626';
 
   // ── KPIs du jour ──────────────────────────────────────────────────────────
   const r0 = wd.recoveries?.[0];
@@ -430,7 +431,7 @@ function renderWhoopStats() {
     {
       label: 'Récupération',
       value: r0?.score != null ? r0.score + '%' : '—',
-      sub: r0?.rhr ? r0.rhr + ' bpm repos' : (cy0?.avg_hr ? cy0.avg_hr + ' bpm moy' : ''),
+      sub: r0?.rhr ? `<span style="color:${rhrColor(r0.rhr)};font-weight:700;">${r0.rhr}</span> bpm repos` : (cy0?.avg_hr ? cy0.avg_hr + ' bpm moy' : ''),
       color: r0?.score != null ? scoreColor(r0.score) : 'var(--muted)',
       bg: isDark ? 'rgba(34,197,94,0.12)' : '#f0fdf4',
       border: isDark ? 'rgba(34,197,94,0.25)' : '#bbf7d0'
@@ -575,6 +576,7 @@ function switchFcReposChart(filter) {
 
 function renderFcReposChart(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const rhrColor2 = v => v <= 50 ? '#16a34a' : v <= 60 ? '#ca8a04' : '#dc2626';
   // Collecter toutes les entrées fc_repos_YYYY-MM-DD
   let entries = [];
   Object.keys(state).forEach(k=>{
@@ -619,17 +621,17 @@ function renderFcReposChart(){
   if (kpiRow) {
     kpiRow.innerHTML = `
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:#E24B4A;line-height:1;">${latest}</div>
+        <div style="font-size:22px;font-weight:800;color:${rhrColor2(latest)};line-height:1;">${latest}</div>
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
       </div>
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:#1B4FD8;line-height:1;">${avg}</div>
+        <div style="font-size:22px;font-weight:800;color:${rhrColor2(avg)};line-height:1;">${avg}</div>
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Moyenne</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
       </div>
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${minV < avg - 2 ? '#22c55e' : 'var(--text)'};line-height:1;">${minV}</div>
+        <div style="font-size:22px;font-weight:800;color:${rhrColor2(minV)};line-height:1;">${minV}</div>
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
       </div>`;
