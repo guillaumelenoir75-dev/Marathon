@@ -734,24 +734,36 @@ function renderFcReposChart(){
       id:'fcLabels',
       afterDatasetsDraw(chart){
         const ctx=chart.ctx;
+        const area=chart.chartArea;
         chart.data.datasets.forEach((ds,di)=>{
           const meta=chart.getDatasetMeta(di);
           meta.data.forEach((pt,i)=>{
             const val=ds.data[i];
             if(val==null) return;
+            const col=rhrColor2(val);
             ctx.save();
-            ctx.font='700 10px sans-serif';
-            const text=val+' bpm';
+            ctx.font='600 9px -apple-system,sans-serif';
+            const text=val+'';
             const tw=ctx.measureText(text).width;
-            const tx=pt.x, ty=pt.y-14;
-            // Fond blanc semi-transparent
-            ctx.fillStyle=isDark?'rgba(30,30,46,0.85)':'rgba(255,255,255,0.85)';
+            const pw=tw+10, ph=16, r=8;
+            // Centrer horizontalement, éviter débordement gauche/droite
+            let tx=pt.x;
+            if(tx-pw/2 < area.left) tx=area.left+pw/2;
+            if(tx+pw/2 > area.right) tx=area.right-pw/2;
+            const ty=pt.y-ph-5;
+            // Badge pill avec fond teinté
             ctx.beginPath();
-            ctx.roundRect(tx-tw/2-3, ty-10, tw+6, 14, 3);
+            ctx.roundRect(tx-pw/2, ty, pw, ph, r);
+            ctx.fillStyle=isDark?'rgba(30,30,46,0.92)':'rgba(255,255,255,0.95)';
             ctx.fill();
-            ctx.fillStyle=rhrColor2(val);
+            ctx.strokeStyle=col+'55';
+            ctx.lineWidth=1.2;
+            ctx.stroke();
+            // Valeur
+            ctx.fillStyle=col;
             ctx.textAlign='center';
-            ctx.fillText(text,tx,ty);
+            ctx.textBaseline='middle';
+            ctx.fillText(text, tx, ty+ph/2);
             ctx.restore();
           });
         });
