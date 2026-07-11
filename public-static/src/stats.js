@@ -3,6 +3,7 @@ function renderStats(){
   if(chartKm)chartKm.destroy();
   renderFcReposChart();
   if(isAdmin()){ renderWhoopStats(); _initStatsPTR(); }
+  renderSessionsHistory();
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
@@ -1376,6 +1377,83 @@ function fixAccents(text) {
 
   return result;
 }
+// ── HISTORIQUE SÉANCES VALIDÉES ───────────────────────────────────────────────
+function renderSessionsHistory() {
+  const container = document.getElementById('stats-sessions-section');
+  if (!container) return;
+
+  const sessions = [];
+  const maxW = isAdmin() ? weeks.length : getAthleteMaxWeek();
+
+  for (let ws = 1; ws <= maxW; ws++) {
+    const weekSessions = weeks[ws-1]?.sessions || [];
+    weekSessions.forEach((s, si) => {
+      const k = gk(ws, si);
+      if (!state[k+'done']) return;
+      let perf = {}; try { perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {}; } catch(e) {}
+      sessions.push({ ws, type: s.type, title: s.d.split('|')[0],
+        km: parseFloat(state[k+'km'] || s.km) || null,
+        date: perf.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null });
+    });
+    let ei = 0;
+    while (ei <= 20 && state[`extra_w${ws}_s${ei}`]) {
+      if (state[`extra_w${ws}_s${ei}_done`]) {
+        let es = {}; try { es = JSON.parse(state[`extra_w${ws}_s${ei}`] || '{}'); } catch(e) {}
+        let perf = {}; try { perf = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {}; } catch(e) {}
+        sessions.push({ ws, type: es.type, title: (es.d||'').split('|')[0] || 'Séance extra',
+          km: parseFloat(state[`extra_w${ws}_s${ei}_km`] || es.km) || null,
+          date: perf.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null });
+      }
+      ei++;
+    }
+  }
+
+  sessions.sort((a, b) => {
+    if (a.date && b.date) return b.date.localeCompare(a.date);
+    return b.ws - a.ws;
+  });
+
+  if (sessions.length === 0) { container.innerHTML = ''; return; }
+
+  const typeColors = { ef:'#3b82f6', tempo:'#f59e0b', frac:'#ef4444', sortie:'#22c55e', cac:'#8b5cf6', marathon:'#E8530A', repos:'#6b7280' };
+  const typeLabels = { ef:'EF', tempo:'Tempo', frac:'Frac.', sortie:'SL', cac:'CAC', marathon:'Marathon', repos:'Repos' };
+  const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+
+  function formatDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T12:00:00');
+    return `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;
+  }
+
+  let html = '<p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Séances validées</p>';
+  html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">';
+
+  sessions.slice(0, 30).forEach((s, idx) => {
+    const col = typeColors[s.type] || '#6b7280';
+    const label = typeLabels[s.type] || (s.type||'?').toUpperCase().slice(0,3);
+    const strain = s.whoop?.workout_strain ?? s.whoop?.cycle_strain ?? null;
+    const strainColor = strain == null ? '#888' : strain >= 18 ? '#dc2626' : strain >= 14 ? '#f59e0b' : strain >= 10 ? '#22c55e' : '#6b7280';
+
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${idx > 0 ? 'border-top:1px solid var(--border);' : ''}">`;
+    html += `<span style="background:${col}20;color:${col};font-size:10px;font-weight:700;padding:3px 7px;border-radius:8px;flex-shrink:0;min-width:32px;text-align:center;">${label}</span>`;
+    html += `<div style="flex:1;min-width:0;"><p style="font-size:12px;font-weight:600;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.title}</p>`;
+    const meta = [s.date ? formatDate(s.date) : `S${s.ws}`];
+    if (s.km) meta.push(`${s.km} km`);
+    if (s.pace) meta.push(s.pace + '/km');
+    if (s.hr) meta.push('FC ' + s.hr);
+    html += `<p style="font-size:10px;color:var(--muted);margin:1px 0 0;">${meta.join(' · ')}</p></div>`;
+    if (strain != null) {
+      html += `<div style="text-align:right;flex-shrink:0;"><p style="font-size:9px;color:var(--muted);margin:0 0 1px;">Charge</p><p style="font-size:14px;font-weight:700;color:${strainColor};margin:0;line-height:1;">${strain.toFixed(1)}</p></div>`;
+    }
+    html += `</div>`;
+  });
+
+  html += '</div>';
+  if (sessions.length > 30) html += `<p style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">${sessions.length - 30} séances supplémentaires non affichées</p>`;
+  container.innerHTML = html;
+}
+
 // Nettoyer une réponse tronquée : retirer tout ce qui suit le dernier . ! ? ou bloc complet
 function cleanTruncated(text) {
   if(!text) return text;

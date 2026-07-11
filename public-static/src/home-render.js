@@ -494,9 +494,10 @@ function toggleDoneExtra(w,ei){
 }
 
 function openValidationModalExtra(w,ei){
-  // Reset Strava et météo comme pour openValidationModal
+  // Reset Strava, météo et WHOOP comme pour openValidationModal
   window._meteoValidationData = null;
   window._stravaActivityData = null;
+  window._whoopChargeData = null;
   let s={};try{s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');}catch(e){}
   const parts=(s.d||'').split('|');
   const title=normalizeSessionTitle(parts[0], s.type);
@@ -872,14 +873,26 @@ async function saveValidationExtra(w,ei){
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
     rendered.stats=false;
   }
+  // Sauvegarder la charge WHOOP dans perf
+  const whoopChargeExtra = window._whoopChargeData || null;
+  window._whoopChargeData = null;
+  if(whoopChargeExtra){
+    const perfKey=k+'_perf';
+    let existing={};try{existing=state[perfKey]?JSON.parse(state[perfKey]):{}}catch(e){}
+    existing.whoop=whoopChargeExtra;
+    state[perfKey]=JSON.stringify(existing);
+    if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
+    rendered.stats=false;
+  }
   if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance); }
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
 }
 
 function openValidationModal(idx){
-  // Réinitialiser météo et données Strava précédentes
+  // Réinitialiser météo, Strava et WHOOP précédents
   window._meteoValidationData = null;
   window._stravaActivityData = null;
+  window._whoopChargeData = null;
   // Reset le preview météo pour ne pas afficher les résultats d'une session précédente
   const _prevReset = document.getElementById('meteo-val-preview');
   if (_prevReset) { _prevReset.style.display = 'none'; _prevReset.innerHTML = ''; }
@@ -1153,6 +1166,17 @@ async function saveValidation(idx){
     const perfKey=k+'perf';
     let existing={};try{existing=state[perfKey]?JSON.parse(state[perfKey]):{}}catch(e){}
     existing.meteo=meteoSeance;
+    state[perfKey]=JSON.stringify(existing);
+    if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
+    rendered.stats=false;
+  }
+  // Sauvegarder la charge WHOOP dans perf
+  const whoopCharge = window._whoopChargeData || null;
+  window._whoopChargeData = null;
+  if(whoopCharge){
+    const perfKey=k+'perf';
+    let existing={};try{existing=state[perfKey]?JSON.parse(state[perfKey]):{}}catch(e){}
+    existing.whoop=whoopCharge;
     state[perfKey]=JSON.stringify(existing);
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
     rendered.stats=false;
