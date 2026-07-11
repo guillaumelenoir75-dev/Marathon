@@ -30,13 +30,21 @@ self.addEventListener('push', event => {
   );
 });
 
-// Tap → réveiller l'app (ou l'ouvrir). Firebase gère la navigation.
+// Tap → ouvrir le coach si c'est un brief, sinon juste focus l'app
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  const tag = (event.notification.data && event.notification.data.tag) || '';
+  const isBrief = tag.includes('brief');
+  const targetUrl = isBrief ? '/?action=brief' : '/';
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
-      if (list.length > 0) return list[0].focus();
-      return clients.openWindow('/');
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async function(list) {
+      for (const c of list) {
+        if (c.url.startsWith(self.location.origin)) {
+          try { await c.navigate(targetUrl); } catch(e) {}
+          return c.focus();
+        }
+      }
+      return clients.openWindow(targetUrl);
     })
   );
 });
