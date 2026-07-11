@@ -14,9 +14,26 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(payload => {
-  self.registration.showNotification(payload.notification.title, {
-    body: payload.notification.body,
+  const d = payload.data || {};
+  const title = d.title || (payload.notification && payload.notification.title) || 'Marathon';
+  const body  = d.body  || (payload.notification && payload.notification.body)  || '';
+  self.registration.showNotification(title, {
+    body,
     icon: '/enpiste-icon-192.png',
-    badge: '/enpiste-icon-192.png'
+    badge: '/enpiste-icon-192.png',
+    data: { url: d.url || '/', tag: d.tag || '' }
   });
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) {
+        if (c.url.startsWith(self.location.origin) && 'focus' in c) return c.focus();
+      }
+      return clients.openWindow(url);
+    })
+  );
 });
