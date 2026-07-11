@@ -730,7 +730,7 @@ function renderFcReposChart(){
         tension:0.35
       }]
     },
-    plugins:[{
+    plugins: _fcReposChartFilter === '7' ? [{
       id:'fcLabels',
       afterDatasetsDraw(chart){
         const ctx=chart.ctx;
@@ -756,7 +756,7 @@ function renderFcReposChart(){
           });
         });
       }
-    }],
+    }] : [],
     options:{
       responsive:true,
       maintainAspectRatio:false,
