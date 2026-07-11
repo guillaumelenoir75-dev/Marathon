@@ -520,7 +520,7 @@ function _renderWhoopChart(mode) {
   };
 
   const scoreCol = s => s >= 67 ? '#22c55e' : s >= 34 ? '#f59e0b' : '#ef4444';
-  let pointColors, showLabels = false;
+  let pointColors;
 
   if (mode === 'recovery') {
     const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
@@ -536,8 +536,9 @@ function _renderWhoopChart(mode) {
     const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
     pointColors = points.map(() => isDark ? '#888' : '#666');
-    color = '#888'; unit = ''; yMin = 0; yMax = 21; showLabels = true;
+    color = '#888'; unit = ''; yMin = 0; yMax = 21;
   }
+  const showLabels = true;
 
   if (!points.length) return;
 
