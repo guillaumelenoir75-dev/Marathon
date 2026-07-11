@@ -498,7 +498,7 @@ function renderWhoopStats() {
     if (s0?.performance_pct != null) scores.push(s0.performance_pct);
     if (fcToday != null) {
       // FC repos : inverser (bas = bon) → mapper sur 0-100
-      const fcScore = fcToday <= 48 ? 100 : fcToday <= 55 ? 75 : fcToday <= 60 ? 50 : 25;
+      const fcScore = Math.max(0, Math.min(100, Math.round(100 - (fcToday - 45) * 4)));
       scores.push(fcScore);
     }
     if (scores.length) {
