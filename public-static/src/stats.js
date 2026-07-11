@@ -484,7 +484,7 @@ function renderWhoopStats() {
       label: 'Charge',
       value: cy0?.strain != null ? (Math.round(cy0.strain * 10) / 10).toString() : '—',
       sub: cy0?.calories ? cy0.calories + ' kcal' : '',
-      color: 'var(--text)',
+      color: '#6b7280',
       bg: isDark ? 'rgba(251,191,36,0.12)' : '#fefce8',
       border: isDark ? 'rgba(251,191,36,0.25)' : '#fde68a'
     }
