@@ -565,23 +565,23 @@ function _renderWhoopChart(mode) {
   let pointColors;
 
   if (mode === 'recovery') {
-    const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
+    const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-7);
     points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: r.score }));
     pointColors = points.map(p => scoreCol(p.y));
     color = '#22c55e'; unit = '%'; yMin = 0; yMax = 100;
   } else if (mode === 'sleep') {
-    const data = dedupeByDate([...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
+    const data = dedupeByDate([...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-7);
     points = data.map(s => ({ x: new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: s.performance_pct }));
     pointColors = points.map(p => scoreCol(p.y));
     color = '#3b82f6'; unit = '%'; yMin = 0; yMax = 100;
   } else if (mode === 'hrv') {
     const hrvCol = v => v >= 85 ? '#16a34a' : v >= 60 ? '#ca8a04' : '#dc2626';
-    const data = dedupeByDate([...(wd.recoveries || [])].filter(r => r.hrv != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
+    const data = dedupeByDate([...(wd.recoveries || [])].filter(r => r.hrv != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-7);
     points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(r.hrv) }));
     pointColors = points.map(p => hrvCol(p.y));
     color = '#8b5cf6'; unit = ' ms'; yMin = 0; yMax = 120;
   } else {
-    const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
+    const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-7);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
     pointColors = points.map(() => isDark ? '#888' : '#666');
     color = '#888'; unit = ''; yMin = 0; yMax = 21;
@@ -741,7 +741,7 @@ function renderFcReposChart(){
       ?(fcToday<=fcAvg7-2?'↓ forme':fcToday>=fcAvg7+2?'↑ fatigue':'→ stable'):null;
     const fcTrendColor=fcTrend==='↓ forme'?'#16a34a':fcTrend==='↑ fatigue'?'#dc2626':'#ca8a04';
 
-    const entries=allFc.slice(-14);
+    const entries=allFc.slice(-7);
     if(entries.length===0){
       if(kpiRow)kpiRow.innerHTML='';
       if(chartFcRepos){chartFcRepos.destroy();chartFcRepos=null;}
@@ -795,7 +795,7 @@ function renderFcReposChart(){
   // ── Mode VFC ──────────────────────────────────────────────────────────────
   } else {
     const wd=state.whoop_data;
-    const recs=wd?[...(wd.recoveries||[])].filter(r=>r.hrv!=null).sort((a,b)=>a.date.localeCompare(b.date)).slice(-14):[];
+    const recs=wd?[...(wd.recoveries||[])].filter(r=>r.hrv!=null).sort((a,b)=>a.date.localeCompare(b.date)).slice(-7):[];
     if(recs.length===0){
       if(kpiRow)kpiRow.innerHTML='';
       if(chartFcRepos){chartFcRepos.destroy();chartFcRepos=null;}

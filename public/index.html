@@ -233,7 +233,7 @@
       <div id="fc-repos-trend" style="display:none;"></div>
       <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>
+          <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution 7 jours</p>
           <div style="display:flex;gap:4px;" id="fc-repos-chart-tabs">
             <button onclick="switchFcReposChart('fc')" id="fctab-fc" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">FC repos</button>
             <button onclick="switchFcReposChart('vfc')" id="fctab-vfc" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">VFC</button>
@@ -245,10 +245,10 @@
       </div>
     </div>
 
-    <!-- 3. Évolution WHOOP sur 14 jours (Récup / Sommeil / Charge) -->
+    <!-- 3. Évolution WHOOP sur 7 jours (Récup / Sommeil / Charge) -->
     <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution sur 14 jours</p>
+        <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution sur 7 jours</p>
         <div style="display:flex;gap:4px;" id="whoop-chart-tabs">
           <button onclick="switchWhoopChart('recovery')" id="wtab-recovery" style="padding:3px 9px;border-radius:20px;border:none;background:#22c55e;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">Récup</button>
           <button onclick="switchWhoopChart('sleep')" id="wtab-sleep" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Sommeil</button>
