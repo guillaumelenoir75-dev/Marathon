@@ -998,7 +998,7 @@ function renderPlan(){
     try {
     const isCur=w.s===CW, isPast=w.s<CW, isOpen=openWeeks.has(w.s);
     const isDecharge=[8,12,16,20,26,30].includes(w.s);
-    const isSemi=w.s===27, isMarathon=w.s===32;
+    const isSemi=w.s===28, isMarathon=w.s===32;
 
     // Calcul avancement semaine courante
     const weekDone=(()=>{
