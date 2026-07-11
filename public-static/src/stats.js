@@ -2,7 +2,7 @@ function renderStats(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
   if(chartKm)chartKm.destroy();
   renderFcReposChart();
-  if(isAdmin()) renderWhoopStats();
+  if(isAdmin()){ renderWhoopStats(); _initStatsPTR(); }
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
@@ -352,6 +352,61 @@ function renderStats(){
   });
 }
 
+// ── Pull-to-refresh WHOOP sur l'écran Stats ───────────────────────────────
+let _ptrActive = false;
+let _ptrStartY = 0;
+
+function _initStatsPTR() {
+  if (window._statsPtrReady) return;
+  window._statsPtrReady = true;
+
+  document.addEventListener('touchstart', e => {
+    _ptrStartY = e.touches[0].clientY;
+    _ptrActive = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    const sc = document.getElementById('sc-stats');
+    if (!sc || sc.style.display === 'none') return;
+    if (window.scrollY > 5) return;
+    const dy = e.touches[0].clientY - _ptrStartY;
+    if (dy > 0) {
+      _ptrActive = true;
+      const ratio = Math.min(1, dy / 70);
+      const sp = document.getElementById('stats-ptr-spinner');
+      if (sp) sp.style.opacity = String(ratio);
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!_ptrActive) return;
+    _ptrActive = false;
+    const sp = document.getElementById('stats-ptr-spinner');
+    if (!sp) return;
+    const triggered = parseFloat(sp.style.opacity) >= 0.85;
+    if (triggered) {
+      sp.style.opacity = '1';
+      _ptrSyncWhoop(sp);
+    } else {
+      sp.style.opacity = '0';
+    }
+  });
+}
+
+async function _ptrSyncWhoop(spinner) {
+  try {
+    if (typeof syncWhoop === 'function' && state.whoop_token?.access_token && !_whoopSyncing) {
+      syncWhoop();
+      for (let i = 0; i < 40 && _whoopSyncing; i++) {
+        await new Promise(r => setTimeout(r, 250));
+      }
+      if (isAdmin()) renderWhoopStats();
+    }
+  } catch(e) {}
+  await new Promise(r => setTimeout(r, 600));
+  if (spinner) spinner.style.opacity = '0';
+}
+
 let _whoopChart = null;
 let _whoopChartMode = 'recovery';
 
@@ -416,9 +471,15 @@ function _renderWhoopChart(mode) {
   const wd = state.whoop_data;
   if (!wd) return;
   const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
-  const canvas = document.getElementById('chart-whoop');
+  let canvas = document.getElementById('chart-whoop');
   if (!canvas) return;
   if (_whoopChart) { _whoopChart.destroy(); _whoopChart = null; }
+  // Remplacer le canvas pour éviter les résidus Chart.js entre onglets
+  const _parent = canvas.parentNode;
+  const _newCanvas = document.createElement('canvas');
+  _newCanvas.id = 'chart-whoop';
+  _parent.replaceChild(_newCanvas, canvas);
+  canvas = _newCanvas;
 
   let points, color, label, unit, yMin, yMax;
 

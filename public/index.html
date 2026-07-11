@@ -214,6 +214,10 @@
 
 <!-- STATS -->
 <div id="sc-stats" style="display:none;padding:16px;background:#EDF2FB;min-height:100vh;">
+  <!-- Spinner pull-to-refresh WHOOP -->
+  <div id="stats-ptr-spinner" style="display:flex;justify-content:center;padding:0 0 6px;opacity:0;transition:opacity 0.15s;pointer-events:none;">
+    <div style="width:22px;height:22px;border:2.5px solid rgba(27,79,216,0.2);border-top-color:#1B4FD8;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  </div>
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;">Statistiques</p>
 
   <!-- 1. WHOOP KPIs + chart (admin uniquement) -->
