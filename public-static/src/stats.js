@@ -395,14 +395,9 @@ function _initStatsPTR() {
 
 async function _ptrSyncWhoop(spinner) {
   try {
-    if (typeof syncWhoop === 'function' && state.whoop_token?.access_token) {
-      const prevUpdatedAt = state.whoop_data?.updatedAt;
-      syncWhoop();
-      // Attendre que updatedAt change (max 8s), signe que le callback Firebase a terminé
-      for (let i = 0; i < 32; i++) {
-        await new Promise(r => setTimeout(r, 250));
-        if (state.whoop_data?.updatedAt && state.whoop_data.updatedAt !== prevUpdatedAt) break;
-      }
+    // syncWhoopFresh est awaitable et ne clear pas state.whoop_data en cas d'erreur auth
+    if (typeof syncWhoopFresh === 'function' && state.whoop_token?.access_token) {
+      await syncWhoopFresh();
     }
   } catch(e) {}
   await new Promise(r => setTimeout(r, 400));
@@ -500,23 +495,12 @@ function _renderWhoopChart(mode) {
 
   if (!points.length) return;
 
-  // Mise à jour in-place si le graphique existe déjà — évite les résidus visuels
-  if (_whoopChart) {
-    _whoopChart.data.labels = points.map(p => p.x);
-    _whoopChart.data.datasets[0].data = points.map(p => p.y);
-    _whoopChart.data.datasets[0].borderColor = color;
-    _whoopChart.data.datasets[0].backgroundColor = color + '18';
-    _whoopChart.data.datasets[0].pointBackgroundColor = color;
-    _whoopChart.options.scales.y.min = yMin;
-    _whoopChart.options.scales.y.max = yMax;
-    _whoopChart.options.plugins.tooltip.callbacks.label = c => c.raw + unit;
-    _whoopChart.options.scales.y.ticks.callback = v => v + unit;
-    _whoopChart.update('none');
-    return;
-  }
-
   const canvas = document.getElementById('chart-whoop');
   if (!canvas) return;
+
+  // Destroy + clearRect pour éviter tout résidu visuel entre onglets
+  if (_whoopChart) { _whoopChart.destroy(); _whoopChart = null; }
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 
   _whoopChart = new Chart(canvas, {
     type: 'line',
@@ -862,8 +846,6 @@ function showScreen(name, renfoTab){
   }
   if(name==='stats'){
     rendered.stats=true;
-    // Réinitialiser le graphique WHOOP pour forcer une création propre à chaque ouverture
-    if(_whoopChart){ _whoopChart.destroy(); _whoopChart=null; }
     setTimeout(renderStats,50);
     window.scrollTo({top:0,behavior:'instant'});
     // Auto-sync WHOOP si données > 5 min
