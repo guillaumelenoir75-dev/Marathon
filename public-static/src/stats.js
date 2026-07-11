@@ -573,6 +573,12 @@ function _renderWhoopChart(mode) {
     points = data.map(s => ({ x: new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: s.performance_pct }));
     pointColors = points.map(p => scoreCol(p.y));
     color = '#3b82f6'; unit = '%'; yMin = 0; yMax = 100;
+  } else if (mode === 'hrv') {
+    const hrvCol = v => v >= 85 ? '#16a34a' : v >= 60 ? '#ca8a04' : '#dc2626';
+    const data = dedupeByDate([...(wd.recoveries || [])].filter(r => r.hrv != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
+    points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(r.hrv) }));
+    pointColors = points.map(p => hrvCol(p.y));
+    color = '#8b5cf6'; unit = ' ms'; yMin = 0; yMax = 120;
   } else {
     const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
@@ -679,7 +685,7 @@ function _renderWhoopChart(mode) {
 
 function switchWhoopChart(mode) {
   _whoopChartMode = mode;
-  const tabs = { recovery: '#22c55e', sleep: '#3b82f6', strain: '#f59e0b' };
+  const tabs = { recovery: '#22c55e', sleep: '#3b82f6', strain: '#f59e0b', hrv: '#8b5cf6' };
   Object.entries(tabs).forEach(([k, col]) => {
     const t = document.getElementById('wtab-' + k);
     if (!t) return;
