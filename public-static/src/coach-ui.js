@@ -1483,6 +1483,17 @@ async function loadCoachHistory(){
           delete state['_brief_pending'];
           // Afficher les boutons Garder / Supprimer
           setTimeout(() => _addBriefActionButtons(), 200);
+          // Ouverture depuis notification → afficher le DÉBUT du brief (pas la fin)
+          if (window._coachOpenedFromNotif && _lastMsg) {
+            window._coachOpenedFromNotif = false;
+            setTimeout(() => {
+              // Remonter au séparateur de date si présent juste avant, sinon au message
+              const _scrollTarget = (_lastMsg.previousElementSibling && _lastMsg.previousElementSibling.classList.contains('chat-date-sep'))
+                ? _lastMsg.previousElementSibling
+                : _lastMsg;
+              _msgContainer.scrollTo({ top: Math.max(0, _scrollTarget.offsetTop - 12), behavior: 'smooth' });
+            }, 350);
+          }
           return true;
         };
         if (!_showBrief()) {
