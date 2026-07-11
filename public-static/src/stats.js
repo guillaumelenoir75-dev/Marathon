@@ -427,11 +427,39 @@ function renderWhoopStats() {
   const s0 = wd.sleeps?.[0];
   const cy0 = wd.cycles?.[0];
 
+  // Flèche tendance FC repos : compare aujourd'hui vs moyenne 7j
+  const allFcEntries = Object.keys(state)
+    .filter(k => k.match(/^fc_repos_\d{4}-\d{2}-\d{2}$/))
+    .map(k => ({ date: k.replace('fc_repos_',''), val: parseInt(state[k]) }))
+    .filter(e => e.val >= 30 && e.val <= 100)
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const fcToday = allFcEntries.length ? allFcEntries[allFcEntries.length-1].val : null;
+  const fc7 = allFcEntries.slice(-8,-1);
+  const fcAvg7 = fc7.length ? Math.round(fc7.reduce((s,e)=>s+e.val,0)/fc7.length) : null;
+  const fcTrend = fcToday != null && fcAvg7 != null
+    ? (fcToday <= fcAvg7 - 2 ? '↓ forme' : fcToday >= fcAvg7 + 2 ? '↑ fatigue' : '→ stable')
+    : null;
+  const fcTrendColor = fcTrend === '↓ forme' ? '#16a34a' : fcTrend === '↑ fatigue' ? '#dc2626' : '#ca8a04';
+
+  // Alerte surcharge : charge élevée + récup faible
+  const strainHigh = cy0?.strain != null && cy0.strain >= 14;
+  const recupLow = r0?.score != null && r0.score < 34;
+  const surchargeAlert = strainHigh && recupLow;
+
   const kpis = [
     {
       label: 'Récupération',
       value: r0?.score != null ? r0.score + '%' : '—',
-      sub: r0?.rhr ? `<span style="color:${rhrColor(r0.rhr)};font-weight:700;">${r0.rhr}</span> bpm repos` : (cy0?.avg_hr ? cy0.avg_hr + ' bpm moy' : ''),
+      sub: (()=>{
+        const parts = [];
+        if (r0?.rhr) parts.push(`<span style="color:${rhrColor(r0.rhr)};font-weight:700;">${r0.rhr}</span> bpm repos`);
+        else if (cy0?.avg_hr) parts.push(cy0.avg_hr + ' bpm moy');
+        if (r0?.hrv) {
+          const hrvColor = r0.hrv >= 80 ? '#16a34a' : r0.hrv >= 50 ? '#ca8a04' : '#dc2626';
+          parts.push(`HRV <span style="color:${hrvColor};font-weight:700;">${r0.hrv}</span> ms`);
+        }
+        return parts.join(' · ');
+      })(),
       color: r0?.score != null ? scoreColor(r0.score) : 'var(--muted)',
       bg: isDark ? 'rgba(34,197,94,0.12)' : '#f0fdf4',
       border: isDark ? 'rgba(34,197,94,0.25)' : '#bbf7d0'
@@ -442,8 +470,11 @@ function renderWhoopStats() {
       sub: s0?.duration_hours ? (()=>{
         const rem=s0.rem_pct;
         const remColor=rem==null?'var(--muted)':rem>=25?'#16a34a':rem>=20?'#ca8a04':'#dc2626';
+        const durH=parseFloat(s0.duration_hours);
+        const durColor=isNaN(durH)?'var(--muted)':durH>=8?'#16a34a':durH>=6.5?'#ca8a04':'#dc2626';
+        const durStr=`<span style="color:${durColor};font-weight:700;">${s0.duration_hours}</span>`;
         const remStr=rem!=null?`<span style="color:${remColor};font-weight:700;">${rem}%</span>`:'—%';
-        return s0.duration_hours + ' · REM ' + remStr;
+        return durStr + ' · paradoxal ' + remStr;
       })() : '',
       color: s0?.performance_pct != null ? scoreColor(s0.performance_pct) : 'var(--muted)',
       bg: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
@@ -465,7 +496,10 @@ function renderWhoopStats() {
       <div style="font-size:26px;font-weight:800;color:${k.color};line-height:1;">${k.value}</div>
       ${k.sub ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;">${k.sub}</div>` : ''}
     </div>
-  `).join('');
+  `).join('') + (surchargeAlert ? `
+    <div style="grid-column:1/-1;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#991b1b;font-weight:600;text-align:center;">
+      ⚠️ Attention surcharge — charge élevée avec récupération faible. Privilégie une séance légère ou repos.
+    </div>` : '');
 
   _renderWhoopChart(_whoopChartMode);
 }
@@ -485,17 +519,24 @@ function _renderWhoopChart(mode) {
     return [...seen.values()];
   };
 
+  const scoreCol = s => s >= 67 ? '#22c55e' : s >= 34 ? '#f59e0b' : '#ef4444';
+  const strainCol = s => s >= 14 ? '#ef4444' : s >= 10 ? '#f59e0b' : '#22c55e';
+  let pointColors;
+
   if (mode === 'recovery') {
     const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(r => ({ x: new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: r.score }));
+    pointColors = points.map(p => scoreCol(p.y));
     color = '#22c55e'; unit = '%'; yMin = 0; yMax = 100;
   } else if (mode === 'sleep') {
     const data = dedupeByDate([...(wd.sleeps || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(s => ({ x: new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: s.performance_pct }));
+    pointColors = points.map(p => scoreCol(p.y));
     color = '#3b82f6'; unit = '%'; yMin = 0; yMax = 100;
   } else {
     const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
+    pointColors = points.map(p => strainCol(p.y));
     color = '#f59e0b'; unit = ''; yMin = 0; yMax = 21;
   }
 
@@ -517,9 +558,11 @@ function _renderWhoopChart(mode) {
         borderColor: color,
         backgroundColor: color + '18',
         borderWidth: 2.5,
-        pointBackgroundColor: color,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        pointRadius: 5,
+        pointHoverRadius: 7,
         fill: true,
         tension: 0.35
       }]
@@ -588,6 +631,15 @@ function renderFcReposChart(){
   });
   entries.sort((a,b)=>a.date.localeCompare(b.date));
 
+  // Tendance FC repos : aujourd'hui vs moyenne 7j précédents
+  const _fcToday = entries.length ? entries[entries.length-1].val : null;
+  const _fc7prev = entries.slice(-8,-1);
+  const _fcAvg7 = _fc7prev.length ? Math.round(_fc7prev.reduce((s,e)=>s+e.val,0)/_fc7prev.length) : null;
+  const fcTrend = _fcToday != null && _fcAvg7 != null
+    ? (_fcToday <= _fcAvg7 - 2 ? '↓ forme' : _fcToday >= _fcAvg7 + 2 ? '↑ fatigue' : '→ stable')
+    : null;
+  const fcTrendColor = fcTrend === '↓ forme' ? '#16a34a' : fcTrend === '↑ fatigue' ? '#dc2626' : '#ca8a04';
+
   // Filtrage selon onglet
   if (_fcReposChartFilter !== 'all') {
     const days = parseInt(_fcReposChartFilter);
@@ -624,6 +676,7 @@ function renderFcReposChart(){
         <div style="font-size:22px;font-weight:800;color:${rhrColor2(latest)};line-height:1;">${latest}</div>
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
+        ${fcTrend ? `<div style="font-size:10px;color:${fcTrendColor};font-weight:700;margin-top:3px;">${fcTrend}</div>` : ''}
       </div>
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
         <div style="font-size:22px;font-weight:800;color:${rhrColor2(avg)};line-height:1;">${avg}</div>
