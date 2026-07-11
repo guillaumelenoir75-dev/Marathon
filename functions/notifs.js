@@ -363,6 +363,25 @@ exports.briefAfterFcRepos = onSchedule(
         }
       }catch(e){console.warn('briefAfterFcRepos météo:',e.message);}
 
+      // ── Calcul gels et eau (pré-calculé selon km de la séance) ──────────────
+      const seanceKm=seanceRunAujourdhui&&seanceRunAujourdhui.km>0?parseFloat(seanceRunAujourdhui.km):0;
+      // Gels : seulement si ≥12km
+      let gelInfo='Pas de gel (sortie <12km)';
+      if(seanceKm>=42){gelInfo='8 gels aux km 6, 12, 17, 22, 26, 30, 34 & 38';}
+      else if(seanceKm>=28){gelInfo='5 gels aux km 6, 12, 17, 22 & 26';}
+      else if(seanceKm>=24){gelInfo='4 gels aux km 6, 12, 17 & 22';}
+      else if(seanceKm>=20){gelInfo='3 gels aux km 6, 12 & 17';}
+      else if(seanceKm>=16){gelInfo='2 gels aux km 6 & 12';}
+      else if(seanceKm>=12){gelInfo='1 gel au km 6';}
+      // Eau : <10km → pas d'eau sauf chaleur >28°C (500ml min) · ≥14km → 1L obligatoire
+      let eauInfo;
+      if(seanceKm>=14){eauInfo='1L d\'eau (sortie longue ≥14km)';}
+      else if(seanceKm>0&&seanceKm<10){
+        eauInfo=tempSeance!==null&&tempSeance>=28?`Chaleur ${tempSeance}°C : minimum 500ml d'eau`:'Pas d\'eau (sortie <10km, <1h)';
+      }else{
+        eauInfo=tempSeance!==null&&tempSeance>=28?`Chaleur ${tempSeance}°C : minimum 500ml d'eau`:'Pas d\'eau nécessaire';
+      }
+
       // ── Calcul allure ajustée chaleur ─────────────────────────────────────────
       let allureAjusteeStr='';
       if(tempSeance!==null&&tempSeance>=25&&efPace){
@@ -399,14 +418,15 @@ Performance sommeil : **88%**
 
 4. ⚡ ALLURES & CONSIGNES — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
    Ligne 1 : allure cible en **gras** + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
-   Ligne 2 : météo à l'heure de la séance en 1 phrase courte. Si ≥28°C : rappeler hydratation en 5 mots max.
-   Ligne 3 (optionnel) : 1 consigne clé seulement (si EF Long ≥10km : gels ; si décharge : allure +30sec ; si récup rouge : réduire l'intensité). Rien d'autre.
+   Ligne 2 : météo à l'heure de la séance en 1 phrase courte.
+   Ligne 3 (optionnel) : 1 consigne technique seulement (si décharge : allure +30sec ; si récup rouge : réduire l'intensité). Rien d'autre.
    NE PAS dire que la temp est sous 25°C si les données météo indiquent ≥25°C.
+   INTERDIT dans ce bloc : toute mention de gel, d'eau ou d'hydratation.
 
-5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥10km :
-   - Matin (avant 11h) : à jeun → fenêtre post-run **30 min**, shaker protéines + glucides.
-   - Après-midi/soir : repas léger 2-3h avant. Fenêtre post-run **30 min**.
-   - Chaleur ≥28°C : hydratation toutes les **15-20 min**.
+5. 🍌 NUTRITION — UNIQUEMENT si une séance run est planifiée. 2 points UNIQUEMENT, rien d'autre :
+   GELS : recopier exactement la valeur du champ "Gels" fourni dans le contexte. Si "Pas de gel", ne pas écrire cette ligne.
+   EAU : recopier exactement la valeur du champ "Eau" fourni dans le contexte.
+   Format : 2 lignes courtes, valeurs en **gras**. Aucun commentaire supplémentaire sur la nutrition.
 
 RÈGLES :
 - Zéro #. Données chiffrées en **gras**. Ton de coach direct, personnel, naturel.
@@ -423,6 +443,8 @@ ${meteoStr||'Météo : non disponible'}
 ${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}
 Allure EF de référence (conditions normales) : ${efPace}/km
 Consignes générales : ${consignesEf}
+Gels : ${gelInfo}
+Eau : ${eauInfo}
 ${memosLine}`;
 
       let briefContent='';

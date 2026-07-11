@@ -869,15 +869,26 @@ STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
    - EF : allure cible en **gras** (ex: **6'30-6'50/km**), FC cible en **gras** (ex: **140-148 bpm**), rappel "si FC > 148 → ralentir". Si décharge : **+30s/km** sur l'allure EF normale.
    - Tempo : allure des blocs intenses en **gras**, rappel structure (ex: échauffement + blocs + récup).
    - Fractionné : allure des répétitions en **gras**, récupération en **gras**.
-   - EF Longue : allure en **gras**, FC cible en **gras**. OBLIGATOIRE si ≥ 10km : stratégie gel (ex: 1 gel toutes les **45 min**, premier gel à **40 min**, boire eau à chaque ravitaillement).
+   - EF Longue : allure en **gras**, FC cible en **gras**.
    - Renfo ischio-fessiers ou bas du dos : nommer les exercices clés (ponts fessiers, hip thrust, nordic curls, gainage...), rappeler de progresser en séries.
    - Bodyhit : "Électrostimulation full body à 12h30".
+   INTERDIT dans ce bloc : toute mention de gel, d'eau ou d'hydratation.
 
-5. 🍌 NUTRITION — UNIQUEMENT si sortie longue ≥ 10km ou course :
-   - Guillaume fait TOUJOURS ses sorties longues À JEUN : ne pas mentionner de petit-déjeuner avant la sortie.
-   - Pendant (à partir de **40 min**) : 1 gel toutes les **45 min**, eau à chaque prise de gel. Premier gel obligatoire avant de ressentir la faim.
-   - Après la sortie : fenêtre de récupération de **30 min** — shaker protéines + glucides rapides (banane, yaourt, jus de fruit), puis vrai repas dans l'heure.
-   - Si sortie < 10km : NE PAS écrire ce bloc nutrition.
+5. 🍌 NUTRITION — UNIQUEMENT si une séance run est planifiée. 2 points UNIQUEMENT, rien d'autre :
+   GELS : protocole selon la distance du jour — recopier exactement :
+     <12km : pas de gel.
+     12-15km : **1 gel** au km **6**.
+     16-19km : **2 gels** aux km **6 & 12**.
+     20-23km : **3 gels** aux km **6, 12 & 17**.
+     24-27km : **4 gels** aux km **6, 12, 17 & 22**.
+     28-41km : **5 gels** aux km **6, 12, 17, 22 & 26**.
+     ≥42km (marathon) : **8 gels** aux km **6, 12, 17, 22, 26, 30, 34 & 38**.
+   EAU : règle stricte selon distance et météo :
+     <10km : pas d'eau, sauf si température >28°C → minimum **500ml**.
+     10-13km : pas d'eau, sauf si température >28°C → minimum **500ml**.
+     ≥14km : toujours **1L d'eau**, quelle que soit la température.
+   Format : 2 lignes courtes, valeurs en **gras**. Si <12km et pas de chaleur : ne mentionner que l'eau.
+   NE PAS écrire ce bloc si aucune séance run n'est planifiée (repos ou renfo seul).
 
 RÈGLES ABSOLUES :
 - Jamais plus de 5 blocs.
