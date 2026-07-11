@@ -603,7 +603,7 @@ function _renderWhoopChart(mode) {
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: c => c.raw + unit } },
-        strainLabels: showLabels ? {} : false
+        strainLabels: {}
       },
       scales: {
         x: { ticks: { color: isDark ? '#888' : '#999', font: { size: 9 } }, grid: { display: false } },
@@ -764,11 +764,17 @@ function renderFcReposChart(){
       </div>`;
   }
 
-  // Tendance 30j FC repos
-  const fc30 = allFcEntries.slice(-31,-1);
-  if (fc30.length >= 5 && fcToday != null) {
+  // Tendance 30j FC repos (recalcul local — allFcEntries/fcToday sont hors scope)
+  const _allFcEntries30 = Object.keys(state)
+    .filter(k => k.match(/^fc_repos_\d{4}-\d{2}-\d{2}$/))
+    .map(k => ({ date: k.replace('fc_repos_',''), val: parseInt(state[k]) }))
+    .filter(e => e.val >= 30 && e.val <= 100)
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const _fcTodayVal = _allFcEntries30.length ? _allFcEntries30[_allFcEntries30.length-1].val : null;
+  const fc30 = _allFcEntries30.slice(-31,-1);
+  if (fc30.length >= 5 && _fcTodayVal != null) {
     const fc30avg = Math.round(fc30.reduce((s,e)=>s+e.val,0)/fc30.length);
-    const diff = fcToday - fc30avg;
+    const diff = _fcTodayVal - fc30avg;
     const trendEl = document.getElementById('fc-repos-trend');
     if (trendEl) {
       const col = diff <= -2 ? '#16a34a' : diff >= 2 ? '#dc2626' : '#ca8a04';
