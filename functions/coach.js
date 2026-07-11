@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, sendPush } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, sendPush, buildNotifContext, getCurrentWeek } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -1078,8 +1078,20 @@ exports.adminTestNotif = onRequest(
           const fcToday = fcRhr || st['fc_repos_' + today] || null;
           const recovPart = recovScore != null ? `Récup ${recovScore}%${recovEmoji ? ' ' + recovEmoji : ''}` : recovEmoji ? `Récup ${recovEmoji}` : '';
           const fcPart = fcToday ? `FC ${fcToday} bpm` : '';
-          const parts = [recovPart, fcPart].filter(Boolean);
-          const testBody = parts.length ? parts.join(' · ') + ' — Brief IA en cours...' : 'Brief IA en cours de génération…';
+          // Séance run du jour (pas renfo, pas bodyhit)
+          const cw = getCurrentWeek();
+          const ctx = await buildNotifContext(st, cw);
+          const seanceRun = ctx.seanceRunAujourdhui || null;
+          let seancePart = '';
+          if (seanceRun) {
+            const typeLabel = {ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',frac:'Fractionné',marathon:'Marathon'}[seanceRun.type] || seanceRun.type.toUpperCase();
+            const km = seanceRun.km > 0 ? ` ${seanceRun.km}km` : '';
+            seancePart = `${typeLabel}${km} 🏃`;
+          } else {
+            seancePart = 'Pas de séance run';
+          }
+          const parts = [recovPart, fcPart, seancePart].filter(Boolean);
+          const testBody = parts.join(' · ');
           await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), '🌅 Brief du matin — TEST', testBody, 'brief-matin-test', '/');
         } catch(ePush) {
           console.warn('adminTestNotif brief-matin push immédiate:', ePush.message);
