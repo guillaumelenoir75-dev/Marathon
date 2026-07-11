@@ -1222,11 +1222,13 @@ function dismissBrief(){
   }
   const btns=document.getElementById('brief-actions');
   if(btns) btns.remove();
-  // Supprimer le message du DOM
+  // Supprimer le message du DOM (brief principal + météo)
   const container=document.getElementById('coach-messages');
   if(container){
     const briefEl=container.querySelector('[data-brief-date]');
     if(briefEl) briefEl.remove();
+    const weatherEl=container.querySelector('[data-weather-brief]');
+    if(weatherEl) weatherEl.remove();
     // Supprimer le séparateur de date si plus de messages après lui
     const seps=container.querySelectorAll('.chat-date-sep');
     seps.forEach(sep=>{
@@ -1234,14 +1236,19 @@ function dismissBrief(){
       if(!next||next.classList.contains('chat-date-sep')||next.id==='brief-actions') sep.remove();
     });
   }
-  // Supprimer de l'historique
-  const idx=coachHistory.findIndex(m=>m.isBrief);
-  if(idx!==-1){ coachHistory.splice(idx,1); saveCoachHistory(); }
+  // Supprimer de l'historique (brief + météo)
+  let changed=false;
+  for(let i=coachHistory.length-1;i>=0;i--){
+    if(coachHistory[i].isBrief||coachHistory[i].isWeatherBrief){coachHistory.splice(i,1);changed=true;}
+  }
+  if(changed) saveCoachHistory();
 }
 
 function keepBrief(){
-  // Marquer en DB pour réafficher le bouton Effacer à la prochaine ouverture
-  if(dbRef) dbRef.child('_brief_kept').set(true).catch(()=>{});
+  // Calculer l'expiration : 20h00 du jour courant, ou validation de séance (gérée séparément)
+  const _today = new Date().toISOString().slice(0,10);
+  const _expires = _today + 'T20:00:00';
+  if(dbRef) dbRef.child('_brief_kept').set({date: _today, expires_at: _expires}).catch(()=>{});
   const btns=document.getElementById('brief-actions');
   if(btns) btns.remove();
   // Remplacer par un seul bouton Effacer discret
@@ -1301,7 +1308,9 @@ async function _appendWeatherMessageAfterBrief() {
   const container=document.getElementById('coach-messages');
   if(!container) return;
   addCoachMessage('coach', msg);
-  coachHistory.push({role:'assistant', content:msg, date:new Date().toISOString().slice(0,10)});
+  const _weatherEl = container.lastElementChild;
+  if(_weatherEl) _weatherEl.dataset.weatherBrief = 'true';
+  coachHistory.push({role:'assistant', content:msg, date:new Date().toISOString().slice(0,10), isWeatherBrief:true});
   saveCoachHistory();
 }
 
@@ -1791,11 +1800,38 @@ async function loadCoachHistory(){
     const _forceBrief = _needsFullBrief || _fromPushNotif;
     try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
   }
-  // ── Si le brief a été "gardé" (keepBrief), réafficher le bouton Effacer ──
+  // ── Si le brief a été "gardé" (keepBrief), réafficher le bouton Effacer (si pas expiré) ──
   if (!_briefShownToday && dbRef) {
     try {
       const keptSnap = await dbRef.child('_brief_kept').once('value');
-      if (keptSnap.val()) _addBriefActionButtons(true);
+      const keptVal = keptSnap.val();
+      if (keptVal) {
+        const _now = new Date();
+        const _todayStr = _now.toISOString().slice(0,10);
+        // Ancienne structure (booléen) ou nouvelle structure ({date, expires_at})
+        const _keptDate = typeof keptVal === 'object' ? keptVal.date : null;
+        const _expiresAt = typeof keptVal === 'object' ? keptVal.expires_at : null;
+        // Vérifier que le brief gardé est d'aujourd'hui et pas encore expiré
+        const _sameDay = !_keptDate || _keptDate === _todayStr;
+        const _notExpired = !_expiresAt || _now < new Date(_expiresAt);
+        // Vérifier si la séance du jour est déjà validée
+        const _todayDow = _now.getDay();
+        const _todaySched = [7,1,2,3,4,5,6][_todayDow];
+        let _todaySessionDone = false;
+        weeks[CW-1].sessions.forEach((sess,si)=>{
+          if(!_todaySessionDone && sess.type!=='rest' && !state['del_w'+CW+'_s'+si]){
+            const edRaw=state['edit_w'+CW+'_s'+si]; let ed=null;
+            try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
+            if((ed&&ed.sched_day||sess.sched_day)===_todaySched && state[gk(CW,si)+'done']) _todaySessionDone=true;
+          }
+        });
+        if (_sameDay && _notExpired && !_todaySessionDone) {
+          _addBriefActionButtons(true);
+        } else {
+          // Expiré ou séance validée → nettoyer
+          dbRef.child('_brief_kept').remove().catch(()=>{});
+        }
+      }
     } catch(e) {}
   }
 }
