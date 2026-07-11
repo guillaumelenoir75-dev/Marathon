@@ -356,10 +356,17 @@ function openPerfEditModal(ws, si){
           <p style="font-size:11px;color:#3B6D11;font-weight:600;">✓ Séance validée — modifier les données</p>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEdit(${ws},${si})" style="display:flex;align-items:center;gap:5px;padding:7px 11px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEdit(${ws},${si})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           ${prev.strava ? '✅ Strava' : '🟠 Strava'}
+        </button>
+        <button id="meteo-pedit-btn" onclick="importMeteoForPerfEdit(${ws},${si})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          ${prev.meteo ? '✅ Météo' : 'Météo'}
+        </button>
+        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEdit(${ws},${si})" style="padding:6px 10px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          ${(()=>{ const s=prev.whoop?.workout_strain??prev.whoop?.cycle_strain??null; return s!=null?'⚡ '+s.toFixed(1):'⚡ WHOOP'; })()}
         </button>
         <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
       </div>
@@ -447,6 +454,22 @@ function openPerfEditModal(ws, si){
           });
           html += '</table></div>';
         }
+        html += '</div>';
+        return html;
+      })()}
+      ${(()=>{
+        const wh = prev.whoop;
+        if(!wh) return '';
+        const strain = wh.workout_strain ?? wh.cycle_strain ?? null;
+        const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
+        let html = '<div style="background:#f5f3ff;border-radius:12px;padding:12px 14px;border:1.5px solid rgba(139,92,246,0.25);margin-top:4px;">';
+        html += '<p style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">⚡ Charge WHOOP importée</p>';
+        const cols = [];
+        if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${strainColor};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
+        if(wh.workout_avg_hr) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">FC moy.</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${wh.workout_avg_hr} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
+        if(wh.workout_duration_min) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Durée</p><p style="font-size:15px;font-weight:700;color:#7c3aed;">${wh.workout_duration_min} <span style="font-size:10px;font-weight:400;">min</span></p></div>`);
+        if(wh.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wh.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
+        if(cols.length>0) html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(cols.length,4)},1fr);gap:8px;">${cols.join('')}</div>`;
         html += '</div>';
         return html;
       })()}

@@ -786,4 +786,199 @@ async function importWhoopCharge() {
   }
 }
 
+// ── MÉTÉO POUR SÉANCE DÉJÀ VALIDÉE (modal plan-edit) ─────────────────────────
+async function importMeteoForPerfEdit(ws, si) {
+  const btn = document.getElementById('meteo-pedit-btn');
+  if (btn) { btn.textContent = '⏳ Météo…'; btn.disabled = true; }
+
+  try {
+    const pos = await _getPosition();
+    if (!pos) {
+      if (btn) { btn.textContent = 'Météo'; btn.disabled = false; }
+      return;
+    }
+    const { lat, lng } = pos;
+    const [city, meteo] = await Promise.all([
+      _getCityFromCoords(lat, lng),
+      fetchWeatherForContext(lat, lng)
+    ]);
+    if (!meteo) {
+      if (btn) { btn.textContent = 'Météo'; btn.disabled = false; }
+      return;
+    }
+    meteo.ville = city;
+    meteo.coordonnees = { lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000 };
+
+    // Sauvegarder directement dans perf
+    const k = gk(ws, si);
+    let existing = {}; try { existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {}; } catch(e) {}
+    existing.meteo = meteo;
+    state[k+'perf'] = JSON.stringify(existing);
+    if (dbRef) dbRef.child(k+'perf').set(state[k+'perf']).catch(()=>{});
+
+    if (btn) { btn.style.background = '#2E7D32'; btn.textContent = '✅ ' + city; btn.disabled = false; }
+
+    // Rafraîchir le bandeau météo dans le modal sans le fermer
+    const existing2 = document.getElementById('pedit-meteo-block');
+    if (existing2) existing2.remove();
+    const btnRow = document.querySelector('#modal-container .modal-box div[style*="grid-template-columns:1fr 1fr"][style*="margin-top:20px"]');
+    if (btnRow) {
+      const block = document.createElement('div');
+      block.id = 'pedit-meteo-block';
+      const impactColors = {IDEAL:'#2E7D32',MODERE:'#E65100',ELEVE:'#C62828',EXTREME:'#B71C1C',HUMIDE:'#1565C0',FROID:'#37474F'};
+      const impactLabels = {IDEAL:'Idéal ✅',MODERE:'Chaleur modérée',ELEVE:'Forte chaleur',EXTREME:'Chaleur extrême ⚠️',HUMIDE:'Humide',FROID:'Froid'};
+      const niveau = meteo.impact_performance?.niveau || 'IDEAL';
+      const impactColor = impactColors[niveau] || '#2E7D32';
+      const impactLabel = impactLabels[niveau] || niveau;
+      const condIcon = meteo.conditions?.split(' ').pop() || '🌤️';
+      const elevFC = meteo.impact_performance?.elevation_fc_bpm || 0;
+      block.innerHTML = `<div style="background:#FFF8E7;border-radius:12px;padding:12px 14px;border:1.5px solid #F5A62330;margin-bottom:4px;">
+        <p style="font-size:11px;font-weight:700;color:#E65100;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🌤️ Météo importée — ${city}</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:20px;">${condIcon}</span>
+            <div><p style="font-size:13px;font-weight:700;color:#1a2e4a;margin:0;">${meteo.temperature}°C</p>
+            <p style="font-size:10px;color:#888;margin:2px 0 0;">${meteo.conditions}</p></div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+            <span style="background:rgba(12,68,124,0.08);border-radius:12px;padding:3px 9px;font-size:11px;color:#0C447C;">💧 ${meteo.humidite}%</span>
+            <span style="background:${impactColor}18;border-radius:12px;padding:3px 9px;font-size:11px;font-weight:700;color:${impactColor};">${impactLabel}</span>
+            ${elevFC > 0 ? `<span style="background:#FF6F0018;border-radius:12px;padding:3px 9px;font-size:11px;font-weight:600;color:#E65100;">❤️ FC +${elevFC} bpm</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+      btnRow.parentNode.insertBefore(block, btnRow);
+    }
+  } catch(e) {
+    if (btn) { btn.textContent = 'Météo'; btn.disabled = false; }
+  }
+}
+
+// ── WHOOP PICKER POUR SÉANCE DÉJÀ VALIDÉE (modal plan-edit) ──────────────────
+async function importWhoopForPerfEdit(ws, si) {
+  const btn = document.getElementById('whoop-pedit-btn');
+  if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
+
+  try {
+    const snap = await dbRef.child('state/whoop_data').once('value');
+    const whoopData = snap.val();
+
+    if (!whoopData) {
+      if (btn) { btn.textContent = '⚡ WHOOP'; btn.disabled = false; }
+      return;
+    }
+
+    // Date de la séance pour trier les workouts
+    const k = gk(ws, si);
+    let prev = {}; try { prev = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {}; } catch(e) {}
+    const sessionDate = prev.date || null;
+
+    const workouts = (whoopData.workouts || []).filter(w => w.strain != null);
+    // Trier par proximité de date avec la séance
+    const sorted = [...workouts].sort((a, b) => {
+      if (sessionDate) {
+        const da = Math.abs(new Date(a.date) - new Date(sessionDate));
+        const db = Math.abs(new Date(b.date) - new Date(sessionDate));
+        return da - db;
+      }
+      return b.date.localeCompare(a.date);
+    });
+    const top3 = sorted.slice(0, 3);
+
+    if (btn) { btn.textContent = '⚡ WHOOP'; btn.disabled = false; }
+
+    if (top3.length === 0) {
+      alert('Aucun entraînement WHOOP disponible (les 14 derniers jours).');
+      return;
+    }
+
+    // Stocker les workouts dans un tableau global pour accès par index depuis onclick
+    window._whoopPerfEditData = top3.map(w => ({
+      date: w.date, workout_strain: w.strain, workout_avg_hr: w.avg_hr,
+      workout_max_hr: w.max_hr, workout_calories: w.calories,
+      workout_duration_min: w.duration_min, workout_sport_id: w.sport_id,
+      cycle_strain: null, cycle_calories: null
+    }));
+
+    // Afficher le picker
+    const existing = document.getElementById('whoop-pedit-picker');
+    if (existing) existing.remove();
+
+    const picker = document.createElement('div');
+    picker.id = 'whoop-pedit-picker';
+    picker.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
+
+    const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+
+    picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
+      <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">⚡ Entraînements WHOOP</p>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Sélectionne l'entraînement à associer à cette séance</p>
+      ${top3.map((w, idx) => {
+        const dt = new Date(w.date + 'T12:00:00');
+        const dateLabel = `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;
+        const diffDays = sessionDate ? Math.round((new Date(w.date) - new Date(sessionDate)) / 86400000) : null;
+        const isSameDay = diffDays === 0;
+        const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
+          : diffDays != null ? `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>` : '';
+        const strainColor = w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
+        const chargeLabel = w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
+        return `<div onclick="document.getElementById('whoop-pedit-picker').remove();_applyWhoopToPerfEdit(${idx},${ws},${si});"
+          style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isSameDay?'#7c3aed':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isSameDay?'#f5f3ff':'var(--bg2)'};">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <p style="font-size:13px;font-weight:700;color:var(--text);margin:0;">${dateLabel}</p>
+              ${diffLabel}
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${w.duration_min ? w.duration_min + ' min' : ''}${w.avg_hr ? ' · FC ' + w.avg_hr + ' bpm' : ''}</p>
+          </div>
+          <div style="text-align:right;">
+            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}<span style="font-size:10px;font-weight:400;color:#888;">/21</span></p>
+            <p style="font-size:10px;color:${strainColor};font-weight:600;margin:2px 0 0;">${chargeLabel}</p>
+          </div>
+        </div>`;
+      }).join('')}
+      <button onclick="document.getElementById('whoop-pedit-picker').remove();" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;">Annuler</button>
+    </div>`;
+    document.body.appendChild(picker);
+
+  } catch(e) {
+    if (btn) { btn.textContent = '⚡ WHOOP'; btn.disabled = false; }
+    console.error('importWhoopForPerfEdit error:', e);
+  }
+}
+
+function _applyWhoopToPerfEdit(idx, ws, si) {
+  const wData = (window._whoopPerfEditData || [])[idx];
+  if (!wData) return;
+  const k = gk(ws, si);
+  let existing = {}; try { existing = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {}; } catch(e) {}
+  existing.whoop = wData;
+  state[k+'perf'] = JSON.stringify(existing);
+  if (dbRef) dbRef.child(k+'perf').set(state[k+'perf']).catch(()=>{});
+
+  const btn = document.getElementById('whoop-pedit-btn');
+  const strain = wData.workout_strain ?? wData.cycle_strain ?? null;
+  if (btn) { btn.style.background = 'rgba(124,58,237,0.85)'; btn.textContent = strain != null ? '⚡ ' + strain.toFixed(1) : '⚡ OK'; }
+
+  // Rafraîchir le bandeau WHOOP dans le modal
+  const existingBlock = document.getElementById('pedit-whoop-block');
+  if (existingBlock) existingBlock.remove();
+  const btnRow = document.querySelector('#modal-container .modal-box div[style*="grid-template-columns:1fr 1fr"][style*="margin-top:20px"]');
+  if (btnRow) {
+    const block = document.createElement('div');
+    block.id = 'pedit-whoop-block';
+    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
+    const cols = [];
+    if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${strainColor};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
+    if(wData.workout_avg_hr) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">FC moy.</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${wData.workout_avg_hr} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
+    if(wData.workout_duration_min) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Durée</p><p style="font-size:15px;font-weight:700;color:#7c3aed;">${wData.workout_duration_min} <span style="font-size:10px;font-weight:400;">min</span></p></div>`);
+    if(wData.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wData.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
+    block.innerHTML = `<div style="background:#f5f3ff;border-radius:12px;padding:12px 14px;border:1.5px solid rgba(139,92,246,0.25);margin-bottom:4px;">
+      <p style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">⚡ Charge WHOOP importée</p>
+      <div style="display:grid;grid-template-columns:repeat(${Math.min(cols.length,4)},1fr);gap:8px;">${cols.join('')}</div>
+    </div>`;
+    btnRow.parentNode.insertBefore(block, btnRow);
+  }
+}
+
 // ── VO2MAX MODAL ─────────────────────────────────────────────────────────────
