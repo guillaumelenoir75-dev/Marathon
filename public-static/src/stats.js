@@ -475,7 +475,7 @@ function renderWhoopStats() {
         const durColor=isNaN(durH)?'var(--muted)':durH>=8?'#16a34a':durH>=6.5?'#ca8a04':'#dc2626';
         const durStr=`<span style="color:${durColor};font-weight:700;">${s0.duration_hours}</span>`;
         const remStr=rem!=null?`<span style="color:${remColor};font-weight:700;">${rem}%</span>`:'—%';
-        return durStr + ' · paradoxal ' + remStr;
+        return durStr + '<br>paradoxal ' + remStr;
       })() : '',
       color: s0?.performance_pct != null ? scoreColor(s0.performance_pct) : 'var(--muted)',
       bg: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
