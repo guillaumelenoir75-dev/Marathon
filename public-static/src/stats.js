@@ -660,12 +660,10 @@ function renderFcReposChart(){
     : null;
   const fcTrendColor = fcTrend === '↓ forme' ? '#16a34a' : fcTrend === '↑ fatigue' ? '#dc2626' : '#ca8a04';
 
-  // Filtrage selon onglet (days - 1 pour inclure aujourd'hui dans le décompte)
+  // Filtrage : dernières N mesures (pas N jours calendaires)
   if (_fcReposChartFilter !== 'all') {
-    const days = parseInt(_fcReposChartFilter);
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - (days - 1));
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    entries = entries.filter(e => e.date >= cutoffStr);
+    const n = parseInt(_fcReposChartFilter);
+    entries = entries.slice(-n);
   }
   const allEntries = entries.slice(); // pour les KPIs (toutes les données, pas filtrées)
 
@@ -742,10 +740,18 @@ function renderFcReposChart(){
             const val=ds.data[i];
             if(val==null) return;
             ctx.save();
-            ctx.font='600 9px sans-serif';
+            ctx.font='700 10px sans-serif';
+            const text=val+' bpm';
+            const tw=ctx.measureText(text).width;
+            const tx=pt.x, ty=pt.y-14;
+            // Fond blanc semi-transparent
+            ctx.fillStyle=isDark?'rgba(30,30,46,0.85)':'rgba(255,255,255,0.85)';
+            ctx.beginPath();
+            ctx.roundRect(tx-tw/2-3, ty-10, tw+6, 14, 3);
+            ctx.fill();
             ctx.fillStyle=rhrColor2(val);
             ctx.textAlign='center';
-            ctx.fillText(val+' bpm',pt.x,pt.y-9);
+            ctx.fillText(text,tx,ty);
             ctx.restore();
           });
         });
