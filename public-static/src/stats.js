@@ -621,17 +621,21 @@ function _renderWhoopChart(mode) {
         const area = chart.chartArea;
         chart.data.datasets.forEach((ds, di) => {
           const meta = chart.getDatasetMeta(di);
-          // Calculer positions initiales
+          // Calculer positions initiales avec baseY (position du point)
           const positions = meta.data.map((pt, i) => ({
-            x: pt.x, y: pt.y - 20, val: ds.data[i], col: pointColors[i] || (isDark?'#aaa':'#555')
+            x: pt.x, baseY: pt.y, y: pt.y - 22, above: true,
+            val: ds.data[i], col: pointColors[i] || (isDark?'#aaa':'#555')
           })).filter(p => p.val != null);
-          // Anti-chevauchement : décaler verticalement si trop proches horizontalement
+          // Anti-chevauchement : alterner haut/bas quand points proches en x
           for (let i = 1; i < positions.length; i++) {
             const prev = positions[i-1];
             const cur = positions[i];
-            if (Math.abs(cur.x - prev.x) < 40 && Math.abs(cur.y - prev.y) < 18) {
-              cur.y = prev.y - 18;
+            if (Math.abs(cur.x - prev.x) < 48) {
+              cur.above = !prev.above;
+            } else {
+              cur.above = true;
             }
+            cur.y = cur.above ? cur.baseY - 22 : cur.baseY + 8;
           }
           positions.forEach(({ x, y, val, col }) => {
             ctx.save();
