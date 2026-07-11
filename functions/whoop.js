@@ -226,7 +226,7 @@ exports.whoopSync = onRequest(
           date: r.created_at.slice(0, 10),
           score: r.score?.recovery_score ?? null,
           rhr: r.score?.resting_heart_rate ?? null,
-          hrv: r.score?.hrv_rms_sd ?? null,
+          hrv: r.score?.hrv_rmssd_milli ?? r.score?.hrv_rms_sd ?? null,
           spo2: r.score?.spo2_percentage ?? null
         }));
 

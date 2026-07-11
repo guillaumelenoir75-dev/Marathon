@@ -455,8 +455,8 @@ function renderWhoopStats() {
         if (r0?.rhr) parts.push(`<span style="color:${rhrColor(r0.rhr)};font-weight:700;">${r0.rhr}</span> bpm repos`);
         else if (cy0?.avg_hr) parts.push(cy0.avg_hr + ' bpm moy');
         if (r0?.hrv) {
-          const hrvColor = r0.hrv >= 80 ? '#16a34a' : r0.hrv >= 50 ? '#ca8a04' : '#dc2626';
-          parts.push(`HRV <span style="color:${hrvColor};font-weight:700;">${r0.hrv}</span> ms`);
+          const hrvColor = r0.hrv >= 85 ? '#16a34a' : r0.hrv >= 60 ? '#ca8a04' : '#dc2626';
+          parts.push(`VFC <span style="color:${hrvColor};font-weight:700;">${Math.round(r0.hrv)}</span> ms`);
         }
         return parts.join(' · ');
       })(),
@@ -505,17 +505,24 @@ function renderWhoopStats() {
         : 0;
       scores.push(fcScore);
     }
+    if (r0?.hrv != null) {
+      // VFC : plage personnelle 40-90 ms → 0-100%
+      const hrvScore = Math.max(0, Math.min(100, Math.round((r0.hrv - 40) / 50 * 100)));
+      scores.push(hrvScore);
+    }
     if (scores.length) {
       const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
       const col = scoreColor(avg);
       const emoji = avg >= 67 ? '🟢' : avg >= 34 ? '🟡' : '🔴';
       const label = avg >= 67 ? 'Bonne forme' : avg >= 34 ? 'Forme moyenne' : 'Récupération insuffisante';
+      const components = ['récup', 'sommeil', 'FC repos'];
+      if (r0?.hrv != null) components.push('VFC');
       syntheticEl.innerHTML = `
         <div style="background:${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)'};border:1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;">
           <div style="font-size:36px;font-weight:900;color:${col};line-height:1;">${avg}<span style="font-size:16px;">%</span></div>
           <div>
             <div style="font-size:13px;font-weight:700;color:${col};">${emoji} ${label}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · récup + sommeil + FC repos</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · ${components.join(' + ')}</div>
           </div>
         </div>`;
       syntheticEl.style.display = 'block';
