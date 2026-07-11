@@ -466,8 +466,6 @@ function openPerfEditModal(ws, si){
         html += '<p style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">⚡ Charge WHOOP importée</p>';
         const cols = [];
         if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${strainColor};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
-        if(wh.workout_avg_hr) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">FC moy.</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${wh.workout_avg_hr} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
-        if(wh.workout_duration_min) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Durée</p><p style="font-size:15px;font-weight:700;color:#7c3aed;">${wh.workout_duration_min} <span style="font-size:10px;font-weight:400;">min</span></p></div>`);
         if(wh.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wh.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
         if(cols.length>0) html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(cols.length,4)},1fr);gap:8px;">${cols.join('')}</div>`;
         html += '</div>';

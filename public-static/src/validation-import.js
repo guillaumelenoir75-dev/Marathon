@@ -893,9 +893,7 @@ async function importWhoopForPerfEdit(ws, si) {
 
     // Stocker les workouts dans un tableau global pour accès par index depuis onclick
     window._whoopPerfEditData = top3.map(w => ({
-      date: w.date, workout_strain: w.strain, workout_avg_hr: w.avg_hr,
-      workout_max_hr: w.max_hr, workout_calories: w.calories,
-      workout_duration_min: w.duration_min, workout_sport_id: w.sport_id,
+      date: w.date, workout_strain: w.strain, workout_calories: w.calories,
       cycle_strain: null, cycle_calories: null
     }));
 
@@ -970,8 +968,6 @@ function _applyWhoopToPerfEdit(idx, ws, si) {
     const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
     const cols = [];
     if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${strainColor};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
-    if(wData.workout_avg_hr) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">FC moy.</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${wData.workout_avg_hr} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
-    if(wData.workout_duration_min) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Durée</p><p style="font-size:15px;font-weight:700;color:#7c3aed;">${wData.workout_duration_min} <span style="font-size:10px;font-weight:400;">min</span></p></div>`);
     if(wData.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wData.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
     block.innerHTML = `<div style="background:#f5f3ff;border-radius:12px;padding:12px 14px;border:1.5px solid rgba(139,92,246,0.25);margin-bottom:4px;">
       <p style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">⚡ Charge WHOOP importée</p>
