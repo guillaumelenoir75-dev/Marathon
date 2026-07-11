@@ -235,13 +235,30 @@ exports.briefAfterFcRepos = onSchedule(
 
       const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
-      const fcToday=state['fc_repos_'+todayStr]||null;
 
       // ── Récupérer les données WHOOP ───────────────────────────────────────────
       const wd=state['whoop_data']||(state.whoop_data)||null;
+
+      // Vérifier si les données WHOOP sont d'aujourd'hui
+      const whoopRecov=wd&&wd.recoveries&&wd.recoveries[0]?wd.recoveries[0]:null;
+      const whoopDate=whoopRecov&&whoopRecov.date?whoopRecov.date.slice(0,10):null;
+      const whoopToday=(whoopDate===todayStr);
+
+      // Si WHOOP est connecté mais les données ne sont pas encore d'aujourd'hui,
+      // attendre jusqu'à 10 min que WHOOP finisse de traiter le sommeil avant de générer le brief.
+      const whoopConnected=!!(state.whoop_token&&(typeof state.whoop_token==='object'?state.whoop_token.access_token:state.whoop_token));
+      if(whoopConnected&&!whoopToday&&ageMin<10){
+        console.log(`briefAfterFcRepos: WHOOP connecté mais données pas encore d'aujourd'hui (${whoopDate||'aucune'}) — on attend (${Math.round(ageMin)} min / 10 min max)`);
+        return; // conserver le trigger, réessayer au prochain tick (2 min)
+      }
+
+      // FC repos : priorité WHOOP RHR d'aujourd'hui > valeur manuelle du jour
+      const fcWhoopRhr=(whoopToday&&whoopRecov&&whoopRecov.rhr)?whoopRecov.rhr:null;
+      const fcToday=fcWhoopRhr||state['fc_repos_'+todayStr]||null;
+
       let whoopBlock='';
-      if(wd){
-        const r=wd.recoveries&&wd.recoveries[0];
+      if(wd&&whoopToday){
+        const r=whoopRecov;
         const s=wd.sleeps&&wd.sleeps[0];
         const cy=wd.cycles&&wd.cycles[0];
         const lines=[];
@@ -306,7 +323,8 @@ exports.briefAfterFcRepos = onSchedule(
       const consignesEf=isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
       const memos=state['_coach_memos']||'';
       const seancesStr=ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'Récupération';
-      const fcLine=fcToday?`FC repos ce matin : ${fcToday} bpm (moyenne 7j : ${fcMoy7j||'—'} bpm)`:'FC repos non saisie ce matin';
+      const fcSource=fcWhoopRhr?'WHOOP RHR':'saisie manuelle';
+      const fcLine=fcToday?`FC repos ce matin : ${fcToday} bpm [${fcSource}] (moyenne 7j : ${fcMoy7j||'—'} bpm)`:'FC repos non saisie ce matin';
       const memosLine=memos?`\nNotes coach (mémos) :\n${memos}`:'';
 
       // Séance run du jour — provient directement de buildNotifContext (gère suppressions, done, etc.)
@@ -430,13 +448,13 @@ ${memosLine}`;
         let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
         if(Number(sched.day)===dayOfWeekNum)renfoAujourdHui.push(renfoNoms[ri]);
       }
-      // Emoji couleur récupération
-      const recovScore=wd&&wd.recoveries&&wd.recoveries[0]&&wd.recoveries[0].score!=null?wd.recoveries[0].score:null;
+      // Emoji couleur récupération — uniquement si données WHOOP d'aujourd'hui
+      const recovScore=whoopToday&&whoopRecov&&whoopRecov.score!=null?whoopRecov.score:null;
       const recovEmoji=recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
       // Emoji météo
       const meteoEmoji=tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
-      // FC repos
-      const fcPart=fcToday?`FC ${fcToday} bpm ${recovEmoji}`.trim():(recovEmoji?`Récup ${recovEmoji}`:'');
+      // FC repos dans la notif : RHR WHOOP d'aujourd'hui en priorité (jamais une valeur stale)
+      const fcPart=fcToday?`FC ${fcToday} bpm${recovEmoji?' '+recovEmoji:''}`.trim():(recovEmoji?`Récup ${recovEmoji}`:'');
       // Séance run du jour (uniquement run, pas renfo)
       let seancePart='';
       if(seanceRunAujourdhui){
