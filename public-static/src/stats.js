@@ -685,7 +685,7 @@ function _renderWhoopChart(mode) {
 
 function switchWhoopChart(mode) {
   _whoopChartMode = mode;
-  const tabs = { recovery: '#22c55e', sleep: '#3b82f6', strain: '#f59e0b', hrv: '#8b5cf6' };
+  const tabs = { recovery: '#22c55e', sleep: '#3b82f6', strain: '#f59e0b' };
   Object.entries(tabs).forEach(([k, col]) => {
     const t = document.getElementById('wtab-' + k);
     if (!t) return;
@@ -696,20 +696,16 @@ function switchWhoopChart(mode) {
 }
 
 let curRenfo=1;
-let _fcReposChartFilter = '7';
+let _fcReposChartType = 'fc';
 
-function switchFcReposChart(filter) {
-  _fcReposChartFilter = filter;
-  ['7','30','all'].forEach(f => {
-    const btn = document.getElementById('fctab-' + f);
+function switchFcReposChart(type) {
+  _fcReposChartType = type;
+  const colors = { fc: '#E24B4A', vfc: '#8b5cf6' };
+  ['fc','vfc'].forEach(t => {
+    const btn = document.getElementById('fctab-' + t);
     if (!btn) return;
-    if (f === filter) {
-      btn.style.background = '#E24B4A';
-      btn.style.color = '#fff';
-    } else {
-      btn.style.background = 'var(--bg2)';
-      btn.style.color = 'var(--muted)';
-    }
+    if (t === type) { btn.style.background = colors[t]; btn.style.color = '#fff'; }
+    else { btn.style.background = 'var(--bg2)'; btn.style.color = 'var(--muted)'; }
   });
   renderFcReposChart();
 }
@@ -717,61 +713,53 @@ function switchFcReposChart(filter) {
 function renderFcReposChart(){
   const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
   const rhrColor2 = v => v <= 50 ? '#16a34a' : v <= 60 ? '#ca8a04' : '#dc2626';
-  // Collecter toutes les entrées fc_repos_YYYY-MM-DD
-  let entries = [];
-  Object.keys(state).forEach(k=>{
-    if(k.startsWith('fc_repos_') && k.match(/fc_repos_\d{4}-\d{2}-\d{2}/)){
-      const date = k.replace('fc_repos_','');
-      const val = parseInt(state[k]);
-      if(val >= 30 && val <= 100) entries.push({date, val});
-    }
-  });
-  entries.sort((a,b)=>a.date.localeCompare(b.date));
+  const vfcColor  = v => v >= 85  ? '#16a34a' : v >= 60  ? '#ca8a04' : '#dc2626';
+  const isVfc = _fcReposChartType === 'vfc';
 
-  // Tendance FC repos : aujourd'hui vs moyenne 7j précédents
-  const _fcToday = entries.length ? entries[entries.length-1].val : null;
-  const _fc7prev = entries.slice(-8,-1);
-  const _fcAvg7 = _fc7prev.length ? Math.round(_fc7prev.reduce((s,e)=>s+e.val,0)/_fc7prev.length) : null;
-  const fcTrend = _fcToday != null && _fcAvg7 != null
-    ? (_fcToday <= _fcAvg7 - 2 ? '↓ forme' : _fcToday >= _fcAvg7 + 2 ? '↑ fatigue' : '→ stable')
-    : null;
-  const fcTrendColor = fcTrend === '↓ forme' ? '#16a34a' : fcTrend === '↑ fatigue' ? '#dc2626' : '#ca8a04';
-
-  // Filtrage : dernières N mesures (pas N jours calendaires)
-  if (_fcReposChartFilter !== 'all') {
-    const n = parseInt(_fcReposChartFilter);
-    entries = entries.slice(-n);
-  }
-  const allEntries = entries.slice(); // pour les KPIs (toutes les données, pas filtrées)
-
-  // KPIs
   const kpiRow = document.getElementById('fc-repos-kpi-row');
-  const canvas = document.getElementById('chart-fc-repos');
-  const detail = document.getElementById('fc-repos-detail');
+  const canvas  = document.getElementById('chart-fc-repos');
+  const detail  = document.getElementById('fc-repos-detail');
+  const trendEl = document.getElementById('fc-repos-trend');
 
-  if(entries.length === 0){
-    if (kpiRow) kpiRow.innerHTML = '';
-    if(chartFcRepos) { chartFcRepos.destroy(); chartFcRepos = null; }
-    if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
-    if(detail) detail.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:20px;">Aucune donnée — appuie sur ☀️ Je suis réveillé chaque matin.</p>';
-    return;
-  }
+  // ── Mode FC repos ─────────────────────────────────────────────────────────
+  if (!isVfc) {
+    let allFc = [];
+    Object.keys(state).forEach(k=>{
+      if(k.match(/^fc_repos_\d{4}-\d{2}-\d{2}$/)){
+        const val=parseInt(state[k]);
+        if(val>=30&&val<=100) allFc.push({date:k.replace('fc_repos_',''),val});
+      }
+    });
+    allFc.sort((a,b)=>a.date.localeCompare(b.date));
 
-  const vals = entries.map(e=>e.val);
-  const avg = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
-  const minV = Math.min(...vals);
-  const maxV = Math.max(...vals);
-  const allVals = allEntries.map(e=>e.val);
-  const latest = allVals[allVals.length - 1];
+    // Tendance vs moyenne 7j précédents
+    const fcToday=allFc.length?allFc[allFc.length-1].val:null;
+    const fc7prev=allFc.slice(-8,-1);
+    const fcAvg7=fc7prev.length?Math.round(fc7prev.reduce((s,e)=>s+e.val,0)/fc7prev.length):null;
+    const fcTrend=fcToday!=null&&fcAvg7!=null
+      ?(fcToday<=fcAvg7-2?'↓ forme':fcToday>=fcAvg7+2?'↑ fatigue':'→ stable'):null;
+    const fcTrendColor=fcTrend==='↓ forme'?'#16a34a':fcTrend==='↑ fatigue'?'#dc2626':'#ca8a04';
 
-  // KPI tiles (même style que WHOOP)
-  if (kpiRow) {
-    kpiRow.innerHTML = `
+    const entries=allFc.slice(-14);
+    if(entries.length===0){
+      if(kpiRow)kpiRow.innerHTML='';
+      if(chartFcRepos){chartFcRepos.destroy();chartFcRepos=null;}
+      if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+      if(trendEl)trendEl.style.display='none';
+      if(detail)detail.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:20px;">Aucune donnée</p>';
+      return;
+    }
+    const vals=entries.map(e=>e.val);
+    const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+    const minV=Math.min(...vals), maxV=Math.max(...vals);
+    const latest=fcToday??vals[vals.length-1];
+
+    if(kpiRow)kpiRow.innerHTML=`
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
         <div style="font-size:22px;font-weight:800;color:${rhrColor2(latest)};line-height:1;">${latest}</div>
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
-        ${fcTrend ? `<div style="font-size:10px;color:${fcTrendColor};font-weight:700;margin-top:3px;">${fcTrend}</div>` : ''}
+        ${fcTrend?`<div style="font-size:10px;color:${fcTrendColor};font-weight:700;margin-top:3px;">${fcTrend}</div>`:''}
       </div>
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
         <div style="font-size:22px;font-weight:800;color:${rhrColor2(avg)};line-height:1;">${avg}</div>
@@ -783,121 +771,130 @@ function renderFcReposChart(){
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
       </div>`;
-  }
 
-  // Tendance 30j FC repos (recalcul local — allFcEntries/fcToday sont hors scope)
-  const _allFcEntries30 = Object.keys(state)
-    .filter(k => k.match(/^fc_repos_\d{4}-\d{2}-\d{2}$/))
-    .map(k => ({ date: k.replace('fc_repos_',''), val: parseInt(state[k]) }))
-    .filter(e => e.val >= 30 && e.val <= 100)
-    .sort((a,b) => a.date.localeCompare(b.date));
-  const _fcTodayVal = _allFcEntries30.length ? _allFcEntries30[_allFcEntries30.length-1].val : null;
-  const fc30 = _allFcEntries30.slice(-31,-1);
-  if (fc30.length >= 5 && _fcTodayVal != null) {
-    const fc30avg = Math.round(fc30.reduce((s,e)=>s+e.val,0)/fc30.length);
-    const diff = _fcTodayVal - fc30avg;
-    const trendEl = document.getElementById('fc-repos-trend');
-    if (trendEl) {
-      const col = diff <= -2 ? '#16a34a' : diff >= 2 ? '#dc2626' : '#ca8a04';
-      const msg = diff <= -2
-        ? `Ta FC repos a baissé de ${Math.abs(diff)} bpm vs ta moyenne 30j — bonne progression.`
-        : diff >= 2
-        ? `Ta FC repos a augmenté de ${diff} bpm vs ta moyenne 30j — signe de fatigue accumulée.`
-        : `Ta FC repos est stable par rapport à ta moyenne 30j (${fc30avg} bpm).`;
-      trendEl.innerHTML = `<div style="font-size:11px;color:${col};font-weight:600;padding:8px 12px;background:${col}11;border-radius:8px;border:1px solid ${col}33;margin-bottom:10px;">📈 ${msg}</div>`;
-      trendEl.style.display = 'block';
+    // Tendance 30j
+    const fc30=allFc.slice(-31,-1);
+    if(trendEl&&fc30.length>=5){
+      const fc30avg=Math.round(fc30.reduce((s,e)=>s+e.val,0)/fc30.length);
+      const diff=latest-fc30avg;
+      const col=diff<=-2?'#16a34a':diff>=2?'#dc2626':'#ca8a04';
+      const msg=diff<=-2?`Ta FC repos a baissé de ${Math.abs(diff)} bpm vs ta moyenne 30j — bonne progression.`
+        :diff>=2?`Ta FC repos a augmenté de ${diff} bpm vs ta moyenne 30j — signe de fatigue accumulée.`
+        :`Ta FC repos est stable par rapport à ta moyenne 30j (${fc30avg} bpm).`;
+      trendEl.innerHTML=`<div style="font-size:11px;color:${col};font-weight:600;padding:8px 12px;background:${col}11;border-radius:8px;border:1px solid ${col}33;margin-bottom:10px;">📈 ${msg}</div>`;
+      trendEl.style.display='block';
+    } else if(trendEl) trendEl.style.display='none';
+
+    if(chartFcRepos)chartFcRepos.destroy();
+    if(!canvas)return;
+    const ptColors=vals.map(v=>rhrColor2(v));
+    chartFcRepos=new Chart(canvas,_fcLineConfig(entries,vals,'#E24B4A',ptColors,' bpm',isDark,Math.max(30,minV-5),maxV+5,v=>v+' bpm'));
+    if(detail)detail.innerHTML='';
+
+  // ── Mode VFC ──────────────────────────────────────────────────────────────
+  } else {
+    const wd=state.whoop_data;
+    const recs=wd?[...(wd.recoveries||[])].filter(r=>r.hrv!=null).sort((a,b)=>a.date.localeCompare(b.date)).slice(-14):[];
+    if(recs.length===0){
+      if(kpiRow)kpiRow.innerHTML='';
+      if(chartFcRepos){chartFcRepos.destroy();chartFcRepos=null;}
+      if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+      if(trendEl)trendEl.style.display='none';
+      if(detail)detail.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:20px;">Aucune donnée VFC — synchronise WHOOP.</p>';
+      return;
     }
+    const entries=recs.map(r=>({date:r.date,val:Math.round(r.hrv)}));
+    const vals=entries.map(e=>e.val);
+    const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+    const minV=Math.min(...vals), maxV=Math.max(...vals);
+    const latest=vals[vals.length-1];
+
+    if(kpiRow)kpiRow.innerHTML=`
+      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:22px;font-weight:800;color:${vfcColor(latest)};line-height:1;">${latest}</div>
+        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">ms</div>
+      </div>
+      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:22px;font-weight:800;color:${vfcColor(avg)};line-height:1;">${avg}</div>
+        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Moyenne</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">ms</div>
+      </div>
+      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
+        <div style="font-size:22px;font-weight:800;color:${vfcColor(minV)};line-height:1;">${minV}</div>
+        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">ms</div>
+      </div>`;
+    if(trendEl)trendEl.style.display='none';
+    if(chartFcRepos)chartFcRepos.destroy();
+    if(!canvas)return;
+    const ptColors=vals.map(v=>vfcColor(v));
+    chartFcRepos=new Chart(canvas,_fcLineConfig(entries,vals,'#8b5cf6',ptColors,' ms',isDark,Math.max(0,minV-10),maxV+10,v=>v+' ms'));
+    if(detail)detail.innerHTML='';
   }
+}
 
-  // Graphique
-  if(chartFcRepos) chartFcRepos.destroy();
-  if(!canvas) return;
-
-  chartFcRepos = new Chart(canvas,{
+function _fcLineConfig(entries,vals,color,ptColors,unit,isDark,yMin,yMax,yCallback){
+  return {
     type:'line',
     data:{
-      labels: entries.map(e=>{ const d=new Date(e.date); return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }),
+      labels:entries.map(e=>{const d=new Date(e.date+'T12:00:00');return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});}),
       datasets:[{
         data:vals,
-        borderColor:'#E24B4A',
-        backgroundColor:'rgba(226,75,74,0.08)',
+        borderColor:'rgba(150,150,150,0.45)',
+        backgroundColor:'rgba(150,150,150,0.07)',
         borderWidth:2.5,
-        pointBackgroundColor:'#E24B4A',
+        pointBackgroundColor:ptColors,
         pointBorderColor:'#fff',
         pointBorderWidth:1.5,
-        pointRadius:4,
-        pointHoverRadius:6,
+        pointRadius:5,
+        pointHoverRadius:7,
         fill:true,
         tension:0.35
       }]
     },
-    plugins: _fcReposChartFilter === '7' ? [{
+    plugins:[{
       id:'fcLabels',
       afterDatasetsDraw(chart){
-        const ctx=chart.ctx;
-        const area=chart.chartArea;
-        chart.data.datasets.forEach((ds,di)=>{
-          const meta=chart.getDatasetMeta(di);
-          meta.data.forEach((pt,i)=>{
-            const val=ds.data[i];
-            if(val==null) return;
-            const col=rhrColor2(val);
-            ctx.save();
-            ctx.font='600 9px -apple-system,sans-serif';
-            const text=val+'';
-            const tw=ctx.measureText(text).width;
-            const pw=tw+10, ph=16, r=8;
-            // Centrer horizontalement, éviter débordement gauche/droite
-            let tx=pt.x;
-            if(tx-pw/2 < area.left) tx=area.left+pw/2;
-            if(tx+pw/2 > area.right) tx=area.right-pw/2;
-            const ty=pt.y-ph-5;
-            // Badge pill avec fond teinté
-            ctx.beginPath();
-            ctx.roundRect(tx-pw/2, ty, pw, ph, r);
-            ctx.fillStyle=isDark?'rgba(30,30,46,0.92)':'rgba(255,255,255,0.95)';
-            ctx.fill();
-            ctx.strokeStyle=col+'55';
-            ctx.lineWidth=1.2;
-            ctx.stroke();
-            // Valeur
-            ctx.fillStyle=col;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            ctx.fillText(text, tx, ty+ph/2);
-            ctx.restore();
-          });
+        const ctx=chart.ctx, area=chart.chartArea;
+        const positions=chart.data.datasets[0]&&chart.getDatasetMeta(0).data.map((pt,i)=>({
+          x:pt.x, baseY:pt.y, y:pt.y-22, above:true, val:vals[i], col:ptColors[i]
+        })).filter(p=>p.val!=null);
+        for(let i=1;i<positions.length;i++){
+          const prev=positions[i-1],cur=positions[i];
+          if(Math.abs(cur.x-prev.x)<48){cur.above=!prev.above;}else{cur.above=true;}
+          cur.y=cur.above?cur.baseY-22:cur.baseY+8;
+        }
+        positions.forEach(({x,y,val,col})=>{
+          ctx.save();
+          ctx.font='600 9px -apple-system,sans-serif';
+          const text=String(val);
+          const tw=ctx.measureText(text).width;
+          const pw=tw+10,ph=16,r=8;
+          let tx=x;
+          if(tx-pw/2<area.left)tx=area.left+pw/2;
+          if(tx+pw/2>area.right)tx=area.right-pw/2;
+          const ty=Math.max(area.top+2,y);
+          ctx.beginPath();ctx.roundRect(tx-pw/2,ty,pw,ph,r);
+          ctx.fillStyle=isDark?'rgba(30,30,46,0.92)':'rgba(255,255,255,0.95)';
+          ctx.fill();
+          ctx.strokeStyle=col+'66';ctx.lineWidth=1.2;ctx.stroke();
+          ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText(text,tx,ty+ph/2);
+          ctx.restore();
         });
       }
-    }] : [],
+    }],
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          backgroundColor:isDark?'#1e1e2e':'#fff',
-          titleColor:isDark?'#ccc':'#333',
-          bodyColor:'#E24B4A',
-          borderColor:isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)',
-          borderWidth:1,
-          callbacks:{label:c=>c.raw+' bpm'}
-        }
-      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+unit}}},
       scales:{
         x:{ticks:{color:isDark?'#888':'#666',font:{size:9}},grid:{display:false},border:{display:false}},
-        y:{
-          min:Math.max(30,minV-5),
-          max:maxV+5,
-          ticks:{color:isDark?'#888':'#666',font:{size:9},callback:v=>v+' bpm'},
-          grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'},
-          border:{display:false}
-        }
+        y:{min:yMin,max:yMax,ticks:{color:isDark?'#888':'#666',font:{size:9},callback:yCallback},grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'},border:{display:false}}
       }
     }
-  });
-
-  if (detail) detail.innerHTML = '';
+  };
 }
 
 

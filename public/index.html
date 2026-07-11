@@ -235,9 +235,8 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Évolution quotidienne</p>
           <div style="display:flex;gap:4px;" id="fc-repos-chart-tabs">
-            <button onclick="switchFcReposChart('7')" id="fctab-7" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">7j</button>
-            <button onclick="switchFcReposChart('30')" id="fctab-30" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">30j</button>
-            <button onclick="switchFcReposChart('all')" id="fctab-all" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Tout</button>
+            <button onclick="switchFcReposChart('fc')" id="fctab-fc" style="padding:3px 9px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">FC repos</button>
+            <button onclick="switchFcReposChart('vfc')" id="fctab-vfc" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">VFC</button>
           </div>
         </div>
         <div style="position:relative;width:100%;height:160px;">
@@ -254,7 +253,6 @@
           <button onclick="switchWhoopChart('recovery')" id="wtab-recovery" style="padding:3px 9px;border-radius:20px;border:none;background:#22c55e;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">Récup</button>
           <button onclick="switchWhoopChart('sleep')" id="wtab-sleep" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Sommeil</button>
           <button onclick="switchWhoopChart('strain')" id="wtab-strain" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">Charge</button>
-          <button onclick="switchWhoopChart('hrv')" id="wtab-hrv" style="padding:3px 9px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;">VFC</button>
         </div>
       </div>
       <div style="position:relative;width:100%;height:160px;">
