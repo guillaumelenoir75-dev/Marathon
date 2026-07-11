@@ -484,7 +484,7 @@ function renderWhoopStats() {
       label: 'Charge',
       value: cy0?.strain != null ? (Math.round(cy0.strain * 10) / 10).toString() : '—',
       sub: cy0?.calories ? cy0.calories + ' kcal' : '',
-      color: cy0?.strain != null ? (cy0.strain >= 14 ? '#ef4444' : cy0.strain >= 10 ? '#f59e0b' : '#22c55e') : 'var(--muted)',
+      color: 'var(--text)',
       bg: isDark ? 'rgba(251,191,36,0.12)' : '#fefce8',
       border: isDark ? 'rgba(251,191,36,0.25)' : '#fde68a'
     }
@@ -520,8 +520,7 @@ function _renderWhoopChart(mode) {
   };
 
   const scoreCol = s => s >= 67 ? '#22c55e' : s >= 34 ? '#f59e0b' : '#ef4444';
-  const strainCol = s => s >= 14 ? '#ef4444' : s >= 10 ? '#f59e0b' : '#22c55e';
-  let pointColors;
+  let pointColors, showLabels = false;
 
   if (mode === 'recovery') {
     const data = dedupeByDate([...(wd.recoveries || [])].sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
@@ -536,8 +535,8 @@ function _renderWhoopChart(mode) {
   } else {
     const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-14);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
-    pointColors = points.map(p => strainCol(p.y));
-    color = '#f59e0b'; unit = ''; yMin = 0; yMax = 21;
+    pointColors = points.map(() => isDark ? '#888' : '#666');
+    color = '#888'; unit = ''; yMin = 0; yMax = 21; showLabels = true;
   }
 
   if (!points.length) return;
@@ -572,7 +571,8 @@ function _renderWhoopChart(mode) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => c.raw + unit } }
+        tooltip: { callbacks: { label: c => c.raw + unit } },
+        strainLabels: showLabels ? {} : false
       },
       scales: {
         x: { ticks: { color: isDark ? '#888' : '#999', font: { size: 9 } }, grid: { display: false } },
@@ -582,7 +582,26 @@ function _renderWhoopChart(mode) {
           grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }
         }
       }
-    }
+    },
+    plugins: showLabels ? [{
+      id: 'strainLabels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        chart.data.datasets.forEach((ds, di) => {
+          const meta = chart.getDatasetMeta(di);
+          meta.data.forEach((pt, i) => {
+            const val = ds.data[i];
+            if (val == null) return;
+            ctx.save();
+            ctx.font = '600 9px sans-serif';
+            ctx.fillStyle = isDark ? '#aaa' : '#555';
+            ctx.textAlign = 'center';
+            ctx.fillText(val, pt.x, pt.y - 8);
+            ctx.restore();
+          });
+        });
+      }
+    }] : []
   });
 }
 
