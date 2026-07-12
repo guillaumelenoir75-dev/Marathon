@@ -50,6 +50,22 @@ async function testLocalNotif(type){
   };
   const n = notifDefs[type];
   if (!n) return;
+  // Écrire les flags Firebase avant d'afficher la notif (même comportement que la CF de production)
+  // → garantit l'ouverture du coach via visibilitychange, chemin fiable sur iOS
+  if (dbRef) {
+    const today = new Date().toISOString().slice(0,10);
+    if (type === 'notif_debrief_semaine') {
+      try {
+        await dbRef.child('_brief_pending').set({type:'weekly_debrief', content:'📊 Bilan S'+cw+' — génération en cours...', date:today});
+        await dbRef.child('_open_coach').set(true);
+      } catch(e) {}
+    } else if (type === 'notif_brief_matin') {
+      try {
+        await dbRef.child('_brief_pending').set({needs_full_brief:true, date:today});
+        await dbRef.child('_open_coach').set(true);
+      } catch(e) {}
+    }
+  }
   try {
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification(n.title, {

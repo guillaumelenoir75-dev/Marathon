@@ -1317,6 +1317,8 @@ async function _appendWeatherMessageAfterBrief() {
 }
 
 async function generateWeeklyBilanComplet(memos) {
+  if (_briefShownToday) return;
+  _briefShownToday = true;
   let seancesFaites = 0, seancesTotal = 0, kmFaits = 0, kmPlan = 0, seancesManquees = [], seancesFaitesDetail = [];
   weeks[CW-1].sessions.forEach((sess,si) => {
     if(state['del_w'+CW+'_s'+si]) return;
