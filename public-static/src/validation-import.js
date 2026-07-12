@@ -978,7 +978,7 @@ async function importWhoopForPerfEdit(ws, si) {
             <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${w.duration_min ? w.duration_min + ' min' : ''}${w.avg_hr ? ' · FC ' + w.avg_hr + ' bpm' : ''}</p>
           </div>
           <div style="text-align:right;">
-            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}<span style="font-size:10px;font-weight:400;color:#888;">/21</span></p>
+            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}</p>
             <p style="font-size:10px;color:${strainColor};font-weight:600;margin:2px 0 0;">${chargeLabel}</p>
           </div>
         </div>`;
@@ -1215,7 +1215,7 @@ async function importWhoopForPerfEditExtra(ws, ei) {
             <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${w.duration_min ? w.duration_min + ' min' : ''}${w.avg_hr ? ' · FC ' + w.avg_hr + ' bpm' : ''}</p>
           </div>
           <div style="text-align:right;">
-            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}<span style="font-size:10px;font-weight:400;color:#888;">/21</span></p>
+            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}</p>
             <p style="font-size:10px;color:${strainColor};font-weight:600;margin:2px 0 0;">${chargeLabel}</p>
           </div>
         </div>`;
