@@ -122,14 +122,6 @@ function renderStats(){
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
   if(badge) badge.textContent = (isAdmin() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
-  // Badge record 10km (admin uniquement)
-  const b10container = document.getElementById('badge-record10km-container');
-  if(b10container) b10container.style.display = isAdmin() ? 'flex' : 'none';
-  const b10 = document.getElementById('badge-record10km');
-  if(b10 && isAdmin()) {
-    const r10 = state['record_10km'];
-    b10.textContent = r10 ? r10 + ' 10km' : '— 10km';
-  }
   const sb=document.getElementById('shoes-bars');if(!sb) return;sb.innerHTML='';
   const dynamicShoes=getShoes();
   const shoeKm=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];

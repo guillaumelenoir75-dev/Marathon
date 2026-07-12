@@ -285,8 +285,6 @@ function saveRecord10km() {
   save();
   closeModal();
   renderHome();
-  const b10 = document.getElementById('badge-record10km');
-  if (b10) b10.textContent = val + ' 10km';
 }
 
 function openTargetTimeModal(){

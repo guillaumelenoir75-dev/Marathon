@@ -493,13 +493,16 @@ function openMarathonPredModal() {
     ${(!isAdmin() ? '' : (()=>{
       const r10pred = getRecord10kmPredictions();
       if(!r10pred) return `
-    <div onclick="closeModal();openRecord10kmModal();" style="background:var(--bg2);border-radius:12px;padding:10px 14px;margin-bottom:12px;cursor:pointer;border:1.5px dashed var(--border);display:flex;align-items:center;gap:10px;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <div>
-        <p style="font-size:12px;font-weight:700;color:var(--text);">Ajouter ton record 10km</p>
-        <p style="font-size:10px;color:var(--muted);">Pour une estimation supplémentaire \u2192 Semi & Marathon</p>
+    <div style="background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:12px;border:1.5px dashed var(--border);">
+      <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">&#x1F3C3; Record 10km &rarr; Semi &amp; Marathon</p>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="r10km-inline-input" type="text" placeholder="mm:ss (ex: 48:30)" value="${state['record_10km']||''}"
+          style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;"
+          oninput="previewRecord10kmInPredict(this.value)" onkeydown="if(event.key==='Enter')saveRecord10kmInPredict(this.value)">
+        <button onclick="saveRecord10kmInPredict(document.getElementById('r10km-inline-input').value)"
+          style="padding:8px 14px;background:#1B4FD8;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">OK</button>
       </div>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+      <div id="r10km-inline-preview" style="margin-top:8px;"></div>
     </div>`;
       const marEcartMin = Math.round((r10pred.marSec - 14400) / 60);
       const diffMin = Math.round((r10pred.marSec - pred.tempsSec) / 60);
@@ -509,7 +512,7 @@ function openMarathonPredModal() {
     <div style="background:var(--bg2);border-radius:12px;margin-bottom:12px;overflow:hidden;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);">
         <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">\u{1F3C3} Estimation par record 10km</p>
-        <button onclick="closeModal();openRecord10kmModal();" style="background:none;border:none;cursor:pointer;padding:0;">
+        <button onclick="toggleRecord10kmEditInPredict()" style="background:none;border:none;cursor:pointer;padding:0;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
       </div>
@@ -532,6 +535,16 @@ function openMarathonPredModal() {
           <p style="font-size:9px;color:var(--muted);margin-top:2px;">${r10pred.marPaceStr}/km</p>
           <p style="font-size:9px;font-weight:600;color:var(--muted);margin-top:1px;">${r10pred.marSpeedKmh} km/h</p>
         </div>
+      </div>
+      <div id="r10km-edit-inline" style="display:none;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg2);">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="r10km-edit-input" type="text" placeholder="mm:ss (ex: 48:30)" value="${state['record_10km']||''}"
+            style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;"
+            oninput="previewRecord10kmInPredict(this.value)" onkeydown="if(event.key==='Enter')saveRecord10kmInPredict(this.value)">
+          <button onclick="saveRecord10kmInPredict(document.getElementById('r10km-edit-input').value)"
+            style="padding:8px 14px;background:#1B4FD8;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">OK</button>
+        </div>
+        <div id="r10km-inline-preview" style="margin-top:8px;"></div>
       </div>
     </div>`;
     })())}
@@ -1060,3 +1073,49 @@ function openMarathonPredModal() {
   mc.appendChild(overlay);
 }
 
+
+function _parseRecord10km(val) {
+  if (!val) return null;
+  const clean = String(val).replace(/'/g, ':').replace(/\s/g, '');
+  const parts = clean.split(':').map(Number);
+  let sec = 0;
+  if (parts.length === 3) { if(parts[1]>=60||parts[2]>=60) return null; sec = parts[0]*3600+parts[1]*60+parts[2]; }
+  else if (parts.length === 2) { if(parts[1]>=60) return null; sec = parts[0]*60+parts[1]; }
+  if (!sec || sec < 1200 || sec > 7200) return null;
+  return sec;
+}
+
+function previewRecord10kmInPredict(val) {
+  const prev = state['record_10km'];
+  state['record_10km'] = val;
+  const pred = getRecord10kmPredictions();
+  state['record_10km'] = prev;
+  const el = document.getElementById('r10km-inline-preview');
+  if (!el) return;
+  if (!pred) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">
+    <div><div style="font-size:12px;font-weight:800;color:var(--text);">${pred.record10kmStr}</div><div style="font-size:9px;color:var(--muted);">10km</div></div>
+    <div><div style="font-size:12px;font-weight:800;color:#1B4FD8;">${pred.semiStr}</div><div style="font-size:9px;color:var(--muted);">Semi</div></div>
+    <div><div style="font-size:12px;font-weight:800;color:#1B4FD8;">${pred.marStr}</div><div style="font-size:9px;color:var(--muted);">Marathon</div></div>
+  </div>`;
+}
+
+function saveRecord10kmInPredict(val) {
+  if (!val) return;
+  const sec = _parseRecord10km(val);
+  if (!sec) { alert('Format invalide. Exemples : 48:30 ou 1:02:15'); return; }
+  state['record_10km'] = val.trim();
+  save();
+  closeModal();
+  renderHome();
+}
+
+function toggleRecord10kmEditInPredict() {
+  const el = document.getElementById('r10km-edit-inline');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') {
+    const inp = document.getElementById('r10km-edit-input');
+    if (inp) inp.focus();
+  }
+}
