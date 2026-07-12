@@ -1832,6 +1832,18 @@ async function loadCoachHistory(){
           // Forcer le remplacement : si checkMorningBrief a déjà posé Supprimer+Garder, les remplacer par Effacer seul
           const _existingBtns = document.getElementById('brief-actions');
           if (_existingBtns) _existingBtns.remove();
+          // Si le brief n'est pas dans le DOM (fermeture/réouverture app), le re-rendre depuis coachHistory
+          const _coachMsgs = document.getElementById('coach-messages');
+          const _briefInDom = _coachMsgs && _coachMsgs.querySelector('[data-brief-date]');
+          if (!_briefInDom && coachHistory.length > 0) {
+            const _briefItem = [...coachHistory].reverse().find(m => m.isBrief && m.date === _keptDate);
+            if (_briefItem && _coachMsgs) {
+              addCoachMessage('coach', _briefItem.content);
+              const _lastMsg = _coachMsgs.lastElementChild;
+              if (_lastMsg) _lastMsg.dataset.briefDate = _keptDate;
+              _briefShownToday = true;
+            }
+          }
           _addBriefActionButtons(true);
         } else {
           // Expiré ou séance validée → nettoyer
