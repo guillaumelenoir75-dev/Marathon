@@ -189,17 +189,6 @@ function renderHome(){
   if(amTrainEl) amTrainEl.textContent = state._am_training_pace || (isAdmin()?"5'20":'—');
   const vo2El = document.getElementById('kpi-vo2max');
   if(vo2El) vo2El.textContent = state['vo2max_current'] || (isAdmin()?52:'—');
-  const today = new Date().toISOString().slice(0,10);
-  const fcToday = state['fc_repos_'+today] || null;
-  const fcReposEl = document.getElementById('kpi-fc-repos');
-  if(fcReposEl) fcReposEl.textContent = fcToday ? fcToday+' bpm' : '— bpm';
-  const fcReposBtn = fcReposEl ? fcReposEl.closest('div[onclick]') : null;
-  if(fcReposBtn) fcReposBtn.style.background = fcToday ? 'rgba(59,109,17,0.25)' : 'rgba(255,255,255,0.12)';
-  const fcBadgeEl = document.getElementById('fc-repos-badge');
-  if(fcBadgeEl) fcBadgeEl.style.display = fcToday ? 'none' : 'block';
-  // Visibilité selon préférences
-  const fcReposWrap=document.getElementById('fc-repos-btn');
-  if(fcReposWrap) fcReposWrap.parentElement.style.display=getPref('show_fc_repos')?'flex':'none';
   const wakeupBtn = document.getElementById('wakeup-btn');
   if (wakeupBtn) {
     if (!isAdmin()) {
