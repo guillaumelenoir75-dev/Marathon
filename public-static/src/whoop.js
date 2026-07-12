@@ -288,7 +288,13 @@ async function onWakeup() {
       await syncWhoop();
     }
 
-    // 4. Déclencher le brief côté serveur (génération IA + push notif)
+    // 4. Rafraîchir la subscription push avant de déclencher le brief
+    // (garantit un endpoint valide en Firebase si la sub a expiré depuis la dernière ouverture)
+    if (typeof subscribeToPush === 'function' && Notification.permission === 'granted') {
+      try { await subscribeToPush(); } catch(eSub) { console.warn('subscribeToPush onWakeup:', eSub); }
+    }
+
+    // 5. Déclencher le brief côté serveur (génération IA + push notif)
     if (dbRef) {
       await dbRef.child('_brief_trigger').set({ ts: Date.now(), date: wakeupDate });
     }
