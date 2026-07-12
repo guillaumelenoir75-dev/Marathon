@@ -226,12 +226,9 @@ exports.briefAfterFcRepos = onSchedule(
         return;
       }
 
-      // Vérifier la subscription avant de lancer l'IA (évite de dépenser des tokens si pas de push possible)
-      const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
-      if(!subSnap.val()){
-        console.log('briefAfterFcRepos: pas de subscription push — trigger conservé, retry dans 2 min');
-        return; // Ne pas supprimer le trigger : l'app va re-souscrire au prochain lancement
-      }
+      // Note: on ne bloque plus sur _push_sub avant la génération.
+      // Le brief est toujours généré et sauvegardé dans _brief_pending.
+      // La push n'est tentée qu'après (si subscription dispo).
 
       const cw=getCurrentWeek();
       const ctx=await buildNotifContext(state,cw);
@@ -509,7 +506,13 @@ ${memosLine}`;
       }else{
         seancePart='Pas de séance run';
       }
-      let pushBody=`${recovPart}${recovPart&&(fcPart||seancePart)?' · ':''}${fcPart}${fcPart&&seancePart?' · ':''}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
+      // Corps push : score global en priorité, sinon récup WHOOP seule
+      let pushBody;
+      if(globalScore!==null){
+        pushBody=`Score ${globalScore}% ${globalEmoji}${fcPart?' · '+fcPart:''}${seancePart?' · '+seancePart:''}${meteoEmoji?' '+meteoEmoji:''}`.trim();
+      }else{
+        pushBody=`${recovPart}${recovPart&&(fcPart||seancePart)?' · ':''}${fcPart}${fcPart&&seancePart?' · ':''}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
+      }
       if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
 
       // Stocker brief COMPLET → affichage instantané au clic notif ou à la prochaine ouverture
@@ -517,20 +520,20 @@ ${memosLine}`;
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
       // Marquer fait et nettoyer le trigger AVANT d'envoyer la push.
-      // Ainsi, même si la push échoue ou lève une exception, l'IA ne sera pas
-      // rappelée en boucle toutes les 2 min — le brief est déjà sauvegardé en DB.
+      // Ainsi, même si la push échoue, l'IA ne sera pas rappelée en boucle.
       await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
       await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
 
-      // Envoyer la notif (non-bloquant : une éventuelle erreur ne doit pas remettre le trigger)
+      // Envoyer la push (non-bloquant) — vérifier la subscription au dernier moment
       try{
-        const pushSent=await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
-        if(!pushSent){
-          // Subscription expirée — le brief est lisible via _brief_pending / _open_coach à la prochaine ouverture
-          console.log('briefAfterFcRepos: push non envoyée (subscription expirée) — brief disponible dans l\'app');
+        const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
+        if(!subSnap.val()){
+          console.log('briefAfterFcRepos: pas de subscription push — brief disponible dans l\'app via _brief_pending');
+        }else{
+          const pushSent=await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${cw}`,pushBody,'brief-matinal','/');
+          if(!pushSent)console.log('briefAfterFcRepos: push non envoyée (subscription expirée) — brief disponible dans l\'app');
         }
       }catch(ePush){
-        // Erreur réseau ou VAPID — le brief est déjà sauvegardé, l'utilisateur le verra à l'ouverture
         console.warn('briefAfterFcRepos: push échouée (erreur technique) — brief disponible dans l\'app:',ePush.message);
       }
     }catch(e){console.error('briefAfterFcRepos:',e.message);}
