@@ -237,8 +237,9 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   const fcToday = fcWhoopRhr || state['fc_repos_'+todayStr] || null;
 
   // Score global synthétique (même calcul que stats.js) ─────────────────────
-  const r0 = whoopToday ? whoopRecov : null;
-  const s0 = whoopToday && wd && wd.sleeps ? wd.sleeps[0] : null;
+  // Utiliser les données WHOOP les plus récentes, même si pas d'aujourd'hui (identique à stats.js)
+  const r0 = whoopRecov; // pas de garde whoopToday, comme stats.js
+  const s0 = wd && wd.sleeps ? wd.sleeps[0] : null;
   const globalScoreComponents = [];
   if (r0?.score != null) globalScoreComponents.push(r0.score);
   if (s0?.performance_pct != null) globalScoreComponents.push(s0.performance_pct);

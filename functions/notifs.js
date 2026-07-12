@@ -284,9 +284,9 @@ exports.briefAfterFcRepos = onSchedule(
         if(lines.length>0)whoopBlock='\nDonnées WHOOP du matin :\n'+lines.join('\n');
       }
 
-      // Score global synthétique (même calcul que stats.js)
-      const r0=whoopToday?whoopRecov:null;
-      const s0=whoopToday&&wd&&wd.sleeps?wd.sleeps[0]:null;
+      // Score global synthétique (même calcul que stats.js — données les plus récentes, pas seulement aujourd'hui)
+      const r0=whoopRecov;
+      const s0=wd&&wd.sleeps?wd.sleeps[0]:null;
       const globalComps=[];
       if(r0?.score!=null)globalComps.push(r0.score);
       if(s0?.performance_pct!=null)globalComps.push(s0.performance_pct);
