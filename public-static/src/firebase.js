@@ -120,18 +120,25 @@ function initFirebase(){
               setTimeout(() => {
                 if (state.whoop_token && state.whoop_token.access_token && typeof syncWhoop === 'function' && !_whoopSyncing) syncWhoop();
               }, 3000);
-              // Listener realtime sur _open_coach (fallback : app déjà ouverte, notification arrive)
-              if(!_visibilityListenerAdded){_visibilityListenerAdded=true;
-              dbRef.child('_open_coach').on('value', async function(snap) {
-                if (!snap.val() || !firebaseReady) return;
+              // Vérifier _open_coach au démarrage (app rouverte depuis notif quand elle était fermée)
+              (async () => {
                 try {
-                  await dbRef.child('_open_coach').remove();
-                  await openCoachFromNotif();
+                  const snap = await dbRef.child('_open_coach').once('value');
+                  if (snap.val()) { await dbRef.child('_open_coach').remove(); await openCoachFromNotif(); return; }
                 } catch(e) {}
-              });
-              // Fallback visibilitychange : si postMessage SW raté (iOS gèle le JS),
-              // vérifier _open_coach dès que l'app repasse au premier plan
-              document.addEventListener('visibilitychange', async function _vcHandler() {
+                // Fallback URL ?action=brief (openWindow depuis SW si app vraiment fermée)
+                try {
+                  if (window.location.search.includes('action=brief')) {
+                    history.replaceState({}, '', '/');
+                    await openCoachFromNotif();
+                  }
+                } catch(e) {}
+              })();
+
+              // visibilitychange : tap notification quand app en arrière-plan
+              // (seul mécanisme fiable sur iOS — lit _open_coach au retour au premier plan)
+              if(!_visibilityListenerAdded){_visibilityListenerAdded=true;
+              document.addEventListener('visibilitychange', async function() {
                 if (document.visibilityState !== 'visible' || !dbRef || !firebaseReady) return;
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
@@ -142,18 +149,6 @@ function initFirebase(){
                 } catch(e) {}
               });
               } // fin guard _visibilityListenerAdded
-
-              // Ouverture coach depuis URL ?action=brief (clic notif → app fermée)
-              (async () => {
-                try {
-                  const fromBriefUrl = window.location.search.includes('action=brief');
-                  if (!fromBriefUrl) return;
-                  history.replaceState({}, '', '/');
-                  // Consommer _open_coach si présent (évite double déclenchement)
-                  try { await dbRef.child('_open_coach').remove(); } catch(e) {}
-                  await openCoachFromNotif();
-                } catch(e) {}
-              })();
 
             },(error)=>{
               migrateState();
