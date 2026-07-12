@@ -51,19 +51,6 @@ async function testLocalNotif(type){
   const n = notifDefs[type];
   if (!n) return;
   try {
-    // Pour le bilan dimanche : écrire _brief_pending avant la notif,
-    // mais _open_coach APRÈS showNotification pour éviter d'ouvrir le coach
-    // avant que l'utilisateur ait tapé la notification
-    const isDebrief = type === 'notif_debrief_semaine' && typeof dbRef !== 'undefined' && dbRef;
-    if (isDebrief) {
-      const today = new Date().toISOString().slice(0, 10);
-      await dbRef.child('_brief_pending').set({
-        type: 'weekly_debrief',
-        content: '**Test bilan hebdomadaire** — Semaine ' + cw + ' passée en revue ! 🏃\n\n📊 **Charge** : 3 séances validées sur 3. Bonne régularité.\n\n😴 **Récupération** : FC repos stable, bonne récupération musculaire.\n\n📈 **Points forts** : Allures en progression sur les sorties longues.\n\n🔭 **Semaine prochaine** : Maintiens la régularité, pense à t\'hydrater.\n\n💬 **Message** : Belle semaine d\'entraînement — continue sur cette lancée !',
-        date: today
-      });
-      // Pas de _open_coach pour le test : le postMessage SW suffit (même mécanisme que brief matin)
-    }
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification(n.title, {
       body: n.body,

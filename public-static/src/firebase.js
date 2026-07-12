@@ -129,6 +129,8 @@ function initFirebase(){
                 // Fallback URL ?action=brief (openWindow depuis SW si app vraiment fermée)
                 try {
                   if (window.location.search.includes('action=brief')) {
+                    const _urlParams = new URLSearchParams(window.location.search);
+                    window._pendingNotifTag = _urlParams.get('tag') || '';
                     history.replaceState({}, '', '/');
                     await openCoachFromNotif();
                   }
@@ -206,6 +208,7 @@ async function openCoachFromNotif() {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', function(ev) {
     if (!ev.data || ev.data.action !== 'open_coach') return;
+    window._pendingNotifTag = ev.data.tag || '';
     if (dbRef && firebaseReady) {
       openCoachFromNotif();
     } else {

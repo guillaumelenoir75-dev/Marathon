@@ -1798,9 +1798,15 @@ async function loadCoachHistory(){
   // ── TOUJOURS vérifier le brief du matin en fin de loadCoachHistory ──
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)
   if (!_briefShownToday) {
-    // force=true si on vient d'une notif (needs_full_brief ou _coachOpenedFromNotif)
     const _forceBrief = _needsFullBrief || _fromPushNotif;
-    try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
+    const _notifTag = window._pendingNotifTag || '';
+    window._pendingNotifTag = '';
+    if (_fromPushNotif && _notifTag.includes('debrief')) {
+      // Notif bilan hebdo : générer le bilan complet directement (même structure que brief matin)
+      try { await generateWeeklyBilanComplet(memos); } catch(_e) {}
+    } else {
+      try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
+    }
   }
   // ── Si le brief a été "gardé" (keepBrief), réafficher le bouton Effacer (si pas expiré) ──
   // Indépendant de _briefShownToday : fonctionne aussi en navigation intra-session
