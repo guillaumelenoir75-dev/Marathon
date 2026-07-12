@@ -24,12 +24,16 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const notifTag = (event.notification.data && event.notification.data.tag) || '';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       // Chercher une fenêtre déjà ouverte sur l'app
       for (const client of list) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus();
+          client.focus();
+          // Signaler à l'app d'ouvrir le coach (même si visibilitychange ne se déclenche pas)
+          client.postMessage({ action: 'open_coach', tag: notifTag });
+          return;
         }
       }
       // Sinon ouvrir une nouvelle fenêtre

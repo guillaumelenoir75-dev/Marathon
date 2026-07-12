@@ -127,7 +127,17 @@ function initFirebase(){
                   await dbRef.child('_open_coach').remove();
                   await openCoachFromNotif();
                 } catch(e) {}
-              });} // fin guard _visibilityListenerAdded
+              });
+              // Message du Service Worker (clic notif quand app déjà visible)
+              navigator.serviceWorker.addEventListener('message', async function(event) {
+                if (!event.data || event.data.action !== 'open_coach') return;
+                if (!dbRef || !firebaseReady) return;
+                try {
+                  await dbRef.child('_open_coach').remove();
+                  await openCoachFromNotif();
+                } catch(e) {}
+              });
+              } // fin guard _visibilityListenerAdded
 
               // Ouverture coach : _open_coach Firebase OU URL ?action=brief (clic notif)
               (async () => {
