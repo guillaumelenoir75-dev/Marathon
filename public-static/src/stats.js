@@ -483,10 +483,13 @@ function renderWhoopStats() {
   const recupLow = r0?.score != null && r0.score < 34;
   const surchargeAlert = strainHigh && recupLow;
 
-  // Label contextuel charge
+  // Label contextuel charge + moyenne 14j
   const strainVal = cy0?.strain != null ? Math.round(cy0.strain * 10) / 10 : null;
   const strainLabel = strainVal == null ? null : strainVal >= 18 ? 'Élevé' : strainVal >= 14 ? 'Modéré' : strainVal >= 8 ? 'Léger' : 'Repos';
   const strainLabelColor = strainVal == null ? 'var(--muted)' : strainVal >= 18 ? '#dc2626' : strainVal >= 14 ? '#f59e0b' : strainVal >= 8 ? '#22c55e' : '#3b82f6';
+  const strain14Data = wd?.cycles ? [...wd.cycles].filter(c => c.strain != null).slice(1, 15) : [];
+  const strain14Avg = strain14Data.length >= 3 ? Math.round(strain14Data.reduce((s,c)=>s+c.strain,0)/strain14Data.length * 10)/10 : null;
+  const strainVsAvg = strainVal != null && strain14Avg != null ? Math.round((strainVal - strain14Avg) * 10)/10 : null;
 
   // VFC data
   const hrvVal = r0?.hrv != null ? Math.round(r0.hrv) : null;
@@ -524,7 +527,16 @@ function renderWhoopStats() {
     {
       label: 'Charge',
       value: strainVal != null ? strainVal.toString() : '—',
-      sub: strainLabel ? `<span style="color:${strainLabelColor};font-weight:700;">${strainLabel}</span>${cy0?.calories ? ' · ' + cy0.calories + ' kcal' : ''}` : (cy0?.calories ? cy0.calories + ' kcal' : ''),
+      sub: (()=>{
+        const parts = [];
+        if (strainLabel) parts.push(`<span style="color:${strainLabelColor};font-weight:700;">${strainLabel}</span>`);
+        if (strain14Avg != null) {
+          const vsCol = strainVsAvg > 2 ? '#dc2626' : strainVsAvg < -2 ? '#16a34a' : '#ca8a04';
+          const vsSign = strainVsAvg > 0 ? '+' : '';
+          parts.push(`<span style="color:${vsCol};">${vsSign}${strainVsAvg} vs moy 14j</span>`);
+        } else if (cy0?.calories) { parts.push(cy0.calories + ' kcal'); }
+        return parts.join(' · ');
+      })(),
       color: strainLabelColor,
       bg: isDark ? 'rgba(251,191,36,0.12)' : '#fefce8',
       border: isDark ? 'rgba(251,191,36,0.25)' : '#fde68a'
@@ -561,6 +573,17 @@ function renderWhoopStats() {
     const avgYesterday = _calcSyntheticScore(r1, s1, fcYesterday, allFcEntries);
     const trendDiff = avg != null && avgYesterday != null ? avg - avgYesterday : null;
 
+    // Moyenne score 7j (jours précédents)
+    const avg7jScores = [];
+    for (let i = 1; i <= 7; i++) {
+      const ri = wd?.recoveries?.[i] || null;
+      const si = wd?.sleeps?.[i] || null;
+      const fci = allFcEntries.length > i ? allFcEntries[allFcEntries.length-1-i].val : null;
+      const s = _calcSyntheticScore(ri, si, fci, allFcEntries);
+      if (s != null) avg7jScores.push(s);
+    }
+    const avg7j = avg7jScores.length >= 3 ? Math.round(avg7jScores.reduce((a,b)=>a+b,0)/avg7jScores.length) : null;
+
     if (avg != null) {
       const col = scoreColor(avg);
       const emoji = avg >= 67 ? '🟢' : avg >= 34 ? '🟡' : '🔴';
@@ -574,12 +597,13 @@ function renderWhoopStats() {
         const tSign = trendDiff > 0 ? '+' : '';
         trendHtml = `<span style="font-size:11px;color:${tCol};font-weight:700;margin-left:8px;">${tArrow} ${tSign}${trendDiff} pts vs hier</span>`;
       }
+      const avg7jHtml = avg7j != null ? `<span style="color:var(--muted);font-weight:500;"> · moy 7j : ${avg7j}%</span>` : '';
       syntheticEl.innerHTML = `
         <div style="background:${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)'};border:1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;">
           <div style="font-size:36px;font-weight:900;color:${col};line-height:1;">${avg}<span style="font-size:16px;">%</span></div>
           <div>
             <div style="font-size:13px;font-weight:700;color:${col};">${emoji} ${label}${trendHtml}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · ${components.join(' + ')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · ${components.join(' + ')}${avg7jHtml}</div>
           </div>
         </div>`;
       syntheticEl.style.display = 'block';
@@ -769,20 +793,21 @@ function renderFcReposChart(){
     const latest=fcToday??vals[vals.length-1];
 
     if(kpiRow)kpiRow.innerHTML=`
-      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${rhrColor2(latest)};line-height:1;">${latest}</div>
-        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
-      </div>
-      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${rhrColor2(avg)};line-height:1;">${avg}</div>
-        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Moyenne</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
-      </div>
-      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${rhrColor2(minV)};line-height:1;">${minV}</div>
-        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
+      <div style="background:var(--bg);border-radius:10px;padding:8px 12px;border:1px solid var(--border);display:flex;align-items:center;gap:0;justify-content:space-around;grid-column:1/-1;">
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${rhrColor2(latest)};line-height:1;">${latest}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Auj. bpm</div>
+        </div>
+        <div style="width:1px;height:28px;background:var(--border);"></div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${rhrColor2(avg)};line-height:1;">${avg}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Moy 7j</div>
+        </div>
+        <div style="width:1px;height:28px;background:var(--border);"></div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${rhrColor2(minV)};line-height:1;">${minV}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Min</div>
+        </div>
       </div>`;
 
     // Tendance 30j
@@ -794,7 +819,7 @@ function renderFcReposChart(){
       const msg=diff<=-2?`Ta FC repos a baissé de ${Math.abs(diff)} bpm vs ta moyenne 30j — bonne progression.`
         :diff>=2?`Ta FC repos a augmenté de ${diff} bpm vs ta moyenne 30j — signe de fatigue accumulée.`
         :`Ta FC repos est stable par rapport à ta moyenne 30j (${fc30avg} bpm).`;
-      trendEl.innerHTML=`<div style="font-size:11px;color:${col};font-weight:600;padding:8px 12px;background:${col}11;border-radius:8px;border:1px solid ${col}33;margin-bottom:10px;">📈 ${msg}</div>`;
+      trendEl.innerHTML=`<div style="font-size:11px;color:${col};font-weight:600;margin-bottom:8px;">📈 ${msg}</div>`;
       trendEl.style.display='block';
     } else if(trendEl) trendEl.style.display='none';
 
@@ -823,20 +848,21 @@ function renderFcReposChart(){
     const latest=vals[vals.length-1];
 
     if(kpiRow)kpiRow.innerHTML=`
-      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${vfcColor(latest)};line-height:1;">${latest}</div>
-        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">ms</div>
-      </div>
-      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${vfcColor(avg)};line-height:1;">${avg}</div>
-        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Moyenne</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">ms</div>
-      </div>
-      <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
-        <div style="font-size:22px;font-weight:800;color:${vfcColor(minV)};line-height:1;">${minV}</div>
-        <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Minimum</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">ms</div>
+      <div style="background:var(--bg);border-radius:10px;padding:8px 12px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;grid-column:1/-1;">
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${vfcColor(latest)};line-height:1;">${latest}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Auj. ms</div>
+        </div>
+        <div style="width:1px;height:28px;background:var(--border);"></div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${vfcColor(avg)};line-height:1;">${avg}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Moy 7j</div>
+        </div>
+        <div style="width:1px;height:28px;background:var(--border);"></div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${vfcColor(minV)};line-height:1;">${minV}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">Min</div>
+        </div>
       </div>`;
     if(trendEl)trendEl.style.display='none';
     if(_whoopChart)_whoopChart.destroy();
