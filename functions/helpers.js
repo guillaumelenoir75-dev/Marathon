@@ -236,6 +236,31 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   const fcWhoopRhr = (whoopToday && whoopRecov && whoopRecov.rhr) ? whoopRecov.rhr : null;
   const fcToday = fcWhoopRhr || state['fc_repos_'+todayStr] || null;
 
+  // Score global synthétique (même calcul que stats.js) ─────────────────────
+  const r0 = whoopToday ? whoopRecov : null;
+  const s0 = whoopToday && wd && wd.sleeps ? wd.sleeps[0] : null;
+  const globalScoreComponents = [];
+  if (r0?.score != null) globalScoreComponents.push(r0.score);
+  if (s0?.performance_pct != null) globalScoreComponents.push(s0.performance_pct);
+  if (fcToday != null) {
+    const fcScore = fcToday <= 44 ? 100
+      : fcToday <= 50 ? Math.round(100 - (fcToday - 44) * 3)
+      : fcToday <= 60 ? Math.round(82 - (fcToday - 50) * 3.7)
+      : fcToday <= 70 ? Math.round(45 - (fcToday - 60) * 4.5)
+      : 0;
+    globalScoreComponents.push(fcScore);
+  }
+  if (r0?.hrv != null) {
+    const hrvScore = Math.max(0, Math.min(100, Math.round((r0.hrv - 40) / 50 * 100)));
+    globalScoreComponents.push(hrvScore);
+  }
+  const globalScore = globalScoreComponents.length
+    ? Math.round(globalScoreComponents.reduce((a,b)=>a+b,0)/globalScoreComponents.length)
+    : null;
+  const globalScoreEmoji = globalScore===null?'':globalScore>=67?'🟢':globalScore>=34?'🟡':'🔴';
+  const globalScoreLabel = globalScore===null?''
+    : globalScore>=67?'Bonne forme':globalScore>=34?'Forme moyenne':'Récupération insuffisante';
+
   let whoopBlock = '';
   if (wd && whoopToday) {
     const r = whoopRecov;
@@ -366,12 +391,14 @@ PROFIL :
 
 STRUCTURE OBLIGATOIRE — dans cet ordre exact :
 
-1. 😴 NUIT & RÉCUPÉRATION — bloc unique fusion sommeil + FC repos. Format OBLIGATOIRE : chaque valeur sur sa propre ligne, valeur en **gras**, puis UNE phrase d'analyse après toutes les valeurs. Exemple de format attendu :
+1. 😴 NUIT & RÉCUPÉRATION — bloc unique fusion sommeil + FC repos. Format OBLIGATOIRE : commencer par le Score du jour en **gras** sur sa propre ligne, puis chaque valeur détaillée sur sa propre ligne, puis UNE phrase d'analyse. Exemple de format attendu :
+Score du jour : **76%** 🟢 Bonne forme
 Score de récupération WHOOP : **71%** 🟢
 FC repos WHOOP : **48 bpm**
 Durée de sommeil : **7h47**
 Performance sommeil : **88%**
 [une phrase d'analyse : compare avec moyenne 7j, charge veille, conclusion frais/modéré/fatigué]
+Si le Score du jour n'est pas fourni dans le contexte (données insuffisantes), ne pas l'afficher.
 
 2. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : es-tu bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes. Tu t'adresses à moi directement : "Tu arrives...", "Ta récupération...", etc.
 
@@ -395,8 +422,12 @@ RÈGLES :
 - Si pas de séance run aujourd'hui : sauter blocs 4 et 5.
 - INTERDIT : parler du reste de la semaine, des séances passées, des objectifs à long terme.`;
 
+  const globalScoreLine = globalScore !== null
+    ? `Score du jour (synthétique) : ${globalScore}% ${globalScoreEmoji} ${globalScoreLabel} [moyenne récup+sommeil+FC${r0?.hrv!=null?'+VFC':''}]`
+    : '';
+
   const userMsg = `${dateComplet}
-${fcLine}${whoopBlock}
+${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
 Heure de la séance : ${seanceHeure||'non définie'}
 ${meteoStr||'Météo : non disponible'}
