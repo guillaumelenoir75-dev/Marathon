@@ -429,10 +429,20 @@ function openMarathonPredModal() {
           <div style="font-size:14px;font-weight:700;color:var(--text);">${pred.tempsStrBase}</div>
         </div>
         <div style="width:1px;background:var(--border);"></div>
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:1px;">Record 10km</div>
+        <div style="text-align:center;cursor:pointer;" onclick="toggleRecord10kmEditInPredict()">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:1px;">Record 10km <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="vertical-align:middle;"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
           <div style="font-size:14px;font-weight:700;color:var(--text);">${pred.tempsStrR10}</div>
         </div>
+      </div>
+      <div id="r10km-edit-top" style="display:none;margin-top:10px;padding:0 8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="r10km-top-input" type="text" placeholder="mm:ss (ex: 48:30)" value="${state['record_10km']||''}"
+            style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;text-align:center;"
+            oninput="previewRecord10kmInPredict(this.value)" onkeydown="if(event.key==='Enter')saveRecord10kmInPredict(this.value)">
+          <button onclick="saveRecord10kmInPredict(document.getElementById('r10km-top-input').value)"
+            style="padding:7px 14px;background:#1B4FD8;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">OK</button>
+        </div>
+        <div id="r10km-inline-preview" style="margin-top:6px;font-size:11px;color:var(--muted);text-align:center;"></div>
       </div>` :
       pred.intervalMin ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Fourchette : ${pred.intervalMinStr} — ${pred.intervalMaxStr}</div>` : ''}
       ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:8px;">${sub4Text}</div>` : ''}
@@ -1111,11 +1121,12 @@ function saveRecord10kmInPredict(val) {
 }
 
 function toggleRecord10kmEditInPredict() {
-  const el = document.getElementById('r10km-edit-inline');
+  // Cherche la zone d'édition en haut (record existant) ou en bas (record absent)
+  const el = document.getElementById('r10km-edit-top') || document.getElementById('r10km-edit-inline');
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
   if (el.style.display === 'block') {
-    const inp = document.getElementById('r10km-edit-input');
-    if (inp) inp.focus();
+    const inp = el.querySelector('input');
+    if (inp) { inp.focus(); inp.select(); }
   }
 }
