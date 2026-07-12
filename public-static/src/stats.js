@@ -280,11 +280,11 @@ function renderStats(){
             </div>`:''}
             ${(()=>{
               const wh = row.perf.whoop || null;
-              if(!wh || (!wh.workout_strain && !wh.calories)) return '';
+              if(!wh || (!wh.workout_strain && !wh.workout_calories && !wh.calories)) return '';
               const strain = wh.workout_strain != null ? parseFloat(wh.workout_strain).toFixed(1) : null;
-              const cals = wh.calories != null ? Math.round(wh.calories) : null;
+              const cals = (wh.workout_calories ?? wh.calories) != null ? Math.round(wh.workout_calories ?? wh.calories) : null;
               let cols = [];
-              if(strain) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#7B5EA7;margin-bottom:2px;font-weight:600;">Charge</p><p style="font-size:14px;font-weight:700;color:#7B5EA7;">${strain}<span style="font-size:10px;"> /21</span></p></div>`);
+              if(strain) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#7B5EA7;margin-bottom:2px;font-weight:600;">Charge</p><p style="font-size:14px;font-weight:700;color:#7B5EA7;">${strain}</p></div>`);
               if(cals) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#E8A000;margin-bottom:2px;font-weight:600;">Calories</p><p style="font-size:14px;font-weight:700;color:#E8A000;">${cals}<span style="font-size:10px;"> kcal</span></p></div>`);
               if(!cols.length) return '';
               return `<div style="margin-top:8px;background:rgba(123,94,167,0.08);border-radius:10px;padding:8px 10px;">
