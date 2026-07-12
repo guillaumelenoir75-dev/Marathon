@@ -626,63 +626,138 @@ function _buildTempoEditFields(ws, editReps, editDur, editRecup, editPMin, editP
 
 function openPerfEditExtraModal(ws, ei){
   let s={};try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
-  let prev={};try{prev=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
+  const ek = `extra_w${ws}_s${ei}`;
+  let prev={};try{prev=state[ek+'_perf']?JSON.parse(state[ek+'_perf']):{}}catch(e){}
   const title = (s.d||'').split('|')[0];
-  const _hacc = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
-  const _hcls = {ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'}[s.type]||'modal-header-default';
+  const c = typeColor[s.type]||'#888';
+  const bg = typeBg[s.type]||'#f5f5f5';
+  const lbl = typeLabel[s.type]||'EF';
   const mc = document.getElementById('modal-container');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
-  overlay.innerHTML = `<div class="modal-box" style="max-height:92vh;">
-    <div class="modal-header ${_hcls}" style="flex-shrink:0;">
-      <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.3);margin:0 auto 12px;"></div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+
+  const meteoBlock = (()=>{
+    const mt = prev.meteo; if(!mt) return '';
+    const ic={IDEAL:'#2E7D32',MODERE:'#E65100',ELEVE:'#C62828',EXTREME:'#B71C1C',HUMIDE:'#1565C0',FROID:'#37474F'};
+    const il={IDEAL:'Idéal ✅',MODERE:'Chaleur modérée',ELEVE:'Forte chaleur',EXTREME:'Chaleur extrême ⚠️',HUMIDE:'Humide',FROID:'Froid'};
+    const niv=mt.impact_performance?.niveau||'IDEAL'; const icolor=ic[niv]||'#2E7D32'; const ilbl=il[niv]||niv;
+    const ci=mt.conditions?.split(' ').pop()||'🌤️'; const efc=mt.impact_performance?.elevation_fc_bpm||0;
+    let h='<div style="background:#FFF8E7;border-radius:12px;padding:12px 14px;border:1.5px solid #F5A62330;margin-top:4px;">';
+    h+='<p style="font-size:11px;font-weight:700;color:#E65100;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">🌤️ Météo de la séance'+(mt.ville?' — '+mt.ville:'')+(mt.heure_cible&&mt.heure_cible!=="maintenant"?' à '+mt.heure_cible:'')+'</p>';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+    h+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:20px;">'+ci+'</span><div>';
+    h+='<p style="font-size:13px;font-weight:700;color:#1a2e4a;margin:0;">'+mt.temperature+'°C</p>';
+    h+='<p style="font-size:10px;color:#6B8DB5;margin:2px 0 0;">Ressenti '+mt.ressenti+'°C</p>';
+    h+='</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">';
+    h+='<span style="background:rgba(12,68,124,0.08);border-radius:12px;padding:3px 9px;font-size:11px;color:#0C447C;">💧 '+mt.humidite+'%</span>';
+    h+='<span style="background:rgba(12,68,124,0.08);border-radius:12px;padding:3px 9px;font-size:11px;color:#0C447C;">💨 '+mt.vent_kmh+' km/h</span>';
+    h+='<span style="background:'+icolor+'18;border-radius:12px;padding:3px 9px;font-size:11px;font-weight:700;color:'+icolor+';">'+ilbl+'</span>';
+    if(efc>0) h+='<span style="background:#FF6F0018;border-radius:12px;padding:3px 9px;font-size:11px;font-weight:600;color:#E65100;">❤️ FC +'+efc+' bpm</span>';
+    h+='</div></div></div>'; return h;
+  })();
+
+  const stravaBlock = (()=>{
+    const st = prev.strava; if(!st) return '';
+    let h='<div style="background:#EDF5FF;border-radius:12px;padding:12px 14px;border:1.5px solid #1382E430;margin-top:4px;">';
+    h+='<p style="font-size:11px;font-weight:700;color:#1382E4;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">📡 Données Strava importées</p>';
+    const ex=[];
+    if(st.cadence) ex.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Cadence</p><p style="font-size:15px;font-weight:700;color:#1a2e4a;">${st.cadence} <span style="font-size:10px;font-weight:400;">pas/min</span></p></div>`);
+    if(st.denivele_pos!=null) ex.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Dénivelé +</p><p style="font-size:15px;font-weight:700;color:#3B6D11;">${st.denivele_pos} <span style="font-size:10px;font-weight:400;">m</span></p></div>`);
+    if(st.fcMax) ex.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">FC max</p><p style="font-size:15px;font-weight:700;color:#E24B4A;">${st.fcMax} <span style="font-size:10px;font-weight:400;">bpm</span></p></div>`);
+    if(st.calories) ex.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#E8530A;">${st.calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
+    if(st.best_400m) ex.push(`<div style="text-align:center;"><p style="font-size:10px;color:#6B8DB5;margin-bottom:2px;">Meilleur 400m</p><p style="font-size:15px;font-weight:700;color:#1B4FD8;">${st.best_400m} <span style="font-size:10px;font-weight:400;">/km</span></p></div>`);
+    if(ex.length>0) h+=`<div style="display:grid;grid-template-columns:repeat(${Math.min(ex.length,3)},1fr);gap:8px;margin-bottom:${st.splits?'10px':'0'};">${ex.join('')}</div>`;
+    if(st.splits&&st.splits.length>0){
+      h+='<p style="font-size:10px;font-weight:700;color:#6B8DB5;margin-bottom:6px;text-transform:uppercase;">Splits par km</p>';
+      h+='<div style="overflow-x:hidden;"><table style="width:100%;border-collapse:collapse;font-size:11px;">';
+      h+='<tr style="color:#6B8DB5;"><th style="text-align:left;padding:2px 4px;">Km</th><th style="text-align:center;padding:2px 4px;">Allure</th><th style="text-align:center;padding:2px 4px;">FC</th></tr>';
+      st.splits.filter(sp=>sp.distanceKm&&sp.distanceKm>=0.5).forEach(sp=>{
+        h+=`<tr style="border-top:1px solid #d0dff5;"><td style="padding:3px 4px;font-weight:700;color:#1a2e4a;">${sp.km}</td><td style="padding:3px 4px;text-align:center;color:#1B4FD8;font-weight:600;">${sp.allure||'—'}</td><td style="padding:3px 4px;text-align:center;color:#E24B4A;">${sp.fc||'—'}</td></tr>`;
+      });
+      h+='</table></div>';
+    }
+    h+='</div>'; return h;
+  })();
+
+  const whoopBlock = (()=>{
+    const wh = prev.whoop; if(!wh) return '';
+    const strain=wh.workout_strain??wh.cycle_strain??null;
+    const sc=strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
+    let h='<div style="background:#f5f3ff;border-radius:12px;padding:12px 14px;border:1.5px solid rgba(139,92,246,0.25);margin-top:4px;">';
+    h+='<p style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">⚡ Charge WHOOP importée</p>';
+    const cols=[];
+    if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${sc};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
+    if(wh.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wh.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
+    if(cols.length>0) h+=`<div style="display:grid;grid-template-columns:repeat(${Math.min(cols.length,4)},1fr);gap:8px;">${cols.join('')}</div>`;
+    h+='</div>'; return h;
+  })();
+
+  overlay.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:9px;background:${bg};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:700;color:${c};">${lbl}</span>
+        </div>
         <div>
-          <p style="font-size:10px;font-weight:800;opacity:0.7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;color:#fff;">S${ws} · Séance extra validée</p>
-          <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;color:#fff;">${title}</p>
-          <p style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:3px;">${s.km} km planifiés</p>
+          <p style="font-size:15px;font-weight:600;color:var(--text);">S${ws} · ${title}</p>
+          <p style="font-size:11px;color:#3B6D11;font-weight:600;">✓ Séance extra validée — modifier les données</p>
         </div>
-        <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEditExtra(${ws},${ei})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ${prev.strava ? '✅ Strava' : '🟠 Strava'}
+        </button>
+        <button id="meteo-pedit-btn" onclick="importMeteoForPerfEditExtra(${ws},${ei})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          ${prev.meteo ? '✅ Météo' : 'Météo'}
+        </button>
+        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEditExtra(${ws},${ei})" style="padding:6px 10px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          ${(()=>{const wh=prev.whoop;const st=wh?.workout_strain??wh?.cycle_strain??null;return st!=null?'⚡ '+st.toFixed(1):'⚡ WHOOP';})()}
+        </button>
+        <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
       </div>
     </div>
-    <div class="modal-scroll-body">
-    <div style="padding:16px 16px 0;">
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div>
-            <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
-            <input type="number" id="pex-km" value="${state[`extra_w${ws}_s${ei}_km`]||s.km}" min="0" max="99" step="1"
-              style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
-          </div>
-          <div>
-            <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
-            <input type="text" id="pex-dur" value="${prev.dur||''}" placeholder="47:53" maxlength="7"
-              style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
-          </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Date de la séance</p>
+        <input type="date" id="pedit-date" value="${prev.date||''}"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
+          <input type="number" id="pedit-km" value="${state[ek+'_km']||s.km}" min="0" max="99" step="0.5"
+            style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div>
-            <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy.</p>
-            <input type="text" id="pex-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5"
-              style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
-            <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
-          </div>
-          <div>
-            <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moyenne</p>
-            <input type="number" id="pex-hr" value="${prev.hr||''}" placeholder="145" min="50" max="220"
-              style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
-            <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
-          </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
+          <input type="text" inputmode="numeric" id="pedit-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="7" oninput="onDurInput(this)"
+            style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
-      <div style="padding:0 0 28px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
-          <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">Annuler</button>
-          <button onclick="_savePerfExtra(${ws},${ei})" style="padding:13px;background:${_hacc};border:none;border-radius:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;">✅ Enregistrer</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy.</p>
+          <input type="text" id="pedit-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5"
+            style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
+        </div>
+        <div>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">FC moy. <span style="font-size:10px;font-weight:400;color:#aaa;">(optionnel)</span></p>
+          <input type="number" id="pedit-hr" value="${prev.hr||''}" placeholder="—" min="50" max="220"
+            style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
+          <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
         </div>
       </div>
+      ${meteoBlock}
+      ${stravaBlock}
+      ${whoopBlock}
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
+      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
+      <button onclick="_savePerfExtra(${ws},${ei})" style="padding:12px;background:#3B6D11;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">✓ Enregistrer</button>
     </div>
   </div>`;
   overlay.onclick = e => { if(e.target===overlay) closeModal(); };
@@ -692,16 +767,18 @@ function openPerfEditExtraModal(ws, ei){
 }
 
 function _savePerfExtra(ws, ei){
-  const km = parseFloat((document.getElementById('pex-km')||{}).value);
-  const dur = ((document.getElementById('pex-dur')||{}).value||'').trim();
-  const pace = ((document.getElementById('pex-pace')||{}).value||'').trim();
-  const hr = parseInt((document.getElementById('pex-hr')||{}).value)||null;
+  const km = parseFloat((document.getElementById('pedit-km')||{}).value);
+  const dur = ((document.getElementById('pedit-dur')||{}).value||'').trim();
+  const pace = ((document.getElementById('pedit-pace')||{}).value||'').trim();
+  const hr = parseInt((document.getElementById('pedit-hr')||{}).value)||null;
+  const date = ((document.getElementById('pedit-date')||{}).value||'').trim();
   const k = `extra_w${ws}_s${ei}`;
   if(!isNaN(km)&&km>=0) state[k+'_km'] = km;
   let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
   if(dur) perf.dur=dur; else delete perf.dur;
   if(pace) perf.pace=pace; else delete perf.pace;
   if(hr) perf.hr=hr; else delete perf.hr;
+  if(date) perf.date=date; else delete perf.date;
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   else delete state[k+'_perf'];
   save(); closeModal(); rendered.plan=false; rendered.stats=false; renderPlan(); renderHome();
