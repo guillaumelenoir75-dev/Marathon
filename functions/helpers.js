@@ -263,7 +263,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     : globalScore>=67?'Bonne forme':globalScore>=34?'Forme moyenne':'Récupération insuffisante';
 
   let whoopBlock = '';
-  if (wd && whoopToday) {
+  if (wd) {
     const r = whoopRecov;
     const s = wd.sleeps && wd.sleeps[0];
     const cy = wd.cycles && wd.cycles[0];

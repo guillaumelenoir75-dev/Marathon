@@ -257,7 +257,7 @@ exports.briefAfterFcRepos = onSchedule(
       const fcToday=fcWhoopRhr||state['fc_repos_'+todayStr]||null;
 
       let whoopBlock='';
-      if(wd&&whoopToday){
+      if(wd){
         const r=whoopRecov;
         const s=wd.sleeps&&wd.sleeps[0];
         const cy=wd.cycles&&wd.cycles[0];
