@@ -118,39 +118,17 @@ function initFirebase(){
               setTimeout(() => {
                 if (state.whoop_token && state.whoop_token.access_token && typeof syncWhoop === 'function' && !_whoopSyncing) syncWhoop();
               }, 3000);
-              // Quand l'app revient au foreground → vérifier _open_coach
-              if(!_visibilityListenerAdded){_visibilityListenerAdded=true;document.addEventListener('visibilitychange', async function() {
-                if (document.visibilityState !== 'visible' || !dbRef) return;
-                try {
-                  const snap = await dbRef.child('_open_coach').once('value');
-                  if (!snap.val()) return;
-                  await dbRef.child('_open_coach').remove();
-                  await openCoachFromNotif();
-                } catch(e) {}
-              });
-              // Message du Service Worker (clic notif quand app déjà visible)
-              navigator.serviceWorker.addEventListener('message', async function(event) {
-                if (!event.data || event.data.action !== 'open_coach') return;
-                if (!dbRef || !firebaseReady) return;
+              // Listener realtime sur _open_coach : réagit immédiatement dès que le backend le set,
+              // que l'app soit en foreground, background ou venant d'être focusée par clic notif.
+              if(!_visibilityListenerAdded){_visibilityListenerAdded=true;
+              dbRef.child('_open_coach').on('value', async function(snap) {
+                if (!snap.val() || !firebaseReady) return;
                 try {
                   await dbRef.child('_open_coach').remove();
                   await openCoachFromNotif();
                 } catch(e) {}
               });
               } // fin guard _visibilityListenerAdded
-
-              // Ouverture coach : _open_coach Firebase OU URL ?action=brief (clic notif)
-              (async () => {
-                try {
-                  const fromBriefUrl = window.location.search.includes('action=brief');
-                  if (fromBriefUrl) history.replaceState({}, '', '/');
-                  const ocSnap = await dbRef.child('_open_coach').once('value');
-                  const hasOpenCoach = !!ocSnap.val();
-                  if (!hasOpenCoach && !fromBriefUrl) return;
-                  if (hasOpenCoach) await dbRef.child('_open_coach').remove();
-                  await openCoachFromNotif();
-                } catch(e) {}
-              })();
 
             },(error)=>{
               migrateState();
