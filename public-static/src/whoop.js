@@ -265,9 +265,10 @@ function _setWakeupBtnDone(btn) {
 }
 
 // Bouton "Je suis réveillé" : enregistre le réveil, sync WHOOP, déclenche le brief
-async function onWakeup() {
+// force=true : bypass le check disabled (utilisé en mode test depuis Compte)
+async function onWakeup(force) {
   const btn = document.getElementById('wakeup-btn');
-  if (btn && btn.disabled) return;
+  if (!force && btn && btn.disabled) return;
   if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.innerHTML = '<span style="font-size:15px;line-height:1;">⏳</span><span style="font-size:12px;font-weight:800;color:#fff;">Enregistrement…</span>'; }
 
   const wakeupDate = _getWakeupDate();
@@ -289,7 +290,6 @@ async function onWakeup() {
     }
 
     // 4. Rafraîchir la subscription push avant de déclencher le brief
-    // (garantit un endpoint valide en Firebase si la sub a expiré depuis la dernière ouverture)
     if (typeof subscribeToPush === 'function' && Notification.permission === 'granted') {
       try { await subscribeToPush(); } catch(eSub) { console.warn('subscribeToPush onWakeup:', eSub); }
     }
@@ -307,6 +307,8 @@ async function onWakeup() {
 
 // ── Bannière réveil au lancement ───────────────────────────────────────────
 
+var _wakeupBannerIsTest = false;
+
 function _isWakeupWindowNow() {
   const h = new Date().getHours();
   return h >= 6 && h < 14;
@@ -318,10 +320,12 @@ function _wakeupAlreadyDoneToday() {
 }
 
 // Appelée par home-render après chaque rendu de l'accueil
+// forceShow=true depuis le bouton test Compte → active aussi le mode force sur onWakeup
 function checkWakeupBanner(forceShow) {
   if (!isAdmin()) return;
   const banner = document.getElementById('wakeup-banner');
   if (!banner) return;
+  _wakeupBannerIsTest = !!forceShow;
   const shouldShow = forceShow || (_isWakeupWindowNow() && !_wakeupAlreadyDoneToday());
   if (shouldShow) {
     // Mise à jour du sous-titre heure
@@ -349,25 +353,24 @@ function dismissWakeupBanner() {
 }
 
 async function onWakeupFromBanner() {
+  const isTest = _wakeupBannerIsTest;
+  _wakeupBannerIsTest = false;
   const banner = document.getElementById('wakeup-banner');
   if (banner) {
-    // Basculer vers l'écran de confirmation
+    const whoopLine = isTest ? '' : '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;"><div style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:_pulseDot 1.2s ease-in-out infinite;"></div><span style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;">Sync WHOOP en cours…</span></div>';
+    const testLine = isTest ? '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;"><div style="width:8px;height:8px;border-radius:50%;background:#facc15;animation:_pulseDot 1.2s ease-in-out infinite;"></div><span style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;">Mode test — brief + push en route…</span></div>' : '';
     banner.innerHTML = `
       <div style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:0;padding:32px 24px;">
         <div style="font-size:72px;line-height:1;margin-bottom:20px;animation:_sunPulse 2.5s ease-in-out infinite;">✅</div>
         <p style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px;text-align:center;margin:0 0 10px;">Réveil enregistré !</p>
         <p style="font-size:15px;color:rgba(255,255,255,0.85);font-weight:500;margin:0 0 28px;text-align:center;line-height:1.5;">Ton brief matinal est en cours de<br>préparation — tu le recevras<br>dans quelques instants. 🚀</p>
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;">
-          <div style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:_pulseDot 1.2s ease-in-out infinite;"></div>
-          <span style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;">Sync WHOOP en cours…</span>
-        </div>
+        ${whoopLine}${testLine}
       </div>
       <style>@keyframes _pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}</style>
     `;
-    // Fermer après 2.8s
     setTimeout(() => dismissWakeupBanner(), 2800);
   }
-  await onWakeup();
+  await onWakeup(isTest);
 }
 
 // Auto-sync WHOOP toutes les 30 min si connecté + au retour en foreground
