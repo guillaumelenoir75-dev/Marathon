@@ -71,8 +71,11 @@ Chargés dans cet ordre (dépendances respectées) :
 - Le Coach IA est réservé au compte admin — pas besoin de rate limiting côté users.
 
 ## Suivi de déploiement (OBLIGATOIRE après chaque push sur main)
+C'est TOUJOURS à Claude de surveiller et rapporter le statut du déploiement. Ne JAMAIS demander à l'utilisateur de vérifier GitHub Actions lui-même. C'est la responsabilité exclusive de Claude.
+
 Après chaque `git push` vers `main`, TOUJOURS :
 1. Attendre ~10 secondes, puis appeler `mcp__github__actions_list` (method: `list_workflow_runs`, owner: `guillaumelenoir75-dev`, repo: `Marathon`, per_page: 1) pour récupérer l'ID du run "Deploy to Firebase" (ignorer "pages build and deployment").
 2. Appeler `mcp__github__actions_get` (method: `get_workflow_run`) en boucle toutes les 15 secondes jusqu'à `status === "completed"`. Si `updated_at` ne bouge plus après 2 min, le run est probablement terminé (bug de cache API GitHub connu) — lister les runs pour trouver un run complété sur le même SHA.
 3. Conclure en français : déploiement **vert ✅** ou **rouge ❌** avec le commit SHA, et indiquer que l'app est testable sur https://prepa-marathon.web.app.
 Ne jamais terminer un tour après un push sans avoir attendu et rapporté le statut du déploiement.
+Si le MCP GitHub est déconnecté, utiliser `curl` via Bash avec l'API GitHub REST pour surveiller le run — ne jamais déléguer cette vérification à l'utilisateur.
