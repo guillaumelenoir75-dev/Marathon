@@ -305,6 +305,54 @@ async function onWakeup() {
   }
 }
 
+// ── Bannière réveil au lancement ───────────────────────────────────────────
+
+function _isWakeupWindowNow() {
+  const h = new Date().getHours();
+  return h >= 6 && h < 14;
+}
+
+function _wakeupAlreadyDoneToday() {
+  const key = '_wakeup_' + _getWakeupDate();
+  return !!(state && state[key]);
+}
+
+// Appelée par home-render après chaque rendu de l'accueil
+function checkWakeupBanner(forceShow) {
+  if (!isAdmin()) return;
+  const banner = document.getElementById('wakeup-banner');
+  if (!banner) return;
+  const shouldShow = forceShow || (_isWakeupWindowNow() && !_wakeupAlreadyDoneToday());
+  if (shouldShow) {
+    // Mise à jour du sous-titre heure
+    const sub = document.getElementById('wakeup-banner-sub');
+    if (sub) {
+      const h = new Date().getHours();
+      sub.textContent = h < 9 ? 'Bonne matinée !' : h < 12 ? 'Bonne matinée !' : 'Bon après-midi !';
+    }
+    // Statut WHOOP
+    const whoopLine = document.getElementById('wakeup-banner-whoop');
+    if (whoopLine) {
+      const hasWhoop = !!(state && state.whoop_token && state.whoop_token.access_token);
+      whoopLine.textContent = hasWhoop ? '📡 WHOOP connecté — sync auto au clic' : '(WHOOP non connecté)';
+      whoopLine.style.opacity = hasWhoop ? '1' : '0.5';
+    }
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function dismissWakeupBanner() {
+  const banner = document.getElementById('wakeup-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+async function onWakeupFromBanner() {
+  dismissWakeupBanner();
+  await onWakeup();
+}
+
 // Auto-sync WHOOP toutes les 30 min si connecté + au retour en foreground
 (function _initWhoopAutoSync() {
   setInterval(() => {

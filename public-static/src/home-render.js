@@ -451,6 +451,8 @@ function renderHome(){
   // Bannière notifications
   _updateHomeNotifBanner();
   updateNotifBtnState();
+  // Bannière réveil (6h–14h, non encore enregistré)
+  if (typeof checkWakeupBanner === 'function') checkWakeupBanner();
 }
 
 function toggleDoneExtra(w,ei){

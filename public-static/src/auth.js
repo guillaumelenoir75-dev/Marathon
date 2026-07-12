@@ -253,6 +253,8 @@ function renderCompteScreen(){
   if(whoopPanel) whoopPanel.style.display=isAdmin()?'block':'none';
   const notifTestBtn=document.getElementById('notif-test-btn');
   if(notifTestBtn) notifTestBtn.style.display=isAdmin()?'flex':'none';
+  const wakeupTestBtn=document.getElementById('wakeup-test-btn');
+  if(wakeupTestBtn) wakeupTestBtn.style.display=isAdmin()?'flex':'none';
   const calUrlBtn=document.getElementById('cal-url-btn');
   if(calUrlBtn) calUrlBtn.style.display=isAdmin()?'flex':'none';
   if(isAdmin()){
