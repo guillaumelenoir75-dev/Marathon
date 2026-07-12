@@ -420,37 +420,29 @@ function openMarathonPredModal() {
     </div>
 
     <!-- Temps principal -->
-    <div style="text-align:center;margin-bottom:20px;">
+    <div style="text-align:center;margin-bottom:16px;">
       <div style="font-size:58px;font-weight:800;letter-spacing:-2px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
-      ${pred.tempsStrR10 ? `
-      <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:1px;">Modèle entraînement</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text);">${pred.tempsStrBase}</div>
-        </div>
-        <div style="width:1px;background:var(--border);"></div>
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:1px;">Record 10km</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text);">${pred.tempsStrR10}</div>
-        </div>
-      </div>
-      <button onclick="toggleRecord10kmEditInPredict()" style="margin-top:10px;padding:6px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:auto;margin-right:auto;">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Modifier le record 10km
-      </button>
-      <div id="r10km-edit-top" style="display:none;margin-top:10px;padding:0 4px;">
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input id="r10km-top-input" type="text" placeholder="mm:ss (ex: 48:30)" value="${state['record_10km']||''}"
-            style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid #1B4FD8;background:var(--bg);color:var(--text);font-size:15px;font-weight:700;text-align:center;"
-            oninput="previewRecord10kmInPredict(this.value)" onkeydown="if(event.key==='Enter')saveRecord10kmInPredict(this.value)">
-          <button onclick="saveRecord10kmInPredict(document.getElementById('r10km-top-input').value)"
-            style="padding:9px 18px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">OK</button>
-        </div>
-        <div id="r10km-inline-preview" style="margin-top:10px;"></div>
-      </div>` :
-      pred.intervalMin ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Fourchette : ${pred.intervalMinStr} — ${pred.intervalMaxStr}</div>` : ''}
-      ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:8px;">${sub4Text}</div>` : ''}
+      ${pred.tempsStrBase ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Modèle entraînement · <strong style="color:var(--text);">${pred.tempsStrBase}</strong></div>` : ''}
+      ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:6px;">${sub4Text}</div>` : ''}
     </div>
+
+    ${(!isAdmin() ? '' : `
+    <!-- Saisie record 10km (admin) -->
+    <div style="background:var(--bg2);border-radius:14px;padding:14px;margin-bottom:16px;border:1px solid var(--border);">
+      <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">\u{1F3C3} Record 10km → Semi &amp; Marathon</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input id="r10km-top-input" type="text" placeholder="mm:ss  (ex : 48:30)" value="${state['record_10km']||''}"
+          style="flex:1;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:16px;font-weight:700;text-align:center;"
+          oninput="previewRecord10kmInPredict(this.value)" onkeydown="if(event.key==='Enter')saveRecord10kmInPredict(this.value)">
+        <button onclick="saveRecord10kmInPredict(document.getElementById('r10km-top-input').value)"
+          style="padding:10px 20px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">OK</button>
+      </div>
+      <div id="r10km-inline-preview">${(()=>{
+        const r10 = getRecord10kmPredictions();
+        if (!r10) return '<div style="font-size:11px;color:var(--muted);text-align:center;">Format mm:ss (ex : 48:30) ou hh:mm:ss</div>';
+        return '<div style="border-radius:10px;overflow:hidden;border:1px solid var(--border);"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--bg);"><div style="text-align:center;padding:10px 6px;"><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Record 10km</div><div style="font-size:17px;font-weight:800;color:var(--text);">' + r10.record10kmStr + '</div><div style="font-size:9px;color:var(--muted);margin-top:2px;">' + r10.record10kmPaceStr + '/km</div></div><div style="text-align:center;padding:10px 6px;border-left:1px solid var(--border);border-right:1px solid var(--border);"><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Semi estimé</div><div style="font-size:17px;font-weight:800;color:#1B4FD8;">' + r10.semiStr + '</div><div style="font-size:9px;color:var(--muted);margin-top:2px;">' + r10.semiPaceStr + '/km</div></div><div style="text-align:center;padding:10px 6px;"><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Marathon estimé</div><div style="font-size:17px;font-weight:800;color:#1B4FD8;">' + r10.marStr + '</div><div style="font-size:9px;color:var(--muted);margin-top:2px;">' + r10.marPaceStr + '/km</div></div></div><div style="background:var(--bg2);padding:7px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);">Semi = 10km × 2.15 · Vitesse semi <strong>' + r10.semiSpeedKmh + ' km/h</strong> · Marathon ' + r10.semiSpeedKmh + ' − 1 = <strong>' + r10.marSpeedKmh + ' km/h</strong> → ' + r10.marPaceStr + '/km</div></div>';
+      })()}</div>
+    </div>`)}
 
     <!-- Confiance -->
     <div style="background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
