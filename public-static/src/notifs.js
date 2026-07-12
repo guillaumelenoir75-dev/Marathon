@@ -62,8 +62,7 @@ async function testLocalNotif(type){
         content: '**Test bilan hebdomadaire** — Semaine ' + cw + ' passée en revue ! 🏃\n\n📊 **Charge** : 3 séances validées sur 3. Bonne régularité.\n\n😴 **Récupération** : FC repos stable, bonne récupération musculaire.\n\n📈 **Points forts** : Allures en progression sur les sorties longues.\n\n🔭 **Semaine prochaine** : Maintiens la régularité, pense à t\'hydrater.\n\n💬 **Message** : Belle semaine d\'entraînement — continue sur cette lancée !',
         date: today
       });
-      // _open_coach AVANT showNotification — le flag doit être en DB avant que la notif apparaisse
-      await dbRef.child('_open_coach').set(true);
+      // Pas de _open_coach pour le test : le postMessage SW suffit (même mécanisme que brief matin)
     }
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification(n.title, {

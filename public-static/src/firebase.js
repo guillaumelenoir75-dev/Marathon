@@ -173,15 +173,14 @@ function initFirebase(){
 }
 
 
-// Debounce : évite la double invocation (visibilitychange + postMessage)
-let _openCoachFromNotifTs = 0;
+// Guard : évite la double invocation concurrente (visibilitychange + postMessage)
+let _openCoachFromNotifActive = false;
 
 // Ouvre le coach et affiche le brief (depuis notif ou flag Firebase)
 async function openCoachFromNotif() {
   if (!dbRef || !firebaseReady) return;
-  const now = Date.now();
-  if (now - _openCoachFromNotifTs < 10000) return;
-  _openCoachFromNotifTs = now;
+  if (_openCoachFromNotifActive) return;
+  _openCoachFromNotifActive = true;
   try {
     const stateSnap = await dbRef.once('value');
     if (stateSnap.val()) state = stateSnap.val();
@@ -200,6 +199,7 @@ async function openCoachFromNotif() {
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
   try { await loadCoachHistory(); } catch(e) {}
+  finally { _openCoachFromNotifActive = false; }
 }
 
 // SW → client postMessage (notification tap quand app déjà ouverte en arrière-plan)
