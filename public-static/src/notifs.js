@@ -62,6 +62,8 @@ async function testLocalNotif(type){
         content: '**Test bilan hebdomadaire** — Semaine ' + cw + ' passée en revue ! 🏃\n\n📊 **Charge** : 3 séances validées sur 3. Bonne régularité.\n\n😴 **Récupération** : FC repos stable, bonne récupération musculaire.\n\n📈 **Points forts** : Allures en progression sur les sorties longues.\n\n🔭 **Semaine prochaine** : Maintiens la régularité, pense à t\'hydrater.\n\n💬 **Message** : Belle semaine d\'entraînement — continue sur cette lancée !',
         date: today
       });
+      // _open_coach AVANT showNotification — le flag doit être en DB avant que la notif apparaisse
+      await dbRef.child('_open_coach').set(true);
     }
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification(n.title, {
@@ -72,9 +74,6 @@ async function testLocalNotif(type){
       data: { tag: type+'-test' },
       requireInteraction: false
     });
-    // _open_coach écrit APRÈS la notif pour que le listener realtime ne s'active
-    // qu'au tap (via visibilitychange), pas immédiatement
-    if (isDebrief) await dbRef.child('_open_coach').set(true);
     const btn = document.getElementById('test-notif-btn-'+type);
     if (btn) { btn.textContent = '✅'; btn.style.background = '#EAF3DE'; btn.style.color = '#3B6D11'; setTimeout(()=>{ btn.textContent='Tester'; btn.style.background=''; btn.style.color=''; }, 2500); }
   } catch(e) {
@@ -90,7 +89,7 @@ async function initNotifications() {
     return;
   }
   try {
-    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
     updateNotifBtnState();
     // Refresh la subscription à chaque chargement si permission accordée
     // → garantit que Firebase a toujours l'endpoint valide (évite les expirations silencieuses)
