@@ -345,7 +345,8 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     const meteoResp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code,precipitation_probability&timezone=Europe%2FParis&forecast_days=1`);
     const meteoData = await meteoResp.json();
     if (meteoData.hourly) {
-      const nowH = now.getHours();
+      // now.getHours() est UTC — l'API Open-Meteo renvoie des données en heure de Paris
+      const nowH = parseInt(new Intl.DateTimeFormat('fr-FR', { hour: 'numeric', hour12: false, timeZone: 'Europe/Paris' }).format(now));
       const tempCurrent = meteoData.hourly.temperature_2m?.[nowH];
       const temp = meteoData.hourly.temperature_2m?.[targetH];
       const apparent = meteoData.hourly.apparent_temperature?.[targetH];
