@@ -518,7 +518,7 @@ function renderWhoopStats() {
       sub: s0?.duration_hours ? (()=>{
         const durH=parseFloat(s0.duration_hours);
         const durColor=isNaN(durH)?'var(--muted)':durH>=8?'#16a34a':durH>=6.5?'#ca8a04':'#dc2626';
-        return `<span style="color:${durColor};font-weight:700;">${s0.duration_hours}</span>h`;
+        return `<span style="color:${durColor};font-weight:700;">${s0.duration_hours}</span>`;
       })() : '',
       color: s0?.performance_pct != null ? scoreColor(s0.performance_pct) : 'var(--muted)',
       bg: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
