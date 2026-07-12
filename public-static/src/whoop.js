@@ -349,7 +349,24 @@ function dismissWakeupBanner() {
 }
 
 async function onWakeupFromBanner() {
-  dismissWakeupBanner();
+  const banner = document.getElementById('wakeup-banner');
+  if (banner) {
+    // Basculer vers l'écran de confirmation
+    banner.innerHTML = `
+      <div style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:0;padding:32px 24px;">
+        <div style="font-size:72px;line-height:1;margin-bottom:20px;animation:_sunPulse 2.5s ease-in-out infinite;">✅</div>
+        <p style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px;text-align:center;margin:0 0 10px;">Réveil enregistré !</p>
+        <p style="font-size:15px;color:rgba(255,255,255,0.85);font-weight:500;margin:0 0 28px;text-align:center;line-height:1.5;">Ton brief matinal est en cours de<br>préparation — tu le recevras<br>dans quelques instants. 🚀</p>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:_pulseDot 1.2s ease-in-out infinite;"></div>
+          <span style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;">Sync WHOOP en cours…</span>
+        </div>
+      </div>
+      <style>@keyframes _pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}</style>
+    `;
+    // Fermer après 2.8s
+    setTimeout(() => dismissWakeupBanner(), 2800);
+  }
   await onWakeup();
 }
 
