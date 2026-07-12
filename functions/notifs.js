@@ -426,10 +426,12 @@ STRUCTURE OBLIGATOIRE — dans cet ordre exact :
 Score du jour : **76%** 🟢 Bonne forme
 Score de récupération WHOOP : **71%** 🟢
 FC repos WHOOP : **48 bpm**
+VFC : **72 ms**
 Durée de sommeil : **7h47**
 Performance sommeil : **88%**
 [une phrase d'analyse : compare avec moyenne 7j, charge veille, conclusion frais/modéré/fatigué]
 Si le Score du jour n'est pas fourni dans le contexte (données insuffisantes), ne pas l'afficher.
+Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne pas afficher sa ligne.
 
 2. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : es-tu bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes. Tu t'adresses à moi directement : "Tu arrives...", "Ta récupération...", etc.
 
