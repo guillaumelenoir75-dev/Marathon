@@ -1235,7 +1235,7 @@ function dismissBrief(){
     const seps=container.querySelectorAll('.chat-date-sep');
     seps.forEach(sep=>{
       let next=sep.nextElementSibling;
-      if(!next||next.classList.contains('chat-date-sep')||next.id==='brief-actions') sep.remove();
+      if(!next||next.classList.contains('chat-date-sep')) sep.remove();
     });
   }
   // Supprimer de l'historique (brief + météo)
@@ -1829,6 +1829,9 @@ async function loadCoachHistory(){
           }
         });
         if (_sameDay && _notExpired && !_todaySessionDone) {
+          // Forcer le remplacement : si checkMorningBrief a déjà posé Supprimer+Garder, les remplacer par Effacer seul
+          const _existingBtns = document.getElementById('brief-actions');
+          if (_existingBtns) _existingBtns.remove();
           _addBriefActionButtons(true);
         } else {
           // Expiré ou séance validée → nettoyer
