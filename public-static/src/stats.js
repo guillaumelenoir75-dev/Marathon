@@ -773,7 +773,6 @@ function renderFcReposChart(){
         <div style="font-size:22px;font-weight:800;color:${rhrColor2(latest)};line-height:1;">${latest}</div>
         <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px;">Aujourd'hui</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">bpm</div>
-        ${fcTrend?`<div style="font-size:10px;color:${fcTrendColor};font-weight:700;margin-top:3px;">${fcTrend}</div>`:''}
       </div>
       <div style="background:var(--bg);border-radius:12px;padding:12px 10px;text-align:center;border:1px solid var(--border);">
         <div style="font-size:22px;font-weight:800;color:${rhrColor2(avg)};line-height:1;">${avg}</div>
