@@ -410,20 +410,24 @@ function openMarathonPredModal() {
 
   const methodeNote = `Modèle VDOT (Jack Daniels) · VO2max ${pred.vo2max} · ${pred.details?.nbEf||0} EF + ${pred.details?.nbLong||0} longues + ${pred.details?.nbTempo||0} tempos`;
 
-  overlay.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  overlay.innerHTML = `<div class="modal-box">
+    <!-- Header sticky -->
+    <div style="padding:20px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
-        <p style="font-size:16px;font-weight:700;color:var(--text);">Prédiction marathon</p>
-        <p style="font-size:11px;color:var(--muted);margin-top:2px;">18 octobre 2026 · S32</p>
+        <p style="font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.3px;">Prédiction marathon</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:3px;">18 octobre 2026 · Semaine 32</p>
       </div>
-      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
+      <button onclick="closeModal()" style="background:var(--bg2);border:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">×</button>
     </div>
 
+    <!-- Corps scrollable -->
+    <div class="modal-scroll-body" style="padding:20px 20px 48px;">
+
     <!-- Temps principal -->
-    <div style="text-align:center;margin-bottom:16px;">
-      <div style="font-size:58px;font-weight:800;letter-spacing:-2px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
-      ${pred.tempsStrBase ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Modèle entraînement · <strong style="color:var(--text);">${pred.tempsStrBase}</strong></div>` : ''}
-      ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:6px;">${sub4Text}</div>` : ''}
+    <div style="text-align:center;margin-bottom:20px;padding:8px 0;">
+      <div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
+      ${pred.tempsStrBase ? `<div style="font-size:12px;color:var(--muted);margin-top:6px;">Modèle entraînement · <strong style="color:var(--text);">${pred.tempsStrBase}</strong></div>` : ''}
+      ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:8px;padding:6px 14px;background:${sub4Color}18;border-radius:20px;display:inline-block;">${sub4Text}</div>` : ''}
     </div>
 
     ${(!isAdmin() ? '' : `
@@ -1072,6 +1076,8 @@ function openMarathonPredModal() {
 
     <!-- Méthode -->
     <p style="font-size:10px;color:var(--muted);text-align:center;">${methodeNote}</p>
+
+    </div><!-- /modal-scroll-body -->
   </div>`;
 
   overlay.onclick = e => { if(e.target === overlay) closeModal(); };
