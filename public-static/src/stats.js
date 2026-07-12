@@ -597,13 +597,14 @@ function renderWhoopStats() {
         const tSign = trendDiff > 0 ? '+' : '';
         trendHtml = `<span style="font-size:11px;color:${tCol};font-weight:700;margin-left:8px;">${tArrow} ${tSign}${trendDiff} pts vs hier</span>`;
       }
-      const avg7jHtml = avg7j != null ? `<span style="color:var(--muted);font-weight:500;"> · moy 7j : ${avg7j}%</span>` : '';
+      const avg7jHtml = avg7j != null ? `<div style="font-size:10px;color:var(--muted);margin-top:1px;">Moy 7j : <span style="font-weight:700;color:${scoreColor(avg7j)};">${avg7j}%</span></div>` : '';
       syntheticEl.innerHTML = `
         <div style="background:${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)'};border:1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;">
           <div style="font-size:36px;font-weight:900;color:${col};line-height:1;">${avg}<span style="font-size:16px;">%</span></div>
           <div>
             <div style="font-size:13px;font-weight:700;color:${col};">${emoji} ${label}${trendHtml}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · ${components.join(' + ')}${avg7jHtml}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · ${components.join(' + ')}</div>
+            ${avg7jHtml}
           </div>
         </div>`;
       syntheticEl.style.display = 'block';
