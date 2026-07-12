@@ -249,14 +249,22 @@
   </div>
 
   <!-- 4. Volume km par semaine -->
-  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Volume par semaine (km)</p>
-  <div style="position:relative;width:100%;height:260px;margin-bottom:20px;">
-    <canvas id="chart-km"></canvas>
-    <div id="chart-km-badge" style="position:absolute;top:0;right:0;font-size:15px;font-weight:800;color:#E8530A;background:var(--bg);padding:2px 6px;border-radius:6px;pointer-events:none;"></div>
-    <div onclick="openRecord10kmModal()" style="position:absolute;top:0;left:0;display:flex;align-items:center;gap:5px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:3px 8px;cursor:pointer;">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span style="font-size:11px;font-weight:700;color:var(--text);" id="badge-record10km">— 10km</span>
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+  <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Volume par semaine</p>
+        <div onclick="openRecord10kmModal()" id="badge-record10km-container" style="display:none;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:2px 7px;cursor:pointer;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span style="font-size:10px;font-weight:700;color:var(--text);" id="badge-record10km">— 10km</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;font-weight:600;color:var(--muted);">Cette sem.</span>
+        <span id="chart-km-badge" style="font-size:13px;font-weight:800;color:#E8530A;"></span>
+      </div>
+    </div>
+    <div style="position:relative;width:100%;height:220px;">
+      <canvas id="chart-km"></canvas>
     </div>
   </div>
 
@@ -854,7 +862,7 @@
 <script defer src="/src/plan-edit.js?v=8"></script>
 <script defer src="/src/session-edit.js?v=3"></script>
 <script defer src="/src/shoes.js?v=3"></script>
-<script defer src="/src/stats.js?v=17"></script>
+<script defer src="/src/stats.js?v=18"></script>
 <script defer src="/src/coach-context.js?v=7"></script>
 <script defer src="/src/coach-plan-modif.js?v=3"></script>
 <script defer src="/src/coach-memos.js?v=3"></script>

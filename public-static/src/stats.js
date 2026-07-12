@@ -123,7 +123,7 @@ function renderStats(){
   const badge = document.getElementById('chart-km-badge');
   if(badge) badge.textContent = (isAdmin() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
   // Badge record 10km (admin uniquement)
-  const b10container = document.getElementById('badge-record10km')?.closest('div[onclick]');
+  const b10container = document.getElementById('badge-record10km-container');
   if(b10container) b10container.style.display = isAdmin() ? 'flex' : 'none';
   const b10 = document.getElementById('badge-record10km');
   if(b10 && isAdmin()) {
