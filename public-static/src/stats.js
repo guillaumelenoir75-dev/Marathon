@@ -413,7 +413,24 @@ function renderWhoopStats() {
   const section = document.getElementById('whoop-stats-section');
   if (!section) return;
 
-  if (!wd || (!wd.recoveries?.length && !wd.cycles?.length)) {
+  // ── Fallback : WHOOP importé via validation de séance (charge/calories) ──
+  const perfKeys = Object.keys(state).filter(k => k.match(/^w\d+_s\d+_?perf$|^s\d+i\d+perf$/));
+  let bestWhoopPerf = null;
+  for (const k of perfKeys) {
+    try {
+      const p = JSON.parse(state[k]);
+      if (p.whoop && (p.whoop.workout_strain != null || p.whoop.cycle_strain != null)) {
+        const d = p.date || p.whoop.date || null;
+        if (!bestWhoopPerf || (d && (!bestWhoopPerf._date || d > bestWhoopPerf._date))) {
+          bestWhoopPerf = { ...p.whoop, _date: d };
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Masquer la section seulement si ni whoop_data ni WHOOP importé via séance
+  const hasWhoopSync = wd && (wd.recoveries?.length || wd.cycles?.length);
+  if (!hasWhoopSync && !bestWhoopPerf) {
     section.style.display = 'none';
     return;
   }
@@ -424,32 +441,13 @@ function renderWhoopStats() {
   const rhrColor = v => v == null ? 'var(--muted)' : v <= 50 ? '#16a34a' : v <= 60 ? '#ca8a04' : '#dc2626';
 
   // ── KPIs du jour ──────────────────────────────────────────────────────────
-  const r0 = wd.recoveries?.[0];
-  const s0 = wd.sleeps?.[0];
-  let cy0 = wd.cycles?.[0];
+  const r0 = wd?.recoveries?.[0] || null;
+  const s0 = wd?.sleeps?.[0] || null;
+  let cy0 = wd?.cycles?.[0] || null;
 
-  // Fallback : si pas de cycle WHOOP synced (ou cycle ancien), chercher dans les perfs de séances
-  const todayStr = new Date().toISOString().slice(0,10);
-  if (!cy0 || !cy0.strain) {
-    // Parcourir toutes les clés de state qui ressemblent à des perfs de séance
-    const perfKeys = Object.keys(state).filter(k => k.match(/^w\d+_s\d+_?perf$|^s\d+i\d+perf$/));
-    let bestWhoopPerf = null;
-    for (const k of perfKeys) {
-      try {
-        const p = JSON.parse(state[k]);
-        if (p.whoop && (p.whoop.workout_strain != null || p.whoop.cycle_strain != null)) {
-          // Préférer la séance la plus récente
-          const d = p.date || p.whoop.date || null;
-          if (!bestWhoopPerf || (d && (!bestWhoopPerf._date || d > bestWhoopPerf._date))) {
-            bestWhoopPerf = { ...p.whoop, _date: d };
-          }
-        }
-      } catch(e) {}
-    }
-    if (bestWhoopPerf) {
-      cy0 = cy0 || {};
-      if (cy0.strain == null) cy0 = { ...cy0, strain: bestWhoopPerf.workout_strain ?? bestWhoopPerf.cycle_strain, calories: bestWhoopPerf.workout_calories ?? bestWhoopPerf.cycle_calories };
-    }
+  // Appliquer le fallback séance si cy0 absent ou sans strain
+  if (bestWhoopPerf && (!cy0 || cy0.strain == null)) {
+    cy0 = { ...(cy0 || {}), strain: bestWhoopPerf.workout_strain ?? bestWhoopPerf.cycle_strain ?? null, calories: bestWhoopPerf.workout_calories ?? bestWhoopPerf.cycle_calories ?? null };
   }
 
   // Flèche tendance FC repos : compare aujourd'hui vs moyenne 7j
