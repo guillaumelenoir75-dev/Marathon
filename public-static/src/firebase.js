@@ -129,9 +129,21 @@ function initFirebase(){
                   await openCoachFromNotif();
                 } catch(e) {}
               });
+              // Fallback visibilitychange : si postMessage SW raté (iOS gèle le JS),
+              // vérifier _open_coach dès que l'app repasse au premier plan
+              document.addEventListener('visibilitychange', async function _vcHandler() {
+                if (document.visibilityState !== 'visible' || !dbRef || !firebaseReady) return;
+                try {
+                  const snap = await dbRef.child('_open_coach').once('value');
+                  if (snap.val()) {
+                    await dbRef.child('_open_coach').remove();
+                    await openCoachFromNotif();
+                  }
+                } catch(e) {}
+              });
               } // fin guard _visibilityListenerAdded
 
-              // Ouverture coach depuis URL ?action=brief (clic notif → SW navigate)
+              // Ouverture coach depuis URL ?action=brief (clic notif → app fermée)
               (async () => {
                 try {
                   const fromBriefUrl = window.location.search.includes('action=brief');

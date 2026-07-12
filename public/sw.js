@@ -29,9 +29,10 @@ self.addEventListener('notificationclick', event => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {
         if (client.url.includes(self.location.origin)) {
-          // iOS PWA : navigate() ne fonctionne pas → focus + postMessage
-          client.postMessage({ action: 'open_coach', tag: notifTag });
-          return client.focus();
+          // iOS PWA : focus() d'abord (dégèle le JS), postMessage() dans le .then()
+          return client.focus().then(function(c) {
+            (c || client).postMessage({ action: 'open_coach', tag: notifTag });
+          });
         }
       }
       // App non ouverte → ouvrir avec URL (nouvelle instance)
