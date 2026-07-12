@@ -296,6 +296,11 @@ async function onWakeup(force) {
 
     // 5. Déclencher le brief côté serveur (génération IA + push notif)
     if (dbRef) {
+      // En mode test : réinitialiser les clés "déjà fait" pour forcer la régénération complète
+      if (force) {
+        await dbRef.child('_brief_matin_' + wakeupDate).remove();
+        await dbRef.child('_brief_fc_notif_' + wakeupDate).remove();
+      }
       await dbRef.child('_brief_trigger').set({ ts: Date.now(), date: wakeupDate });
     }
 
