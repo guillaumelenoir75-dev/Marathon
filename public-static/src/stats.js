@@ -818,7 +818,7 @@ function renderFcReposChart(){
       const msg=diff<=-2?`Ta FC repos a baissé de ${Math.abs(diff)} bpm vs ta moyenne 30j — bonne progression.`
         :diff>=2?`Ta FC repos a augmenté de ${diff} bpm vs ta moyenne 30j — signe de fatigue accumulée.`
         :`Ta FC repos est stable par rapport à ta moyenne 30j (${fc30avg} bpm).`;
-      trendEl.innerHTML=`<div style="font-size:11px;color:${col};font-weight:600;margin-bottom:8px;">📈 ${msg}</div>`;
+      trendEl.innerHTML=`<div style="font-size:10px;color:${col};font-weight:500;margin-bottom:8px;">📈 ${msg}</div>`;
       trendEl.style.display='block';
     } else if(trendEl) trendEl.style.display='none';
 
