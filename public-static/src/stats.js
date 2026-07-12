@@ -531,9 +531,7 @@ function renderWhoopStats() {
         const parts = [];
         if (strainLabel) parts.push(`<span style="color:${strainLabelColor};font-weight:700;">${strainLabel}</span>`);
         if (strain14Avg != null) {
-          const vsCol = strainVsAvg > 2 ? '#dc2626' : strainVsAvg < -2 ? '#16a34a' : '#ca8a04';
-          const vsSign = strainVsAvg > 0 ? '+' : '';
-          parts.push(`<span style="color:${vsCol};">${vsSign}${strainVsAvg} vs moy 14j</span>`);
+          parts.push(`<span style="color:var(--muted);">moy ${strain14Avg}</span>`);
         } else if (cy0?.calories) { parts.push(cy0.calories + ' kcal'); }
         return parts.join(' · ');
       })(),
