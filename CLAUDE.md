@@ -78,4 +78,8 @@ Après chaque `git push` vers `main`, TOUJOURS :
 2. Appeler `mcp__github__actions_get` (method: `get_workflow_run`) en boucle toutes les 15 secondes jusqu'à `status === "completed"`. Si `updated_at` ne bouge plus après 2 min, le run est probablement terminé (bug de cache API GitHub connu) — lister les runs pour trouver un run complété sur le même SHA.
 3. Conclure en français : déploiement **vert ✅** ou **rouge ❌** avec le commit SHA, et indiquer que l'app est testable sur https://prepa-marathon.web.app.
 Ne jamais terminer un tour après un push sans avoir attendu et rapporté le statut du déploiement.
-Si le MCP GitHub est déconnecté, utiliser `curl` via Bash avec l'API GitHub REST pour surveiller le run — ne jamais déléguer cette vérification à l'utilisateur.
+Ordre de priorité pour surveiller le déploiement :
+1. MCP GitHub (`mcp__github__actions_list` + `mcp__github__actions_get`) — méthode principale.
+2. Si MCP indisponible → `curl` Bash sur l'API REST GitHub : `curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/guillaumelenoir75-dev/Marathon/actions/runs?per_page=1"`.
+3. Si l'API REST retourne 403/blocked → vérifier le déploiement via Firebase Hosting : `curl -sI https://prepa-marathon.web.app` et `curl -s https://prepa-marathon.web.app | grep whoop.js` pour confirmer la version.
+4. Si tout est bloqué par le proxy réseau de l'environnement → l'indiquer CLAIREMENT en expliquant POURQUOI (blocage proxy/org, pas une erreur de code), confirmer que le push git a réussi, et préciser que le workflow se déclenchera automatiquement. Ne JAMAIS demander à l'utilisateur de vérifier lui-même.
