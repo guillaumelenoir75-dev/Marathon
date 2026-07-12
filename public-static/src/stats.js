@@ -284,7 +284,7 @@ function renderStats(){
               const strain = wh.workout_strain != null ? parseFloat(wh.workout_strain).toFixed(1) : null;
               const cals = (wh.workout_calories ?? wh.calories) != null ? Math.round(wh.workout_calories ?? wh.calories) : null;
               let cols = [];
-              if(strain) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#7B5EA7;margin-bottom:2px;font-weight:600;">Charge</p><p style="font-size:14px;font-weight:700;color:#7B5EA7;">${strain}</p></div>`);
+              if(strain) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#7B5EA7;margin-bottom:2px;font-weight:600;">Effort</p><p style="font-size:14px;font-weight:700;color:#7B5EA7;">${strain}</p></div>`);
               if(cals) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#E8A000;margin-bottom:2px;font-weight:600;">Calories</p><p style="font-size:14px;font-weight:700;color:#E8A000;">${cals}<span style="font-size:10px;"> kcal</span></p></div>`);
               if(!cols.length) return '';
               return `<div style="margin-top:8px;background:rgba(123,94,167,0.08);border-radius:10px;padding:8px 10px;">
@@ -525,7 +525,7 @@ function renderWhoopStats() {
       border: isDark ? 'rgba(59,130,246,0.25)' : '#bfdbfe'
     },
     {
-      label: 'Charge',
+      label: 'Effort',
       value: strainVal != null ? strainVal.toString() : '—',
       sub: (()=>{
         const parts = [];
@@ -679,7 +679,7 @@ function _renderUnifiedWhoopChart(mode) {
     const r0 = wd?.recoveries?.[0];
     if (alertEl) {
       if (cy0?.strain >= 14 && r0?.score != null && r0.score < 34) {
-        alertEl.innerHTML = `<div style="font-size:11px;color:#991b1b;font-weight:600;padding:6px 10px;background:#fef2f2;border-radius:8px;border:1px solid #fca5a5;margin-bottom:6px;">⚠️ Charge élevée avec récupération faible — privilégie du repos.</div>`;
+        alertEl.innerHTML = `<div style="font-size:11px;color:#991b1b;font-weight:600;padding:6px 10px;background:#fef2f2;border-radius:8px;border:1px solid #fca5a5;margin-bottom:6px;">⚠️ Effort élevé avec récupération faible — privilégie du repos.</div>`;
         alertEl.style.display = 'block';
       } else { alertEl.style.display = 'none'; }
     }
@@ -1481,7 +1481,7 @@ function renderSessionsHistory() {
     if (s.hr) meta.push('FC ' + s.hr);
     html += `<p style="font-size:10px;color:var(--muted);margin:1px 0 0;">${meta.join(' · ')}</p></div>`;
     if (strain != null) {
-      html += `<div style="text-align:right;flex-shrink:0;"><p style="font-size:9px;color:var(--muted);margin:0 0 1px;">Charge</p><p style="font-size:14px;font-weight:700;color:${strainColor};margin:0;line-height:1;">${strain.toFixed(1)}</p></div>`;
+      html += `<div style="text-align:right;flex-shrink:0;"><p style="font-size:9px;color:var(--muted);margin:0 0 1px;">Effort</p><p style="font-size:14px;font-weight:700;color:${strainColor};margin:0;line-height:1;">${strain.toFixed(1)}</p></div>`;
     }
     html += `</div>`;
   });
