@@ -448,10 +448,16 @@ ${memosLine}`;
   }
 
   // Corps de la push notification (résumé)
-  const recovScore = whoopToday && whoopRecov && whoopRecov.score != null ? whoopRecov.score : null;
-  const recovEmoji = recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
+  // Priorité : score global synthétique > score récup WHOOP seul > rien
   const meteoEmoji = tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
-  const recovPart = recovScore!=null?`Récup ${recovScore}%${recovEmoji?' '+recovEmoji:''}`:recovEmoji?`Récup ${recovEmoji}`:'';
+  let recovPart = '';
+  if (globalScore !== null) {
+    recovPart = `Score ${globalScore}%${globalScoreEmoji ? ' '+globalScoreEmoji : ''}`;
+  } else {
+    const recovScore = whoopToday && whoopRecov && whoopRecov.score != null ? whoopRecov.score : null;
+    const recovEmoji = recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
+    if (recovScore != null) recovPart = `Récup ${recovScore}%${recovEmoji?' '+recovEmoji:''}`;
+  }
   const fcPart = fcToday ? `FC ${fcToday} bpm` : '';
   let seancePart = '';
   if (seanceRunAujourdhui) {

@@ -426,7 +426,31 @@ function renderWhoopStats() {
   // ── KPIs du jour ──────────────────────────────────────────────────────────
   const r0 = wd.recoveries?.[0];
   const s0 = wd.sleeps?.[0];
-  const cy0 = wd.cycles?.[0];
+  let cy0 = wd.cycles?.[0];
+
+  // Fallback : si pas de cycle WHOOP synced (ou cycle ancien), chercher dans les perfs de séances
+  const todayStr = new Date().toISOString().slice(0,10);
+  if (!cy0 || !cy0.strain) {
+    // Parcourir toutes les clés de state qui ressemblent à des perfs de séance
+    const perfKeys = Object.keys(state).filter(k => k.match(/^w\d+_s\d+_?perf$|^s\d+i\d+perf$/));
+    let bestWhoopPerf = null;
+    for (const k of perfKeys) {
+      try {
+        const p = JSON.parse(state[k]);
+        if (p.whoop && (p.whoop.workout_strain != null || p.whoop.cycle_strain != null)) {
+          // Préférer la séance la plus récente
+          const d = p.date || p.whoop.date || null;
+          if (!bestWhoopPerf || (d && (!bestWhoopPerf._date || d > bestWhoopPerf._date))) {
+            bestWhoopPerf = { ...p.whoop, _date: d };
+          }
+        }
+      } catch(e) {}
+    }
+    if (bestWhoopPerf) {
+      cy0 = cy0 || {};
+      if (cy0.strain == null) cy0 = { ...cy0, strain: bestWhoopPerf.workout_strain ?? bestWhoopPerf.cycle_strain, calories: bestWhoopPerf.workout_calories ?? bestWhoopPerf.cycle_calories };
+    }
+  }
 
   // Flèche tendance FC repos : compare aujourd'hui vs moyenne 7j
   const allFcEntries = Object.keys(state)
