@@ -23,20 +23,19 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const notifTag = (event.notification.data && event.notification.data.tag) || '';
-  // Toutes les notifs coach ouvrent /?action=brief pour garantir le rechargement
-  const briefUrl = '/?action=brief&tag=' + encodeURIComponent(notifTag);
+  const notifData = event.notification.data || {};
+  const notifTag = notifData.tag || '';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {
         if (client.url.includes(self.location.origin)) {
-          // navigate() force un rechargement à la bonne URL (plus fiable que focus+postMessage)
-          if ('navigate' in client) return client.navigate(briefUrl).then(c => c && c.focus());
-          client.focus();
-          return;
+          // iOS PWA : navigate() ne fonctionne pas → focus + postMessage
+          client.postMessage({ action: 'open_coach', tag: notifTag });
+          return client.focus();
         }
       }
-      return clients.openWindow(briefUrl);
+      // App non ouverte → ouvrir avec URL (nouvelle instance)
+      return clients.openWindow('/?action=brief&tag=' + encodeURIComponent(notifTag));
     })
   );
 });

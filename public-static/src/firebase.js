@@ -108,6 +108,8 @@ function initFirebase(){
               applyRoleUI();
               showScreen('home');
               if(currentUserRole==='athlete' && !state.onboarding) showOnboarding(false);
+              // Message SW reçu avant init → ouvrir le coach maintenant
+              if (window._pendingCoachOpen) { window._pendingCoachOpen = false; openCoachFromNotif(); }
               // Récupérer la météo réelle pour les séances passées (silencieux)
               setTimeout(() => autoFetchMissingMeteo(), 2000);
               // Vérifier les notifications coach dès l'ouverture de l'app
@@ -185,6 +187,18 @@ async function openCoachFromNotif() {
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
   try { await loadCoachHistory(); } catch(e) {}
+}
+
+// SW → client postMessage (notification tap quand app déjà ouverte en arrière-plan)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(ev) {
+    if (!ev.data || ev.data.action !== 'open_coach') return;
+    if (dbRef && firebaseReady) {
+      openCoachFromNotif();
+    } else {
+      window._pendingCoachOpen = true;
+    }
+  });
 }
 
 let rendered={};
