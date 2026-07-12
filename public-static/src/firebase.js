@@ -173,9 +173,15 @@ function initFirebase(){
 }
 
 
+// Debounce : évite la double invocation (visibilitychange + postMessage)
+let _openCoachFromNotifTs = 0;
+
 // Ouvre le coach et affiche le brief (depuis notif ou flag Firebase)
 async function openCoachFromNotif() {
   if (!dbRef || !firebaseReady) return;
+  const now = Date.now();
+  if (now - _openCoachFromNotifTs < 10000) return;
+  _openCoachFromNotifTs = now;
   try {
     const stateSnap = await dbRef.once('value');
     if (stateSnap.val()) state = stateSnap.val();
