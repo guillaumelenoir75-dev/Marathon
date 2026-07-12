@@ -1803,7 +1803,8 @@ async function loadCoachHistory(){
     try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
   }
   // ── Si le brief a été "gardé" (keepBrief), réafficher le bouton Effacer (si pas expiré) ──
-  if (!_briefShownToday && dbRef) {
+  // Indépendant de _briefShownToday : fonctionne aussi en navigation intra-session
+  if (dbRef) {
     try {
       const keptSnap = await dbRef.child('_brief_kept').once('value');
       const keptVal = keptSnap.val();
