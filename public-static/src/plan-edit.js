@@ -345,37 +345,48 @@ function openPerfEditModal(ws, si){
     blocsHtml += '</div>';
   }
 
-  overlay.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:${bg};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <span style="font-size:10px;font-weight:700;color:${c};">${lbl}</span>
+  overlay.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;padding:0;">
+    <!-- Header coloré -->
+    <div style="background:linear-gradient(135deg,${c}18 0%,${c}08 100%);border-bottom:1.5px solid ${c}20;padding:14px 16px 12px;border-radius:var(--radius) var(--radius) 0 0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:10px;background:${c}18;border:2px solid ${c}40;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-size:11px;font-weight:800;color:${c};">${lbl}</span>
+          </div>
+          <div>
+            <p style="font-size:16px;font-weight:700;color:var(--text);margin:0 0 2px;">S${ws} · ${title}</p>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:10px;font-weight:700;color:#3B6D11;background:#EAF3DE;padding:2px 7px;border-radius:8px;">✓ Validée</span>
+              ${prev.date ? `<span style="font-size:11px;color:var(--muted);">📅 ${(()=>{const d=new Date(prev.date+'T12:00:00');const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];const months=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];return days[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()];})()}</span>` : ''}
+            </div>
+          </div>
         </div>
-        <div>
-          <p style="font-size:15px;font-weight:600;color:var(--text);">S${ws} · ${title}</p>
-          <p style="font-size:11px;color:#3B6D11;font-weight:600;">✓ Séance validée — modifier les données</p>
-        </div>
+        <button onclick="closeModal()" style="background:${c}18;border:none;cursor:pointer;color:${c};font-size:18px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:300;line-height:1;">×</button>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEdit(${ws},${si})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+      <!-- Barre de boutons import -->
+      <div style="display:flex;gap:7px;margin-top:12px;">
+        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEdit(${ws},${si})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           ${prev.strava ? '✅ Strava' : '🟠 Strava'}
         </button>
-        <button id="meteo-pedit-btn" onclick="importMeteoForPerfEdit(${ws},${si})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          ${prev.meteo ? '✅ Météo' : 'Météo'}
+        <button id="meteo-pedit-btn" onclick="importMeteoForPerfEdit(${ws},${si})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          🌤️ ${prev.meteo ? '✅ Météo' : 'Météo'}
         </button>
-        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEdit(${ws},${si})" style="padding:6px 10px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-          ${(()=>{ const s=prev.whoop?.workout_strain??prev.whoop?.cycle_strain??null; return s!=null?'⚡ '+s.toFixed(1):'⚡ WHOOP'; })()}
+        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEdit(${ws},${si})" style="flex:1;padding:8px 6px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          ${(()=>{ const wh=prev.whoop?.workout_strain??prev.whoop?.cycle_strain??null; return wh!=null?'⚡ '+wh.toFixed(1):'⚡ WHOOP'; })()}
         </button>
-        <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Date de la séance</p>
-        <input type="date" id="pedit-date" value="${prev.date||''}"
-          style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
+    <!-- Contenu -->
+    <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <!-- Date compacte -->
+      <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;">
+        <span style="font-size:16px;">📅</span>
+        <div style="flex:1;">
+          <p style="font-size:10px;font-weight:600;color:var(--muted);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.05em;">Date de la séance</p>
+          <input type="date" id="pedit-date" value="${prev.date||''}"
+            style="background:transparent;border:none;padding:0;font-size:14px;font-weight:700;color:var(--text);width:100%;outline:none;">
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
@@ -473,8 +484,9 @@ function openPerfEditModal(ws, si){
       })()}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
-      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
-      <button onclick="savePerfEdit(${ws},${si})" style="padding:12px;background:#3B6D11;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">✓ Enregistrer</button>
+      <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;">Annuler</button>
+      <button onclick="savePerfEdit(${ws},${si})" style="padding:13px;background:#3B6D11;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 2px 8px ${c}30;">✓ Enregistrer</button>
+    </div>
     </div>
   </div>`;
   overlay.onclick = e => { if(e.target===overlay) closeModal(); };
@@ -692,37 +704,44 @@ function openPerfEditExtraModal(ws, ei){
     h+='</div>'; return h;
   })();
 
-  overlay.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:${bg};border:1.5px solid ${c}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <span style="font-size:10px;font-weight:700;color:${c};">${lbl}</span>
+  overlay.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;padding:0;">
+    <div style="background:linear-gradient(135deg,${c}18 0%,${c}08 100%);border-bottom:1.5px solid ${c}20;padding:14px 16px 12px;border-radius:var(--radius) var(--radius) 0 0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:10px;background:${c}18;border:2px solid ${c}40;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-size:11px;font-weight:800;color:${c};">${lbl}</span>
+          </div>
+          <div>
+            <p style="font-size:16px;font-weight:700;color:var(--text);margin:0 0 2px;">S${ws} · ${title}</p>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:10px;font-weight:700;color:#3B6D11;background:#EAF3DE;padding:2px 7px;border-radius:8px;">✓ Extra validée</span>
+              ${prev.date ? `<span style="font-size:11px;color:var(--muted);">📅 ${(()=>{const d=new Date(prev.date+'T12:00:00');const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];const months=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];return days[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()];})()}</span>` : ''}
+            </div>
+          </div>
         </div>
-        <div>
-          <p style="font-size:15px;font-weight:600;color:var(--text);">S${ws} · ${title}</p>
-          <p style="font-size:11px;color:#3B6D11;font-weight:600;">✓ Séance extra validée — modifier les données</p>
-        </div>
+        <button onclick="closeModal()" style="background:${c}18;border:none;cursor:pointer;color:${c};font-size:18px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:300;line-height:1;">×</button>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEditExtra(${ws},${ei})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+      <div style="display:flex;gap:7px;margin-top:12px;">
+        <button id="strava-pedit-btn" onclick="importFromStravaForPerfEditExtra(${ws},${ei})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;background:${prev.strava?'#3B6D11':'#FC4C02'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           ${prev.strava ? '✅ Strava' : '🟠 Strava'}
         </button>
-        <button id="meteo-pedit-btn" onclick="importMeteoForPerfEditExtra(${ws},${ei})" style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          ${prev.meteo ? '✅ Météo' : 'Météo'}
+        <button id="meteo-pedit-btn" onclick="importMeteoForPerfEditExtra(${ws},${ei})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          🌤️ ${prev.meteo ? '✅ Météo' : 'Météo'}
         </button>
-        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEditExtra(${ws},${ei})" style="padding:6px 10px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEditExtra(${ws},${ei})" style="flex:1;padding:8px 6px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           ${(()=>{const wh=prev.whoop;const st=wh?.workout_strain??wh?.cycle_strain??null;return st!=null?'⚡ '+st.toFixed(1):'⚡ WHOOP';})()}
         </button>
-        <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div>
-        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Date de la séance</p>
-        <input type="date" id="pedit-date" value="${prev.date||''}"
-          style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
+    <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;">
+        <span style="font-size:16px;">📅</span>
+        <div style="flex:1;">
+          <p style="font-size:10px;font-weight:600;color:var(--muted);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.05em;">Date de la séance</p>
+          <input type="date" id="pedit-date" value="${prev.date||''}"
+            style="background:transparent;border:none;padding:0;font-size:14px;font-weight:700;color:var(--text);width:100%;outline:none;">
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
@@ -755,9 +774,9 @@ function openPerfEditExtraModal(ws, ei){
       ${stravaBlock}
       ${whoopBlock}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
-      <button onclick="closeModal()" style="padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Annuler</button>
-      <button onclick="_savePerfExtra(${ws},${ei})" style="padding:12px;background:#3B6D11;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;">✓ Enregistrer</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;padding:0 16px 20px;">
+      <button onclick="closeModal()" style="padding:13px;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;">Annuler</button>
+      <button onclick="_savePerfExtra(${ws},${ei})" style="padding:13px;background:#3B6D11;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 2px 8px ${c}30;">✓ Enregistrer</button>
     </div>
   </div>`;
   overlay.onclick = e => { if(e.target===overlay) closeModal(); };
