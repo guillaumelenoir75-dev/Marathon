@@ -217,12 +217,23 @@ exports.briefAfterFcRepos = onSchedule(
       const fcNotifKey='_brief_fc_notif_'+todayStr;
       if(state[fcNotifKey]===true){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); return; }
 
-      // Si le client a déjà généré le brief (ouverture app avant le tick serveur), ne pas rappeler l'IA.
-      // On marque quand même fait et on nettoie le trigger pour éviter les boucles.
+      // Si le brief a déjà été généré aujourd'hui (par le client ou le test),
+      // ne pas rappeler l'IA mais envoyer quand même la push avec le brief existant.
       if(state['_brief_matin_'+todayStr]===true){
-        console.log('briefAfterFcRepos: brief déjà généré par le client — skip IA');
+        console.log('briefAfterFcRepos: brief déjà généré — envoi push avec brief existant');
         await db.ref(`${ADMIN_STATE}/${fcNotifKey}`).set(true);
         await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove();
+        // Envoyer la push avec le brief existant dans _brief_pending
+        try{
+          const pending=state['_brief_pending'];
+          const existingBody=pending?`Brief du matin prêt — ouvre le Coach 🏃`:'Brief prêt';
+          const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
+          if(subSnap.val()){
+            await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${getCurrentWeek()}`,existingBody,'brief-matinal','/');
+          }else{
+            console.log('briefAfterFcRepos: pas de subscription — brief disponible dans l\'app');
+          }
+        }catch(ePush){console.warn('briefAfterFcRepos push (existing brief):',ePush.message);}
         return;
       }
 

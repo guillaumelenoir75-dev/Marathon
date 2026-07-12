@@ -1074,17 +1074,23 @@ exports.adminTestNotif = onRequest(
         );
 
         // Stocker le brief pour que le Coach l'affiche au tap de la notif
+        // Ne PAS poser _brief_matin_today : c'est un test, il ne doit pas bloquer le flux réel du matin
         if (briefContent) {
           await db.ref(`${ADMIN_STATE}/_brief_pending`).set({ content: briefContent, date: today, type: 'morning_brief' });
-          await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).set(true);
         }
         await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
         const notifTitle = '🌅 Brief du matin — TEST';
         const notifBody = pushBody || 'Brief matinal prêt — ouvre le Coach IA 🏃';
-        await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), notifTitle, notifBody, 'brief-matin-test', '/');
+        const pushSent = await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), notifTitle, notifBody, 'brief-matin-test', '/');
 
-        res.json({ success: true, message: 'Brief généré et push envoyée.' });
+        res.json({
+          success: true,
+          message: pushSent
+            ? 'Brief généré et push envoyée.'
+            : 'Brief généré mais push non envoyée (subscription manquante ou expirée) — ouvre le Coach dans l\'app.',
+          pushSent
+        });
         return;
       }
 
