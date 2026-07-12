@@ -118,8 +118,7 @@ function initFirebase(){
               setTimeout(() => {
                 if (state.whoop_token && state.whoop_token.access_token && typeof syncWhoop === 'function' && !_whoopSyncing) syncWhoop();
               }, 3000);
-              // Listener realtime sur _open_coach : réagit immédiatement dès que le backend le set,
-              // que l'app soit en foreground, background ou venant d'être focusée par clic notif.
+              // Listener realtime sur _open_coach (fallback : app déjà ouverte, notification arrive)
               if(!_visibilityListenerAdded){_visibilityListenerAdded=true;
               dbRef.child('_open_coach').on('value', async function(snap) {
                 if (!snap.val() || !firebaseReady) return;
@@ -129,6 +128,18 @@ function initFirebase(){
                 } catch(e) {}
               });
               } // fin guard _visibilityListenerAdded
+
+              // Ouverture coach depuis URL ?action=brief (clic notif → SW navigate)
+              (async () => {
+                try {
+                  const fromBriefUrl = window.location.search.includes('action=brief');
+                  if (!fromBriefUrl) return;
+                  history.replaceState({}, '', '/');
+                  // Consommer _open_coach si présent (évite double déclenchement)
+                  try { await dbRef.child('_open_coach').remove(); } catch(e) {}
+                  await openCoachFromNotif();
+                } catch(e) {}
+              })();
 
             },(error)=>{
               migrateState();
