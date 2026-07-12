@@ -1803,7 +1803,7 @@ async function loadCoachHistory(){
     window._pendingNotifTag = '';
     if (_fromPushNotif && _notifTag.includes('debrief')) {
       // Notif bilan hebdo : générer le bilan complet directement (même structure que brief matin)
-      try { await generateWeeklyBilanComplet(memos); } catch(_e) {}
+      setTimeout(() => generateWeeklyBilanComplet(memos).catch(()=>{}), 0);
     } else {
       try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
     }
