@@ -1469,21 +1469,20 @@ async function testBilanNotif() {
       }
     }
     if(!fullText) throw new Error('CF weeklyReport : réponse vide');
-    // Écrire dans Firebase AVANT la notification — comme la CF de production
+    // Écrire le contenu complet dans Firebase (pour checkPendingBrief)
     await dbRef.child('_brief_pending').set({type:'weekly_debrief',content:fullText,date:todayStr});
-    await dbRef.child('_open_coach').set(true);
-    // Afficher la notification locale
-    const reg = await navigator.serviceWorker.ready;
-    await reg.showNotification('📊 Bilan S'+cw+' — Semaine terminée !', {
-      body:'Ton bilan complet de la semaine est prêt. Appuie pour le voir.',
-      icon:'/icon-512-v3.png',badge:'/icon-192-v3.png',
-      tag:'notif_debrief_semaine-test',data:{tag:'notif_debrief_semaine-test'},requireInteraction:false
-    });
+    // Afficher la notification locale (simulation visuelle de la notif de production)
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('📊 Bilan S'+cw+' — Semaine terminée !', {
+        body:'Ton bilan complet de la semaine est prêt.',
+        icon:'/icon-512-v3.png',badge:'/icon-192-v3.png',
+        tag:'notif_debrief_semaine-test',data:{tag:'notif_debrief_semaine-test'},requireInteraction:false
+      });
+    } catch(e){}
     if(btn){btn.textContent='✅';btn.disabled=false;btn.style.background='#EAF3DE';btn.style.color='#3B6D11';setTimeout(()=>{btn.textContent='Tester';btn.style.background='';btn.style.color='';},2500);}
-    // Fallback foreground iOS : si _open_coach pas consommé par visibilitychange dans 2s → ouvrir coach directement
-    setTimeout(async()=>{
-      try{const snap=await dbRef.child('_open_coach').once('value');if(snap.val()){await dbRef.child('_open_coach').remove();openCoachFromNotif();}}catch(e){}
-    },2000);
+    // Ouvrir le coach directement — on est déjà dans l'app, pas besoin de timer ni de notif tap
+    openCoachFromNotif();
   } catch(e) {
     if(btn){btn.textContent='❌ Erreur';btn.disabled=false;setTimeout(()=>{btn.textContent='Tester';btn.style.background='';btn.style.color='';},3000);}
     alert('Erreur test bilan : '+e.message);
