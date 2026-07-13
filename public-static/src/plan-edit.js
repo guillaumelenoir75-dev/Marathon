@@ -372,9 +372,9 @@ function openPerfEditModal(ws, si){
         <button id="meteo-pedit-btn" onclick="importMeteoForPerfEdit(${ws},${si})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           🌤️ ${prev.meteo ? '✅ Météo' : 'Météo'}
         </button>
-        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEdit(${ws},${si})" style="flex:1;padding:8px 6px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+        ${isAdmin()?`<button id="whoop-pedit-btn" onclick="importWhoopForPerfEdit(${ws},${si})" style="flex:1;padding:8px 6px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           ${(()=>{ const wh=prev.whoop?.workout_strain??prev.whoop?.cycle_strain??null; return wh!=null?'⚡ '+wh.toFixed(1):'⚡ WHOOP'; })()}
-        </button>
+        </button>`:''}
       </div>
     </div>
     <!-- Contenu -->
@@ -729,9 +729,9 @@ function openPerfEditExtraModal(ws, ei){
         <button id="meteo-pedit-btn" onclick="importMeteoForPerfEditExtra(${ws},${ei})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;background:${prev.meteo?'#2E7D32':'#0C447C'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           🌤️ ${prev.meteo ? '✅ Météo' : 'Météo'}
         </button>
-        <button id="whoop-pedit-btn" onclick="importWhoopForPerfEditExtra(${ws},${ei})" style="flex:1;padding:8px 6px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+        ${isAdmin()?`<button id="whoop-pedit-btn" onclick="importWhoopForPerfEditExtra(${ws},${ei})" style="flex:1;padding:8px 6px;background:${prev.whoop?'rgba(124,58,237,0.85)':'rgba(139,92,246,0.7)'};border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
           ${(()=>{const wh=prev.whoop;const st=wh?.workout_strain??wh?.cycle_strain??null;return st!=null?'⚡ '+st.toFixed(1):'⚡ WHOOP';})()}
-        </button>
+        </button>`:''}
       </div>
     </div>
     <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
