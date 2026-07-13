@@ -78,6 +78,17 @@ async function testLocalNotif(type){
     });
     const btn = document.getElementById('test-notif-btn-'+type);
     if (btn) { btn.textContent = '✅'; btn.style.background = '#EAF3DE'; btn.style.color = '#3B6D11'; setTimeout(()=>{ btn.textContent='Tester'; btn.style.background=''; btn.style.color=''; }, 2500); }
+    // Fallback iOS foreground : notificationclick ne fire pas quand l'app est au 1er plan.
+    // Après 2s, si _open_coach n'a pas été consommé par visibilitychange (app backgroundée),
+    // l'ouvrir directement depuis le client.
+    if ((type === 'notif_debrief_semaine' || type === 'notif_brief_matin') && dbRef) {
+      setTimeout(async () => {
+        try {
+          const snap = await dbRef.child('_open_coach').once('value');
+          if (snap.val()) { await dbRef.child('_open_coach').remove(); openCoachFromNotif(); }
+        } catch(e) {}
+      }, 2000);
+    }
   } catch(e) {
     alert('Erreur test notif : '+e.message);
   }
