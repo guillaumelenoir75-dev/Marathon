@@ -246,6 +246,8 @@ async function openCoachFromNotif() {
   if (badge) badge.style.display = 'none';
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
+  // Overlay de chargement — s'affiche immédiatement, masqué par coach-ui quand le brief est prêt
+  if (typeof showBriefOverlay === 'function') showBriefOverlay('morning');
 
   // ── Nettoyage Firebase et refresh state (après le switch tab) ──
   // Consommer _open_coach (le chemin postMessage ne le supprime pas,

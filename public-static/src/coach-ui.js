@@ -707,6 +707,23 @@ async function extractAndSaveMemos(){
   } catch(e) { console.log('memo extraction failed', e); }
 }
 
+function showBriefOverlay(type) {
+  const el = document.getElementById('brief-loading-overlay');
+  if (!el) return;
+  const isWeekly = type === 'weekly';
+  document.getElementById('brief-overlay-icon').textContent = isWeekly ? '📊' : '☀️';
+  document.getElementById('brief-overlay-title').textContent = isWeekly ? 'Bilan de semaine' : 'Brief du matin';
+  document.getElementById('brief-overlay-sub').textContent = isWeekly ? 'Le Coach prépare ton bilan…' : 'Le Coach prépare ton résumé…';
+  el.style.display = 'flex';
+}
+function hideBriefOverlay() {
+  const el = document.getElementById('brief-loading-overlay');
+  if (!el) return;
+  el.style.transition = 'opacity 0.3s ease';
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; el.style.transition = ''; }, 320);
+}
+
 // Convertit les conditions météo en emoji pour l'affichage dans le header du brief
 function _meteoEmoji(conditions){
   if(!conditions) return null;
@@ -850,6 +867,7 @@ async function generateFullBriefFromNotif(memos) {
     const _notifMeteoTemp = meteoCtx ? meteoCtx.temperature : null;
     const _notifSessionTime = toutesSeancesAujourdHui.length > 0 && toutesSeancesAujourdHui[0].heure ? toutesSeancesAujourdHui[0].heure : null;
     const _notifBriefOpts = {isBrief:true, briefType:'morning', meteoIcon:_notifMeteoIcon, meteoTemp:_notifMeteoTemp, sessionTime:_notifSessionTime};
+    hideBriefOverlay();
     if(full) {
       addCoachMessage('coach', full, _notifBriefOpts);
       coachHistory.push({role: 'assistant', content: full, date: todayStr, isBrief:true, briefType:'morning', meteoIcon:_notifMeteoIcon, meteoTemp:_notifMeteoTemp, sessionTime:_notifSessionTime});
@@ -864,6 +882,7 @@ async function generateFullBriefFromNotif(memos) {
           }).join(' + ')
         : 'Pas de séance prévue ce matin';
       const fallback = '💪 Bonjour Guillaume ! ' + fallbackSeances + '. Pose-moi tes questions directement.';
+      hideBriefOverlay();
       addCoachMessage('coach', fallback);
       coachHistory.push({role: 'assistant', content: fallback, date: todayStr});
       saveCoachHistory();
@@ -871,6 +890,7 @@ async function generateFullBriefFromNotif(memos) {
   } catch(e) {
     console.error('generateFullBriefFromNotif error:', e);
     // En cas d'erreur, tenter un message de secours construit localement
+    hideBriefOverlay();
     const errFallback = '💪 Bonjour Guillaume ! Ouvre le Coach IA pour ton brief du jour — je suis prêt pour tes questions !';
     if(textEl) textEl.innerHTML = renderCoachText(errFallback);
   }
@@ -958,6 +978,7 @@ async function generateAndShowWeeklyBilan() {
     const snap = await dbRef.child('_brief_pending').once('value');
     const p = snap.val();
     if (loader && loader.parentNode) loader.remove();
+    hideBriefOverlay();
     if (p && p.content) {
       const todayStr = new Date().toISOString().slice(0,10);
       addCoachMessage('coach', p.content, {isBrief:true, briefType:'weekly'});
@@ -1255,6 +1276,7 @@ async function checkMorningBrief(memos, force) {
     const _cmMeteoTemp = meteoBrief ? meteoBrief.temperature : null;
     const _cmSessionTime = toutesSeancesAujourdHuiBrief.length > 0 && toutesSeancesAujourdHuiBrief[0].heure ? toutesSeancesAujourdHuiBrief[0].heure : null;
     const _cmBriefOpts = {isBrief:true, briefType:'morning', meteoIcon:_cmMeteoIcon, meteoTemp:_cmMeteoTemp, sessionTime:_cmSessionTime};
+    hideBriefOverlay();
     if(full) {
       addCoachMessage('coach', full, _cmBriefOpts);
       coachHistory.push({role:'assistant', content: full, date: new Date().toISOString().slice(0,10), isBrief:true, briefType:'morning', meteoIcon:_cmMeteoIcon, meteoTemp:_cmMeteoTemp, sessionTime:_cmSessionTime});
@@ -1444,6 +1466,7 @@ async function loadCoachHistory(){
           const _msgContainer = document.getElementById('coach-messages');
           if (!_msgContainer) return false;
           const _briefTypeOpt = _pendingType === 'weekly_bilan' ? 'weekly' : 'morning';
+          hideBriefOverlay();
           addCoachMessage('coach', _pendingResult.content, {isBrief:true, briefType:_briefTypeOpt});
           // Tagger le dernier élément pour pouvoir le retrouver/supprimer
           const _lastMsg = _msgContainer.lastElementChild;
