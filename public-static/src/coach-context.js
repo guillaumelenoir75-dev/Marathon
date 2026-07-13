@@ -21,6 +21,36 @@ function renderCoachText(t, streaming){
   }
   return h;
 }
+// Rendu spécial pour les briefs : sections ## → séparateurs visuels
+function renderBriefText(t){
+  if(!t) return '';
+  let s = t.replace(/```[\s\S]*?```/g,'').replace(/`([^`\n]*)`/g,'$1');
+  s = s.replace(/\n{3,}/g,'\n\n').trim();
+  s = fixAccents(s);
+  s = s.replace(/\*\*([^*\n]+)\*\*/g,'<strong style="font-weight:700;color:#0C447C;">$1</strong>');
+  const lines = s.split('\n');
+  let html = '', para = [];
+  const flush = () => {
+    const txt = para.join('<br>').trim();
+    if(txt) html += '<p style="margin:0 0 10px;line-height:1.75;font-size:14px;">'+txt+'</p>';
+    para = [];
+  };
+  for(const line of lines){
+    const hm = line.match(/^#{1,3}\s*(.+)/);
+    if(hm){
+      flush();
+      if(html) html += '<div style="border-top:1px solid rgba(12,68,124,0.1);margin:10px 0 12px;"></div>';
+      html += '<div style="font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 8px;">'+hm[1]+'</div>';
+    } else if(line.trim()===''){
+      flush();
+    } else {
+      para.push(line);
+    }
+  }
+  flush();
+  return html;
+}
+
 function addCoachMessage(role, text, opts){
   const container = document.getElementById('coach-messages');
   if(!container) return;
@@ -40,25 +70,33 @@ function addCoachMessage(role, text, opts){
   div.className = 'msg-enter';
 
   if(isBrief && isCoach) {
-    // Carte de brief premium — pleine largeur, fond dégradé subtil, sections bien séparées
     div.style.cssText = 'display:block;margin:4px 0 8px;';
     const briefType = (opts && opts.briefType) || 'morning';
     const headerBg = briefType === 'weekly' ? 'linear-gradient(135deg,#0C447C,#1B4FD8)' : 'linear-gradient(135deg,#1B4FD8,#E8530A)';
     const headerLabel = briefType === 'weekly' ? '📊 Bilan de semaine' : '☀️ Brief du matin';
-    const timeStr = nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    // Météo et heure de séance dans le header (morning only)
+    const _meteoIcon = (opts && opts.meteoIcon) || null;
+    const _meteoTemp = (opts && opts.meteoTemp != null) ? opts.meteoTemp+'°C' : null;
+    const _sessionTime = (opts && opts.sessionTime) || null;
+    let headerRight = '';
+    if(briefType === 'morning') {
+      if(_meteoIcon || _meteoTemp) headerRight += '<span style="font-size:12px;color:rgba(255,255,255,0.92);font-weight:600;">'+(_meteoIcon||'')+(_meteoTemp ? ' '+_meteoTemp : '')+'</span>';
+      if(_sessionTime) headerRight += '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;margin-left:6px;">⏱ '+_sessionTime+'</span>';
+    } else {
+      const _ts = nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      headerRight = '<span style="font-size:10px;color:rgba(255,255,255,0.7);">'+_ts+'</span>';
+    }
     div.innerHTML =
       '<div style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(12,68,124,0.13);border:1px solid rgba(12,68,124,0.1);">'
-      // Header coloré
       +'<div style="background:'+headerBg+';padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'
         +'<div style="display:flex;align-items:center;gap:8px;">'
           +'<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:13px;">🤖</span></div>'
           +'<span style="font-size:13px;font-weight:700;color:#fff;">'+headerLabel+'</span>'
         +'</div>'
-        +'<span style="font-size:10px;color:rgba(255,255,255,0.7);">'+timeStr+'</span>'
+        +'<div style="display:flex;align-items:center;gap:4px;">'+headerRight+'</div>'
       +'</div>'
-      // Corps du brief
       +'<div style="background:#fff;padding:14px 16px;">'
-        +'<div data-coach-text="1" style="font-size:14px;color:var(--text,#1a1a1a);line-height:1.75;">'+renderCoachText(text)+'</div>'
+        +'<div data-coach-text="1" style="color:var(--text,#1a1a1a);">'+renderBriefText(text)+'</div>'
       +'</div>'
       +'</div>';
   } else {

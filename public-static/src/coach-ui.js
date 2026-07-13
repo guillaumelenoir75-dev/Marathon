@@ -707,6 +707,18 @@ async function extractAndSaveMemos(){
   } catch(e) { console.log('memo extraction failed', e); }
 }
 
+// Convertit les conditions météo en emoji pour l'affichage dans le header du brief
+function _meteoEmoji(conditions){
+  if(!conditions) return null;
+  const c = conditions.toLowerCase();
+  if(c.includes('soleil')||c.includes('ensoleillé')||c.includes('dégagé')) return '☀️';
+  if(c.includes('pluie')||c.includes('pluvieux')||c.includes('averse')) return '🌧️';
+  if(c.includes('neige')) return '❄️';
+  if(c.includes('orage')) return '⛈️';
+  if(c.includes('brouillard')||c.includes('brume')) return '🌫️';
+  if(c.includes('nuage')||c.includes('nuageux')||c.includes('voilé')||c.includes('couvert')) return '⛅';
+  return '🌡️';
+}
 // Génère le brief complet après affichage du teaser de notification
 async function generateFullBriefFromNotif(memos) {
   const container = document.getElementById('coach-messages');
@@ -834,9 +846,13 @@ async function generateFullBriefFromNotif(memos) {
       }
     }
 
+    const _notifMeteoIcon = meteoCtx ? _meteoEmoji(meteoCtx.conditions) : null;
+    const _notifMeteoTemp = meteoCtx ? meteoCtx.temperature : null;
+    const _notifSessionTime = toutesSeancesAujourdHui.length > 0 && toutesSeancesAujourdHui[0].heure ? toutesSeancesAujourdHui[0].heure : null;
+    const _notifBriefOpts = {isBrief:true, briefType:'morning', meteoIcon:_notifMeteoIcon, meteoTemp:_notifMeteoTemp, sessionTime:_notifSessionTime};
     if(full) {
-      addCoachMessage('coach', full);
-      coachHistory.push({role: 'assistant', content: full, date: todayStr});
+      addCoachMessage('coach', full, _notifBriefOpts);
+      coachHistory.push({role: 'assistant', content: full, date: todayStr, isBrief:true, briefType:'morning', meteoIcon:_notifMeteoIcon, meteoTemp:_notifMeteoTemp, sessionTime:_notifSessionTime});
       saveCoachHistory();
       try { await dbRef.child('_brief_pending').set({content: full, date: todayStr, type:'morning_brief'}); } catch(e){}
     } else {
@@ -1196,6 +1212,7 @@ async function checkMorningBrief(memos, force) {
       const t=Math.max(ef-70,ef*0.85); // tempo ~70s plus vite que EF (approx)
       return Math.floor(t/60)+"'"+(Math.round(t%60)+'').padStart(2,'0')+'/km';
     })(),
+    heure_lecture: now.getHours(),
   };
   try {
     // ── Afficher le loader "Le Coach écrit" immédiatement ──
@@ -1234,9 +1251,13 @@ async function checkMorningBrief(memos, force) {
 
     // ── Retirer le loader et afficher le message d'un coup ──
     if(loader && loader.parentNode) loader.remove();
+    const _cmMeteoIcon = meteoBrief ? _meteoEmoji(meteoBrief.conditions) : null;
+    const _cmMeteoTemp = meteoBrief ? meteoBrief.temperature : null;
+    const _cmSessionTime = toutesSeancesAujourdHuiBrief.length > 0 && toutesSeancesAujourdHuiBrief[0].heure ? toutesSeancesAujourdHuiBrief[0].heure : null;
+    const _cmBriefOpts = {isBrief:true, briefType:'morning', meteoIcon:_cmMeteoIcon, meteoTemp:_cmMeteoTemp, sessionTime:_cmSessionTime};
     if(full) {
-      addCoachMessage('coach', full);
-      coachHistory.push({role:'assistant', content: full, date: new Date().toISOString().slice(0,10)});
+      addCoachMessage('coach', full, _cmBriefOpts);
+      coachHistory.push({role:'assistant', content: full, date: new Date().toISOString().slice(0,10), isBrief:true, briefType:'morning', meteoIcon:_cmMeteoIcon, meteoTemp:_cmMeteoTemp, sessionTime:_cmSessionTime});
       saveCoachHistory();
       try { await dbRef.child('_brief_pending').set({content: full, date: todayStr, type:'morning_brief'}); } catch(e){}
       // Marquer en DB maintenant que le brief est généré (après succès, pas avant)
@@ -1546,7 +1567,7 @@ async function loadCoachHistory(){
           if (!_briefInDom && coachHistory.length > 0) {
             const _briefItem = [...coachHistory].reverse().find(m => m.isBrief && m.date === _keptDate);
             if (_briefItem && _coachMsgs) {
-              addCoachMessage('coach', _briefItem.content, {isBrief:true, briefType:(_briefItem.briefType||'morning')});
+              addCoachMessage('coach', _briefItem.content, {isBrief:true, briefType:(_briefItem.briefType||'morning'), meteoIcon:(_briefItem.meteoIcon||null), meteoTemp:(_briefItem.meteoTemp!=null?_briefItem.meteoTemp:null), sessionTime:(_briefItem.sessionTime||null)});
               const _lastMsg = _coachMsgs.lastElementChild;
               if (_lastMsg) _lastMsg.dataset.briefDate = _keptDate;
               _briefShownToday = true;

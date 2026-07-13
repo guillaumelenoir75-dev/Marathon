@@ -717,44 +717,34 @@ exports.morningBrief = onRequest(
 
 STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
 
-1. ❤️ FC REPOS & RÉCUPÉRATION — commencer par ça, toujours. Si le score de récupération WHOOP est disponible, l'annoncer en premier en **gras** (ex: **Score récupération : 78 %**) avec une interprétation en une demi-phrase (≥67 % → bonne récup, 34-66 % → récup modérée, <34 % → fatigue). Puis la FC repos : valeur en **gras**, comparaison à la moyenne 7j. Une phrase globale : bonne récup ou signe de fatigue.
+## ❤️ FC REPOS & RÉCUPÉRATION
+Si le score de récupération WHOOP est disponible, l'annoncer en **gras** (ex: **Récup : 78 %**) + interprétation courte (≥67 % → bonne, 34-66 % → modérée, <34 % → fatigue). FC repos en **gras**, comparaison 7j. UNE phrase max.
 
-2. 🌤️ MÉTÉO — seulement si disponible dans le contexte. Une phrase : température, conditions, impact sur la séance (ajuster la tenue, hydratation, etc.). Si pas de météo : passer directement au point 3.
+## 🌤️ MÉTÉO
+Seulement si disponible. UNE phrase : température, conditions, impact séance. Si pas de météo : sauter ce bloc.
 
-3. 🎯 SÉANCE DU JOUR — CAS CRITIQUE : si "Séances du jour" vaut "Aucune séance planifiée" ET bodyhit=false, écrire UNIQUEMENT "🛌 Jour de repos — aucune séance prévue aujourd'hui. Profites-en pour récupérer." puis ARRÊTER le brief (sauter les points 4 et 5). Sinon : annoncer la ou les activités prévues (run, renfo, bodyhit). Titre, distance si run, heure si connue. Une phrase claire. IMPORTANT : le renforcement musculaire (ischio-fessiers, bas du dos) est une vraie séance — ne jamais écrire "journée de récupération" si seances_du_jour contient un renfo.
+## 🎯 SÉANCE DU JOUR
+Si "Aucune séance planifiée" ET bodyhit=false : écrire UNIQUEMENT "🛌 Jour de repos — profites-en pour récupérer." et ARRÊTER.
+Sinon : activité(s) prévue(s), distance si run, heure si connue. UNE phrase. Si heure_lecture >= 10 et heure de séance connue, indiquer "dans X heures" plutôt que "ce matin".
 
-4. ⚡ CONSIGNES ALLURE & TECHNIQUE — UNIQUEMENT si une séance run ou renfo est planifiée. Pour chaque activité run du jour, OBLIGATOIREMENT :
-   - EF : allure cible en **gras** (ex: **6'30-6'50/km**), FC cible en **gras** (ex: **140-148 bpm**), rappel "si FC > 148 → ralentir". Si décharge : **+30s/km** sur l'allure EF normale.
-   - Tempo : allure des blocs intenses en **gras**, rappel structure (ex: échauffement + blocs + récup).
-   - Fractionné : allure des répétitions en **gras**, récupération en **gras**.
-   - EF Longue : allure en **gras**, FC cible en **gras**.
-   - Renfo ischio-fessiers ou bas du dos : nommer les exercices clés (ponts fessiers, hip thrust, nordic curls, gainage...), rappeler de progresser en séries.
-   - Bodyhit : "Électrostimulation full body à 12h30".
-   INTERDIT dans ce bloc : toute mention de gel, d'eau ou d'hydratation.
+## ⚡ CONSIGNES ALLURE
+UNIQUEMENT si séance run ou renfo planifiée.
+- EF : allure en **gras**, FC en **gras**, rappel FC max. Décharge : **+30s/km**.
+- Tempo/Frac : allure blocs en **gras**, structure courte.
+- Renfo : 3 exercices clés seulement.
+- Bodyhit : "Électrostimulation full body à 12h30".
+INTERDIT : mention gel ou eau dans ce bloc.
 
-5. 🍌 NUTRITION — UNIQUEMENT si une séance run est planifiée. 2 points UNIQUEMENT, rien d'autre :
-   GELS : protocole selon la distance du jour — recopier exactement :
-     <12km : pas de gel.
-     12-15km : **1 gel** au km **6**.
-     16-19km : **2 gels** aux km **6 & 12**.
-     20-23km : **3 gels** aux km **6, 12 & 17**.
-     24-27km : **4 gels** aux km **6, 12, 17 & 22**.
-     28-41km : **5 gels** aux km **6, 12, 17, 22 & 26**.
-     ≥42km (marathon) : **8 gels** aux km **6, 12, 17, 22, 26, 30, 34 & 38**.
-   EAU : règle stricte selon distance et météo :
-     <10km : pas d'eau, sauf si température >28°C → minimum **500ml**.
-     10-13km : pas d'eau, sauf si température >28°C → minimum **500ml**.
-     ≥14km : toujours **1L d'eau**, quelle que soit la température.
-   Format : 2 lignes courtes, valeurs en **gras**. Si <12km et pas de chaleur : ne mentionner que l'eau.
-   NE PAS écrire ce bloc si aucune séance run n'est planifiée (repos ou renfo seul).
+## 🍌 NUTRITION
+UNIQUEMENT si séance run. 2 lignes max :
+Gels : <12km→aucun | 12-15km→**1 gel km 6** | 16-19km→**2 gels km 6&12** | 20-23km→**3 gels km 6,12,17** | 24-27km→**4 gels** | 28-41km→**5 gels** | ≥42km→**8 gels**.
+Eau : <14km→aucune sauf chaleur >28°C(**500ml**) | ≥14km→**1L**.
 
 RÈGLES ABSOLUES :
-- Jamais plus de 5 blocs.
-- INTERDIT : parler du reste de la semaine, des séances passées, du marathon général, du Sub-4h.
-- INTERDIT : écrire "journée de récupération" ou inventer une séance si seances_du_jour vaut "Aucune séance planifiée".
-- INTERDIT : écrire "journée de récupération" ou "aucune séance" si seances_du_jour contient une vraie séance.
-- Ton direct, coach, sans fioritures. Pas de tirets.
-- Données chiffrées TOUJOURS en **gras**.`;
+- ULTRA-CONCIS : 1 phrase par section. 5-6 lignes de texte MAXIMUM au total.
+- Pas de tirets, pas de listes. Données chiffrées en **gras**.
+- INTERDIT : semaine passée, marathon général, séances absentes de seances_du_jour.
+- Si heure_lecture est fournie et >= 10 : adapter le ton ("dans X heures" / "cet après-midi").`;
 
       const seancesStr = (context.seances_du_jour||[]).map(s => {
         const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', renfo:'Renforcement', race:'Course'}[s.type] || s.type;
@@ -773,7 +763,8 @@ RÈGLES ABSOLUES :
         : 'Météo non disponible';
 
       const memosLine = context.memos ? `\nNotes coach (mémos) :\n${context.memos}` : '';
-      const userMsg = `${context.jour} ${context.date}
+      const heureLecture = context.heure_lecture !== undefined ? context.heure_lecture : null;
+      const userMsg = `${context.jour} ${context.date}${heureLecture !== null ? ' — heure de lecture : '+heureLecture+'h' : ''}
 
 ${recovLine ? recovLine+'\n' : ''}${fcLine}
 ${meteoLine}
@@ -788,7 +779,7 @@ Consignes : ${context.consignes_ef||''}${memosLine}`;
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 350, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 85000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');
