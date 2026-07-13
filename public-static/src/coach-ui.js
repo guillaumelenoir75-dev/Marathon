@@ -872,7 +872,6 @@ async function checkPendingBrief() {
   } catch(e) {}
 
   // Fallback sur state local uniquement si Firebase a échoué (null)
-  // Ne pas écraser un p valide sans content (ex: {needs_full_bilan:true})
   if (!p) {
     try {
       const raw = state['_brief_pending'];
