@@ -1385,11 +1385,13 @@ async function checkWeeklyBilan(memos, force) {
       saveCoachHistory();
       _addBriefActionButtons();
     }
+    _briefShownToday = true; // empêche tout brief/bilan parasite si openCoachFromNotif est appelé 2 fois
     return true;
   } catch(e) {
     const loader = document.getElementById('bilan-loader');
     if (loader && loader.parentNode) loader.remove();
     addCoachMessage('coach', '📊 Bilan S'+cw+' : '+seancesFaites+'/'+seancesTotal+' séances réalisées. Une question ?');
+    _briefShownToday = true;
     return true;
   }
 }
