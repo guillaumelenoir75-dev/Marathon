@@ -213,8 +213,8 @@ async function openCoachFromNotif() {
   if (badge) badge.style.display = 'none';
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
-  _openCoachFromNotifActive = false; // Libérer avant loadCoachHistory — le streaming ne doit pas bloquer les appels suivants
   try { await loadCoachHistory(); } catch(e) {}
+  _openCoachFromNotifActive = false; // Libérer après loadCoachHistory — évite qu'un 2e appel concurrent flipe _coachInitDone pendant le streaming
 }
 
 // SW → client postMessage (notification tap quand app déjà ouverte en arrière-plan)

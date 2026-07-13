@@ -82,6 +82,11 @@ async function testLocalNotif(type){
     // Le tap sur la notif (bannière ou centre de notifs) déclenche SW → postMessage → openCoachFromNotif.
     // Si l'utilisateur ouvre l'onglet Coach manuellement, loadCoachHistory → checkPendingBrief trouve _brief_pending.
   } catch(e) {
+    // Nettoyer les flags Firebase si la notification n'a pas pu être affichée
+    if (dbRef && (type === 'notif_debrief_semaine' || type === 'notif_brief_matin')) {
+      try { await dbRef.child('_brief_pending').remove(); } catch(e2) {}
+      try { await dbRef.child('_open_coach').remove(); } catch(e2) {}
+    }
     alert('Erreur test notif : '+e.message);
   }
 }

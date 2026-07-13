@@ -879,8 +879,14 @@ async function checkPendingBrief() {
     } catch(e) {}
   }
 
-  // needs_full_bilan : flag test bilan hebdo (pas de contenu pré-généré — checkWeeklyBilan génère à la volée)
+  // needs_full_bilan : flag bilan hebdo (pas de contenu pré-généré — checkWeeklyBilan génère à la volée)
   if (p && p.needs_full_bilan) {
+    // Flag périmé (>2 jours) → supprimer silencieusement pour éviter un bilan intempestif
+    if (p.date && (new Date(today) - new Date(p.date)) / 86400000 > 2) {
+      try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
+      delete state['_brief_pending'];
+      return false;
+    }
     try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
     delete state['_brief_pending'];
     return { needs_full_bilan: true };
@@ -1550,8 +1556,7 @@ async function loadCoachHistory(){
           // Afficher les boutons Garder / Supprimer
           setTimeout(() => _addBriefActionButtons(), 200);
           // Ouverture depuis notification → afficher le DÉBUT du brief (pas la fin)
-          if (window._coachOpenedFromNotif && _lastMsg) {
-            window._coachOpenedFromNotif = false;
+          if (_fromPushNotif && _lastMsg) {
             setTimeout(() => {
               // Remonter au séparateur de date si présent juste avant, sinon au message
               const _scrollTarget = (_lastMsg.previousElementSibling && _lastMsg.previousElementSibling.classList.contains('chat-date-sep'))
@@ -1602,7 +1607,7 @@ async function loadCoachHistory(){
       try { const lv = await dbRef.child(lastVisitKey).once('value'); lastVisit = lv.val()||''; } catch(e) {}
       const todayStr = now.toISOString().slice(0,10);
 
-      if(isMonday && isMorning && lastVisit !== todayStr) {
+      if(isMonday && isMorning && lastVisit !== todayStr && !_needsFullBilan && !_needsFullBrief) {
         try { dbRef.child(lastVisitKey).set(todayStr); } catch(e) {}
 
         // Construire le briefing semaine sans backticks
