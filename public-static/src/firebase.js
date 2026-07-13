@@ -147,6 +147,14 @@ function initFirebase(){
                   if (snap.val()) {
                     await dbRef.child('_open_coach').remove();
                     await openCoachFromNotif();
+                    return;
+                  }
+                  // _open_coach peut avoir été consommé par le timer 2s (app au premier plan) ;
+                  // _brief_pending persiste jusqu'à ce que checkPendingBrief() le traite → fallback fiable
+                  const bSnap = await dbRef.child('_brief_pending').once('value');
+                  const bp = bSnap.val();
+                  if (bp && (bp.needs_full_bilan || bp.needs_full_brief)) {
+                    await openCoachFromNotif();
                   }
                 } catch(e) {}
               });
