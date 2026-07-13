@@ -1411,6 +1411,10 @@ function _bilanStep(msg, ok) {
 // Test bilan hebdo : switch direct vers l'onglet Coach + génération immédiate du bilan
 // Pas de délégation à openCoachFromNotif — tout est fait ici pour fiabilité maximale
 async function testBilanNotif() {
+  // 0. Fermer le modal de préférences (sinon il couvre le Coach)
+  var modalOv = document.getElementById('prefs-modal-overlay');
+  if (modalOv) modalOv.remove();
+
   _bilanStep('Démarrage test bilan…');
   const btn = document.getElementById('test-notif-btn-notif_debrief_semaine');
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
