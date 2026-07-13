@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Politique de confidentialité — En Piste</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fb; color: #1a1a1a; line-height: 1.6; }
+    .header { background: linear-gradient(135deg, #0C447C, #1B4FD8); padding: 40px 20px 30px; text-align: center; }
+    .header h1 { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+    .header p { font-size: 13px; color: rgba(255,255,255,0.75); }
+    .back { display: inline-flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 600; text-decoration: none; margin-bottom: 20px; }
+    .container { max-width: 680px; margin: 0 auto; padding: 24px 16px 60px; }
+    h2 { font-size: 15px; font-weight: 800; color: #0C447C; margin: 28px 0 10px; border-left: 3px solid #E8530A; padding-left: 10px; }
+    p, li { font-size: 14px; color: #444; margin-bottom: 8px; }
+    ul { padding-left: 18px; margin-bottom: 8px; }
+    li { margin-bottom: 4px; }
+    .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; border: 1px solid #e8eef5; }
+    .tag { display: inline-block; background: #EBF0FF; color: #1B4FD8; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; margin-bottom: 8px; }
+    a { color: #1B4FD8; }
+    .footer { text-align: center; font-size: 12px; color: #aaa; margin-top: 40px; }
+    .strava-badge { display: inline-flex; align-items: center; gap: 6px; background: #FC4C02; color: #fff; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/" class="back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Retour à l'app
+    </a>
+    <h1>Politique de confidentialité</h1>
+    <p>Dernière mise à jour : juillet 2026</p>
+  </div>
+
+  <div class="container">
+
+    <div class="card">
+      <p>Cette politique décrit comment <strong>En Piste</strong> collecte, utilise et protège vos données personnelles, conformément au Règlement Général sur la Protection des Données (RGPD).</p>
+    </div>
+
+    <h2>1. Éditeur de l'application</h2>
+    <div class="card">
+      <p><strong>En Piste</strong> est une application web progressive (PWA) de préparation marathon développée par :</p>
+      <p><strong>Guillaume Lenoir</strong><br>
+      Email : <a href="mailto:guillaumelenoir75@gmail.com">guillaumelenoir75@gmail.com</a></p>
+    </div>
+
+    <h2>2. Données collectées</h2>
+
+    <div class="card">
+      <span class="tag">Compte</span>
+      <ul>
+        <li>Adresse e-mail (authentification)</li>
+        <li>Rôle dans l'application (admin / athlète)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <span class="tag">Plan d'entraînement</span>
+      <ul>
+        <li>Séances planifiées et réalisées (type, distance, allure, fréquence cardiaque)</li>
+        <li>FC repos quotidienne saisie manuellement</li>
+        <li>Objectifs marathon (date, temps cible)</li>
+        <li>Notes de l'entraîneur (mémos coach)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <span class="tag">Strava</span>
+      <p>Si vous connectez votre compte Strava, nous accédons aux données suivantes via l'API Strava (scope <code>activity:read</code>) :</p>
+      <ul>
+        <li>Vos activités de course à pied (distance, durée, allure, FC, tracé GPS)</li>
+        <li>Informations de profil athlète (prénom, nom)</li>
+      </ul>
+      <p>Ces données sont utilisées uniquement pour pré-remplir la validation de vos séances. Aucune donnée Strava n'est partagée avec des tiers.</p>
+    </div>
+
+    <div class="card">
+      <span class="tag">WHOOP</span>
+      <p>Si vous connectez votre compte WHOOP, nous récupérons :</p>
+      <ul>
+        <li>Score de récupération, HRV, FC repos, SpO2</li>
+        <li>Performance de sommeil, durée de sommeil</li>
+        <li>Charge journalière (strain)</li>
+      </ul>
+      <p>Ces données alimentent le brief du matin et le bilan hebdomadaire généré par le Coach IA.</p>
+    </div>
+
+    <div class="card">
+      <span class="tag">Localisation</span>
+      <p>Votre position géographique approximative peut être enregistrée (avec votre accord) pour afficher la météo locale à l'heure de vos séances. Elle n'est jamais partagée.</p>
+    </div>
+
+    <div class="card">
+      <span class="tag">Notifications push</span>
+      <p>Si vous activez les notifications, un identifiant de subscription push (endpoint, clé publique) est enregistré pour vous envoyer des rappels de séances et des bilans hebdomadaires.</p>
+    </div>
+
+    <h2>3. Utilisation des données</h2>
+    <div class="card">
+      <p>Vos données sont utilisées exclusivement pour :</p>
+      <ul>
+        <li>Afficher et gérer votre plan d'entraînement marathon personnalisé</li>
+        <li>Générer des analyses et conseils personnalisés via un Coach IA (Anthropic Claude)</li>
+        <li>Vous envoyer des rappels de séances et bilans hebdomadaires</li>
+        <li>Importer automatiquement vos activités depuis Strava ou Garmin</li>
+        <li>Afficher la météo locale à l'heure de vos séances</li>
+      </ul>
+    </div>
+
+    <h2>4. Partage avec des tiers</h2>
+    <div class="card">
+      <p>Nous partageons un minimum de données avec les services suivants :</p>
+      <ul>
+        <li><strong>Google Firebase</strong> (hébergement, base de données, authentification) — <a href="https://firebase.google.com/support/privacy" target="_blank">politique de confidentialité</a></li>
+        <li><strong>Anthropic Claude</strong> (génération des briefs et analyses Coach IA) — vos données d'entraînement anonymisées sont envoyées à l'API Anthropic pour générer des conseils personnalisés — <a href="https://www.anthropic.com/privacy" target="_blank">politique de confidentialité</a></li>
+        <li><strong>Strava</strong> (si connecté) — <a href="https://www.strava.com/legal/privacy" target="_blank">politique de confidentialité Strava</a></li>
+        <li><strong>WHOOP</strong> (si connecté) — <a href="https://www.whoop.com/us/en/privacy-policy/" target="_blank">politique de confidentialité WHOOP</a></li>
+        <li><strong>Open-Meteo</strong> (API météo open source, sans compte) — aucune donnée personnelle transmise</li>
+      </ul>
+      <p>Nous ne vendons, ne louons et ne partageons jamais vos données personnelles à des fins commerciales.</p>
+    </div>
+
+    <h2>5. Durée de conservation</h2>
+    <div class="card">
+      <ul>
+        <li>Vos données sont conservées tant que votre compte est actif.</li>
+        <li>En cas de suppression de compte, toutes vos données sont effacées dans les 30 jours.</li>
+        <li>Les tokens Strava et WHOOP peuvent être révoqués à tout moment depuis l'écran Compte.</li>
+      </ul>
+    </div>
+
+    <h2>6. Vos droits (RGPD)</h2>
+    <div class="card">
+      <p>Conformément au RGPD, vous disposez des droits suivants :</p>
+      <ul>
+        <li><strong>Droit d'accès</strong> : obtenir une copie de vos données</li>
+        <li><strong>Droit de rectification</strong> : corriger vos données inexactes</li>
+        <li><strong>Droit à l'effacement</strong> : demander la suppression de vos données</li>
+        <li><strong>Droit à la portabilité</strong> : recevoir vos données dans un format structuré</li>
+        <li><strong>Droit d'opposition</strong> : vous opposer à certains traitements</li>
+        <li><strong>Droit de révocation</strong> : déconnecter Strava ou WHOOP à tout moment depuis l'app</li>
+      </ul>
+      <p>Pour exercer ces droits : <a href="mailto:guillaumelenoir75@gmail.com">guillaumelenoir75@gmail.com</a></p>
+    </div>
+
+    <h2>7. Sécurité</h2>
+    <div class="card">
+      <p>Vos données sont stockées sur les serveurs Google Firebase (Europe — région europe-west1). L'accès est sécurisé par authentification Firebase et des règles de base de données qui garantissent que chaque utilisateur ne peut accéder qu'à ses propres données.</p>
+    </div>
+
+    <h2>8. Contact</h2>
+    <div class="card">
+      <p>Pour toute question relative à cette politique de confidentialité :<br>
+      <a href="mailto:guillaumelenoir75@gmail.com">guillaumelenoir75@gmail.com</a></p>
+    </div>
+
+    <div class="footer">
+      <p>En Piste — Application de préparation marathon</p>
+      <p style="margin-top:6px;"><a href="/legal" style="color:#aaa;">Mentions légales</a> · <a href="/" style="color:#aaa;">Retour à l'app</a></p>
+    </div>
+
+  </div>
+</body>
+</html>

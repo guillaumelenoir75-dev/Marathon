@@ -445,6 +445,7 @@ async function adminDeleteUser(uid,label){
 async function checkStravaStatus() {
   const label = document.getElementById('strava-status-label');
   const btn = document.getElementById('strava-connect-btn');
+  const disconnectBtn = document.getElementById('strava-disconnect-btn');
   if (!label || !btn) return;
   try {
     const token = await getAuthToken();
@@ -455,16 +456,40 @@ async function checkStravaStatus() {
     if (data.needsAuth) {
       label.textContent = 'Non connecté';
       label.style.color = '#e53e3e';
-      btn.style.display = 'block';
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Connecter';
+      btn.style.background = '#FC4C02';
+      btn.style.display = 'flex';
+      if (disconnectBtn) disconnectBtn.style.display = 'none';
     } else {
       label.textContent = 'Connecté ✓';
       label.style.color = '#3B6D11';
-      btn.textContent = 'Reconnecter';
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Reconnecter';
       btn.style.background = '#888';
-      btn.style.display = 'block';
+      btn.style.display = 'flex';
+      if (disconnectBtn) disconnectBtn.style.display = 'block';
     }
   } catch(e) {
     label.textContent = 'Statut inconnu';
+  }
+}
+
+async function disconnectStrava() {
+  const btn = document.getElementById('strava-disconnect-btn');
+  const connectBtn = document.getElementById('strava-connect-btn');
+  const label = document.getElementById('strava-status-label');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    if (dbRef) await dbRef.child('strava_token').remove();
+    if (typeof state !== 'undefined') delete state.strava_token;
+    if (label) { label.textContent = 'Non connecté'; label.style.color = '#e53e3e'; }
+    if (connectBtn) {
+      connectBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Connecter';
+      connectBtn.style.background = '#FC4C02';
+    }
+    if (btn) { btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'Déconnecter'; }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Déconnecter'; }
+    alert('Erreur lors de la déconnexion Strava');
   }
 }
 
