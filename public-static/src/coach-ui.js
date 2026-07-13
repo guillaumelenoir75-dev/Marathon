@@ -798,39 +798,47 @@ async function generateFullBriefFromNotif(memos) {
     });
     const toutesSeancesAujourdHui = [...seancesAujourdHui, ...renfoAujourdHui];
 
-    // ── Contexte MINIMAL — uniquement aujourd'hui ──
+    // ── Contexte — clés alignées sur ce qu'attend le CF morningBrief ──
     const fcCtxNotif = buildFcReposContext();
+    const _whoopDataNotif = state.whoop_data || null;
     const ctx = {
-      INSTRUCTION: 'Brief UNIQUEMENT sur AUJOURD\'HUI. 5 à 8 phrases max. Structure stricte : 1) FC repos 2) Météo si disponible 3) Conseils UNIQUEMENT pour les séances listées dans seances_today_liste. NE JAMAIS mentionner ni inventer de séances absentes de seances_today_liste. NE PAS résumer la semaine ni les performances passées.',
-      type: 'brief_matin_court',
+      type: 'brief_matin',
       date: todayStr,
       jour: joursNoms[dow] || '',
+      heure_lecture: now.getHours(),
       fc_repos_bpm: state['fc_repos_' + todayStr] || state['fc_repos'] || null,
       fc_repos_moyenne_7j: fcCtxNotif.stats_7j ? fcCtxNotif.stats_7j.moyenne : null,
-      fc_repos_note: fcCtxNotif.alerte_fatigue || null,
-      meteo: meteoCtx || null,
-      instruction_meteo: meteoCtx && meteoCtx.impact_performance && meteoCtx.impact_performance.elevation_fc_bpm > 0
-        ? `CHALEUR AUJOURD'HUI ${meteoCtx.temperature}°C : impact FC +${meteoCtx.impact_performance.elevation_fc_bpm} bpm, perte perf -${meteoCtx.impact_performance.perte_perf_pct}%, ralentissement +${meteoCtx.impact_performance.ralent_sec_km} sec/km. ` +
-          `Zone EF à viser : ${meteoCtx.impact_performance.zone_ef_ajustee}. CONSEIL OBLIGATOIRE : mentionner la chaleur et ses conséquences concrètes sur l'allure et la FC attendue.`
-        : null,
-      seances_today_liste: toutesSeancesAujourdHui.length > 0
-        ? toutesSeancesAujourdHui.map(s => `${s.type.toUpperCase()}: ${s.titre}${s.km ? ' '+s.km+'km' : ''}${s.heure ? ' à '+s.heure : ''}${s.allure ? ' (allure: '+s.allure+')' : ''}`)
-        : ['AUCUNE SÉANCE PLANIFIÉE AUJOURD\'HUI — ne pas inventer de séance'],
-      seances_today_count: toutesSeancesAujourdHui.length,
-      demain_premier_apercu: seancesJoursSuivants.length > 0 ? {
-        titre: seancesJoursSuivants[0].titre,
-        type: seancesJoursSuivants[0].type,
-        km: seancesJoursSuivants[0].km,
-        jour: seancesJoursSuivants[0].jour,
-        heure: seancesJoursSuivants[0].heure || '',
-        allure: seancesJoursSuivants[0].allure || null,
+      fc_repos_alerte: fcCtxNotif.alerte_fatigue || null,
+      whoop_recovery_score: _whoopDataNotif ? (_whoopDataNotif.latest_recovery_score ?? null) : null,
+      meteo: meteoCtx ? {
+        temperature: meteoCtx.temperature,
+        conditions: meteoCtx.conditions,
+        ressenti: meteoCtx.ressenti,
+        vent_kmh: meteoCtx.vent_kmh,
+        zone_ef_ajustee: meteoCtx.impact_performance ? meteoCtx.impact_performance.zone_ef_ajustee : null,
+        elevation_fc_bpm: meteoCtx.impact_performance ? meteoCtx.impact_performance.elevation_fc_bpm : null,
+        conseil_chaleur: meteoCtx.impact_performance && meteoCtx.impact_performance.elevation_fc_bpm > 0
+          ? `Chaleur ${meteoCtx.temperature}°C : FC +${meteoCtx.impact_performance.elevation_fc_bpm} bpm. Zone EF effective : ${meteoCtx.impact_performance.zone_ef_ajustee||'143-154 bpm'}.`
+          : null,
       } : null,
-      type_semaine: [8,12,16,20,26,30].includes(CW) ? 'DÉCHARGE' : 'NORMALE',
-      allure_ef_actuelle: getBestEfPace(),
-      consigne_allure_aujourd_hui: [8,12,16,20,26,30].includes(CW)
-        ? 'Semaine DÉCHARGE — allure EF lente, FC < 140 bpm'
-        : 'Semaine normale — allure EF, FC 140-148 bpm',
-      infos_importantes: memos || undefined,
+      seances_du_jour: toutesSeancesAujourdHui.map(s => ({
+        type: s.type,
+        titre: s.titre,
+        km: s.km || null,
+        heure: s.heure || null,
+        allure_cible: s.allure || null,
+      })),
+      memos: memos || null,
+      consignes_ef: [8,12,16,20,26,30].includes(CW)
+        ? 'Semaine DÉCHARGE : allure EF lente, FC < 140 bpm'
+        : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
+      allure_ef: getBestEfPace() || null,
+      allure_marathon: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })() || null,
+      allure_tempo: (()=>{
+        const ef=paceStrToSec(getBestEfPace()||"6'40");
+        const t=Math.max(ef-70,ef*0.85);
+        return Math.floor(t/60)+"'"+(Math.round(t%60)+'').padStart(2,'0')+'/km';
+      })(),
     };
 
     // Supprimer le message "Je prépare ton brief..."
@@ -1462,16 +1470,31 @@ async function loadCoachHistory(){
         await new Promise(r => setTimeout(r, 400));
         // Fonction d'affichage avec retry
         const _briefDate = new Date().toISOString().slice(0,10);
+        // Heure de séance du jour pour le badge header (calculée depuis state)
+        let _pendingSessionTime = null;
+        if (_pendingType === 'morning_brief') {
+          const _pDow = new Date().getDay();
+          const _pTodaySched = [7,1,2,3,4,5,6][_pDow];
+          if (typeof weeks !== 'undefined' && weeks[CW-1]) {
+            weeks[CW-1].sessions.forEach((sess, si) => {
+              if (_pendingSessionTime) return;
+              if (sess.type === 'rest' || state['del_w'+CW+'_s'+si] || state[gk(CW,si)+'done']) return;
+              const edRaw = state['edit_w'+CW+'_s'+si];
+              let ed = null; try { ed = edRaw ? JSON.parse(edRaw) : null; } catch(e) {}
+              if (ed && ed.sched_day === _pTodaySched && ed.sched_time) _pendingSessionTime = ed.sched_time;
+            });
+          }
+        }
         const _showBrief = () => {
           const _msgContainer = document.getElementById('coach-messages');
           if (!_msgContainer) return false;
           const _briefTypeOpt = _pendingType === 'weekly_bilan' ? 'weekly' : 'morning';
           hideBriefOverlay();
-          addCoachMessage('coach', _pendingResult.content, {isBrief:true, briefType:_briefTypeOpt});
+          addCoachMessage('coach', _pendingResult.content, {isBrief:true, briefType:_briefTypeOpt, sessionTime:_pendingSessionTime});
           // Tagger le dernier élément pour pouvoir le retrouver/supprimer
           const _lastMsg = _msgContainer.lastElementChild;
           if (_lastMsg) _lastMsg.dataset.briefDate = _briefDate;
-          coachHistory.push({role:'assistant', content: _pendingResult.content, date: _briefDate, isBrief: true, briefType:_briefTypeOpt});
+          coachHistory.push({role:'assistant', content: _pendingResult.content, date: _briefDate, isBrief: true, briefType:_briefTypeOpt, sessionTime:_pendingSessionTime});
           saveCoachHistory();
           // Nettoyer après affichage réussi
           try { dbRef.child('_brief_pending').remove(); } catch(e){}
