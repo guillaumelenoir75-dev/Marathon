@@ -1394,32 +1394,40 @@ async function checkWeeklyBilan(memos, force) {
   }
 }
 
-// Test bilan hebdo : écrit le flag dans Firebase et ouvre le coach directement
-// Même architecture que le test brief matin : pas de pré-génération, openCoachFromNotif → checkWeeklyBilan
+// Test bilan hebdo : switch direct vers l'onglet Coach + génération immédiate du bilan
+// Pas de délégation à openCoachFromNotif — tout est fait ici pour fiabilité maximale
 async function testBilanNotif() {
   const btn = document.getElementById('test-notif-btn-notif_debrief_semaine');
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
-  try {
-    const cw = getEffectiveCW();
-    const todayStr = new Date().toISOString().slice(0,10);
-    if (dbRef) {
-      await dbRef.child('_brief_pending').set({needs_full_bilan: true, date: todayStr});
-      await dbRef.child('_open_coach').set(true);
-    }
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification('📊 Bilan S'+cw+' — Semaine terminée !', {
-        body:'Ton bilan de la semaine est prêt. Appuie pour voir.',
-        icon:'/icon-512-v3.png',badge:'/icon-192-v3.png',
-        tag:'notif_debrief_semaine-test',data:{tag:'notif_debrief_semaine-test'},requireInteraction:false
-      });
-    } catch(e) {}
-    if (btn) { btn.textContent='✅'; btn.disabled=false; btn.style.background='#EAF3DE'; btn.style.color='#3B6D11'; setTimeout(()=>{btn.textContent='Tester';btn.style.background='';btn.style.color='';},2500); }
-    // Ouvrir le coach directement — on est déjà dans l'app (pas besoin de timer ni de tap)
-    openCoachFromNotif();
-  } catch(e) {
-    if (btn) { btn.textContent='❌ Erreur'; btn.disabled=false; setTimeout(()=>{btn.textContent='Tester';btn.style.background='';btn.style.color='';},3000); }
-    alert('Erreur test bilan : '+e.message);
+
+  // 1. Basculer immédiatement sur l'onglet Coach (synchrone)
+  ['home','plan','renfo','stats','coach','compte'].forEach(function(s) {
+    var el = document.getElementById('sc-'+s);
+    if (el) el.style.display = s === 'coach' ? 'flex' : 'none';
+    var navB = document.getElementById('nav-'+s);
+    if (navB) navB.className = 'nav-btn' + (s === 'coach' ? ' active' : '');
+  });
+
+  // 2. Réinitialiser les guards pour ne pas bloquer la génération
+  window._coachInitDone = true;   // on prend la main, pas de loadCoachHistory
+  _briefShownToday = true;        // pas de brief matin parasite
+
+  // 3. Notif locale en arrière-plan (best-effort, sans bloquer)
+  const cw = getEffectiveCW();
+  navigator.serviceWorker && navigator.serviceWorker.ready
+    .then(function(reg){ return reg.showNotification('📊 Bilan S'+cw+' — Semaine terminée !', {
+      body:'Ton bilan de la semaine est prêt.',
+      icon:'/icon-512-v3.png', badge:'/icon-192-v3.png',
+      tag:'notif_debrief_semaine-test', requireInteraction:false
+    }); }).catch(function(){});
+
+  if (btn) { btn.textContent='✅'; btn.disabled=false; btn.style.background='#EAF3DE'; btn.style.color='#3B6D11'; setTimeout(function(){ btn.textContent='Tester'; btn.style.background=''; btn.style.color=''; },2500); }
+
+  // 4. Charger les mémos puis générer le bilan directement
+  var memos = '';
+  try { var ms = await dbRef.child('_coach_memos').once('value'); memos = ms.val()||''; } catch(e){}
+  try { await checkWeeklyBilan(memos, true); } catch(e) {
+    alert('Erreur génération bilan : '+e.message);
   }
 }
 
