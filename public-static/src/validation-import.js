@@ -951,7 +951,7 @@ async function importWhoopForPerfEdit(ws, si) {
 
     const picker = document.createElement('div');
     picker.id = 'whoop-pedit-picker';
-    picker.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
+    picker.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
 
     const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
     const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
@@ -1190,7 +1190,7 @@ async function importWhoopForPerfEditExtra(ws, ei) {
     if (existing) existing.remove();
     const picker = document.createElement('div');
     picker.id = 'whoop-pedit-picker';
-    picker.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
+    picker.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
     const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
     const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
     picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
