@@ -930,7 +930,7 @@ function openValidationModal(idx){
           <div style="display:flex;gap:6px;">
             <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Strava</button>
             <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Météo</button>
-            ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopCharge()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">WHOOP</button>`:''}
+            ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">WHOOP</button>`:''}
           </div>
         </div>
       </div>

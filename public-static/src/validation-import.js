@@ -899,6 +899,103 @@ async function importMeteoForPerfEdit(ws, si) {
   }
 }
 
+// ── WHOOP PICKER POUR VALIDATION (stocke dans _whoopChargeData) ──────────────
+async function importWhoopForValidation() {
+  const btn = document.getElementById('whoop-val-btn');
+  const preview = document.getElementById('whoop-val-preview');
+  if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
+  try {
+    const snap = await dbRef.child('whoop_data').once('value');
+    const whoopData = snap.val();
+    if (!whoopData) {
+      if (btn) { btn.textContent = 'WHOOP'; btn.disabled = false; }
+      if (preview) { preview.style.display = 'block'; preview.innerHTML = '<div style="text-align:center;padding:10px;color:#888;font-size:12px;">Pas de données WHOOP — lance d\'abord une synchronisation WHOOP.</div>'; }
+      return;
+    }
+    const dateEl = document.getElementById('val-date');
+    const sessionDate = (dateEl && dateEl.value) ? dateEl.value : new Date().toISOString().slice(0, 10);
+    const workouts = (whoopData.workouts || []).filter(w => w.strain != null);
+    const sorted = [...workouts].sort((a, b) => {
+      const da = Math.abs(new Date(a.date) - new Date(sessionDate));
+      const db = Math.abs(new Date(b.date) - new Date(sessionDate));
+      return da - db;
+    });
+    const top3 = sorted.slice(0, 3);
+    if (btn) { btn.textContent = 'WHOOP'; btn.disabled = false; }
+    if (top3.length === 0) { alert('Aucun entraînement WHOOP disponible.'); return; }
+    const cycles = whoopData.cycles || [];
+    window._whoopValidationPickerData = top3.map(w => {
+      const c = cycles.find(cy => cy.date === w.date) || {};
+      return { date: w.date, workout_strain: w.strain, workout_calories: w.calories,
+               cycle_strain: c.strain ?? null, cycle_calories: c.calories ?? null };
+    });
+    const existing = document.getElementById('whoop-val-picker');
+    if (existing) existing.remove();
+    const picker = document.createElement('div');
+    picker.id = 'whoop-val-picker';
+    picker.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
+    const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+    picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
+      <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">⚡ Entraînements WHOOP</p>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Sélectionne l'entraînement à associer à cette séance</p>
+      ${top3.map((w, idx) => {
+        const dt = new Date(w.date + 'T12:00:00');
+        const dateLabel = `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;
+        const diffDays = Math.round((new Date(w.date) - new Date(sessionDate)) / 86400000);
+        const isSameDay = diffDays === 0;
+        const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
+          : `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>`;
+        const strainColor = w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
+        const chargeLabel = w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
+        return `<div onclick="document.getElementById('whoop-val-picker').remove();_applyWhoopToValidation(${idx});"
+          style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isSameDay?'#7c3aed':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isSameDay?'#f5f3ff':'var(--bg2)'};">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <p style="font-size:13px;font-weight:700;color:var(--text);margin:0;">${dateLabel}</p>
+              ${diffLabel}
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${w.duration_min ? w.duration_min + ' min' : ''}${w.avg_hr ? ' · FC ' + w.avg_hr + ' bpm' : ''}</p>
+          </div>
+          <div style="text-align:right;">
+            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}</p>
+            <p style="font-size:10px;color:${strainColor};font-weight:600;margin:2px 0 0;">${chargeLabel}</p>
+          </div>
+        </div>`;
+      }).join('')}
+      <button onclick="document.getElementById('whoop-val-picker').remove();" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;">Annuler</button>
+    </div>`;
+    document.body.appendChild(picker);
+  } catch(e) {
+    if (btn) { btn.textContent = 'WHOOP'; btn.disabled = false; }
+  }
+}
+
+function _applyWhoopToValidation(idx) {
+  const wData = (window._whoopValidationPickerData || [])[idx];
+  if (!wData) return;
+  window._whoopChargeData = {
+    date: wData.date,
+    workout_strain: wData.workout_strain,
+    workout_calories: wData.workout_calories,
+    cycle_strain: wData.cycle_strain,
+    cycle_calories: wData.cycle_calories
+  };
+  const btn = document.getElementById('whoop-val-btn');
+  const strain = wData.workout_strain ?? wData.cycle_strain ?? null;
+  if (btn) { btn.style.background = 'rgba(124,58,237,0.85)'; btn.textContent = strain != null ? '⚡ ' + strain.toFixed(1) : '⚡ OK'; }
+  const preview = document.getElementById('whoop-val-preview');
+  if (preview) {
+    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
+    const chargeLabel = strain==null?'—':strain>=18?'Très élevée':strain>=14?'Élevée':strain>=10?'Modérée':'Faible';
+    preview.style.display = 'block';
+    preview.innerHTML = `<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:10px 14px;">
+      <p style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:6px;">⚡ Charge WHOOP importée</p>
+      ${strain!=null?`<p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;">${strain.toFixed(1)} <span style="font-size:11px;font-weight:400;color:#888;">/21 · ${chargeLabel}</span></p>`:''}
+    </div>`;
+  }
+}
+
 // ── WHOOP PICKER POUR SÉANCE DÉJÀ VALIDÉE (modal plan-edit) ──────────────────
 async function importWhoopForPerfEdit(ws, si) {
   const btn = document.getElementById('whoop-pedit-btn');
