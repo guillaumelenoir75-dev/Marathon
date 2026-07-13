@@ -159,22 +159,22 @@ function initFirebase(){
                   return;
                 }
                 if (document.visibilityState !== 'visible' || !dbRef || !firebaseReady) return;
-                // Réinitialiser immédiatement _wasInBackground pour éviter que le listener
-                // on('value') ne se déclenche en parasite si l'utilisateur presse "Tester"
-                // après être revenu au premier plan (le flag resterait "true" indéfiniment sinon)
-                _wasInBackground = false;
-                // 1. Flags locaux posés par testLocalNotif() ou par le postMessage SW
+                // 1. Flags locaux posés par testLocalNotif() ou par le postMessage SW (pas de réseau)
                 if (window._pendingBilanOpen || window._pendingCoachOpen) {
+                  _wasInBackground = false;
                   window._pendingBilanOpen = false;
                   window._pendingCoachOpen = false;
                   await openCoachFromNotif();
                   return;
                 }
-                // 2. Lecture Firebase (_open_coach géré aussi par le on('value') listener ci-dessus,
-                //    mais on garde ce fallback au cas où le listener ne se déclenche pas)
+                // 2. Lecture Firebase — on NE reset PAS _wasInBackground avant la lecture :
+                //    si Firebase met quelques secondes à reconnecter (iOS suspend le WebSocket),
+                //    le listener on('value') pourra déclencher openCoachFromNotif() quand il reçoit
+                //    enfin _open_coach=true. Le guard _openCoachFromNotifActive évite le double-appel.
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
                   if (snap.val()) {
+                    _wasInBackground = false;
                     await dbRef.child('_open_coach').remove();
                     await openCoachFromNotif();
                     return;
@@ -183,9 +183,15 @@ function initFirebase(){
                   const bSnap = await dbRef.child('_brief_pending').once('value');
                   const bp = bSnap.val();
                   if (bp && (bp.needs_full_brief || bp.needs_weekly_bilan || bp.type === 'weekly_bilan')) {
+                    _wasInBackground = false;
                     await openCoachFromNotif();
+                    return;
                   }
                 } catch(e) {}
+                // Firebase n'a rien retourné (reconnexion en cours) :
+                // laisser _wasInBackground=true pour que le on('value') listener rattrape la reconnexion.
+                // Timeout de sécurité : reset automatique après 30s pour éviter un flag permanent.
+                setTimeout(() => { _wasInBackground = false; }, 30000);
               });
               } // fin guard _visibilityListenerAdded
 
@@ -247,7 +253,7 @@ async function openCoachFromNotif() {
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
   // Overlay de chargement — s'affiche immédiatement, masqué par coach-ui quand le brief est prêt
-  if (typeof showBriefOverlay === 'function') showBriefOverlay('morning');
+  try { if (typeof showBriefOverlay === 'function') showBriefOverlay('morning'); } catch(e) {}
 
   // ── Nettoyage Firebase et refresh state (après le switch tab) ──
   // Consommer _open_coach (le chemin postMessage ne le supprime pas,
@@ -259,6 +265,8 @@ async function openCoachFromNotif() {
   } catch(e) {}
 
   try { await loadCoachHistory(); } catch(e) {}
+  // Filet de sécurité : masquer l'overlay si aucun brief ne l'a fait (notification sans brief)
+  try { if (typeof hideBriefOverlay === 'function') hideBriefOverlay(); } catch(e) {}
   clearTimeout(_guardTimeout);
   _openCoachFromNotifActive = false; // Libérer après loadCoachHistory — évite qu'un 2e appel concurrent flipe _coachInitDone pendant le streaming
 }
