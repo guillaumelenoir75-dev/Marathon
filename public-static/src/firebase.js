@@ -159,9 +159,14 @@ function initFirebase(){
                   return;
                 }
                 if (document.visibilityState !== 'visible' || !dbRef || !firebaseReady) return;
-                // 1. Flag local posé par testLocalNotif() — le plus fiable, pas de Firebase read
-                if (window._pendingBilanOpen) {
+                // Réinitialiser immédiatement _wasInBackground pour éviter que le listener
+                // on('value') ne se déclenche en parasite si l'utilisateur presse "Tester"
+                // après être revenu au premier plan (le flag resterait "true" indéfiniment sinon)
+                _wasInBackground = false;
+                // 1. Flags locaux posés par testLocalNotif() ou par le postMessage SW
+                if (window._pendingBilanOpen || window._pendingCoachOpen) {
                   window._pendingBilanOpen = false;
+                  window._pendingCoachOpen = false;
                   await openCoachFromNotif();
                   return;
                 }
