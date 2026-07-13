@@ -17,6 +17,7 @@ const {
   getCurrentWeek,
   buildNotifContext,
   callAnthropic,
+  generateWeeklyBilanContent,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -745,6 +746,36 @@ exports.weeklyPlanifReminder = onSchedule(
   }
 );
 
+
+// Bilan de semaine — dimanche 17h, admin uniquement, contenu IA pré-généré
+exports.weeklyBilanNotif = onSchedule(
+  {schedule:'0 17 * * 0',timeZone:'Europe/Paris',timeoutSeconds:120,secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,ANTHROPIC_API_KEY]},
+  async()=>{
+    try{
+      const db=admin.database();
+      const cw=getCurrentWeek();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_bilan_semaine'))return;
+      const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
+      const today=new Date().toISOString().slice(0,10);
+
+      // Anti-doublon : ne pas regenerer si deja fait aujourd'hui
+      if(state[`_bilan_semaine_${today}`])return;
+
+      const {bilanContent,pushBody}=await generateWeeklyBilanContent(ANTHROPIC_API_KEY.value(),db,state,cw);
+
+      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:bilanContent,date:today,type:'weekly_bilan'});
+      await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+      await db.ref(`${ADMIN_STATE}/_bilan_semaine_${today}`).set(true);
+
+      try{
+        const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
+        if(subSnap.val()){
+          await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`📊 Bilan S${cw} — dimanche`,pushBody,'bilan-semaine','/');
+        }
+      }catch(ePush){console.warn('weeklyBilanNotif push:',ePush.message);}
+    }catch(e){console.error('weeklyBilanNotif:',e.message);}
+  }
+);
 
 // Rappel shaker post-run — vérifie toutes les 5 min si le délai de 30 min est écoulé
 exports.shakerAfterRun = onSchedule(

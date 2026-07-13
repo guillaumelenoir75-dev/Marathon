@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -896,7 +896,6 @@ exports.adminTestNotif = onRequest(
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     const { type } = req.body || {};
-    const ADMIN_STATE = `users/${ADMIN_UID}/state`;
     try {
       const db = admin.database();
       const snap = await db.ref(`${ADMIN_STATE}/whoop_token`).once('value');
@@ -911,7 +910,8 @@ exports.adminTestNotif = onRequest(
         'planif-semaine':    { title: '📅 Plan S+1', body: 'Vérifie tes horaires de séances et renfos pour la semaine ! 🏃💪', tag: 'planif-reminder' },
         'shaker-post-run':   { title: '🥤 Rappel protéines !', body: 'Belle séance ! N\'oublie pas ton shaker de récupération 💪', tag: 'shaker-post-run' },
         'shaker-midi':       { title: '🥤 Pense à ton shaker !', body: 'Pas de séance aujourd\'hui ? Prends quand même tes protéines du midi 💪', tag: 'shaker-noon' },
-        'brief-matin':  null,
+        'brief-matin':       null,
+        'bilan-semaine':     null,
       };
 
       if (type === 'brief-matin') {
@@ -948,6 +948,23 @@ exports.adminTestNotif = onRequest(
             : 'Brief généré mais push non envoyée (subscription manquante ou expirée) — ouvre le Coach dans l\'app.',
           pushSent
         });
+        return;
+      }
+
+      if (type === 'bilan-semaine') {
+        const today = new Date().toISOString().slice(0, 10);
+        await db.ref(`${ADMIN_STATE}/_brief_pending`).remove();
+        await db.ref(`${ADMIN_STATE}/_bilan_semaine_${today}`).remove();
+        const stateSnap = await db.ref(ADMIN_STATE).once('value');
+        const st = stateSnap.val() || {};
+        const cw = getCurrentWeek();
+        const { bilanContent, pushBody } = await generateWeeklyBilanContent(ANTHROPIC_API_KEY.value(), db, st, cw);
+        if (bilanContent) {
+          await db.ref(`${ADMIN_STATE}/_brief_pending`).set({ content: bilanContent, date: today, type: 'weekly_bilan' });
+        }
+        await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+        const pushSent = await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), `📊 Bilan S${cw} — TEST`, pushBody || 'Bilan de semaine prêt — ouvre le Coach 📊', 'bilan-semaine-test', '/');
+        res.json({ success: true, message: pushSent ? 'Bilan généré et push envoyée.' : 'Bilan généré — ouvre le Coach dans l\'app.', pushSent });
         return;
       }
 

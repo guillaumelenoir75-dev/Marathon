@@ -42,6 +42,7 @@ async function testLocalNotif(type){
   const notifDefs = {
     notif_brief_matin: { title: '☀️ Brief du matin — S'+cw, body: 'EF 12 km prévu à 7h30. Conditions idéales aujourd\'hui 🌤️' },
     notif_seance:      { title: '⏱️ Séance dans 1h', body: 'EF 12 km dans 1 heure. Prépare tes affaires ! 🏃' },
+    notif_bilan_semaine: { title: '📊 Bilan S'+cw, body: 'Récup + séances + ressenti de la semaine — ouvre le Coach 📊' },
     notif_planif:      { title: '📅 On planifie la semaine ?', body: 'Prends 2 min pour planifier tes séances de la semaine à venir.' },
     notif_congrats:    { title: '🏆 Semaine S'+cw+' complète !', body: 'Toutes tes séances sont validées. Beau travail, continue ! 💪' },
     notif_fc_repos:    { title: 'Rappel ☀️', body: 'Rentre ta FC repos avant de te lever ❤️' },
@@ -53,7 +54,13 @@ async function testLocalNotif(type){
   // → garantit l'ouverture du coach via visibilitychange, chemin fiable sur iOS
   if (dbRef) {
     const today = new Date().toISOString().slice(0,10);
-    if (type === 'notif_brief_matin') {
+    if (type === 'notif_bilan_semaine') {
+      try {
+        await dbRef.child('_brief_pending').set({needs_weekly_bilan:true, date:today});
+        await dbRef.child('_open_coach').set(true);
+      } catch(e) {}
+      window._pendingBilanOpen = true;
+    } else if (type === 'notif_brief_matin') {
       try {
         await dbRef.child('_brief_pending').set({needs_full_brief:true, date:today});
         await dbRef.child('_open_coach').set(true);

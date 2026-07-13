@@ -474,6 +474,126 @@ ${memosLine}`;
   return { briefContent, pushBody };
 }
 
+// Génère le bilan de semaine (3 parties : récup WHOOP 7j, ressenti, récap séances)
+// Utilisé par weeklyBilanNotif (scheduler) ET adminTestNotif (test immédiat)
+async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
+  const wd = state['whoop_data'] || null;
+  const now = new Date();
+
+  // ── WHOOP 7 jours ──────────────────────────────────────────────────────────
+  let whoopBlock = '';
+  let avgRecov = null, avgHrv = null, avgSleep = null;
+  const recovEmojis = [];
+  if (wd) {
+    const recoveries = (wd.recoveries || []).slice(0, 7);
+    const sleeps = (wd.sleeps || []).slice(0, 7);
+    const scores = recoveries.filter(r => r.score != null).map(r => r.score);
+    const hrvs = recoveries.filter(r => r.hrv != null).map(r => Math.round(r.hrv));
+    const rhrs = recoveries.filter(r => r.rhr != null).map(r => r.rhr);
+    const sleepPerfs = sleeps.filter(s => s.performance_pct != null).map(s => s.performance_pct);
+    const strains = (wd.cycles || []).slice(0, 7).filter(c => c.strain != null).map(c => c.strain);
+    const lines = [];
+    if (scores.length > 0) {
+      avgRecov = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length);
+      const best = Math.max(...scores), worst = Math.min(...scores);
+      scores.forEach(s => recovEmojis.push(s >= 67 ? '🟢' : s >= 34 ? '🟡' : '🔴'));
+      lines.push(`Score récup moyen (${scores.length}j) : ${avgRecov}% — min ${worst}% / max ${best}%`);
+    }
+    if (hrvs.length > 0) { avgHrv = Math.round(hrvs.reduce((a,b) => a+b, 0) / hrvs.length); lines.push(`HRV moyen : ${avgHrv} ms`); }
+    if (rhrs.length > 0) { const avg = Math.round(rhrs.reduce((a,b) => a+b, 0) / rhrs.length); lines.push(`FC repos moyenne WHOOP : ${avg} bpm`); }
+    if (sleepPerfs.length > 0) { avgSleep = Math.round(sleepPerfs.reduce((a,b) => a+b, 0) / sleepPerfs.length); lines.push(`Performance sommeil moyenne : ${avgSleep}%`); }
+    if (strains.length > 0) { lines.push(`Charge WHOOP totale semaine (strain) : ${Math.round(strains.reduce((a,b) => a+b, 0)*10)/10}`); }
+    if (lines.length > 0) whoopBlock = '\nDonnées WHOOP sur la semaine :\n' + lines.join('\n');
+  }
+
+  // ── FC repos manuelle 7j ───────────────────────────────────────────────────
+  let fcSum = 0, fcCount = 0, fcMin = 999, fcMax = 0;
+  for (let d = 0; d < 7; d++) {
+    const dd = new Date(now.getTime() - d * 86400000);
+    const ds = dd.toISOString().slice(0,10);
+    const v = parseFloat(state['fc_repos_' + ds]);
+    if (v && !isNaN(v)) { fcSum += v; fcCount++; if (v < fcMin) fcMin = v; if (v > fcMax) fcMax = v; }
+  }
+  const fcMoyBlock = fcCount >= 3 ? `\nFC repos manuelle (${fcCount}j) : moy ${Math.round(fcSum/fcCount)} bpm, min ${fcMin}, max ${fcMax}` : '';
+
+  // ── Séances de la semaine ──────────────────────────────────────────────────
+  const ctx = await buildNotifContext(state, cw);
+  const seancesDone = ctx.seancesDone || [];
+  const seancesManquees = ctx.seancesRestantes || [];
+  const kmSemaine = ctx.kmSemaine || 0;
+  const renfo = [1, 2].filter(r => !!state[`rf${cw}r${r}done`]).length;
+  const typeSem = ctx.typeSem || ([8,12,16,20,26,30].includes(cw) ? 'DÉCHARGE' : 'CHARGE');
+  const memos = state['_coach_memos'] || '';
+
+  // Score semaine global (séances + récup)
+  const pctSeances = (seancesDone.length + seancesManquees.length) > 0
+    ? Math.round(seancesDone.length / (seancesDone.length + seancesManquees.length) * 100) : 100;
+  const scoreComps = [pctSeances];
+  if (avgRecov != null) scoreComps.push(avgRecov);
+  if (avgSleep != null) scoreComps.push(avgSleep);
+  const scoreGlobal = Math.round(scoreComps.reduce((a,b) => a+b, 0) / scoreComps.length);
+  const scoreEmoji = scoreGlobal >= 67 ? '🟢' : scoreGlobal >= 40 ? '🟡' : '🔴';
+
+  const system = `Tu es le coach running de Guillaume. Ta mission : rédiger un bilan de semaine court, personnalisé et direct. Tu t'adresses DIRECTEMENT à lui en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+
+PROFIL :
+- Prépare un marathon (18 octobre 2026), objectif Sub 4h. ${32-cw} semaines restantes.
+- FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
+
+STRUCTURE OBLIGATOIRE — dans cet ordre exact, chaque section séparée par une ligne vide :
+
+😴 RÉCUPÉRATION — BILAN S${cw}
+Format OBLIGATOIRE : commencer par le Score semaine sur sa propre ligne en **gras**, puis chaque valeur WHOOP sur sa propre ligne, puis UNE phrase d'analyse. Exemple :
+Score semaine : **72%** 🟡
+Score récup moyen : **68%** 🟡
+HRV moyen : **54 ms**
+FC repos moyenne : **49 bpm**
+Sommeil moyen : **76%**
+[une phrase d'analyse : la semaine a-t-elle été bien récupérée ? Signe de surcharge ? Tendance par rapport aux séances réalisées ?]
+Si une valeur n'est pas disponible, ne pas afficher sa ligne. Si pas de données WHOOP : analyse uniquement la FC repos manuelle.
+
+💭 RESSENTI DE LA SEMAINE
+En 2-3 phrases directes : comment s'est passée la semaine d'entraînement ? Était-ce une semaine chargée ou légère ? La récupération a-t-elle suivi l'effort ? Y a-t-il des signaux de fatigue accumulée ou au contraire une bonne progression ? Sois direct : "Cette semaine...", "Tu as...", etc. Ne répète pas les chiffres déjà donnés — analyse le ressenti et la qualité.
+
+📊 RÉCAP RAPIDE
+Format : 1-2 lignes factuelles, chiffres en **gras**, rien d'autre.
+Ex : **3/4 séances** validées · **${kmSemaine}km** réalisés · **${renfo}/2 renfos**
+Séances : [liste courte des types faits]
+Si séances manquées : les mentionner brièvement sans dramatiser.
+
+RÈGLES :
+- Zéro #. Données chiffrées en **gras**. Ton direct et naturel.
+- Jamais de tirets en début de paragraphe.
+- Jamais "Guillaume" dans le corps du texte.
+- 3 blocs maximum, dans l'ordre exact ci-dessus.`;
+
+  const userMsg = `Semaine S${cw} (${typeSem}) — ${32-cw} semaines avant le marathon.
+Séances validées : ${seancesDone.length}/${seancesDone.length + seancesManquees.length}
+Détail : ${seancesDone.join(', ') || 'aucune'}
+Séances manquées : ${seancesManquees.join(', ') || 'aucune'}
+Km réalisés : ${kmSemaine}km
+Renfos : ${renfo}/2
+Score semaine (synthétique) : ${scoreGlobal}% ${scoreEmoji}${whoopBlock}${fcMoyBlock}
+${memos ? 'Notes coach : ' + memos : ''}`;
+
+  let bilanContent = '';
+  try {
+    bilanContent = await callAnthropic(anthropicKey, system, [{role:'user', content: userMsg}], 800) || '';
+  } catch(e) { console.error('generateWeeklyBilanContent AI error:', e.message); }
+
+  if (!bilanContent) {
+    bilanContent = `😴 RÉCUPÉRATION — BILAN S${cw}\nScore semaine : **${scoreGlobal}%** ${scoreEmoji}\n\n💭 RESSENTI\nSemaine ${typeSem.toLowerCase()} de ${seancesDone.length + seancesManquees.length} séances planifiées.\n\n📊 RÉCAP\n**${seancesDone.length}/${seancesDone.length + seancesManquees.length} séances** · **${kmSemaine}km** · **${renfo}/2 renfos**`;
+  }
+
+  // Corps push : court et informatif
+  const recovPart = avgRecov != null ? `Récup moy ${avgRecov}% ${avgRecov>=67?'🟢':avgRecov>=34?'🟡':'🔴'}` : '';
+  const seancePart = `${seancesDone.length}/${seancesDone.length + seancesManquees.length} séances · ${kmSemaine}km`;
+  let pushBody = `S${cw} ${scoreEmoji} ${scoreGlobal}% · ${seancePart}${recovPart ? ' · ' + recovPart : ''}`;
+  if (pushBody.length > 180) pushBody = pushBody.slice(0, 177) + '...';
+
+  return { bilanContent, pushBody, scoreGlobal, scoreEmoji };
+}
+
 module.exports = {
   ADMIN_EMAIL,
   ADMIN_UID,
@@ -493,4 +613,5 @@ module.exports = {
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,
   generateMorningBriefContent,
+  generateWeeklyBilanContent,
 };

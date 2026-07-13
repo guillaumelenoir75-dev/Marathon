@@ -879,14 +879,27 @@ async function checkPendingBrief() {
     } catch(e) {}
   }
 
+  // needs_weekly_bilan : flag test local — pas de contenu pré-généré, appel CF à la volée
+  if (p && p.needs_weekly_bilan) {
+    if (p.date && (new Date(today) - new Date(p.date)) / 86400000 > 2) {
+      try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
+      delete state['_brief_pending'];
+      return false;
+    }
+    try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
+    delete state['_brief_pending'];
+    return { needs_weekly_bilan: true };
+  }
+
   if (!p || !p.content) return false;
 
-  // Vérifier que le brief n'est pas trop vieux (limité au jour même)
+  // Vérifier que le brief n'est pas trop vieux
+  // morning_brief : jour même ; weekly_bilan : valable 2 jours (dimanche → lundi)
   if (p.date) {
     const briefDate = new Date(p.date);
     const todayDate = new Date(today);
     const diffDays = (todayDate - briefDate) / 86400000;
-    const maxAge = 0;
+    const maxAge = (p.type === 'weekly_bilan') ? 2 : 0;
     if (diffDays > maxAge) {
       try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
       delete state['_brief_pending'];
@@ -907,6 +920,43 @@ async function checkPendingBrief() {
 
   _briefShownToday = true;
   return { shown: true, type: p.type || 'morning_brief', content: p.content };
+}
+
+async function generateAndShowWeeklyBilan() {
+  const container = document.getElementById('coach-messages');
+  const loader = document.createElement('div');
+  loader.id = 'bilan-loader';
+  loader.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;';
+  loader.innerHTML = '<div style="width:32px;height:32px;border-radius:50%;background:#0C447C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:14px;">🤖</span></div>'
+    + '<div style="background:#fff;border-radius:4px 14px 14px 14px;padding:10px 14px;border-left:3px solid rgba(12,68,124,0.15);">'
+    + '<div class="coach-typing"><span>Le Coach prépare ton bilan de semaine</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div>'
+    + '</div>';
+  if (container) { container.appendChild(loader); container.scrollTo({top:container.scrollHeight,behavior:'smooth'}); }
+  try {
+    const h = await authHeaders(true);
+    const resp = await fetch(`${FUNCTIONS_BASE}/adminTestNotif`, {
+      method: 'POST', headers: h, body: JSON.stringify({type:'bilan-semaine'})
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    // Récupérer le bilan stocké dans _brief_pending
+    const snap = await dbRef.child('_brief_pending').once('value');
+    const p = snap.val();
+    if (loader && loader.parentNode) loader.remove();
+    if (p && p.content) {
+      const todayStr = new Date().toISOString().slice(0,10);
+      addCoachMessage('coach', p.content);
+      coachHistory.push({role:'assistant', content: p.content, date: todayStr, isBrief: true});
+      saveCoachHistory();
+      _addBriefActionButtons();
+      try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
+    } else {
+      addCoachMessage('coach', '📊 Bilan généré — retrouve-le dans le Coach IA.');
+    }
+  } catch(e) {
+    if (loader && loader.parentNode) loader.remove();
+    addCoachMessage('coach', '📊 Bilan de semaine temporairement indisponible. Réessaie dans quelques secondes.');
+  }
+  _briefShownToday = true;
 }
 
 async function checkMorningBrief(memos, force) {
@@ -1345,10 +1395,11 @@ async function loadCoachHistory(){
   const _pendingResult = await checkPendingBrief();
   // needs_full_brief : le serveur a envoyé la notif mais délègue la génération du brief complet au client
   const _needsFullBrief = _pendingResult && _pendingResult.needs_full_brief;
+  const _needsWeeklyBilan = _pendingResult && _pendingResult.needs_weekly_bilan;
   // On mémorise si on vient d'une notif pour ne pas afficher le message de bienvenue parasite
   const _fromPushNotif = window._coachOpenedFromNotif || false;
   window._coachOpenedFromNotif = false; // reset
-  if (_pendingResult && !_needsFullBrief) {
+  if (_pendingResult && !_needsFullBrief && !_needsWeeklyBilan) {
     try {
       const _h = await dbRef.child('_coach_history').once('value');
       if (_h.val()) coachHistory = JSON.parse(_h.val());
@@ -1361,8 +1412,8 @@ async function loadCoachHistory(){
 
     const _pendingType = _pendingResult.type || 'morning_brief';
 
-    // morning_brief : afficher le brief stocké
-    if (_pendingType === 'morning_brief') {
+    // morning_brief / weekly_bilan : afficher le contenu pré-généré
+    if (_pendingType === 'morning_brief' || _pendingType === 'weekly_bilan') {
       if (_pendingResult.content) {
         // Attendre que le DOM coach soit totalement rendu
         await new Promise(r => setTimeout(r, 400));
@@ -1405,8 +1456,8 @@ async function loadCoachHistory(){
           try { await dbRef.child('_brief_pending').remove(); } catch(e){}
           delete state['_brief_pending'];
         }
-        // ── Message météo asynchrone (pendant que l'utilisateur lit le brief) ──
-        _appendWeatherMessageAfterBrief();
+        // ── Message météo asynchrone (uniquement pour le brief du matin) ──
+        if (_pendingType === 'morning_brief') _appendWeatherMessageAfterBrief();
       }
       return;
     }
@@ -1453,8 +1504,12 @@ async function loadCoachHistory(){
   // ── TOUJOURS vérifier le brief du matin en fin de loadCoachHistory ──
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)
   if (!_briefShownToday) {
-    const _forceBrief = _needsFullBrief || _fromPushNotif;
-    try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
+    if (_needsWeeklyBilan) {
+      try { await generateAndShowWeeklyBilan(); } catch(_e) {}
+    } else {
+      const _forceBrief = _needsFullBrief || _fromPushNotif;
+      try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
+    }
   }
   if (dbRef) {
     try {
