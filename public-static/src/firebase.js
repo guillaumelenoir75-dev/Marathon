@@ -189,6 +189,7 @@ async function openCoachFromNotif() {
   } catch(e) {}
   window._coachInitDone = false;
   _briefShownToday = false;
+  if (typeof _bilanGenerating !== 'undefined') _bilanGenerating = false;
   window._coachOpenedFromNotif = true;
   ['home','plan','renfo','stats','coach','compte'].forEach(s => {
     const el = document.getElementById('sc-'+s);
