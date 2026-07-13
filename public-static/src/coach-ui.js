@@ -944,8 +944,8 @@ async function generateAndShowWeeklyBilan() {
     if (loader && loader.parentNode) loader.remove();
     if (p && p.content) {
       const todayStr = new Date().toISOString().slice(0,10);
-      addCoachMessage('coach', p.content);
-      coachHistory.push({role:'assistant', content: p.content, date: todayStr, isBrief: true});
+      addCoachMessage('coach', p.content, {isBrief:true, briefType:'weekly'});
+      coachHistory.push({role:'assistant', content: p.content, date: todayStr, isBrief: true, briefType:'weekly'});
       saveCoachHistory();
       _addBriefActionButtons();
       try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
@@ -1422,11 +1422,12 @@ async function loadCoachHistory(){
         const _showBrief = () => {
           const _msgContainer = document.getElementById('coach-messages');
           if (!_msgContainer) return false;
-          addCoachMessage('coach', _pendingResult.content);
+          const _briefTypeOpt = _pendingType === 'weekly_bilan' ? 'weekly' : 'morning';
+          addCoachMessage('coach', _pendingResult.content, {isBrief:true, briefType:_briefTypeOpt});
           // Tagger le dernier élément pour pouvoir le retrouver/supprimer
           const _lastMsg = _msgContainer.lastElementChild;
           if (_lastMsg) _lastMsg.dataset.briefDate = _briefDate;
-          coachHistory.push({role:'assistant', content: _pendingResult.content, date: _briefDate, isBrief: true});
+          coachHistory.push({role:'assistant', content: _pendingResult.content, date: _briefDate, isBrief: true, briefType:_briefTypeOpt});
           saveCoachHistory();
           // Nettoyer après affichage réussi
           try { dbRef.child('_brief_pending').remove(); } catch(e){}
@@ -1545,7 +1546,7 @@ async function loadCoachHistory(){
           if (!_briefInDom && coachHistory.length > 0) {
             const _briefItem = [...coachHistory].reverse().find(m => m.isBrief && m.date === _keptDate);
             if (_briefItem && _coachMsgs) {
-              addCoachMessage('coach', _briefItem.content);
+              addCoachMessage('coach', _briefItem.content, {isBrief:true, briefType:(_briefItem.briefType||'morning')});
               const _lastMsg = _coachMsgs.lastElementChild;
               if (_lastMsg) _lastMsg.dataset.briefDate = _keptDate;
               _briefShownToday = true;

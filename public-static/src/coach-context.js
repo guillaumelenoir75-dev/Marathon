@@ -21,10 +21,11 @@ function renderCoachText(t, streaming){
   }
   return h;
 }
-function addCoachMessage(role, text){
+function addCoachMessage(role, text, opts){
   const container = document.getElementById('coach-messages');
   if(!container) return;
   const isCoach = role === 'coach';
+  const isBrief = !!(opts && opts.isBrief);
   if(isCoach) text = fixAccents(text);
   // Date separator
   const nowD=new Date();
@@ -37,13 +38,38 @@ function addCoachMessage(role, text){
   }
   const div = document.createElement('div');
   div.className = 'msg-enter';
-  div.style.cssText = 'display:flex;align-items:flex-start;gap:8px;'+(isCoach?'':'flex-direction:row-reverse;');
 
-  div.innerHTML = (isCoach?'<div style="width:32px;height:32px;border-radius:50%;background:#0C447C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:14px;">🤖</span></div>':'')
-    +'<div style="max-width:85%;background:'+(isCoach?'#fff':'#0C447C')+';border-radius:'+(isCoach?'4px 14px 14px 14px':'14px 4px 14px 14px')+';padding:12px 14px;border-left:'+(isCoach?'3px solid rgba(12,68,124,0.15)':'0')+';">'
-    +'<'+(isCoach?'div':'p')+' data-coach-text="1" style="font-size:14px;color:'+(isCoach?'var(--text)':'#fff')+';line-height:1.7;">'+(isCoach?renderCoachText(text):text.replace(/\n/g,'<br>'))+'</'+(isCoach?'div':'p')+'>'
-    +'<p style="font-size:10px;color:'+(isCoach?'var(--muted)':'rgba(255,255,255,0.55)')+';margin-top:4px;text-align:right;">'
-    +new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</p></div>';
+  if(isBrief && isCoach) {
+    // Carte de brief premium — pleine largeur, fond dégradé subtil, sections bien séparées
+    div.style.cssText = 'display:block;margin:4px 0 8px;';
+    const briefType = (opts && opts.briefType) || 'morning';
+    const headerBg = briefType === 'weekly' ? 'linear-gradient(135deg,#0C447C,#1B4FD8)' : 'linear-gradient(135deg,#1B4FD8,#E8530A)';
+    const headerLabel = briefType === 'weekly' ? '📊 Bilan de semaine' : '☀️ Brief du matin';
+    const timeStr = nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    div.innerHTML =
+      '<div style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(12,68,124,0.13);border:1px solid rgba(12,68,124,0.1);">'
+      // Header coloré
+      +'<div style="background:'+headerBg+';padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+          +'<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:13px;">🤖</span></div>'
+          +'<span style="font-size:13px;font-weight:700;color:#fff;">'+headerLabel+'</span>'
+        +'</div>'
+        +'<span style="font-size:10px;color:rgba(255,255,255,0.7);">'+timeStr+'</span>'
+      +'</div>'
+      // Corps du brief
+      +'<div style="background:#fff;padding:14px 16px;">'
+        +'<div data-coach-text="1" style="font-size:14px;color:var(--text,#1a1a1a);line-height:1.75;">'+renderCoachText(text)+'</div>'
+      +'</div>'
+      +'</div>';
+  } else {
+    div.style.cssText = 'display:flex;align-items:flex-start;gap:8px;'+(isCoach?'':'flex-direction:row-reverse;');
+    div.innerHTML = (isCoach?'<div style="width:32px;height:32px;border-radius:50%;background:#0C447C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:14px;">🤖</span></div>':'')
+      +'<div style="max-width:85%;background:'+(isCoach?'#fff':'#0C447C')+';border-radius:'+(isCoach?'4px 14px 14px 14px':'14px 4px 14px 14px')+';padding:12px 14px;border-left:'+(isCoach?'3px solid rgba(12,68,124,0.15)':'0')+';">'
+      +'<'+(isCoach?'div':'p')+' data-coach-text="1" style="font-size:14px;color:'+(isCoach?'var(--text)':'#fff')+';line-height:1.7;">'+(isCoach?renderCoachText(text):text.replace(/\n/g,'<br>'))+'</'+(isCoach?'div':'p')+'>'
+      +'<p style="font-size:10px;color:'+(isCoach?'var(--muted)':'rgba(255,255,255,0.55)')+';margin-top:4px;text-align:right;">'
+      +new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</p></div>';
+  }
+
   container.appendChild(div);
   if(isAtBottom(container)||!container._hasScrolled) container.scrollTo({top:container.scrollHeight,behavior:'smooth'});
   container._hasScrolled = true;
