@@ -1394,8 +1394,9 @@ async function checkWeeklyBilan(memos, force) {
     while(true){const{value,done}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.startsWith('data: '))continue;const d=line.slice(6).trim();if(d==='[DONE]')continue;try{const tok=JSON.parse(d)?.token||'';if(tok)full+=tok;}catch(e){}}}
     if (loader && loader.parentNode) loader.remove();
     if (full) {
-      addCoachMessage('coach', full);
-      coachHistory.push({role:'assistant', content:full, date:todayStr});
+      const _cleanedBilan = (typeof cleanTruncated === 'function') ? cleanTruncated(full) : full;
+      addCoachMessage('coach', _cleanedBilan);
+      coachHistory.push({role:'assistant', content:_cleanedBilan, date:todayStr});
       saveCoachHistory();
       _addBriefActionButtons();
       // Scroll vers le DÉBUT du bilan (pas la fin) pour que l'utilisateur voie l'intro
@@ -1700,7 +1701,8 @@ async function loadCoachHistory(){
   }
   // ── Si le brief a été "gardé" (keepBrief), réafficher le bouton Effacer (si pas expiré) ──
   // Indépendant de _briefShownToday : fonctionne aussi en navigation intra-session
-  if (dbRef) {
+  // Ne pas exécuter si un bilan hebdo vient d'être affiché (évite superposition brief matin / bilan)
+  if (dbRef && !_needsFullBilan) {
     try {
       const keptSnap = await dbRef.child('_brief_kept').once('value');
       const keptVal = keptSnap.val();
