@@ -512,10 +512,12 @@ function openValidationModalExtra(w,ei){
           <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;">${title}</p>
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
-        <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
-          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
-          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Météo</button>
-          <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px;">
+          <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+          <div style="display:flex;gap:6px;">
+            <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Strava</button>
+            <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Météo</button>
+          </div>
         </div>
       </div>
     </div>
@@ -919,11 +921,13 @@ function openValidationModal(idx){
           <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;">${title}</p>
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
-        <div style="display:flex;align-items:flex-start;gap:6px;margin-top:2px;">
-          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Strava</button>
-          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Météo</button>
-          <button id="whoop-val-btn" onclick="importWhoopCharge()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">⚡ WHOOP</button>
-          <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px;">
+          <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+          <div style="display:flex;gap:6px;">
+            <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Strava</button>
+            <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Météo</button>
+            <button id="whoop-val-btn" onclick="importWhoopCharge()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">WHOOP</button>
+          </div>
         </div>
       </div>
     </div>
