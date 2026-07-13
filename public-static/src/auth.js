@@ -58,15 +58,18 @@ function applyRoleUI(){
   const scCoach=document.getElementById('sc-coach');
   const calSec=document.getElementById('stats-calories-section');
   const gelSec=document.getElementById('stats-gels-section');
+  const deleteBtn = document.getElementById('delete-account-btn');
   if(!isAdmin()){
     if(navCoach) navCoach.style.display='none';
     if(scCoach) scCoach.style.display='none';
     if(calSec) calSec.style.display='none';
     if(gelSec) gelSec.style.display='none';
+    if(deleteBtn) deleteBtn.style.display='block';
   } else {
     if(navCoach) navCoach.style.display='';
     if(calSec) calSec.style.display='';
     if(gelSec) gelSec.style.display='';
+    if(deleteBtn) deleteBtn.style.display='none';
   }
 }
 
@@ -456,14 +459,14 @@ async function checkStravaStatus() {
     if (data.needsAuth) {
       label.textContent = 'Non connecté';
       label.style.color = '#e53e3e';
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Connecter';
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Connect with Strava';
       btn.style.background = '#FC4C02';
       btn.style.display = 'flex';
       if (disconnectBtn) disconnectBtn.style.display = 'none';
     } else {
       label.textContent = 'Connecté ✓';
       label.style.color = '#3B6D11';
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Reconnecter';
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Reconnect with Strava';
       btn.style.background = '#888';
       btn.style.display = 'flex';
       if (disconnectBtn) disconnectBtn.style.display = 'block';
@@ -483,7 +486,7 @@ async function disconnectStrava() {
     if (typeof state !== 'undefined') delete state.strava_token;
     if (label) { label.textContent = 'Non connecté'; label.style.color = '#e53e3e'; }
     if (connectBtn) {
-      connectBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Connecter';
+      connectBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Connect with Strava';
       connectBtn.style.background = '#FC4C02';
     }
     if (btn) { btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'Déconnecter'; }
@@ -521,6 +524,38 @@ async function adminConnectStrava() {
     } catch(e) {}
   }, 2000);
   setTimeout(() => { clearInterval(check); if (btn) { btn.textContent = 'Connecter'; btn.disabled = false; } }, 120000);
+}
+
+// ── SUPPRESSION DE COMPTE ─────────────────────────────────────────────────────
+async function deleteAccount() {
+  _showConfirmModal({
+    icon: '⚠️',
+    title: 'Supprimer mon compte',
+    message: 'Cette action est irréversible. Toutes tes données (plan, séances, connexions Strava/WHOOP) seront définitivement supprimées.',
+    confirmLabel: 'Supprimer',
+    confirmStyle: 'background:#e53e3e;color:#fff;',
+    onConfirm: async () => {
+      const btn = document.getElementById('delete-account-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Suppression…'; }
+      try {
+        const uid = currentUserId;
+        // Supprimer les données Firebase
+        if (dbRef) await dbRef.remove();
+        // Supprimer la subscription push
+        try { await firebase.database().ref('_push_subscribers/' + uid).remove(); } catch(e) {}
+        // Supprimer le compte Firebase Auth
+        await firebase.auth().currentUser.delete();
+      } catch(e) {
+        if (e.code === 'auth/requires-recent-login') {
+          alert('Pour des raisons de sécurité, reconnecte-toi puis retente la suppression.');
+          firebase.auth().signOut();
+        } else {
+          if (btn) { btn.disabled = false; btn.textContent = 'Supprimer mon compte'; }
+          alert('Erreur lors de la suppression : ' + (e.message || e.code));
+        }
+      }
+    }
+  });
 }
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
