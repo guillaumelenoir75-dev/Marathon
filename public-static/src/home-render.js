@@ -517,6 +517,7 @@ function openValidationModalExtra(w,ei){
           <div style="display:flex;gap:6px;">
             <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Strava</button>
             <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Météo</button>
+            <button id="whoop-val-btn" onclick="importWhoopCharge()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">WHOOP</button>
           </div>
         </div>
       </div>
@@ -525,6 +526,7 @@ function openValidationModalExtra(w,ei){
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
     <div style="background:#FFF8F0;border:1.5px solid #E8530A;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#7A3B00;margin-bottom:10px;">⚡ Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan sera adapté automatiquement.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
@@ -886,9 +888,11 @@ function openValidationModal(idx){
   window._meteoValidationData = null;
   window._stravaActivityData = null;
   window._whoopChargeData = null;
-  // Reset le preview météo pour ne pas afficher les résultats d'une session précédente
+  // Reset les previews pour ne pas afficher les résultats d'une session précédente
   const _prevReset = document.getElementById('meteo-val-preview');
   if (_prevReset) { _prevReset.style.display = 'none'; _prevReset.innerHTML = ''; }
+  const _whoopPrevReset = document.getElementById('whoop-val-preview');
+  if (_whoopPrevReset) { _whoopPrevReset.style.display = 'none'; _whoopPrevReset.innerHTML = ''; }
   const _btnReset = document.getElementById('meteo-val-btn');
   if (_btnReset) {
     _btnReset.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Météo';
@@ -935,6 +939,7 @@ function openValidationModal(idx){
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <p style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">📅 Date</p>
