@@ -191,23 +191,21 @@ async function openCoachFromNotif() {
   if (!dbRef || !firebaseReady) return;
   if (_openCoachFromNotifActive) return;
   _openCoachFromNotifActive = true;
-  // Consommer _open_coach immédiatement (le chemin postMessage ne le supprime pas,
-  // ce qui pourrait déclencher un visibilitychange parasite au prochain retour au premier plan)
-  try { await dbRef.child('_open_coach').remove(); } catch(e) {}
-  try {
-    const stateSnap = await dbRef.once('value');
-    if (stateSnap.val()) state = stateSnap.val();
-  } catch(e) {}
+  // Sécurité : libérer le guard après 30s max (évite un blocage permanent si Firebase ne répond pas)
+  const _guardTimeout = setTimeout(() => { _openCoachFromNotifActive = false; }, 30000);
+
+  // ── SWITCH TAB IMMÉDIAT — avant tout await Firebase ──
+  // Sur iOS, le WebSocket Firebase est coupé quand l'app est en background.
+  // Les awaits Firebase ci-dessous peuvent bloquer plusieurs secondes pendant la reconnexion.
+  // Le tab switch doit s'exécuter SANS attendre Firebase pour que l'utilisateur voie le Coach.
   window._coachInitDone = false;
   _briefShownToday = false;
   // Vider le container pour éviter l'accumulation de messages lors d'un re-déclenchement
   const _coachContainer = document.getElementById('coach-messages');
   if (_coachContainer) _coachContainer.innerHTML = '';
-
   // Fermer le modal de préférences s'il est ouvert (sinon il couvre le Coach)
   const _prefModal = document.getElementById('prefs-modal-overlay');
   if (_prefModal) _prefModal.remove();
-
   window._coachOpenedFromNotif = true;
   ['home','plan','renfo','stats','coach','compte'].forEach(s => {
     const el = document.getElementById('sc-'+s);
@@ -219,7 +217,18 @@ async function openCoachFromNotif() {
   if (badge) badge.style.display = 'none';
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
+
+  // ── Nettoyage Firebase et refresh state (après le switch tab) ──
+  // Consommer _open_coach (le chemin postMessage ne le supprime pas,
+  // ce qui pourrait déclencher un visibilitychange parasite au prochain retour au premier plan)
+  try { await dbRef.child('_open_coach').remove(); } catch(e) {}
+  try {
+    const stateSnap = await dbRef.once('value');
+    if (stateSnap.val()) state = stateSnap.val();
+  } catch(e) {}
+
   try { await loadCoachHistory(); } catch(e) {}
+  clearTimeout(_guardTimeout);
   _openCoachFromNotifActive = false; // Libérer après loadCoachHistory — évite qu'un 2e appel concurrent flipe _coachInitDone pendant le streaming
 }
 
