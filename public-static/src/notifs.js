@@ -26,7 +26,7 @@ function _updateHomeNotifBanner(){
     </div>
     <div style="flex:1;">
       <p style="font-size:14px;font-weight:800;color:#fff;margin:0;">${isDenied?'Notifications bloquées':'🔔 Active les notifications'}</p>
-      <p style="font-size:11px;color:rgba(255,255,255,0.88);margin:3px 0 0;">${isDenied?"Va dans Réglages › Marathon pour les débloquer":"Ne rate plus aucune séance ni bilan — appuie ici !"}</p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.88);margin:3px 0 0;">${isDenied?"Va dans Réglages › Marathon pour les débloquer":"Ne rate plus aucune séance — appuie ici !"}</p>
     </div>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
   </div>`;
@@ -42,7 +42,6 @@ async function testLocalNotif(type){
   const notifDefs = {
     notif_brief_matin: { title: '☀️ Brief du matin — S'+cw, body: 'EF 12 km prévu à 7h30. Conditions idéales aujourd\'hui 🌤️' },
     notif_seance:      { title: '⏱️ Séance dans 1h', body: 'EF 12 km dans 1 heure. Prépare tes affaires ! 🏃' },
-    notif_debrief_semaine: { title: '📊 Bilan S'+cw+' — Terminée !', body: '3 séances sur 3 validées cette semaine. Félicitations ! 🎉' },
     notif_planif:      { title: '📅 On planifie la semaine ?', body: 'Prends 2 min pour planifier tes séances de la semaine à venir.' },
     notif_congrats:    { title: '🏆 Semaine S'+cw+' complète !', body: 'Toutes tes séances sont validées. Beau travail, continue ! 💪' },
     notif_fc_repos:    { title: 'Rappel ☀️', body: 'Rentre ta FC repos avant de te lever ❤️' },
@@ -54,15 +53,7 @@ async function testLocalNotif(type){
   // → garantit l'ouverture du coach via visibilitychange, chemin fiable sur iOS
   if (dbRef) {
     const today = new Date().toISOString().slice(0,10);
-    if (type === 'notif_debrief_semaine') {
-      try {
-        await dbRef.child('_brief_pending').set({needs_full_bilan:true, date:today});
-        await dbRef.child('_open_coach').set(true);
-      } catch(e) {}
-      // Flag local : déclenche openCoachFromNotif() via visibilitychange au retour du background
-      // Sans dépendre des reads Firebase (qui peuvent bloquer pendant la reconnexion iOS)
-      window._pendingBilanOpen = true;
-    } else if (type === 'notif_brief_matin') {
+    if (type === 'notif_brief_matin') {
       try {
         await dbRef.child('_brief_pending').set({needs_full_brief:true, date:today});
         await dbRef.child('_open_coach').set(true);

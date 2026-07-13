@@ -182,7 +182,7 @@ function initFirebase(){
                   // _brief_pending : fallback si _open_coach déjà consommé
                   const bSnap = await dbRef.child('_brief_pending').once('value');
                   const bp = bSnap.val();
-                  if (bp && (bp.needs_full_bilan || bp.needs_full_brief)) {
+                  if (bp && bp.needs_full_brief) {
                     await openCoachFromNotif();
                   }
                 } catch(e) {}
