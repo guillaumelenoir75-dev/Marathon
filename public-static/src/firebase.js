@@ -191,6 +191,9 @@ async function openCoachFromNotif() {
   if (!dbRef || !firebaseReady) return;
   if (_openCoachFromNotifActive) return;
   _openCoachFromNotifActive = true;
+  // Consommer _open_coach immédiatement (le chemin postMessage ne le supprime pas,
+  // ce qui pourrait déclencher un visibilitychange parasite au prochain retour au premier plan)
+  try { await dbRef.child('_open_coach').remove(); } catch(e) {}
   try {
     const stateSnap = await dbRef.once('value');
     if (stateSnap.val()) state = stateSnap.val();
