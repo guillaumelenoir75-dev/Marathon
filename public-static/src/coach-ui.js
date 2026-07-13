@@ -1415,6 +1415,81 @@ async function generateWeeklyBilanComplet(memos) {
   }
 }
 
+// Test bilan : génère le contenu COMPLET avant d'envoyer la notif (identique à la CF de production)
+async function testBilanNotif() {
+  const btn = document.getElementById('test-notif-btn-notif_debrief_semaine');
+  if (btn) { btn.textContent = '⏳ Génération…'; btn.disabled = true; }
+  try {
+    const cw = getEffectiveCW();
+    const todayStr = new Date().toISOString().slice(0,10);
+    let memos = '';
+    try { const ms = await dbRef.child('_coach_memos').once('value'); memos = ms.val()||''; } catch(e){}
+    // Construire le contexte bilan (même logique que generateWeeklyBilanComplet)
+    let seancesFaites=0,seancesTotal=0,kmFaits=0,kmPlan=0,seancesManquees=[],seancesFaitesDetail=[];
+    weeks[cw-1].sessions.forEach((sess,si)=>{
+      if(state['del_w'+cw+'_s'+si])return;if(sess.type==='rest')return;
+      seancesTotal++;kmPlan+=sess.km;
+      const done=!!state[gk(cw,si)+'done'];
+      let perf=null;try{perf=state[gk(cw,si)+'perf']?JSON.parse(state[gk(cw,si)+'perf']):null;}catch(e){}
+      if(done){seancesFaites++;kmFaits+=state[gk(cw,si)+'km']||sess.km;seancesFaitesDetail.push({type:sess.type,titre:sess.d.split('|')[0],km:state[gk(cw,si)+'km']||sess.km,allure:perf?perf.pace:null,fc:perf?perf.hr:null});}
+      else seancesManquees.push(sess.d.split('|')[0]);
+    });
+    {let ei=0;while(ei<=20&&state[`extra_w${cw}_s${ei}`]){let es;try{es=JSON.parse(state[`extra_w${cw}_s${ei}`]);}catch(e){ei++;continue;}if(!es){ei++;continue;}if(es.type!=='rest'&&es.km>0){seancesTotal++;kmPlan+=es.km;if(state[`extra_w${cw}_s${ei}_done`]){seancesFaites++;const ekm=state[`extra_w${cw}_s${ei}_km`]||es.km;let ep=null;try{ep=state[`extra_w${cw}_s${ei}_perf`]?JSON.parse(state[`extra_w${cw}_s${ei}_perf`]):null;}catch(e){}kmFaits+=ekm;seancesFaitesDetail.push({type:es.type,titre:es.d.split('|')[0],km:ekm,allure:ep?ep.pace:null,fc:ep?ep.hr:null,extra:true});}}ei++;}}
+    const contextBilan = {
+      semaine:cw,type_semaine:[8,12,16,20,26,30].includes(cw)?'DÉCHARGE':'CHARGE',
+      date_marathon:'18 octobre 2026',semaines_restantes:32-cw,
+      semi_marathon:cw>=20?{date:'07/09/2026',semaine:27,km:21,semaines_avant:27-cw}:undefined,
+      seances_faites:seancesFaites,seances_total:seancesTotal,
+      km_faits:Math.round(kmFaits*10)/10,km_plan:kmPlan,
+      seances_manquees:seancesManquees,detail_seances:seancesFaitesDetail,
+      renfo_semaine:[1,2].filter(r=>!!state[rfk(cw,r)+'done']).length+'/2 renfo faits',
+      fc_repos:state['fc_repos']||51,fc_repos_context:buildFcReposContext(),
+      allure_ef_actuelle:getBestEfPace(),
+      prediction_marathon:buildPredictionForCoach(),
+      allure_marathon_cible:(()=>{const p=buildMarathonPrediction();return p&&p.amPaceRecoStr?p.amPaceRecoStr:getMarathonPaceStr();})(),
+      temps_marathon_estime:(()=>{const p=buildMarathonPrediction();return p&&p.tempsStr?p.tempsStr:calcMarathonTime(getMarathonPaceStr());})(),
+      chaussures:(()=>{try{return getShoes().map(sh=>({name:sh.name,km:sh.km||0,max:sh.max||600}));}catch(e){return null;}})(),
+      memos:memos||undefined,
+      resume_dernieres_semaines:(()=>{try{const rs=[];for(let ws=Math.max(1,cw-6);ws<cw;ws++){const sess=[];let kF=0,kP=0;weeks[ws-1].sessions.forEach((s,si)=>{if(state['del_w'+ws+'_s'+si])return;const k=gk(ws,si);const done=!!state[k+'done'];const kr=state[k+'km']!=null?state[k+'km']:s.km;if(done)kF+=kr;kP+=s.km;sess.push(s.type+(done?' '+kr+'km':ws<cw?' NON_FAITE':''));});rs.push({semaine:ws,km_fait:Math.round(kF*10)/10,km_plan:Math.round(kP*10)/10,seances:sess.join('|')});}return rs;}catch(e){return[];}})()
+    };
+    // Appel CF weeklyReport — collecter le texte complet (streaming)
+    const h = await authHeaders(true);
+    const response = await fetch(FUNCTIONS_BASE+'/weeklyReport', {method:'POST',headers:h,body:JSON.stringify({contextBilan})});
+    if(!response.ok||!response.body) throw new Error('CF weeklyReport HTTP '+response.status);
+    const reader = response.body.getReader(), decoder = new TextDecoder();
+    let fullText='', buf='';
+    while(true){
+      const {done,value}=await reader.read();if(done)break;
+      buf+=decoder.decode(value,{stream:true});
+      const lines=buf.split('\n');buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        const data=line.slice(6).trim();if(data==='[DONE]')continue;
+        try{const p=JSON.parse(data);if(p.token)fullText+=p.token;}catch(e){}
+      }
+    }
+    if(!fullText) throw new Error('CF weeklyReport : réponse vide');
+    // Écrire dans Firebase AVANT la notification — comme la CF de production
+    await dbRef.child('_brief_pending').set({type:'weekly_debrief',content:fullText,date:todayStr});
+    await dbRef.child('_open_coach').set(true);
+    // Afficher la notification locale
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification('📊 Bilan S'+cw+' — Semaine terminée !', {
+      body:'Ton bilan complet de la semaine est prêt. Appuie pour le voir.',
+      icon:'/icon-512-v3.png',badge:'/icon-192-v3.png',
+      tag:'notif_debrief_semaine-test',data:{tag:'notif_debrief_semaine-test'},requireInteraction:false
+    });
+    if(btn){btn.textContent='✅';btn.disabled=false;btn.style.background='#EAF3DE';btn.style.color='#3B6D11';setTimeout(()=>{btn.textContent='Tester';btn.style.background='';btn.style.color='';},2500);}
+    // Fallback foreground iOS : si _open_coach pas consommé par visibilitychange dans 2s → ouvrir coach directement
+    setTimeout(async()=>{
+      try{const snap=await dbRef.child('_open_coach').once('value');if(snap.val()){await dbRef.child('_open_coach').remove();openCoachFromNotif();}}catch(e){}
+    },2000);
+  } catch(e) {
+    if(btn){btn.textContent='❌ Erreur';btn.disabled=false;setTimeout(()=>{btn.textContent='Tester';btn.style.background='';btn.style.color='';},3000);}
+    alert('Erreur test bilan : '+e.message);
+  }
+}
+
 async function loadCoachHistory(){
   const container = document.getElementById('coach-messages');
   if(!container){
@@ -1523,8 +1598,7 @@ async function loadCoachHistory(){
         }
         // ── Message météo asynchrone (pendant que l'utilisateur lit le brief) ──
         if (_pendingType === 'morning_brief') _appendWeatherMessageAfterBrief();
-        // ── Bilan complet après le résumé push weekly_debrief ──
-        if (_pendingType === 'weekly_debrief') setTimeout(() => generateWeeklyBilanComplet(_memos), 1500);
+        // weekly_debrief : contenu déjà complet (généré par CF ou testBilanNotif) — affiché directement ci-dessus
       }
       return;
     }

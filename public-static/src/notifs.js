@@ -38,6 +38,8 @@ async function testLocalNotif(type){
     alert('Active d\'abord les notifications en appuyant sur le bouton "Notifs" en haut de l\'écran.');
     return;
   }
+  // Bilan hebdo : pré-générer le contenu complet avant la notif (identique à la CF de production)
+  if (type === 'notif_debrief_semaine') { if (typeof testBilanNotif === 'function') testBilanNotif(); return; }
   const cw = getEffectiveCW();
   const notifDefs = {
     notif_brief_matin: { title: '☀️ Brief du matin — S'+cw, body: 'EF 12 km prévu à 7h30. Conditions idéales aujourd\'hui 🌤️' },
