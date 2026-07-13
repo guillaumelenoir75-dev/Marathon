@@ -4,6 +4,7 @@ let dbRef=null;
 let currentUserRole=null;
 let currentUserId=null;
 let _visibilityListenerAdded=false;
+let _wasInBackground=false; // true dès que l'app passe en arrière-plan
 function isAdmin(){return currentUserRole==='admin'||firebase.auth().currentUser?.email===ADMIN_EMAIL;}
 
 const ADMIN_EMAIL='guillaumelenoir75@gmail.com';
@@ -86,12 +87,15 @@ function initFirebase(){
             // Chemin des données isolé par utilisateur
             dbRef=db.ref('users/'+user.uid+'/state');
 
-            // Listener temps-réel sur _open_coach : mécanisme le plus fiable sur iOS.
-            // Quand l'app revient du background, Firebase RTDB se reconnecte et ce listener
-            // se déclenche immédiatement si _open_coach=true, sans dépendre de visibilitychange
-            // ou du postMessage SW (les deux sont peu fiables sur iOS après suspension).
+            // Listener temps-réel sur _open_coach : se déclenche quand Firebase reconnecte
+            // après un retour du background (iOS suspend le WebSocket RTDB en background).
+            // GARDE _wasInBackground : évite de consommer le flag si l'app est déjà en foreground
+            // (sinon testLocalNotif() déclencherait openCoachFromNotif() immédiatement, avant
+            // que l'utilisateur ait tapé la notification).
             dbRef.child('_open_coach').on('value', function(_ocSnap) {
               if (!_ocSnap.val() || !firebaseReady) return;
+              if (!_wasInBackground) return; // app déjà en foreground → ne pas consommer maintenant
+              _wasInBackground = false;
               openCoachFromNotif();
             });
 
@@ -150,7 +154,19 @@ function initFirebase(){
               // (seul mécanisme fiable sur iOS — lit _open_coach au retour au premier plan)
               if(!_visibilityListenerAdded){_visibilityListenerAdded=true;
               document.addEventListener('visibilitychange', async function() {
+                if (document.visibilityState === 'hidden') {
+                  _wasInBackground = true; // mémoriser le passage en background
+                  return;
+                }
                 if (document.visibilityState !== 'visible' || !dbRef || !firebaseReady) return;
+                // 1. Flag local posé par testLocalNotif() — le plus fiable, pas de Firebase read
+                if (window._pendingBilanOpen) {
+                  window._pendingBilanOpen = false;
+                  await openCoachFromNotif();
+                  return;
+                }
+                // 2. Lecture Firebase (_open_coach géré aussi par le on('value') listener ci-dessus,
+                //    mais on garde ce fallback au cas où le listener ne se déclenche pas)
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
                   if (snap.val()) {
@@ -158,8 +174,7 @@ function initFirebase(){
                     await openCoachFromNotif();
                     return;
                   }
-                  // _open_coach peut avoir été consommé par le timer 2s (app au premier plan) ;
-                  // _brief_pending persiste jusqu'à ce que checkPendingBrief() le traite → fallback fiable
+                  // _brief_pending : fallback si _open_coach déjà consommé
                   const bSnap = await dbRef.child('_brief_pending').once('value');
                   const bp = bSnap.val();
                   if (bp && (bp.needs_full_bilan || bp.needs_full_brief)) {

@@ -59,11 +59,15 @@ async function testLocalNotif(type){
         await dbRef.child('_brief_pending').set({needs_full_bilan:true, date:today});
         await dbRef.child('_open_coach').set(true);
       } catch(e) {}
+      // Flag local : déclenche openCoachFromNotif() via visibilitychange au retour du background
+      // Sans dépendre des reads Firebase (qui peuvent bloquer pendant la reconnexion iOS)
+      window._pendingBilanOpen = true;
     } else if (type === 'notif_brief_matin') {
       try {
         await dbRef.child('_brief_pending').set({needs_full_brief:true, date:today});
         await dbRef.child('_open_coach').set(true);
       } catch(e) {}
+      window._pendingBilanOpen = true;
     }
   }
   try {
