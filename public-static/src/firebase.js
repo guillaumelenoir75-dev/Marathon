@@ -200,6 +200,9 @@ async function openCoachFromNotif() {
   } catch(e) {}
   window._coachInitDone = false;
   _briefShownToday = false;
+  // Vider le container pour éviter l'accumulation de messages lors d'un re-déclenchement
+  const _coachContainer = document.getElementById('coach-messages');
+  if (_coachContainer) _coachContainer.innerHTML = '';
 
   // Fermer le modal de préférences s'il est ouvert (sinon il couvre le Coach)
   const _prefModal = document.getElementById('prefs-modal-overlay');

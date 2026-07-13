@@ -1378,8 +1378,15 @@ async function checkWeeklyBilan(memos, force) {
       + '<div class="coach-typing"><span>Le Coach prépare ton bilan S'+cw+'</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div>'
       + '</div>';
     if (container) { container.appendChild(loader); container.scrollTo({top:container.scrollHeight,behavior:'smooth'}); }
+    let _authH;
+    try { _authH = await authHeaders(true); } catch(_authErr) {
+      if (loader && loader.parentNode) loader.remove();
+      addCoachMessage('coach', '⚠️ Session expirée — ferme et rouvre l\'app, puis réessaie.');
+      _briefShownToday = true;
+      return true;
+    }
     const resp = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/weeklyReport', {
-      method:'POST', headers:await authHeaders(true), body:JSON.stringify({contextBilan})
+      method:'POST', headers:_authH, body:JSON.stringify({contextBilan})
     });
     if (!resp.ok || !resp.body) throw new Error('HTTP '+resp.status);
     let full='', buf='';
@@ -1391,6 +1398,16 @@ async function checkWeeklyBilan(memos, force) {
       coachHistory.push({role:'assistant', content:full, date:todayStr});
       saveCoachHistory();
       _addBriefActionButtons();
+      // Scroll vers le DÉBUT du bilan (pas la fin) pour que l'utilisateur voie l'intro
+      const _bilanMsg = container ? container.lastElementChild : null;
+      if (_bilanMsg) {
+        setTimeout(() => {
+          const _scrollTarget = (_bilanMsg.previousElementSibling &&
+            _bilanMsg.previousElementSibling.classList.contains('chat-date-sep'))
+            ? _bilanMsg.previousElementSibling : _bilanMsg;
+          if (container) container.scrollTo({ top: Math.max(0, _scrollTarget.offsetTop - 12), behavior: 'smooth' });
+        }, 350);
+      }
     }
     _briefShownToday = true; // empêche tout brief/bilan parasite si openCoachFromNotif est appelé 2 fois
     return true;
