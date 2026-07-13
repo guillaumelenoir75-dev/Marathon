@@ -86,6 +86,15 @@ function initFirebase(){
             // Chemin des données isolé par utilisateur
             dbRef=db.ref('users/'+user.uid+'/state');
 
+            // Listener temps-réel sur _open_coach : mécanisme le plus fiable sur iOS.
+            // Quand l'app revient du background, Firebase RTDB se reconnecte et ce listener
+            // se déclenche immédiatement si _open_coach=true, sans dépendre de visibilitychange
+            // ou du postMessage SW (les deux sont peu fiables sur iOS après suspension).
+            dbRef.child('_open_coach').on('value', function(_ocSnap) {
+              if (!_ocSnap.val() || !firebaseReady) return;
+              openCoachFromNotif();
+            });
+
             // Migration one-time : admin récupère ses données depuis marathon/state
             if(isAdmin()){
               const existingSnap=await dbRef.once('value');
