@@ -190,6 +190,10 @@ async function openCoachFromNotif() {
   window._coachInitDone = false;
   _briefShownToday = false;
 
+  // Fermer le modal de préférences s'il est ouvert (sinon il couvre le Coach)
+  const _prefModal = document.getElementById('prefs-modal-overlay');
+  if (_prefModal) _prefModal.remove();
+
   window._coachOpenedFromNotif = true;
   ['home','plan','renfo','stats','coach','compte'].forEach(s => {
     const el = document.getElementById('sc-'+s);
