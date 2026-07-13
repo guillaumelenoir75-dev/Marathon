@@ -30,8 +30,11 @@ self.addEventListener('notificationclick', event => {
       for (const client of list) {
         if (client.url.includes(self.location.origin)) {
           // iOS PWA : focus() d'abord (dégèle le JS), postMessage() dans le .then()
+          // .catch() garantit que postMessage part même si focus() échoue sur iOS
           return client.focus().then(function(c) {
             (c || client).postMessage({ action: 'open_coach', tag: notifTag });
+          }).catch(function() {
+            client.postMessage({ action: 'open_coach', tag: notifTag });
           });
         }
       }
