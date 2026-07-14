@@ -37,7 +37,8 @@ function renderBriefText(t){
   };
   for(const line of lines){
     if(/^-{2,}\s*$/.test(line.trim())) continue;
-    const hm = line.match(/^#{1,3}\s*(.+)/);
+    // Titre avec ## OU ligne courte emoji+MAJUSCULES (titre généré sans markdown)
+    const hm = line.match(/^#{1,3}\s*(.+)/) || (line.trim().length < 60 && /^[\p{Emoji_Presentation}\p{Extended_Pictographic}✅❌⚠️]/u.test(line.trim()) && /[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ]{3}/u.test(line) ? [null, line.trim()] : null);
     if(hm){
       flush();
       html += '<div style="display:flex;align-items:center;background:linear-gradient(90deg,rgba(12,68,124,0.10),rgba(27,79,216,0.04));border-left:3px solid #1B4FD8;border-radius:0 10px 10px 0;padding:7px 12px;margin:'+(html?'14px':'4px')+' 0 10px;font-size:13px;font-weight:700;color:#0C447C;letter-spacing:0.2px;">'+hm[1]+'</div>';
