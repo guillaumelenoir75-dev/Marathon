@@ -408,7 +408,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 
 3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
 
-4. ⚡ ALLURES & CONSIGNES — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
+4. ⚡ CONSIGNES & MÉTÉO — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
    Ligne 1 : allure cible en **gras** + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
    Ligne 2 : météo à l'heure de la séance en 1 phrase courte.
    Ligne 3 (optionnel) : 1 consigne technique seulement. Rien d'autre.
