@@ -645,10 +645,11 @@
   0%,100% { transform: scale(1) rotate(-5deg); }
   50% { transform: scale(1.12) rotate(5deg); }
 }
-@keyframes _briefBarSlide {
-  0% { left:-45%; width:40%; }
-  50% { left:30%; width:55%; }
-  100% { left:110%; width:40%; }
+@keyframes _briefBarFill {
+  0% { width:0%; }
+  60% { width:75%; }
+  85% { width:88%; }
+  100% { width:95%; }
 }
 </style>
 
@@ -657,10 +658,10 @@
   <div style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:0;">
     <div style="font-size:64px;line-height:1;margin-bottom:20px;animation:_sunPulse 2.5s ease-in-out infinite;" id="brief-overlay-icon">☀️</div>
     <p id="brief-overlay-title" style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;text-align:center;margin:0 0 8px;">Brief du matin</p>
-    <p id="brief-overlay-sub" style="font-size:14px;color:rgba(255,255,255,0.75);font-weight:500;margin:0 0 40px;text-align:center;">Le Coach prépare ton résumé…</p>
-    <!-- Barre de progression indéterminée -->
-    <div style="width:100%;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;overflow:hidden;position:relative;">
-      <div style="position:absolute;top:0;height:100%;background:#fff;border-radius:2px;animation:_briefBarSlide 1.6s ease-in-out infinite;"></div>
+    <p id="brief-overlay-sub" style="font-size:14px;color:rgba(255,255,255,0.75);font-weight:500;margin:0 0 40px;text-align:center;">Le Coach prépare ton brief matinal…</p>
+    <!-- Barre de progression gauche → droite -->
+    <div style="width:100%;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;overflow:hidden;">
+      <div style="height:100%;background:#fff;border-radius:2px;animation:_briefBarFill 4s cubic-bezier(0.4,0,0.2,1) forwards;"></div>
     </div>
   </div>
 </div>
