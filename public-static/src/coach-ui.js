@@ -1308,12 +1308,12 @@ function _addBriefActionButtons(keepOnly){
   if(document.getElementById('brief-actions')) return; // déjà présent
   const div=document.createElement('div');
   div.id='brief-actions';
-  div.style.cssText='display:flex;gap:8px;padding:0 0 12px 44px;animation:msg-enter 0.3s ease;';
+  div.style.cssText='display:flex;gap:6px;padding:0 0 14px 0;justify-content:center;animation:msg-enter 0.3s ease;';
   if(keepOnly){
-    div.innerHTML=`<button onclick="dismissBrief()" style="padding:8px 18px;background:rgba(226,75,74,0.09);color:#C0392B;border:1.5px solid rgba(226,75,74,0.22);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.01em;">🗑️ Effacer le brief</button>`;
+    div.innerHTML=`<button onclick="dismissBrief()" style="padding:6px 14px;background:transparent;color:#aaa;border:1px solid #e0e0e0;border-radius:16px;font-size:12px;font-weight:500;cursor:pointer;">🗑️ Effacer</button>`;
   } else {
-    div.innerHTML=`<button onclick="dismissBrief()" style="padding:8px 18px;background:rgba(226,75,74,0.09);color:#C0392B;border:1.5px solid rgba(226,75,74,0.22);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ Supprimer</button>`
-      +`<button onclick="keepBrief()" style="padding:8px 18px;background:rgba(12,68,124,0.08);color:#0C447C;border:1.5px solid rgba(12,68,124,0.22);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;">📌 Garder</button>`;
+    div.innerHTML=`<button onclick="dismissBrief()" style="padding:6px 16px;background:transparent;color:#bbb;border:1px solid #e8e8e8;border-radius:16px;font-size:12px;font-weight:500;cursor:pointer;">🗑️ Supprimer</button>`
+      +`<button onclick="keepBrief()" style="padding:6px 16px;background:linear-gradient(135deg,#1B4FD8,#0C447C);color:#fff;border:none;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(12,68,124,0.25);">📌 Garder</button>`;
   }
   container.appendChild(div);
   container.scrollTo({top:container.scrollHeight,behavior:'smooth'});
@@ -1526,8 +1526,6 @@ async function loadCoachHistory(){
           try { await dbRef.child('_brief_pending').remove(); } catch(e){}
           delete state['_brief_pending'];
         }
-        // ── Message météo asynchrone (uniquement pour le brief du matin) ──
-        if (_pendingType === 'morning_brief') _appendWeatherMessageAfterBrief();
       }
       return;
     }

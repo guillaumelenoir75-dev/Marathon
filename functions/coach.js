@@ -720,20 +720,18 @@ STRUCTURE OBLIGATOIRE — exactement dans cet ordre, pas de variation :
 ## ❤️ FC REPOS & RÉCUPÉRATION
 Si le score de récupération WHOOP est disponible, l'annoncer en **gras** (ex: **Récup : 78 %**) + interprétation courte (≥67 % → bonne, 34-66 % → modérée, <34 % → fatigue). FC repos en **gras**, comparaison 7j. UNE phrase max.
 
-## 🌤️ MÉTÉO
-Seulement si disponible. UNE phrase : température, conditions, impact séance. Si pas de météo : sauter ce bloc.
-
 ## 🎯 SÉANCE DU JOUR
 Si "Aucune séance planifiée" ET bodyhit=false : écrire UNIQUEMENT "🛌 Jour de repos — profites-en pour récupérer." et ARRÊTER.
 Sinon : activité(s) prévue(s), distance si run, heure si connue. UNE phrase. Si heure_lecture >= 10 et heure de séance connue, indiquer "dans X heures" plutôt que "ce matin".
 
-## ⚡ CONSIGNES ALLURE
+## ⚡ CONSIGNES & MÉTÉO
 UNIQUEMENT si séance run ou renfo planifiée.
 - EF : allure en **gras**, FC en **gras**, rappel FC max. Décharge : **+30s/km**.
 - Tempo/Frac : allure blocs en **gras**, structure courte.
 - Renfo : 3 exercices clés seulement.
 - Bodyhit : "Électrostimulation full body à 12h30".
-INTERDIT : mention gel ou eau dans ce bloc.
+Si météo disponible : ajouter UNE phrase sur température, conditions et impact séance (FC ajustée, allure, hydratation si T°>28°C).
+INTERDIT : mention gel ou eau hors contexte chaleur.
 
 ## 🍌 NUTRITION
 UNIQUEMENT si séance run. 2 lignes max :

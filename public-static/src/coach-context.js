@@ -79,10 +79,20 @@ function addCoachMessage(role, text, opts){
     const _meteoIcon = (opts && opts.meteoIcon) || null;
     const _meteoTemp = (opts && opts.meteoTemp != null) ? opts.meteoTemp+'°C' : null;
     const _sessionTime = (opts && opts.sessionTime) || null;
+    // Extraire le feu (score état forme) depuis le texte du brief
+    let _feuBadge = '';
+    if(briefType === 'morning') {
+      const _feuM = text && text.match(/🟢|🟡|🔴/);
+      if(_feuM) {
+        const _feuEmoji = _feuM[0];
+        const _feuLabel = _feuEmoji === '🟢' ? 'Feu vert' : _feuEmoji === '🔴' ? 'Feu rouge' : 'Feu jaune';
+        _feuBadge = '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+_feuEmoji+' '+_feuLabel+'</span>';
+      }
+    }
     let headerRight = '';
     if(briefType === 'morning') {
-      if(_meteoIcon || _meteoTemp) headerRight += '<span style="font-size:12px;color:rgba(255,255,255,0.92);font-weight:600;">'+(_meteoIcon||'')+(_meteoTemp ? ' '+_meteoTemp : '')+'</span>';
-      if(_sessionTime) headerRight += '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;margin-left:6px;">🏃 Séance '+_sessionTime+'</span>';
+      if(_feuBadge) headerRight += _feuBadge;
+      if(_sessionTime) headerRight += '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;margin-left:6px;">🏃 '+_sessionTime+'</span>';
     } else {
       const _ts = nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
       headerRight = '<span style="font-size:10px;color:rgba(255,255,255,0.7);">'+_ts+'</span>';
