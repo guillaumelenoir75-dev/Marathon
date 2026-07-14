@@ -104,7 +104,32 @@ async function _getPosition() {
             _posCacheTs = Date.now();
             resolve(_posCache);
           },
-          () => resolve(null),
+          () => {
+            // Fallback : dernière position connue sauvegardée (valable 30 jours)
+            (async () => {
+              try {
+                const locRaw = state && state['_last_location'];
+                if (locRaw) {
+                  const loc = typeof locRaw === 'string' ? JSON.parse(locRaw) : locRaw;
+                  if (loc && loc.lat && loc.lng && (Date.now() - loc.ts < 30 * 24 * 60 * 60 * 1000)) {
+                    _posCache = { lat: loc.lat, lng: loc.lng };
+                    _posCacheTs = Date.now();
+                    resolve(_posCache); return;
+                  }
+                }
+                if (typeof dbRef !== 'undefined' && dbRef) {
+                  const snap = await dbRef.child('_last_location').once('value');
+                  const loc = snap.val();
+                  if (loc && loc.lat && loc.lng && (Date.now() - loc.ts < 30 * 24 * 60 * 60 * 1000)) {
+                    _posCache = { lat: loc.lat, lng: loc.lng };
+                    _posCacheTs = Date.now();
+                    resolve(_posCache); return;
+                  }
+                }
+              } catch(e) {}
+              resolve(null);
+            })();
+          },
           { enableHighAccuracy: false, timeout: 8000, maximumAge: 3600000 }
         );
       },

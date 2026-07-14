@@ -906,7 +906,7 @@ async function importWhoopForValidation() {
   if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
   try {
     const snap = await dbRef.child('whoop_data').once('value');
-    const whoopData = snap.val();
+    let whoopData = snap.val();
     if (!whoopData) {
       if (btn) { btn.textContent = 'WHOOP'; btn.disabled = false; }
       if (preview) { preview.style.display = 'block'; preview.innerHTML = '<div style="text-align:center;padding:10px;color:#888;font-size:12px;">Pas de données WHOOP — lance d\'abord une synchronisation WHOOP.</div>'; }
@@ -914,6 +914,16 @@ async function importWhoopForValidation() {
     }
     const dateEl = document.getElementById('val-date');
     const sessionDate = (dateEl && dateEl.value) ? dateEl.value : new Date().toISOString().slice(0, 10);
+
+    // Auto-sync si pas de workout pour la date demandée et données > 15 min
+    const hasDateWorkout = (whoopData.workouts || []).some(w => w.strain != null && w.date === sessionDate);
+    const dataAge = whoopData.updatedAt ? Date.now() - whoopData.updatedAt : Infinity;
+    if (!hasDateWorkout && dataAge > 15 * 60 * 1000 && typeof syncWhoopFresh === 'function') {
+      if (btn) { btn.textContent = '🔄 Sync…'; btn.disabled = true; }
+      const freshData = await syncWhoopFresh();
+      if (freshData) whoopData = freshData;
+    }
+
     const workouts = (whoopData.workouts || []).filter(w => w.strain != null);
     const sorted = [...workouts].sort((a, b) => {
       const da = Math.abs(new Date(a.date) - new Date(sessionDate));
