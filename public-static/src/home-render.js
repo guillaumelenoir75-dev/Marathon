@@ -453,8 +453,8 @@ function renderHome(){
   updateNotifBtnState();
   // Bannière réveil (6h–14h, non encore enregistré)
   if (typeof checkWakeupBanner === 'function') checkWakeupBanner();
-  // Alerte token WHOOP expiré
-  _checkWhoopTokenAlert();
+  // Alerte token WHOOP expiré — délai 25s pour laisser la sync rafraîchir le token
+  setTimeout(_checkWhoopTokenAlert, 25000);
 }
 
 function _checkWhoopTokenAlert() {
