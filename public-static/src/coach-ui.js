@@ -707,30 +707,38 @@ async function extractAndSaveMemos(){
   } catch(e) { console.log('memo extraction failed', e); }
 }
 
+let _briefOverlayShownAt = 0;
+const _BRIEF_OVERLAY_MIN_MS = 3500; // durée minimale d'affichage
+
 function showBriefOverlay(type) {
   const el = document.getElementById('brief-loading-overlay');
   if (!el) return;
   const isWeekly = type === 'weekly';
   document.getElementById('brief-overlay-icon').textContent = isWeekly ? '📊' : '☀️';
   document.getElementById('brief-overlay-title').textContent = isWeekly ? 'Bilan de semaine' : 'Brief du matin';
-  document.getElementById('brief-overlay-sub').textContent = isWeekly ? 'Le Coach prépare ton bilan…' : 'Le Coach prépare ton résumé…';
+  document.getElementById('brief-overlay-sub').textContent = isWeekly ? 'Le Coach prépare ton bilan…' : 'Le Coach prépare ton brief matinal…';
+  _briefOverlayShownAt = Date.now();
   el.style.display = 'flex';
 }
 function hideBriefOverlay() {
   const el = document.getElementById('brief-loading-overlay');
   if (!el || el.style.display === 'none') return;
-  // Compléter la barre à 100% rapidement, puis masquer l'overlay
-  const bar = document.getElementById('brief-bar-fill');
-  if (bar) {
-    bar.style.animation = 'none';
-    bar.style.transition = 'width 0.35s ease-out';
-    bar.style.width = '100%';
-  }
+  // Attendre le temps minimum, puis compléter la barre à 100%, puis masquer
+  const remaining = Math.max(0, _BRIEF_OVERLAY_MIN_MS - (Date.now() - _briefOverlayShownAt));
   setTimeout(() => {
-    el.style.transition = 'opacity 0.35s ease';
-    el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; el.style.transition = ''; if(bar){bar.style.width='';bar.style.transition='';} }, 360);
-  }, 500);
+    const bar = document.getElementById('brief-bar-fill');
+    if (bar) {
+      bar.style.animation = 'none';
+      bar.offsetWidth; // force reflow pour que l'animation s'arrête
+      bar.style.transition = 'width 0.4s ease-out';
+      bar.style.width = '100%';
+    }
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.35s ease';
+      el.style.opacity = '0';
+      setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; el.style.transition = ''; if(bar){bar.style.width='';bar.style.transition='';} }, 360);
+    }, 450);
+  }, remaining);
 }
 
 // Convertit les conditions météo en emoji pour l'affichage dans le header du brief
