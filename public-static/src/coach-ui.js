@@ -708,7 +708,7 @@ async function extractAndSaveMemos(){
 }
 
 let _briefOverlayShownAt = 0;
-const _BRIEF_OVERLAY_MIN_MS = 3000; // durée minimale d'affichage
+const _BRIEF_OVERLAY_MIN_MS = 2000; // durée minimale d'affichage
 
 function showBriefOverlay(type) {
   const el = document.getElementById('brief-loading-overlay');
