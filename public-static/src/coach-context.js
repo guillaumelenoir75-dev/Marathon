@@ -36,11 +36,11 @@ function renderBriefText(t){
     para = [];
   };
   for(const line of lines){
+    if(/^-{2,}\s*$/.test(line.trim())) continue;
     const hm = line.match(/^#{1,3}\s*(.+)/);
     if(hm){
       flush();
-      if(html) html += '<div style="border-top:1px solid rgba(12,68,124,0.1);margin:10px 0 12px;"></div>';
-      html += '<div style="font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 8px;">'+hm[1]+'</div>';
+      html += '<div style="display:flex;align-items:center;background:linear-gradient(90deg,rgba(12,68,124,0.10),rgba(27,79,216,0.04));border-left:3px solid #1B4FD8;border-radius:0 10px 10px 0;padding:7px 12px;margin:'+(html?'14px':'4px')+' 0 10px;font-size:13px;font-weight:700;color:#0C447C;letter-spacing:0.2px;">'+hm[1]+'</div>';
     } else if(line.trim()===''){
       flush();
     } else {
