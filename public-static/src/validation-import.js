@@ -918,12 +918,12 @@ async function importWhoopForValidation(forceSync) {
     // Auto-sync si pas de workout pour la date demandée (forceSync ignore le délai)
     const hasDateWorkout = (whoopData.workouts || []).some(w => w.date === sessionDate);
     const dataAge = whoopData.updatedAt ? Date.now() - new Date(whoopData.updatedAt).getTime() : Infinity;
-    let _lastSyncFailed = false;
+    let _syncDiag = null;
     if (!hasDateWorkout && (forceSync || dataAge > 5 * 60 * 1000) && typeof syncWhoopFresh === 'function') {
       if (btn) { btn.textContent = '🔄 Sync…'; btn.disabled = true; }
-      const freshData = await syncWhoopFresh();
-      if (freshData) whoopData = freshData;
-      else _lastSyncFailed = true;
+      const result = await syncWhoopFresh();
+      if (result && result.wd) whoopData = result.wd;
+      _syncDiag = result;
     }
 
     // Inclure les workouts même sans strain calculé (WHOOP peut prendre ~20min à scorer)
@@ -952,7 +952,23 @@ async function importWhoopForValidation(forceSync) {
     picker.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:390px;">
       <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">⚡ Entraînements WHOOP</p>
       <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Sélectionne l'entraînement à associer à cette séance</p>
-      ${!top3.some(w => w.date === sessionDate) ? `<div style="background:#fef9ec;border:1px solid #f5a623;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#9a6700;line-height:1.5;">${_lastSyncFailed ? '❌ Sync WHOOP échouée — vérifie la connexion WHOOP dans Compte.' : '⏳ Séance du jour indisponible via l\'API WHOOP (délai pouvant aller jusqu\'à plusieurs heures). Tu peux valider sans WHOOP ou réessayer plus tard.'}<br><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button onclick="document.getElementById('whoop-val-picker').remove();importWhoopForValidation(true);" style="padding:5px 14px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">🔄 Rafraîchir</button><button onclick="document.getElementById('whoop-val-picker').remove();" style="padding:5px 14px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">Valider sans WHOOP</button></div></div>` : ''}
+      ${!top3.some(w => w.date === sessionDate) ? (() => {
+        const sd = _syncDiag;
+        let msg = '', color = '#9a6700', bg = '#fef9ec', border = '#f5a623';
+        if (sd && sd.error === 'needsAuth') {
+          msg = '🔑 Token WHOOP expiré — va dans <b>Compte → WHOOP</b> et reconnecte.';
+          color = '#b91c1c'; bg = '#fff1f2'; border = '#fca5a5';
+        } else if (sd && sd.error) {
+          msg = '❌ Sync échouée : ' + sd.error;
+          color = '#b91c1c'; bg = '#fff1f2'; border = '#fca5a5';
+        } else if (sd && sd.serverData) {
+          const wc = sd.serverData.workouts_count ?? '?';
+          msg = '⚠️ Sync OK — ' + wc + ' workout(s) récupéré(s) sur WHOOP, aucun pour le ' + sessionDate + '. L\'API WHOOP n\'a pas encore publié cette séance.';
+        } else {
+          msg = '⏳ Séance du jour non trouvée — l\'API WHOOP n\'a pas encore publié cette séance. Réessaie dans quelques minutes.';
+        }
+        return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:${color};line-height:1.5;">${msg}<br><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button onclick="document.getElementById('whoop-val-picker').remove();importWhoopForValidation(true);" style="padding:5px 14px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">🔄 Rafraîchir</button><button onclick="document.getElementById('whoop-val-picker').remove();" style="padding:5px 14px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">Valider sans WHOOP</button></div></div>`;
+      })() : ''}
       ${top3.map((w, idx) => {
         const dt = new Date(w.date + 'T12:00:00');
         const dateLabel = `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;

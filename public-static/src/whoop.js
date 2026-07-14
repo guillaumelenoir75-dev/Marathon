@@ -71,9 +71,8 @@ function connectWhoop() {
   }, 1500);
 }
 
-// Sync WHOOP et attend que les données soient chargées — retourne les données WHOOP ou null
+// Sync WHOOP — retourne { wd, serverData } ou { wd: null, serverData, error }
 async function syncWhoopFresh() {
-  // Attendre que syncWhoop() en cours se termine avant de lancer le nôtre
   if (_whoopSyncing) {
     await new Promise(r => { const t = setInterval(() => { if (!_whoopSyncing) { clearInterval(t); r(); } }, 300); setTimeout(() => { clearInterval(t); r(); }, 20000); });
   }
@@ -83,19 +82,20 @@ async function syncWhoopFresh() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await resp.json();
-    if (data.needsAuth || !data.success) return null;
+    const serverData = await resp.json();
+    if (serverData.needsAuth) return { wd: null, serverData, error: 'needsAuth' };
+    if (!serverData.success) return { wd: null, serverData, error: serverData.error || 'sync_failed' };
     if (dbRef) {
       const snap = await dbRef.child('whoop_data').once('value');
       const wd = snap.val();
-      if (wd) {
-        state.whoop_data = wd;
-        if (typeof renderWhoopStats === 'function') renderWhoopStats();
-      }
-      return wd || null;
+      if (wd) { state.whoop_data = wd; if (typeof renderWhoopStats === 'function') renderWhoopStats(); }
+      return { wd: wd || null, serverData };
     }
-  } catch(e) { console.error('syncWhoopFresh error:', e); }
-  return null;
+    return { wd: null, serverData };
+  } catch(e) {
+    console.error('syncWhoopFresh error:', e);
+    return { wd: null, serverData: null, error: e.message };
+  }
 }
 
 async function syncWhoop() {
