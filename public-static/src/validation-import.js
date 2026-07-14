@@ -915,16 +915,17 @@ async function importWhoopForValidation() {
     const dateEl = document.getElementById('val-date');
     const sessionDate = (dateEl && dateEl.value) ? dateEl.value : new Date().toISOString().slice(0, 10);
 
-    // Auto-sync si pas de workout pour la date demandée et données > 15 min
-    const hasDateWorkout = (whoopData.workouts || []).some(w => w.strain != null && w.date === sessionDate);
-    const dataAge = whoopData.updatedAt ? Date.now() - whoopData.updatedAt : Infinity;
-    if (!hasDateWorkout && dataAge > 15 * 60 * 1000 && typeof syncWhoopFresh === 'function') {
+    // Auto-sync si pas de workout pour la date demandée et données > 5 min
+    const hasDateWorkout = (whoopData.workouts || []).some(w => w.date === sessionDate);
+    const dataAge = whoopData.updatedAt ? Date.now() - new Date(whoopData.updatedAt).getTime() : Infinity;
+    if (!hasDateWorkout && dataAge > 5 * 60 * 1000 && typeof syncWhoopFresh === 'function') {
       if (btn) { btn.textContent = '🔄 Sync…'; btn.disabled = true; }
       const freshData = await syncWhoopFresh();
       if (freshData) whoopData = freshData;
     }
 
-    const workouts = (whoopData.workouts || []).filter(w => w.strain != null);
+    // Inclure les workouts même sans strain calculé (WHOOP peut prendre ~20min à scorer)
+    const workouts = (whoopData.workouts || []).filter(w => w.duration_min != null || w.strain != null);
     const sorted = [...workouts].sort((a, b) => {
       const da = Math.abs(new Date(a.date) - new Date(sessionDate));
       const db = Math.abs(new Date(b.date) - new Date(sessionDate));
@@ -956,8 +957,8 @@ async function importWhoopForValidation() {
         const isSameDay = diffDays === 0;
         const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
           : `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>`;
-        const strainColor = w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
-        const chargeLabel = w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
+        const strainColor = w.strain == null ? '#aaa' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
+        const chargeLabel = w.strain == null ? 'Score en cours…' : w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
         return `<div onclick="document.getElementById('whoop-val-picker').remove();_applyWhoopToValidation(${idx});"
           style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isSameDay?'#7c3aed':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isSameDay?'#f5f3ff':'var(--bg2)'};">
           <div>
@@ -968,7 +969,7 @@ async function importWhoopForValidation() {
             <p style="font-size:11px;color:var(--muted);margin:2px 0 0;">${w.duration_min ? w.duration_min + ' min' : ''}${w.avg_hr ? ' · FC ' + w.avg_hr + ' bpm' : ''}</p>
           </div>
           <div style="text-align:right;">
-            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain.toFixed(1)}</p>
+            <p style="font-size:18px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${w.strain != null ? w.strain.toFixed(1) : '—'}</p>
             <p style="font-size:10px;color:${strainColor};font-weight:600;margin:2px 0 0;">${chargeLabel}</p>
           </div>
         </div>`;
