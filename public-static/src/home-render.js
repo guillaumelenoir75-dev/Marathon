@@ -467,7 +467,7 @@ function _checkWhoopTokenAlert() {
   if (existing) return; // déjà affiché
   const banner = document.createElement('div');
   banner.id = 'whoop-token-alert';
-  banner.style.cssText = 'margin:0 16px 12px;background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1.5px solid #fb923c;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 2px 8px rgba(251,146,60,0.18);';
+  banner.style.cssText = 'margin:0 0 10px;background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1.5px solid #fb923c;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 2px 8px rgba(251,146,60,0.25);';
   banner.innerHTML = '<span style="font-size:22px;flex-shrink:0;">⚡</span>'
     + '<div style="flex:1;">'
     + '<p style="font-size:13px;font-weight:700;color:#c2410c;margin:0 0 2px;">Connexion WHOOP expirée</p>'
@@ -475,8 +475,8 @@ function _checkWhoopTokenAlert() {
     + '</div>'
     + '<span style="font-size:16px;color:#fb923c;">›</span>';
   banner.onclick = () => showScreen('compte');
-  const homeWeekNav = document.getElementById('home-week-nav');
-  if (homeWeekNav && homeWeekNav.parentElement) homeWeekNav.parentElement.insertBefore(banner, homeWeekNav);
+  const progressionBlock = document.getElementById('home-progression-block');
+  if (progressionBlock && progressionBlock.parentElement) progressionBlock.parentElement.insertBefore(banner, progressionBlock);
 }
 
 function toggleDoneExtra(w,ei){
