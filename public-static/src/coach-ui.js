@@ -994,6 +994,7 @@ async function checkPendingBrief() {
 }
 
 async function generateAndShowWeeklyBilan() {
+  try { if (typeof showBriefOverlay === 'function') showBriefOverlay('weekly'); } catch(e) {}
   const container = document.getElementById('coach-messages');
   const loader = document.createElement('div');
   loader.id = 'bilan-loader';
