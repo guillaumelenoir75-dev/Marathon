@@ -1018,6 +1018,8 @@ async function generateAndShowWeeklyBilan() {
     if (p && p.content) {
       const todayStr = new Date().toISOString().slice(0,10);
       addCoachMessage('coach', p.content, {isBrief:true, briefType:'weekly'});
+      const _lastWeeklyMsg = container ? container.lastElementChild : null;
+      if (_lastWeeklyMsg) _lastWeeklyMsg.dataset.briefDate = todayStr;
       coachHistory.push({role:'assistant', content: p.content, date: todayStr, isBrief: true, briefType:'weekly'});
       saveCoachHistory();
       _addBriefActionButtons();
@@ -1027,6 +1029,7 @@ async function generateAndShowWeeklyBilan() {
     }
   } catch(e) {
     if (loader && loader.parentNode) loader.remove();
+    hideBriefOverlay();
     addCoachMessage('coach', '📊 Bilan de semaine temporairement indisponible. Réessaie dans quelques secondes.');
   }
   _briefShownToday = true;
