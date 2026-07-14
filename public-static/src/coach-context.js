@@ -32,7 +32,7 @@ function renderBriefText(t){
   let html = '', para = [];
   const flush = () => {
     const txt = para.join('<br>').trim();
-    if(txt) html += '<p style="margin:0 0 10px;line-height:1.75;font-size:14px;">'+txt+'</p>';
+    if(txt) html += '<p style="margin:0 0 16px;line-height:1.75;font-size:14px;">'+txt+'</p>';
     para = [];
   };
   for(const line of lines){
