@@ -719,11 +719,18 @@ function showBriefOverlay(type) {
 function hideBriefOverlay() {
   const el = document.getElementById('brief-loading-overlay');
   if (!el || el.style.display === 'none') return;
+  // Compléter la barre à 100% rapidement, puis masquer l'overlay
+  const bar = document.getElementById('brief-bar-fill');
+  if (bar) {
+    bar.style.animation = 'none';
+    bar.style.transition = 'width 0.35s ease-out';
+    bar.style.width = '100%';
+  }
   setTimeout(() => {
-    el.style.transition = 'opacity 0.3s ease';
+    el.style.transition = 'opacity 0.35s ease';
     el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; el.style.transition = ''; }, 320);
-  }, 1000);
+    setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; el.style.transition = ''; if(bar){bar.style.width='';bar.style.transition='';} }, 360);
+  }, 500);
 }
 
 // Convertit les conditions météo en emoji pour l'affichage dans le header du brief
