@@ -727,18 +727,22 @@ function hideBriefOverlay() {
   const remaining = Math.max(0, _BRIEF_OVERLAY_MIN_MS - (Date.now() - _briefOverlayShownAt));
   setTimeout(() => {
     const bar = document.getElementById('brief-bar-fill');
+    let fillDurationMs = 400;
     if (bar) {
-      // Calculer la position actuelle et la durée pour finir à la même vitesse (90% en 4000ms = 22.5%/s)
-      const elapsed = Date.now() - _briefOverlayShownAt;
-      const currentPct = Math.min(90, (elapsed / 4000) * 90);
-      const missingPct = 100 - currentPct;
-      const fillDuration = Math.round((missingPct / 22.5) * 1000); // ms à la même vitesse
+      // Lire la largeur visuelle actuelle AVANT d'arrêter l'animation (évite le saut à 0)
+      const barRect = bar.getBoundingClientRect();
+      const parentRect = bar.parentElement ? bar.parentElement.getBoundingClientRect() : barRect;
+      const currentPct = parentRect.width > 0 ? (barRect.width / parentRect.width) * 100 : 0;
+      // Figer la barre à sa position actuelle, puis stopper l'animation
+      bar.style.width = currentPct + '%';
       bar.style.animation = 'none';
       bar.offsetWidth; // force reflow
-      bar.style.transition = 'width ' + fillDuration + 'ms linear';
+      // Continuer jusqu'à 100% à la même vitesse (90% en 4000ms = 22.5%/s)
+      const missingPct = 100 - currentPct;
+      fillDurationMs = Math.round((missingPct / 22.5) * 1000);
+      bar.style.transition = 'width ' + fillDurationMs + 'ms linear';
       bar.style.width = '100%';
     }
-    const fillDurationMs = bar ? Math.round(((100 - Math.min(90, ((Date.now() - _briefOverlayShownAt) / 4000) * 90)) / 22.5) * 1000) : 400;
     setTimeout(() => {
       el.style.transition = 'opacity 0.35s ease';
       el.style.opacity = '0';
