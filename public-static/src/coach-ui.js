@@ -723,21 +723,27 @@ function showBriefOverlay(type) {
 function hideBriefOverlay() {
   const el = document.getElementById('brief-loading-overlay');
   if (!el || el.style.display === 'none') return;
-  // Attendre le temps minimum, puis compléter la barre à 100%, puis masquer
+  // Attendre le temps minimum, puis continuer la barre à la même vitesse jusqu'à 100%, puis masquer
   const remaining = Math.max(0, _BRIEF_OVERLAY_MIN_MS - (Date.now() - _briefOverlayShownAt));
   setTimeout(() => {
     const bar = document.getElementById('brief-bar-fill');
     if (bar) {
+      // Calculer la position actuelle et la durée pour finir à la même vitesse (90% en 4000ms = 22.5%/s)
+      const elapsed = Date.now() - _briefOverlayShownAt;
+      const currentPct = Math.min(90, (elapsed / 4000) * 90);
+      const missingPct = 100 - currentPct;
+      const fillDuration = Math.round((missingPct / 22.5) * 1000); // ms à la même vitesse
       bar.style.animation = 'none';
-      bar.offsetWidth; // force reflow pour que l'animation s'arrête
-      bar.style.transition = 'width 0.4s ease-out';
+      bar.offsetWidth; // force reflow
+      bar.style.transition = 'width ' + fillDuration + 'ms linear';
       bar.style.width = '100%';
     }
+    const fillDurationMs = bar ? Math.round(((100 - Math.min(90, ((Date.now() - _briefOverlayShownAt) / 4000) * 90)) / 22.5) * 1000) : 400;
     setTimeout(() => {
       el.style.transition = 'opacity 0.35s ease';
       el.style.opacity = '0';
       setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; el.style.transition = ''; if(bar){bar.style.width='';bar.style.transition='';} }, 360);
-    }, 450);
+    }, fillDurationMs + 200);
   }, remaining);
 }
 
