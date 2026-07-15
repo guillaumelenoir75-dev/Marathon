@@ -235,13 +235,21 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   analysisContext.fc = hr;
   analysisContext.semaine = CW;
 
-  // Données WHOOP si importées
-  if(whoopData && (whoopData.workout_strain != null || whoopData.workout_calories != null)) {
-    analysisContext.whoop = {
-      strain: whoopData.workout_strain != null ? parseFloat(parseFloat(whoopData.workout_strain).toFixed(1)) : null,
-      calories: whoopData.workout_calories != null ? Math.round(whoopData.workout_calories) : null,
-      cycle_strain: whoopData.cycle_strain != null ? parseFloat(parseFloat(whoopData.cycle_strain).toFixed(1)) : null
-    };
+  // Données WHOOP si importées (paramètre direct ou perf sauvegardé)
+  let _whoopRaw = whoopData || null;
+  if(!_whoopRaw && idx != null) {
+    // Fallback : lire le perf de la séance planifiée
+    try { const _p = state[gk(CW,idx)+'perf'] ? JSON.parse(state[gk(CW,idx)+'perf']) : null; if(_p && _p.whoop) _whoopRaw = _p.whoop; } catch(e){}
+  }
+  if(_whoopRaw) {
+    const _strain = _whoopRaw.workout_strain ?? _whoopRaw.cycle_strain ?? null;
+    const _calories = _whoopRaw.workout_calories ?? _whoopRaw.cycle_calories ?? null;
+    if(_strain != null || _calories != null) {
+      analysisContext.whoop = {
+        strain: _strain != null ? parseFloat(parseFloat(_strain).toFixed(1)) : null,
+        calories: _calories != null ? Math.round(_calories) : null
+      };
+    }
   }
 
   // Structure complète de la séance (partie après |)
