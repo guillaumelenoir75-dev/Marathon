@@ -455,10 +455,10 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
         + '</div>'
         + (_stats.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">'+_stats.join('')+'</div>' : '')
       + '</div>'
-      + '<div style="background:#fff;padding:14px 16px;">'
+      + '<div style="background:var(--bg,#fff);padding:14px 16px;">'
         + '<div id="coach-analysis-stream" style="color:var(--text,#1a1a1a);"><div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>'
       + '</div>'
-      + '<div id="coach-analysis-footer" style="display:none;padding:10px 14px;border-top:1px solid rgba(22,101,52,0.1);background:#f9fefb;text-align:center;">'
+      + '<div id="coach-analysis-footer" style="display:none;padding:10px 14px;border-top:1px solid rgba(22,101,52,0.1);background:var(--bg2,#f9fefb);text-align:center;">'
         + '<button onclick="showScreen(\'plan\')" style="background:none;border:1.5px solid #16a34a;color:#166534;border-radius:10px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;">📅 Voir dans le plan</button>'
       + '</div>'
       + '</div>';

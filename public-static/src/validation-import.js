@@ -126,6 +126,21 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       if(container) setTimeout(()=>{ container.scrollTop = container.scrollHeight; }, 300);
     }
 
+    // ── Persistance : sauvegarder l'analyse pour rechargement au retour sur Coach ──
+    if(fullText && typeof dbRef !== 'undefined' && dbRef) {
+      const _feuSave = (fullText.match(/^\[FEU:(🟢|🟡|🔴)\]/) || [])[1] || null;
+      const _today = new Date().toISOString().slice(0,10);
+      const _statsEl = document.getElementById('coach-analysis-card') && document.getElementById('coach-analysis-card').querySelector('div[style*="flex-wrap"]');
+      try {
+        await dbRef.child('_last_analysis').set({
+          content: displayText,
+          feu: _feuSave,
+          date: _today,
+          stats_html: _statsEl ? _statsEl.innerHTML : null
+        });
+      } catch(e) {}
+    }
+
         // ── Mise à jour automatique des mémos après débrief ─────────────────
     // Le débrief contient les données réelles de la séance → parfait pour
     // détecter si un problème mémorisé est résolu (ex: allures respectées)
