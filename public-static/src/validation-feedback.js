@@ -441,8 +441,10 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     // Mini-stats badges colorés selon performance
     const _typeLbl = (window.typeLabel && window.typeLabel[s.type]) || s.type || '';
     const _stats = [];
-    const _isEfLong = (s.type==='ef'||s.type==='long');
-    // Couleur allure : vert si dans ±15s de la cible EF, orange ±30s, rouge sinon
+    const _sessionType = s.type || '';
+    const _isEfLong = (_sessionType==='ef'||_sessionType==='long'||_sessionType==='sortie');
+    const _isTempo = (_sessionType==='tempo'||_sessionType==='frac'||_sessionType==='race');
+    // Couleur allure : vert si dans ±15s de la cible EF (séances endurance), blanc sinon
     let _paceBg = 'rgba(255,255,255,0.22)';
     try {
       const _efTarget = (typeof getBestEfPace === 'function') ? getBestEfPace() : null;
@@ -455,11 +457,17 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
         }
       }
     } catch(e) {}
-    // Couleur FC : vert si ≤148 (EF/long), orange 149-158, rouge >158
+    // Couleur FC : toujours colorée. EF/long ≤148 vert, tempo/frac ≤172 vert
     let _hrBg = 'rgba(255,255,255,0.22)';
-    if(hr && _isEfLong) {
+    if(hr) {
       const _hrN = parseInt(hr, 10);
-      if(!isNaN(_hrN)) _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+      if(!isNaN(_hrN)) {
+        if(_isTempo) {
+          _hrBg = _hrN<=172 ? 'rgba(134,239,172,0.4)' : _hrN<=185 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+        } else {
+          _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+        }
+      }
     }
     if(km) _stats.push('<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">🏃 '+km+' km</span>');
     if(pace) _stats.push('<span style="background:'+_paceBg+';border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">⚡ '+pace+'/km</span>');

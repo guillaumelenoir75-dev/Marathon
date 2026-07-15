@@ -1677,8 +1677,9 @@ async function loadCoachHistory(){
           let _statsRow = '';
           if(_la.stats_raw || _la.stats_html) {
             const _sr = _la.stats_raw || {};
-            const _srKm = _sr.km, _srPace = _sr.pace, _srHr = _sr.hr, _srType = _sr.type;
-            const _srIsEfLong = (_srType==='ef'||_srType==='long');
+            const _srKm = _sr.km, _srPace = _sr.pace, _srHr = _sr.hr, _srType = _sr.type || '';
+            const _srIsEfLong = (_srType==='ef'||_srType==='long'||_srType==='sortie');
+            const _srIsTempo = (_srType==='tempo'||_srType==='frac'||_srType==='race');
             let _badgesHtml = '';
             if(_srKm) _badgesHtml += '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">🏃 '+_srKm+' km</span>';
             if(_srPace) {
@@ -1698,9 +1699,13 @@ async function loadCoachHistory(){
             }
             if(_srHr) {
               let _hrBg = 'rgba(255,255,255,0.22)';
-              if(_srIsEfLong) {
-                const _hrN = parseInt(_srHr, 10);
-                if(!isNaN(_hrN)) _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+              const _hrN = parseInt(_srHr, 10);
+              if(!isNaN(_hrN)) {
+                if(_srIsTempo) {
+                  _hrBg = _hrN<=172 ? 'rgba(134,239,172,0.4)' : _hrN<=185 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+                } else {
+                  _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+                }
               }
               _badgesHtml += '<span style="background:'+_hrBg+';border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">❤️ '+_srHr+' bpm</span>';
             }
