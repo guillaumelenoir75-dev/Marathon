@@ -22,12 +22,18 @@ function renderCoachText(t, streaming){
   return h;
 }
 // Rendu spécial pour les briefs : sections ## → séparateurs visuels
-function renderBriefText(t){
+// theme: 'blue' (défaut, brief matin) | 'green' (analyse séance)
+function renderBriefText(t, theme){
   if(!t) return '';
+  const isGreen = theme === 'green';
+  const accentColor = isGreen ? '#166534' : '#0C447C';
+  const borderColor = isGreen ? '#16a34a' : '#1B4FD8';
+  const bgFrom    = isGreen ? 'rgba(22,101,52,0.08)' : 'rgba(12,68,124,0.10)';
+  const bgTo      = isGreen ? 'rgba(22,163,74,0.03)'  : 'rgba(27,79,216,0.04)';
   let s = t.replace(/```[\s\S]*?```/g,'').replace(/`([^`\n]*)`/g,'$1');
   s = s.replace(/\n{3,}/g,'\n\n').trim();
   s = fixAccents(s);
-  s = s.replace(/\*\*([^*\n]+)\*\*/g,'<strong style="font-weight:700;color:#0C447C;">$1</strong>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g,'<strong style="font-weight:700;color:'+accentColor+';">$1</strong>');
   const lines = s.split('\n');
   let html = '', para = [];
   const flush = () => {
@@ -41,7 +47,7 @@ function renderBriefText(t){
     const hm = line.match(/^#{1,3}\s*(.+)/) || (line.trim().length < 60 && /^[\p{Emoji_Presentation}\p{Extended_Pictographic}✅❌⚠️]/u.test(line.trim()) && /[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ]{3}/u.test(line) ? [null, line.trim()] : null);
     if(hm){
       flush();
-      html += '<div style="display:flex;align-items:center;background:linear-gradient(90deg,rgba(12,68,124,0.10),rgba(27,79,216,0.04));border-left:3px solid #1B4FD8;border-radius:0 10px 10px 0;padding:7px 12px;margin:'+(html?'14px':'4px')+' 0 10px;font-size:13px;font-weight:700;color:#0C447C;letter-spacing:0.2px;">'+hm[1]+'</div>';
+      html += '<div style="display:flex;align-items:center;background:linear-gradient(90deg,'+bgFrom+','+bgTo+');border-left:3px solid '+borderColor+';border-radius:0 10px 10px 0;padding:7px 12px;margin:'+(html?'14px':'4px')+' 0 10px;font-size:13px;font-weight:700;color:'+accentColor+';letter-spacing:0.2px;">'+hm[1]+'</div>';
     } else if(line.trim()===''){
       flush();
     } else {

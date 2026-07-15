@@ -436,12 +436,20 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
       container.appendChild(sep);
     }
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
-    wrap.innerHTML = '<div style="width:32px;height:32px;border-radius:50%;background:#0C447C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:14px;">🤖</span></div>'
-      + '<div style="max-width:85%;background:#fff;border-radius:4px 14px 14px 14px;padding:12px 14px;border-left:3px solid rgba(12,68,124,0.15);">'
-      + '<div id="coach-analysis-stream" style="font-size:14px;color:var(--text);line-height:1.7;"><div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>'
-      + '<p style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right;">'
-      + nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</p></div>';
+    wrap.style.cssText = 'display:block;margin:4px 0 8px;';
+    const _timeStr = nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    wrap.innerHTML = '<div style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(22,101,52,0.13);border:1px solid rgba(22,101,52,0.12);">'
+      + '<div style="background:linear-gradient(135deg,#166534,#16a34a);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'
+        + '<div style="display:flex;align-items:center;gap:8px;">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:13px;">🤖</span></div>'
+          + '<span style="font-size:13px;font-weight:700;color:#fff;">✅ Analyse de séance</span>'
+        + '</div>'
+        + '<span style="font-size:11px;color:rgba(255,255,255,0.75);">'+_timeStr+'</span>'
+      + '</div>'
+      + '<div style="background:#fff;padding:14px 16px;">'
+        + '<div id="coach-analysis-stream" style="color:var(--text,#1a1a1a);"><div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>'
+      + '</div>'
+      + '</div>';
     container.appendChild(wrap);
     container.scrollTop = container.scrollHeight;
   })();

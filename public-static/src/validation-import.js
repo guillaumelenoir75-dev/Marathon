@@ -98,7 +98,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
     if(textEl) {
       textEl.style.transition = 'opacity 0.35s ease';
       textEl.innerHTML = fullText
-        ? renderCoachText(cleanTruncated(fullText))
+        ? renderBriefText(cleanTruncated(fullText), 'green')
         : '<p style="color:var(--muted);font-style:italic;">Analyse non disponible.</p>';
       requestAnimationFrame(() => { textEl.style.opacity = '1'; });
       if(container) container.scrollTop = container.scrollHeight;
