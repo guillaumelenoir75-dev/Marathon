@@ -94,14 +94,36 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       }
     }
 
-    // Afficher d'un coup avec fade-in
+    // Détecter [FEU:🟢/🟡/🔴] et mettre à jour le badge header
+    let displayText = cleanTruncated(fullText);
+    if(fullText) {
+      const feuM = fullText.match(/^\[FEU:(🟢|🟡|🔴)\]\s*\n?/);
+      if(feuM) {
+        displayText = cleanTruncated(fullText.replace(/^\[FEU:(🟢|🟡|🔴)\]\s*\n?/, ''));
+        const feuEmoji = feuM[1];
+        const feuLabel = feuEmoji==='🟢'?'Feu vert':feuEmoji==='🔴'?'Feu rouge':'Feu jaune';
+        const feuZone = document.getElementById('coach-feu-zone');
+        if(feuZone) feuZone.innerHTML = '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+feuEmoji+' '+feuLabel+'</span>';
+      }
+    }
+
+    // Afficher d'un coup avec fade-in et stagger par bloc
     if(textEl) {
       textEl.style.transition = 'opacity 0.35s ease';
-      textEl.innerHTML = fullText
-        ? renderBriefText(cleanTruncated(fullText), 'green')
+      textEl.innerHTML = displayText
+        ? renderBriefText(displayText, 'green')
         : '<p style="color:var(--muted);font-style:italic;">Analyse non disponible.</p>';
+      // Stagger : chaque bloc enfant reçoit un délai croissant
+      Array.from(textEl.children).forEach((el, i) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        setTimeout(() => { el.style.opacity='1'; el.style.transform='translateY(0)'; }, i * 90);
+      });
       requestAnimationFrame(() => { textEl.style.opacity = '1'; });
-      if(container) container.scrollTop = container.scrollHeight;
+      const footer = document.getElementById('coach-analysis-footer');
+      if(footer) setTimeout(()=>{ footer.style.display='block'; }, Array.from(textEl.children).length * 90 + 200);
+      if(container) setTimeout(()=>{ container.scrollTop = container.scrollHeight; }, 300);
     }
 
         // ── Mise à jour automatique des mémos après débrief ─────────────────
