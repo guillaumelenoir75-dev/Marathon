@@ -439,12 +439,27 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:block;margin:4px 0 8px;';
     const _timeStr = nowD.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    // Mini-stats badges pour le header
+    // Mini-stats badges colorés selon performance
     const _typeLbl = (window.typeLabel && window.typeLabel[s.type]) || s.type || '';
     const _stats = [];
+    // Couleur allure : vert si dans ±15s de la cible, orange si ±30s, rouge sinon
+    const _efTarget = getBestEfPace ? getBestEfPace() : null;
+    let _paceBg = 'rgba(255,255,255,0.22)';
+    if(pace && _efTarget && (s.type==='ef'||s.type==='long')) {
+      const _pSec = paceStrToSec(pace), _tSec = paceStrToSec(_efTarget);
+      if(_pSec && _tSec) {
+        const _diff = Math.abs(_pSec - _tSec);
+        _paceBg = _diff <= 15 ? 'rgba(134,239,172,0.4)' : _diff <= 30 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+      }
+    }
+    // Couleur FC : vert si ≤148 (EF/long), orange si 149-158, rouge si >158
+    let _hrBg = 'rgba(255,255,255,0.22)';
+    if(hr && (s.type==='ef'||s.type==='long')) {
+      _hrBg = hr<=148 ? 'rgba(134,239,172,0.4)' : hr<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+    }
     if(km) _stats.push('<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">🏃 '+km+' km</span>');
-    if(pace) _stats.push('<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">⚡ '+pace+'/km</span>');
-    if(hr) _stats.push('<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">❤️ '+hr+' bpm</span>');
+    if(pace) _stats.push('<span style="background:'+_paceBg+';border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">⚡ '+pace+'/km</span>');
+    if(hr) _stats.push('<span style="background:'+_hrBg+';border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">❤️ '+hr+' bpm</span>');
     wrap.innerHTML = '<div id="coach-analysis-card" style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(22,101,52,0.13);border:1px solid rgba(22,101,52,0.12);">'
       + '<div style="background:linear-gradient(135deg,#166534,#16a34a);padding:10px 14px;">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:'+(_stats.length?'8px':'0')+';">'
@@ -460,7 +475,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
         + '<div id="coach-analysis-stream" style="color:var(--text,#1a1a1a);font-size:14px;line-height:1.55;"><div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>'
       + '</div>'
       + '<div id="coach-analysis-footer" style="display:none;padding:10px 14px;border-top:1px solid rgba(22,101,52,0.1);background:var(--bg2,#f9fefb);text-align:center;">'
-        + '<button onclick="showScreen(\'plan\')" style="background:none;border:1.5px solid #16a34a;color:#166534;border-radius:10px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;">📅 Voir dans le plan</button>'
+        + '<button onclick="showScreen(\'plan\')" style="background:#16a34a;border:none;color:#fff;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(22,163,74,0.3);">📅 Voir dans le plan</button>'
       + '</div>'
       + '</div>';
     container.appendChild(wrap);
@@ -583,6 +598,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     window._stravaActivityData = null;
   }
 
+  window._lastAnalysisToday = true;
   fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData);
 }
 

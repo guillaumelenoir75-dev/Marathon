@@ -66,7 +66,9 @@ Ligne 2 — verdict synthétique en 1 phrase courte (max 12 mots). Ex : "Exécut
 
 Blocs optionnels (ajouter SEULEMENT si vraiment pertinent, pas par défaut) :
 📈 TENDANCE — progression visible sur plusieurs semaines
-🧘 RÉCUPÉRATION — charge élevée ou signe de fatigue. ATTENTION : si l'heure de la séance validée (analysisContext.heureSeanceValidee) est après 22h00, NE PAS suggérer de faire une activité physique "avant minuit" — c'est irréaliste. Dire simplement "priorité au sommeil".
+🧘 RÉCUPÉRATION — charge élevée ou signe de fatigue. RÈGLES TEMPORELLES OBLIGATOIRES :
+  • Si analysisContext.heureSeanceValidee est après 22h00 → NE PAS suggérer une activité physique "avant minuit" — c'est irréaliste. Écrire uniquement "priorité au sommeil cette nuit".
+  • Si tu mentionnes un horaire de renfo (ex: "renfo prévu à 19h00"), vérifie que cet horaire est APRÈS analysisContext.heureSeanceValidee. Si l'horaire est déjà passé → ne pas le mentionner ou dire "à reporter demain".
 ⚠️ VIGILANCE — risque réel de blessure uniquement
 
 RÈGLES FORMAT :

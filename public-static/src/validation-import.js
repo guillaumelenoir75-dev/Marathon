@@ -141,10 +141,13 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
     if(displayText && typeof dbRef !== 'undefined' && dbRef) {
       const _today = new Date().toISOString().slice(0,10);
       try {
+        const _now = new Date();
+        const _timeLabel = _now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
         await dbRef.child('_last_analysis').set({
           content: displayText,
           feu: _feuSave,
           date: _today,
+          time: _timeLabel,
           stats_html: _statsHtmlSaved
         });
       } catch(e) {}

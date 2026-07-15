@@ -1459,9 +1459,11 @@ async function loadCoachHistory(){
   const coachInp=document.getElementById('coach-input');
   if(coachInp&&!coachInp._placeholderSet){
     coachInp._placeholderSet=true;
-    const phs=['Dis-moi tout Guillaume…','Une question sur ta prochaine séance ?',
-      'Comment tu te sens aujourd’hui ?','On parle de ta semaine ?',
-      'Pose-moi n’importe quelle question…'];
+    // Placeholders contextuels selon si analyse du jour disponible
+    const _hasAnalysis = !!(window._lastAnalysisToday);
+    const phs = _hasAnalysis
+      ? ['Une question sur cette séance ?','Comment tu te sens après l’effort ?','On prépare la prochaine séance ?','Dis-moi ce que tu as ressenti…']
+      : ['Dis-moi tout Guillaume…','Une question sur ta prochaine séance ?','Comment tu te sens aujourd’hui ?','On parle de ta semaine ?','Pose-moi n’importe quelle question…'];
     let _pi=0;coachInp.placeholder=phs[0];
     setInterval(()=>{_pi=(_pi+1)%phs.length;if(document.activeElement!==coachInp)coachInp.placeholder=phs[_pi];},4000);
   }
@@ -1664,6 +1666,7 @@ async function loadCoachHistory(){
       const _la = _laSnap.val();
       const _todayStr = new Date().toISOString().slice(0,10);
       if(_la && _la.content && _la.date === _todayStr) {
+        window._lastAnalysisToday = true;
         const _laContainer = document.getElementById('coach-messages');
         // BUG 1 fix : ne pas afficher si une carte live existe déjà dans le DOM
         if(_laContainer && !_laContainer.querySelector('#coach-analysis-card')) {
@@ -1671,22 +1674,23 @@ async function loadCoachHistory(){
           _laWrap.style.cssText = 'display:block;margin:4px 0 8px;';
           const _feuBadge = _la.feu ? '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+_la.feu+' '+(_la.feu==='🟢'?'Feu vert':_la.feu==='🔴'?'Feu rouge':'Feu jaune')+'</span>' : '';
           const _statsRow = _la.stats_html ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">'+_la.stats_html+'</div>' : '';
-          _laWrap.innerHTML = '<div style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(22,101,52,0.13);border:1px solid rgba(22,101,52,0.12);">'
+          const _laTimeLabel = _la.time ? 'Analyse du jour · '+_la.time : 'Analyse du jour';
+          _laWrap.innerHTML = '<div id="coach-analysis-card" style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(22,101,52,0.13);border:1px solid rgba(22,101,52,0.12);">'
             + '<div style="background:linear-gradient(135deg,#166534,#16a34a);padding:10px 14px;">'
               + '<div style="display:flex;align-items:center;justify-content:space-between;'+ (_statsRow ? 'margin-bottom:8px;' : '') +'">'
                 + '<div style="display:flex;align-items:center;gap:8px;">'
                   + '<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:13px;">🤖</span></div>'
-                  + '<span style="font-size:13px;font-weight:700;color:#fff;">✅ Analyse de séance</span>'
+                  + '<div><div style="font-size:13px;font-weight:700;color:#fff;">✅ Analyse de séance</div><div style="font-size:10px;color:rgba(255,255,255,0.7);margin-top:1px;">'+_laTimeLabel+'</div></div>'
                 + '</div>'
                 + '<div style="display:flex;align-items:center;gap:4px;">'+_feuBadge+'</div>'
               + '</div>'
               + _statsRow
             + '</div>'
-            + '<div style="background:var(--bg,#fff);padding:14px 16px;color:var(--text,#1a1a1a);">'
+            + '<div style="background:var(--bg,#fff);padding:14px 16px 6px;color:var(--text,#1a1a1a);font-size:14px;line-height:1.55;">'
               + renderBriefText(_la.content, 'green')
             + '</div>'
             + '<div style="padding:10px 14px;border-top:1px solid rgba(22,101,52,0.1);background:var(--bg2,#f9fefb);text-align:center;">'
-              + '<button onclick="showScreen(\'plan\')" style="background:none;border:1.5px solid #16a34a;color:#166534;border-radius:10px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;">📅 Voir dans le plan</button>'
+              + '<button onclick="showScreen(\'plan\')" style="background:#16a34a;border:none;color:#fff;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(22,163,74,0.3);">📅 Voir dans le plan</button>'
             + '</div>'
             + '</div>';
           _laContainer.appendChild(_laWrap);
