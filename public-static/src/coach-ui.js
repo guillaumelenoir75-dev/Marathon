@@ -1665,7 +1665,8 @@ async function loadCoachHistory(){
       const _todayStr = new Date().toISOString().slice(0,10);
       if(_la && _la.content && _la.date === _todayStr) {
         const _laContainer = document.getElementById('coach-messages');
-        if(_laContainer) {
+        // BUG 1 fix : ne pas afficher si une carte live existe déjà dans le DOM
+        if(_laContainer && !_laContainer.querySelector('#coach-analysis-card')) {
           const _laWrap = document.createElement('div');
           _laWrap.style.cssText = 'display:block;margin:4px 0 8px;';
           const _feuBadge = _la.feu ? '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+_la.feu+' '+(_la.feu==='🟢'?'Feu vert':_la.feu==='🔴'?'Feu rouge':'Feu jaune')+'</span>' : '';

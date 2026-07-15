@@ -77,6 +77,13 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       textEl.innerHTML = '<div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div>';
     }
 
+    // BUG 2 fix : vérifier que la réponse HTTP est OK avant de lire le stream
+    if(!response.ok || !response.body) throw new Error('HTTP ' + response.status);
+
+    // BUG 3 fix : capturer stats_html MAINTENANT (la carte est dans le DOM)
+    const _statsElNow = document.getElementById('coach-analysis-card') && document.getElementById('coach-analysis-card').querySelector('div[style*="flex-wrap"]');
+    const _statsHtmlSaved = _statsElNow ? _statsElNow.innerHTML : null;
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '', buffer = '';
@@ -94,16 +101,18 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       }
     }
 
-    // Détecter [FEU:🟢/🟡/🔴] et mettre à jour le badge header
-    let displayText = cleanTruncated(fullText);
+    // BUG 9 fix : détecter le FEU et construire displayText en une seule passe
+    let displayText = '', _feuSave = null;
     if(fullText) {
       const feuM = fullText.match(/^\[FEU:(🟢|🟡|🔴)\]\s*\n?/);
       if(feuM) {
-        displayText = cleanTruncated(fullText.replace(/^\[FEU:(🟢|🟡|🔴)\]\s*\n?/, ''));
-        const feuEmoji = feuM[1];
-        const feuLabel = feuEmoji==='🟢'?'Feu vert':feuEmoji==='🔴'?'Feu rouge':'Feu jaune';
+        _feuSave = feuM[1];
+        displayText = cleanTruncated(fullText.slice(feuM[0].length));
+        const feuLabel = _feuSave==='🟢'?'Feu vert':_feuSave==='🔴'?'Feu rouge':'Feu jaune';
         const feuZone = document.getElementById('coach-feu-zone');
-        if(feuZone) feuZone.innerHTML = '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+feuEmoji+' '+feuLabel+'</span>';
+        if(feuZone) feuZone.innerHTML = '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+_feuSave+' '+feuLabel+'</span>';
+      } else {
+        displayText = cleanTruncated(fullText);
       }
     }
 
@@ -114,7 +123,8 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
         ? renderBriefText(displayText, 'green')
         : '<p style="color:var(--muted);font-style:italic;">Analyse non disponible.</p>';
       // Stagger : chaque bloc enfant reçoit un délai croissant
-      Array.from(textEl.children).forEach((el, i) => {
+      const _blocks = Array.from(textEl.children);
+      _blocks.forEach((el, i) => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(8px)';
         el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
@@ -122,21 +132,20 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       });
       requestAnimationFrame(() => { textEl.style.opacity = '1'; });
       const footer = document.getElementById('coach-analysis-footer');
-      if(footer) setTimeout(()=>{ footer.style.display='block'; }, Array.from(textEl.children).length * 90 + 200);
+      const _staggerDuration = Math.max(_blocks.length * 90, 90);
+      if(footer) setTimeout(()=>{ footer.style.display='block'; }, _staggerDuration + 200);
       if(container) setTimeout(()=>{ container.scrollTop = container.scrollHeight; }, 300);
     }
 
     // ── Persistance : sauvegarder l'analyse pour rechargement au retour sur Coach ──
-    if(fullText && typeof dbRef !== 'undefined' && dbRef) {
-      const _feuSave = (fullText.match(/^\[FEU:(🟢|🟡|🔴)\]/) || [])[1] || null;
+    if(displayText && typeof dbRef !== 'undefined' && dbRef) {
       const _today = new Date().toISOString().slice(0,10);
-      const _statsEl = document.getElementById('coach-analysis-card') && document.getElementById('coach-analysis-card').querySelector('div[style*="flex-wrap"]');
       try {
         await dbRef.child('_last_analysis').set({
           content: displayText,
           feu: _feuSave,
           date: _today,
-          stats_html: _statsEl ? _statsEl.innerHTML : null
+          stats_html: _statsHtmlSaved
         });
       } catch(e) {}
     }
