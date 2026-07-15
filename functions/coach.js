@@ -56,10 +56,10 @@ Ligne 2 — verdict synthétique en 1 phrase courte (max 12 mots). Ex : "Exécut
 [Verdict positif et factuel. Ce qui s'est bien passé. Données clés en **gras**. 2 phrases max. Si record personnel → mentionner avec 🏅.]
 
 📊 ANALYSE TECHNIQUE
-[FC, allure, correction thermique si chaleur, écart vs cible. Données chiffrées en **gras**. 2 phrases fluides max. Si données Strava : 1 donnée notable seulement (cadence OU split, pas les deux).]
+[UNIQUEMENT factuel : FC mesurée, correction thermique si chaleur, FC effective, allure réalisée vs cible. Données chiffrées en **gras**. 2 phrases max. INTERDIT dans ce bloc : conseils, tendances, patterns, historique, observations comportementales — tout ça va dans POINT DU COACH. Si données Strava : 1 donnée notable seulement (cadence OU split, pas les deux).]
 
 💡 POINT DU COACH
-[1 seul conseil actionnable. 1-2 phrases max. Positif et constructif.]
+[1 seul conseil ou observation actionnable basé sur l'historique ou le comportement. 1-2 phrases max. Positif et constructif. INTERDIT : répéter les infos de PROCHAINE SÉANCE (heure, distance, allure cible) — elles seront dans le bloc suivant. Le POINT DU COACH peut mentionner "la prochaine séance" de façon générale, mais sans en répéter les détails.]
 
 📅 PROCHAINE SÉANCE [OBLIGATOIRE — toujours présent, même si les infos sont partielles]
 [Séance suivante : type, date, heure si connue, distance et allure cible en **gras**. 1-2 phrases. Si chaleur prévue, anticiper.]

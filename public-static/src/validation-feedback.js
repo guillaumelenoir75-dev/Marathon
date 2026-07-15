@@ -442,20 +442,25 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
     // Mini-stats badges colorés selon performance
     const _typeLbl = (window.typeLabel && window.typeLabel[s.type]) || s.type || '';
     const _stats = [];
-    // Couleur allure : vert si dans ±15s de la cible, orange si ±30s, rouge sinon
-    const _efTarget = getBestEfPace ? getBestEfPace() : null;
+    const _isEfLong = (s.type==='ef'||s.type==='long');
+    // Couleur allure : vert si dans ±15s de la cible EF, orange ±30s, rouge sinon
     let _paceBg = 'rgba(255,255,255,0.22)';
-    if(pace && _efTarget && (s.type==='ef'||s.type==='long')) {
-      const _pSec = paceStrToSec(pace), _tSec = paceStrToSec(_efTarget);
-      if(_pSec && _tSec) {
-        const _diff = Math.abs(_pSec - _tSec);
-        _paceBg = _diff <= 15 ? 'rgba(134,239,172,0.4)' : _diff <= 30 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+    try {
+      const _efTarget = (typeof getBestEfPace === 'function') ? getBestEfPace() : null;
+      if(pace && _efTarget && _isEfLong) {
+        const _pSec = (typeof paceStrToSec === 'function') ? paceStrToSec(String(pace)) : null;
+        const _tSec = (typeof paceStrToSec === 'function') ? paceStrToSec(String(_efTarget)) : null;
+        if(_pSec && _tSec) {
+          const _diff = Math.abs(_pSec - _tSec);
+          _paceBg = _diff <= 15 ? 'rgba(134,239,172,0.4)' : _diff <= 30 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+        }
       }
-    }
-    // Couleur FC : vert si ≤148 (EF/long), orange si 149-158, rouge si >158
+    } catch(e) {}
+    // Couleur FC : vert si ≤148 (EF/long), orange 149-158, rouge >158
     let _hrBg = 'rgba(255,255,255,0.22)';
-    if(hr && (s.type==='ef'||s.type==='long')) {
-      _hrBg = hr<=148 ? 'rgba(134,239,172,0.4)' : hr<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+    if(hr && _isEfLong) {
+      const _hrN = parseInt(hr, 10);
+      if(!isNaN(_hrN)) _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
     }
     if(km) _stats.push('<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">🏃 '+km+' km</span>');
     if(pace) _stats.push('<span style="background:'+_paceBg+';border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">⚡ '+pace+'/km</span>');

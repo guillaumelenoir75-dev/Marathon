@@ -54,7 +54,10 @@ function renderBriefText(t, theme){
     const hm = line.match(/^#{1,3}\s*(.+)/) || (line.trim().length < 60 && /^[\p{Emoji_Presentation}\p{Extended_Pictographic}✅❌⚠️⭐]/u.test(line.trim()) && /[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ]{3}/u.test(line) ? [null, line.trim()] : null);
     if(hm){
       flush();
-      html += '<div style="display:flex;align-items:center;background:linear-gradient(90deg,'+bgFrom+','+bgTo+');border-left:3px solid '+borderColor+';border-radius:0 10px 10px 0;padding:7px 12px;margin:'+(html?'14px':'4px')+' 0 10px;font-size:13px;font-weight:700;color:'+accentColor+';letter-spacing:0.2px;">'+hm[1]+'</div>';
+      // Normaliser le titre : emoji préservé, texte en MAJUSCULES
+      const _titleRaw = hm[1];
+      const _titleNorm = _titleRaw.replace(/([^\p{Emoji_Presentation}\p{Extended_Pictographic}✅❌⚠️⭐🏅📅📊💡🧘📈🏃]+)/gu, t => t.toUpperCase());
+      html += '<div style="display:flex;align-items:center;background:linear-gradient(90deg,'+bgFrom+','+bgTo+');border-left:3px solid '+borderColor+';border-radius:0 10px 10px 0;padding:7px 12px;margin:'+(html?'14px':'4px')+' 0 10px;font-size:13px;font-weight:700;color:'+accentColor+';letter-spacing:0.2px;">'+_titleNorm+'</div>';
     } else if(line.trim()===''){
       flush();
     } else {
