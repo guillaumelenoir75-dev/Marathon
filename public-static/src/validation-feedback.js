@@ -220,7 +220,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   mc.appendChild(overlay);
 }
 
-function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
+function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
 
   // Calcul du contexte enrichi pour l'IA
   const analysisContext = {};
@@ -234,6 +234,15 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   analysisContext.allure = pace;
   analysisContext.fc = hr;
   analysisContext.semaine = CW;
+
+  // Données WHOOP si importées
+  if(whoopData && (whoopData.workout_strain != null || whoopData.workout_calories != null)) {
+    analysisContext.whoop = {
+      strain: whoopData.workout_strain != null ? parseFloat(parseFloat(whoopData.workout_strain).toFixed(1)) : null,
+      calories: whoopData.workout_calories != null ? Math.round(whoopData.workout_calories) : null,
+      cycle_strain: whoopData.cycle_strain != null ? parseFloat(parseFloat(whoopData.cycle_strain).toFixed(1)) : null
+    };
+  }
 
   // Structure complète de la séance (partie après |)
   const _seanceDetail = s.d.includes('|') ? s.d.split('|')[1] : null;

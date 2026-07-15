@@ -134,7 +134,11 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       const footer = document.getElementById('coach-analysis-footer');
       const _staggerDuration = Math.max(_blocks.length * 90, 90);
       if(footer) setTimeout(()=>{ footer.style.display='block'; }, _staggerDuration + 200);
-      if(container) setTimeout(()=>{ container.scrollTop = container.scrollHeight; }, 300);
+      if(container) setTimeout(()=>{
+        const _card = document.getElementById('coach-analysis-card');
+        if(_card) _card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else container.scrollTop = 0;
+      }, 300);
     }
 
     // ── Persistance : sauvegarder l'analyse pour rechargement au retour sur Coach ──

@@ -903,7 +903,7 @@ async function saveValidationExtra(w,ei){
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
     rendered.stats=false;
   }
-  if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance); }
+  if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
 }
 
@@ -1207,7 +1207,7 @@ async function saveValidation(idx){
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
     rendered.stats=false;
   }
-  if(isAdmin()) showCoachFeedback(s, km, pace, hr, amImproved, idx, meteoSeance);
+  if(isAdmin()) showCoachFeedback(s, km, pace, hr, amImproved, idx, meteoSeance, whoopCharge);
   else showAthleteFeedback(s, km, pace, hr, perf, meteoSeance);
 }
 
