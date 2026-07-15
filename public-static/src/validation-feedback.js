@@ -456,7 +456,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
         + '</div>'
         + (_stats.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">'+_stats.join('')+'</div>' : '')
       + '</div>'
-      + '<div style="background:var(--bg,#fff);padding:14px 16px;">'
+      + '<div style="background:var(--bg,#fff);padding:14px 16px 6px;">'
         + '<div id="coach-analysis-stream" style="color:var(--text,#1a1a1a);font-size:14px;line-height:1.55;"><div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>'
       + '</div>'
       + '<div id="coach-analysis-footer" style="display:none;padding:10px 14px;border-top:1px solid rgba(22,101,52,0.1);background:var(--bg2,#f9fefb);text-align:center;">'
