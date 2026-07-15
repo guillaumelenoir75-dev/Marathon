@@ -477,8 +477,9 @@ function renderWhoopStats() {
 
   // Label contextuel charge + moyenne 14j
   const strainVal = cy0?.strain != null ? Math.round(cy0.strain * 10) / 10 : null;
-  const strainLabel = strainVal == null ? null : strainVal >= 18 ? 'Élevé' : strainVal >= 14 ? 'Modéré' : strainVal >= 8 ? 'Léger' : 'Repos';
-  const strainLabelColor = strainVal == null ? 'var(--muted)' : strainVal >= 18 ? '#dc2626' : strainVal >= 14 ? '#f59e0b' : strainVal >= 8 ? '#22c55e' : '#3b82f6';
+  // Échelle WHOOP réelle 0-21 : Repos<4, Léger 4-7.9, Modéré 8-13.9, Intense 14-17.9, Maximum ≥18
+  const strainLabel = strainVal == null ? null : strainVal >= 18 ? 'Maximum' : strainVal >= 14 ? 'Intense' : strainVal >= 8 ? 'Modéré' : strainVal >= 4 ? 'Léger' : 'Repos';
+  const strainLabelColor = strainVal == null ? 'var(--muted)' : strainVal >= 18 ? '#dc2626' : strainVal >= 14 ? '#f59e0b' : strainVal >= 8 ? '#16a34a' : strainVal >= 4 ? '#3b82f6' : '#6b7280';
   const strain14Data = wd?.cycles ? [...wd.cycles].filter(c => c.strain != null).slice(1, 15) : [];
   const strain14Avg = strain14Data.length >= 3 ? Math.round(strain14Data.reduce((s,c)=>s+c.strain,0)/strain14Data.length * 10)/10 : null;
   const strainVsAvg = strainVal != null && strain14Avg != null ? Math.round((strainVal - strain14Avg) * 10)/10 : null;
@@ -528,8 +529,8 @@ function renderWhoopStats() {
         return parts.join(' · ');
       })(),
       color: strainLabelColor,
-      bg: isDark ? 'rgba(251,191,36,0.12)' : '#fefce8',
-      border: isDark ? 'rgba(251,191,36,0.25)' : '#fde68a'
+      bg: strainVal == null ? (isDark ? 'rgba(107,114,128,0.12)' : '#f9fafb') : strainVal >= 18 ? (isDark ? 'rgba(220,38,38,0.12)' : '#fef2f2') : strainVal >= 14 ? (isDark ? 'rgba(245,158,11,0.12)' : '#fefce8') : strainVal >= 8 ? (isDark ? 'rgba(22,163,74,0.12)' : '#f0fdf4') : strainVal >= 4 ? (isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff') : (isDark ? 'rgba(107,114,128,0.12)' : '#f9fafb'),
+      border: strainVal == null ? (isDark ? 'rgba(107,114,128,0.25)' : '#e5e7eb') : strainVal >= 18 ? (isDark ? 'rgba(220,38,38,0.3)' : '#fca5a5') : strainVal >= 14 ? (isDark ? 'rgba(245,158,11,0.3)' : '#fde68a') : strainVal >= 8 ? (isDark ? 'rgba(22,163,74,0.3)' : '#bbf7d0') : strainVal >= 4 ? (isDark ? 'rgba(59,130,246,0.3)' : '#bfdbfe') : (isDark ? 'rgba(107,114,128,0.25)' : '#e5e7eb')
     }
   ];
 
@@ -663,7 +664,7 @@ function _renderUnifiedWhoopChart(mode) {
   } else {
     const data = dedupeByDate([...(wd.cycles || [])].filter(c => c.strain != null).sort((a,b) => a.date.localeCompare(b.date))).slice(-7);
     points = data.map(c => ({ x: new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), y: Math.round(c.strain * 10) / 10 }));
-    const strainCol = v => v >= 18 ? '#dc2626' : v >= 14 ? '#f59e0b' : v >= 8 ? '#22c55e' : '#3b82f6';
+    const strainCol = v => v >= 18 ? '#dc2626' : v >= 14 ? '#f59e0b' : v >= 8 ? '#16a34a' : v >= 4 ? '#3b82f6' : '#6b7280';
     pointColors = points.map(p => strainCol(p.y));
     color = '#f59e0b'; unit = ''; yMin = 0; yMax = 21;
     // Alerte surcharge intégrée
@@ -1462,7 +1463,7 @@ function renderSessionsHistory() {
     const col = typeColors[s.type] || '#6b7280';
     const label = typeLabels[s.type] || (s.type||'?').toUpperCase().slice(0,3);
     const strain = s.whoop?.workout_strain ?? s.whoop?.cycle_strain ?? null;
-    const strainColor = strain == null ? '#888' : strain >= 18 ? '#dc2626' : strain >= 14 ? '#f59e0b' : strain >= 10 ? '#22c55e' : '#6b7280';
+    const strainColor = strain == null ? '#888' : strain >= 18 ? '#dc2626' : strain >= 14 ? '#f59e0b' : strain >= 8 ? '#16a34a' : strain >= 4 ? '#3b82f6' : '#6b7280';
 
     html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${idx > 0 ? 'border-top:1px solid var(--border);' : ''}">`;
     html += `<span style="background:${col}20;color:${col};font-size:10px;font-weight:700;padding:3px 7px;border-radius:8px;flex-shrink:0;min-width:32px;text-align:center;">${label}</span>`;
