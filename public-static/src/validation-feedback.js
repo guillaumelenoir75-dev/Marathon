@@ -226,6 +226,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   const analysisContext = {};
 
   // Données de base
+  analysisContext.est_seance_planifiee = (idx !== null && idx !== undefined);
   analysisContext.type = s.type;
   analysisContext.titre = s.d.split('|')[0];
   analysisContext.kmPlan = s.km;
