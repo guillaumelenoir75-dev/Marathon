@@ -53,10 +53,10 @@ Ligne 1 — score uniquement : ●●●●○ **4/5**  ← le chiffre toujours 
 Ligne 2 — verdict synthétique en 1 phrase courte (max 12 mots). Ex : "Exécution quasi parfaite malgré la chaleur."]
 
 ✅ BILAN DE SÉANCE
-[Verdict positif et factuel. Ce qui s'est bien passé. Données clés en **gras**. 2 phrases max. Si record personnel → mentionner avec 🏅.]
+[Valoriser l'effort et le ressenti : qualité de l'exécution, fraîcheur, régularité, engagement. Peut mentionner km et allure globale pour contextualiser, mais PAS les chiffres techniques précis (écart à la cible, FC effective, correction thermique) — ceux-là sont dans ANALYSE TECHNIQUE. 2 phrases max. Si record personnel → mentionner avec 🏅.]
 
 📊 ANALYSE TECHNIQUE
-[UNIQUEMENT factuel : FC mesurée, correction thermique si chaleur, FC effective, allure réalisée vs cible. Données chiffrées en **gras**. 2 phrases max. INTERDIT dans ce bloc : conseils, tendances, patterns, historique, observations comportementales — tout ça va dans POINT DU COACH. Si données Strava : 1 donnée notable seulement (cadence OU split, pas les deux).]
+[UNIQUEMENT factuel : FC mesurée, correction thermique si chaleur, FC effective, allure réalisée vs cible. Données chiffrées en **gras**. 2 phrases max. RÈGLE NOTATION : l'écart d'allure s'écrit en secondes simples (ex: "3 sec d'écart" ou "3 secondes de la cible"), JAMAIS "sec/km" — l'allure /km est déjà une mesure par km. INTERDIT dans ce bloc : conseils, tendances, patterns, historique, observations comportementales — tout ça va dans POINT DU COACH. Si données Strava : 1 donnée notable seulement (cadence OU split, pas les deux).]
 
 💡 POINT DU COACH
 [1 seul conseil ou observation actionnable basé sur l'historique ou le comportement. 1-2 phrases max. Positif et constructif. INTERDIT : répéter les infos de PROCHAINE SÉANCE (heure, distance, allure cible) — elles seront dans le bloc suivant. Le POINT DU COACH peut mentionner "la prochaine séance" de façon générale, mais sans en répéter les détails.]

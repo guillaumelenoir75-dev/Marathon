@@ -1673,7 +1673,40 @@ async function loadCoachHistory(){
           const _laWrap = document.createElement('div');
           _laWrap.style.cssText = 'display:block;margin:4px 0 8px;';
           const _feuBadge = _la.feu ? '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;">'+_la.feu+' '+(_la.feu==='🟢'?'Feu vert':_la.feu==='🔴'?'Feu rouge':'Feu jaune')+'</span>' : '';
-          const _statsRow = _la.stats_html ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">'+_la.stats_html+'</div>' : '';
+          // Régénérer les badges avec couleurs depuis stats_raw
+          let _statsRow = '';
+          if(_la.stats_raw || _la.stats_html) {
+            const _sr = _la.stats_raw || {};
+            const _srKm = _sr.km, _srPace = _sr.pace, _srHr = _sr.hr, _srType = _sr.type;
+            const _srIsEfLong = (_srType==='ef'||_srType==='long');
+            let _badgesHtml = '';
+            if(_srKm) _badgesHtml += '<span style="background:rgba(255,255,255,0.22);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">🏃 '+_srKm+' km</span>';
+            if(_srPace) {
+              let _paceBg = 'rgba(255,255,255,0.22)';
+              try {
+                const _efTarget = (typeof getBestEfPace === 'function') ? getBestEfPace() : null;
+                if(_srIsEfLong && _efTarget && typeof paceStrToSec === 'function') {
+                  const _pSec = paceStrToSec(String(_srPace));
+                  const _tSec = paceStrToSec(String(_efTarget));
+                  if(_pSec && _tSec) {
+                    const _diff = Math.abs(_pSec - _tSec);
+                    _paceBg = _diff <= 15 ? 'rgba(134,239,172,0.4)' : _diff <= 30 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+                  }
+                }
+              } catch(e) {}
+              _badgesHtml += '<span style="background:'+_paceBg+';border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">⚡ '+_srPace+' /km</span>';
+            }
+            if(_srHr) {
+              let _hrBg = 'rgba(255,255,255,0.22)';
+              if(_srIsEfLong) {
+                const _hrN = parseInt(_srHr, 10);
+                if(!isNaN(_hrN)) _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+              }
+              _badgesHtml += '<span style="background:'+_hrBg+';border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">❤️ '+_srHr+' bpm</span>';
+            }
+            if(!_badgesHtml && _la.stats_html) _badgesHtml = _la.stats_html;
+            _statsRow = _badgesHtml ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">'+_badgesHtml+'</div>' : '';
+          }
           const _laTimeLabel = _la.time ? 'Analyse du jour · '+_la.time : 'Analyse du jour';
           _laWrap.innerHTML = '<div id="coach-analysis-card" style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(22,101,52,0.13);border:1px solid rgba(22,101,52,0.12);">'
             + '<div style="background:linear-gradient(135deg,#166534,#16a34a);padding:10px 14px;">'

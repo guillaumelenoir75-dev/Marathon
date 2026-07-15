@@ -604,6 +604,10 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo){
   }
 
   window._lastAnalysisToday = true;
+  window._lastAnalysisKm = km || null;
+  window._lastAnalysisPace = pace || null;
+  window._lastAnalysisHr = hr || null;
+  window._lastAnalysisType = s.type || null;
   fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData);
 }
 
