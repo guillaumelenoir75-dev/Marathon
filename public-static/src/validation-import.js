@@ -974,7 +974,7 @@ async function importWhoopForValidation(forceSync) {
         const dateLabel = `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;
         const diffDays = Math.round((new Date(w.date) - new Date(sessionDate)) / 86400000);
         const isSameDay = diffDays === 0;
-        const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
+        const diffLabel = isSameDay ? '<span style="background:#7c3aed;color:#fff;font-size:9px;font-weight:700;padding:1px 8px;border-radius:10px;">Aujourd\'hui</span>'
           : `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>`;
         const strainColor = w.strain == null ? '#aaa' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
         const chargeLabel = w.strain == null ? 'Score en cours…' : w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
