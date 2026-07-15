@@ -212,6 +212,9 @@ async function buildNotifContext(state, cw) {
       if(Number(es.sched_day)===dayOfWeek){
         const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
         seancesAujourdHui.push(`${titre} — ${es.km}km, prévu à ${es.sched_time||'horaire non défini'}`);
+        if(!seanceRunAujourdhui && es.type && es.type!=='renfo' && es.type!=='repos'){
+          seanceRunAujourdhui={type:es.type,km:parseFloat(es.km)||0,sched_time:es.sched_time||null,titre};
+        }
       }
     }
     extraIdx++;
