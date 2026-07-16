@@ -77,10 +77,9 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       textEl.innerHTML = '<div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div>';
     }
 
-    // BUG 2 fix : vérifier que la réponse HTTP est OK avant de lire le stream
     if(!response.ok || !response.body) throw new Error('HTTP ' + response.status);
 
-    // BUG 3 fix : capturer stats_html MAINTENANT (la carte est dans le DOM)
+    // Capturer les badges HTML pendant que la carte est dans le DOM (avant streaming)
     const _statsElNow = document.getElementById('coach-analysis-card') && document.getElementById('coach-analysis-card').querySelector('div[style*="flex-wrap"]');
     const _statsHtmlSaved = _statsElNow ? _statsElNow.innerHTML : null;
 
@@ -101,7 +100,6 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
       }
     }
 
-    // BUG 9 fix : détecter le FEU et construire displayText en une seule passe
     let displayText = '', _feuSave = null;
     if(fullText) {
       const feuM = fullText.match(/^\[FEU:(🟢|🟡|🔴)\]\s*\n?/);
@@ -843,13 +841,15 @@ async function importWhoopCharge() {
     const strainColor = strain == null ? '#888'
       : strain >= 18 ? '#dc2626'
       : strain >= 14 ? '#f59e0b'
-      : strain >= 10 ? '#22c55e'
+      : strain >= 8 ? '#16a34a'
+      : strain >= 4 ? '#3b82f6'
       : '#6b7280';
     const strainLabel = strain == null ? '—'
-      : strain >= 18 ? 'Très élevée'
-      : strain >= 14 ? 'Élevée'
-      : strain >= 10 ? 'Modérée'
-      : 'Faible';
+      : strain >= 18 ? 'Maximum'
+      : strain >= 14 ? 'Intense'
+      : strain >= 8 ? 'Modéré'
+      : strain >= 4 ? 'Léger'
+      : 'Repos';
 
     if (preview) {
       preview.style.display = 'block';

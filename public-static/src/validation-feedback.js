@@ -335,8 +335,6 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
       const paceMatch = detail.match(/(\d+)[':'](\d+)\s*[—\-]+\s*(\d+)[':'](\d+)/);
       const label = s.type==='frac' ? 'blocs fractionné' : 'blocs tempo';
       if(paceMatch) analysisContext.allure_attendue = paceMatch[1]+':'+paceMatch[2]+' — '+paceMatch[3]+':'+paceMatch[4]+'/km ('+label+')';
-    } else if(s.type==='long') {
-      analysisContext.allure_attendue = efActuelle + '/km (EF Long)';
     }
   })();
 
