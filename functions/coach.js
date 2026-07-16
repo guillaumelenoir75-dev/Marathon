@@ -760,7 +760,7 @@ Sinon : activité(s) prévue(s), distance si run, heure si connue. UNE phrase. S
 ## ⚡ CONSIGNES & MÉTÉO
 UNIQUEMENT si séance run ou renfo planifiée.
 - EF : allure en **gras**, FC en **gras**, rappel FC max. Décharge : **+30s/km**.
-- Tempo/Frac : allure blocs en **gras**, structure courte.
+- Tempo/Frac : allure blocs en **gras**, structure courte. Zone FC tempo : **157-170 bpm** (80-87% FCmax). NE JAMAIS indiquer 148 bpm comme limite pour le tempo — 148 est le plafond EF uniquement.
 - Renfo : 3 exercices clés seulement.
 - Bodyhit : "Électrostimulation full body à 12h30".
 Si météo disponible : ajouter UNE phrase sur température, conditions et impact séance (FC ajustée, allure, hydratation si T°>28°C).
