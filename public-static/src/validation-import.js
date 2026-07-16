@@ -138,7 +138,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           const _top = _card.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
           container.scrollTo({ top: Math.max(0, _top - 8), behavior: 'smooth' });
         } else {
-          container.scrollTop = 0;
+          container.scrollTop = container.scrollHeight;
         }
       }, 400);
     }
@@ -745,6 +745,7 @@ function _applyStravaToPerfEditExtra(activity, ws, ei) {
   if(activity.calories) stravaData.calories = activity.calories;
   if(activity.best_400m) stravaData.best_400m = activity.best_400m;
   if(activity.splits && activity.splits.length > 0) stravaData.splits = activity.splits;
+  if(activity.laps && activity.laps.length > 0) stravaData.laps = activity.laps;
   // Pré-remplir les champs du modal
   const kmEl = document.getElementById('pedit-km');
   if(kmEl && activity.distanceKm) kmEl.value = activity.distanceKm;
@@ -783,112 +784,9 @@ function _applyStravaToPerfEditExtra(activity, ws, ei) {
   }
 }
 
-// ── WHOOP CHARGE — bouton "WHOOP" dans le modal de validation ────────────────
-
 window._whoopChargeData = null;
 
-async function importWhoopCharge() {
-  const btn = document.getElementById('whoop-val-btn');
-  const preview = document.getElementById('whoop-val-preview');
-  if (!btn) return;
-
-  btn.textContent = '⏳ WHOOP…';
-  btn.disabled = true;
-
-  try {
-    const snap = await dbRef.child('whoop_data').once('value');
-    const whoopData = snap.val();
-
-    if (!whoopData) {
-      if (preview) {
-        preview.style.display = 'block';
-        preview.innerHTML = '<div style="text-align:center;padding:10px;color:#888;font-size:12px;">Pas de données WHOOP — lance d\'abord une synchronisation WHOOP.</div>';
-      }
-      btn.textContent = 'WHOOP';
-      btn.disabled = false;
-      return;
-    }
-
-    const dateEl = document.getElementById('val-date');
-    const sessionDate = (dateEl && dateEl.value) ? dateEl.value : new Date().toISOString().slice(0, 10);
-
-    const workouts = whoopData.workouts || [];
-    const cycles = whoopData.cycles || [];
-
-    const dayWorkouts = workouts.filter(w => w.date === sessionDate);
-    const bestWorkout = dayWorkouts.sort((a, b) => (b.strain || 0) - (a.strain || 0))[0] || null;
-    const dayCycle = cycles.find(c => c.date === sessionDate) || null;
-
-    if (!bestWorkout && !dayCycle) {
-      if (preview) {
-        preview.style.display = 'block';
-        preview.innerHTML = `<div style="text-align:center;padding:10px;color:#888;font-size:12px;">Aucune donnée WHOOP pour le ${sessionDate}.<br><span style="font-size:10px;">Les données sont disponibles pour les 14 derniers jours.</span></div>`;
-      }
-      btn.textContent = 'WHOOP';
-      btn.disabled = false;
-      return;
-    }
-
-    window._whoopChargeData = {
-      date: sessionDate,
-      workout_strain: bestWorkout?.strain ?? null,
-      workout_calories: bestWorkout?.calories ?? null,
-      cycle_strain: dayCycle?.strain ?? null,
-      cycle_calories: dayCycle?.calories ?? null
-    };
-
-    const strain = bestWorkout?.strain ?? dayCycle?.strain ?? null;
-    const strainColor = strain == null ? '#888'
-      : strain >= 18 ? '#dc2626'
-      : strain >= 14 ? '#f59e0b'
-      : strain >= 8 ? '#16a34a'
-      : strain >= 4 ? '#3b82f6'
-      : '#6b7280';
-    const strainLabel = strain == null ? '—'
-      : strain >= 18 ? 'Maximum'
-      : strain >= 14 ? 'Intense'
-      : strain >= 8 ? 'Modéré'
-      : strain >= 4 ? 'Léger'
-      : 'Repos';
-
-    if (preview) {
-      preview.style.display = 'block';
-      preview.style.background = 'linear-gradient(135deg,#f5f3ff,#ede9fe)';
-      preview.style.border = '1px solid rgba(139,92,246,0.25)';
-      preview.style.borderRadius = '10px';
-      preview.style.padding = '10px 14px';
-      preview.style.marginBottom = '12px';
-
-      let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
-      html += '<p style="font-size:12px;font-weight:700;color:#7c3aed;margin:0;">⚡ Charge WHOOP</p>';
-      if (strain != null) html += `<span style="background:${strainColor}22;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700;color:${strainColor};">${strainLabel}</span>`;
-      html += '</div>';
-
-      const cols = [];
-      if (strain != null) cols.push(`<div style="text-align:center;"><p style="font-size:9px;color:#9d7bc4;margin-bottom:2px;">Charge séance</p><p style="font-size:20px;font-weight:800;color:${strainColor};margin:0;line-height:1;">${strain.toFixed(1)}</p><p style="font-size:9px;color:#9d7bc4;margin:0;">/21</p></div>`);
-      if (bestWorkout?.avg_hr) cols.push(`<div style="text-align:center;"><p style="font-size:9px;color:#9d7bc4;margin-bottom:2px;">FC moy.</p><p style="font-size:20px;font-weight:800;color:#E24B4A;margin:0;line-height:1;">${bestWorkout.avg_hr}</p><p style="font-size:9px;color:#9d7bc4;margin:0;">bpm</p></div>`);
-      if (bestWorkout?.duration_min) cols.push(`<div style="text-align:center;"><p style="font-size:9px;color:#9d7bc4;margin-bottom:2px;">Durée</p><p style="font-size:20px;font-weight:800;color:#7c3aed;margin:0;line-height:1;">${bestWorkout.duration_min}</p><p style="font-size:9px;color:#9d7bc4;margin:0;">min</p></div>`);
-      if (bestWorkout?.calories) cols.push(`<div style="text-align:center;"><p style="font-size:9px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:20px;font-weight:800;color:#f59e0b;margin:0;line-height:1;">${bestWorkout.calories}</p><p style="font-size:9px;color:#9d7bc4;margin:0;">kcal</p></div>`);
-
-      if (cols.length > 0) html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(cols.length,4)},1fr);gap:6px;margin-bottom:8px;">${cols.join('')}</div>`;
-      if (dayCycle?.strain != null && bestWorkout?.strain != null) html += `<p style="font-size:10px;color:#9d7bc4;margin:0;">Charge journalière totale : <strong style="color:#7c3aed;">${dayCycle.strain.toFixed(1)}/21</strong></p>`;
-      html += '<p style="font-size:9px;color:#b09ada;margin:4px 0 0;">✅ Enregistré avec la séance</p>';
-      preview.innerHTML = html;
-    }
-
-    btn.textContent = `⚡ ${strain != null ? strain.toFixed(1) : 'OK'}`;
-    btn.style.background = 'rgba(124,58,237,0.85)';
-    btn.disabled = false;
-
-  } catch(e) {
-    if (preview) {
-      preview.style.display = 'block';
-      preview.innerHTML = `<div style="padding:8px;color:#c00;font-size:11px;">❌ Erreur : ${e.message||'inconnue'}</div>`;
-    }
-    btn.textContent = 'WHOOP';
-    btn.disabled = false;
-  }
-}
+// importWhoopCharge() supprimée (dead code) — remplacée par importWhoopForValidation()
 
 // ── MÉTÉO POUR SÉANCE DÉJÀ VALIDÉE (modal plan-edit) ─────────────────────────
 async function importMeteoForPerfEdit(ws, si) {
