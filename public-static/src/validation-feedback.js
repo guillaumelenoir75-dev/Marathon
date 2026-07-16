@@ -53,8 +53,8 @@ function getHistoricalComparison(type, pace, hr){
 
 function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   const fcMax=parseInt(state.fc_max)||0;
-  const efMin=fcMax?Math.floor(fcMax*0.70):0;
-  const efMax=fcMax?Math.floor(fcMax*0.75):0;
+  const efMin=fcMax?Math.round(fcMax*0.714):140;
+  const efMax=fcMax?Math.round(fcMax*0.755):148;
   const plannedKm=parseFloat(s.km)||0;
   const realKm=parseFloat(km)||0;
   const kmRatio=plannedKm>0?realKm/plannedKm:1;

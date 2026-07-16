@@ -1034,8 +1034,8 @@ async function importWhoopForValidation(forceSync) {
         const isSameDay = diffDays === 0;
         const diffLabel = isSameDay ? '<span style="background:#7c3aed;color:#fff;font-size:9px;font-weight:700;padding:1px 8px;border-radius:10px;">Aujourd\'hui</span>'
           : `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>`;
-        const strainColor = w.strain == null ? '#aaa' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
-        const chargeLabel = w.strain == null ? 'Score en cours…' : w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
+        const strainColor = w.strain == null ? '#aaa' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 8 ? '#16a34a' : w.strain >= 4 ? '#3b82f6' : '#6b7280';
+        const chargeLabel = w.strain == null ? 'Score en cours…' : w.strain >= 18 ? 'Maximum' : w.strain >= 14 ? 'Intense' : w.strain >= 8 ? 'Modéré' : w.strain >= 4 ? 'Léger' : 'Repos';
         return `<div onclick="document.getElementById('whoop-val-picker').remove();_applyWhoopToValidation(${idx});"
           style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isSameDay?'#7c3aed':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isSameDay?'#f5f3ff':'var(--bg2)'};">
           <div>
@@ -1074,8 +1074,8 @@ function _applyWhoopToValidation(idx) {
   if (btn) { btn.style.background = 'rgba(124,58,237,0.85)'; btn.textContent = strain != null ? '⚡ ' + strain.toFixed(1) : '⚡ OK'; }
   const preview = document.getElementById('whoop-val-preview');
   if (preview) {
-    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
-    const chargeLabel = strain==null?'—':strain>=18?'Très élevée':strain>=14?'Élevée':strain>=10?'Modérée':'Faible';
+    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=8?'#16a34a':strain>=4?'#3b82f6':'#6b7280';
+    const chargeLabel = strain==null?'—':strain>=18?'Maximum':strain>=14?'Intense':strain>=8?'Modéré':strain>=4?'Léger':'Repos';
     preview.style.display = 'block';
     preview.innerHTML = `<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:10px 14px;">
       <p style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:6px;">⚡ Charge WHOOP importée</p>
@@ -1151,8 +1151,8 @@ async function importWhoopForPerfEdit(ws, si) {
         const isSameDay = diffDays === 0;
         const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
           : diffDays != null ? `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>` : '';
-        const strainColor = w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
-        const chargeLabel = w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
+        const strainColor = w.strain == null ? '#888' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 8 ? '#16a34a' : w.strain >= 4 ? '#3b82f6' : '#6b7280';
+        const chargeLabel = w.strain == null ? '—' : w.strain >= 18 ? 'Maximum' : w.strain >= 14 ? 'Intense' : w.strain >= 8 ? 'Modéré' : w.strain >= 4 ? 'Léger' : 'Repos';
         return `<div onclick="document.getElementById('whoop-pedit-picker').remove();_applyWhoopToPerfEdit(${idx},${ws},${si});"
           style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isSameDay?'#7c3aed':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isSameDay?'#f5f3ff':'var(--bg2)'};">
           <div>
@@ -1198,7 +1198,7 @@ function _applyWhoopToPerfEdit(idx, ws, si) {
   if (btnRow) {
     const block = document.createElement('div');
     block.id = 'pedit-whoop-block';
-    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
+    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=8?'#16a34a':strain>=4?'#3b82f6':'#6b7280';
     const cols = [];
     if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${strainColor};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
     if(wData.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wData.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);
@@ -1388,8 +1388,8 @@ async function importWhoopForPerfEditExtra(ws, ei) {
         const isSameDay = diffDays === 0;
         const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
           : diffDays != null ? `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>` : '';
-        const strainColor = w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 10 ? '#22c55e' : '#6b7280';
-        const chargeLabel = w.strain >= 18 ? 'Très élevée' : w.strain >= 14 ? 'Élevée' : w.strain >= 10 ? 'Modérée' : 'Faible';
+        const strainColor = w.strain == null ? '#888' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 8 ? '#16a34a' : w.strain >= 4 ? '#3b82f6' : '#6b7280';
+        const chargeLabel = w.strain == null ? '—' : w.strain >= 18 ? 'Maximum' : w.strain >= 14 ? 'Intense' : w.strain >= 8 ? 'Modéré' : w.strain >= 4 ? 'Léger' : 'Repos';
         return `<div onclick="document.getElementById('whoop-pedit-picker').remove();_applyWhoopToPerfEditExtra(${idx},${ws},${ei});"
           style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1.5px solid ${isSameDay?'#7c3aed':'var(--border)'};margin-bottom:8px;cursor:pointer;background:${isSameDay?'#f5f3ff':'var(--bg2)'};">
           <div>
@@ -1430,7 +1430,7 @@ function _applyWhoopToPerfEditExtra(idx, ws, ei) {
   if (btnRow) {
     const block = document.createElement('div');
     block.id = 'pedit-whoop-block';
-    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=10?'#22c55e':'#6b7280';
+    const strainColor = strain==null?'#888':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=8?'#16a34a':strain>=4?'#3b82f6':'#6b7280';
     const cols = [];
     if(strain!=null) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Charge</p><p style="font-size:15px;font-weight:700;color:${strainColor};">${strain.toFixed(1)} <span style="font-size:10px;font-weight:400;">/21</span></p></div>`);
     if(wData.workout_calories) cols.push(`<div style="text-align:center;"><p style="font-size:10px;color:#9d7bc4;margin-bottom:2px;">Calories</p><p style="font-size:15px;font-weight:700;color:#f59e0b;">${wData.workout_calories} <span style="font-size:10px;font-weight:400;">kcal</span></p></div>`);

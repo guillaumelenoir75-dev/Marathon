@@ -184,7 +184,7 @@ async function sendCoachMeteo() {
     const { lat, lng } = pos;
     const [city, meteo] = await Promise.all([
       _getCityFromCoords(lat, lng),
-      fetchWeatherForContext(null, null)
+      fetchWeatherForContext(lat, lng)
     ]);
     resetChip();
 
@@ -1082,7 +1082,7 @@ async function checkMorningBrief(memos, force) {
       try{
         const s=JSON.parse(state['extra_w'+CW+'_s'+ei]);
         if(s.type==='rest'){ei++;continue;}
-        if(state[gk(CW,ei)+'done']){ei++;continue;}
+        if(state['extra_w'+CW+'_s'+ei+'_done']){ei++;continue;}
         const matchDate = s.sched_date && s.sched_date===todayStr;
         const matchDay = !s.sched_date && s.sched_day===todaySched;
         if(matchDate||matchDay){
@@ -1098,7 +1098,7 @@ async function checkMorningBrief(memos, force) {
       if(state['del_w'+CW+'_s'+si]) return;
       if(state[gk(CW,si)+'done']) return;
       const edRaw = state['edit_w'+CW+'_s'+si];
-      const ed = edRaw ? JSON.parse(edRaw) : null;
+      let ed = null; try { ed = edRaw ? JSON.parse(edRaw) : null; } catch(e) {}
       if(ed && ed.sched_day === todaySched) {
         todaySessions.push({
           type: sess.type,
@@ -1144,7 +1144,7 @@ async function checkMorningBrief(memos, force) {
       try{
         const s=JSON.parse(state['extra_w'+CW+'_s'+ei]);
         if(s.type==='rest'){ei++;continue;}
-        if(state[gk(CW,ei)+'done']){ei++;continue;}
+        if(state['extra_w'+CW+'_s'+ei+'_done']){ei++;continue;}
         const afterToday = s.sched_date ? s.sched_date>todayStr : (s.sched_day&&s.sched_day>todaySched);
         if(afterToday){
           const d=s.sched_date?new Date(s.sched_date+'T00:00:00'):null;
