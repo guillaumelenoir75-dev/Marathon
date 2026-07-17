@@ -49,10 +49,11 @@
           <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;background:#E8530A;border-radius:50%;border:2px solid #1B4FD8;animation:_pulseBadge 1.8s ease-in-out infinite;"></span>
         </div>
       </div>
-      <div onclick="openEditEFModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      <div onclick="openEditEFModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;" title="Modifier ton allure EF">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         <span style="font-size:12px;font-weight:700;" id="kpi-ef-pace">—</span>
         <span style="font-size:10px;opacity:0.6;">/km EF</span>
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
     </div>
     <!-- Ligne principale : temps marathon + KPIs -->
@@ -96,7 +97,7 @@
         <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.15);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span style="font-size:12px;font-weight:700;" id="kpi-am-training">5'20</span>
-          <span style="font-size:10px;opacity:0.6;" id="h-am-train-label">/km AM entr.</span>
+          <span style="font-size:10px;opacity:0.6;" id="h-am-train-label">/km allure entraîn.</span>
         </div>
         </div>
         <div id="home-race-date" style="font-size:10px;opacity:0.38;text-align:right;margin-top:2px;">18/10/2026</div>
@@ -281,7 +282,10 @@
   </div>
 
   <!-- 7. Chaussures -->
-  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">KM cumulés par chaussure</p>
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
+    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;">KM cumulés par chaussure</p>
+    <span style="font-size:10px;color:var(--muted);">Associe les chaussures dans le plan ›</span>
+  </div>
   <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
   <div id="shoes-manage" style="margin-bottom:20px;"></div>
 

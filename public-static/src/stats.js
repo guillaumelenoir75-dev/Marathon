@@ -62,6 +62,7 @@ function renderStats(){
       labels: kmLabels,
       datasets: [
         {
+          label: 'Réalisé',
           // Réalisé — ligne pleine orange avec fill
           data: kmRealized,
           borderColor: '#E8530A',
@@ -77,6 +78,7 @@ function renderStats(){
           spanGaps: false,
         },
         {
+          label: 'Plan',
           // Projeté — ligne bleue pointillée avec fill léger
           data: kmProjected,
           borderColor: '#1B4FD8',
@@ -98,7 +100,16 @@ function renderStats(){
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          labels: {
+            color: isDark ? '#bbb' : '#555',
+            font: { size: 11, weight: '600' },
+            boxWidth: 24,
+            padding: 12,
+            usePointStyle: true,
+          }
+        },
         tooltip: {
           callbacks: {
             label: c => c.raw + ' km' + (c.datasetIndex === 1 ? ' (plan)' : '')

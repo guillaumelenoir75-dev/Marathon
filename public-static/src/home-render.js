@@ -424,9 +424,13 @@ function renderHome(){
         ${canEdit?`<div onclick="${editFn}" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${rv!=null?typeC:'#d0dff5'};background:${rv!=null?typeBgC:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?typeC:'#6B8DB5'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>`:''}
-        ${isCurrent?`<div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?typeC:skip?'#C0392B':'#d0dff5'};background:${done?typeC:skip?'#FDECEA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
-          ${done?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
-          :skip?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>`:''}
+        ${isCurrent?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?typeC:skip?'#C0392B':'#d0dff5'};background:${done?typeC:skip?'#FDECEA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
+            ${done?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+            :skip?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>`
+            :`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c8d8ef" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`}
+          </div>
+          ${!done&&!skip?`<span style="font-size:8px;font-weight:700;color:#a0b4cc;letter-spacing:0.02em;">Valider</span>`:''}
         </div>`:done?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid ${typeC};background:${typeC};display:flex;align-items:center;justify-content:center;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
         </div>`:skip?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid #C0392B;background:#FDECEA;display:flex;align-items:center;justify-content:center;">
@@ -463,6 +467,7 @@ function _checkWhoopTokenAlert() {
   if (!isAdmin()) return;
   const token = state.whoop_token;
   if (!token || !token.access_token) return; // pas connecté → pas d'alerte
+  if (state.whoop_data) return; // sync récente OK → pas d'alerte
   const existing = document.getElementById('whoop-token-alert');
   const isExpired = token.expires_at && (Date.now() / 1000 > token.expires_at - 60);
   if (!isExpired) { if (existing) existing.remove(); return; }
@@ -540,20 +545,24 @@ function openValidationModalExtra(w,ei){
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px;">
           <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
-          <div style="display:flex;gap:6px;">
-            <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Strava</button>
-            <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Météo</button>
-            ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForPerfEditExtra(${w},${ei})" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">WHOOP</button>`:''}
-          </div>
         </div>
       </div>
     </div>
     <!-- Zone scrollable identique -->
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
+    <!-- Bannière import montre GPS -->
+    <div style="background:#FFF8F0;border:1px solid #F0A070;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
+      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 7px;">📱 Importer depuis ta montre GPS</p>
+      <div style="display:flex;gap:7px;">
+        <button id="strava-val-btn" onclick="importFromStrava()" style="flex:1;padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
+        <button id="meteo-val-btn" onclick="importMeteoValidation()" style="flex:1;padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
+        ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForPerfEditExtra(${w},${ei})" style="flex:1;padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button>`:''}
+      </div>
+    </div>
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
     <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
-    <div style="background:#FFF8F0;border:1.5px solid #E8530A;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#7A3B00;margin-bottom:10px;">⚡ Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan sera adapté automatiquement.</div>
+    <div style="background:#F0F4FF;border:1px solid #C0CDF5;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#2B4AAA;margin-bottom:10px;">💡 Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan s'adapte automatiquement.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <p style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">📅 Date</p>
@@ -568,14 +577,14 @@ function openValidationModalExtra(w,ei){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
-          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="8" oninput="onDurInput(this)"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée <span style="font-size:10px;font-weight:400;">(h:mm:ss)</span></p>
+          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="1:05:30" maxlength="8" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(auto ou manuel)</span></p>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(calculée auto)</span></p>
           <input type="text" id="val-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
@@ -951,22 +960,24 @@ function openValidationModal(idx){
           <p style="font-size:20px;font-weight:900;letter-spacing:-0.02em;">${title}</p>
           ${detail?`<p style="font-size:12px;opacity:0.85;margin-top:3px;">${detail}</p>`:''}
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px;">
-          <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
-          <div style="display:flex;gap:6px;">
-            <button id="strava-val-btn" onclick="importFromStrava()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Strava</button>
-            <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Météo</button>
-            ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForValidation()" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">WHOOP</button>`:''}
-          </div>
-        </div>
+        <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
       </div>
     </div>
     <!-- Zone scrollable -->
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
+    <!-- Bannière import montre GPS -->
+    <div style="background:#FFF8F0;border:1px solid #F0A070;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
+      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 7px;">📱 Importer depuis ta montre GPS</p>
+      <div style="display:flex;gap:7px;">
+        <button id="strava-val-btn" onclick="importFromStrava()" style="flex:1;padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
+        <button id="meteo-val-btn" onclick="importMeteoValidation()" style="flex:1;padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
+        ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForValidation()" style="flex:1;padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button>`:''}
+      </div>
+    </div>
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
     <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
-    <div style="background:#FFF8F0;border:1.5px solid #E8530A;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#7A3B00;margin-bottom:10px;">⚡ Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan sera adapté automatiquement.</div>
+    <div style="background:#F0F4FF;border:1px solid #C0CDF5;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#2B4AAA;margin-bottom:10px;">💡 Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan s'adapte automatiquement.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <p style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">📅 Date</p>
@@ -981,14 +992,14 @@ function openValidationModal(idx){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">Prévu : ${s.km} km</p>
         </div>
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée</p>
-          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="mm:ss" maxlength="8" oninput="onDurInput(this)"
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Durée <span style="font-size:10px;font-weight:400;">(h:mm:ss)</span></p>
+          <input type="text" inputmode="numeric" id="val-dur" value="${prev.dur||''}" placeholder="1:05:30" maxlength="8" oninput="onDurInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(auto ou manuel)</span></p>
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(calculée auto)</span></p>
           <input type="text" id="val-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>

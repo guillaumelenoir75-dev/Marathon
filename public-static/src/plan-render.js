@@ -896,6 +896,7 @@ function renderAthletePlan(el){
           <div style="width:23px;display:flex;justify-content:flex-end;">${chevron}</div>
         </div>
       </div>
+      ${isOpen && isPast ? `<div style="padding:6px 12px 8px;font-size:10px;color:var(--muted);font-style:italic;text-align:center;">📋 Semaine passée — clique sur une séance pour voir ou modifier les détails</div>` : ''}
       ${sessionRowsHtml}${addRowHtml}`;
     // Séparateur de mois (inséré avant la carte si changement de mois)
     if(weekMonthIdx>=0&&weekMonthIdx!==currentRenderMonth){
