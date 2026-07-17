@@ -61,6 +61,7 @@
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
         <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():openTargetTimeModal()">
+          <div style="font-size:9px;font-weight:700;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px;">🎯 Objectif marathon</div>
           <div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-1.5px;" id="kpi-marathon-time">—</div>
           <div style="font-size:10px;opacity:0.55;margin-top:3px;display:flex;align-items:center;gap:3px;" id="today-date">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -92,7 +93,7 @@
         <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.2);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span style="font-size:12px;font-weight:700;" id="h-am-pred">—</span>
-          <span style="font-size:10px;opacity:0.7;" id="h-pred-label">/km prédit</span>
+          <span style="font-size:10px;opacity:0.7;" id="h-pred-label">/km prédit (AM)</span>
         </div>
         <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.15);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
@@ -100,7 +101,7 @@
           <span style="font-size:10px;opacity:0.6;" id="h-am-train-label">/km allure entraîn.</span>
         </div>
         </div>
-        <div id="home-race-date" style="font-size:10px;opacity:0.38;text-align:right;margin-top:2px;">18/10/2026</div>
+        <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;"></div>
         <div id="home-weather-strip" onclick="openHomeWeatherModal()" style="display:none;align-items:center;gap:4px;justify-content:flex-end;margin-top:3px;cursor:pointer;">
           <span id="home-weather-icon" style="font-size:15px;line-height:1;"></span>
           <span id="home-weather-temp" style="font-size:12px;font-weight:700;color:#fff;opacity:0.9;"></span>
@@ -227,7 +228,7 @@
         <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;white-space:nowrap;">Évolution 7 jours</p>
         <div style="display:flex;gap:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:1px;" id="whoop-chart-tabs-unified">
           <button onclick="switchUnifiedChart('fc')" id="utab-fc" style="padding:3px 7px;border-radius:20px;border:none;background:#E24B4A;color:#fff;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">FC repos</button>
-          <button onclick="switchUnifiedChart('hrv')" id="utab-hrv" style="padding:3px 7px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">VFC</button>
+          <button onclick="switchUnifiedChart('hrv')" id="utab-hrv" style="padding:3px 7px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">VFC (HRV)</button>
           <button onclick="switchUnifiedChart('recovery')" id="utab-recovery" style="padding:3px 7px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Récup</button>
           <button onclick="switchUnifiedChart('sleep')" id="utab-sleep" style="padding:3px 7px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Sommeil</button>
           <button onclick="switchUnifiedChart('strain')" id="utab-strain" style="padding:3px 7px;border-radius:20px;border:none;background:var(--bg2);color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Effort</button>
@@ -261,10 +262,10 @@
   <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Performances — séances validées</p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="perf-filters">
     <button onclick="setPerfFilter('all')" id="pf-all" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Tout</button>
-    <button onclick="setPerfFilter('ef')" id="pf-ef" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">EF</button>
-    <button onclick="setPerfFilter('tempo')" id="pf-tempo" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Tempo</button>
-    <button onclick="setPerfFilter('frac')" id="pf-frac" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Frac</button>
-    <button onclick="setPerfFilter('long')" id="pf-long" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;">Long</button>
+    <button onclick="setPerfFilter('ef')" id="pf-ef" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#3B6D11;margin-right:4px;vertical-align:middle;"></span>Endurance</button>
+    <button onclick="setPerfFilter('tempo')" id="pf-tempo" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#E8530A;margin-right:4px;vertical-align:middle;"></span>Tempo</button>
+    <button onclick="setPerfFilter('frac')" id="pf-frac" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#C4141B;margin-right:4px;vertical-align:middle;"></span>Fractionné</button>
+    <button onclick="setPerfFilter('long')" id="pf-long" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#534AB7;margin-right:4px;vertical-align:middle;"></span>Sortie longue</button>
   </div>
   <div id="perf-rows" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px;"></div>
 
@@ -299,11 +300,11 @@
   <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">2 séances / semaine · Prescrit par kiné</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
     <div id="renfo-tab-1" onclick="switchRenfo(1)" style="background:#1B4FD8;border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
-      <p style="font-size:13px;font-weight:600;color:#fff;">Ischio-fessiers</p>
-      <p style="font-size:10px;color:rgba(255,255,255,0.8);">Fémoro-patellaire · 6 exos</p>
+      <p style="font-size:13px;font-weight:600;color:#fff;">Genoux & Hanches</p>
+      <p style="font-size:10px;color:rgba(255,255,255,0.8);">Ischio-fessiers · 6 exos</p>
     </div>
     <div id="renfo-tab-2" onclick="switchRenfo(2)" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
-      <p style="font-size:13px;font-weight:600;color:var(--text);">Bas du dos</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text);">Dos & Gainage</p>
       <p style="font-size:10px;color:var(--muted);">Core stabilisation · 5 exos</p>
     </div>
   </div>
@@ -482,7 +483,7 @@
           <button id="strava-disconnect-btn" onclick="disconnectStrava()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
           <button id="strava-connect-btn" onclick="adminConnectStrava()" style="background:#FC4C02;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-            Connect with Strava
+            Connecter avec Strava
           </button>
         </div>
       </div>

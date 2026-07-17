@@ -362,12 +362,19 @@ function renderStats(){
   }
 
   const gr=document.getElementById('gels-rows');gr.innerHTML='';
-  gels.forEach((g,i)=>{
-    const row=document.createElement('div');
-    row.style.cssText=`display:grid;grid-template-columns:72px 52px 1fr;padding:10px 12px;border-bottom:${i<gels.length-1?'1px solid var(--border)':'none'};`;
-    row.innerHTML=`<span style="font-size:13px;color:var(--text);">${typeof g.km==='number'?g.km+' km':g.km}</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
-    gr.appendChild(row);
-  });
+  if(!gels.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='padding:14px 16px;font-size:12px;color:var(--muted);font-style:italic;text-align:center;line-height:1.5;';
+    empty.textContent='La stratégie gels sera calculée automatiquement après tes premières sorties longues.';
+    gr.appendChild(empty);
+  } else {
+    gels.forEach((g,i)=>{
+      const row=document.createElement('div');
+      row.style.cssText=`display:grid;grid-template-columns:72px 52px 1fr;padding:10px 12px;border-bottom:${i<gels.length-1?'1px solid var(--border)':'none'};`;
+      row.innerHTML=`<span style="font-size:13px;color:var(--text);">${typeof g.km==='number'?g.km+' km':g.km}</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
+      gr.appendChild(row);
+    });
+  }
 }
 
 // ── Pull-to-refresh WHOOP sur l'écran Stats ───────────────────────────────

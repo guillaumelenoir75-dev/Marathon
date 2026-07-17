@@ -112,7 +112,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
           const variation=Math.max(...tSecs)-Math.min(...tSecs);
           if(variation<=5) lines.push('✅ Excellent régularité sur les blocs (≤ 5 sec/km d\'écart) — c\'est la marque d\'un effort parfaitement contrôlé ! 🎯');
           else if(variation<=12) lines.push('📊 Bonne régularité ('+variation+' sec/km d\'écart entre les blocs) — à affiner progressivement.');
-          else lines.push('⚠️ Variation de '+variation+' sec/km entre les blocs. Essaie de partir un peu moins vite pour finir plus fort — ça s\'appelle le "négatif split".');
+          else lines.push('⚠️ Variation de '+variation+' sec/km entre les blocs. Essaie de partir un peu moins vite pour finir plus fort — ça s\'appelle le "négatif split" (finir plus vite qu\'on a commencé).');
         }
       }
     }
@@ -614,7 +614,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         denivele: sp.denivele || null
       })) : null,
       note_coach: [
-        g.cadence ? `Cadence moyenne : ${g.cadence} spm${g.cadence < 165 ? ' (trop basse — foulée trop longue)' : g.cadence >= 175 ? ' (bonne cadence)' : ' (correct)'}` : null,
+        g.cadence ? `Cadence moyenne : ${g.cadence} spm (foulées/min)${g.cadence < 165 ? ' — trop basse, foulée trop longue' : g.cadence >= 175 ? ' — bonne cadence' : ' — correct'}` : null,
         g.fcMax ? `FC max atteinte : ${g.fcMax} bpm` : null,
         g.denivele_pos ? `Dénivelé positif : ${g.denivele_pos}m` : null,
         splitsClean && splitsClean.length > 1 ? `Km le plus rapide : km${splitsClean.reduce((a,b) => (a.allure||'9:99') < (b.allure||'9:99') ? a : b).km} (${splitsClean.reduce((a,b) => (a.allure||'9:99') < (b.allure||'9:99') ? a : b).allure})` : null,
