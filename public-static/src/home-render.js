@@ -167,6 +167,16 @@ function renderHome(){
     if(predBtn) predBtn.style.cursor=isAdmin()?'pointer':'default';
     if(amTrainBtn){ amTrainBtn.style.cursor=isAdmin()?'pointer':'default'; amTrainBtn.style.display=isAdmin()?'flex':'none'; }
   }
+  // Label objectif dynamique selon la course
+  const goalLabelEl=document.getElementById('home-goal-label');
+  if(goalLabelEl){
+    if(isAdmin()) goalLabelEl.textContent='🎯 Objectif marathon';
+    else if(isPlaisir) goalLabelEl.textContent='🎯 Mon objectif';
+    else{
+      const lbl={'5 km':'🎯 Objectif 5 km','10 km':'🎯 Objectif 10 km','Semi-marathon':'🎯 Objectif semi','Marathon':'🎯 Objectif marathon','Autre':'🎯 Mon objectif'}[userCourse]||'🎯 Mon objectif';
+      goalLabelEl.textContent=lbl;
+    }
+  }
   // Libellés adaptés à la course
   const predLabelEl=document.getElementById('h-pred-label');
   const amTrainLabelEl=document.getElementById('h-am-train-label');
@@ -393,10 +403,10 @@ function renderHome(){
     const doneFn = isCurrent ? (extra?`toggleDoneExtra(${w},${ei})`:`toggleDone(${si})`) : '';
     const div=document.createElement('div');
     div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;cursor:default;'
-      +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15;`
-      :done?`border:1px solid ${typeC}30;background:linear-gradient(90deg,${typeBgC}50,var(--bg));`
-      :skip?'border:1px solid #e5c6c6;background:linear-gradient(90deg,#fff5f550,var(--bg));'
-      :'border:1px solid var(--border);')
+      +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15,inset 3px 0 0 ${typeC};`
+      :done?`border:1px solid ${typeC}30;background:linear-gradient(90deg,${typeBgC}50,var(--bg));box-shadow:inset 3px 0 0 ${typeC};`
+      :skip?'border:1px solid #e5c6c6;background:linear-gradient(90deg,#fff5f550,var(--bg));box-shadow:inset 3px 0 0 #C0392B;'
+      :`border:1px solid var(--border);box-shadow:inset 3px 0 0 ${typeC};`)
       +(isPast&&!done&&!skip?'opacity:0.65;':'');
     div.innerHTML=`
       ${isRunToday?`<span style="position:absolute;top:-1px;right:12px;background:${typeC};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">Aujourd'hui</span>`:''}
@@ -415,7 +425,7 @@ function renderHome(){
           <span style="font-size:13px;font-weight:600;color:${done?typeC:'#1a2e4a'};">${title}</span>
           
         </div>
-        ${detail?`<p style="font-size:11px;color:${typeC};font-weight:500;opacity:${done?0.75:1};margin-top:1px;">${detail}</p>`:''}
+        ${detail?`<p style="font-size:11px;color:${typeC};font-weight:500;opacity:${done?0.75:1};margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${detail}</p>`:''}
         ${(()=>{
           if(!done){
             const dur=estimateDuration(s2);
@@ -443,12 +453,16 @@ function renderHome(){
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?typeC:'#6B8DB5'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>`:''}
         ${isCurrent?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-          <div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?typeC:skip?'#C0392B':'#d0dff5'};background:${done?typeC:skip?'#FDECEA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;">
-            ${done?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
-            :skip?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>`
-            :`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c8d8ef" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`}
-          </div>
-          ${!done&&!skip?`<span style="font-size:8px;font-weight:700;color:#a0b4cc;letter-spacing:0.02em;">Valider</span>`:''}
+          ${done
+            ?`<div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;background:${typeC};display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>`
+            :skip
+            ?`<div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;border:2px solid #C0392B;background:#FDECEA;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>
+            </div>`
+            :`<button onclick="${doneFn}" style="background:${typeC};color:#fff;border:none;border-radius:20px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px ${typeC}55;letter-spacing:0.01em;">✓ Valider</button>`
+          }
         </div>`:done?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid ${typeC};background:${typeC};display:flex;align-items:center;justify-content:center;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
         </div>`:skip?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid #C0392B;background:#FDECEA;display:flex;align-items:center;justify-content:center;">

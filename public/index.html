@@ -33,7 +33,7 @@
 
 <!-- ACCUEIL -->
 <div id="sc-home" style="background:#EDF2FB;min-height:100vh;">
-  <div style="background:#0C447C;padding:12px 16px 14px;border-radius:22px;color:#fff;margin-bottom:0;">
+  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:12px 16px 14px;border-radius:22px;color:#fff;margin-bottom:0;">
     <!-- Badge semaine + allure EF sur même ligne -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:6px;">
@@ -61,18 +61,16 @@
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
         <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():openTargetTimeModal()">
-          <div style="font-size:9px;font-weight:700;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px;">🎯 Objectif marathon</div>
+          <div id="home-goal-label" style="font-size:9px;font-weight:700;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px;">🎯 Objectif marathon</div>
           <div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-1.5px;" id="kpi-marathon-time">—</div>
-          <div style="font-size:10px;opacity:0.55;margin-top:3px;display:flex;align-items:center;gap:3px;" id="today-date">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
+          <div style="font-size:10px;opacity:0.55;margin-top:3px;" id="today-date"></div>
 
         </div>
         <div id="home-no-race-btn" style="display:none;margin-top:4px;">
-          <button onclick="showOnboarding(true)" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;">
+          <button onclick="showOnboarding(true)" style="background:linear-gradient(135deg,#E8530A,#F97316);border:none;border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;box-shadow:0 6px 20px rgba(232,83,10,0.45);">
             <span style="font-size:22px;line-height:1;">🏁</span>
             <span style="font-size:15px;font-weight:800;color:#fff;line-height:1.2;">Préparer<br>une course</span>
-            <span style="font-size:11px;font-weight:500;color:rgba(255,255,255,0.65);">Crée ton plan personnalisé →</span>
+            <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.85);">Crée ton plan personnalisé →</span>
           </button>
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px;">
