@@ -49,10 +49,10 @@
           <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;background:#E8530A;border-radius:50%;border:2px solid #1B4FD8;animation:_pulseBadge 1.8s ease-in-out infinite;"></span>
         </div>
       </div>
-      <div onclick="openEditEFModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;" title="Modifier ton allure EF">
+      <div onclick="openEditEFModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;" title="Allure Endurance Fondamentale — ton rythme confortable de base. Clique pour modifier.">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         <span style="font-size:12px;font-weight:700;" id="kpi-ef-pace">—</span>
-        <span style="font-size:10px;opacity:0.6;">/km EF</span>
+        <span style="font-size:10px;opacity:0.6;">/km allure facile</span>
         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
     </div>
@@ -84,6 +84,7 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <span style="font-size:12px;font-weight:700;" id="kpi-vo2max">—</span>
             <span style="font-size:10px;opacity:0.6;">VO2max</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
         </div>
       </div>
@@ -145,6 +146,7 @@
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">
       <span id="home-week-label" style="font-size:14px;font-weight:800;color:#0C447C;letter-spacing:-0.02em;">S9 — Semaine en cours</span>
       <span id="home-week-dates" style="font-size:10px;color:#6B8DB5;font-weight:500;"></span>
+      <button id="home-today-btn" onclick="homeNavToday()" style="display:none;font-size:10px;font-weight:700;color:#0C447C;background:rgba(11,68,124,0.09);border:1px solid rgba(11,68,124,0.18);border-radius:10px;padding:2px 9px;cursor:pointer;margin-top:3px;letter-spacing:0.01em;">↩ Semaine en cours</button>
     </div>
     <button id="home-week-next" onclick="homeNavWeek(+1)" style="width:34px;height:34px;border-radius:50%;border:1.5px solid #d0dff5;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -181,20 +183,20 @@
   <div style="padding:0 16px;background:#EDF2FB;">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;padding-top:16px;">
       <div class="kpi-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">KM réalisés cette semaine</p>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Km courus cette semaine</p>
         <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-week-done">0</p>
-        <p style="font-size:11px;color:var(--muted);" id="kpi-week-plan">/ 27 km planifiés</p>
+        <p style="font-size:11px;color:var(--muted);" id="kpi-week-plan">/ 27 km au programme</p>
       </div>
       <div class="kpi-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">KM faits total</p>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Km courus depuis le début</p>
         <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-total">—</p>
       </div>
       <div class="kpi-card" id="kpi-rest-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">KM restants</p>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Km encore au programme</p>
         <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-rest">—</p>
       </div>
       <div class="kpi-card" id="kpi-weeks-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Semaines restantes</p>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Semaines avant la course</p>
         <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-weeks-left">—</p>
       </div>
     </div>
@@ -297,7 +299,7 @@
 <!-- RENFO -->
 <div id="sc-renfo" style="display:none;padding:16px;background:#EDF2FB;min-height:100vh;">
   <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">Renforcement</p>
-  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">2 séances / semaine · Prescrit par kiné</p>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">2 séances / semaine · Prévention blessures & renforcement musculaire</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
     <div id="renfo-tab-1" onclick="switchRenfo(1)" style="background:#1B4FD8;border-radius:var(--radius-sm);padding:12px;cursor:pointer;text-align:center;">
       <p style="font-size:13px;font-weight:600;color:#fff;">Genoux & Hanches</p>
@@ -339,7 +341,7 @@
       <textarea id="coach-input" placeholder="Écris ta question ici..." rows="1"
         style="flex:1;background:#fff;border:1.5px solid #c5d8f0;border-radius:20px;padding:10px 14px;font-size:14px;color:var(--text);outline:none;resize:none;font-family:inherit;line-height:1.4;max-height:100px;overflow-y:auto;"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCoachMessage();}"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'" placeholder="Ex : J'ai mal aux mollets après ma sortie, que faire ?"></textarea>
       <button id="coach-send-btn" onclick="sendCoachMessage()" style="background:#0C447C;color:#fff;border:none;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -351,7 +353,7 @@
       <button class="shortcut-chip" onclick="sendShortcut('⚡ Mon allure EF actuelle')">⚡ Mon allure</button>
       <button class="shortcut-chip" onclick="sendShortcut('📈 Comment je progresse ?')">📈 Progression</button>
       <button class="shortcut-chip" onclick="sendShortcut('💡 Conseils pour ma prochaine séance')">💡 Conseil</button>
-      <button class="shortcut-chip" onclick="sendShortcut('🏃 Suis-je en bonne voie pour le Sub 4h ?')">🏃 Sub 4h ?</button>
+      <button class="shortcut-chip" id="coach-goal-chip" onclick="sendGoalChip()">🏃 Mon objectif</button>
       <button class="shortcut-chip" onclick="sendShortcut('😴 Récupération cette semaine')">😴 Récup</button>
     </div>
     <div style="display:flex;justify-content:center;gap:6px;margin-top:4px;padding-bottom:2px;">

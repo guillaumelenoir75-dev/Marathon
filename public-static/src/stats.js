@@ -135,6 +135,12 @@ function renderStats(){
   if(badge) badge.textContent = (isAdmin() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
   const sb=document.getElementById('shoes-bars');if(!sb) return;sb.innerHTML='';
   const dynamicShoes=getShoes();
+  if(dynamicShoes.length===0){
+    sb.innerHTML='<div style="text-align:center;padding:16px 12px 20px;border:1.5px dashed var(--border);border-radius:14px;"><p style="font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4;">👟 Aucune chaussure renseignée.<br><span style="font-size:11px;">Ajoute tes paires pour suivre leur kilométrage et savoir quand les remplacer.</span></p><button onclick="openAddShoeModal()" style="padding:9px 18px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">+ Ajouter une chaussure</button></div>';
+    const sm=document.getElementById('shoes-manage');
+    if(sm) sm.innerHTML='';
+    return;
+  }
   const shoeKm=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
   const defaultNames=[P,S,Z];
   dynamicShoes.forEach((sh)=>{
@@ -982,7 +988,7 @@ function renderRenfoExercises(){
   banner.style.display=isDone?'flex':'none';
   if(isDone)document.getElementById('renfo-done-text').textContent=`${prog.name} validé — S${CW}`;
   const btn=document.getElementById('renfo-btn');
-  btn.textContent=isDone?'Séance déjà validée':'Valider la séance';
+  btn.textContent=isDone?`${prog.name} déjà validé ✓`:`Valider — ${prog.name}`;
   btn.style.background=isDone?'#639922':'#1B4FD8';
   let cancelBtn=document.getElementById('renfo-cancel-btn');
   if(!cancelBtn){

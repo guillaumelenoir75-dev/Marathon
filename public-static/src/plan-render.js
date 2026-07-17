@@ -946,6 +946,14 @@ function renderAthletePlan(el){
     <span style="font-size:12px;color:var(--muted);">Nouvelle semaine S${nextWs}</span>
   </div>`;
   el.appendChild(addEl);
+
+  // Scroll automatique vers la semaine en cours (seulement si pas encore ouvert)
+  if(!_adminPreviewUid){
+    setTimeout(()=>{
+      const curCard=el.querySelector('.plan-week-card.is-current');
+      if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },120);
+  }
 }
 
 function toggleAthleteWeek(ws){
@@ -1240,6 +1248,12 @@ function renderPlan(){
     el.appendChild(card);
     } catch(e) { console.error('renderPlan error S'+w.s+':', e); }
   });
+
+  // Scroll vers la semaine en cours au premier affichage
+  setTimeout(()=>{
+    const curCard=el.querySelector('.plan-week-card.is-current');
+    if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },120);
 
   // Carte Jour J — Marathon 18 octobre 2026
   const jourJCard=document.createElement('div');

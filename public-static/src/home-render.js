@@ -1,5 +1,21 @@
 let _whoopAlertScheduled = false;
 
+function homeNavToday(){
+  homeViewWeek = getEffectiveCW();
+  rendered.home = false;
+  renderHome();
+}
+
+function sendGoalChip(){
+  const ob = state.onboarding || {};
+  const course = ob.course || 'Marathon';
+  const target = ob.target_time || '';
+  const q = target
+    ? `🏃 Suis-je en bonne voie pour finir en ${target} ?`
+    : `🏃 Suis-je en bonne voie pour mon objectif ${course} ?`;
+  sendShortcut(q);
+}
+
 function renderHome(){
   const w = homeViewWeek; // semaine affichée (peut ≠ CW si navigation)
   const eCW = getEffectiveCW(); // semaine courante effective (admin=CW, athlete=getAthleteCW)
@@ -41,6 +57,8 @@ function renderHome(){
   const nextBtn = document.getElementById('home-week-next');
   if(prevBtn){ prevBtn.style.opacity = w<=1?'0.3':'1'; prevBtn.style.pointerEvents = w<=1?'none':'auto'; }
   if(nextBtn){ nextBtn.style.opacity = w>=maxW?'0.3':'1'; nextBtn.style.pointerEvents = w>=maxW?'none':'auto'; }
+  const todayBtn = document.getElementById('home-today-btn');
+  if(todayBtn) todayBtn.style.display = isCurrent ? 'none' : 'inline-block';
   // Pill "Semaine en cours" dans le header : toujours la semaine courante effective
   const weekNumEl=document.getElementById('h-week-num');
   if(weekNumEl) weekNumEl.textContent='S'+eCW;
@@ -96,7 +114,7 @@ function renderHome(){
     return Math.round(km*10)/10;
   })();
   const kpiWeekEl=document.getElementById('kpi-week-done'); if(kpiWeekEl) kpiWeekEl.textContent=weekDoneKm;
-  const kpiWeekPlanEl=document.getElementById('kpi-week-plan'); if(kpiWeekPlanEl) kpiWeekPlanEl.textContent='/ '+getWeekTotalKm(w)+' km planifiés';
+  const kpiWeekPlanEl=document.getElementById('kpi-week-plan'); if(kpiWeekPlanEl) kpiWeekPlanEl.textContent='/ '+getWeekTotalKm(w)+' km au programme';
   // AM pace dans le header
   const am=getMarathonPaceStr();
   const amEl=document.getElementById('h-am-pace');
