@@ -102,18 +102,18 @@ function renderHome(){
     const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
     const gtLabel=document.getElementById('h-grand-total-label'); if(gtLabel) gtLabel.textContent='plan complet';
   }
-  const kpiTotalEl=document.getElementById('kpi-total'); if(kpiTotalEl) kpiTotalEl.textContent=td;
-  const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=Math.max(0,gt-td);
+  const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=gt>0?Math.max(0,gt-td).toLocaleString('fr-FR')+' km':'—';
   const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl){
+    let wVal;
     if(isAdmin()){
-      weeksLeftEl.textContent=Math.max(0,32-CW);
+      wVal=Math.max(0,32-CW);
     } else {
-      // Calculer les semaines restantes depuis la semaine courante jusqu'à la dernière semaine du plan
       let maxW=0;
       for(let ws=1;ws<=52;ws++){ if(state['extra_w'+ws+'_s0']) maxW=ws; }
       const ACW=getAthleteCW();
-      weeksLeftEl.textContent=maxW>0?Math.max(0,maxW-ACW+1):'—';
+      wVal=maxW>0?Math.max(0,maxW-ACW+1):null;
     }
+    weeksLeftEl.textContent=wVal!=null?wVal+' sem.':'—';
   }
   // KM semaine : basés sur la semaine affichée
   const weekDoneKm = (()=>{
@@ -124,8 +124,6 @@ function renderHome(){
     });
     return Math.round(km*10)/10;
   })();
-  const kpiWeekEl=document.getElementById('kpi-week-done'); if(kpiWeekEl) kpiWeekEl.textContent=weekDoneKm;
-  const kpiWeekPlanEl=document.getElementById('kpi-week-plan'); if(kpiWeekPlanEl) kpiWeekPlanEl.textContent='/ '+getWeekTotalKm(w)+' km au programme';
   // ── Infos semaine dans le header ─────────────────────────────────────────────
   const allSessW=getOrderedWeekSessions(w).filter(({s})=>s.type!=='rest');
   const doneCountW=allSessW.filter(({s,si,extra,ei})=>extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done']).length;
@@ -189,10 +187,8 @@ function renderHome(){
     }
   }
   // KPI cartes KM restants / Semaines restantes : masquées si pas de course
-  const kpiRestCard=document.getElementById('kpi-rest-card');
-  const kpiWeeksCard=document.getElementById('kpi-weeks-card');
-  if(kpiRestCard) kpiRestCard.style.display=isPlaisir?'none':'block';
-  if(kpiWeeksCard) kpiWeeksCard.style.display=isPlaisir?'none':'block';
+  const extraStatsRow=document.getElementById('h-extra-stats-row');
+  if(extraStatsRow) extraStatsRow.style.display=isPlaisir?'none':'flex';
   // Bloc KPI course : masqué si Plaisir ou pas de course
   const raceKpiBlock=document.getElementById('home-race-kpi-block');
   const noRaceBtn=document.getElementById('home-no-race-btn');

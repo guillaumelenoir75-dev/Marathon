@@ -150,6 +150,17 @@
           <div style="font-size:10px;opacity:0.5;" id="h-grand-total-label">plan complet</div>
         </div>
       </div>
+      <!-- Km restants + Semaines avant la course -->
+      <div id="h-extra-stats-row" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.13);">
+        <div>
+          <div style="font-size:10px;opacity:0.55;margin-bottom:1px;">🏅 Km restants</div>
+          <div style="font-size:13px;font-weight:700;" id="kpi-rest">— km</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;opacity:0.55;margin-bottom:1px;">📆 Avant la course</div>
+          <div style="font-size:13px;font-weight:700;" id="kpi-weeks-left">—</div>
+        </div>
+      </div>
       <!-- Prochaine séance planifiée -->
       <div id="h-next-sched" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.13);display:flex;align-items:center;gap:6px;">
         <span style="font-size:10px;opacity:0.55;">⏰ Prochaine —</span>
@@ -204,27 +215,6 @@
         <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.01em;margin-bottom:6px;">Semaine prochaine <span style="opacity:0.5;">· S<span id="renfo-next-label"></span></span></p>
         <div id="renfo-next-week"></div>
       </div>
-  </div>
-  <div style="padding:0 16px;background:#EDF2FB;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;padding-top:16px;">
-      <div class="kpi-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Km courus cette semaine</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-week-done">0</p>
-        <p style="font-size:11px;color:var(--muted);" id="kpi-week-plan">/ 27 km au programme</p>
-      </div>
-      <div class="kpi-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Km courus depuis le début</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-total">—</p>
-      </div>
-      <div class="kpi-card" id="kpi-rest-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Km encore au programme</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-rest">—</p>
-      </div>
-      <div class="kpi-card" id="kpi-weeks-card">
-        <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">Semaines avant la course</p>
-        <p style="font-size:26px;font-weight:700;color:var(--text);" id="kpi-weeks-left">—</p>
-      </div>
-    </div>
   </div>
 </div>
 
