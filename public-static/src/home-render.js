@@ -583,13 +583,19 @@ function openValidationModalExtra(w,ei){
     <!-- Zone scrollable identique -->
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
-    <!-- Bannière import montre GPS -->
+    <!-- Bannière import -->
     <div style="background:#FFF8F0;border:1px solid #F0A070;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 7px;">📱 Importer depuis ta montre GPS</p>
+      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 8px;">⚡ Remplis automatiquement</p>
       <div style="display:flex;gap:7px;">
-        <button id="strava-val-btn" onclick="importFromStrava()" style="flex:1;padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
-        <button id="meteo-val-btn" onclick="importMeteoValidation()" style="flex:1;padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
-        ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForPerfEditExtra(${w},${ei})" style="flex:1;padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button>`:''}
+        <div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;">
+          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
+          <span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">Remplit km, durée<br>et allure auto</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;">
+          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
+          <span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">Ajoute météo pour<br>analyser la séance</span>
+        </div>
+        ${isAdmin()?`<div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;"><button id="whoop-val-btn" onclick="importWhoopForPerfEditExtra(${w},${ei})" style="padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button><span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">FC & récupération<br>depuis WHOOP</span></div>`:''}
       </div>
     </div>
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
@@ -998,13 +1004,19 @@ function openValidationModal(idx){
     <!-- Zone scrollable -->
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
-    <!-- Bannière import montre GPS -->
+    <!-- Bannière import -->
     <div style="background:#FFF8F0;border:1px solid #F0A070;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 7px;">📱 Importer depuis ta montre GPS</p>
+      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 8px;">⚡ Remplis automatiquement</p>
       <div style="display:flex;gap:7px;">
-        <button id="strava-val-btn" onclick="importFromStrava()" style="flex:1;padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
-        <button id="meteo-val-btn" onclick="importMeteoValidation()" style="flex:1;padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
-        ${isAdmin()?`<button id="whoop-val-btn" onclick="importWhoopForValidation()" style="flex:1;padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button>`:''}
+        <div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;">
+          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
+          <span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">Remplit km, durée<br>et allure auto</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;">
+          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
+          <span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">Ajoute météo pour<br>analyser la séance</span>
+        </div>
+        ${isAdmin()?`<div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;"><button id="whoop-val-btn" onclick="importWhoopForValidation()" style="padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button><span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">FC & récupération<br>depuis WHOOP</span></div>`:''}
       </div>
     </div>
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
