@@ -197,18 +197,30 @@ function renderHome(){
     if(raceKpiBlock) raceKpiBlock.style.display='none';
     if(noRaceBtn) noRaceBtn.style.display='block';
     if(marathonTimeBlock) marathonTimeBlock.style.display='none';
-    // Remplir les stats "Ma pratique"
-    const plaisirKmEl=document.getElementById('plaisir-km-total');
-    if(plaisirKmEl) plaisirKmEl.textContent=(td>0?td.toLocaleString('fr-FR'):0)+' km';
-    const plaisirSessEl=document.getElementById('plaisir-sess-total');
-    if(plaisirSessEl){
-      const totalSessDone=Object.keys(state).filter(k=>k.endsWith('_done')&&state[k]===true).length;
-      plaisirSessEl.textContent=totalSessDone||0;
+    // Masquer la ligne principale (temps marathon / KPIs) — inutile pour Plaisir
+    const mainRow=document.getElementById('home-header-main-row');
+    if(mainRow) mainRow.style.display='none';
+    // Remplir le bloc "Ma pratique" : deux états selon les stats
+    const totalSessDone=Object.keys(state).filter(k=>k.endsWith('_done')&&state[k]===true).length;
+    const welcomeBlock=document.getElementById('plaisir-welcome-block');
+    const statsBlock=document.getElementById('plaisir-stats-block');
+    if(totalSessDone===0&&td===0){
+      if(welcomeBlock) welcomeBlock.style.display='flex';
+      if(statsBlock) statsBlock.style.display='none';
+    } else {
+      if(welcomeBlock) welcomeBlock.style.display='none';
+      if(statsBlock) statsBlock.style.display='block';
+      const plaisirKmEl=document.getElementById('plaisir-km-total');
+      if(plaisirKmEl) plaisirKmEl.textContent=(td>0?td.toLocaleString('fr-FR'):0)+' km';
+      const plaisirSessEl=document.getElementById('plaisir-sess-total');
+      if(plaisirSessEl) plaisirSessEl.textContent=totalSessDone;
     }
   } else {
     if(raceKpiBlock) raceKpiBlock.style.display='block';
     if(noRaceBtn) noRaceBtn.style.display='none';
     if(marathonTimeBlock) marathonTimeBlock.style.display='block';
+    const mainRowEl=document.getElementById('home-header-main-row');
+    if(mainRowEl) mainRowEl.style.display='flex';
     // Curseur uniquement admin
     const predBtn=document.getElementById('home-pred-btn');
     const amTrainBtn=document.getElementById('home-am-train-btn');

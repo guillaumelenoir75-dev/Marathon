@@ -58,28 +58,43 @@
     </div>
     <!-- Bloc "Ma pratique" pour les users Plaisir (sans plan de course) -->
     <div id="home-no-race-btn" style="display:none;margin-bottom:12px;">
-      <div style="background:rgba(255,255,255,0.10);border-radius:14px;padding:12px 14px;">
-        <div style="font-size:9px;font-weight:700;opacity:0.55;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:8px;">Ma pratique</div>
-        <div style="display:flex;align-items:center;margin-bottom:10px;">
-          <div style="flex:1;">
-            <div style="font-size:22px;font-weight:800;line-height:1;" id="plaisir-km-total">— km</div>
-            <div style="font-size:10px;opacity:0.6;margin-top:2px;">courus au total</div>
-          </div>
-          <div style="width:0.5px;height:32px;background:rgba(255,255,255,0.2);margin:0 14px;"></div>
-          <div style="flex:1;">
-            <div style="font-size:22px;font-weight:800;line-height:1;" id="plaisir-sess-total">—</div>
-            <div style="font-size:10px;opacity:0.6;margin-top:2px;">séances validées</div>
+      <div style="background:rgba(255,255,255,0.10);border-radius:14px;padding:13px 14px;">
+        <!-- État accueil : 0 séances validées -->
+        <div id="plaisir-welcome-block" style="display:none;align-items:center;gap:12px;margin-bottom:11px;">
+          <span style="font-size:30px;line-height:1;flex-shrink:0;">🏃</span>
+          <div>
+            <div style="font-size:15px;font-weight:800;line-height:1.2;margin-bottom:3px;">Bienvenue !</div>
+            <div style="font-size:11px;opacity:0.65;line-height:1.4;">Valide ta première séance<br>pour voir tes stats apparaître ici.</div>
           </div>
         </div>
-        <button onclick="showOnboarding(true)" style="width:100%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.20);border-radius:10px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;text-align:left;box-sizing:border-box;">
+        <!-- État stats : au moins 1 séance validée -->
+        <div id="plaisir-stats-block" style="display:none;margin-bottom:11px;">
+          <div style="font-size:9px;font-weight:700;opacity:0.55;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:8px;">Ma pratique</div>
+          <div style="display:flex;align-items:center;">
+            <div style="flex:1;">
+              <div style="font-size:22px;font-weight:800;line-height:1;" id="plaisir-km-total">—</div>
+              <div style="font-size:10px;opacity:0.6;margin-top:2px;">km courus</div>
+            </div>
+            <div style="width:0.5px;height:30px;background:rgba(255,255,255,0.2);margin:0 14px;"></div>
+            <div style="flex:1;">
+              <div style="font-size:22px;font-weight:800;line-height:1;" id="plaisir-sess-total">—</div>
+              <div style="font-size:10px;opacity:0.6;margin-top:2px;">séances</div>
+            </div>
+          </div>
+        </div>
+        <!-- Bouton créer un plan — toujours affiché -->
+        <button onclick="showOnboarding(true)" style="width:100%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.20);border-radius:10px;padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;text-align:left;box-sizing:border-box;">
           <span style="font-size:15px;line-height:1;">🏁</span>
-          <span style="font-size:12px;font-weight:600;flex:1;">Créer un plan de course</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:700;">Créer un plan de course</div>
+            <div style="font-size:10px;opacity:0.6;margin-top:1px;">5 km, 10 km, semi, marathon…</div>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
     </div>
     <!-- Ligne principale : temps marathon + KPIs -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+    <div id="home-header-main-row" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
         <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():openTargetTimeModal()">
