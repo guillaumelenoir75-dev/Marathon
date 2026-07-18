@@ -298,20 +298,22 @@ function renderHome(){
       const rfDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
       const hasSched=renfoSched&&(renfoSched.day||renfoSched.time);
       const rfSchedBadge=hasSched
-        ?`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[renfoSched.day?rfDays[renfoSched.day]:'',renfoSched.time||''].filter(Boolean).join(' ')}</span>`
+        ?`<span style="font-size:10px;color:#0C447C;font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[renfoSched.day?rfDays[renfoSched.day]:'',renfoSched.time||''].filter(Boolean).join(' ')}</span>`
         :'';
+      const renfoEmoji=getRenfoData(rd.r).emoji||'💪';
+      const accentColor=done?'#3B6D11':'#0C447C';
       card.style.cssText='border-radius:14px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;'
         +(isCurrent||!isPast?'cursor:pointer;':'cursor:default;')
-        +(isRenfoToday?'border:2px solid #0C447C;box-shadow:0 0 0 4px #0C447C15;'
-        :done?'border:1px solid #3B6D1130;background:linear-gradient(90deg,#EAF3DE50,var(--bg));'
-        :'border:1px solid #d0dff5;');
+        +(isRenfoToday?`border:2px solid #0C447C;box-shadow:0 0 0 4px #0C447C15,inset 3px 0 0 #0C447C;`
+        :done?`border:1px solid #3B6D1130;background:linear-gradient(90deg,#EAF3DE50,var(--bg));box-shadow:inset 3px 0 0 #3B6D11;`
+        :'border:1px solid #d0dff5;box-shadow:inset 3px 0 0 #0C447C;');
       if(isCurrent) card.onclick=()=>showScreen('renfo',rd.r);
       card.innerHTML=`
       ${isRenfoToday?'<span style="position:absolute;top:-1px;right:12px;background:#0C447C;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">Aujourd\'hui</span>':''}
       <div style="width:40px;height:40px;border-radius:12px;background:${done?'#EAF3DE':'#E6F0FA'};border:1.5px solid ${done?'#3B6D1125':'#0C447C20'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         ${done
           ?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
-          :'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2"><path d="M6 4v16M18 4v16M6 12h12M2 7h4M18 7h4M2 17h4M18 17h4"/></svg>'
+          :`<span style="font-size:18px;line-height:1;">${renfoEmoji}</span>`
         }
       </div>
       <div style="flex:1;min-width:0;">
@@ -319,7 +321,7 @@ function renderHome(){
           <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'#1a2e4a'};">${rd.name}</span>
           ${done?'<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>':''}
         </div>
-        <p style="font-size:11px;color:#6B8DB5;font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${rd.sub}</p>
+        <p style="font-size:11px;color:#6B8DB5;font-weight:500;margin-top:1px;">${rd.sub}</p>
         ${!done&&doneSeries>0?`<div style="background:var(--bg2);border-radius:3px;height:3px;margin-top:5px;"><div style="background:#0C447C;border-radius:3px;height:3px;width:${pct}%;"></div></div>`:''}
         ${rfSchedBadge}
       </div>
@@ -366,10 +368,15 @@ function renderHome(){
           if(!state[schedKey] && isAdmin()) state[schedKey] = JSON.stringify(defaults[rd.r]);
           let sched={};try{sched=state[schedKey]?JSON.parse(state[schedKey]):{};}catch(e){}
           const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ')||'À planifier';
+          const isPlanned=schedTxt!=='À planifier';
+          const nextEmoji=getRenfoData(rd.r).emoji||'💪';
           const btn = document.createElement('div');
-          btn.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border:1px solid #d0dff5;border-radius:10px;margin-bottom:6px;cursor:pointer;';
+          btn.style.cssText=`display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1px solid ${isPlanned?'#C0CDF5':'#d0dff5'};border-radius:12px;margin-bottom:6px;cursor:pointer;box-shadow:inset 3px 0 0 #0C447C40;`;
           btn.onclick=()=>openRenfoSchedModal(rd.r, cwNext);
-          btn.innerHTML=`<span style="font-size:12px;color:var(--text);font-weight:500;">${rd.name}</span><span style="font-size:11px;color:#1B4FD8;font-weight:600;background:#EEF2FD;padding:2px 8px;border-radius:8px;">${schedTxt}</span>`;
+          btn.innerHTML=`
+            <span style="font-size:16px;line-height:1;">${nextEmoji}</span>
+            <span style="font-size:12px;color:var(--text);font-weight:600;flex:1;">${rd.name}</span>
+            <span style="font-size:11px;color:${isPlanned?'#1B4FD8':'#9B9B9B'};font-weight:${isPlanned?700:500};background:${isPlanned?'#EEF2FD':'var(--bg2)'};padding:3px 9px;border-radius:8px;">${schedTxt}</span>`;
           renfoNextEl.appendChild(btn);
         });
       }
@@ -431,10 +438,10 @@ function renderHome(){
     if(!extra){
       const edRaw=state['edit_w'+w+'_s'+si];
       if(edRaw){let ed;try{ed=JSON.parse(edRaw);}catch(e){}if(ed&&(ed.sched_day||ed.sched_time)){
-        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">🕐 ${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
+        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
       }}
     } else if(s2.sched_day||s2.sched_time){
-      schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">🕐 ${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
+      schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
     }
     // "Aujourd'hui" seulement sur semaine en cours
     const runEdRaw=extra?null:state['edit_w'+w+'_s'+si];

@@ -33,7 +33,7 @@
 
 <!-- ACCUEIL -->
 <div id="sc-home" style="background:#EDF2FB;min-height:100vh;">
-  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:12px 16px 14px;border-radius:22px;color:#fff;margin-bottom:0;">
+  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:12px 16px 22px;border-radius:22px;color:#fff;margin-bottom:-12px;padding-bottom:22px;">
     <!-- Badge semaine + allure EF sur même ligne -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:6px;">
@@ -175,7 +175,10 @@
   <div id="home-notif-banner" style="display:none;background:#EDF2FB;padding:8px 16px 0;"></div>
   <!-- Charnière séances -->
   <div style="background:#EDF2FB;padding:4px 16px 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
-    <p style="font-size:13px;font-weight:700;color:#0C447C;">Séances <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="sessions-progress"></span></p>
+    <p style="font-size:13px;font-weight:700;color:#0C447C;display:flex;align-items:center;gap:6px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#3B6D11;flex-shrink:0;display:inline-block;"></span>
+      Séances <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="sessions-progress"></span>
+    </p>
     <p style="font-size:13px;font-weight:700;color:#0C447C;" id="week-total-km"></p>
   </div>
   <div style="background:#EDF2FB;padding:8px 16px 4px;">
@@ -192,7 +195,10 @@
     <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
   </div>
   <div style="background:#EDF2FB;padding:0 16px 4px;">
-    <p style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;">Renforcement <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="renfo-progress"></span></p>
+    <p style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#0C447C;flex-shrink:0;display:inline-block;"></span>
+      Renforcement <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="renfo-progress"></span>
+    </p>
     <div id="home-renfo" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
       <div style="margin-top:6px;">
         <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.01em;margin-bottom:6px;">Semaine prochaine <span style="opacity:0.5;">· S<span id="renfo-next-label"></span></span></p>

@@ -183,11 +183,11 @@ const renfo5=[
 ];
 // Map globale des programmes de renforcement
 const RENFO_PROGRAMS={
-  1:{name:'Genoux & Hanches',   sub:'Renforcement · 6 exercices',     exos:renfo1},
-  2:{name:'Gainage & Dos',      sub:'Stabilité centrale · 5 exercices',exos:renfo2},
-  3:{name:'Abdos & Gainage',    sub:'Core running · 5 exercices',     exos:renfo3},
-  4:{name:'Mollets & Chevilles',sub:'Prévention blessures · 5 exercices',exos:renfo4},
-  5:{name:'Bras & Posture',     sub:'Efficacité de course · 5 exercices',exos:renfo5},
+  1:{name:'Genoux & Hanches',   sub:'6 ex.',emoji:'🦵',exos:renfo1},
+  2:{name:'Gainage & Dos',      sub:'5 ex.',emoji:'🔒',exos:renfo2},
+  3:{name:'Abdos & Gainage',    sub:'5 ex.',emoji:'💪',exos:renfo3},
+  4:{name:'Mollets & Chevilles',sub:'5 ex.',emoji:'⚡',exos:renfo4},
+  5:{name:'Bras & Posture',     sub:'5 ex.',emoji:'🏋️',exos:renfo5},
 };
 // Retourne les données du programme sélectionné pour le slot r (1 ou 2)
 function getRenfoData(r){
