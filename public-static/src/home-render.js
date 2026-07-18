@@ -197,6 +197,14 @@ function renderHome(){
     if(raceKpiBlock) raceKpiBlock.style.display='none';
     if(noRaceBtn) noRaceBtn.style.display='block';
     if(marathonTimeBlock) marathonTimeBlock.style.display='none';
+    // Remplir les stats "Ma pratique"
+    const plaisirKmEl=document.getElementById('plaisir-km-total');
+    if(plaisirKmEl) plaisirKmEl.textContent=(td>0?td.toLocaleString('fr-FR'):0)+' km';
+    const plaisirSessEl=document.getElementById('plaisir-sess-total');
+    if(plaisirSessEl){
+      const totalSessDone=Object.keys(state).filter(k=>k.endsWith('_done')&&state[k]===true).length;
+      plaisirSessEl.textContent=totalSessDone||0;
+    }
   } else {
     if(raceKpiBlock) raceKpiBlock.style.display='block';
     if(noRaceBtn) noRaceBtn.style.display='none';
