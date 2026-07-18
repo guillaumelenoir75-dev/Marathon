@@ -56,6 +56,17 @@
         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
     </div>
+    <!-- Bouton pleine largeur "Préparer une course" (si pas de plan) -->
+    <div id="home-no-race-btn" style="display:none;margin-bottom:12px;">
+      <button onclick="showOnboarding(true)" style="width:100%;background:linear-gradient(135deg,#E8530A,#F97316);border:none;border-radius:16px;padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;box-shadow:0 8px 24px rgba(232,83,10,0.5);">
+        <span style="font-size:32px;line-height:1;flex-shrink:0;">🏁</span>
+        <div style="flex:1;">
+          <div style="font-size:16px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:3px;">Préparer une course</div>
+          <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);">Crée ton plan personnalisé →</div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.5" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
     <!-- Ligne principale : temps marathon + KPIs -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
@@ -65,13 +76,6 @@
           <div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-1.5px;" id="kpi-marathon-time">—</div>
           <div style="font-size:10px;opacity:0.55;margin-top:3px;" id="today-date"></div>
 
-        </div>
-        <div id="home-no-race-btn" style="display:none;margin-top:4px;">
-          <button onclick="showOnboarding(true)" style="background:linear-gradient(135deg,#E8530A,#F97316);border:none;border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;box-shadow:0 6px 20px rgba(232,83,10,0.45);">
-            <span style="font-size:22px;line-height:1;">🏁</span>
-            <span style="font-size:15px;font-weight:800;color:#fff;line-height:1.2;">Préparer<br>une course</span>
-            <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.85);">Crée ton plan personnalisé →</span>
-          </button>
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px;">
           <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:7px;background:linear-gradient(135deg,#f97316,#fbbf24);border:none;border-radius:20px;padding:7px 14px;cursor:pointer;box-shadow:0 4px 14px rgba(249,115,22,0.5);">
