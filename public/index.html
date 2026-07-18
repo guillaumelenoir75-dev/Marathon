@@ -116,6 +116,18 @@
     </div>
     <!-- Bloc progression -->
     <div id="home-progression-block" style="background:rgba(255,255,255,0.09);border-radius:12px;padding:9px 12px;">
+      <!-- Semaine en cours : séances + km -->
+      <div id="h-week-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.13);">
+        <div>
+          <div style="font-size:9px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:2px;">Cette semaine</div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-sessions-label">— séances</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:9px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:2px;">Km réalisés</div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-km-label">— km</div>
+        </div>
+      </div>
+      <!-- Progression plan global -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
         <span style="font-size:11px;opacity:0.65;" id="h-prog-label">Progression du plan</span>
         <span style="font-size:18px;font-weight:800;letter-spacing:-0.5px;" id="h-pct">19%</span>
@@ -133,6 +145,11 @@
           <div style="font-size:13px;font-weight:700;" id="h-grand-total">1 042 km</div>
           <div style="font-size:10px;opacity:0.5;" id="h-grand-total-label">plan complet</div>
         </div>
+      </div>
+      <!-- Prochaine séance planifiée -->
+      <div id="h-next-sched" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.13);display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;opacity:0.55;">⏰ Prochaine —</span>
+        <span style="font-size:11px;font-weight:700;opacity:0.9;" id="h-next-sched-text"></span>
       </div>
     </div>
   </div>
@@ -174,7 +191,7 @@
     <p style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;">Renforcement <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="renfo-progress"></span></p>
     <div id="home-renfo" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
       <div style="margin-top:6px;">
-        <p style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Renfo S<span id="renfo-next-label"></span> — Planification</p>
+        <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.01em;margin-bottom:6px;">Semaine prochaine <span style="opacity:0.5;">· S<span id="renfo-next-label"></span></span></p>
         <div id="renfo-next-week"></div>
       </div>
   </div>

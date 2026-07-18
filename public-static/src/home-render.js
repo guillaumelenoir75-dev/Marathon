@@ -115,6 +115,39 @@ function renderHome(){
   })();
   const kpiWeekEl=document.getElementById('kpi-week-done'); if(kpiWeekEl) kpiWeekEl.textContent=weekDoneKm;
   const kpiWeekPlanEl=document.getElementById('kpi-week-plan'); if(kpiWeekPlanEl) kpiWeekPlanEl.textContent='/ '+getWeekTotalKm(w)+' km au programme';
+  // ── Infos semaine dans le header ─────────────────────────────────────────────
+  const allSessW=getOrderedWeekSessions(w).filter(({s})=>s.type!=='rest');
+  const doneCountW=allSessW.filter(({s,si,extra,ei})=>extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done']).length;
+  const weekSessionsEl=document.getElementById('h-week-sessions-label');
+  const weekKmEl=document.getElementById('h-week-km-label');
+  if(weekSessionsEl) weekSessionsEl.textContent=doneCountW+'/'+allSessW.length+' séance'+(allSessW.length!==1?'s':'');
+  if(weekKmEl) weekKmEl.textContent=(weekDoneKm||0)+' / '+getWeekTotalKm(w)+' km';
+  // Masquer le bloc semaine si pas de plan
+  const weekRow=document.getElementById('h-week-row');
+  if(weekRow) weekRow.style.display=allSessW.length===0?'none':'flex';
+  // ── Prochaine séance planifiée ───────────────────────────────────────────────
+  const nextSchedEl=document.getElementById('h-next-sched');
+  const nextSchedTextEl=document.getElementById('h-next-sched-text');
+  if(nextSchedEl&&nextSchedTextEl&&isCurrent){
+    const rfDaysFull=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    let nextSched=null;
+    const todayDay=(new Date()).getDay()===0?7:(new Date()).getDay();
+    allSessW.forEach(({s,si,extra,ei})=>{
+      const done=extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done'];
+      if(done) return;
+      let sched=null;try{const sk=extra?`extra_w${w}_s${ei}_sched`:gk(w,si)+'sched';sched=state[sk]?JSON.parse(state[sk]):null;}catch(e){}
+      if(!sched||!sched.day) return;
+      if(sched.day<todayDay) return; // passé
+      if(!nextSched||sched.day<nextSched.day||(sched.day===nextSched.day&&(sched.time||'')>(nextSched.time||'')))
+        nextSched={day:sched.day,time:sched.time,title:s.title||'Séance'};
+    });
+    if(nextSched){
+      nextSchedTextEl.textContent=nextSched.title+' · '+rfDaysFull[nextSched.day]+(nextSched.time?' '+nextSched.time:'');
+      nextSchedEl.style.display='flex';
+    } else {
+      nextSchedEl.style.display='none';
+    }
+  } else if(nextSchedEl) nextSchedEl.style.display='none';
   // AM pace dans le header
   const am=getMarathonPaceStr();
   const amEl=document.getElementById('h-am-pace');
@@ -280,15 +313,19 @@ function renderHome(){
         ${rfSchedBadge}
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        ${(isCurrent||isFuture)?`<div onclick="event.stopPropagation();openRenfoSchedModal(${rd.r},${w})" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${hasSched?'#0C447C':'#d0dff5'};background:${hasSched?'#E6F0FA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;">
+        ${(isCurrent||isFuture)?`<div onclick="event.stopPropagation();openRenfoSchedModal(${rd.r},${w})" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${hasSched?'#0C447C':'#d0dff5'};background:${hasSched?'#E6F0FA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Planifier">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${hasSched?'#0C447C':'#6B8DB5'}" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>`:''}
-        <div style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#3B6D11':'#d0dff5'};background:${done?'#3B6D11':'transparent'};display:flex;align-items:center;justify-content:center;">
-          ${done
-            ?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
-            :doneSeries>0?`<span style="font-size:11px;font-weight:700;color:#0C447C;">${pct}%</span>`
-            :''}
-        </div>
+        ${done
+          ?`<div style="width:32px;height:32px;border-radius:50%;background:#3B6D11;display:flex;align-items:center;justify-content:center;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>`
+          :isCurrent
+          ?`<button onclick="event.stopPropagation();showScreen('renfo',${rd.r})" style="background:#0C447C;color:#fff;border:none;border-radius:20px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px #0C447C55;">
+              ${doneSeries>0?`${pct}% →`:'Commencer'}
+            </button>`
+          :`<div style="width:32px;height:32px;border-radius:50%;border:2px solid #d0dff5;background:transparent;"></div>`
+        }
       </div>`;
       renfoEl.appendChild(card);
     });
