@@ -585,6 +585,28 @@ function saveKm(idx){
   closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
 function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
+function confirmUndoSession(onConfirm){
+  const mc=document.getElementById('modal-container');
+  if(!mc) return;
+  mc.innerHTML=`<div onclick="this.parentElement.innerHTML=''" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);">
+    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 20px;width:100%;max-width:480px;box-shadow:0 -8px 32px rgba(0,0,0,0.18);">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:32px;margin-bottom:8px;">↩️</div>
+        <p style="font-size:16px;font-weight:800;color:#0C447C;margin-bottom:6px;">Annuler la validation ?</p>
+        <p style="font-size:13px;color:#6B8DB5;line-height:1.4;">Les données enregistrées (km, allure, perf)<br>seront supprimées.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button id="_undo-confirm-btn" style="background:#C0392B;color:#fff;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;width:100%;">Oui, annuler la validation</button>
+        <button onclick="document.getElementById('modal-container').innerHTML=''" style="background:#EDF2FB;color:#0C447C;border:none;border-radius:14px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">Non, garder</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('_undo-confirm-btn').onclick=()=>{
+    mc.innerHTML='';
+    onConfirm();
+  };
+}
+
 function toggleDone(idx){
   const k=gk(CW,idx)+'done';
   const wasDone=!!state[k];
@@ -592,19 +614,19 @@ function toggleDone(idx){
   if(!wasDone&&!wasSkip){
     openValidationModal(idx);
   } else if(wasSkip){
-    // Ré-ouvrir le modal pour permettre de valider ou changer
     openValidationModal(idx);
   } else {
-    // Décocher — supprimer done, km réels et perf
-    state[k]=false;
-    delete state[gk(CW,idx)+'km'];
-    delete state[gk(CW,idx)+'perf'];
-    delete state[gk(CW,idx)+'skip'];
-    delete state[gk(CW,idx)+'skip_reason'];
-    save();
-    renderHome();
-    rendered.stats=false;
-    if(document.getElementById('sc-stats').style.display!=='none')renderStats();
+    confirmUndoSession(()=>{
+      state[k]=false;
+      delete state[gk(CW,idx)+'km'];
+      delete state[gk(CW,idx)+'perf'];
+      delete state[gk(CW,idx)+'skip'];
+      delete state[gk(CW,idx)+'skip_reason'];
+      save();
+      renderHome();
+      rendered.stats=false;
+      if(document.getElementById('sc-stats').style.display!=='none')renderStats();
+    });
   }
 }
 

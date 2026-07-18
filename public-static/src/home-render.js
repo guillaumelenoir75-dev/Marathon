@@ -601,6 +601,7 @@ function toggleDoneExtra(w,ei){
     // Clic sur une séance non-réalisée → rouvrir la validation pour modifier
     openValidationModalExtra(w,ei);
   } else {
+    confirmUndoSession(()=>{
     state[doneK]=false;
     delete state[k+'_km'];
     delete state[k+'_perf'];
@@ -616,6 +617,7 @@ function toggleDoneExtra(w,ei){
     save();
     renderHome();
     rendered.stats=false;
+    });
   }
 }
 
