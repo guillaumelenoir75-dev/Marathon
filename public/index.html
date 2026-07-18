@@ -123,12 +123,12 @@
       <!-- Semaine en cours : séances + km -->
       <div id="h-week-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.13);">
         <div>
-          <div style="font-size:9px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:2px;">Cette semaine</div>
-          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-sessions-label">— séances</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.6;margin-bottom:1px;">📅 Cette semaine</div>
+          <div style="font-size:15px;font-weight:800;letter-spacing:-0.3px;" id="h-week-sessions-label">— séances</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:9px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:2px;">Km réalisés</div>
-          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-km-label">— km</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.6;margin-bottom:1px;">🏃 Km réalisés</div>
+          <div style="font-size:15px;font-weight:800;letter-spacing:-0.3px;" id="h-week-km-label">— km</div>
         </div>
       </div>
       <!-- Progression plan global -->
@@ -144,8 +144,8 @@
           <div style="font-size:13px;font-weight:700;" id="h-done-km">252 km</div>
           <div style="font-size:10px;opacity:0.5;">parcourus</div>
         </div>
-        <div style="width:0.5px;height:24px;background:rgba(255,255,255,0.2);"></div>
-        <div style="text-align:right;">
+        <div id="h-sep" style="width:0.5px;height:24px;background:rgba(255,255,255,0.2);"></div>
+        <div id="h-grand-total-block" style="text-align:right;">
           <div style="font-size:13px;font-weight:700;" id="h-grand-total">1 042 km</div>
           <div style="font-size:10px;opacity:0.5;" id="h-grand-total-label">plan complet</div>
         </div>
@@ -159,16 +159,16 @@
   </div>
   <!-- Bandeau navigation semaine -->
   <div id="home-week-nav" style="background:#EDF2FB;padding:8px 16px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-    <button id="home-week-prev" onclick="homeNavWeek(-1)" style="width:34px;height:34px;border-radius:50%;border:1.5px solid #d0dff5;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    <button id="home-week-prev" onclick="homeNavWeek(-1)" style="width:28px;height:28px;border-radius:50%;border:1px solid #d0dff5;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B8DB5" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">
       <span id="home-week-label" style="font-size:14px;font-weight:800;color:#0C447C;letter-spacing:-0.02em;">S9 — Semaine en cours</span>
       <span id="home-week-dates" style="font-size:10px;color:#6B8DB5;font-weight:500;"></span>
       <button id="home-today-btn" onclick="homeNavToday()" style="display:none;font-size:10px;font-weight:700;color:#0C447C;background:rgba(11,68,124,0.09);border:1px solid rgba(11,68,124,0.18);border-radius:10px;padding:2px 9px;cursor:pointer;margin-top:3px;letter-spacing:0.01em;">↩ Semaine en cours</button>
     </div>
-    <button id="home-week-next" onclick="homeNavWeek(+1)" style="width:34px;height:34px;border-radius:50%;border:1.5px solid #d0dff5;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    <button id="home-week-next" onclick="homeNavWeek(+1)" style="width:28px;height:28px;border-radius:50%;border:1px solid #d0dff5;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B8DB5" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
   </div>
   <!-- Bannière notifications (affichée si non activées) -->

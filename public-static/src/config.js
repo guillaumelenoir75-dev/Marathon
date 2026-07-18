@@ -95,6 +95,7 @@ function saveShoes(arr){state._shoes=JSON.stringify(arr);save();}
 const typeColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',rest:'#888780',race:'#C4960A'};
 const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',frac:'#FEF0F0',long:'#EEEDFE',rest:'#F1EFE8',race:'#FEFCE8'};
 const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long',rest:'Repos',race:'Course'};
+const typeEmoji={ef:'🏃',tempo:'⚡',frac:'🔄',long:'🛣️',rest:'😴',race:'🏆'};
 
 function normalizeSessionTitle(title, type){
   if(!title) return title;

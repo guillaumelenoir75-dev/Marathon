@@ -72,16 +72,27 @@ function renderHome(){
     // Mode "pour le plaisir" : affiche km parcourus sans objectif ni %
     const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent='';
     const barEl=document.getElementById('h-bar');
-    // Barre qui grandit tous les 100km (ou 50km si < 100km courus)
-    const step=td<100?50:100;
-    const pct=Math.min(100,Math.round((td%step)/step*100));
-    if(barEl) barEl.style.width=pct+'%';
-    const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Km parcourus';
-    const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
+    // Masquer toute la section progression si 0 km courus
+    const progBlock=document.getElementById('home-progression-block');
+    if(td===0){
+      // Rien couru : masquer barre et totaux, garder seulement la section semaine
+      const progGlobal=document.getElementById('h-prog-label')?.closest('div');
+      if(progGlobal) progGlobal.style.display='none';
+      if(barEl) barEl.parentElement.style.display='none';
+      const kmRow=document.getElementById('h-done-km')?.closest('div[style*="justify-content"]');
+      if(kmRow) kmRow.style.display='none';
+    } else {
+      // Barre qui grandit tous les 100km (ou 50km si < 100km courus)
+      const step=td<100?50:100;
+      const pct=Math.min(100,Math.round((td%step)/step*100));
+      if(barEl) barEl.style.width=pct+'%';
+      const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Km parcourus';
+      const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
+    }
     const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent='';
     const gtLabel=document.getElementById('h-grand-total-label'); if(gtLabel) gtLabel.textContent='';
-    const sepEl=document.querySelector('#h-grand-total')?.closest('div')?.previousElementSibling;
-    if(sepEl) sepEl.style.display='none';
+    const sepEl=document.getElementById('h-sep'); if(sepEl) sepEl.style.display='none';
+    const gtBlock=document.getElementById('h-grand-total-block'); if(gtBlock) gtBlock.style.display='none';
   } else {
     const pct=gt>0?Math.round(td/gt*100):0;
     const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'—';
@@ -308,7 +319,7 @@ function renderHome(){
           <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'#1a2e4a'};">${rd.name}</span>
           ${done?'<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>':''}
         </div>
-        <p style="font-size:11px;color:#6B8DB5;font-weight:500;margin-top:1px;">${rd.sub}</p>
+        <p style="font-size:11px;color:#6B8DB5;font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${rd.sub}</p>
         ${!done&&doneSeries>0?`<div style="background:var(--bg2);border-radius:3px;height:3px;margin-top:5px;"><div style="background:#0C447C;border-radius:3px;height:3px;width:${pct}%;"></div></div>`:''}
         ${rfSchedBadge}
       </div>
@@ -420,10 +431,10 @@ function renderHome(){
     if(!extra){
       const edRaw=state['edit_w'+w+'_s'+si];
       if(edRaw){let ed;try{ed=JSON.parse(edRaw);}catch(e){}if(ed&&(ed.sched_day||ed.sched_time)){
-        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
+        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">🕐 ${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
       }}
     } else if(s2.sched_day||s2.sched_time){
-      schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
+      schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">🕐 ${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
     }
     // "Aujourd'hui" seulement sur semaine en cours
     const runEdRaw=extra?null:state['edit_w'+w+'_s'+si];
@@ -454,7 +465,7 @@ function renderHome(){
           ?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${typeC}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
           :skip
           ?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
-          :`<span style="font-size:10px;font-weight:800;color:${typeC};">${lbl}</span>`
+          :`<span style="font-size:18px;line-height:1;">${(typeof typeEmoji!=='undefined'&&typeEmoji[s2.type])||lbl}</span>`
         }
       </div>
       <div style="flex:1;min-width:0;">
@@ -486,9 +497,10 @@ function renderHome(){
         ${schedHtml}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-        ${canEdit?`<div onclick="${editFn}" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${rv!=null?typeC:'#d0dff5'};background:${rv!=null?typeBgC:'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${rv!=null?typeC:'#6B8DB5'}" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </div>`:''}
+        ${canEdit?`<button onclick="${editFn}" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Éditer
+        </button>`:''}
         ${isCurrent?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
           ${done
             ?`<div onclick="${doneFn}" style="width:32px;height:32px;border-radius:50%;background:${typeC};display:flex;align-items:center;justify-content:center;cursor:pointer;">
