@@ -86,7 +86,13 @@ function moveSession(ws, rowIdx, dir){
   renderHome();
 }
 
-function toggleWeek(s){if(openWeeks.has(s))openWeeks.delete(s);else openWeeks.add(s);renderPlan();}
+function toggleWeek(s){
+  const sy=window.scrollY||0;
+  if(openWeeks.has(s))openWeeks.delete(s);else openWeeks.add(s);
+  renderPlan._noScroll=true;
+  renderPlan();
+  setTimeout(()=>window.scrollTo({top:sy,behavior:'instant'}),0);
+}
 
 function scrollToCurrentWeek(){
   const currentCard = document.querySelector('.plan-week-card.is-current');

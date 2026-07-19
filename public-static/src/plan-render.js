@@ -1005,17 +1005,22 @@ function renderAthletePlan(el){
   el.appendChild(addEl);
 
   // Scroll automatique vers la semaine en cours (seulement si pas encore ouvert)
-  if(!_adminPreviewUid){
+  if(!_adminPreviewUid && !renderPlan._noScroll){
     setTimeout(()=>{
       const curCard=el.querySelector('.plan-week-card.is-current');
       if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
     },120);
   }
+  renderPlan._noScroll=false;
 }
 
 function toggleAthleteWeek(ws){
+  const sy=window.scrollY||0;
   if(openWeeks.has(ws))openWeeks.delete(ws);else openWeeks.add(ws);
-  if(_adminPreviewUid) _refreshAthleteCoachView(); else renderPlan();
+  if(_adminPreviewUid){ _refreshAthleteCoachView(); return; }
+  renderPlan._noScroll=true;
+  renderPlan();
+  setTimeout(()=>window.scrollTo({top:sy,behavior:'instant'}),0);
 }
 
 function moveExtraSession(ws,rowIdx,dir){
@@ -1321,10 +1326,13 @@ function renderPlan(){
   });
 
   // Scroll vers la semaine en cours au premier affichage
-  setTimeout(()=>{
-    const curCard=el.querySelector('.plan-week-card.is-current');
-    if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
-  },120);
+  if(!renderPlan._noScroll){
+    setTimeout(()=>{
+      const curCard=el.querySelector('.plan-week-card.is-current');
+      if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },120);
+  }
+  renderPlan._noScroll=false;
 
   // Carte Jour J — Marathon 18 octobre 2026
   const jourJCard=document.createElement('div');
