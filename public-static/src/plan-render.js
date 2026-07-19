@@ -773,11 +773,11 @@ function renderAthletePlan(el){
       }catch(e){}
     }
 
-    const numBg=isCur?'var(--blue)':isPast?'var(--bg2)':'var(--bg2)';
-    const numColor=isCur?'#fff':isPast?'var(--muted)':'var(--text)';
+    const numBg=isCur?'var(--blue)':isPast?'#D8DEE8':'rgba(27,79,216,0.1)';
+    const numColor=isCur?'#fff':isPast?'#5e6a7e':'#1B4FD8';
     const statusHtml=allDone
-      ?`<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:#3B6D11;">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:#3B6D11aa;"> km ✓</span></div>`
-      :`<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
+      ?`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:#3B6D11;">${kmTotal}</span><span style="font-size:10px;font-weight:700;color:#3B6D11aa;"> km ✓</span></div>`
+      :`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
     const progressHtml=isCur
       ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:var(--blue);"></div></div>`
       :isPast?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`:'';
@@ -794,7 +794,7 @@ function renderAthletePlan(el){
     const planPeakWeek=parseInt(state['plan_peak_week'])||0;
 
     const badges=[];
-    if(isCur) badges.push(`<span class="plan-badge" style="background:#EEF2FD;color:#1438A8;">En cours</span>`);
+    if(isCur) badges.push(`<span class="plan-badge" style="background:#1B4FD8;color:#fff;font-weight:800;">En cours</span>`);
     if(isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:#FEF9E7;color:#B7791F;">🏆 Course</span>`);
     else if(isAffutage||metaW.isTaper) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">Affûtage</span>`);
     else if(isDecharge||metaW.isRecov) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
@@ -862,13 +862,13 @@ function renderAthletePlan(el){
         return '';
       })();
       return `<div class="plan-session-card">
-        <div style="width:3px;background:${done?'#3B6D11':skip?'#C0392B':typeC};flex-shrink:0;"></div>
-        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 13px;">
+        <div style="width:4px;background:${done?'#3B6D11':skip?'#C0392B':typeC};flex-shrink:0;"></div>
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
           <div class="plan-session-icon" style="background:${iconBg};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            ${!done&&!skip?`<div style="font-size:9px;font-weight:800;color:${typeC};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">${lbl}</div>`:''}
+            ${!done&&!skip?`<div style="font-size:10px;font-weight:900;color:${typeC};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${lbl}</div>`:''}
             <div style="font-size:14px;font-weight:700;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}${done?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${skip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
             ${detail?`<div style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${durHtml}
@@ -1059,12 +1059,12 @@ function renderPlan(){
 
     // ── Header ──
     // Couleur du numéro de semaine
-    const numBg = isCur ? 'var(--blue)' : isPast ? 'var(--bg2)' : 'var(--bg2)';
-    const numColor = isCur ? '#fff' : isPast ? 'var(--muted)' : 'var(--text)';
+    const numBg = isCur ? 'var(--blue)' : isPast ? '#D8DEE8' : 'rgba(27,79,216,0.1)';
+    const numColor = isCur ? '#fff' : isPast ? '#5e6a7e' : '#1B4FD8';
 
     // Badges
     const badges = [];
-    if(isCur) badges.push(`<span class="plan-badge" style="background:#EEF2FD;color:#1438A8;">En cours</span>`);
+    if(isCur) badges.push(`<span class="plan-badge" style="background:#1B4FD8;color:#fff;font-weight:800;">En cours</span>`);
     if(isDecharge) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
     if(isSemi) badges.push(`<span class="plan-badge" style="background:#E1F5EE;color:#085041;">Semi</span>`);
     if(isMarathon) badges.push(`<span class="plan-badge" style="background:#EEEDFE;color:#3C3489;">🏆 Marathon</span>`);
@@ -1096,8 +1096,8 @@ function renderPlan(){
     })() : null;
 
     const statusHtml = isPast||(isCur&&isCurrentAllDone)
-      ? `<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:#3B6D11;">${realWeekKm}</span><span style="font-size:10px;font-weight:600;color:#3B6D11aa;"> km ✓</span></div>`
-      : `<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
+      ? `<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:#3B6D11;">${realWeekKm}</span><span style="font-size:10px;font-weight:700;color:#3B6D11aa;"> km ✓</span></div>`
+      : `<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
 
     // Barre de progression (semaine en cours uniquement)
     const progressHtml = isCur
@@ -1178,13 +1178,13 @@ function renderPlan(){
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
       return `<div class="plan-session-card">
-        <div style="width:3px;background:${isDone?'#3B6D11':isSkip?'#C0392B':typeC};flex-shrink:0;"></div>
-        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 13px;">
+        <div style="width:4px;background:${isDone?'#3B6D11':isSkip?'#C0392B':typeC};flex-shrink:0;"></div>
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
           <div class="plan-session-icon" style="background:${iconBg};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            ${!isDone&&!isSkip?`<div style="font-size:9px;font-weight:800;color:${typeC};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">${lbl}</div>`:''}
+            ${!isDone&&!isSkip?`<div style="font-size:10px;font-weight:900;color:${typeC};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${lbl}</div>`:''}
             <div style="font-size:14px;font-weight:700;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}${edited?`&thinsp;<span style="font-size:10px;color:var(--blue);">✎</span>`:''}${isDone?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${isSkip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
             ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
