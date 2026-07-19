@@ -179,12 +179,14 @@ function renderHome(){
   // Date de course
   const raceDateEl=document.getElementById('home-race-date');
   if(raceDateEl){
+    const courseLabels={'5 km':'5 km','10 km':'10 km','Semi-marathon':'Semi','Marathon':'Marathon','Autre':'Course'};
     if(raceDateStr){
       const rd=new Date(raceDateStr);
-      raceDateEl.textContent='🏁 '+rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+      const courseName=courseLabels[ob.course]||'Course';
+      raceDateEl.textContent='🏁 '+courseName+' · '+rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
       raceDateEl.style.display='block';
     } else if(isAdmin()){
-      raceDateEl.textContent='🏁 18/10/2026';
+      raceDateEl.textContent='🏁 Marathon · 18/10/2026';
       raceDateEl.style.display='block';
     } else {
       raceDateEl.style.display='none';
@@ -346,18 +348,18 @@ function renderHome(){
         ${rfSchedBadge}
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        ${(isCurrent||isFuture)?`<div onclick="event.stopPropagation();openRenfoSchedModal(${rd.r},${w})" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${hasSched?'#0C447C':'#d0dff5'};background:${hasSched?'#E6F0FA':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Planifier">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${hasSched?'#0C447C':'#6B8DB5'}" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </div>`:''}
         ${done
-          ?`<div style="width:32px;height:32px;border-radius:50%;background:#3B6D11;display:flex;align-items:center;justify-content:center;">
+          ?`<div style="width:32px;height:32px;border-radius:50%;background:#3B6D11;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             </div>`
           :isCurrent
-          ?`<button onclick="event.stopPropagation();showScreen('renfo',${rd.r})" style="background:#0C447C;color:#fff;border:none;border-radius:20px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px #0C447C55;">
-              ${doneSeries>0?`${pct}% →`:'Commencer'}
-            </button>`
-          :`<div style="width:32px;height:32px;border-radius:50%;border:2px solid #d0dff5;background:transparent;"></div>`
+          ?`<div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+              ${(isCurrent||isFuture)?`<span onclick="event.stopPropagation();openRenfoSchedModal(${rd.r},${w})" style="font-size:15px;cursor:pointer;opacity:${hasSched?0.9:0.3};line-height:1;" title="Planifier">📅</span>`:''}
+              <button onclick="event.stopPropagation();showScreen('renfo',${rd.r})" style="background:rgba(12,68,124,0.10);color:#0C447C;border:1.5px solid rgba(12,68,124,0.25);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                ${doneSeries>0?`${pct}% →`:'Commencer →'}
+              </button>
+            </div>`
+          :`${hasSched?`<span style="font-size:13px;opacity:0.4;line-height:1;">📅</span>`:''}`
         }
       </div>`;
       renfoEl.appendChild(card);
@@ -500,7 +502,7 @@ function renderHome(){
           <span style="font-size:13px;font-weight:600;color:${done?typeC:'#1a2e4a'};">${title}</span>
           
         </div>
-        ${detail?`<p style="font-size:11px;color:${typeC};font-weight:500;opacity:${done?0.75:1};margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${detail}</p>`:''}
+        ${!done&&detail?`<p style="font-size:11px;color:${typeC};font-weight:500;opacity:1;margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${detail}</p>`:''}
         ${(()=>{
           if(!done){
             const dur=estimateDuration(s2);
@@ -524,9 +526,11 @@ function renderHome(){
         ${schedHtml}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-        ${canEdit?`<button onclick="${editFn}" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+        ${canEdit&&!done?`<button onclick="${editFn}" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Éditer
+        </button>`:done?`<button onclick="${editFn}" style="background:transparent;color:#aaa;border:1px solid #e0e8f5;border-radius:20px;padding:5px 9px;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          Modifier
         </button>`:''}
         ${isCurrent?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
           ${done
