@@ -129,7 +129,11 @@ function renderHome(){
   const doneCountW=allSessW.filter(({s,si,extra,ei})=>extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done']).length;
   const weekSessionsEl=document.getElementById('h-week-sessions-label');
   const weekKmEl=document.getElementById('h-week-km-label');
-  if(weekSessionsEl) weekSessionsEl.textContent=doneCountW+'/'+allSessW.length+' séance'+(allSessW.length!==1?'s':'');
+  const allDone=allSessW.length>0&&doneCountW===allSessW.length;
+  if(weekSessionsEl){
+    weekSessionsEl.textContent=doneCountW+'/'+allSessW.length+' séance'+(allSessW.length!==1?'s':'');
+    if(allDone&&isCurrent) weekSessionsEl.textContent+=' ✅';
+  }
   if(weekKmEl) weekKmEl.textContent=(weekDoneKm||0)+' / '+getWeekTotalKm(w)+' km';
   // Masquer le bloc semaine si pas de plan
   const weekRow=document.getElementById('h-week-row');
@@ -177,10 +181,10 @@ function renderHome(){
   if(raceDateEl){
     if(raceDateStr){
       const rd=new Date(raceDateStr);
-      raceDateEl.textContent=rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+      raceDateEl.textContent='🏁 '+rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
       raceDateEl.style.display='block';
     } else if(isAdmin()){
-      raceDateEl.textContent='18/10/2026';
+      raceDateEl.textContent='🏁 18/10/2026';
       raceDateEl.style.display='block';
     } else {
       raceDateEl.style.display='none';

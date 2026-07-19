@@ -103,31 +103,31 @@
           <div style="font-size:10px;opacity:0.55;margin-top:3px;" id="today-date"></div>
 
         </div>
-        <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px;">
-          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:7px;background:linear-gradient(135deg,#f97316,#fbbf24);border:none;border-radius:20px;padding:7px 14px;cursor:pointer;box-shadow:0 4px 14px rgba(249,115,22,0.5);">
-            <span style="font-size:15px;line-height:1;">☀️</span>
-            <span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:0.2px;">Je suis réveillé</span>
-          </button>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
           <div onclick="openVo2maxModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;cursor:pointer;width:fit-content;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <span style="font-size:12px;font-weight:700;" id="kpi-vo2max">—</span>
             <span style="font-size:10px;opacity:0.6;">VO2max</span>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
+          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:5px;background:rgba(127,212,168,0.22);border:1px solid rgba(127,212,168,0.4);border-radius:20px;padding:4px 11px;cursor:pointer;width:fit-content;">
+            <span style="font-size:12px;line-height:1;">☀️</span>
+            <span style="font-size:11px;font-weight:700;color:#7FD4A8;letter-spacing:0.1px;">Réveil enregistré</span>
+          </button>
         </div>
       </div>
       <!-- DROITE : EF + prédit + AM entraînement -->
       <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
         <div id="home-race-kpi-block">
-        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.2);">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span style="font-size:12px;font-weight:700;" id="h-am-pred">—</span>
-          <span style="font-size:10px;opacity:0.7;" id="h-pred-label">/km prédit (AM)</span>
+        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(251,191,36,0.18);border-radius:9px;padding:5px 9px;border:1px solid rgba(251,191,36,0.3);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.95)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span style="font-size:12px;font-weight:800;color:#FCD34D;" id="h-am-pred">—</span>
+          <span style="font-size:10px;color:rgba(252,211,77,0.8);" id="h-pred-label">/km prédit</span>
         </div>
-        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.15);">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.10);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.13);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span style="font-size:12px;font-weight:700;" id="kpi-am-training">5'20</span>
-          <span style="font-size:10px;opacity:0.6;" id="h-am-train-label">/km allure entraîn.</span>
+          <span style="font-size:10px;opacity:0.55;" id="h-am-train-label">/km objectif</span>
         </div>
         </div>
         <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;"></div>
@@ -179,7 +179,7 @@
       <!-- Km restants + Semaines avant la course -->
       <div id="h-extra-stats-row" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.13);">
         <div>
-          <div style="font-size:10px;opacity:0.55;margin-bottom:1px;">🏅 Km restants</div>
+          <div style="font-size:10px;opacity:0.55;margin-bottom:1px;">🛣️ Km restants</div>
           <div style="font-size:13px;font-weight:700;" id="kpi-rest">— km</div>
         </div>
         <div style="text-align:right;">
