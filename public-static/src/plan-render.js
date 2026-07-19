@@ -1224,7 +1224,7 @@ function renderPlan(){
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="margin-bottom:4px;">${_typePill2}${(edited||extra)?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">${extra&&!edited?'✚ ajoutée':'✎ modifié'}</span>`:''}</div>
+            <div style="margin-bottom:4px;">${_typePill2}${(edited||extra)?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}</div>
             <div style="font-size:14px;font-weight:700;color:${isDone?'#2E6B10':isSkip?'#C0392B':'var(--text)'};">${title}</div>
             ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
