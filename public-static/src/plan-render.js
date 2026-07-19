@@ -631,6 +631,31 @@ function toggleDone(idx){
 }
 
 const openWeeks=new Set();
+
+function _renderPlanPills(weekInfos){
+  const el=document.getElementById('plan-week-pills');
+  if(!el) return;
+  el.innerHTML=weekInfos.map(({ws,isPast,isCur,kmTotal,allDone})=>{
+    const cls=isCur?'plan-pill pill-active':(isPast||allDone)?'plan-pill pill-done':'plan-pill pill-next';
+    const sub=isCur?'En cours':(allDone||isPast)?(kmTotal?`✓ ${kmTotal} km`:'✓'):(kmTotal?`${kmTotal} km`:'');
+    return `<div class="${cls}" onclick="scrollToWeek(${ws})"><span class="plan-pill-num">S${ws}</span>${sub?`<span class="plan-pill-sub">${sub}</span>`:''}</div>`;
+  }).join('');
+  // Scroll la pill active dans le viewport
+  setTimeout(()=>{
+    const active=el.querySelector('.pill-active');
+    if(active) active.scrollIntoView({inline:'center',behavior:'smooth'});
+  },80);
+}
+
+function scrollToWeek(ws){
+  if(!openWeeks.has(ws)){openWeeks.add(ws);}
+  const isAdmin_=typeof isAdmin==='function'&&isAdmin();
+  if(isAdmin_) renderPlan(); else renderAthletePlan(document.getElementById('plan-list'));
+  setTimeout(()=>{
+    const card=document.querySelector(`[data-plan-week="${ws}"]`);
+    if(card) card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },80);
+}
 function getAthleteCW(){
   if(!state.plan_start_date) return 1;
   const now=new Date();
@@ -861,27 +886,29 @@ function renderAthletePlan(el){
         if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';
         return '';
       })();
+      const tagBg=done?'rgba(46,125,50,0.1)':skip?'rgba(192,57,43,0.08)':typeBgC;
+      const tagColor=done?'#2E7D32':skip?'#C0392B':typeC;
+      const tagLabel=done?'Validée':skip?'Passée':lbl;
       return `<div class="plan-session-card">
-        <div style="width:3px;background:${done?'#3B6D11':skip?'#C0392B':typeC};flex-shrink:0;"></div>
-        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 13px;">
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:11px 0 11px 14px;">
           <div class="plan-session-icon" style="background:${iconBg};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            ${!done&&!skip?`<div style="font-size:9px;font-weight:800;color:${typeC};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">${lbl}</div>`:''}
-            <div style="font-size:14px;font-weight:700;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}${done?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${skip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
-            ${detail?`<div style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
+            <span class="plan-sess-tag" style="background:${tagBg};color:${tagColor};">${tagLabel}</span>
+            <div style="font-size:13px;font-weight:700;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}${skip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
+            ${detail?`<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px;line-height:1.3;">${detail}</div>`:''}
             ${durHtml}
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
               ${schedHtml}
               ${s.shoe?shoeBadge(s.shoe):''}
             </div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
-          <div style="text-align:right;min-width:40px;">
-            <div style="font-size:17px;font-weight:800;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</div>
-            <div style="font-size:9px;font-weight:500;color:var(--muted);">${kmSub?'/'+s.km+' km':'km'}</div>
+        <div style="display:flex;align-items:center;gap:2px;padding:11px 10px 11px 0;flex-shrink:0;">
+          <div style="text-align:right;min-width:38px;">
+            <div style="font-size:18px;font-weight:900;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</div>
+            <div style="font-size:9px;font-weight:500;color:var(--muted);">${done&&kmDone!=null?'/'+s.km+' ':''}km</div>
           </div>
           <div class="plan-session-move">
             <button onclick="event.stopPropagation();moveExtraSession(${ws},${rowIdx},-1)" ${canUp?'':'disabled'}>
@@ -904,6 +931,7 @@ function renderAthletePlan(el){
 
     const card=document.createElement('div');
     card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'')+(isRaceWeekCard?' is-race':'');
+    card.dataset.planWeek=ws;
     card.innerHTML=`
       <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${isRaceWeekCard?'background:linear-gradient(135deg,#FFFBEB,transparent);':''}">
         <div class="plan-week-num" style="background:${isRaceWeekCard?'#D97706':numBg};color:${isRaceWeekCard?'#fff':numColor};">S${ws}</div>
@@ -966,6 +994,14 @@ function renderAthletePlan(el){
     <span style="font-size:12px;color:var(--muted);">Nouvelle semaine S${nextWs}</span>
   </div>`;
   el.appendChild(addEl);
+
+  // Pills de navigation
+  const pillInfos=sortedWeeks.map(ws=>{
+    let ei=0,cnt=0,doneCnt=0;
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){cnt++;if(state[`extra_w${ws}_s${ei}_done`])doneCnt++;ei++;}
+    return {ws,isPast:ws<ACW,isCur:ws===ACW,kmTotal:weekKmMap[ws]||0,allDone:cnt>0&&doneCnt===cnt};
+  });
+  _renderPlanPills(pillInfos);
 
   // Scroll automatique vers la semaine en cours (seulement si pas encore ouvert)
   if(!_adminPreviewUid){
@@ -1056,6 +1092,7 @@ function renderPlan(){
     // Card
     const card=document.createElement('div');
     card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'');
+    card.dataset.planWeek=w.s;
 
     // ── Header ──
     // Couleur du numéro de semaine
@@ -1177,45 +1214,44 @@ function renderPlan(){
 
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
+      const rvPlan2 = extra ? state[`extra_w${w.s}_s${eid}_km`] : state[gk(w.s,si)+'km'];
+      const kmShow2 = isDone && rvPlan2!=null ? rvPlan2 : s2.km;
+      const perfRaw2 = extra ? state[`extra_w${w.s}_s${eid}_perf`] : state[gk(w.s,si)+'perf'];
+      let perf2={};try{perf2=perfRaw2?JSON.parse(perfRaw2):{};}catch(e){}
+      const durHtml2=(()=>{
+        if(isDone){
+          const parts=[];
+          if(perf2.dur) parts.push(`⏱ ${perf2.dur}`);
+          if(perf2.pace) parts.push(`🏃 ${perf2.pace}/km`);
+          return parts.length?`<div style="font-size:10px;font-weight:600;color:#3B6D11;margin-top:2px;display:flex;gap:6px;">${parts.join('<span style="opacity:0.4;"> · </span>')}</div>`:'';
+        }
+        const dur=calcSessionDuration(s2,getBestEfPace(),getMarathonPaceStr());
+        return dur?`<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px;">⏱ ~${dur}</div>`:'';
+      })();
+      const tagBg2=isDone?'rgba(46,125,50,0.1)':isSkip?'rgba(192,57,43,0.08)':typeBgC;
+      const tagColor2=isDone?'#2E7D32':isSkip?'#C0392B':typeC;
+      const tagLabel2=isDone?'Validée':isSkip?'Passée':lbl;
       return `<div class="plan-session-card">
-        <div style="width:3px;background:${isDone?'#3B6D11':isSkip?'#C0392B':typeC};flex-shrink:0;"></div>
-        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 13px;">
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:11px 0 11px 14px;">
           <div class="plan-session-icon" style="background:${iconBg};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            ${!isDone&&!isSkip?`<div style="font-size:9px;font-weight:800;color:${typeC};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">${lbl}</div>`:''}
-            <div style="font-size:14px;font-weight:700;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}${edited?`&thinsp;<span style="font-size:10px;color:var(--blue);">✎</span>`:''}${isDone?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${isSkip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
-            ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
-            ${(()=>{
-              if(isDone){
-                const perfRaw = extra ? state[`extra_w${w.s}_s${eid}_perf`] : state[gk(w.s,si)+'perf'];
-                let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{};}catch(e){}
-                const rp = perf2.pace || null;
-                const rd = perf2.dur || null;
-                const parts=[];
-                if(rd) parts.push(`⏱ ${rd}`);
-                if(rp) parts.push(`🏃 ${rp}/km`);
-                return parts.length?`<div style="font-size:11px;font-weight:600;color:#3B6D11;margin-top:3px;display:flex;gap:8px;">${parts.join('<span style="opacity:0.4;"> · </span>')}</div>`:'';
-              }
-              const dur=calcSessionDuration(s2,getBestEfPace(),getMarathonPaceStr());
-              return dur?`<div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;">⏱ ~${dur}</div>`:'';
-            })()}
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+            <span class="plan-sess-tag" style="background:${tagBg2};color:${tagColor2};">${tagLabel2}${edited?`&thinsp;✎`:''}</span>
+            <div style="font-size:13px;font-weight:700;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}${isSkip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
+            ${detail?`<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px;line-height:1.3;">${detail}</div>`:''}
+            ${durHtml2}
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
               ${schedHtml}
               ${s2.shoe?shoeBadge(s2.shoe):''}
             </div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
-          ${(()=>{
-            const rvPlan = extra ? state[`extra_w${w.s}_s${eid}_km`] : state[gk(w.s,si)+'km'];
-            const kmShow = isDone && rvPlan!=null ? rvPlan : s2.km;
-            return `<div style="text-align:right;min-width:40px;">
-              <div style="font-size:17px;font-weight:800;color:${isDone?'#3B6D11':'var(--text)'};">${kmShow}</div>
-              <div style="font-size:9px;font-weight:500;color:var(--muted);">${isDone&&rvPlan!=null?'/'+s2.km+' km':'km'}</div>
-            </div>`;
-          })()}
+        <div style="display:flex;align-items:center;gap:2px;padding:11px 10px 11px 0;flex-shrink:0;">
+          <div style="text-align:right;min-width:38px;">
+            <div style="font-size:18px;font-weight:900;color:${isDone?'#3B6D11':'var(--text)'};">${kmShow2}</div>
+            <div style="font-size:9px;font-weight:500;color:var(--muted);">${isDone&&rvPlan2!=null?'/'+s2.km+' ':''}km</div>
+          </div>
           <div class="plan-session-move">
             <button onclick="event.stopPropagation();moveSession(${w.s},${rowIdx},-1)" ${canUp?'':'disabled'} title="Monter">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
@@ -1257,6 +1293,9 @@ function renderPlan(){
     el.appendChild(card);
     } catch(e) { console.error('renderPlan error S'+w.s+':', e); }
   });
+
+  // Pills de navigation (admin)
+  _renderPlanPills(weeks.map(w=>({ws:w.s,isPast:w.s<CW,isCur:w.s===CW,kmTotal:getWeekTotalKm(w.s),allDone:w.s<CW})));
 
   // Scroll vers la semaine en cours au premier affichage
   setTimeout(()=>{
