@@ -773,17 +773,17 @@ function renderAthletePlan(el){
       }catch(e){}
     }
 
-    const numBg=isCur?'var(--blue)':isPast?'#D8DEE8':'rgba(27,79,216,0.1)';
+    const numBg=isCur?'rgba(255,255,255,0.20)':isPast?'#D8DEE8':'rgba(27,79,216,0.1)';
     const numColor=isCur?'#fff':isPast?'#5e6a7e':'#1B4FD8';
-    const statusHtml=allDone
-      ?`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:#3B6D11;">${kmTotal}</span><span style="font-size:10px;font-weight:700;color:#3B6D11aa;"> km ✓</span></div>`
-      :`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
+    const _kmC=isCur?'rgba(255,255,255,0.95)':allDone?'#3B6D11':'var(--text)';
+    const _kmSubC=isCur?'rgba(255,255,255,0.60)':allDone?'#3B6D11aa':'var(--muted)';
+    const statusHtml=`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${_kmC};">${kmTotal}</span><span style="font-size:10px;font-weight:700;color:${_kmSubC};"> km${allDone?' ✓':''}</span></div>`;
     const progressHtml=isCur
-      ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:var(--blue);"></div></div>`
+      ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:rgba(255,255,255,0.55);"></div></div>`
       :isPast?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`:'';
 
     const isOpen=openWeeks.has(ws);
-    const chevron=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
+    const chevron=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${isCur?'rgba(255,255,255,0.7)':'var(--muted)'}" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
 
     // Lire les métadonnées de semaine stockées à la génération du plan
     let metaW={};
@@ -794,12 +794,12 @@ function renderAthletePlan(el){
     const planPeakWeek=parseInt(state['plan_peak_week'])||0;
 
     const badges=[];
-    if(isCur) badges.push(`<span class="plan-badge" style="background:#1B4FD8;color:#fff;font-weight:800;">En cours</span>`);
+    if(isCur) badges.push(`<span class="plan-badge" style="background:rgba(255,255,255,0.22);color:#fff;font-weight:800;backdrop-filter:blur(4px);">En cours</span>`);
     if(isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:#FEF9E7;color:#B7791F;">🏆 Course</span>`);
-    else if(isAffutage||metaW.isTaper) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">Affûtage</span>`);
-    else if(isDecharge||metaW.isRecov) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
-    if(isPeakWeek) badges.push(`<span class="plan-badge" style="background:#FEF2F2;color:#DC2626;">Pic</span>`);
-    if(phaseInfo&&!isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:${phaseInfo.bg};color:${phaseInfo.c};opacity:0.85;">${phaseInfo.l}</span>`);
+    else if(isAffutage||metaW.isTaper) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,255,255,0.15)':'#EDF7EF'};color:${isCur?'#fff':'#2F6E44'};">Affûtage</span>`);
+    else if(isDecharge||metaW.isRecov) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,255,255,0.15)':'#FEF3EE'};color:${isCur?'#fff':'#E8530A'};">Décharge</span>`);
+    if(isPeakWeek) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,100,100,0.3)':'#FEF2F2'};color:${isCur?'#fca5a5':'#DC2626'};">Pic</span>`);
+    if(phaseInfo&&!isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,255,255,0.12)':phaseInfo.bg};color:${isCur?'rgba(255,255,255,0.8)':phaseInfo.c};opacity:0.85;">${phaseInfo.l}</span>`);
 
     const sessionRowsHtml=isOpen?sessions.map(({s,ei:eid,done,skip,skipReason,kmDone,perf},rowIdx)=>{
       const typeC=typeColor[s.type]||'#888';
@@ -861,10 +861,11 @@ function renderAthletePlan(el){
         if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';
         return '';
       })();
-      return `<div class="plan-session-card">
-        <div style="width:4px;background:${done?'#3B6D11':skip?'#C0392B':typeC};flex-shrink:0;"></div>
+      const rowAccentBg=done?'rgba(59,109,17,0.06)':skip?'rgba(192,57,43,0.05)':typeBgC+'44';
+      return `<div class="plan-session-card" style="background:${rowAccentBg};">
+        <div style="width:4px;background:linear-gradient(180deg,${done?'#3B6D11':skip?'#C0392B':typeC} 0%,${done?'#3B6D1160':skip?'#C0392B60':typeC+'60'} 100%);flex-shrink:0;"></div>
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
-          <div class="plan-session-icon" style="background:${iconBg};">
+          <div class="plan-session-icon" style="background:${iconBg};box-shadow:0 0 0 1.5px ${done?'rgba(59,109,17,0.25)':skip?'rgba(192,57,43,0.2)':typeC+'33'};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
@@ -904,11 +905,13 @@ function renderAthletePlan(el){
 
     const card=document.createElement('div');
     card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'')+(isRaceWeekCard?' is-race':'');
+    const _hStyle=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':isRaceWeekCard?'background:linear-gradient(135deg,#78350F 0%,#D97706 100%);':'';
+    const _dateColor=isCur||isRaceWeekCard?'rgba(255,255,255,0.9)':'var(--text)';
     card.innerHTML=`
-      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${isRaceWeekCard?'background:linear-gradient(135deg,#FFFBEB,transparent);':''}">
-        <div class="plan-week-num" style="background:${isRaceWeekCard?'#D97706':numBg};color:${isRaceWeekCard?'#fff':numColor};">S${ws}</div>
+      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${_hStyle}">
+        <div class="plan-week-num" style="background:${isRaceWeekCard?'rgba(255,255,255,0.22)':numBg};color:${isRaceWeekCard?'#fff':numColor};">S${ws}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:var(--text);">${weekDateLabel||'Semaine '+ws}</div>
+          <div style="font-size:13px;font-weight:700;color:${_dateColor};">${weekDateLabel||'Semaine '+ws}</div>
           ${badges.length?`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">${badges.join('')}</div>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
@@ -928,6 +931,15 @@ function renderAthletePlan(el){
     }
     el.appendChild(card);
   });
+
+  // Hero bar — progression globale
+  const _totalW=sortedWeeks.length;
+  const _pastW=sortedWeeks.filter(w=>w<ACW).length;
+  const _pct=_totalW?Math.round(_pastW/_totalW*100):0;
+  const _heroBar=document.getElementById('plan-hero-bar');
+  const _heroLbl=document.getElementById('plan-hero-label');
+  if(_heroBar) _heroBar.style.width=_pct+'%';
+  if(_heroLbl) _heroLbl.textContent=_totalW?`S${ACW} sur ${_totalW} · ${_pct}% réalisé`:'';
 
   // Carte Jour J (si une séance de course est trouvée dans le plan)
   if(raceSessionData){
@@ -1095,13 +1107,15 @@ function renderPlan(){
       return Math.round(total*10)/10;
     })() : null;
 
-    const statusHtml = isPast||(isCur&&isCurrentAllDone)
-      ? `<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:#3B6D11;">${realWeekKm}</span><span style="font-size:10px;font-weight:700;color:#3B6D11aa;"> km ✓</span></div>`
-      : `<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
+    const _aKmC=isCur?'rgba(255,255,255,0.95)':(isPast||(isCur&&isCurrentAllDone))?'#3B6D11':'var(--text)';
+    const _aKmSubC=isCur?'rgba(255,255,255,0.60)':(isPast||(isCur&&isCurrentAllDone))?'#3B6D11aa':'var(--muted)';
+    const _aKmVal=(isPast||(isCur&&isCurrentAllDone))?realWeekKm:kmTotal;
+    const _aKmSuffix=(isPast||(isCur&&isCurrentAllDone))?' km ✓':' km';
+    const statusHtml = `<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${_aKmC};">${_aKmVal}</span><span style="font-size:10px;font-weight:700;color:${_aKmSubC};">${_aKmSuffix}</span></div>`;
 
     // Barre de progression (semaine en cours uniquement)
     const progressHtml = isCur
-      ? `<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:var(--blue);"></div></div>`
+      ? `<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:rgba(255,255,255,0.55);"></div></div>`
       : isPast
       ? `<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`
       : '';
@@ -1177,10 +1191,11 @@ function renderPlan(){
 
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
-      return `<div class="plan-session-card">
-        <div style="width:4px;background:${isDone?'#3B6D11':isSkip?'#C0392B':typeC};flex-shrink:0;"></div>
+      const rowBg2=isDone?'rgba(59,109,17,0.06)':isSkip?'rgba(192,57,43,0.05)':typeBgC+'44';
+      return `<div class="plan-session-card" style="background:${rowBg2};">
+        <div style="width:4px;background:linear-gradient(180deg,${isDone?'#3B6D11':isSkip?'#C0392B':typeC} 0%,${isDone?'#3B6D1160':isSkip?'#C0392B60':typeC+'60'} 100%);flex-shrink:0;"></div>
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
-          <div class="plan-session-icon" style="background:${iconBg};">
+          <div class="plan-session-icon" style="background:${iconBg};box-shadow:0 0 0 1.5px ${isDone?'rgba(59,109,17,0.25)':isSkip?'rgba(192,57,43,0.2)':typeC+'33'};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
@@ -1236,13 +1251,15 @@ function renderPlan(){
     </div>` : '';
 
     // Chevron
-    const chevron = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
+    const chevron = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${isCur?'rgba(255,255,255,0.7)':'var(--muted)'}" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
+    const _hStyleA=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':'';
+    const _dateCa=isCur?'rgba(255,255,255,0.9)':'var(--text)';
 
     card.innerHTML = `
-      <div class="plan-week-header" onclick="toggleWeek(${w.s})">
+      <div class="plan-week-header" onclick="toggleWeek(${w.s})" style="${_hStyleA}">
         <div class="plan-week-num" style="background:${numBg};color:${numColor};">S${w.s}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:-0.1px;">lun. ${w.date}</div>
+          <div style="font-size:13px;font-weight:700;color:${_dateCa};letter-spacing:-0.1px;">lun. ${w.date}</div>
           ${badges.length?`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">${badges.join('')}</div>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">

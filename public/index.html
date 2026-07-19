@@ -244,10 +244,17 @@
 </div>
 
 <!-- PLAN -->
-<div id="sc-plan" style="display:none;padding:16px 14px 24px;background:#E4EAF5;min-height:100vh;">
-  <p style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:2px;letter-spacing:-0.3px;">Plan d'entraînement</p>
-  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;" id="plan-total-km">32 semaines · 1092 km</p>
-  <div id="plan-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+<div id="sc-plan" style="display:none;background:#E2E8F5;min-height:100vh;">
+  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:20px 16px 36px;color:#fff;">
+    <div style="font-size:10px;font-weight:700;opacity:0.58;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:5px;">Mon programme</div>
+    <div style="font-size:28px;font-weight:900;letter-spacing:-0.6px;line-height:1.05;">Plan marathon</div>
+    <div style="font-size:12px;opacity:0.65;margin-top:3px;" id="plan-total-km">32 semaines · 1092 km</div>
+    <div style="background:rgba(255,255,255,0.16);border-radius:6px;height:4px;overflow:hidden;margin-top:16px;">
+      <div id="plan-hero-bar" style="background:linear-gradient(90deg,rgba(255,255,255,0.55),#fff);border-radius:6px;height:4px;width:0%;transition:width 0.8s ease;"></div>
+    </div>
+    <div style="font-size:10px;opacity:0.55;margin-top:6px;" id="plan-hero-label"></div>
+  </div>
+  <div id="plan-list" style="padding:14px 14px 28px;display:flex;flex-direction:column;gap:10px;margin-top:-18px;"></div>
 </div>
 
 <!-- STATS -->
