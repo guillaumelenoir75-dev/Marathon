@@ -1518,6 +1518,7 @@ async function loadCoachHistory(){
             });
           }
         }
+        if (_pendingType === 'weekly_bilan') try { showBriefOverlay('weekly'); } catch(e) {}
         const _showBrief = () => {
           const _msgContainer = document.getElementById('coach-messages');
           if (!_msgContainer) return false;

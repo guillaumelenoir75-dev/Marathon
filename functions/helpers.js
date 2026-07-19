@@ -207,11 +207,18 @@ async function buildNotifContext(state, cw) {
   let extraIdx=0;
   while(extraIdx<=20&&state[`extra_w${cw}_s${extraIdx}`]){
     const done=!!state[`extra_w${cw}_s${extraIdx}_done`];
-    if(!done){
-      let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraIdx}`]);}catch(e){extraIdx++;continue;}
+    let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraIdx}`]);}catch(e){extraIdx++;continue;}
+    if(!es||es.type==='rest'){extraIdx++;continue;}
+    const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+    const km=es.km||'';
+    if(done){
+      let perf=null;try{perf=state[`extra_w${cw}_s${extraIdx}_perf`]?JSON.parse(state[`extra_w${cw}_s${extraIdx}_perf`]):null;}catch(e){}
+      seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);
+    } else {
+      const schedInfo=es.sched_day?`${jours[es.sched_day]}${es.sched_time?' '+es.sched_time:''}`:''
+      seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
       if(Number(es.sched_day)===dayOfWeek){
-        const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
-        seancesAujourdHui.push(`${titre} — ${es.km}km, prévu à ${es.sched_time||'horaire non défini'}`);
+        seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${es.sched_time||'horaire non défini'}`);
         if(!seanceRunAujourdhui && es.type && es.type!=='renfo' && es.type!=='repos'){
           seanceRunAujourdhui={type:es.type,km:parseFloat(es.km)||0,sched_time:es.sched_time||null,titre};
         }
