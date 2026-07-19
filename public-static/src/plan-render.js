@@ -773,25 +773,36 @@ function renderAthletePlan(el){
       }catch(e){}
     }
 
-    const numBg=isCur?'rgba(255,255,255,0.20)':isPast?'#D8DEE8':'rgba(27,79,216,0.1)';
-    const numColor=isCur?'#fff':isPast?'#5e6a7e':'#1B4FD8';
-    const _kmC=isCur?'rgba(255,255,255,0.95)':allDone?'#3B6D11':'var(--text)';
-    const _kmSubC=isCur?'rgba(255,255,255,0.60)':allDone?'#3B6D11aa':'var(--muted)';
-    const statusHtml=`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${_kmC};">${kmTotal}</span><span style="font-size:10px;font-weight:700;color:${_kmSubC};"> km${allDone?' ✓':''}</span></div>`;
-    const progressHtml=isCur
-      ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:rgba(255,255,255,0.55);"></div></div>`
-      :isPast?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`:'';
-
-    const isOpen=openWeeks.has(ws);
-    const chevron=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${isCur?'rgba(255,255,255,0.7)':'var(--muted)'}" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
-
-    // Lire les métadonnées de semaine stockées à la génération du plan
+    // Lire les métadonnées de semaine AVANT les calculs visuels
     let metaW={};
     try{if(state['meta_w'+ws]) metaW=JSON.parse(state['meta_w'+ws]);}catch(e){}
     const phaseLabels={1:{l:'Base',bg:'#F3F4F6',c:'#4B5563'},2:{l:'Construction',bg:'#FEF3EE',c:'#C2410C'},3:{l:'Spécifique',bg:'#EEF2FD',c:'#1B4FD8'},4:{l:'Affûtage',bg:'#EDF7EF',c:'#2F6E44'}};
     const phaseInfo=metaW.phase?phaseLabels[metaW.phase]:null;
     const isPeakWeek=metaW.isPeak&&!isRaceWeekCard&&!metaW.isTaper;
     const planPeakWeek=parseInt(state['plan_peak_week'])||0;
+
+    // Couleurs par phase pour les semaines non-courantes
+    const phaseAccents={1:{accent:'#475569',num:'rgba(71,85,105,0.14)',hdr:'rgba(71,85,105,0.055)'},2:{accent:'#EA580C',num:'rgba(234,88,12,0.14)',hdr:'rgba(234,88,12,0.055)'},3:{accent:'#1B4FD8',num:'rgba(27,79,216,0.14)',hdr:'rgba(27,79,216,0.055)'},4:{accent:'#16A34A',num:'rgba(22,163,74,0.14)',hdr:'rgba(22,163,74,0.055)'}};
+    const phaseCol=metaW.phase&&!isCur&&!isRaceWeekCard?phaseAccents[metaW.phase]:null;
+
+    const numBg=isCur?'rgba(255,255,255,0.20)':isPast?'#D8DEE8':phaseCol?phaseCol.num:'rgba(27,79,216,0.1)';
+    const numColor=isCur?'#fff':isPast?'#5e6a7e':phaseCol?phaseCol.accent:'#1B4FD8';
+    const _kmC=isCur?'rgba(255,255,255,0.95)':allDone?'#3B6D11':'var(--text)';
+    const _kmSubC=isCur?'rgba(255,255,255,0.60)':allDone?'#3B6D11aa':'var(--muted)';
+
+    // Dots de progression des séances
+    const totalSess=sessions.length;
+    const doneSess=sessions.filter(({done})=>done).length;
+    const skipSess=sessions.filter(({skip})=>skip).length;
+    const dotsHtml=totalSess>0&&(isCur||isPast)?`<div style="display:flex;gap:3px;align-items:center;margin-top:4px;">${sessions.map(({done,skip})=>`<div style="width:6px;height:6px;border-radius:50%;background:${done?'rgba(59,109,17,0.7)':skip?'rgba(192,57,43,0.5)':isCur?'rgba(255,255,255,0.3)':'var(--border)'};"></div>`).join('')}</div>`:'';
+
+    const statusHtml=`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${_kmC};">${kmTotal}</span><span style="font-size:10px;font-weight:700;color:${_kmSubC};"> km${allDone?' ✓':''}</span></div>`;
+    const progressHtml=isCur
+      ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:rgba(255,255,255,0.55);"></div></div>`
+      :isPast?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`:phaseCol?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:0%;background:${phaseCol.accent};opacity:0.3;"></div></div>`:'';
+
+    const isOpen=openWeeks.has(ws);
+    const chevron=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${isCur?'rgba(255,255,255,0.7)':'var(--muted)'}" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
 
     const badges=[];
     if(isCur) badges.push(`<span class="plan-badge" style="background:rgba(255,255,255,0.22);color:#fff;font-weight:800;backdrop-filter:blur(4px);">En cours</span>`);
@@ -905,14 +916,17 @@ function renderAthletePlan(el){
 
     const card=document.createElement('div');
     card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'')+(isRaceWeekCard?' is-race':'');
-    const _hStyle=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':isRaceWeekCard?'background:linear-gradient(135deg,#78350F 0%,#D97706 100%);':'';
+    const _hStyle=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':isRaceWeekCard?'background:linear-gradient(135deg,#78350F 0%,#D97706 100%);':phaseCol?`background:${phaseCol.hdr};`:'';
     const _dateColor=isCur||isRaceWeekCard?'rgba(255,255,255,0.9)':'var(--text)';
+    const _topBar=phaseCol&&!isCur&&!isRaceWeekCard?`<div style="height:3px;background:linear-gradient(90deg,${phaseCol.accent}55,${phaseCol.accent}22);"></div>`:'';
     card.innerHTML=`
+      ${_topBar}
       <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${_hStyle}">
         <div class="plan-week-num" style="background:${isRaceWeekCard?'rgba(255,255,255,0.22)':numBg};color:${isRaceWeekCard?'#fff':numColor};">S${ws}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:${_dateColor};">${weekDateLabel||'Semaine '+ws}</div>
           ${badges.length?`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">${badges.join('')}</div>`:''}
+          ${dotsHtml}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           ${statusHtml}
@@ -1070,9 +1084,15 @@ function renderPlan(){
     card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'');
 
     // ── Header ──
+    // Métadonnées de la semaine (phase, pic, décharge…)
+    let metaWA={};
+    try{if(state['meta_w'+w.s]) metaWA=JSON.parse(state['meta_w'+w.s]);}catch(e){}
+    const phaseAccentsA={1:{accent:'#475569',num:'rgba(71,85,105,0.14)',hdr:'rgba(71,85,105,0.055)'},2:{accent:'#EA580C',num:'rgba(234,88,12,0.14)',hdr:'rgba(234,88,12,0.055)'},3:{accent:'#1B4FD8',num:'rgba(27,79,216,0.14)',hdr:'rgba(27,79,216,0.055)'},4:{accent:'#16A34A',num:'rgba(22,163,74,0.14)',hdr:'rgba(22,163,74,0.055)'}};
+    const phaseColA=metaWA.phase&&!isCur?phaseAccentsA[metaWA.phase]:null;
+
     // Couleur du numéro de semaine
-    const numBg = isCur ? 'var(--blue)' : isPast ? '#D8DEE8' : 'rgba(27,79,216,0.1)';
-    const numColor = isCur ? '#fff' : isPast ? '#5e6a7e' : '#1B4FD8';
+    const numBg = isCur ? 'var(--blue)' : isPast ? '#D8DEE8' : phaseColA?phaseColA.num:'rgba(27,79,216,0.1)';
+    const numColor = isCur ? '#fff' : isPast ? '#5e6a7e' : phaseColA?phaseColA.accent:'#1B4FD8';
 
     // Badges
     const badges = [];
@@ -1252,10 +1272,12 @@ function renderPlan(){
 
     // Chevron
     const chevron = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${isCur?'rgba(255,255,255,0.7)':'var(--muted)'}" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
-    const _hStyleA=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':'';
+    const _hStyleA=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':phaseColA?`background:${phaseColA.hdr};`:'';
     const _dateCa=isCur?'rgba(255,255,255,0.9)':'var(--text)';
+    const _topBarA=phaseColA&&!isCur?`<div style="height:3px;background:linear-gradient(90deg,${phaseColA.accent}55,${phaseColA.accent}22);"></div>`:'';
 
     card.innerHTML = `
+      ${_topBarA}
       <div class="plan-week-header" onclick="toggleWeek(${w.s})" style="${_hStyleA}">
         <div class="plan-week-num" style="background:${numBg};color:${numColor};">S${w.s}</div>
         <div style="flex:1;min-width:0;">
