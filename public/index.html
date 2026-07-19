@@ -103,14 +103,14 @@
           <div style="font-size:10px;opacity:0.55;margin-top:3px;" id="today-date"></div>
 
         </div>
-        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
-          <div onclick="openVo2maxModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;cursor:pointer;width:fit-content;">
+        <div style="display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;">
+          <div onclick="openVo2maxModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;cursor:pointer;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <span style="font-size:12px;font-weight:700;" id="kpi-vo2max">—</span>
             <span style="font-size:10px;opacity:0.6;">VO2max</span>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
-          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:5px;background:rgba(127,212,168,0.22);border:1px solid rgba(127,212,168,0.4);border-radius:20px;padding:4px 11px;cursor:pointer;width:fit-content;">
+          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:5px;background:rgba(127,212,168,0.22);border:1px solid rgba(127,212,168,0.4);border-radius:20px;padding:4px 11px;cursor:pointer;">
             <span style="font-size:12px;line-height:1;">☀️</span>
             <span style="font-size:11px;font-weight:700;color:#7FD4A8;letter-spacing:0.1px;">Réveil enregistré</span>
           </button>
@@ -145,50 +145,50 @@
       </div>
     </div>
     <!-- Bloc progression -->
-    <div id="home-progression-block" style="background:rgba(255,255,255,0.09);border-radius:12px;padding:9px 12px;">
+    <div id="home-progression-block" style="background:rgba(255,255,255,0.09);border-radius:12px;padding:8px 12px;">
       <!-- Semaine en cours : séances + km -->
-      <div id="h-week-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.13);">
+      <div id="h-week-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.13);">
         <div>
-          <div style="font-size:11px;font-weight:500;opacity:0.6;margin-bottom:1px;">📅 Cette semaine</div>
-          <div style="font-size:15px;font-weight:800;letter-spacing:-0.3px;" id="h-week-sessions-label">— séances</div>
+          <div style="font-size:10px;font-weight:500;opacity:0.6;margin-bottom:1px;">📅 Cette semaine</div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-sessions-label">— séances</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:11px;font-weight:500;opacity:0.6;margin-bottom:1px;">🏃 Km réalisés</div>
-          <div style="font-size:15px;font-weight:800;letter-spacing:-0.3px;" id="h-week-km-label">— km</div>
+          <div style="font-size:10px;font-weight:500;opacity:0.6;margin-bottom:1px;">🏃 Km réalisés</div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-km-label">— km</div>
         </div>
       </div>
       <!-- Progression plan global -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-        <span style="font-size:11px;opacity:0.65;" id="h-prog-label">Progression du plan</span>
-        <span style="font-size:18px;font-weight:800;letter-spacing:-0.5px;" id="h-pct">19%</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span style="font-size:10px;opacity:0.65;" id="h-prog-label">Progression du plan</span>
+        <span style="font-size:16px;font-weight:800;letter-spacing:-0.5px;" id="h-pct">19%</span>
       </div>
-      <div style="background:rgba(255,255,255,0.18);border-radius:5px;height:6px;overflow:hidden;">
-        <div id="h-bar" style="background:#fff;border-radius:5px;height:6px;width:19%;transition:width 0.6s ease;"></div>
+      <div style="background:rgba(255,255,255,0.18);border-radius:5px;height:5px;overflow:hidden;">
+        <div id="h-bar" style="background:#fff;border-radius:5px;height:5px;width:19%;transition:width 0.6s ease;"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;">
+      <!-- Km parcourus + total + restants + semaines sur 2 colonnes -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
         <div>
-          <div style="font-size:13px;font-weight:700;" id="h-done-km">252 km</div>
-          <div style="font-size:10px;opacity:0.5;">parcourus</div>
+          <div style="font-size:12px;font-weight:700;" id="h-done-km">252 km</div>
+          <div style="font-size:9px;opacity:0.5;">parcourus</div>
         </div>
-        <div id="h-sep" style="width:0.5px;height:24px;background:rgba(255,255,255,0.2);"></div>
-        <div id="h-grand-total-block" style="text-align:right;">
-          <div style="font-size:13px;font-weight:700;" id="h-grand-total">1 042 km</div>
-          <div style="font-size:10px;opacity:0.5;" id="h-grand-total-label">plan complet</div>
+        <div id="h-sep" style="width:0.5px;height:20px;background:rgba(255,255,255,0.2);"></div>
+        <div id="h-grand-total-block" style="text-align:center;">
+          <div style="font-size:12px;font-weight:700;" id="h-grand-total">1 042 km</div>
+          <div style="font-size:9px;opacity:0.5;" id="h-grand-total-label">plan complet</div>
         </div>
-      </div>
-      <!-- Km restants + Semaines avant la course -->
-      <div id="h-extra-stats-row" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.13);">
-        <div>
-          <div style="font-size:10px;opacity:0.55;margin-bottom:1px;">🛣️ Km restants</div>
-          <div style="font-size:13px;font-weight:700;" id="kpi-rest">— km</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:10px;opacity:0.55;margin-bottom:1px;">📆 Avant la course</div>
-          <div style="font-size:13px;font-weight:700;" id="kpi-weeks-left">—</div>
+        <div id="h-extra-stats-row" style="display:flex;gap:12px;">
+          <div style="text-align:right;">
+            <div style="font-size:9px;opacity:0.55;margin-bottom:1px;">🛣️ restants</div>
+            <div style="font-size:12px;font-weight:700;" id="kpi-rest">— km</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:9px;opacity:0.55;margin-bottom:1px;">📆 course</div>
+            <div style="font-size:12px;font-weight:700;" id="kpi-weeks-left">—</div>
+          </div>
         </div>
       </div>
       <!-- Prochaine séance planifiée -->
-      <div id="h-next-sched" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.13);display:flex;align-items:center;gap:6px;">
+      <div id="h-next-sched" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.13);display:flex;align-items:center;gap:6px;">
         <span style="font-size:10px;opacity:0.55;">⏰ Prochaine —</span>
         <span style="font-size:11px;font-weight:700;opacity:0.9;" id="h-next-sched-text"></span>
       </div>
