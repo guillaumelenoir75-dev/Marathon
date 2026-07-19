@@ -809,10 +809,10 @@ function renderAthletePlan(el){
       const detail=s.d&&s.d.includes('|')?s.d.split('|')[1]:null;
       const clickFn=done?`openPerfEditExtraModal(${ws},${eid})`:`openEditExtraModal(${ws},${eid})`;
       const iconContent=done
-        ?`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        ?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
         :skip
-        ?`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
-        :`<span style="font-size:9px;font-weight:800;color:${typeC};">${lbl}</span>`;
+        ?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+        :`<span style="font-size:18px;line-height:1;">${(typeof typeEmoji!=='undefined'&&typeEmoji[s.type])||lbl}</span>`;
       const iconBg=done?'#EAF3DE':skip?'#FDECEA':typeBgC;
       const iconBorder=done?'#3B6D11':skip?'#C0392B':typeC;
       const kmShow=done&&kmDone!=null?kmDone:s.km;
@@ -831,7 +831,7 @@ function renderAthletePlan(el){
       const schedHtml=(()=>{
         if(s.sched_day||s.sched_time){
           const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-          return `<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
+          return `<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
         }
         // Afficher la date de l'onboarding si disponible
         const dateKey=state[`extra_w${ws}_s${eid}_date`];
@@ -842,7 +842,7 @@ function renderAthletePlan(el){
             const jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
             const mois=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
             const label=`${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]}${timeKey?' · '+timeKey:''}`;
-            return `<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${label}</span>`;
+            return `<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${label}</span>`;
           }catch(e){}
         }
         return '';
@@ -863,7 +863,7 @@ function renderAthletePlan(el){
       })();
       return `<div class="plan-session-card" style="${done?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':skip?'background:linear-gradient(90deg,rgba(192,57,43,0.03),transparent);':''}">
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}22;">${iconContent}</div>
+          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}30;">${iconContent}</div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
               <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}</span>
@@ -925,7 +925,7 @@ function renderAthletePlan(el){
       currentRenderMonth=weekMonthIdx;
       const sepEl=document.createElement('div');
       sepEl.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 2px 4px;';
-      sepEl.innerHTML=`<span style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.08em;">${weekMonthName}</span><div style="flex:1;height:1px;background:var(--border);"></div>`;
+      sepEl.innerHTML=`<span style="font-size:10px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:0.12em;background:rgba(232,83,10,0.09);padding:3px 11px;border-radius:20px;">${weekMonthName}</span><div style="flex:1;height:1px;background:var(--border);opacity:0.4;"></div>`;
       el.appendChild(sepEl);
     }
     el.appendChild(card);
@@ -1051,7 +1051,7 @@ function renderPlan(){
       currentMonth=w.month;
       const sep=document.createElement('div');
       sep.className='plan-month-sep';
-      sep.innerHTML=`<span style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.1em;">${w.month}</span><div style="flex:1;height:1px;background:var(--border);"></div>`;
+      sep.innerHTML=`<span style="font-size:10px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:0.12em;background:rgba(232,83,10,0.09);padding:3px 11px;border-radius:20px;">${w.month}</span><div style="flex:1;height:1px;background:var(--border);opacity:0.4;"></div>`;
       el.appendChild(sep);
     }
 
@@ -1156,7 +1156,7 @@ function renderPlan(){
             const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
             const dayStr=ed.sched_day?days[ed.sched_day]:'';
             const timeStr=ed.sched_time||'';
-            schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
+            schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
           }
         }
       } else {
@@ -1165,15 +1165,15 @@ function renderPlan(){
           const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
           const dayStr=s2.sched_day?days[s2.sched_day]:'';
           const timeStr=s2.sched_time||'';
-          schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:600;background:#EEF2FD;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
+          schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
         }
       }
 
       const iconContent = isDone
-        ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
         : isSkip
-        ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
-        : `<span style="font-size:9px;font-weight:800;color:${typeC};">${lbl}</span>`;
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+        : `<span style="font-size:18px;line-height:1;">${(typeof typeEmoji!=='undefined'&&typeEmoji[s2.type])||lbl}</span>`;
       const iconBg = isDone ? '#EAF3DE' : isSkip ? '#FDECEA' : typeBgC;
       const iconBorder = isDone ? '#3B6D11' : isSkip ? '#C0392B' : typeC;
 
@@ -1181,7 +1181,7 @@ function renderPlan(){
 
       return `<div class="plan-session-card" style="${isDone?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':isSkip?'background:linear-gradient(90deg,rgba(192,57,43,0.03),transparent);':''}">
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}22;">
+          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}30;">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
