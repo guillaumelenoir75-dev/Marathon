@@ -214,7 +214,7 @@ function shoeBadge(shoe){
 function shoeFullBadge(shoe){
   if(!shoe)return '';
   const st=getShoeStyle(shoe);
-  return `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};display:inline-block;"></span>${shoe}</span>`;
+  return `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;border:1.5px solid ${st.dot};display:inline-block;"></span>${shoe}</span>`;
 }
 function getShoeOptions(currentShoe){
   const list=getShoes();

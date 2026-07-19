@@ -460,10 +460,10 @@ function renderHome(){
     if(!extra){
       const edRaw=state['edit_w'+w+'_s'+si];
       if(edRaw){let ed;try{ed=JSON.parse(edRaw);}catch(e){}if(ed&&(ed.sched_day||ed.sched_time)){
-        schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
+        schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
       }}
     } else if(s2.sched_day||s2.sched_time){
-      schedHtml=`<span style="font-size:10px;color:var(--blue);font-weight:700;background:#EEF2FD;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
+      schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
     }
     // "Aujourd'hui" seulement sur semaine en cours
     const runEdRaw=extra?null:state['edit_w'+w+'_s'+si];
@@ -479,7 +479,7 @@ function renderHome(){
     const editFn = canEdit ? (extra?`openEditExtraModal(${w},${ei})`:`openEditModal(${w},${si})`) : '';
     const doneFn = isCurrent ? (extra?`toggleDoneExtra(${w},${ei})`:`toggleDone(${si})`) : '';
     const div=document.createElement('div');
-    div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;cursor:default;'
+    div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:'+(done?'8px':'11px')+' 14px;background:var(--bg);position:relative;cursor:default;'
       +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15,inset 3px 0 0 ${typeC};`
       :done?`border:1px solid ${typeC}30;background:linear-gradient(90deg,${typeBgC}50,var(--bg));box-shadow:inset 3px 0 0 ${typeC};`
       :skip?'border:1px solid #e5c6c6;background:linear-gradient(90deg,#fff5f550,var(--bg));box-shadow:inset 3px 0 0 #C0392B;'
@@ -529,8 +529,6 @@ function renderHome(){
         ${canEdit&&!done?`<button onclick="${editFn}" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Éditer
-        </button>`:done?`<button onclick="${editFn}" style="background:transparent;color:#aaa;border:1px solid #e0e8f5;border-radius:20px;padding:5px 9px;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;">
-          Modifier
         </button>`:''}
         ${isCurrent?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
           ${done
