@@ -103,34 +103,33 @@
           <div style="font-size:10px;opacity:0.55;margin-top:3px;" id="today-date"></div>
 
         </div>
-        <div style="display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;">
-          <div onclick="openVo2maxModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:9px;padding:5px 9px;cursor:pointer;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            <span style="font-size:12px;font-weight:700;" id="kpi-vo2max">—</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+          <div onclick="openVo2maxModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.12);border-radius:9px;padding:4px 8px;cursor:pointer;flex-shrink:0;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span style="font-size:11px;font-weight:700;" id="kpi-vo2max">—</span>
             <span style="font-size:10px;opacity:0.6;">VO2max</span>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
-          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:5px;background:rgba(127,212,168,0.22);border:1px solid rgba(127,212,168,0.4);border-radius:20px;padding:4px 11px;cursor:pointer;">
-            <span style="font-size:12px;line-height:1;">☀️</span>
-            <span style="font-size:11px;font-weight:700;color:#7FD4A8;letter-spacing:0.1px;">Réveil enregistré</span>
+          <button id="wakeup-btn" onclick="onWakeup()" style="display:none;align-items:center;gap:4px;background:rgba(127,212,168,0.20);border:1px solid rgba(127,212,168,0.35);border-radius:20px;padding:3px 9px;cursor:pointer;flex-shrink:0;">
+            <span style="font-size:11px;line-height:1;">✅</span>
+            <span style="font-size:10px;font-weight:700;color:#7FD4A8;white-space:nowrap;">Réveil</span>
           </button>
         </div>
       </div>
       <!-- DROITE : EF + prédit + AM entraînement -->
       <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
         <div id="home-race-kpi-block">
-        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(251,191,36,0.18);border-radius:9px;padding:5px 9px;border:1px solid rgba(251,191,36,0.3);">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.95)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,0.18);border-radius:9px;padding:4px 8px;border:1px solid rgba(251,191,36,0.3);white-space:nowrap;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.95)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span style="font-size:12px;font-weight:800;color:#FCD34D;" id="h-am-pred">—</span>
-          <span style="font-size:10px;color:rgba(252,211,77,0.8);" id="h-pred-label">/km prédit</span>
+          <span style="font-size:10px;color:rgba(252,211,77,0.8);" id="h-pred-label">prédit</span>
         </div>
-        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.10);border-radius:9px;padding:5px 9px;border:1px solid rgba(255,255,255,0.13);">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.10);border-radius:9px;padding:4px 8px;border:1px solid rgba(255,255,255,0.13);white-space:nowrap;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span style="font-size:12px;font-weight:700;" id="kpi-am-training">5'20</span>
-          <span style="font-size:10px;opacity:0.55;" id="h-am-train-label">/km objectif</span>
+          <span style="font-size:10px;opacity:0.55;" id="h-am-train-label">objectif</span>
         </div>
         </div>
-        <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;"></div>
+        <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;white-space:nowrap;"></div>
         <div id="home-weather-strip" onclick="openHomeWeatherModal()" style="display:none;align-items:center;gap:4px;justify-content:flex-end;margin-top:3px;cursor:pointer;">
           <span id="home-weather-icon" style="font-size:15px;line-height:1;"></span>
           <span id="home-weather-temp" style="font-size:12px;font-weight:700;color:#fff;opacity:0.9;"></span>

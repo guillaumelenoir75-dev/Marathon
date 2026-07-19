@@ -258,14 +258,13 @@ function _setWakeupBtnDone(btn) {
   if (!btn) return;
   btn.disabled = true;
   btn.style.cursor = 'default';
-  btn.style.background = 'rgba(127,212,168,0.22)';
-  btn.style.border = '1px solid rgba(127,212,168,0.4)';
+  btn.style.background = 'rgba(127,212,168,0.20)';
+  btn.style.border = '1px solid rgba(127,212,168,0.35)';
   btn.style.borderRadius = '20px';
-  btn.style.padding = '4px 11px';
-  btn.style.width = 'fit-content';
+  btn.style.padding = '3px 9px';
   btn.style.boxShadow = 'none';
   btn.style.opacity = '1';
-  btn.innerHTML = '<span style="font-size:12px;line-height:1;">✅</span><span style="font-size:11px;font-weight:700;color:#7FD4A8;margin-left:5px;letter-spacing:0.1px;">Réveil enregistré</span>';
+  btn.innerHTML = '<span style="font-size:11px;line-height:1;">✅</span><span style="font-size:10px;font-weight:700;color:#7FD4A8;margin-left:4px;white-space:nowrap;">Réveil</span>';
 }
 
 // Bouton "Je suis réveillé" : enregistre le réveil, sync WHOOP, déclenche le brief
