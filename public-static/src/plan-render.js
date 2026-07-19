@@ -872,16 +872,17 @@ function renderAthletePlan(el){
         if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';
         return '';
       })();
-      const rowAccentBg=done?'rgba(59,109,17,0.06)':skip?'rgba(192,57,43,0.05)':typeBgC+'44';
-      return `<div class="plan-session-card" style="background:${rowAccentBg};">
+      const _rowGrad=done?'linear-gradient(to right,rgba(59,109,17,0.10),rgba(59,109,17,0.03) 55%,transparent)':skip?'linear-gradient(to right,rgba(192,57,43,0.08),rgba(192,57,43,0.02) 55%,transparent)':`linear-gradient(to right,${typeBgC}55,${typeBgC}18 55%,transparent)`;
+      const _typePill=done?`<span style="font-size:9px;font-weight:800;background:#D4EDBC;color:#2E6B10;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">✓ Validé</span>`:skip?`<span style="font-size:9px;font-weight:800;background:#FDECEA;color:#C0392B;padding:2px 7px;border-radius:10px;">✕ ${skipReason||'Passée'}</span>`:`<span style="font-size:9px;font-weight:800;background:${typeBgC};color:${typeC};padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">${lbl}</span>`;
+      return `<div class="plan-session-card" style="background:${_rowGrad};">
         <div style="width:4px;background:linear-gradient(180deg,${done?'#3B6D11':skip?'#C0392B':typeC} 0%,${done?'#3B6D1160':skip?'#C0392B60':typeC+'60'} 100%);flex-shrink:0;"></div>
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
-          <div class="plan-session-icon" style="background:${iconBg};box-shadow:0 0 0 1.5px ${done?'rgba(59,109,17,0.25)':skip?'rgba(192,57,43,0.2)':typeC+'33'};">
+          <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${iconBg};box-shadow:0 2px 8px ${done?'rgba(59,109,17,0.18)':skip?'rgba(192,57,43,0.15)':typeC+'28'},0 0 0 1.5px ${done?'rgba(59,109,17,0.2)':skip?'rgba(192,57,43,0.18)':typeC+'22'};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            ${!done&&!skip?`<div style="font-size:10px;font-weight:900;color:${typeC};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${lbl}</div>`:''}
-            <div style="font-size:14px;font-weight:700;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}${done?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${skip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
+            <div style="margin-bottom:4px;">${_typePill}</div>
+            <div style="font-size:14px;font-weight:700;color:${done?'#2E6B10':skip?'#C0392B':'var(--text)'};">${title}</div>
             ${detail?`<div style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${durHtml}
             <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
@@ -892,7 +893,7 @@ function renderAthletePlan(el){
         </div>
         <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
           <div style="text-align:right;min-width:40px;">
-            <div style="font-size:17px;font-weight:800;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</div>
+            <div style="font-size:17px;font-weight:800;color:${done?'#2E6B10':'var(--text)'};">${kmShow}</div>
             <div style="font-size:9px;font-weight:500;color:var(--muted);">${kmSub?'/'+s.km+' km':'km'}</div>
           </div>
           <div class="plan-session-move">
@@ -1211,16 +1212,17 @@ function renderPlan(){
 
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
-      const rowBg2=isDone?'rgba(59,109,17,0.06)':isSkip?'rgba(192,57,43,0.05)':typeBgC+'44';
-      return `<div class="plan-session-card" style="background:${rowBg2};">
+      const _rowGrad2=isDone?'linear-gradient(to right,rgba(59,109,17,0.10),rgba(59,109,17,0.03) 55%,transparent)':isSkip?'linear-gradient(to right,rgba(192,57,43,0.08),rgba(192,57,43,0.02) 55%,transparent)':`linear-gradient(to right,${typeBgC}55,${typeBgC}18 55%,transparent)`;
+      const _typePill2=isDone?`<span style="font-size:9px;font-weight:800;background:#D4EDBC;color:#2E6B10;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">✓ Validé</span>`:isSkip?`<span style="font-size:9px;font-weight:800;background:#FDECEA;color:#C0392B;padding:2px 7px;border-radius:10px;">✕ ${skipReason||'Passée'}</span>`:`<span style="font-size:9px;font-weight:800;background:${typeBgC};color:${typeC};padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">${lbl}</span>`;
+      return `<div class="plan-session-card" style="background:${_rowGrad2};">
         <div style="width:4px;background:linear-gradient(180deg,${isDone?'#3B6D11':isSkip?'#C0392B':typeC} 0%,${isDone?'#3B6D1160':isSkip?'#C0392B60':typeC+'60'} 100%);flex-shrink:0;"></div>
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
-          <div class="plan-session-icon" style="background:${iconBg};box-shadow:0 0 0 1.5px ${isDone?'rgba(59,109,17,0.25)':isSkip?'rgba(192,57,43,0.2)':typeC+'33'};">
+          <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${iconBg};box-shadow:0 2px 8px ${isDone?'rgba(59,109,17,0.18)':isSkip?'rgba(192,57,43,0.15)':typeC+'28'},0 0 0 1.5px ${isDone?'rgba(59,109,17,0.2)':isSkip?'rgba(192,57,43,0.18)':typeC+'22'};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            ${!isDone&&!isSkip?`<div style="font-size:10px;font-weight:900;color:${typeC};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${lbl}</div>`:''}
-            <div style="font-size:14px;font-weight:700;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}${edited?`&thinsp;<span style="font-size:10px;color:var(--blue);">✎</span>`:''}${isDone?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${isSkip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
+            <div style="margin-bottom:4px;">${_typePill2}${edited?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}</div>
+            <div style="font-size:14px;font-weight:700;color:${isDone?'#2E6B10':isSkip?'#C0392B':'var(--text)'};">${title}</div>
             ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
               if(isDone){
