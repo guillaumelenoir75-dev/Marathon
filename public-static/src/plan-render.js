@@ -790,11 +790,12 @@ function renderAthletePlan(el){
     const _kmC=isCur?'rgba(255,255,255,0.95)':allDone?'#3B6D11':'var(--text)';
     const _kmSubC=isCur?'rgba(255,255,255,0.60)':allDone?'#3B6D11aa':'var(--muted)';
 
-    // Dots de progression des séances
+    // Micro-pills de composition de la semaine (type de chaque séance)
     const totalSess=sessions.length;
     const doneSess=sessions.filter(({done})=>done).length;
     const skipSess=sessions.filter(({skip})=>skip).length;
-    const dotsHtml=totalSess>0&&(isCur||isPast)?`<div style="display:flex;gap:3px;align-items:center;margin-top:4px;">${sessions.map(({done,skip})=>`<div style="width:6px;height:6px;border-radius:50%;background:${done?'rgba(59,109,17,0.7)':skip?'rgba(192,57,43,0.5)':isCur?'rgba(255,255,255,0.3)':'var(--border)'};"></div>`).join('')}</div>`:'';
+    const typeAbbr={ef:'EF',tempo:'T',frac:'F',long:'L',race:'🏆'};
+    const dotsHtml=totalSess>0?`<div style="display:flex;gap:3px;align-items:center;margin-top:5px;flex-wrap:nowrap;overflow:hidden;">${sessions.map(({s,done,skip})=>{const tc=typeColor[s.type]||'#888';const tbg=typeBg[s.type]||'#f5f5f5';const abbr=typeAbbr[s.type]||'?';const bg=done?'#D4EDBC':skip?'#FDECEA':isCur?'rgba(255,255,255,0.2)':tbg;const color=done?'#2E6B10':skip?'#C0392B':isCur?'rgba(255,255,255,0.9)':tc;return `<span style="font-size:8px;font-weight:800;padding:2px 5px;border-radius:5px;background:${bg};color:${color};letter-spacing:0.03em;">${done?'✓ ':skip?'✕ ':''}${abbr}</span>`;}).join('')}</div>`:'';
 
     const statusHtml=`<div style="text-align:right;line-height:1.15;"><span style="font-size:20px;font-weight:900;color:${_kmC};">${kmTotal}</span><span style="font-size:10px;font-weight:700;color:${_kmSubC};"> km${allDone?' ✓':''}</span></div>`;
     const progressHtml=isCur
@@ -873,7 +874,8 @@ function renderAthletePlan(el){
         return '';
       })();
       const _rowGrad=done?'linear-gradient(to right,rgba(59,109,17,0.10),rgba(59,109,17,0.03) 55%,transparent)':skip?'linear-gradient(to right,rgba(192,57,43,0.08),rgba(192,57,43,0.02) 55%,transparent)':`linear-gradient(to right,${typeBgC}55,${typeBgC}18 55%,transparent)`;
-      const _typePill=done?`<span style="font-size:9px;font-weight:800;background:#D4EDBC;color:#2E6B10;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">✓ Validé</span>`:skip?`<span style="font-size:9px;font-weight:800;background:#FDECEA;color:#C0392B;padding:2px 7px;border-radius:10px;">✕ ${skipReason||'Passée'}</span>`:`<span style="font-size:9px;font-weight:800;background:${typeBgC};color:${typeC};padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">${lbl}</span>`;
+      const _emoji=(typeof typeEmoji!=='undefined'&&typeEmoji[s.type])||'';
+      const _typePill=done?`<span style="font-size:9px;font-weight:800;background:#D4EDBC;color:#2E6B10;padding:2px 8px;border-radius:10px;border-left:2px solid #3B6D11;letter-spacing:0.03em;">✓ Validé</span>`:skip?`<span style="font-size:9px;font-weight:800;background:#FDECEA;color:#C0392B;padding:2px 8px;border-radius:10px;border-left:2px solid #C0392B;">✕ ${skipReason||'Passée'}</span>`:`<span style="font-size:9px;font-weight:800;background:${typeBgC};color:${typeC};padding:2px 8px;border-radius:10px;border-left:2px solid ${typeC};text-transform:uppercase;letter-spacing:0.04em;">${_emoji?_emoji+' ':''}${lbl}</span>`;
       return `<div class="plan-session-card" style="background:${_rowGrad};">
         <div style="width:4px;background:linear-gradient(180deg,${done?'#3B6D11':skip?'#C0392B':typeC} 0%,${done?'#3B6D1160':skip?'#C0392B60':typeC+'60'} 100%);flex-shrink:0;"></div>
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
@@ -1213,7 +1215,8 @@ function renderPlan(){
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
       const _rowGrad2=isDone?'linear-gradient(to right,rgba(59,109,17,0.10),rgba(59,109,17,0.03) 55%,transparent)':isSkip?'linear-gradient(to right,rgba(192,57,43,0.08),rgba(192,57,43,0.02) 55%,transparent)':`linear-gradient(to right,${typeBgC}55,${typeBgC}18 55%,transparent)`;
-      const _typePill2=isDone?`<span style="font-size:9px;font-weight:800;background:#D4EDBC;color:#2E6B10;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">✓ Validé</span>`:isSkip?`<span style="font-size:9px;font-weight:800;background:#FDECEA;color:#C0392B;padding:2px 7px;border-radius:10px;">✕ ${skipReason||'Passée'}</span>`:`<span style="font-size:9px;font-weight:800;background:${typeBgC};color:${typeC};padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.05em;">${lbl}</span>`;
+      const _emoji2=(typeof typeEmoji!=='undefined'&&typeEmoji[s2.type])||'';
+      const _typePill2=isDone?`<span style="font-size:9px;font-weight:800;background:#D4EDBC;color:#2E6B10;padding:2px 8px;border-radius:10px;border-left:2px solid #3B6D11;letter-spacing:0.03em;">✓ Validé</span>`:isSkip?`<span style="font-size:9px;font-weight:800;background:#FDECEA;color:#C0392B;padding:2px 8px;border-radius:10px;border-left:2px solid #C0392B;">✕ ${skipReason||'Passée'}</span>`:`<span style="font-size:9px;font-weight:800;background:${typeBgC};color:${typeC};padding:2px 8px;border-radius:10px;border-left:2px solid ${typeC};text-transform:uppercase;letter-spacing:0.04em;">${_emoji2?_emoji2+' ':''}${lbl}</span>`;
       return `<div class="plan-session-card" style="background:${_rowGrad2};">
         <div style="width:4px;background:linear-gradient(180deg,${isDone?'#3B6D11':isSkip?'#C0392B':typeC} 0%,${isDone?'#3B6D1160':isSkip?'#C0392B60':typeC+'60'} 100%);flex-shrink:0;"></div>
         <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 12px;">
@@ -1221,7 +1224,7 @@ function renderPlan(){
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="margin-bottom:4px;">${_typePill2}${edited?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}</div>
+            <div style="margin-bottom:4px;">${_typePill2}${(edited||extra)?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">${extra&&!edited?'✚ ajoutée':'✎ modifié'}</span>`:''}</div>
             <div style="font-size:14px;font-weight:700;color:${isDone?'#2E6B10':isSkip?'#C0392B':'var(--text)'};">${title}</div>
             ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
@@ -1277,6 +1280,8 @@ function renderPlan(){
     const _hStyleA=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':phaseColA?`background:${phaseColA.hdr};`:'';
     const _dateCa=isCur?'rgba(255,255,255,0.9)':'var(--text)';
     const _topBarA=phaseColA&&!isCur?`<div style="height:3px;background:linear-gradient(90deg,${phaseColA.accent}55,${phaseColA.accent}22);"></div>`:'';
+    const _typeAbbrA={ef:'EF',tempo:'T',frac:'F',long:'L',race:'🏆'};
+    const _adminDotsHtml=allSessions.length>0?`<div style="display:flex;gap:3px;align-items:center;margin-top:5px;flex-wrap:nowrap;overflow:hidden;">${allSessions.map(({s:ss,si:xsi,extra:xe,ei:xe_i})=>{const isDoneA=xe?!!state[`extra_w${w.s}_s${xe_i}_done`]:!!state[gk(w.s,xsi)+'done'];const isSkipA=xe?!!state[`extra_w${w.s}_s${xe_i}_skip`]:!!state[gk(w.s,xsi)+'skip'];const tc=typeColor[ss.type]||'#888';const tbg=typeBg[ss.type]||'#f5f5f5';const abbr=_typeAbbrA[ss.type]||'?';const bg=isDoneA?'#D4EDBC':isSkipA?'#FDECEA':isCur?'rgba(255,255,255,0.2)':tbg;const color=isDoneA?'#2E6B10':isSkipA?'#C0392B':isCur?'rgba(255,255,255,0.9)':tc;return `<span style="font-size:8px;font-weight:800;padding:2px 5px;border-radius:5px;background:${bg};color:${color};letter-spacing:0.03em;">${isDoneA?'✓ ':isSkipA?'✕ ':''}${abbr}</span>`;}).join('')}</div>`:'';
 
     card.innerHTML = `
       ${_topBarA}
@@ -1285,6 +1290,7 @@ function renderPlan(){
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:${_dateCa};letter-spacing:-0.1px;">lun. ${w.date}</div>
           ${badges.length?`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">${badges.join('')}</div>`:''}
+          ${_adminDotsHtml}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           ${statusHtml}
