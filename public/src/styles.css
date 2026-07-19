@@ -96,25 +96,24 @@ input[type=number]:focus{border-color:var(--orange);}
   }
   @keyframes fadeSlideIn { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
 
-  /* ── Plan redesign ── */
-  .plan-week-card { background:var(--bg); border-radius:16px; overflow:hidden; margin-bottom:0; border:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,0.04); transition:box-shadow 0.2s; }
-  .plan-week-card.is-past { opacity:0.82; }
-  .plan-week-card.is-current { border-color:transparent; box-shadow:0 0 0 2px var(--blue), 0 4px 20px rgba(27,79,216,0.10); }
-  .plan-week-card.is-race { border-color:transparent; box-shadow:0 0 0 2px #D97706, 0 4px 16px rgba(217,119,6,0.12); }
-  .plan-week-header { display:flex; align-items:center; gap:10px; padding:14px 16px; cursor:pointer; user-select:none; }
+  /* ── Plan v3 pro ── */
+  .plan-week-card { background:var(--bg); border-radius:16px; overflow:hidden; border:1px solid var(--border); box-shadow:0 1px 6px rgba(0,0,0,0.06); transition:box-shadow 0.2s; }
+  .plan-week-card.is-past { opacity:0.80; }
+  .plan-week-card.is-current { border-color:transparent; box-shadow:0 0 0 2px var(--blue), 0 4px 24px rgba(27,79,216,0.12); }
+  .plan-week-card.is-race { border-color:transparent; box-shadow:0 0 0 2px #D97706, 0 4px 16px rgba(217,119,6,0.14); }
+  .plan-week-header { display:flex; align-items:center; gap:12px; padding:14px 16px 13px; cursor:pointer; user-select:none; }
   .plan-week-header:active { background:var(--bg2); }
-  .plan-week-num { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:800; }
-  .plan-session-card { display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--border); cursor:pointer; transition:background 0.12s; }
+  .plan-week-num { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:800; }
+  .plan-session-card { display:flex; align-items:stretch; border-top:1px solid var(--border); cursor:pointer; transition:background 0.12s; }
   .plan-session-card:active { background:var(--bg2); }
-  .plan-session-icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .plan-session-move { display:flex; flex-direction:column; gap:2px; padding:0; flex-shrink:0; width:20px; align-items:center; }
-  .plan-session-move button { background:none; border:none; cursor:pointer; padding:3px 2px; color:var(--muted); transition:color 0.15s; line-height:1; display:flex; align-items:center; justify-content:center; }
-  .plan-session-move button:not(:disabled) { color:var(--text); opacity:0.28; }
-  .plan-session-move button:not(:disabled):hover, .plan-session-move button:not(:disabled):active { color:var(--blue); opacity:1; }
-  .plan-session-move button:disabled { opacity:0.07; cursor:default; }
-  .plan-add-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--border); cursor:pointer; opacity:0.55; transition:opacity 0.15s; }
+  .plan-session-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .plan-session-move { display:flex; flex-direction:column; gap:2px; flex-shrink:0; width:20px; align-items:center; }
+  .plan-session-move button { background:none; border:none; cursor:pointer; padding:3px 2px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0.22; transition:opacity 0.15s; color:var(--text); }
+  .plan-session-move button:not(:disabled):hover, .plan-session-move button:not(:disabled):active { opacity:1; color:var(--blue); }
+  .plan-session-move button:disabled { opacity:0.06; cursor:default; }
+  .plan-add-row { display:flex; align-items:center; gap:12px; padding:10px 16px; border-top:1px solid var(--border); cursor:pointer; opacity:0.48; transition:opacity 0.15s; }
   .plan-add-row:hover, .plan-add-row:active { opacity:1; background:var(--bg2); }
-  .plan-progress-bar { height:4px; background:var(--bg2); border-radius:0; overflow:hidden; }
-  .plan-progress-fill { height:100%; border-radius:0; transition:width 0.5s ease; }
-  .plan-month-sep { display:flex; align-items:center; gap:10px; margin:22px 0 10px; }
+  .plan-progress-bar { height:3px; background:var(--bg2); overflow:hidden; }
+  .plan-progress-fill { height:100%; transition:width 0.5s ease; }
+  .plan-month-sep { display:flex; align-items:center; gap:12px; margin:24px 0 12px; padding:0 2px; }
   .plan-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; display:inline-flex; align-items:center; }

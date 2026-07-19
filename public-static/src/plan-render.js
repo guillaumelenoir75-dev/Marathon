@@ -776,8 +776,8 @@ function renderAthletePlan(el){
     const numBg=isCur?'var(--blue)':isPast?'var(--bg2)':'var(--bg2)';
     const numColor=isCur?'#fff':isPast?'var(--muted)':'var(--text)';
     const statusHtml=allDone
-      ?`<span style="font-size:13px;font-weight:700;color:#3B6D11;">${kmTotal}<span style="font-size:10px;font-weight:500;color:#3B6D11aa;"> km</span> <span style="font-size:11px;">✓</span></span>`
-      :`<span style="font-size:13px;font-weight:700;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}<span style="font-size:10px;font-weight:500;color:var(--muted);"> km</span></span>`;
+      ?`<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:#3B6D11;">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:#3B6D11aa;"> km ✓</span></div>`
+      :`<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
     const progressHtml=isCur
       ?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${weekDone}%;background:var(--blue);"></div></div>`
       :isPast?`<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`:'';
@@ -861,27 +861,28 @@ function renderAthletePlan(el){
         if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';
         return '';
       })();
-      return `<div class="plan-session-card" style="${done?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':skip?'background:linear-gradient(90deg,rgba(192,57,43,0.03),transparent);':''}">
-        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}30;">${iconContent}</div>
+      return `<div class="plan-session-card">
+        <div style="width:3px;background:${done?'#3B6D11':skip?'#C0392B':typeC};flex-shrink:0;"></div>
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 13px;">
+          <div class="plan-session-icon" style="background:${iconBg};">
+            ${iconContent}
+          </div>
           <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-              <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}</span>
-              ${done?`<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>`:''}
-              ${skip?`<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 6px;border-radius:8px;">✕ ${skipReason||'Non réalisée'}</span>`:''}
+            ${!done&&!skip?`<div style="font-size:9px;font-weight:800;color:${typeC};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">${lbl}</div>`:''}
+            <div style="font-size:14px;font-weight:700;color:${done?'#3B6D11':skip?'#C0392B':'var(--text)'};">${title}${done?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${skip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
+            ${detail?`<div style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
+            ${durHtml}
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              ${schedHtml}
+              ${s.shoe?shoeBadge(s.shoe):''}
             </div>
-            ${detail?`<p style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;">${detail}</p>`:''}
-            ${durHtml}${schedHtml}
-            ${sessionExplain?`<p style="font-size:10px;color:var(--muted);font-style:italic;margin-top:3px;line-height:1.4;">${sessionExplain}</p>`:''}
-            <div style="margin-top:2px;">${s.shoe?shoeBadge(s.shoe):''}</div>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:4px;padding-left:8px;">
-          <div style="text-align:right;">
-            <span style="font-size:13px;font-weight:700;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</span>
-            <span style="font-size:10px;font-weight:500;color:${done?'#3B6D11aa':'var(--muted)'};">${kmSub?kmSub+'&thinsp;km':'&thinsp;km'}</span>
+        <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
+          <div style="text-align:right;min-width:40px;">
+            <div style="font-size:17px;font-weight:800;color:${done?'#3B6D11':'var(--text)'};">${kmShow}</div>
+            <div style="font-size:9px;font-weight:500;color:var(--muted);">${kmSub?'/'+s.km+' km':'km'}</div>
           </div>
-          <button onclick="event.stopPropagation();openEditExtraModal(${ws},${eid})" style="font-size:10px;color:var(--blue);background:#EEF2FD;border:none;border-radius:8px;padding:2px 7px;cursor:pointer;font-weight:600;white-space:nowrap;">Détails →</button>
           <div class="plan-session-move">
             <button onclick="event.stopPropagation();moveExtraSession(${ws},${rowIdx},-1)" ${canUp?'':'disabled'}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
@@ -904,21 +905,18 @@ function renderAthletePlan(el){
     const card=document.createElement('div');
     card.className='plan-week-card'+(isCur?' is-current':isPast?' is-past':'')+(isRaceWeekCard?' is-race':'');
     card.innerHTML=`
-      ${progressHtml}
-      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${isRaceWeekCard?'background:linear-gradient(90deg,#FFFBEB,transparent);':''}">
+      <div class="plan-week-header" onclick="toggleAthleteWeek(${ws})" style="${isRaceWeekCard?'background:linear-gradient(135deg,#FFFBEB,transparent);':''}">
         <div class="plan-week-num" style="background:${isRaceWeekCard?'#D97706':numBg};color:${isRaceWeekCard?'#fff':numColor};">S${ws}</div>
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:var(--muted);">${weekDateLabel||'Semaine '+ws}</span>
-            ${badges.join('')}
-          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${weekDateLabel||'Semaine '+ws}</div>
+          ${badges.length?`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">${badges.join('')}</div>`:''}
         </div>
-        <div style="display:flex;align-items:center;flex-shrink:0;width:75px;">
-          <div style="width:52px;text-align:right;">${statusHtml}</div>
-          <div style="width:23px;display:flex;justify-content:flex-end;">${chevron}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          ${statusHtml}
+          ${chevron}
         </div>
       </div>
-      ${isOpen && isPast ? `<div style="padding:6px 12px 8px;font-size:10px;color:var(--muted);font-style:italic;text-align:center;">📋 Semaine passée — clique sur une séance pour voir ou modifier les détails</div>` : ''}
+      ${progressHtml}
       ${sessionRowsHtml}${addRowHtml}`;
     // Séparateur de mois (inséré avant la carte si changement de mois)
     if(weekMonthIdx>=0&&weekMonthIdx!==currentRenderMonth){
@@ -1098,8 +1096,8 @@ function renderPlan(){
     })() : null;
 
     const statusHtml = isPast||(isCur&&isCurrentAllDone)
-      ? `<span style="font-size:13px;font-weight:700;color:#3B6D11;">${realWeekKm}<span style="font-size:10px;font-weight:500;color:#3B6D11aa;"> km</span> <span style="font-size:11px;">✓</span></span>`
-      : `<span style="font-size:13px;font-weight:700;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}<span style="font-size:10px;font-weight:500;color:var(--muted);"> km</span></span>`;
+      ? `<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:#3B6D11;">${realWeekKm}</span><span style="font-size:10px;font-weight:600;color:#3B6D11aa;"> km ✓</span></div>`
+      : `<div style="text-align:right;line-height:1.15;"><span style="font-size:17px;font-weight:800;color:${isCur?'var(--blue)':'var(--text)'};">${kmTotal}</span><span style="font-size:10px;font-weight:600;color:var(--muted);"> km</span></div>`;
 
     // Barre de progression (semaine en cours uniquement)
     const progressHtml = isCur
@@ -1179,19 +1177,16 @@ function renderPlan(){
 
       const canUp=rowIdx>0, canDown=rowIdx<totalRows-1;
 
-      return `<div class="plan-session-card" style="${isDone?'background:linear-gradient(90deg,rgba(59,109,17,0.03),transparent);':isSkip?'background:linear-gradient(90deg,rgba(192,57,43,0.03),transparent);':''}">
-        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-          <div class="plan-session-icon" style="background:${iconBg};border:1.5px solid ${iconBorder}30;">
+      return `<div class="plan-session-card">
+        <div style="width:3px;background:${isDone?'#3B6D11':isSkip?'#C0392B':typeC};flex-shrink:0;"></div>
+        <div onclick="${clickFn}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:12px 0 12px 13px;">
+          <div class="plan-session-icon" style="background:${iconBg};">
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-              <span style="font-size:13px;font-weight:600;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}</span>
-              ${edited?`<span style="font-size:10px;color:var(--blue);">✎</span>`:''}
-              ${isDone?`<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>`:''}
-              ${isSkip?`<span style="font-size:10px;background:#FDECEA;color:#C0392B;padding:1px 6px;border-radius:10px;font-weight:600;">✕ ${skipReason||'Non réalisée'}</span>`:''}
-            </div>
-            ${detail?`<p style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;">${detail}</p>`:''}
+            ${!isDone&&!isSkip?`<div style="font-size:9px;font-weight:800;color:${typeC};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">${lbl}</div>`:''}
+            <div style="font-size:14px;font-weight:700;color:${isDone?'#3B6D11':isSkip?'#C0392B':'var(--text)'};">${title}${edited?`&thinsp;<span style="font-size:10px;color:var(--blue);">✎</span>`:''}${isDone?`&thinsp;<span style="font-size:11px;color:#3B6D11;">✓</span>`:''}${isSkip?`&ensp;<span style="font-size:10px;background:#FDECEA;color:#C0392B;font-weight:700;padding:1px 5px;border-radius:6px;">✕ ${skipReason||'Passée'}</span>`:''}</div>
+            ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
               if(isDone){
                 const perfRaw = extra ? state[`extra_w${w.s}_s${eid}_perf`] : state[gk(w.s,si)+'perf'];
@@ -1199,35 +1194,33 @@ function renderPlan(){
                 const rp = perf2.pace || null;
                 const rd = perf2.dur || null;
                 const parts=[];
-                if(rd) parts.push(`<span style="font-size:10px;font-weight:600;color:#3B6D11;">⏱ ${rd}</span>`);
-                if(rp) parts.push(`<span style="font-size:10px;color:#3B6D11;font-weight:600;">🏃 ${rp}/km</span>`);
-                return parts.length?`<div style="display:flex;gap:6px;align-items:center;margin-top:2px;">${parts.join('<span style="color:var(--border);"> · </span>')}</div>`:'';
+                if(rd) parts.push(`⏱ ${rd}`);
+                if(rp) parts.push(`🏃 ${rp}/km`);
+                return parts.length?`<div style="font-size:11px;font-weight:600;color:#3B6D11;margin-top:3px;display:flex;gap:8px;">${parts.join('<span style="opacity:0.4;"> · </span>')}</div>`:'';
               }
               const dur=calcSessionDuration(s2,getBestEfPace(),getMarathonPaceStr());
-              return dur?`<span style="font-size:10px;color:var(--muted);font-weight:500;">⏱ ~${dur}</span>`:'';
+              return dur?`<div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;">⏱ ~${dur}</div>`:'';
             })()}
-            ${schedHtml}
-            <div style="margin-top:2px;">${s2.shoe?shoeBadge(s2.shoe):''}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              ${schedHtml}
+              ${s2.shoe?shoeBadge(s2.shoe):''}
+            </div>
           </div>
         </div>
-        <!-- Colonne droite fixe 75px : km (52px) + flèches (23px) — identique au header -->
-        <div style="display:flex;align-items:center;flex-shrink:0;width:75px;">
+        <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
           ${(()=>{
             const rvPlan = extra ? state[`extra_w${w.s}_s${eid}_km`] : state[gk(w.s,si)+'km'];
             const kmShow = isDone && rvPlan!=null ? rvPlan : s2.km;
-            const sub = isDone && rvPlan!=null
-              ? `<span style="font-size:9px;font-weight:400;color:#3B6D11aa;"> /&nbsp;${s2.km}</span>`
-              : '';
-            return `<div style="width:52px;text-align:right;flex-shrink:0;">`
-              +`<span style="font-size:13px;font-weight:700;color:${isDone?'#3B6D11':'var(--text)'}">${kmShow}</span>`
-              +`<span style="font-size:10px;font-weight:500;color:${isDone?'#3B6D11aa':'var(--muted)'};">${sub ? sub+'&thinsp;km' : '&thinsp;km'}</span>`
-              +'</div>';
+            return `<div style="text-align:right;min-width:40px;">
+              <div style="font-size:17px;font-weight:800;color:${isDone?'#3B6D11':'var(--text)'};">${kmShow}</div>
+              <div style="font-size:9px;font-weight:500;color:var(--muted);">${isDone&&rvPlan!=null?'/'+s2.km+' km':'km'}</div>
+            </div>`;
           })()}
           <div class="plan-session-move">
-            <button onclick="moveSession(${w.s},${rowIdx},-1)" ${canUp?'':'disabled'} title="Monter">
+            <button onclick="event.stopPropagation();moveSession(${w.s},${rowIdx},-1)" ${canUp?'':'disabled'} title="Monter">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
             </button>
-            <button onclick="moveSession(${w.s},${rowIdx},1)" ${canDown?'':'disabled'} title="Descendre">
+            <button onclick="event.stopPropagation();moveSession(${w.s},${rowIdx},1)" ${canDown?'':'disabled'} title="Descendre">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
           </div>
@@ -1246,24 +1239,18 @@ function renderPlan(){
     const chevron = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5" style="transform:${isOpen?'rotate(180deg)':'rotate(0)'};transition:transform 0.25s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>`;
 
     card.innerHTML = `
-      ${progressHtml}
       <div class="plan-week-header" onclick="toggleWeek(${w.s})">
         <div class="plan-week-num" style="background:${numBg};color:${numColor};">S${w.s}</div>
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:var(--muted);">lun. ${w.date}</span>
-            ${badges.join('')}
-          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:-0.1px;">lun. ${w.date}</div>
+          ${badges.length?`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px;">${badges.join('')}</div>`:''}
         </div>
-        <div style="display:flex;align-items:center;flex-shrink:0;width:75px;">
-          <div style="width:52px;text-align:right;">
-            ${statusHtml}
-          </div>
-          <div style="width:23px;display:flex;justify-content:center;">
-            ${chevron}
-          </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          ${statusHtml}
+          ${chevron}
         </div>
       </div>
+      ${progressHtml}
       ${sessionRowsHtml}
       ${addRowHtml}
     `;
