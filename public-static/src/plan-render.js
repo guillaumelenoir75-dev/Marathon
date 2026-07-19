@@ -850,7 +850,7 @@ function renderAthletePlan(el){
       const schedHtml=(()=>{
         if(s.sched_day||s.sched_time){
           const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-          return `<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
+          return `<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
         }
         // Afficher la date de l'onboarding si disponible
         const dateKey=state[`extra_w${ws}_s${eid}_date`];
@@ -892,7 +892,7 @@ function renderAthletePlan(el){
           <div style="flex:1;min-width:0;">
             <div style="margin-bottom:4px;">${_typePill}</div>
             <div style="font-size:14px;font-weight:700;color:${done?'#2E6B10':skip?'#C0392B':'var(--text)'};">${title}</div>
-            ${detail?`<div style="font-size:11px;color:${done?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
+            ${detail?`<div style="font-size:12px;color:${done?'#5a8f2e':typeC};font-weight:600;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${durHtml}
             <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
               ${schedHtml}
@@ -917,11 +917,11 @@ function renderAthletePlan(el){
       </div>`;
     }).join(''):'';
 
-    const addRowHtml=isOpen?`<div class="plan-add-row" onclick="openAddModal(${ws})">
-      <div class="plan-session-icon" style="background:var(--bg2);border:1.5px dashed var(--border);">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    const addRowHtml=isOpen?`<div class="plan-add-row" onclick="openAddModal(${ws})" style="opacity:0.85;transition:opacity 0.15s;">
+      <div class="plan-session-icon" style="background:#EEF3FD;border:1.5px dashed #1B4FD855;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
-      <span style="font-size:12px;color:var(--muted);">Ajouter une séance</span>
+      <span style="font-size:12px;color:#1B4FD8;font-weight:600;">Ajouter une séance</span>
     </div>`:'';
 
     // Épine de phase (barre gauche pleine hauteur)
@@ -1204,7 +1204,7 @@ function renderPlan(){
             const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
             const dayStr=ed.sched_day?days[ed.sched_day]:'';
             const timeStr=ed.sched_time||'';
-            schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
+            schedHtml=`<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
           }
         }
       } else {
@@ -1239,7 +1239,7 @@ function renderPlan(){
           <div style="flex:1;min-width:0;">
             <div style="margin-bottom:4px;">${_typePill2}${(edited||extra)?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}</div>
             <div style="font-size:14px;font-weight:700;color:${isDone?'#2E6B10':isSkip?'#C0392B':'var(--text)'};">${title}</div>
-            ${detail?`<div style="font-size:11px;color:${isDone?'#5a8f2e':typeC};font-weight:500;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
+            ${detail?`<div style="font-size:12px;color:${isDone?'#5a8f2e':typeC};font-weight:600;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
               if(isDone){
                 const perfRaw = extra ? state[`extra_w${w.s}_s${eid}_perf`] : state[gk(w.s,si)+'perf'];
@@ -1281,11 +1281,11 @@ function renderPlan(){
       </div>`;
     }).join('') : '';
 
-    const addRowHtml = isOpen ? `<div class="plan-add-row" onclick="openAddModal(${w.s})">
-      <div class="plan-session-icon" style="background:var(--bg2);border:1.5px dashed var(--border);">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    const addRowHtml = isOpen ? `<div class="plan-add-row" onclick="openAddModal(${w.s})" style="opacity:0.85;transition:opacity 0.15s;">
+      <div class="plan-session-icon" style="background:#EEF3FD;border:1.5px dashed #1B4FD855;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
-      <span style="font-size:12px;color:var(--muted);">Ajouter une séance</span>
+      <span style="font-size:12px;color:#1B4FD8;font-weight:600;">Ajouter une séance</span>
     </div>` : '';
 
     // Chevron
