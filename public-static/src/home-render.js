@@ -529,6 +529,8 @@ function renderHome(){
         ${canEdit&&!done?`<button onclick="${editFn}" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Éditer
+        </button>`:done?`<button onclick="${editFn}" style="background:transparent;color:#aaa;border:1px solid #e0e8f5;border-radius:20px;padding:5px 9px;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          Modifier
         </button>`:''}
         ${isCurrent?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
           ${done
