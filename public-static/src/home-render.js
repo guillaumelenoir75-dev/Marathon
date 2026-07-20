@@ -324,7 +324,7 @@ function renderHome(){
     }
     // AM entraînement : visible pour admin et athlète avec plan
     if(amTrainBtn){
-      amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='default';
+      amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='pointer';
       amTrainBtn.style.background=''; amTrainBtn.style.border='';
       const amTrainElR=document.getElementById('kpi-am-training');
       if(amTrainElR) amTrainElR.style.opacity='';
@@ -348,7 +348,7 @@ function renderHome(){
     if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
       const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
       if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
-      if(amTrainLabelEl) amTrainLabelEl.textContent='allure cible';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='/km cible';
       // Grand chiffre : temps cible saisi dans questionnaire ou —
       const mtEl=document.getElementById('kpi-marathon-time');
       const targetTime=ob.target_time||state.target_time||null;
