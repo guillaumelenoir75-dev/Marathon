@@ -94,12 +94,20 @@ function renderHome(){
     const sepEl=document.getElementById('h-sep'); if(sepEl) sepEl.style.display='none';
     const gtBlock=document.getElementById('h-grand-total-block'); if(gtBlock) gtBlock.style.display='none';
   } else {
+    // Restaurer les éléments potentiellement cachés par un rendu Plaisir précédent
+    const progLabelRow=document.getElementById('h-prog-label')?.closest('div');
+    if(progLabelRow) progLabelRow.style.display='flex';
+    const barContainerEl=document.getElementById('h-bar');
+    if(barContainerEl) barContainerEl.parentElement.style.display='block';
+    const kmRowEl=document.getElementById('h-done-km')?.closest('div[style*="justify-content"]');
+    if(kmRowEl) kmRowEl.style.display='flex';
+    const gtBlock=document.getElementById('h-grand-total-block'); if(gtBlock) gtBlock.style.display='';
     const pct=gt>0?Math.round(td/gt*100):0;
-    const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'—';
+    const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'0%';
     const barEl=document.getElementById('h-bar'); if(barEl) barEl.style.width=pct+'%';
     const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Progression du plan';
     const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
-    const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt.toLocaleString('fr-FR')+' km';
+    const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt>0?gt.toLocaleString('fr-FR')+' km':'—';
     const gtLabel=document.getElementById('h-grand-total-label'); if(gtLabel) gtLabel.textContent='plan complet';
   }
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=gt>0?Math.max(0,gt-td).toLocaleString('fr-FR')+' km':'—';
