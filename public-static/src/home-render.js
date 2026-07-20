@@ -322,14 +322,18 @@ function renderHome(){
       predBtn.style.background=''; predBtn.style.border='';
       if(!isAdmin()) predBtn.onclick=()=>openTargetTimeModal();
     }
-    // AM entraînement : visible pour admin et athlète avec plan
+    // AM entraînement : visible pour admin uniquement (athlète : redondant avec /km marathon)
     if(amTrainBtn){
-      amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='pointer';
-      amTrainBtn.style.background=''; amTrainBtn.style.border='';
-      const amTrainElR=document.getElementById('kpi-am-training');
-      if(amTrainElR) amTrainElR.style.opacity='';
-      const amTrainLblR=document.getElementById('h-am-train-label');
-      if(amTrainLblR) amTrainLblR.style.fontSize='';
+      if(isAdmin()){
+        amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='pointer';
+        amTrainBtn.style.background=''; amTrainBtn.style.border='';
+        const amTrainElR=document.getElementById('kpi-am-training');
+        if(amTrainElR) amTrainElR.style.opacity='';
+        const amTrainLblR=document.getElementById('h-am-train-label');
+        if(amTrainLblR) amTrainLblR.style.fontSize='';
+      } else {
+        amTrainBtn.style.display='none';
+      }
     }
   }
   // Label objectif dynamique selon la course (isPlaisir déjà géré dans son bloc)
