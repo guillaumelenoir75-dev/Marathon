@@ -653,10 +653,10 @@ function obOnStartDateChange(){
   if(!el||!el.value){if(lbl)lbl.textContent='';return;}
   _obData.plan_start_date=el.value;
   const d=new Date(el.value+'T00:00:00');
-  const dow=d.getDay(); const offset=dow===0?-6:1-dow;
+  const dow=d.getDay(); const offset=dow===0?1:1-dow;
   const mon=new Date(d); mon.setDate(d.getDate()+offset);
   const opts={weekday:'long',day:'numeric',month:'long'};
-  if(lbl) lbl.textContent='→ Plan débutera le lundi '+mon.toLocaleDateString('fr-FR',opts);
+  if(lbl) lbl.textContent='→ Plan débutera le '+mon.toLocaleDateString('fr-FR',opts);
   const btn=document.getElementById('ob-btn-next');
   if(btn){btn.disabled=false;btn.style.opacity='1';}
 }
