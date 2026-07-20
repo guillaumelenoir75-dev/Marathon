@@ -209,7 +209,7 @@ function renderHome(){
     if(welcomeBlock) welcomeBlock.style.display='none';
     if(statsBlock) statsBlock.style.display='none';
     // ── GAUCHE : total km (grand chiffre) ──
-    if(marathonTimeBlock){ marathonTimeBlock.style.display='block'; marathonTimeBlock.style.cursor='default'; }
+    if(marathonTimeBlock){ marathonTimeBlock.style.display='block'; marathonTimeBlock.style.cursor='default'; marathonTimeBlock.onclick=null; }
     const goalLabelElP=document.getElementById('home-goal-label');
     if(goalLabelElP) goalLabelElP.textContent='🏃 Ma pratique';
     const mtElP=document.getElementById('kpi-marathon-time');
@@ -238,9 +238,9 @@ function renderHome(){
       if(efPaceP){
         amTrainBtnP.style.display='flex'; amTrainBtnP.style.cursor='default';
         const amTrainElP=document.getElementById('kpi-am-training');
-        if(amTrainElP) amTrainElP.textContent=efPaceP;
+        if(amTrainElP){ amTrainElP.textContent=efPaceP; amTrainElP.style.opacity=''; }
         const amTrainLblP=document.getElementById('h-am-train-label');
-        if(amTrainLblP) amTrainLblP.textContent='/km EF';
+        if(amTrainLblP){ amTrainLblP.textContent='/km EF'; amTrainLblP.style.fontSize=''; }
       } else {
         amTrainBtnP.style.display='none';
       }
@@ -274,7 +274,11 @@ function renderHome(){
   } else {
     if(raceKpiBlock) raceKpiBlock.style.display='block';
     if(noRaceBtn) noRaceBtn.style.display='none';
-    if(marathonTimeBlock) marathonTimeBlock.style.display='block';
+    if(marathonTimeBlock){
+      marathonTimeBlock.style.display='block';
+      // Restaurer onclick (peut avoir été nullifié par un render Plaisir précédent)
+      marathonTimeBlock.onclick=()=>{ isAdmin()?openMarathonPredModal():openTargetTimeModal(); };
+    }
     const mainRowEl=document.getElementById('home-header-main-row');
     if(mainRowEl) mainRowEl.style.display='flex';
     // Restaurer nav semaine et renfo (reset après un éventuel passage Plaisir)
@@ -282,15 +286,42 @@ function renderHome(){
     if(weekNavElR) weekNavElR.style.display='flex';
     const renfoSectionR=document.getElementById('home-renfo-section');
     if(renfoSectionR) renfoSectionR.style.display='block';
+    // Restaurer labels extra stats (peuvent avoir été modifiés par bloc Plaisir)
+    const kpiRestLblR=document.getElementById('kpi-rest-label');
+    if(kpiRestLblR) kpiRestLblR.textContent='🛣️ restants';
+    const kpiWeeksLblR=document.getElementById('kpi-weeks-left-label');
+    if(kpiWeeksLblR) kpiWeeksLblR.textContent='📆 course';
+    // Restaurer couleurs pred-btn (peuvent avoir été forcées par bloc Plaisir)
+    const predNumElR=document.getElementById('h-am-pred');
+    if(predNumElR) predNumElR.style.color='';
+    const predLblElR=document.getElementById('h-pred-label');
+    if(predLblElR) predLblElR.style.color='';
+    // today-date : sous-label du grand chiffre
+    const todayDateElR=document.getElementById('today-date');
+    if(todayDateElR){
+      if(!isAdmin()&&raceDateStr){
+        const rd=new Date(raceDateStr);
+        todayDateElR.textContent=rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+      } else {
+        todayDateElR.textContent='';
+      }
+    }
     const predBtn=document.getElementById('home-pred-btn');
     const amTrainBtn=document.getElementById('home-am-train-btn');
     // Temps cible cliquable pour admin et athlète avec plan
     if(predBtn){
       predBtn.style.cursor='pointer';
+      predBtn.style.background=''; predBtn.style.border='';
       if(!isAdmin()) predBtn.onclick=()=>openTargetTimeModal();
     }
     // AM entraînement : visible pour admin et athlète avec plan
-    if(amTrainBtn){ amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='default'; }
+    if(amTrainBtn){
+      amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='default';
+      const amTrainElR=document.getElementById('kpi-am-training');
+      if(amTrainElR) amTrainElR.style.opacity='';
+      const amTrainLblR=document.getElementById('h-am-train-label');
+      if(amTrainLblR) amTrainLblR.style.fontSize='';
+    }
   }
   // Label objectif dynamique selon la course (isPlaisir déjà géré dans son bloc)
   const goalLabelEl=document.getElementById('home-goal-label');
