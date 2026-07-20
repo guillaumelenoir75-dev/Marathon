@@ -758,7 +758,7 @@
     </div>
     <div id="ob-step-0">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 1 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Quelle course prépares-tu ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:32px;">Quelle course prépares-tu ?</h2>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('course','5 km')" class="ob-chip" id="ob-course-5 km">🚀 5 km</button>
         <button onclick="onboardingSelect('course','10 km')" class="ob-chip" id="ob-course-10 km">⚡ 10 km</button>
@@ -769,7 +769,7 @@
     </div>
     <div id="ob-step-1" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 2 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Date de ta course ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:32px;">Date de ta course ?</h2>
       <div style="display:flex;gap:8px;">
         <select id="ob-date-day" onchange="obDateChanged()" style="flex:1;padding:14px 10px;border:2px solid #e0e0e0;border-radius:14px;font-size:15px;font-weight:700;background:#fff;color:#1a1a1a;outline:none;-webkit-appearance:auto;">
           <option value="">Jour</option>
@@ -796,7 +796,7 @@
     </div>
     <div id="ob-step-2" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 3 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Séances de course par semaine ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:32px;">Séances de course par semaine ?</h2>
       <div style="display:flex;gap:12px;">
         <button onclick="onboardingSelect('sessions','1')" class="ob-chip ob-chip-sm" id="ob-sessions-1">1</button>
         <button onclick="onboardingSelect('sessions','2')" class="ob-chip ob-chip-sm" id="ob-sessions-2">2</button>
@@ -809,7 +809,7 @@
     <div id="ob-step-3" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 4 / 10</p>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin:0;">Quel est ton niveau ?</h2>
+        <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin:0;">Quel est ton niveau ?</h2>
       </div>
       <button onclick="openGlossary('allure')" style="display:inline-flex;align-items:center;gap:5px;background:#EEF2FD;border:1px solid #c7d7f8;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;margin-bottom:16px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -826,7 +826,7 @@
     </div>
     <div id="ob-step-4" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 5 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:10px;">Combien de km cours-tu par semaine actuellement ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:10px;">Combien de km cours-tu par semaine actuellement ?</h2>
       <p style="font-size:13px;color:#888;margin-bottom:16px;line-height:1.5;">Compte tes sorties des 4 dernières semaines en moyenne, repos inclus.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('km_semaine','10')" class="ob-chip" id="ob-km_semaine-10">🐢 Moins de 15 km</button>
@@ -850,7 +850,7 @@
     </div>
     <div id="ob-step-5" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 6 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:6px;">Quels jours cours-tu ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:6px;">Quels jours cours-tu ?</h2>
       <p id="ob-days-hint" style="font-size:13px;color:#1B4FD8;font-weight:600;margin-bottom:16px;">Sélectionne exactement <span id="ob-days-count">?</span> jours</p>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:16px;">
         <button onclick="toggleObDay(0)" class="ob-chip" id="ob-day-0" style="padding:14px 0;text-align:center;font-size:13px;font-weight:700;border-radius:12px;">Lun</button>
@@ -869,7 +869,7 @@
 
     <div id="ob-step-6" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 7 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:8px;">Tu connais ton allure EF ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:8px;">Tu connais ton allure EF ?</h2>
       <p style="font-size:14px;color:#555;margin-bottom:12px;line-height:1.5;">L'allure Endurance Fondamentale (EF) est ton allure de base, celle où tu peux tenir une conversation. Elle sera affichée sur l'accueil et dans ton plan.</p>
       <button onclick="openGlossary('ef')" style="display:inline-flex;align-items:center;gap:5px;background:#EEF2FD;border:1px solid #c7d7f8;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;margin-bottom:16px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -895,7 +895,7 @@
 
     <div id="ob-step-7" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 8 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:10px;">Ta fréquence cardiaque max ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:10px;">Ta fréquence cardiaque max ?</h2>
       <p style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;">Sers à calculer ta zone d'effort fondamental (70–75 % FC max). Si tu ne la connais pas, indique ton âge — on l'estimera avec la formule 220 − âge.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="background:#fff;border-radius:14px;padding:16px;border:1.5px solid #e0e8f5;">
@@ -918,7 +918,7 @@
 
     <div id="ob-step-9" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 9 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:8px;">Quand commence ton plan ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:8px;">Quand commence ton plan ?</h2>
       <p style="font-size:14px;color:#666;margin-bottom:24px;">Par défaut, le plan commence la semaine prochaine. Tu peux choisir une autre date si tu es en vacances ou si tu veux démarrer plus tôt.</p>
       <div style="background:#fff;border-radius:14px;padding:18px;border:1.5px solid #e0e8f5;margin-bottom:16px;">
         <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Date de début souhaitée</p>
@@ -930,7 +930,7 @@
 
     <div id="ob-step-8" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 10 / 10</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:12px;">On te génère un programme ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;text-wrap:balance;margin-bottom:12px;">On te génère un programme ?</h2>
       <div id="ob-target-time-wrap" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1.5px solid #e0e8f5;margin-bottom:16px;">
         <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">🎯 Temps cible (optionnel)</p>
         <p id="ob-target-time-label" style="font-size:13px;color:#555;margin-bottom:10px;"></p>
