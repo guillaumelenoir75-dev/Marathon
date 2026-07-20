@@ -276,7 +276,8 @@ function generateAthletePlan(ob){
     }[course]||{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940};
     tempoPaceSec=Math.round(racePaceSec*(tm[niveau]||0.952));
   } else if(effectiveEfSec){
-    tempoPaceSec=effectiveEfSec+(niveau==='Débutant'?-52:niveau==='Confirmé'?-78:-62);
+    // Pas d'allure course connue : tempo = EF × 0.88 (seuil lactate, même ratio que l'accueil)
+    tempoPaceSec=Math.round(effectiveEfSec*0.88);
   }
   if(tempoPaceSec&&effectiveEfSec&&tempoPaceSec>effectiveEfSec-25) tempoPaceSec=effectiveEfSec-30;
   const tempoLbl=tempoPaceSec?fmtPace(tempoPaceSec):null;
@@ -288,9 +289,10 @@ function generateAthletePlan(ob){
     fracPaceSec=Math.round(racePaceSec*fm);
     fracMinPaceSec=Math.round(fracPaceSec*0.965);
   } else if(effectiveEfSec){
-    fracPaceSec=effectiveEfSec+({'5 km':-98,'10 km':-88,'Semi-marathon':-80,'Marathon':-75}[course]||-80);
+    // Pas d'allure course connue : fractionné = EF × 0.72 (VO2max ~97% VMA)
+    fracPaceSec=Math.round(effectiveEfSec*0.72);
     if(fracPaceSec<150) fracPaceSec=null; // valeur aberrante (< 2'30/km)
-    else fracMinPaceSec=fracPaceSec-12;
+    else fracMinPaceSec=Math.round(fracPaceSec*0.965);
   }
   if(fracPaceSec&&tempoPaceSec&&fracPaceSec>tempoPaceSec-18){fracPaceSec=tempoPaceSec-22;fracMinPaceSec=fracPaceSec-10;}
   const fracLbl=fracPaceSec?fmtPace(fracPaceSec):null;
