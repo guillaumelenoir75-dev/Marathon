@@ -3,13 +3,37 @@ function updateShoeMax(name, val){
   const sh=arr.find(s=>s.name===name);
   if(sh){sh.max=parseInt(val)||600;saveShoes(arr);rendered.stats=false;renderStats();}
 }
+let _pendingDeleteShoe=null;
 function deleteShoe(name){
-  if(!confirm(`Supprimer "${name}" ?`)) return;
+  _pendingDeleteShoe=name;
+  const mc=document.getElementById('modal-container');
+  const ov=document.createElement('div');
+  ov.className='modal-overlay';
+  ov.style.setProperty('--_overlay-bg','rgba(0,0,0,0.45)');
+  ov.innerHTML=`<div class="modal-box" style="padding:28px 20px 20px;text-align:center;">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 20px;"></div>
+    <div style="width:48px;height:48px;background:#FEF2F2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+    </div>
+    <p style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Supprimer cette paire ?</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:22px;">${name}</p>
+    <button onclick="_doDeleteShoe()" style="width:100%;padding:13px;background:#FEF2F2;color:#DC2626;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">Supprimer</button>
+    <button onclick="closeModal()" style="width:100%;padding:13px;background:var(--bg2);color:var(--muted);border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeModal();};
+  _lockBodyScroll();
+  mc.appendChild(ov);
+  _initSwipeToDismiss(ov,ov.querySelector('.modal-box'));
+}
+function _doDeleteShoe(){
+  const name=_pendingDeleteShoe; _pendingDeleteShoe=null;
+  closeModal();
   const arr=getShoes().filter(s=>s.name!==name);
   saveShoes(arr);
   rendered.stats=false;
   renderStats();
   renderHome();
+  showToast('Paire supprimée','🗑️');
 }
 function _shoeModalHtml({title, namePlaceholder='ex: Nike Pegasus 41', nameVal='', color='#1438A8', maxVal=600, saveBtn, colors=['#1438A8','#E8530A','#3B6D11','#534AB7','#D4537E','#C4960A','#888780','#0C447C']}){
   const colorBtns=colors.map(c=>`<button type="button" onclick="selectShoeColor('${c}')" id="sc-${c.replace('#','')}"
@@ -210,7 +234,6 @@ function saveEditShoe(oldName){
   if(!sh) return;
   sh.name=newName; sh.color=color; sh.max=max;
   saveShoes(arr);
-  // Mettre à jour le champ shoe dans toutes les séances éditées qui référencent l'ancien nom
   if(oldName !== newName){
     Object.keys(state).forEach(k=>{
       if(/^edit_w\d+_s\d+$/.test(k)||/^extra_w\d+_s\d+$/.test(k)){
@@ -229,6 +252,7 @@ function saveEditShoe(oldName){
   rendered.stats=false;
   renderStats();
   renderHome();
+  showToast('Chaussure modifiée','👟');
 }
 
 function saveNewShoe(){
@@ -252,6 +276,7 @@ function saveNewShoe(){
   rendered.stats=false;
   renderStats();
   renderHome();
+  showToast('Paire ajoutée','👟');
   setTimeout(checkCoachAlerts, 500);
 }
 

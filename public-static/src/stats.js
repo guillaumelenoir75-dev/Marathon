@@ -165,19 +165,21 @@ function renderStats(){
     const row=document.createElement('div');
     row.style.cssText='margin-bottom:14px;';
     row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="openShoeHistory('${sh.name}')">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="openShoeHistory('${sh.name}')" title="Voir l'historique des séances">
         <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};display:inline-block;flex-shrink:0;"></span>
         <span style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px dashed var(--border);">${sh.name}</span>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+        <span style="font-size:10px;color:var(--muted);font-weight:500;">Historique</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <span style="font-size:13px;color:var(--text);">${km} <span style="color:var(--muted);">/ ${sh.max} km</span></span>
-        <div style="display:flex;gap:4px;">
-          <button onclick="openEditShoeModal('${sh.name}')" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <div style="display:flex;gap:6px;">
+          <button onclick="openEditShoeModal('${sh.name}')" aria-label="Modifier ${sh.name}" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);padding:4px 8px;display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Modifier
           </button>
-          <button onclick="deleteShoe('${sh.name}')" style="background:none;border:none;cursor:pointer;color:#E24B4A;padding:2px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          <button onclick="deleteShoe('${sh.name}')" aria-label="Supprimer ${sh.name}" style="background:#FEF2F2;border:1px solid #fecaca;border-radius:8px;cursor:pointer;color:#DC2626;padding:4px 8px;display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+            Supprimer
           </button>
         </div>
       </div>

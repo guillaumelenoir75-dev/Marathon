@@ -453,3 +453,15 @@ const _WMO_LABELS_NIGHT = {
   95:'Orage ⛈️', 96:'Orage avec grêle ⛈️', 99:'Orage violent ⛈️'
 };
 
+function showToast(msg, icon) {
+  icon = icon || '✓';
+  const existing = document.getElementById('_global-toast');
+  if (existing) { clearTimeout(existing._t); existing.remove(); }
+  const t = document.createElement('div');
+  t.id = '_global-toast';
+  t.style.cssText = 'position:fixed;bottom:calc(82px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:11px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.25);animation:msg-enter 0.25s ease;white-space:nowrap;pointer-events:none;';
+  t.innerHTML = '<span style="font-size:15px;">' + icon + '</span><span>' + msg + '</span>';
+  document.body.appendChild(t);
+  t._t = setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.4s'; setTimeout(() => { if(t.parentNode) t.remove(); }, 400); }, 2200);
+}
+

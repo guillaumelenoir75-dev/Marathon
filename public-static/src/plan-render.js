@@ -719,12 +719,16 @@ function renderAthletePlan(el){
   // Boutons de gestion du plan
   const actionBanner=document.createElement('div');
   actionBanner.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;';
-  const regenBtn=_adminPreviewUid?'':`<button onclick="showOnboarding(true)" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
+  const regenBtn=_adminPreviewUid?'':`<button onclick="confirmModifyPlan()" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
   const updateBtn=_adminPreviewUid?`<button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>`:'';
   const regenDateBtn=_adminPreviewUid?`<button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Regen. date</button>`:'';
   const delBtn=_adminPreviewUid?`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>`:'';
+  const legendBtn=`<button onclick="openPlanGlossary()" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Comprendre les types de séances et les phases">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    Légende
+  </button>`;
   actionBanner.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-bottom:12px;';
-  actionBanner.innerHTML=regenBtn+updateBtn+regenDateBtn+delBtn;
+  actionBanner.innerHTML=legendBtn+regenBtn+updateBtn+regenDateBtn+delBtn;
   el.appendChild(actionBanner);
 
   let currentRenderMonth=-1; // pour séparateurs de mois
@@ -1352,4 +1356,85 @@ function renderPlan(){
     </div>
     <div style="height:3px;background:linear-gradient(90deg,#FCD34D,#D97706,#92400E);"></div>`;
   el.appendChild(jourJCard);
+}
+
+function confirmModifyPlan(){
+  const mc=document.getElementById("modal-container");
+  const ov=document.createElement("div");
+  ov.className="modal-overlay";
+  ov.style.setProperty("--_overlay-bg","rgba(0,0,0,0.45)");
+  ov.innerHTML=`<div class="modal-box" style="padding:28px 20px 20px;">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 20px;"></div>
+    <p style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px;">Recalculer ton plan ?</p>
+    <p style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px;">Cela va relancer la configuration du plan (distance, niveau, disponibilités…) et <strong>régénérer toutes les semaines</strong>. Tes séances validées et tes performances sont conservées.</p>
+    <button onclick="closeModal();showOnboarding(true);" style="width:100%;padding:13px;background:#EEF2FD;color:#1B4FD8;border:1.5px solid #c7d7f8;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">✏️ Continuer</button>
+    <button onclick="closeModal()" style="width:100%;padding:13px;background:var(--bg2);color:var(--muted);border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Annuler</button>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeModal();};
+  _lockBodyScroll();
+  mc.appendChild(ov);
+  _initSwipeToDismiss(ov,ov.querySelector(".modal-box"));
+}
+
+function openPlanGlossary(){
+  const mc=document.getElementById("modal-container");
+  const ov=document.createElement("div");
+  ov.className="modal-overlay";
+  ov.style.setProperty("--_overlay-bg","rgba(0,0,0,0.45)");
+  ov.innerHTML=`<div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#0C447C,#1B4FD8);padding:20px 20px 16px;border-radius:var(--radius) var(--radius) 0 0;flex-shrink:0;">
+      <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.3);margin:0 auto 14px;"></div>
+      <p style="font-size:17px;font-weight:800;color:#fff;margin:0;">Comprendre ton plan</p>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px;">Types de séances · Phases d&rsquo;entraînement</p>
+    </div>
+    <div style="padding:20px;">
+      <p style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Types de séances</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:#EDF7EF;color:#2F6E44;flex-shrink:0;margin-top:1px;">EF</span>
+          <div><p style="font-size:13px;font-weight:700;color:var(--text);margin:0 0 2px;">Endurance fondamentale</p><p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Allure confort, tu peux parler. C&rsquo;est la base de tout plan — représente 70–80 % de ton volume. Développe l&rsquo;aérobie et la récupération.</p></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:#FEF3EE;color:#C2410C;flex-shrink:0;margin-top:1px;">T</span>
+          <div><p style="font-size:13px;font-weight:700;color:var(--text);margin:0 0 2px;">Tempo</p><p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Allure soutenue mais contrôlée (inconfortable, pas soutenable plus de 45–60 min). Améliore ton seuil lactique — tu cours plus vite sans t&rsquo;essouffler.</p></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:#FEF2F2;color:#C4141B;flex-shrink:0;margin-top:1px;">F</span>
+          <div><p style="font-size:13px;font-weight:700;color:var(--text);margin:0 0 2px;">Fractionné</p><p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Intervalles courts et intenses, entrecoupés de récupération. Développe la VO₂max et la vitesse. Ex : 6 × 2 min à fond, 2 min de trot entre.</p></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:#F3EEFF;color:#7C3AED;flex-shrink:0;margin-top:1px;">L</span>
+          <div><p style="font-size:13px;font-weight:700;color:var(--text);margin:0 0 2px;">Sortie longue</p><p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">La séance clé du plan. Allure EF ou légèrement plus rapide en fin. Adapte le corps à encaisser la distance et à utiliser les graisses comme carburant.</p></div>
+        </div>
+      </div>
+      <p style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Phases du plan</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#F3F4F6;color:#4B5563;flex-shrink:0;margin-top:1px;">Base</span>
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Construction de l&rsquo;aérobie. Volume modéré, allures faciles, travail de fond. La phase la plus longue et la plus importante.</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#FEF3EE;color:#C2410C;flex-shrink:0;margin-top:1px;">Construction</span>
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Montée en charge progressive. Volume augmente, premiers tempos et fractionnés apparaissent. Tu sens la fatigue s&rsquo;accumuler — c&rsquo;est normal.</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#EEF2FD;color:#1B4FD8;flex-shrink:0;margin-top:1px;">Spécifique</span>
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Préparation à la compétition. Séances longues à allure marathon, simulations de course. Le pic de forme est juste devant toi.</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#EDF7EF;color:#2F6E44;flex-shrink:0;margin-top:1px;">Affûtage</span>
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Réduction du volume (pas de l&rsquo;intensité). Le corps stocke de l&rsquo;énergie. Se sentir &laquo; pas assez entraîné &raquo; est normal — tu es en train de récupérer pour être au top le jour J.</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#FEF3EE;color:#E8530A;flex-shrink:0;margin-top:1px;">Décharge</span>
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.4;">Semaine de récupération intercalée toutes les 3–4 semaines. Volume réduit de 20–30 %. Indispensable pour absorber le travail et éviter le surentraînement.</p>
+        </div>
+      </div>
+      <button onclick="closeModal()" style="width:100%;padding:13px;background:#EEF2FD;color:#1B4FD8;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">Compris !</button>
+    </div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeModal();};
+  _lockBodyScroll();
+  mc.appendChild(ov);
+  _initSwipeToDismiss(ov,ov.querySelector(".modal-box"));
 }

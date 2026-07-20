@@ -350,6 +350,7 @@ function saveEdit(ws, si){
   rendered.stats=false;
   renderPlan();
   renderHome();
+  showToast('Séance modifiée','✓');
 }
 
 function resetSession(ws, si){
@@ -932,6 +933,7 @@ function saveExtraEdit(ws, ei){
   }
   state[`extra_w${ws}_s${ei}`]=JSON.stringify(updatedExtra);
   save();closeModal();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
+  showToast('Séance modifiée','✓');
   if(_adminPreviewUid) _refreshAthleteCoachView();
 }
 
