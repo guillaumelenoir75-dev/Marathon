@@ -453,6 +453,89 @@ const _WMO_LABELS_NIGHT = {
   95:'Orage ⛈️', 96:'Orage avec grêle ⛈️', 99:'Orage violent ⛈️'
 };
 
+const _GLOSSARY = [
+  {
+    section: 'Types de séances',
+    terms: [
+      { id:'ef', label:'EF — Endurance Fondamentale', body:'Ton allure de base, celle où tu peux tenir une conversation. Confort total, tu n\'es jamais à bout de souffle. C\'est 70–80 % de ton volume hebdomadaire. Elle développe l\'aérobie, améliore l\'utilisation des graisses et favorise la récupération entre les séances dures.' },
+      { id:'tempo', label:'Tempo', body:'Allure soutenue mais contrôlée — inconfortable, mais pas à fond. Tu peux prononcer des mots mais pas faire une phrase complète. Généralement 20–40 min en continu. Améliore le seuil lactique : tu cours plus vite sans t\'essouffler.' },
+      { id:'frac', label:'F — Fractionné', body:'Intervalles courts et intenses entrecoupés de récupération (trot ou marche). Exemple : 6 × 2 min rapide, 2 min de trot. Développe la VO₂max et la vitesse de course. Séance exigeante, à récupérer sérieusement après.' },
+      { id:'long', label:'L — Sortie longue', body:'La séance clé du plan, en général le weekend. Allure EF ou légèrement plus rapide en fin. Habitue le corps à encaisser la distance, développe les réserves de glycogène et entraîne l\'utilisation des graisses comme carburant principal.' },
+      { id:'am', label:'AM — Allure Marathon', body:'L\'allure à laquelle tu vises de courir ta course. Légèrement plus rapide que l\'EF, très maîtrisée. Dans le plan, des blocs AM apparaissent dans les sorties longues en phase Spécifique pour t\'y habituer.' },
+    ]
+  },
+  {
+    section: 'Physiologie & mesures',
+    terms: [
+      { id:'allure', label:'Allure (min/km)', body:'Temps mis pour courir un kilomètre. Exemple : 5:30/km = 5 minutes et 30 secondes par kilomètre. Plus le chiffre est bas, plus tu cours vite. À ne pas confondre avec la vitesse en km/h (qui s\'inverse).' },
+      { id:'fc', label:'FC — Fréquence Cardiaque', body:'Nombre de battements de cœur par minute (bpm). En course, la FC monte avec l\'effort. Les zones de FC permettent de calibrer l\'intensité des séances : une EF se court à 65–75 % de ta FC max.' },
+      { id:'fcmax', label:'FC max', body:'Ta fréquence cardiaque maximale — le nombre de bpm que ton cœur peut atteindre à l\'effort maximal. Elle est individuelle (ne dépend pas de la forme du jour). Estimation rapide : 220 – âge, mais mesurer sur le terrain est plus fiable.' },
+      { id:'fcrepos', label:'FC repos', body:'Ta fréquence cardiaque au réveil, avant de te lever. Un coureur entraîné l\'a généralement entre 40 et 55 bpm. Une FC repos plus élevée que d\'habitude (+5 bpm) est un signal de fatigue ou de maladie : adapter l\'entraînement.' },
+      { id:'vo2max', label:'VO₂max', body:'Volume maximal d\'oxygène (en ml) que ton corps peut consommer par minute et par kg de poids. C\'est l\'indicateur clé de la capacité aérobie. Une VO₂max élevée permet de courir vite longtemps. Elle s\'améliore avec le fractionné et la régularité.' },
+      { id:'vfc', label:'VFC — Variabilité de la FC', body:'Variation du temps entre deux battements consécutifs. Une VFC élevée indique que le système nerveux est bien récupéré — le corps est prêt à encaisser une séance dure. Une VFC basse signale de la fatigue ou du stress. Mesurée notamment par WHOOP et Garmin.' },
+    ]
+  },
+  {
+    section: 'Phases du plan',
+    terms: [
+      { id:'base', label:'Phase Base', body:'Première phase du plan. Volume modéré, allures faciles, travail de fond. L\'objectif est de construire une base aérobie solide avant d\'augmenter l\'intensité. C\'est la phase la plus longue et la plus déterminante du plan.' },
+      { id:'construction', label:'Phase Construction', body:'Montée en charge progressive. Le volume augmente, les premiers tempos et fractionnés apparaissent. La fatigue s\'accumule — c\'est normal et voulu. Le corps s\'adapte à des charges qu\'il n\'avait jamais vues.' },
+      { id:'specifique', label:'Phase Spécifique', body:'Préparation directe à la compétition. Séances longues à allure marathon, simulations de parcours. Volume proche du pic, intensité haute. Le pic de forme est juste devant toi.' },
+      { id:'affutage', label:'Affûtage', body:'Réduction progressive du volume (pas de l\'intensité) dans les 2–3 semaines avant la course. Le corps stocke de l\'énergie et répare les micro-lésions musculaires. Se sentir "pas assez entraîné" est normal — c\'est le signe que tu récupères bien.' },
+      { id:'decharge', label:'Semaine de décharge', body:'Semaine de récupération intercalée toutes les 3–4 semaines. Volume réduit de 20–30 %. Indispensable pour absorber le travail accumulé, éviter le surentraînement et progresser réellement.' },
+      { id:'pic', label:'Semaine Pic', body:'La semaine de volume le plus élevé de tout le plan. Elle marque le sommet de la préparation avant le début de l\'affûtage. Après le pic, le corps commence à récupérer pour être au maximum le jour J.' },
+    ]
+  }
+];
+
+function _glossTermBadge(termId) {
+  return `<span onclick="openGlossary('${termId}')" role="button" tabindex="0" aria-label="Définition" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#EEF2FD;color:#1B4FD8;font-size:9px;font-weight:800;cursor:pointer;vertical-align:middle;margin-left:4px;flex-shrink:0;border:1px solid #c7d7f8;">?</span>`;
+}
+
+function openGlossary(termId) {
+  const mc = document.getElementById('modal-container');
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.style.setProperty('--_overlay-bg','rgba(0,0,0,0.45)');
+  let sectionsHtml = '';
+  _GLOSSARY.forEach(sec => {
+    sectionsHtml += `<p style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:0 0 10px;">${sec.section}</p>`;
+    sec.terms.forEach(t => {
+      sectionsHtml += `<div id="glossary-term-${t.id}" style="margin-bottom:14px;padding:12px 14px;background:var(--bg2);border-radius:12px;border:1.5px solid var(--border);transition:background 0.3s;">
+        <p style="font-size:13px;font-weight:700;color:var(--text);margin:0 0 5px;">${t.label}</p>
+        <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.55;">${t.body}</p>
+      </div>`;
+    });
+    sectionsHtml += '<div style="height:10px;"></div>';
+  });
+  ov.innerHTML = `<div class="modal-box" style="max-height:90vh;overflow-y:auto;" id="glossary-modal-box">
+    <div style="background:linear-gradient(135deg,#0C447C,#1B4FD8);padding:20px 20px 16px;border-radius:var(--radius) var(--radius) 0 0;position:sticky;top:0;z-index:1;">
+      <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.3);margin:0 auto 14px;"></div>
+      <p style="font-size:17px;font-weight:800;color:#fff;margin:0;">Glossaire</p>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px;">Tous les termes de la course à pied</p>
+    </div>
+    <div style="padding:20px;" id="glossary-content">${sectionsHtml}</div>
+    <div style="padding:0 20px 20px;">
+      <button onclick="closeModal()" style="width:100%;padding:13px;background:#EEF2FD;color:#1B4FD8;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">Fermer</button>
+    </div>
+  </div>`;
+  ov.onclick = e => { if(e.target === ov) closeModal(); };
+  _lockBodyScroll();
+  mc.appendChild(ov);
+  _initSwipeToDismiss(ov, ov.querySelector('.modal-box'));
+  if(termId) {
+    setTimeout(() => {
+      const el = document.getElementById('glossary-term-' + termId);
+      if(el) {
+        el.scrollIntoView({behavior:'smooth', block:'center'});
+        el.style.background = '#EEF2FD';
+        el.style.borderColor = '#1B4FD8';
+        setTimeout(() => { el.style.background = 'var(--bg2)'; el.style.borderColor = 'var(--border)'; }, 1800);
+      }
+    }, 200);
+  }
+}
+
 function showToast(msg, icon) {
   icon = icon || '✓';
   const existing = document.getElementById('_global-toast');
