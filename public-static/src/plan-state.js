@@ -393,6 +393,14 @@ function updateMarathonPace(){
   return false;
 }
 
+// Source de vérité unique pour distinguer un coureur "plaisir" d'un coureur avec objectif de course.
+// À utiliser partout à la place de `course === 'Plaisir'` inline.
+function isPlaisirMode(st) {
+  if (isAdmin()) return false;
+  const course = ((st || state).onboarding || {}).course;
+  return !course || course === 'Plaisir';
+}
+
 function save(){
   if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
   setTimeout(checkCoachAlerts, 100);

@@ -1245,11 +1245,15 @@ async function saveOnboarding(){
       // Sauvegarder onboarding
       if(dbRef){
         state.onboarding=_obData;
+        const _goalType=(_obData.course==='Plaisir'||!_obData.course)?'wellness':'race';
+        state.goal_type=_goalType;
         if(_adminPreviewUid){
           const _t=await getAuthToken();
           await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'write',path:`users/${_adminPreviewUid}/state/onboarding`,value:_obData})}).catch(()=>{});
+          await fetch(FUNCTIONS_BASE+'/dbAdmin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_t},body:JSON.stringify({action:'update',path:`users/${_adminPreviewUid}/state`,value:{goal_type:_goalType}})}).catch(()=>{});
         } else {
           await dbRef.child('onboarding').set(_obData).catch(()=>{});
+          await dbRef.child('goal_type').set(_goalType).catch(()=>{});
         }
       }
       setProgress(50,'Profil sauvegardé…');

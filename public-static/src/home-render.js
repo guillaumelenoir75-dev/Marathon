@@ -67,7 +67,7 @@ function renderHome(){
   const td=calcTotalDone();
   const gt=getGrandTotal();
   const obP=state.onboarding||{};
-  const isPlaisirUser=!isAdmin()&&(obP.course==='Plaisir'||!obP.course);
+  const isPlaisirUser=isPlaisirMode();
   if(isPlaisirUser){
     // Mode "pour le plaisir" : affiche km parcourus sans objectif ni %
     const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent='';
@@ -173,8 +173,7 @@ function renderHome(){
   // ── Bloc course / KPIs selon rôle ──────────────────────────────────────────
   const ob=state.onboarding||{};
   const userCourse=ob.course||null; // '5 km','10 km','Semi-marathon','Marathon','Plaisir','Autre'
-  const userHasPlan=!isAdmin()&&Object.keys(state).some(k=>/^extra_w\d+_s\d+/.test(k));
-  const isPlaisir=!isAdmin()&&(userCourse==='Plaisir'||!userCourse||!userHasPlan);
+  const isPlaisir=isPlaisirMode();
   const raceDateStr=isAdmin()?null:(ob.date||null);
   // Date de course
   const raceDateEl=document.getElementById('home-race-date');
