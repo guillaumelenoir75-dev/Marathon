@@ -317,6 +317,7 @@ function renderHome(){
     // AM entraînement : visible pour admin et athlète avec plan
     if(amTrainBtn){
       amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='default';
+      amTrainBtn.style.background=''; amTrainBtn.style.border='';
       const amTrainElR=document.getElementById('kpi-am-training');
       if(amTrainElR) amTrainElR.style.opacity='';
       const amTrainLblR=document.getElementById('h-am-train-label');
