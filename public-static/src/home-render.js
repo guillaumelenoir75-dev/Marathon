@@ -226,11 +226,15 @@ function renderHome(){
     if(marathonTimeBlock) marathonTimeBlock.style.display='block';
     const mainRowEl=document.getElementById('home-header-main-row');
     if(mainRowEl) mainRowEl.style.display='flex';
-    // Curseur uniquement admin
     const predBtn=document.getElementById('home-pred-btn');
     const amTrainBtn=document.getElementById('home-am-train-btn');
-    if(predBtn) predBtn.style.cursor=isAdmin()?'pointer':'default';
-    if(amTrainBtn){ amTrainBtn.style.cursor=isAdmin()?'pointer':'default'; amTrainBtn.style.display=isAdmin()?'flex':'none'; }
+    // Temps cible cliquable pour admin et athlète avec plan
+    if(predBtn){
+      predBtn.style.cursor='pointer';
+      if(!isAdmin()) predBtn.onclick=()=>openTargetTimeModal();
+    }
+    // AM entraînement : visible pour admin et athlète avec plan
+    if(amTrainBtn){ amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='default'; }
   }
   // Label objectif dynamique selon la course
   const goalLabelEl=document.getElementById('home-goal-label');
@@ -281,9 +285,26 @@ function renderHome(){
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
   const amTrainEl = document.getElementById('kpi-am-training');
-  if(amTrainEl) amTrainEl.textContent = state._am_training_pace || (isAdmin()?"5'20":'—');
+  if(amTrainEl){
+    if(isAdmin()){
+      amTrainEl.textContent = state._am_training_pace || "5'20";
+    } else {
+      // Pour l'athlète : allure d'entraînement = allure cible + ~10 sec/km (marge conservative)
+      const _tt = ob.target_time || state.target_time;
+      const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || 0;
+      if(_tt && _dist > 0){
+        const _tp = _tt.split(':').map(Number);
+        const _ts = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
+        const _spk = Math.round(_ts/_dist) + 10;
+        amTrainEl.textContent = Math.floor(_spk/60)+"'"+((_spk%60)<10?'0':'')+(_spk%60);
+      } else {
+        amTrainEl.textContent = '—';
+      }
+    }
+  }
   const vo2El = document.getElementById('kpi-vo2max');
-  if(vo2El) vo2El.textContent = state['vo2max_current'] || (isAdmin()?52:'—');
+  const vo2Val = state['vo2max_current'] || (isAdmin() ? 52 : null);
+  if(vo2El) vo2El.textContent = vo2Val || '—';
   const wakeupBtn = document.getElementById('wakeup-btn');
   if (wakeupBtn) {
     if (!isAdmin()) {
@@ -296,8 +317,15 @@ function renderHome(){
       }
     }
   }
+  // VO2max : visible si admin (valeur ou défaut 52), ou si athlète avec valeur renseignée, ou si préférence activée
   const vo2Wrap=vo2El?vo2El.closest('div[onclick]'):null;
-  if(vo2Wrap) vo2Wrap.style.display=getPref('show_vo2max')?'flex':'none';
+  if(vo2Wrap){
+    const showVo2 = isAdmin() || (vo2Val && getPref('show_vo2max'));
+    vo2Wrap.style.display = showVo2 ? 'flex' : 'none';
+    // Badge "?" VO2max : visible uniquement si le bloc l'est
+    const vo2Badge = vo2Wrap.nextElementSibling;
+    if(vo2Badge && vo2Badge.getAttribute('role')==='button') vo2Badge.style.display = showVo2 ? 'inline-flex' : 'none';
+  }
   const wtEl=document.getElementById('week-total-km');
   if(wtEl) wtEl.textContent=getWeekTotalKm(w)+' km';
 
