@@ -84,13 +84,17 @@
           </div>
         </div>
         <!-- Bouton créer un plan — toujours affiché -->
-        <button onclick="showOnboarding(true)" style="width:100%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.20);border-radius:10px;padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;text-align:left;box-sizing:border-box;">
+        <button onclick="showOnboarding(true)" style="width:100%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.20);border-radius:10px;padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;text-align:left;box-sizing:border-box;margin-bottom:8px;">
           <span style="font-size:15px;line-height:1;">🏁</span>
           <div style="flex:1;">
             <div style="font-size:12px;font-weight:700;">Créer un plan de course</div>
             <div style="font-size:10px;opacity:0.6;margin-top:1px;">5 km, 10 km, semi, marathon…</div>
           </div>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button onclick="openGlossary()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.75);text-align:left;box-sizing:border-box;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span style="font-size:12px;font-weight:600;">Comprendre les termes de la course</span>
         </button>
       </div>
     </div>
@@ -796,7 +800,13 @@
     </div>
     <div id="ob-step-3" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 4 / 9</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Quel est ton niveau ?</h2>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin:0;">Quel est ton niveau ?</h2>
+      </div>
+      <button onclick="openGlossary('allure')" style="display:inline-flex;align-items:center;gap:5px;background:#EEF2FD;border:1px solid #c7d7f8;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;margin-bottom:16px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Comment évaluer mon niveau ?
+      </button>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('niveau','Découverte')" class="ob-chip" id="ob-niveau-Découverte">🐣 Découverte — je débute la course à pied</button>
         <button onclick="onboardingSelect('niveau','Débutant')" class="ob-chip" id="ob-niveau-Débutant">🌱 Débutant — première course</button>
@@ -808,7 +818,8 @@
     </div>
     <div id="ob-step-4" style="display:none;">
       <p style="font-size:12px;font-weight:700;color:#1B4FD8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Question 5 / 9</p>
-      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:32px;">Combien de km cours-tu par semaine actuellement ?</h2>
+      <h2 style="font-size:26px;font-weight:800;line-height:1.25;margin-bottom:10px;">Combien de km cours-tu par semaine actuellement ?</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:16px;line-height:1.5;">Compte tes sorties des 4 dernières semaines en moyenne, repos inclus.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <button onclick="onboardingSelect('km_semaine','10')" class="ob-chip" id="ob-km_semaine-10">🐢 Moins de 15 km</button>
         <button onclick="onboardingSelect('km_semaine','20')" class="ob-chip" id="ob-km_semaine-20">🚶 15 – 25 km</button>

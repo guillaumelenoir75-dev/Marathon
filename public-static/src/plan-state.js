@@ -467,7 +467,7 @@ const _GLOSSARY = [
   {
     section: 'Physiologie & mesures',
     terms: [
-      { id:'allure', label:'Allure (min/km)', body:'Temps mis pour courir un kilomètre. Exemple : 5:30/km = 5 minutes et 30 secondes par kilomètre. Plus le chiffre est bas, plus tu cours vite. À ne pas confondre avec la vitesse en km/h (qui s\'inverse).' },
+      { id:'allure', label:'Allure (min/km)', body:'Temps mis pour courir un kilomètre. Exemple : 5:30/km = 5 minutes et 30 secondes par kilomètre. Plus le chiffre est bas, plus tu cours vite. À ne pas confondre avec la vitesse en km/h (qui s\'inverse).\n\n<strong>Niveaux indicatifs :</strong> Découverte &gt; 8\'00/km · Débutant 7\'00–8\'00 · Intermédiaire 5\'30–7\'00 · Confirmé &lt; 5\'30 (allure EF confortable).' },
       { id:'fc', label:'FC — Fréquence Cardiaque', body:'Nombre de battements de cœur par minute (bpm). En course, la FC monte avec l\'effort. Les zones de FC permettent de calibrer l\'intensité des séances : une EF se court à 65–75 % de ta FC max.' },
       { id:'fcmax', label:'FC max', body:'Ta fréquence cardiaque maximale — le nombre de bpm que ton cœur peut atteindre à l\'effort maximal. Elle est individuelle (ne dépend pas de la forme du jour). Estimation rapide : 220 – âge, mais mesurer sur le terrain est plus fiable.' },
       { id:'fcrepos', label:'FC repos', body:'Ta fréquence cardiaque au réveil, avant de te lever. Un coureur entraîné l\'a généralement entre 40 et 55 bpm. Une FC repos plus élevée que d\'habitude (+5 bpm) est un signal de fatigue ou de maladie : adapter l\'entraînement.' },
