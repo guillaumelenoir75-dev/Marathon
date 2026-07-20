@@ -322,18 +322,14 @@ function renderHome(){
       predBtn.style.background=''; predBtn.style.border='';
       if(!isAdmin()) predBtn.onclick=()=>openTargetTimeModal();
     }
-    // AM entraînement : visible pour admin uniquement (athlète : redondant avec /km marathon)
+    // AM entraînement : visible pour admin et athlète avec plan
     if(amTrainBtn){
-      if(isAdmin()){
-        amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='pointer';
-        amTrainBtn.style.background=''; amTrainBtn.style.border='';
-        const amTrainElR=document.getElementById('kpi-am-training');
-        if(amTrainElR) amTrainElR.style.opacity='';
-        const amTrainLblR=document.getElementById('h-am-train-label');
-        if(amTrainLblR) amTrainLblR.style.fontSize='';
-      } else {
-        amTrainBtn.style.display='none';
-      }
+      amTrainBtn.style.display='flex'; amTrainBtn.style.cursor='pointer';
+      amTrainBtn.style.background=''; amTrainBtn.style.border='';
+      const amTrainElR=document.getElementById('kpi-am-training');
+      if(amTrainElR) amTrainElR.style.opacity='';
+      const amTrainLblR=document.getElementById('h-am-train-label');
+      if(amTrainLblR) amTrainLblR.style.fontSize='';
     }
   }
   // Label objectif dynamique selon la course (isPlaisir déjà géré dans son bloc)
@@ -352,7 +348,7 @@ function renderHome(){
     if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
       const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
       if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
-      if(amTrainLabelEl) amTrainLabelEl.textContent='/km cible';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='/km tempo';
       // Grand chiffre : temps cible saisi dans questionnaire ou —
       const mtEl=document.getElementById('kpi-marathon-time');
       const targetTime=ob.target_time||state.target_time||null;
