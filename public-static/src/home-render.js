@@ -384,29 +384,34 @@ function renderHome(){
       if(isAdmin()){
         amTrainEl.textContent = state._am_training_pace || "5'20";
       } else {
-        // Même formule que plan-generate.js pour rester synchronisé avec le plan
-        const _tt = ob.target_time || state.target_time;
-        const _distFallback={'Marathon':42.195,'Semi-marathon':21.1,'10 km':10,'5 km':5}[userCourse]||0;
-        const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || _distFallback;
-        const _niv = ob.niveau || 'Intermédiaire';
-        if(_tt && _dist > 0){
-          const _tp = _tt.split(':').map(Number);
-          const _raceS = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
-          const _racePace = _raceS / _dist; // sec/km
-          let _trainS;
-          if(userCourse==='5 km'||userCourse==='10 km'){
-            // Fractionné = ~VO2max (95-100% VMA)
-            const _fm={'5 km':0.932,'10 km':0.902}[userCourse]||0.902;
-            _trainS = Math.round(_racePace * _fm);
-          } else {
-            // Tempo = seuil lactate (~82-88% FCmax)
-            const _tm={'Marathon':{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940},'Semi-marathon':{Débutant:0.960,Intermédiaire:0.945,Confirmé:0.930}}[userCourse]||{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940};
-            _trainS = Math.round(_racePace * (_tm[_niv]||0.952));
+        // Base : allure EF (la vraie référence physiologique)
+        // Tempo (seuil lactate ~87% VMA) = EF × 0.88  — ex: EF 5'30 → tempo 4'50
+        // Fractionné (VO2max ~97% VMA)   = EF × 0.72  — ex: EF 5'30 → frac  3'58
+        // Fallback sur allure course si EF pas encore connue
+        let _trainS = null;
+        const _efStr = efPace || state.ef_pace;
+        if(_efStr){
+          const _ep = _efStr.replace("'",":").split(':');
+          const _efS = parseInt(_ep[0])*60+(parseInt(_ep[1])||0);
+          if(_efS > 0){
+            const _ratio = (userCourse==='5 km'||userCourse==='10 km') ? 0.72 : 0.88;
+            _trainS = Math.round(_efS * _ratio);
           }
-          amTrainEl.textContent = Math.floor(_trainS/60)+"'"+((_trainS%60)<10?'0':'')+(_trainS%60);
-        } else {
-          amTrainEl.textContent = '—';
         }
+        // Fallback race pace si EF indisponible (début de plan)
+        if(!_trainS){
+          const _tt = ob.target_time || state.target_time;
+          const _distFallback={'Marathon':42.195,'Semi-marathon':21.1,'10 km':10,'5 km':5}[userCourse]||0;
+          const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || _distFallback;
+          if(_tt && _dist > 0){
+            const _tp = _tt.split(':').map(Number);
+            const _raceS = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
+            const _racePace = _raceS / _dist;
+            const _ratio = (userCourse==='5 km'||userCourse==='10 km') ? 0.72 : 0.88;
+            _trainS = Math.round(_racePace * _ratio);
+          }
+        }
+        amTrainEl.textContent = _trainS ? Math.floor(_trainS/60)+"'"+((_trainS%60)<10?'0':'')+(_trainS%60) : '—';
       }
     }
   }
