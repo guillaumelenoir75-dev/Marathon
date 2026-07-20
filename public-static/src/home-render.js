@@ -199,27 +199,58 @@ function renderHome(){
   const noRaceBtn=document.getElementById('home-no-race-btn');
   const marathonTimeBlock=document.getElementById('home-marathon-time-block');
   if(isPlaisir){
-    if(raceKpiBlock) raceKpiBlock.style.display='none';
-    if(noRaceBtn) noRaceBtn.style.display='block';
-    if(marathonTimeBlock) marathonTimeBlock.style.display='none';
-    // Masquer la ligne principale (temps marathon / KPIs) — inutile pour Plaisir
+    // Afficher la ligne principale avec contenu adapté Plaisir
     const mainRow=document.getElementById('home-header-main-row');
-    if(mainRow) mainRow.style.display='none';
-    // Remplir le bloc "Ma pratique" : deux états selon les stats
-    const totalSessDone=Object.keys(state).filter(k=>k.endsWith('_done')&&state[k]===true).length;
+    if(mainRow) mainRow.style.display='flex';
+    if(noRaceBtn) noRaceBtn.style.display='block';
+    // Masquer le bloc stats dans noRaceBtn (désormais redondant avec la main row)
     const welcomeBlock=document.getElementById('plaisir-welcome-block');
     const statsBlock=document.getElementById('plaisir-stats-block');
-    if(totalSessDone===0&&td===0){
-      if(welcomeBlock) welcomeBlock.style.display='flex';
-      if(statsBlock) statsBlock.style.display='none';
-    } else {
-      if(welcomeBlock) welcomeBlock.style.display='none';
-      if(statsBlock) statsBlock.style.display='block';
-      const plaisirKmEl=document.getElementById('plaisir-km-total');
-      if(plaisirKmEl) plaisirKmEl.textContent=(td>0?td.toLocaleString('fr-FR'):0)+' km';
-      const plaisirSessEl=document.getElementById('plaisir-sess-total');
-      if(plaisirSessEl) plaisirSessEl.textContent=totalSessDone;
+    if(welcomeBlock) welcomeBlock.style.display='none';
+    if(statsBlock) statsBlock.style.display='none';
+    // ── GAUCHE : total km (grand chiffre) ──
+    if(marathonTimeBlock){ marathonTimeBlock.style.display='block'; marathonTimeBlock.style.cursor='default'; }
+    const goalLabelElP=document.getElementById('home-goal-label');
+    if(goalLabelElP) goalLabelElP.textContent='🏃 Ma pratique';
+    const mtElP=document.getElementById('kpi-marathon-time');
+    if(mtElP) mtElP.textContent=td>0?td.toLocaleString('fr-FR'):'0';
+    const todayDateEl=document.getElementById('today-date');
+    if(todayDateEl) todayDateEl.textContent='km courus au total';
+    // ── DROITE : séances totales + allure EF ──
+    if(raceKpiBlock) raceKpiBlock.style.display='block';
+    const totalSessDone=Object.keys(state).filter(k=>k.endsWith('_done')&&state[k]===true).length;
+    // Badge séances (repurpose pred-btn — fond neutre pour Plaisir)
+    const predBtnP=document.getElementById('home-pred-btn');
+    if(predBtnP){
+      predBtnP.style.cursor='default'; predBtnP.onclick=null;
+      predBtnP.style.background='rgba(255,255,255,0.13)';
+      predBtnP.style.border='1px solid rgba(255,255,255,0.18)';
+      const predNumEl=document.getElementById('h-am-pred');
+      if(predNumEl) predNumEl.style.color='#fff';
+      if(predNumEl) predNumEl.textContent=String(totalSessDone);
+      const predLblEl=document.getElementById('h-pred-label');
+      if(predLblEl){ predLblEl.style.color='rgba(255,255,255,0.7)'; predLblEl.textContent=totalSessDone<=1?'séance':'séances'; }
     }
+    // Badge EF (repurpose am-train-btn) — visible seulement si EF renseignée
+    const amTrainBtnP=document.getElementById('home-am-train-btn');
+    const efPaceP=getBestEfPace();
+    if(amTrainBtnP){
+      if(efPaceP){
+        amTrainBtnP.style.display='flex'; amTrainBtnP.style.cursor='default';
+        const amTrainElP=document.getElementById('kpi-am-training');
+        if(amTrainElP) amTrainElP.textContent=efPaceP;
+        const amTrainLblP=document.getElementById('h-am-train-label');
+        if(amTrainLblP) amTrainLblP.textContent='/km EF';
+      } else {
+        amTrainBtnP.style.display='none';
+      }
+    }
+    // Extra stats row : séances totales / km cette semaine
+    if(extraStatsRow) extraStatsRow.style.display='flex';
+    const kpiRestElP=document.getElementById('kpi-rest');
+    if(kpiRestElP) kpiRestElP.textContent=totalSessDone+' séance'+(totalSessDone!==1?'s':'');
+    const weeksLeftElP=document.getElementById('kpi-weeks-left');
+    if(weeksLeftElP) weeksLeftElP.textContent=weekDoneKm>0?weekDoneKm+' km cette sem.':'— km cette sem.';
   } else {
     if(raceKpiBlock) raceKpiBlock.style.display='block';
     if(noRaceBtn) noRaceBtn.style.display='none';
