@@ -271,8 +271,8 @@ function generateAthletePlan(ob){
     const tm={
       'Marathon':      {Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940},
       'Semi-marathon': {Débutant:0.960,Intermédiaire:0.945,Confirmé:0.930},
-      '10 km':         {Débutant:0.965,Intermédiaire:0.950,Confirmé:0.940},
-      '5 km':          {Débutant:0.980,Intermédiaire:0.972,Confirmé:0.962},
+      '10 km':         {Débutant:1.19,Intermédiaire:1.15,Confirmé:1.13},
+      '5 km':          {Débutant:1.16,Intermédiaire:1.13,Confirmé:1.10},
     }[course]||{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940};
     tempoPaceSec=Math.round(racePaceSec*(tm[niveau]||0.952));
   } else if(effectiveEfSec){
