@@ -332,62 +332,64 @@ function renderHome(){
       goalLabelEl.textContent=lbl;
     }
   }
-  // Libellés adaptés à la course
+  // Libellés et valeurs adaptés à la course (bloc Plaisir déjà géré — ne pas écraser)
   const predLabelEl=document.getElementById('h-pred-label');
   const amTrainLabelEl=document.getElementById('h-am-train-label');
-  if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
-    const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
-    if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
-    if(amTrainLabelEl) amTrainLabelEl.textContent='allure cible';
-    // Grand chiffre : temps cible saisi dans questionnaire ou —
-    const mtEl=document.getElementById('kpi-marathon-time');
-    const targetTime=ob.target_time||state.target_time||null;
-    if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
-    // Allure cible calculée depuis le temps cible si disponible
-    const amPredElU=document.getElementById('h-am-pred');
-    if(amPredElU){
-      if(targetTime&&(ob.race_distance_km||state.race_distance_km)){
-        const tParts=targetTime.split(':').map(Number);
-        const totalSec=(tParts[0]||0)*3600+(tParts[1]||0)*60+(tParts[2]||0);
-        const distKm=parseFloat(ob.race_distance_km||state.race_distance_km)||0;
-        if(totalSec>0&&distKm>0){
-          const secPerKm=Math.round(totalSec/distKm);
-          amPredElU.textContent=Math.floor(secPerKm/60)+"'"+(secPerKm%60<10?'0':'')+secPerKm%60;
+  if(!isPlaisir){
+    if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
+      const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
+      if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
+      if(amTrainLabelEl) amTrainLabelEl.textContent='allure cible';
+      // Grand chiffre : temps cible saisi dans questionnaire ou —
+      const mtEl=document.getElementById('kpi-marathon-time');
+      const targetTime=ob.target_time||state.target_time||null;
+      if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+      // Allure cible calculée depuis le temps cible si disponible
+      const amPredElU=document.getElementById('h-am-pred');
+      if(amPredElU){
+        if(targetTime&&(ob.race_distance_km||state.race_distance_km)){
+          const tParts=targetTime.split(':').map(Number);
+          const totalSec=(tParts[0]||0)*3600+(tParts[1]||0)*60+(tParts[2]||0);
+          const distKm=parseFloat(ob.race_distance_km||state.race_distance_km)||0;
+          if(totalSec>0&&distKm>0){
+            const secPerKm=Math.round(totalSec/distKm);
+            amPredElU.textContent=Math.floor(secPerKm/60)+"'"+(secPerKm%60<10?'0':'')+secPerKm%60;
+          } else amPredElU.textContent='—';
         } else amPredElU.textContent='—';
-      } else amPredElU.textContent='—';
-    }
-    const _htb=document.getElementById('home-marathon-time-block');if(_htb)_htb.style.cursor='pointer';
-  } else {
-    if(predLabelEl) predLabelEl.textContent='/km prédit';
-    if(amTrainLabelEl) amTrainLabelEl.textContent='/km AM entr.';
-    // Temps marathon projeté (admin)
-    const pred = buildMarathonPrediction();
-    const mtEl=document.getElementById('kpi-marathon-time');
-    if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
-    const amPredEl = document.getElementById('h-am-pred');
-    if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
-    const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor=isAdmin()?'pointer':'default';
-  }
-  const amRefEl=document.getElementById('kpi-am-ref');
-  if(amRefEl) amRefEl.textContent=am;
-  const amTrainEl = document.getElementById('kpi-am-training');
-  if(amTrainEl){
-    if(isAdmin()){
-      amTrainEl.textContent = state._am_training_pace || "5'20";
+      }
+      const _htb=document.getElementById('home-marathon-time-block');if(_htb)_htb.style.cursor='pointer';
     } else {
-      // Pour l'athlète : allure d'entraînement = allure cible + ~10 sec/km (marge conservative)
-      const _tt = ob.target_time || state.target_time;
-      const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || 0;
-      if(_tt && _dist > 0){
-        const _tp = _tt.split(':').map(Number);
-        const _ts = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
-        const _spk = Math.round(_ts/_dist) + 10;
-        amTrainEl.textContent = Math.floor(_spk/60)+"'"+((_spk%60)<10?'0':'')+(_spk%60);
+      if(predLabelEl) predLabelEl.textContent='/km prédit';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='/km AM entr.';
+      // Temps marathon projeté (admin)
+      const pred = buildMarathonPrediction();
+      const mtEl=document.getElementById('kpi-marathon-time');
+      if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
+      const amPredEl = document.getElementById('h-am-pred');
+      if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
+      const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor=isAdmin()?'pointer':'default';
+    }
+    const amTrainEl = document.getElementById('kpi-am-training');
+    if(amTrainEl){
+      if(isAdmin()){
+        amTrainEl.textContent = state._am_training_pace || "5'20";
       } else {
-        amTrainEl.textContent = '—';
+        // Pour l'athlète : allure d'entraînement = allure cible + ~10 sec/km (marge conservative)
+        const _tt = ob.target_time || state.target_time;
+        const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || 0;
+        if(_tt && _dist > 0){
+          const _tp = _tt.split(':').map(Number);
+          const _ts = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
+          const _spk = Math.round(_ts/_dist) + 10;
+          amTrainEl.textContent = Math.floor(_spk/60)+"'"+((_spk%60)<10?'0':'')+(_spk%60);
+        } else {
+          amTrainEl.textContent = '—';
+        }
       }
     }
   }
+  const amRefEl=document.getElementById('kpi-am-ref');
+  if(amRefEl) amRefEl.textContent=am;
   const vo2El = document.getElementById('kpi-vo2max');
   const vo2Val = state['vo2max_current'] || (isAdmin() ? 52 : null);
   if(vo2El) vo2El.textContent = vo2Val || '—';
