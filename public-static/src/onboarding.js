@@ -21,7 +21,7 @@ function _obShowAdaptiveTip(field) {
     var msgs = {
       '1': '⚠️ 1 séance/semaine : progression lente mais possible pour commencer.',
       '2': '✓ 2 séances : bon équilibre, progression régulière.',
-      '3': '✓ 3 séances : format optimal — EF, tempo et sortie longue bien répartis.',
+      '3': '✓ 3 séances : format optimal — endurance, tempo et sortie longue bien répartis.',
       '4': '✓ 4 séances : programme intensif idéal pour viser un chrono précis.'
     };
     var msg = msgs[v];

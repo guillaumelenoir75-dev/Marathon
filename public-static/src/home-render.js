@@ -361,7 +361,7 @@ function renderHome(){
       const _htb=document.getElementById('home-marathon-time-block');if(_htb)_htb.style.cursor='pointer';
     } else {
       if(predLabelEl) predLabelEl.textContent='/km prédit';
-      if(amTrainLabelEl) amTrainLabelEl.textContent='/km AM entr.';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='/km allure course';
       // Temps marathon projeté (admin)
       const pred = buildMarathonPrediction();
       const mtEl=document.getElementById('kpi-marathon-time');
@@ -667,6 +667,13 @@ function renderHome(){
       </div>`;
     el.appendChild(div);
   });
+
+  if(el.children.length===0){
+    const empty=document.createElement('div');
+    empty.style.cssText='padding:20px 16px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6;';
+    empty.innerHTML='Aucune séance cette semaine.<br><span style="font-size:12px;opacity:0.75;">Va sur l\'onglet <strong>Plan</strong> pour voir toutes tes semaines.</span>';
+    el.appendChild(empty);
+  }
 
   // Compteur de progression séances
   const sessionsProgressEl = document.getElementById('sessions-progress');

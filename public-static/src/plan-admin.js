@@ -470,7 +470,7 @@ function openRegenFromDateModal(){
   ov.innerHTML=`
   <div style="background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:390px;padding:24px 20px 32px;box-sizing:border-box;">
     <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 20px;"></div>
-    <p style="font-size:18px;font-weight:800;color:#1a1a1a;margin:0 0 6px;">📅 Régénérer à partir de...</p>
+    <p style="font-size:18px;font-weight:800;color:#1a1a1a;margin:0 0 6px;">📅 Régénérer depuis une date</p>
     <p style="font-size:13px;color:#666;margin:0 0 20px;line-height:1.5;">Choisis une date de début pour régénérer le plan. Les séances déjà réalisées seront conservées.</p>
     <div style="margin-bottom:16px;">
       <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Date de début</p>

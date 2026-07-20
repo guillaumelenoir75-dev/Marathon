@@ -153,9 +153,9 @@ function sendNextRun(){
   let msg;
   if(nextSession){
     const quand = nextSession.jour ? nextSession.jour + (nextSession.heure ? ' à ' + nextSession.heure : '') : 'prochainement';
-    msg = '🏃 Next Run — conseils pour ma prochaine séance : ' + nextSession.titre + ' ' + nextSession.km + 'km · ' + quand + ' (S' + nextSession.semaine + ')';
+    msg = '🏃 Prochaine séance — conseils : ' + nextSession.titre + ' ' + nextSession.km + 'km · ' + quand + ' (S' + nextSession.semaine + ')';
   } else {
-    msg = '🏃 Next Run — conseils pour ma prochaine séance';
+    msg = '🏃 Prochaine séance — que me conseilles-tu ?';
   }
 
   const input = document.getElementById('coach-input');
