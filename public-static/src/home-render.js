@@ -348,7 +348,8 @@ function renderHome(){
     if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
       const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
       if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
-      if(amTrainLabelEl) amTrainLabelEl.textContent='/km tempo';
+      const trainLabel=(userCourse==='5 km'||userCourse==='10 km')?'/km fractionné':'/km tempo';
+      if(amTrainLabelEl) amTrainLabelEl.textContent=trainLabel;
       // Grand chiffre : temps cible saisi dans questionnaire ou —
       const mtEl=document.getElementById('kpi-marathon-time');
       const targetTime=ob.target_time||state.target_time||null;
@@ -383,14 +384,25 @@ function renderHome(){
       if(isAdmin()){
         amTrainEl.textContent = state._am_training_pace || "5'20";
       } else {
-        // Pour l'athlète : allure d'entraînement = allure cible + ~10 sec/km (marge conservative)
+        // Même formule que plan-generate.js pour rester synchronisé avec le plan
         const _tt = ob.target_time || state.target_time;
         const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || 0;
+        const _niv = ob.niveau || 'Intermédiaire';
         if(_tt && _dist > 0){
           const _tp = _tt.split(':').map(Number);
-          const _ts = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
-          const _spk = Math.round(_ts/_dist) + 10;
-          amTrainEl.textContent = Math.floor(_spk/60)+"'"+((_spk%60)<10?'0':'')+(_spk%60);
+          const _raceS = (_tp[0]||0)*3600+(_tp[1]||0)*60+(_tp[2]||0);
+          const _racePace = _raceS / _dist; // sec/km
+          let _trainS;
+          if(userCourse==='5 km'||userCourse==='10 km'){
+            // Fractionné = ~VO2max (95-100% VMA)
+            const _fm={'5 km':0.932,'10 km':0.902}[userCourse]||0.902;
+            _trainS = Math.round(_racePace * _fm);
+          } else {
+            // Tempo = seuil lactate (~82-88% FCmax)
+            const _tm={'Marathon':{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940},'Semi-marathon':{Débutant:0.960,Intermédiaire:0.945,Confirmé:0.930}}[userCourse]||{Débutant:0.965,Intermédiaire:0.952,Confirmé:0.940};
+            _trainS = Math.round(_racePace * (_tm[_niv]||0.952));
+          }
+          amTrainEl.textContent = Math.floor(_trainS/60)+"'"+((_trainS%60)<10?'0':'')+(_trainS%60);
         } else {
           amTrainEl.textContent = '—';
         }
