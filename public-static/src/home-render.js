@@ -386,7 +386,8 @@ function renderHome(){
       } else {
         // Même formule que plan-generate.js pour rester synchronisé avec le plan
         const _tt = ob.target_time || state.target_time;
-        const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || 0;
+        const _distFallback={'Marathon':42.195,'Semi-marathon':21.1,'10 km':10,'5 km':5}[userCourse]||0;
+        const _dist = parseFloat(ob.race_distance_km || state.race_distance_km) || _distFallback;
         const _niv = ob.niveau || 'Intermédiaire';
         if(_tt && _dist > 0){
           const _tp = _tt.split(':').map(Number);
