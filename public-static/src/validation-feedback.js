@@ -65,6 +65,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   const efPaceStr=state.ef_pace||'';
   const efPaceSec=_ps(efPaceStr);
   const type=s.type;
+  const isPlaisir=isPlaisirMode();
   const headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[type]||'#0C447C';
   let icon='✅';
   let title='Séance validée';
@@ -89,7 +90,9 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
       else if(kmRatio>1.15) lines.push('📏 Tu as dépassé le volume prévu ('+realKm+' km). Attention à la fatigue accumulée — respecte le plan sur la durée.');
       else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km). Bien joué !');
     }
-    const tips=['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression marathon.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.','80 % de ton entraînement devrait être en zone EF — chaque sortie douce compte !'];
+    const tips=isPlaisir
+      ?['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression en course à pied.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.','Courir régulièrement en zone basse développe ton endurance naturellement. Continue !']
+      :['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression marathon.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.','80 % de ton entraînement devrait être en zone EF — chaque sortie douce compte !'];
     lines.push('💡 '+tips[Math.floor(Math.random()*tips.length)]);
 
   } else if(type==='tempo'){
@@ -120,7 +123,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
       if(kmRatio>=0.9) lines.push('📏 Volume bien réalisé : '+realKm+' / '+plannedKm+' km. 👏');
       else lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus — c\'est normal de ne pas toujours finir le tempo, il vaut mieux s\'arrêter proprement.');
     }
-    lines.push('💡 Les séances tempo développent ton seuil lactique — c\'est la clé pour soutenir l\'allure marathon longtemps.');
+    lines.push(isPlaisir?'💡 Les séances tempo développent ton seuil lactique — c\'est la clé pour progresser en vitesse et en confort de course.':'💡 Les séances tempo développent ton seuil lactique — c\'est la clé pour soutenir l\'allure marathon longtemps.');
 
   } else if(type==='frac'){
     icon='⚡'; title='Séance Fractionné';
@@ -159,11 +162,11 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
     }
     if(plannedKm>0){
       if(kmRatio>=0.9&&kmRatio<=1.05) lines.push('📏 Excellent volume : '+realKm+' km (prévu : '+plannedKm+' km) — la sortie longue construit ta résistance à l\'effort prolongé. 💪');
-      else if(realKm>=25) lines.push('📏 Belle sortie longue de '+realKm+' km ! Ce type de séance est fondamental pour le marathon. 🏅');
+      else if(realKm>=25) lines.push('📏 Belle sortie longue de '+realKm+' km ! Ce type de séance est fondamental pour construire ton endurance. 🏅');
       else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. S\'arrêter à temps quand on ressent la fatigue, c\'est la bonne décision — la récupération fait partie de l\'entraînement.');
       else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km). Bien joué !');
     }
-    lines.push('💡 La sortie longue est la reine du marathon — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue. 🏆');
+    lines.push(isPlaisir?'💡 La sortie longue est la reine de l\'endurance — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue. 🏆':'💡 La sortie longue est la reine du marathon — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue. 🏆');
 
   } else {
     icon='🏁'; title='Séance validée';

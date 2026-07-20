@@ -326,9 +326,9 @@ function buildLongModalHtml(detail, totalKm){
   // Infos course depuis onboarding
   let ob={};try{ob=state.onboarding?(typeof state.onboarding==='string'?JSON.parse(state.onboarding):state.onboarding):{};}catch(e){}
   const course=ob.course||'Marathon';
-  const raceLabelMap={'5 km':'A5','10 km':'A10','Semi-marathon':'SEMI','Marathon':'AM'};
+  const raceLabelMap={'5 km':'A5','10 km':'A10','Semi-marathon':'SEMI','Marathon':'AM','Plaisir':'EF'};
   const raceLabel=raceLabelMap[course]||'AM';
-  const raceNameMap={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon'};
+  const raceNameMap={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Plaisir':'—'};
   // Calculer l'allure de course cible
   let racePace=getAmTrainingPace();
   if(ob.target_time){
