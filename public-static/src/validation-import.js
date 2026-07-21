@@ -883,7 +883,8 @@ async function importWhoopForValidation(forceSync) {
     }
 
     // Inclure les workouts même sans strain calculé (WHOOP peut prendre ~20min à scorer)
-    const workouts = (whoopData.workouts || []).filter(w => w.duration_min != null || w.strain != null);
+    // Toujours inclure la séance du jour même si strain et duration_min sont encore nuls
+    const workouts = (whoopData.workouts || []).filter(w => w.date === sessionDate || w.duration_min != null || w.strain != null);
     const sorted = [...workouts].sort((a, b) => {
       const da = Math.abs(new Date(a.date) - new Date(sessionDate));
       const db = Math.abs(new Date(b.date) - new Date(sessionDate));
