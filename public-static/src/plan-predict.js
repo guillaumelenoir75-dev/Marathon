@@ -1152,19 +1152,96 @@ function toggleRecord10kmEditInPredict() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Prédiction courtes distances (5km, 10km) via blocs frac/tempo
+// Modèle direct : pas de Riegel depuis marathon (double-indirect)
+// 5km ≈ 97% VMA = allure fractionné  → factor frac 1.00, tempo 0.907
+// 10km ≈ 92% VMA                     → factor frac 1.055, tempo 0.957
+// ─────────────────────────────────────────────────────────────
+function buildShortDistancePrediction(course) {
+  const distMap = {'10 km':10,'5 km':5};
+  const dist = distMap[course];
+  if(!dist) return {tempsStr:null,paceStr:null,confiance:0,nbSeances:0};
+
+  const fracPts=[], tempoPts=[];
+  const collectBlocs = (type, perf) => {
+    const blocs=(perf.blocsAllure||[]).filter(Boolean);
+    blocs.forEach(b=>{const s=paceStrToSec(b);if(s){(type==='frac'?fracPts:tempoPts).push(s);}});
+  };
+  for(let ws=1;ws<=CW;ws++){
+    if(ws===22||ws===23) continue;
+    weeks[ws-1].sessions.forEach((s,si)=>{
+      const k=gk(ws,si);
+      if(!state[k+'done']) return;
+      if(s.type!=='frac'&&s.type!=='tempo') return;
+      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
+      collectBlocs(s.type, perf);
+    });
+    let ei=0;
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
+      if(state[`extra_w${ws}_s${ei}_done`]){
+        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+        if(es&&(es.type==='frac'||es.type==='tempo')){
+          let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
+          collectBlocs(es.type, perf);
+        }
+      }
+      ei++;
+    }
+  }
+
+  if(fracPts.length===0&&tempoPts.length===0) return {tempsStr:null,paceStr:null,confiance:0,nbSeances:0,nbFrac:0,nbTempo:0,_method:'blocs_directs'};
+
+  const fracFactor  = course==='5 km' ? 1.00 : 1.055;
+  const tempoFactor = course==='5 km' ? 0.907 : 0.957;
+
+  const weightedAvg=pts=>{const r=pts.slice(-Math.min(5,pts.length)),w=r.map((_,i)=>i+1),tw=w.reduce((a,b)=>a+b,0);return r.reduce((a,v,i)=>a+v*w[i],0)/tw;};
+  const signals=[];
+  if(fracPts.length>0) signals.push({val:weightedAvg(fracPts)*fracFactor, w:Math.min(3,fracPts.length)});
+  if(tempoPts.length>0) signals.push({val:weightedAvg(tempoPts)*tempoFactor, w:Math.min(2,tempoPts.length)});
+
+  const totalW=signals.reduce((a,s)=>a+s.w,0);
+  const paceSec=Math.round(signals.reduce((a,s)=>a+s.val*s.w,0)/totalW);
+  const timeSec=Math.round(paceSec*dist);
+  const nbSeances=fracPts.length+tempoPts.length;
+  const confiance=Math.min(85,20+nbSeances*8);
+
+  const fmtTime=s=>{const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60),ss=s%60;if(hh>0)return`${hh}h${String(mm).padStart(2,'0')}`;return`${mm}'${String(ss).padStart(2,'0')}`;};
+  const fmtPaceFn=s=>Math.floor(s/60)+"'"+(s%60<10?'0':'')+s%60;
+
+  return {tempsSec:timeSec,tempsStr:fmtTime(timeSec),paceSec,paceStr:fmtPaceFn(paceSec),confiance,nbSeances,nbFrac:fracPts.length,nbTempo:tempoPts.length,_method:'blocs_directs'};
+}
+
+// ─────────────────────────────────────────────────────────────
 // Prédiction pour les distances courtes (semi, 10km, 5km)
-// Utilise buildMarathonPrediction() + formule de Riegel
+// Semi : Riegel depuis modèle marathon
+// 10km : blocs directs, fallback Riegel si pas de blocs
+// 5km  : blocs directs uniquement (Riegel trop indirect)
 // ─────────────────────────────────────────────────────────────
 function buildDistancePrediction(course) {
   const distMap = {'Semi-marathon':21.097,'10 km':10,'5 km':5};
   const dist = distMap[course];
   if(!dist) return {tempsStr:null,paceStr:null,confiance:0};
 
+  // 5km : modèle blocs directs uniquement
+  if(course==='5 km') return buildShortDistancePrediction('5 km');
+
+  // 10km : blocs directs en priorité, fallback Riegel
+  if(course==='10 km'){
+    const shortPred=buildShortDistancePrediction('10 km');
+    if(shortPred.tempsStr) return shortPred;
+    const pred=buildMarathonPrediction();
+    if(!pred.tempsSec) return {tempsStr:null,paceStr:null,confiance:pred.confiance||0,nbSeances:pred.nbSeances||0,_method:'riegel_fallback',nbFrac:0,nbTempo:0};
+    const rf=Math.pow(10/42.195,1.06);
+    const ts=Math.round(pred.tempsSec*rf), ps=Math.round(ts/10);
+    const fmtT=s=>{const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60),ss=s%60;if(hh>0)return`${hh}h${String(mm).padStart(2,'0')}`;return`${mm}'${String(ss).padStart(2,'0')}`;};
+    const fmtP=s=>Math.floor(s/60)+"'"+(s%60<10?'0':'')+s%60;
+    return {tempsSec:ts,tempsStr:fmtT(ts),paceSec:ps,paceStr:fmtP(ps),confiance:Math.round((pred.confiance||0)*0.7),nbSeances:pred.nbSeances,details:pred.details,historique:(pred.historique||[]).map(h=>({ws:h.ws,tempsSec:Math.round(h.tempsSec*rf)})),_method:'riegel_fallback',nbFrac:0,nbTempo:0};
+  }
+
+  // Semi-marathon : Riegel depuis marathon
   const pred = buildMarathonPrediction();
   if(!pred.tempsSec) return {tempsStr:null,paceStr:null,confiance:pred.confiance||0,nbSeances:pred.nbSeances||0};
 
-  // Riegel : t_dist = t_marathon × (dist/42.195)^1.06
-  // Équivalent allure : pace_dist = pace_marathon × (dist/42.195)^0.06
   const riegelFactor = Math.pow(dist/42.195, 1.06);
   const distTimeSec  = Math.round(pred.tempsSec * riegelFactor);
   const distPaceSec  = Math.round(distTimeSec / dist);
@@ -1184,6 +1261,7 @@ function buildDistancePrediction(course) {
     confiance:pred.confiance,
     nbSeances:pred.nbSeances,
     details:  pred.details,
+    _method:  'riegel',
     historique: (pred.historique||[]).map(h=>({
       ws: h.ws,
       tempsSec: Math.round(h.tempsSec * riegelFactor),
@@ -1282,7 +1360,7 @@ function openDistancePredModal(course) {
         <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;">
           <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Séances analysées</p>
           <p style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:2px;">${pred.nbSeances||0}</p>
-          <p style="font-size:10px;color:var(--muted);">${pred.details?.nbEf||0} EF · ${pred.details?.nbLong||0} longues · ${pred.details?.nbTempo||0} tempos</p>
+          <p style="font-size:10px;color:var(--muted);">${pred._method==='blocs_directs'?`${pred.nbFrac||0} frac · ${pred.nbTempo||0} tempo`:`${pred.details?.nbEf||0} EF · ${pred.details?.nbLong||0} longues · ${pred.details?.nbTempo||0} tempos`}</p>
         </div>
       </div>
 
@@ -1297,8 +1375,26 @@ function openDistancePredModal(course) {
         </div>
       </div>`:''}
 
+      <!-- Warning 10km sans blocs -->
+      ${course==='10 km'&&pred._method==='riegel_fallback'?`
+      <div style="background:#FFF3CD;border:1px solid #E8A500;border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+        <p style="font-size:11px;font-weight:700;color:#7A5500;margin-bottom:3px;">⚠️ Estimation approximative</p>
+        <p style="font-size:10px;color:#7A5500;">Aucun bloc d'allure 10km renseigné — prédiction via Riegel depuis le modèle marathon. Valide des séances fractionné avec blocs d'allure pour une prédiction directe.</p>
+      </div>`:''}
+
+      <!-- 5km sans blocs -->
+      ${course==='5 km'&&!pred.tempsStr?`
+      <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <p style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">Prédiction 5 km non disponible</p>
+        <p style="font-size:10px;color:var(--muted);">La prédiction 5 km se base sur tes blocs d'allure en fractionné. Valide des séances frac/tempo avec des allures renseignées pour la débloquer.</p>
+      </div>`:''}
+
       <!-- Note méthode -->
-      <p style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:16px;">Basé sur la prédiction marathon (modèle Jack Daniels) convertie via la formule de Riegel</p>
+      <p style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:16px;">${
+        pred._method==='blocs_directs'?'Basé sur tes blocs d\'allure frac/tempo (modèle direct)':
+        pred._method==='riegel_fallback'?'Estimation via Riegel depuis marathon — valide des blocs frac pour plus de précision':
+        'Basé sur la prédiction marathon (modèle Jack Daniels) convertie via la formule de Riegel'
+      }</p>
 
       <!-- Modifier manuellement -->
       <button onclick="closeModal();openTargetTimeModal();"
