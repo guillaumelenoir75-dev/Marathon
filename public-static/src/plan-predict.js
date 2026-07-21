@@ -1163,9 +1163,12 @@ function buildShortDistancePrediction(course) {
   if(!dist) return {tempsStr:null,paceStr:null,confiance:0,nbSeances:0};
 
   const fracPts=[], tempoPts=[];
+  let nbSeancesAvecBlocs=0;
   const collectBlocs = (type, perf) => {
     const blocs=(perf.blocsAllure||[]).filter(Boolean);
-    blocs.forEach(b=>{const s=paceStrToSec(b);if(s){(type==='frac'?fracPts:tempoPts).push(s);}});
+    let added=false;
+    blocs.forEach(b=>{const s=paceStrToSec(b);if(s){(type==='frac'?fracPts:tempoPts).push(s);added=true;}});
+    if(added) nbSeancesAvecBlocs++;
   };
   for(let ws=1;ws<=CW;ws++){
     if(ws===22||ws===23) continue;
@@ -1202,13 +1205,13 @@ function buildShortDistancePrediction(course) {
   const totalW=signals.reduce((a,s)=>a+s.w,0);
   const paceSec=Math.round(signals.reduce((a,s)=>a+s.val*s.w,0)/totalW);
   const timeSec=Math.round(paceSec*dist);
-  const nbSeances=fracPts.length+tempoPts.length;
-  const confiance=Math.min(85,20+nbSeances*8);
+  const nbSeances=nbSeancesAvecBlocs;
+  const confiance=Math.min(80,15+nbSeances*12);
 
   const fmtTime=s=>{const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60),ss=s%60;if(hh>0)return`${hh}h${String(mm).padStart(2,'0')}`;return`${mm}'${String(ss).padStart(2,'0')}`;};
   const fmtPaceFn=s=>Math.floor(s/60)+"'"+(s%60<10?'0':'')+s%60;
 
-  return {tempsSec:timeSec,tempsStr:fmtTime(timeSec),paceSec,paceStr:fmtPaceFn(paceSec),confiance,nbSeances,nbFrac:fracPts.length,nbTempo:tempoPts.length,_method:'blocs_directs'};
+  return {tempsSec:timeSec,tempsStr:fmtTime(timeSec),paceSec,paceStr:fmtPaceFn(paceSec),confiance,nbSeances,nbFrac:fracPts.length,nbTempo:tempoPts.length,_method:'blocs_directs',nbBlocsTotal:fracPts.length+tempoPts.length};
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1318,7 +1321,7 @@ function openDistancePredModal(course) {
     <div style="padding:20px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
         <p style="font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.3px;">Prédiction ${distLabel}</p>
-        <p style="font-size:11px;color:var(--muted);margin-top:3px;">Calculée depuis tes séances d'entraînement · formule de Riegel</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:3px;">${pred._method==='blocs_directs'?'Calculée depuis tes blocs d\'allure frac/tempo':'Calculée depuis tes séances d\'entraînement · formule de Riegel'}</p>
       </div>
       <button onclick="closeModal()" style="background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:0;line-height:1;">×</button>
     </div>
@@ -1330,7 +1333,7 @@ function openDistancePredModal(course) {
           ? `<div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
              <div style="font-size:13px;color:var(--muted);margin-top:6px;">${pred.paceStr}/km · ${distKm} km</div>`
           : `<div style="font-size:24px;font-weight:700;color:var(--muted);margin:20px 0;">Pas encore assez de données</div>
-             <p style="font-size:13px;color:var(--muted);">Valide quelques séances EF ou tempo pour débloquer la prédiction.</p>`
+             <p style="font-size:13px;color:var(--muted);">${pred._method==='blocs_directs'?'Valide des séances frac ou tempo avec des blocs d\'allure renseignés pour débloquer la prédiction.':'Valide quelques séances EF ou tempo pour débloquer la prédiction.'}</p>`
         }
       </div>
 
@@ -1343,19 +1346,23 @@ function openDistancePredModal(course) {
         <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
           <div style="width:${confiancePct}%;height:100%;background:${confianceColor};border-radius:4px;"></div>
         </div>
-        <p style="font-size:10px;color:var(--muted);margin-top:6px;">${
+        <p style="font-size:10px;color:var(--muted);margin-top:6px;">${pred._method==='blocs_directs'?(
+          confiancePct<40?'Démarrage — valide d\'autres séances frac/tempo pour affiner':
+          confiancePct<65?'En cours d\'affinage — continue à enregistrer tes allures':
+          'Estimation solide · se consolide avec chaque séance validée'
+        ):(
           confiancePct<30?'Démarrage — moins de 5 séances analysées':
           confiancePct<50?'Estimation préliminaire — les séances EF et tempo posent la base':
           confiancePct<65?'En cours d\'affinage — les prochaines longues vont consolider':
           'Estimation solide · converge avec chaque séance validée'
-        } · ${pred.nbSeances||0} séances analysées</p>
+        )} · ${pred.nbSeances||0} séance${(pred.nbSeances||0)>1?'s':''} analysée${(pred.nbSeances||0)>1?'s':''}</p>
       </div>
 
       <!-- Stats -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
         <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;">
-          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Tendance allure EF</p>
-          <p style="font-size:13px;font-weight:700;color:var(--text);">${tendanceText}</p>
+          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">${pred._method==='blocs_directs'?'Allure moyenne blocs':'Tendance allure EF'}</p>
+          <p style="font-size:13px;font-weight:700;color:var(--text);">${pred._method==='blocs_directs'?(pred.paceStr?pred.paceStr+'/km':'—'):tendanceText}</p>
         </div>
         <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;">
           <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Séances analysées</p>
@@ -1380,13 +1387,6 @@ function openDistancePredModal(course) {
       <div style="background:#FFF3CD;border:1px solid #E8A500;border-radius:10px;padding:10px 12px;margin-bottom:12px;">
         <p style="font-size:11px;font-weight:700;color:#7A5500;margin-bottom:3px;">⚠️ Estimation approximative</p>
         <p style="font-size:10px;color:#7A5500;">Aucun bloc d'allure 10km renseigné — prédiction via Riegel depuis le modèle marathon. Valide des séances fractionné avec blocs d'allure pour une prédiction directe.</p>
-      </div>`:''}
-
-      <!-- 5km sans blocs -->
-      ${course==='5 km'&&!pred.tempsStr?`
-      <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:12px;">
-        <p style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">Prédiction 5 km non disponible</p>
-        <p style="font-size:10px;color:var(--muted);">La prédiction 5 km se base sur tes blocs d'allure en fractionné. Valide des séances frac/tempo avec des allures renseignées pour la débloquer.</p>
       </div>`:''}
 
       <!-- Note méthode -->
