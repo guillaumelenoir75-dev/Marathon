@@ -320,7 +320,7 @@ function renderHome(){
     if(predBtn){
       predBtn.style.cursor='pointer';
       predBtn.style.background=''; predBtn.style.border='';
-      if(!isAdmin()) predBtn.onclick=()=>openTargetTimeModal();
+      if(!isAdmin()) predBtn.onclick=()=>{ if(typeof openDistancePredModal==='function') openDistancePredModal(userCourse||'Marathon'); };
     }
     // AM entraînement : visible pour admin et athlète avec plan
     if(amTrainBtn){
@@ -460,7 +460,7 @@ function renderHome(){
       if(amTrainBtnNP){amTrainBtnNP.style.cursor='pointer';amTrainBtnNP.onclick=()=>showOnboarding(true);}
     } else {
       if(predLabelEl) predLabelEl.textContent='/km prédit';
-      if(amTrainLabelEl) amTrainLabelEl.textContent='/km allure course';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='/km course';
       // Temps marathon projeté (admin)
       const pred = buildMarathonPrediction();
       const mtEl=document.getElementById('kpi-marathon-time');

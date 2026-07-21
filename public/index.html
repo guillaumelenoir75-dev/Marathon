@@ -126,18 +126,18 @@
       <!-- DROITE : EF + prédit + AM entraînement -->
       <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
         <div id="home-race-kpi-block">
-        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,0.18);border-radius:9px;padding:4px 8px;border:1px solid rgba(251,191,36,0.3);white-space:nowrap;">
+        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,0.18);border-radius:9px;padding:4px 8px;border:1px solid rgba(251,191,36,0.3);white-space:nowrap;cursor:pointer;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.95)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span style="font-size:12px;font-weight:800;color:#FCD34D;" id="h-am-pred">—</span>
           <span style="font-size:10px;color:rgba(252,211,77,0.8);" id="h-pred-label">prédit</span>
         </div>
         <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():openTargetTimeModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.10);border-radius:9px;padding:4px 8px;border:1px solid rgba(255,255,255,0.13);white-space:nowrap;cursor:pointer;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          <span style="font-size:12px;font-weight:700;" id="kpi-am-training">5'20</span>
+          <span style="font-size:12px;font-weight:800;" id="kpi-am-training">5'20</span>
           <span style="font-size:10px;opacity:0.55;" id="h-am-train-label">objectif</span>
         </div>
         </div>
-        <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;white-space:nowrap;"></div>
+        <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;"></div>
         <div id="home-weather-strip" onclick="openHomeWeatherModal()" style="display:none;align-items:center;gap:4px;justify-content:flex-end;margin-top:3px;cursor:pointer;">
           <span id="home-weather-icon" style="font-size:15px;line-height:1;"></span>
           <span id="home-weather-temp" style="font-size:12px;font-weight:700;color:#fff;opacity:0.9;"></span>
