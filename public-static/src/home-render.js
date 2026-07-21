@@ -346,28 +346,74 @@ function renderHome(){
   const amTrainLabelEl=document.getElementById('h-am-train-label');
   if(!isPlaisir){
     if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
-      const shortCourse={'5 km':'5km','10 km':'10km','Semi-marathon':'semi','Marathon':'marathon','Autre':'course'}[userCourse]||'course';
-      if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
       const trainLabel=(userCourse==='5 km'||userCourse==='10 km')?'/km fractionné':'/km tempo';
       if(amTrainLabelEl) amTrainLabelEl.textContent=trainLabel;
-      // Grand chiffre : temps cible saisi dans questionnaire ou —
       const mtEl=document.getElementById('kpi-marathon-time');
-      const targetTime=ob.target_time||state.target_time||null;
-      if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
-      // Allure cible calculée depuis le temps cible si disponible
       const amPredElU=document.getElementById('h-am-pred');
-      if(amPredElU){
-        if(targetTime&&(ob.race_distance_km||state.race_distance_km)){
-          const tParts=targetTime.split(':').map(Number);
-          const totalSec=(tParts[0]||0)*3600+(tParts[1]||0)*60+(tParts[2]||0);
-          const distKm=parseFloat(ob.race_distance_km||state.race_distance_km)||0;
-          if(totalSec>0&&distKm>0){
-            const secPerKm=Math.round(totalSec/distKm);
-            amPredElU.textContent=Math.floor(secPerKm/60)+"'"+(secPerKm%60<10?'0':'')+secPerKm%60;
+      const _htb=document.getElementById('home-marathon-time-block');
+      const targetTime=ob.target_time||state.target_time||null;
+      const _distFallback={'Marathon':42.195,'Semi-marathon':21.097,'10 km':10,'5 km':5}[userCourse]||0;
+      const distKm=parseFloat(ob.race_distance_km||state.race_distance_km)||_distFallback;
+
+      if(userCourse==='Marathon'){
+        // Prédiction dynamique identique à l'admin
+        const pred=buildMarathonPrediction();
+        if(pred.tempsStr){
+          if(predLabelEl) predLabelEl.textContent='/km prédit';
+          if(mtEl) mtEl.textContent=pred.tempsStr;
+          if(amPredElU) amPredElU.textContent=pred.amPaceRecoStr||'—';
+          if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openMarathonPredModal();}
+        } else {
+          // Pas encore assez de données : afficher objectif déclaré
+          if(predLabelEl) predLabelEl.textContent='/km marathon';
+          if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+          if(amPredElU){
+            if(targetTime&&distKm>0){
+              const tp=targetTime.split(':').map(Number);
+              const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
+              const spk=Math.round(ts/distKm);
+              amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
+            } else amPredElU.textContent='—';
+          }
+          if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openMarathonPredModal();}
+        }
+      } else if(userCourse==='Semi-marathon'||userCourse==='10 km'||userCourse==='5 km'){
+        // Prédiction dynamique via Riegel depuis le modèle marathon
+        const pred=buildDistancePrediction(userCourse);
+        const shortCourse={'10 km':'10km','Semi-marathon':'semi','5 km':'5km'}[userCourse]||'course';
+        if(pred.tempsStr){
+          if(predLabelEl) predLabelEl.textContent='/km prédit';
+          if(mtEl) mtEl.textContent=pred.tempsStr;
+          if(amPredElU) amPredElU.textContent=pred.paceStr||'—';
+          if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openDistancePredModal(userCourse);}
+        } else {
+          if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
+          if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+          if(amPredElU){
+            if(targetTime&&distKm>0){
+              const tp=targetTime.split(':').map(Number);
+              const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
+              const spk=Math.round(ts/distKm);
+              amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
+            } else amPredElU.textContent='—';
+          }
+          if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openDistancePredModal(userCourse);}
+        }
+      } else {
+        // Autre / distance inconnue — statique
+        const shortCourse={'Autre':'course'}[userCourse]||'course';
+        if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
+        if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+        if(amPredElU){
+          if(targetTime&&distKm>0){
+            const tp=targetTime.split(':').map(Number);
+            const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
+            const spk=Math.round(ts/distKm);
+            amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
           } else amPredElU.textContent='—';
-        } else amPredElU.textContent='—';
+        }
+        if(_htb) _htb.style.cursor='pointer';
       }
-      const _htb=document.getElementById('home-marathon-time-block');if(_htb)_htb.style.cursor='pointer';
     } else {
       if(predLabelEl) predLabelEl.textContent='/km prédit';
       if(amTrainLabelEl) amTrainLabelEl.textContent='/km allure course';

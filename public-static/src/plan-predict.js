@@ -1150,3 +1150,163 @@ function toggleRecord10kmEditInPredict() {
     if (inp) { inp.focus(); inp.select(); }
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Prédiction pour les distances courtes (semi, 10km, 5km)
+// Utilise buildMarathonPrediction() + formule de Riegel
+// ─────────────────────────────────────────────────────────────
+function buildDistancePrediction(course) {
+  const distMap = {'Semi-marathon':21.097,'10 km':10,'5 km':5};
+  const dist = distMap[course];
+  if(!dist) return {tempsStr:null,paceStr:null,confiance:0};
+
+  const pred = buildMarathonPrediction();
+  if(!pred.tempsSec) return {tempsStr:null,paceStr:null,confiance:pred.confiance||0,nbSeances:pred.nbSeances||0};
+
+  // Riegel : t_dist = t_marathon × (dist/42.195)^1.06
+  // Équivalent allure : pace_dist = pace_marathon × (dist/42.195)^0.06
+  const riegelFactor = Math.pow(dist/42.195, 1.06);
+  const distTimeSec  = Math.round(pred.tempsSec * riegelFactor);
+  const distPaceSec  = Math.round(distTimeSec / dist);
+
+  const fmtTime = s => {
+    const hh=Math.floor(s/3600), mm=Math.floor((s%3600)/60), ss=s%60;
+    if(hh>0) return `${hh}h${String(mm).padStart(2,'0')}`;
+    return `${mm}'${String(ss).padStart(2,'0')}`;
+  };
+  const fmtPaceFn = s => Math.floor(s/60)+"'"+(s%60<10?'0':'')+s%60;
+
+  return {
+    tempsSec: distTimeSec,
+    tempsStr: fmtTime(distTimeSec),
+    paceSec:  distPaceSec,
+    paceStr:  fmtPaceFn(distPaceSec),
+    confiance:pred.confiance,
+    nbSeances:pred.nbSeances,
+    details:  pred.details,
+    historique: (pred.historique||[]).map(h=>({
+      ws: h.ws,
+      tempsSec: Math.round(h.tempsSec * riegelFactor),
+    })),
+  };
+}
+
+function openDistancePredModal(course) {
+  const pred = buildDistancePrediction(course);
+  const mc = document.getElementById('modal-container');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const distLabel = {'Semi-marathon':'semi-marathon','10 km':'10 km','5 km':'5 km'}[course]||course;
+  const distKm    = {'Semi-marathon':21.097,'10 km':10,'5 km':5}[course]||0;
+
+  const confiancePct   = pred.confiance||0;
+  const confianceColor = confiancePct>=70?'#3B6D11':confiancePct>=40?'#E8530A':'#888';
+
+  const tendanceText = pred.details?.slopeLabel && pred.details.slopeLabel!=='—'
+    ? pred.details.slopeLabel : '—';
+
+  // Mini graphique SVG historique
+  let svgGraph = '';
+  if(pred.historique && pred.historique.length >= 2) {
+    const W=300,H=90,PAD_L=38,PAD_R=10,PAD_T=8,PAD_B=18;
+    const times = pred.historique.map(p=>p.tempsSec);
+    const rawMin=Math.min(...times)-300, rawMax=Math.max(...times)+300;
+    const yMin=Math.floor(rawMin/300)*300, yMax=Math.ceil(rawMax/300)*300;
+    const yRange=yMax-yMin;
+    const toY=v=>PAD_T+((yMax-v)/yRange)*(H-PAD_T-PAD_B);
+    const toX=i=>PAD_L+(i/(pred.historique.length-1))*(W-PAD_L-PAD_R);
+    const pts=pred.historique.map((p,i)=>({x:toX(i),y:toY(p.tempsSec),ws:p.ws}));
+    const polyline=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    let yLabels='';
+    for(let t=yMin;t<=yMax;t+=300){
+      const y=toY(t);
+      const hh=Math.floor(t/3600),mm=Math.floor((t%3600)/60);
+      yLabels+=`<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W-PAD_R}" y2="${y.toFixed(1)}" stroke="#ddd" stroke-width="0.7"/>`;
+      yLabels+=`<text x="${PAD_L-3}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="7.5" fill="#999">${hh>0?hh+'h':''}${String(mm).padStart(2,'0')}</text>`;
+    }
+    svgGraph=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:90px;overflow:visible;">
+      ${yLabels}
+      <polyline points="${polyline}" fill="none" stroke="#1B4FD8" stroke-width="2" stroke-linejoin="round"/>
+      <polygon points="${polyline} ${(W-PAD_R).toFixed(1)},${(H-PAD_B).toFixed(1)} ${PAD_L},${(H-PAD_B).toFixed(1)}" fill="rgba(27,79,216,0.08)"/>
+      ${pts.map((p,i)=>i===pts.length-1
+        ?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#1B4FD8"/>`
+        :`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="white" stroke="#1B4FD8" stroke-width="1.5"/>`
+      ).join('')}
+    </svg>`;
+  }
+
+  overlay.innerHTML=`<div class="modal-box">
+    <div style="padding:20px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <p style="font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.3px;">Prédiction ${distLabel}</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:3px;">Calculée depuis tes séances d'entraînement · formule de Riegel</p>
+      </div>
+      <button onclick="closeModal()" style="background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:0;line-height:1;">×</button>
+    </div>
+    <div style="padding:20px;overflow-y:auto;flex:1;">
+
+      <!-- Temps principal -->
+      <div style="text-align:center;margin-bottom:20px;padding:8px 0;">
+        ${pred.tempsStr
+          ? `<div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
+             <div style="font-size:13px;color:var(--muted);margin-top:6px;">${pred.paceStr}/km · ${distKm} km</div>`
+          : `<div style="font-size:24px;font-weight:700;color:var(--muted);margin:20px 0;">Pas encore assez de données</div>
+             <p style="font-size:13px;color:var(--muted);">Valide quelques séances EF ou tempo pour débloquer la prédiction.</p>`
+        }
+      </div>
+
+      <!-- Confiance -->
+      <div style="background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);">Indice de confiance</span>
+          <span style="font-size:14px;font-weight:700;color:${confianceColor};">${confiancePct}%</span>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+          <div style="width:${confiancePct}%;height:100%;background:${confianceColor};border-radius:4px;"></div>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin-top:6px;">${
+          confiancePct<30?'Démarrage — moins de 5 séances analysées':
+          confiancePct<50?'Estimation préliminaire — les séances EF et tempo posent la base':
+          confiancePct<65?'En cours d\'affinage — les prochaines longues vont consolider':
+          'Estimation solide · converge avec chaque séance validée'
+        } · ${pred.nbSeances||0} séances analysées</p>
+      </div>
+
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;">
+          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Tendance allure EF</p>
+          <p style="font-size:13px;font-weight:700;color:var(--text);">${tendanceText}</p>
+        </div>
+        <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;">
+          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Séances analysées</p>
+          <p style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:2px;">${pred.nbSeances||0}</p>
+          <p style="font-size:10px;color:var(--muted);">${pred.details?.nbEf||0} EF · ${pred.details?.nbLong||0} longues · ${pred.details?.nbTempo||0} tempos</p>
+        </div>
+      </div>
+
+      <!-- Graphique historique -->
+      ${pred.historique&&pred.historique.length>=2?`
+      <div style="background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+        <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Évolution de la prédiction</p>
+        ${svgGraph}
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:9px;color:var(--muted);">S1</span>
+          <span style="font-size:9px;color:var(--muted);">S${CW} (aujourd'hui)</span>
+        </div>
+      </div>`:''}
+
+      <!-- Note méthode -->
+      <p style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:16px;">Basé sur la prédiction marathon (modèle Jack Daniels) convertie via la formule de Riegel</p>
+
+      <!-- Modifier manuellement -->
+      <button onclick="closeModal();openTargetTimeModal();"
+        style="width:100%;padding:12px;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;">
+        ✏️ Modifier mon objectif manuellement
+      </button>
+    </div>
+  </div>`;
+  mc.appendChild(overlay);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+}
