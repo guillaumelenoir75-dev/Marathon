@@ -348,6 +348,31 @@ function openMarathonPredModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
 
+  // Objectif déclaré (formulaire onboarding)
+  const targetTimeStr = ob.target_time || state.target_time || null;
+  let targetSec = null;
+  if(targetTimeStr){const tp=targetTimeStr.split(':').map(Number);targetSec=((tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0));}
+  const fmtTimeLocal = s=>{const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60);return`${hh}h${String(mm).padStart(2,'0')}`;};
+  // Delta prédiction vs objectif
+  let vsObjectifHtml = '';
+  if(targetSec && pred.tempsSec){
+    const deltaMin = Math.round((pred.tempsSec - targetSec) / 60);
+    const deltaAbs = Math.abs(deltaMin);
+    const deltaColor = deltaMin <= 0 ? '#3B6D11' : deltaMin <= 10 ? '#E8530A' : '#E24B4A';
+    const deltaLabel = deltaMin <= 0
+      ? `${deltaAbs} min en avance sur ton objectif ✅`
+      : `${deltaAbs} min au-dessus de ton objectif`;
+    // Tendance de convergence : 3 derniers points de l'historique
+    let tendanceVsObj = '';
+    if(pred.historique && pred.historique.length >= 3){
+      const last3 = pred.historique.slice(-3).map(h=>h.tempsSec-targetSec);
+      if(last3[2] < last3[0] - 120) tendanceVsObj = ' · Tu te rapproches 📉';
+      else if(last3[2] > last3[0] + 120) tendanceVsObj = ' · Tu t\'éloignes 📈';
+      else tendanceVsObj = ' · Stable';
+    }
+    vsObjectifHtml = `<div style="font-size:12px;font-weight:700;color:${deltaColor};margin-top:10px;padding:6px 14px;background:${deltaColor}15;border-radius:20px;display:inline-block;">🎯 Objectif ${fmtTimeLocal(targetSec)} · ${deltaLabel}${tendanceVsObj}</div>`;
+  }
+
   const sub4 = pred.sub4hEcartSec != null;
   const sub4Color = pred.sub4hEcartSec <= 0 ? '#3B6D11' : pred.sub4hEcartSec < 300 ? '#E8530A' : '#E24B4A';
   const sub4Text = pred.sub4hEcartSec <= 0
@@ -375,9 +400,9 @@ function openMarathonPredModal() {
     const W = 300, H = 90, PAD_L = 38, PAD_R = 10, PAD_T = 8, PAD_B = 18;
     const times = pred.historique.map(p => p.tempsSec);
     const sub4Sec = 4 * 3600;
-    // Échelle Y : arrondie à 5min, centrée sur les valeurs
-    const rawMin = Math.min(...times, sub4Sec) - 600;
-    const rawMax = Math.max(...times, sub4Sec) + 600;
+    const anchors = [sub4Sec, ...(targetSec ? [targetSec] : [])];
+    const rawMin = Math.min(...times, ...anchors) - 600;
+    const rawMax = Math.max(...times, ...anchors) + 600;
     const yMin = Math.floor(rawMin/300)*300;
     const yMax = Math.ceil(rawMax/300)*300;
     const yRange = yMax - yMin;
@@ -385,7 +410,6 @@ function openMarathonPredModal() {
     const toX = i => PAD_L + (i / (pred.historique.length - 1)) * (W - PAD_L - PAD_R);
     const pts2 = pred.historique.map((p, i) => ({ x: toX(i), y: toY(p.tempsSec), ws: p.ws }));
     const polyline = pts2.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-    // Graduations Y (toutes les 10min)
     let yLabels = '';
     for(let t = yMin; t <= yMax; t += 600) {
       const y = toY(t);
@@ -393,12 +417,19 @@ function openMarathonPredModal() {
       yLabels += `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W-PAD_R}" y2="${y.toFixed(1)}" stroke="#ddd" stroke-width="0.7"/>`;
       yLabels += `<text x="${PAD_L-3}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="7.5" fill="#999">${hh}h${String(mm).padStart(2,'0')}</text>`;
     }
-    // Ligne Sub-4h
     const sub4Y = toY(sub4Sec);
+    // Ligne objectif déclaré
+    const targetLineHtml = targetSec ? (()=>{
+      const tY = toY(targetSec).toFixed(1);
+      const tC = '#E8530A';
+      return `<line x1="${PAD_L}" y1="${tY}" x2="${W-PAD_R}" y2="${tY}" stroke="${tC}" stroke-width="1.5" stroke-dasharray="5,3"/>
+              <text x="${PAD_L+2}" y="${(parseFloat(tY)-3).toFixed(1)}" font-size="7.5" fill="${tC}" font-weight="700">Objectif</text>`;
+    })() : '';
     svgGraph = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:90px;overflow:visible;">
       ${yLabels}
       <line x1="${PAD_L}" y1="${sub4Y.toFixed(1)}" x2="${W-PAD_R}" y2="${sub4Y.toFixed(1)}" stroke="#3B6D11" stroke-width="1.2" stroke-dasharray="4,3"/>
       <text x="${W-PAD_R}" y="${(sub4Y-3).toFixed(1)}" text-anchor="end" font-size="7.5" fill="#3B6D11" font-weight="600">Sub-4h</text>
+      ${targetLineHtml}
       <polyline points="${polyline}" fill="none" stroke="#1B4FD8" stroke-width="2" stroke-linejoin="round"/>
       <polygon points="${polyline} ${(W-PAD_R).toFixed(1)},${(H-PAD_B).toFixed(1)} ${PAD_L},${(H-PAD_B).toFixed(1)}" fill="rgba(27,79,216,0.08)"/>
       ${pts2.map((p,i) => i===pts2.length-1
@@ -415,7 +446,11 @@ function openMarathonPredModal() {
     <div style="padding:20px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
         <p style="font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.3px;">Prédiction marathon</p>
-        <p style="font-size:11px;color:var(--muted);margin-top:3px;">18 octobre 2026 · Semaine 32</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:3px;">${(()=>{
+          const rd=ob.race_date||state.race_date||null;
+          const rdStr=rd?new Date(rd).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'—';
+          return `${rdStr} · Semaine ${CW}`;
+        })()}</p>
       </div>
       <button onclick="closeModal()" style="background:var(--bg2);border:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">×</button>
     </div>
@@ -427,6 +462,7 @@ function openMarathonPredModal() {
     <div style="text-align:center;margin-bottom:20px;padding:8px 0;">
       <div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
       ${pred.tempsStrBase ? `<div style="font-size:12px;color:var(--muted);margin-top:6px;">Modèle entraînement · <strong style="color:var(--text);">${pred.tempsStrBase}</strong></div>` : ''}
+      ${vsObjectifHtml}
       ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:8px;padding:6px 14px;background:${sub4Color}18;border-radius:20px;display:inline-block;">${sub4Text}</div>` : ''}
     </div>
 
@@ -1281,6 +1317,28 @@ function openDistancePredModal(course) {
   const distLabel = {'Semi-marathon':'semi-marathon','10 km':'10 km','5 km':'5 km'}[course]||course;
   const distKm    = {'Semi-marathon':21.097,'10 km':10,'5 km':5}[course]||0;
 
+  // Objectif déclaré
+  const targetTimeStrD = ob.target_time||state.target_time||null;
+  let targetSecD = null;
+  if(targetTimeStrD){const tp=targetTimeStrD.split(':').map(Number);targetSecD=((tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0));}
+  const fmtTimeD = s=>{const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60),ss=s%60;if(hh>0)return`${hh}h${String(mm).padStart(2,'0')}`;return`${mm}'${String(ss).padStart(2,'0')}`;};
+  // Delta prédiction vs objectif
+  let vsObjHtml = '';
+  if(targetSecD && pred.tempsSec){
+    const delta = Math.round((pred.tempsSec - targetSecD) / 60);
+    const dAbs = Math.abs(delta);
+    const dColor = delta <= 0 ? '#3B6D11' : delta <= 5 ? '#E8530A' : '#E24B4A';
+    const dLabel = delta <= 0 ? `${dAbs} min en avance ✅` : `${dAbs} min au-dessus`;
+    let tendVsObj = '';
+    if(pred.historique && pred.historique.length >= 3){
+      const last3 = pred.historique.slice(-3).map(h=>h.tempsSec - targetSecD);
+      if(last3[2] < last3[0] - 60) tendVsObj = ' · Tu te rapproches 📉';
+      else if(last3[2] > last3[0] + 60) tendVsObj = ' · Tu t\'éloignes 📈';
+      else tendVsObj = ' · Stable';
+    }
+    vsObjHtml = `<div style="font-size:12px;font-weight:700;color:${dColor};margin-top:10px;padding:6px 14px;background:${dColor}15;border-radius:20px;display:inline-block;">🎯 Objectif ${fmtTimeD(targetSecD)} · ${dLabel}${tendVsObj}</div>`;
+  }
+
   const confiancePct   = pred.confiance||0;
   const confianceColor = confiancePct>=70?'#3B6D11':confiancePct>=40?'#E8530A':'#888';
 
@@ -1292,7 +1350,8 @@ function openDistancePredModal(course) {
   if(pred.historique && pred.historique.length >= 2) {
     const W=300,H=90,PAD_L=38,PAD_R=10,PAD_T=8,PAD_B=18;
     const times = pred.historique.map(p=>p.tempsSec);
-    const rawMin=Math.min(...times)-300, rawMax=Math.max(...times)+300;
+    const anchors = targetSecD ? [targetSecD] : [];
+    const rawMin=Math.min(...times,...anchors)-300, rawMax=Math.max(...times,...anchors)+300;
     const yMin=Math.floor(rawMin/300)*300, yMax=Math.ceil(rawMax/300)*300;
     const yRange=yMax-yMin;
     const toY=v=>PAD_T+((yMax-v)/yRange)*(H-PAD_T-PAD_B);
@@ -1306,8 +1365,14 @@ function openDistancePredModal(course) {
       yLabels+=`<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W-PAD_R}" y2="${y.toFixed(1)}" stroke="#ddd" stroke-width="0.7"/>`;
       yLabels+=`<text x="${PAD_L-3}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="7.5" fill="#999">${hh>0?hh+'h':''}${String(mm).padStart(2,'0')}</text>`;
     }
+    const targetLineDHtml = targetSecD ? (()=>{
+      const tY = toY(targetSecD).toFixed(1);
+      return `<line x1="${PAD_L}" y1="${tY}" x2="${W-PAD_R}" y2="${tY}" stroke="#E8530A" stroke-width="1.5" stroke-dasharray="5,3"/>
+              <text x="${PAD_L+2}" y="${(parseFloat(tY)-3).toFixed(1)}" font-size="7.5" fill="#E8530A" font-weight="700">Objectif</text>`;
+    })() : '';
     svgGraph=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:90px;overflow:visible;">
       ${yLabels}
+      ${targetLineDHtml}
       <polyline points="${polyline}" fill="none" stroke="#1B4FD8" stroke-width="2" stroke-linejoin="round"/>
       <polygon points="${polyline} ${(W-PAD_R).toFixed(1)},${(H-PAD_B).toFixed(1)} ${PAD_L},${(H-PAD_B).toFixed(1)}" fill="rgba(27,79,216,0.08)"/>
       ${pts.map((p,i)=>i===pts.length-1
@@ -1331,7 +1396,8 @@ function openDistancePredModal(course) {
       <div style="text-align:center;margin-bottom:20px;padding:8px 0;">
         ${pred.tempsStr
           ? `<div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
-             <div style="font-size:13px;color:var(--muted);margin-top:6px;">${pred.paceStr}/km · ${distKm} km</div>`
+             <div style="font-size:13px;color:var(--muted);margin-top:6px;">${pred.paceStr}/km · ${distKm} km</div>
+             ${vsObjHtml}`
           : `<div style="font-size:24px;font-weight:700;color:var(--muted);margin:20px 0;">Pas encore assez de données</div>
              <p style="font-size:13px;color:var(--muted);">${pred._method==='blocs_directs'?'Valide des séances frac ou tempo avec des blocs d\'allure renseignés pour débloquer la prédiction.':'Valide quelques séances EF ou tempo pour débloquer la prédiction.'}</p>`
         }
