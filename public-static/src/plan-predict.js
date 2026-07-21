@@ -343,6 +343,7 @@ function buildMarathonPrediction() {
 }
 
 function openMarathonPredModal() {
+  const ob = state.onboarding || {};
   const pred = buildMarathonPrediction();
   const mc = document.getElementById('modal-container');
   const overlay = document.createElement('div');
@@ -1309,6 +1310,7 @@ function buildDistancePrediction(course) {
 }
 
 function openDistancePredModal(course) {
+  const ob = state.onboarding || {};
   const pred = buildDistancePrediction(course);
   const mc = document.getElementById('modal-container');
   const overlay = document.createElement('div');
