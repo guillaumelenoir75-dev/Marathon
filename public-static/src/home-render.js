@@ -438,6 +438,26 @@ function renderHome(){
         }
         if(_htb) _htb.style.cursor='pointer';
       }
+    } else if(!isAdmin() && !userCourse){
+      // Pas d'onboarding / pas de plan : incitation à créer
+      const goalLblNP=document.getElementById('home-goal-label');
+      if(goalLblNP) goalLblNP.textContent='🏁 Aucun plan actif';
+      const _tdNP=document.getElementById('today-date');
+      if(_tdNP) _tdNP.textContent='Appuie pour créer ton plan';
+      if(predLabelEl) predLabelEl.textContent='créer un plan';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='';
+      const mtElNP=document.getElementById('kpi-marathon-time');
+      if(mtElNP) mtElNP.textContent='—';
+      const amPredNP=document.getElementById('h-am-pred');
+      if(amPredNP) amPredNP.textContent='🏁';
+      const amTrainNP=document.getElementById('kpi-am-training');
+      if(amTrainNP) amTrainNP.textContent='';
+      const _htbNP=document.getElementById('home-marathon-time-block');
+      if(_htbNP){_htbNP.style.cursor='pointer';_htbNP.onclick=()=>showOnboarding(true);}
+      const predBtnNP=document.getElementById('home-pred-btn');
+      if(predBtnNP){predBtnNP.style.cursor='pointer';predBtnNP.onclick=()=>showOnboarding(true);}
+      const amTrainBtnNP=document.getElementById('home-am-train-btn');
+      if(amTrainBtnNP){amTrainBtnNP.style.cursor='pointer';amTrainBtnNP.onclick=()=>showOnboarding(true);}
     } else {
       if(predLabelEl) predLabelEl.textContent='/km prédit';
       if(amTrainLabelEl) amTrainLabelEl.textContent='/km allure course';
@@ -491,6 +511,7 @@ function renderHome(){
           }
         }
         amTrainEl.textContent = _trainS ? Math.floor(_trainS/60)+"'"+((_trainS%60)<10?'0':'')+(_trainS%60) : '—';
+        if(!_trainS && amTrainLabelEl) amTrainLabelEl.textContent='définir ✏️';
       }
     }
   }
