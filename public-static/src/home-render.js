@@ -364,16 +364,24 @@ function renderHome(){
           if(amPredElU) amPredElU.textContent=pred.amPaceRecoStr||'—';
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openMarathonPredModal();}
         } else {
-          // Pas encore assez de données : afficher objectif déclaré
-          if(predLabelEl) predLabelEl.textContent='/km marathon';
-          if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
-          if(amPredElU){
-            if(targetTime&&distKm>0){
-              const tp=targetTime.split(':').map(Number);
-              const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
-              const spk=Math.round(ts/distKm);
-              amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
-            } else amPredElU.textContent='—';
+          // Pas encore assez de données : afficher objectif déclaré ou incitation
+          if(targetTime){
+            if(predLabelEl) predLabelEl.textContent='/km marathon';
+            if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+            if(amPredElU){
+              if(distKm>0){
+                const tp=targetTime.split(':').map(Number);
+                const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
+                const spk=Math.round(ts/distKm);
+                amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
+              } else amPredElU.textContent='—';
+            }
+          } else {
+            if(predLabelEl) predLabelEl.textContent='définir ✏️';
+            if(mtEl) mtEl.textContent='—';
+            if(amPredElU) amPredElU.textContent='—';
+            const _td=document.getElementById('today-date');
+            if(_td) _td.textContent='Appuie pour définir ton objectif';
           }
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openMarathonPredModal();}
         }
@@ -387,30 +395,46 @@ function renderHome(){
           if(amPredElU) amPredElU.textContent=pred.paceStr||'—';
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openDistancePredModal(userCourse);}
         } else {
-          if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
-          if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
-          if(amPredElU){
-            if(targetTime&&distKm>0){
-              const tp=targetTime.split(':').map(Number);
-              const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
-              const spk=Math.round(ts/distKm);
-              amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
-            } else amPredElU.textContent='—';
+          if(targetTime){
+            if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
+            if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+            if(amPredElU){
+              if(distKm>0){
+                const tp=targetTime.split(':').map(Number);
+                const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
+                const spk=Math.round(ts/distKm);
+                amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
+              } else amPredElU.textContent='—';
+            }
+          } else {
+            if(predLabelEl) predLabelEl.textContent='définir ✏️';
+            if(mtEl) mtEl.textContent='—';
+            if(amPredElU) amPredElU.textContent='—';
+            const _td=document.getElementById('today-date');
+            if(_td) _td.textContent='Appuie pour définir ton objectif';
           }
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openDistancePredModal(userCourse);}
         }
       } else {
         // Autre / distance inconnue — statique
         const shortCourse={'Autre':'course'}[userCourse]||'course';
-        if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
-        if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
-        if(amPredElU){
-          if(targetTime&&distKm>0){
-            const tp=targetTime.split(':').map(Number);
-            const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
-            const spk=Math.round(ts/distKm);
-            amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
-          } else amPredElU.textContent='—';
+        if(targetTime){
+          if(predLabelEl) predLabelEl.textContent='/km '+shortCourse;
+          if(mtEl) mtEl.textContent=formatTargetTime(targetTime);
+          if(amPredElU){
+            if(distKm>0){
+              const tp=targetTime.split(':').map(Number);
+              const ts=(tp[0]||0)*3600+(tp[1]||0)*60+(tp[2]||0);
+              const spk=Math.round(ts/distKm);
+              amPredElU.textContent=spk?Math.floor(spk/60)+"'"+(spk%60<10?'0':'')+spk%60:'—';
+            } else amPredElU.textContent='—';
+          }
+        } else {
+          if(predLabelEl) predLabelEl.textContent='définir ✏️';
+          if(mtEl) mtEl.textContent='—';
+          if(amPredElU) amPredElU.textContent='—';
+          const _td=document.getElementById('today-date');
+          if(_td) _td.textContent='Appuie pour définir ton objectif';
         }
         if(_htb) _htb.style.cursor='pointer';
       }
