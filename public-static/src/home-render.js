@@ -329,7 +329,7 @@ function renderHome(){
       const amTrainElR=document.getElementById('kpi-am-training');
       if(amTrainElR) amTrainElR.style.opacity='';
       const amTrainLblR=document.getElementById('h-am-train-label');
-      if(amTrainLblR) amTrainLblR.style.fontSize='10px';
+      if(amTrainLblR){ amTrainLblR.style.fontSize='10px'; amTrainLblR.style.opacity='0.8'; }
     }
   }
   // Label objectif dynamique selon la course (isPlaisir déjà géré dans son bloc)
