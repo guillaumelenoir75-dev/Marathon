@@ -348,7 +348,7 @@ function renderHome(){
   const amTrainLabelEl=document.getElementById('h-am-train-label');
   if(!isPlaisir){
     if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
-      const trainLabel=(userCourse==='5 km'||userCourse==='10 km')?'/km fractionné':'/km tempo';
+      const trainLabel=(userCourse==='5 km'||userCourse==='10 km')?'/km fractionné':'/km entraînement';
       if(amTrainLabelEl) amTrainLabelEl.textContent=trainLabel;
       const mtEl=document.getElementById('kpi-marathon-time');
       const amPredElU=document.getElementById('h-am-pred');
@@ -462,7 +462,10 @@ function renderHome(){
       if(amTrainBtnNP){amTrainBtnNP.style.cursor='pointer';amTrainBtnNP.onclick=()=>showOnboarding(true);}
     } else {
       if(predLabelEl) predLabelEl.textContent='/km · voir →';
-      if(amTrainLabelEl) amTrainLabelEl.textContent='/km course';
+      if(amTrainLabelEl) amTrainLabelEl.textContent='/km entraînement';
+      // Garantir onclick admin (peut avoir été effacé par un render plaisir/no-plan)
+      const predBtnAdmin=document.getElementById('home-pred-btn');
+      if(predBtnAdmin){ predBtnAdmin.onclick=()=>openMarathonPredModal(); predBtnAdmin.style.cursor='pointer'; }
       // Temps marathon projeté (admin)
       const pred = buildMarathonPrediction();
       const mtEl=document.getElementById('kpi-marathon-time');
