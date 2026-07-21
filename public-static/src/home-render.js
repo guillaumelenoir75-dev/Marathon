@@ -320,7 +320,9 @@ function renderHome(){
     if(predBtn){
       predBtn.style.cursor='pointer';
       predBtn.style.background=''; predBtn.style.border='';
-      if(!isAdmin()) predBtn.onclick=()=>{ if(typeof openDistancePredModal==='function') openDistancePredModal(userCourse||'Marathon'); };
+      // Toujours réassigner onclick (peut avoir été nullifié par le bloc Plaisir)
+      if(isAdmin()) predBtn.onclick=()=>openMarathonPredModal();
+      else predBtn.onclick=()=>{ if(typeof openDistancePredModal==='function') openDistancePredModal(userCourse||'Marathon'); };
     }
     // AM entraînement : visible pour admin et athlète avec plan
     if(amTrainBtn){
@@ -359,7 +361,7 @@ function renderHome(){
         // Prédiction dynamique identique à l'admin
         const pred=buildMarathonPrediction();
         if(pred.tempsStr){
-          if(predLabelEl) predLabelEl.textContent='/km prédit';
+          if(predLabelEl) predLabelEl.textContent='/km · voir →';
           if(mtEl) mtEl.textContent=pred.tempsStr;
           if(amPredElU) amPredElU.textContent=pred.amPaceRecoStr||'—';
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openMarathonPredModal();}
@@ -390,7 +392,7 @@ function renderHome(){
         const pred=buildDistancePrediction(userCourse);
         const shortCourse={'10 km':'10km','Semi-marathon':'semi','5 km':'5km'}[userCourse]||'course';
         if(pred.tempsStr){
-          if(predLabelEl) predLabelEl.textContent='/km prédit';
+          if(predLabelEl) predLabelEl.textContent='/km · voir →';
           if(mtEl) mtEl.textContent=pred.tempsStr;
           if(amPredElU) amPredElU.textContent=pred.paceStr||'—';
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openDistancePredModal(userCourse);}
@@ -459,7 +461,7 @@ function renderHome(){
       const amTrainBtnNP=document.getElementById('home-am-train-btn');
       if(amTrainBtnNP){amTrainBtnNP.style.cursor='pointer';amTrainBtnNP.onclick=()=>showOnboarding(true);}
     } else {
-      if(predLabelEl) predLabelEl.textContent='/km prédit';
+      if(predLabelEl) predLabelEl.textContent='/km · voir →';
       if(amTrainLabelEl) amTrainLabelEl.textContent='/km course';
       // Temps marathon projeté (admin)
       const pred = buildMarathonPrediction();
