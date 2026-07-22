@@ -116,9 +116,6 @@ async function syncWhoop() {
     const data = await resp.json();
 
     if (data.needsAuth) {
-      // Token expiré : ne pas effacer les données existantes (on garde l'affichage),
-      // juste signaler que la reconnexion est nécessaire via l'écran Compte
-      _whoopSyncing = false;
       const status = document.getElementById('whoop-status');
       if (status) { status.textContent = 'Token expiré — reconnecte WHOOP'; status.style.color = '#f59e0b'; }
       return;
@@ -147,14 +144,14 @@ async function syncWhoop() {
     }
 
     if (status) { status.textContent = 'Sync à l\'instant'; status.style.color = '#22c55e'; }
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser'; btn.onclick = syncWhoop; }
 
   } catch(e) {
     console.error('whoopSync error:', e);
     if (status) { status.textContent = 'Erreur sync'; status.style.color = '#ef4444'; }
-    if (btn) { btn.disabled = false; btn.innerHTML = '🔄 Réessayer'; btn.onclick = syncWhoop; }
+  } finally {
+    _whoopSyncing = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser'; btn.onclick = syncWhoop; }
   }
-  _whoopSyncing = false;
 }
 
 function _autoFillFcRepos(rhr) {
