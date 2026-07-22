@@ -136,6 +136,60 @@ function migrateState(){
     }
   });
   if(changed) save();
+
+  // Migration plan sessions → extra_w (one-time, admin only)
+  if(isAdmin() && !state._plan_migrated && typeof weeks !== 'undefined') {
+    _migratePlanToExtraW();
+  }
+}
+
+// Migration one-time : convertit les séances du plan hardcodé (weeks[] + edit_w + del_w)
+// en entrées extra_w, tout en conservant les clés d'origine pour rétrocompatibilité.
+// Additive uniquement : ne supprime rien. Idempotente grâce au flag _plan_migrated.
+function _migratePlanToExtraW() {
+  const updates = {};
+
+  for(let ws = 1; ws <= weeks.length; ws++) {
+    // Compter les séances extra_w déjà existantes pour cette semaine (ajouts manuels admin)
+    let existingCount = 0;
+    while(existingCount <= 30 && state[`extra_w${ws}_s${existingCount}`] !== undefined) existingCount++;
+
+    let newEi = existingCount;
+    weeks[ws-1].sessions.forEach((base, si) => {
+      if(state[`del_w${ws}_s${si}`]) return; // séance supprimée → ne pas migrer
+      let ed = null;
+      try { const r = state[`edit_w${ws}_s${si}`]; if(r) ed = JSON.parse(r); } catch(e) {}
+
+      const sess = {
+        type: (ed&&ed.type) || base.type,
+        km:   (ed&&ed.km)   || base.km,
+        d:    (ed&&ed.d)    || base.d,
+        sched_day:  (ed&&ed.sched_day)  || base.sched_day,
+        sched_time: (ed&&ed.sched_time) || base.sched_time || '06:30',
+        shoe: (ed&&ed.shoe) || base.shoe || '',
+        _src: 'plan',
+        _modified: !!ed,
+        _plan_si: si,
+        _uid: `plan_w${ws}_s${si}`,
+        _seq: ed ? 1 : 0,
+      };
+      updates[`extra_w${ws}_s${newEi}`] = JSON.stringify(sess);
+
+      // Copier done/perf/km depuis les clés gk() vers les nouvelles clés extra_w
+      const dk = gk(ws, si);
+      if(state[dk+'done']        !== undefined) updates[`extra_w${ws}_s${newEi}_done`]        = state[dk+'done'];
+      if(state[dk+'perf']        !== undefined) updates[`extra_w${ws}_s${newEi}_perf`]        = state[dk+'perf'];
+      if(state[dk+'km']          !== undefined) updates[`extra_w${ws}_s${newEi}_km`]          = state[dk+'km'];
+      if(state[dk+'skip']        !== undefined) updates[`extra_w${ws}_s${newEi}_skip`]        = state[dk+'skip'];
+      if(state[dk+'skip_reason'] !== undefined) updates[`extra_w${ws}_s${newEi}_skip_reason`] = state[dk+'skip_reason'];
+
+      newEi++;
+    });
+  }
+
+  updates._plan_migrated = 'v1';
+  Object.assign(state, updates);
+  if(dbRef) dbRef.update(updates).catch(e => console.error('Migration plan→extra_w:', e));
 }
 
 // Table EF → AM (depuis Excel)

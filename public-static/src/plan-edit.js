@@ -1,9 +1,11 @@
 function getWeekTotalKm(ws){
-  if(!isAdmin()){
-    // Pour les athlètes : seulement leurs séances extra
-    let total=0;
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}
+  if(!isAdmin()||state._plan_migrated){
+    // Post-migration ou athlète : toutes les séances sont dans extra_w
+    let total=0,ei=0;
+    while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){
+      try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}
+      ei++;
+    }
     return Math.round(total*10)/10;
   }
   const w=weeks[ws-1];
@@ -23,33 +25,38 @@ function getWeekTotalKm(ws){
 }
 
 function getOrderedWeekSessions(ws){
-  // Athlètes : seulement leurs séances extra, pas le plan hardcodé de Guillaume
-  if(!isAdmin()){
+  if(!isAdmin()||state._plan_migrated){
+    // Post-migration ou athlète : toutes les séances dans extra_w, pas de dual-source
     const res=[];
     let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      try{res.push({s:JSON.parse(state[`extra_w${ws}_s${ei}`]),si:'x'+ei,extra:true,ei});}catch(e){}
+    while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){
+      let s;try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
+      if(!s){ei++;continue;}
+      if(s.type==='frac'&&s.d&&!s.d.startsWith('Fractionné')){
+        const parts=s.d.split('|');const m=parts[0].match(/(\d+)[×x](\d+)/);
+        const ft=m?`Fractionné ${m[1]}×${m[2]} min`:'Fractionné 6×2 min';
+        s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
+      }
+      res.push({s,si:'x'+ei,extra:true,ei});
       ei++;
     }
     return res;
   }
+  // Pré-migration admin : dual-source weeks[] + extra_w
   const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
   let ei=0;
   while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
   const sessionMatch=(a,b)=>!!a.extra===!!b.extra&&(a.extra?a.ei===b.ei:a.si===b.si);
   let savedOrder=null;try{savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]).filter(Boolean):null;}catch(e){}
   const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>sessionMatch(b,o))).filter(Boolean):[...baseOrder];
-  // Add any new sessions not in saved order
   baseOrder.forEach(b=>{
     if(!ordered.find(o=>sessionMatch(o,b))) ordered.push(b);
   });
   return ordered.map(({si,extra,ei})=>{
     let s;try{s=extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si);}catch(e){return null;}
     if(!s) return null;
-    // Frac extra sauvées avec mauvais titre : correction à la volée
-    if(s && s.type==='frac' && s.d && !s.d.startsWith('Fractionné')){
-      const parts=s.d.split('|');
-      const m=parts[0].match(/(\d+)[×x](\d+)/);
+    if(s.type==='frac'&&s.d&&!s.d.startsWith('Fractionné')){
+      const parts=s.d.split('|');const m=parts[0].match(/(\d+)[×x](\d+)/);
       const ft=m?`Fractionné ${m[1]}×${m[2]} min`:'Fractionné 6×2 min';
       s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
     }

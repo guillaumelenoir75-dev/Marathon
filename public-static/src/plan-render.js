@@ -1079,6 +1079,15 @@ function renderPlan(){
     // Calcul avancement semaine courante
     const weekDone=(()=>{
       if(!isCur) return 0;
+      if(state._plan_migrated) {
+        let total=0,done=0,ei=0;
+        while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+          total++;
+          if(state[`extra_w${w.s}_s${ei}_done`]||state[`extra_w${w.s}_s${ei}_km`]!=null) done++;
+          ei++;
+        }
+        return total>0?Math.round(done/total*100):0;
+      }
       const total=weeks[w.s-1].sessions.length;
       if(total===0) return 0;
       const done=weeks[w.s-1].sessions.filter((_,si)=>state[gk(w.s,si)+'done']||state[gk(w.s,si)+'km']!=null).length;
@@ -1086,6 +1095,15 @@ function renderPlan(){
     })();
     const isCurrentAllDone=(()=>{
       if(!isCur) return false;
+      if(state._plan_migrated) {
+        let total=0,done=0,ei=0;
+        while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+          total++;
+          if(state[`extra_w${w.s}_s${ei}_done`]) done++;
+          ei++;
+        }
+        return total>0&&done===total;
+      }
       const base=weeks[w.s-1].sessions.filter((_,si)=>!state[`del_w${w.s}_s${si}`]);
       if(base.length===0) return false;
       return weeks[w.s-1].sessions.every((_,si)=>state[`del_w${w.s}_s${si}`]||!!state[gk(w.s,si)+'done']);
@@ -1128,23 +1146,35 @@ function renderPlan(){
     // Calculer les km réels pour les semaines passées
     const realWeekKm = (isPast || (isCur && isCurrentAllDone)) ? (()=>{
       let total = 0;
-      weeks[w.s-1].sessions.forEach((_,si)=>{
-        if(state[`del_w${w.s}_s${si}`]) return;
-        const rv = state[gk(w.s,si)+'km'];
-        const done = !!state[gk(w.s,si)+'done'];
-        if(rv!=null) total += parseFloat(rv);
-        else if(done) total += getSession(w.s,si).km;
-      });
-      // Ajouter les séances extra validées
-      let ei=0;
-      while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){
-        if(state[`extra_w${w.s}_s${ei}_done`]){
-          const rv=state[`extra_w${w.s}_s${ei}_km`];
-          let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
-          if(!es){ei++;continue;}
-          total += rv!=null ? parseFloat(rv) : es.km;
+      if(state._plan_migrated) {
+        let ei=0;
+        while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+          if(state[`extra_w${w.s}_s${ei}_done`]){
+            const rv=state[`extra_w${w.s}_s${ei}_km`];
+            let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
+            if(!es){ei++;continue;}
+            total += rv!=null ? parseFloat(rv) : (parseFloat(es.km)||0);
+          }
+          ei++;
         }
-        ei++;
+      } else {
+        weeks[w.s-1].sessions.forEach((_,si)=>{
+          if(state[`del_w${w.s}_s${si}`]) return;
+          const rv = state[gk(w.s,si)+'km'];
+          const done = !!state[gk(w.s,si)+'done'];
+          if(rv!=null) total += parseFloat(rv);
+          else if(done) total += getSession(w.s,si).km;
+        });
+        let ei=0;
+        while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){
+          if(state[`extra_w${w.s}_s${ei}_done`]){
+            const rv=state[`extra_w${w.s}_s${ei}_km`];
+            let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
+            if(!es){ei++;continue;}
+            total += rv!=null ? parseFloat(rv) : es.km;
+          }
+          ei++;
+        }
       }
       return Math.round(total*10)/10;
     })() : null;
@@ -1167,25 +1197,31 @@ function renderPlan(){
 
     // Séances
     const allSessions=[];
-    const baseOrder=weeks[w.s-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${w.s}_s${si}`]);
-    let ei=0;
-    while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
-
-    // Comparaison stable — ne pas utiliser JSON.stringify (sensible à l'ordre des clés)
-    // sessionMatch tolère les anciens formats (sans champ extra:false explicite)
-    const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
-
-    let savedOrder=null;try{savedOrder=state[`order_w${w.s}`]?JSON.parse(state[`order_w${w.s}`]).filter(Boolean):null;}catch(e){}
-    const orderedSessions = savedOrder
-      ? savedOrder.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
-      : [...baseOrder];
-    // Ajouter les séances manquantes (ex: extra ajoutée après enregistrement de l'ordre)
-    baseOrder.forEach(b=>{if(!orderedSessions.find(o=>sessionMatch(o,b)))orderedSessions.push(b);});
-    orderedSessions.forEach(({si,extra,ei:eid})=>{
-      let s;try{s=extra?JSON.parse(state[`extra_w${w.s}_s${eid}`]):getSession(w.s,si);}catch(e){return;}
-      if(!s)return;
-      allSessions.push({s,si,extra,ei:eid});
-    });
+    if(state._plan_migrated) {
+      // Post-migration : toutes les séances (plan + manuelles) sont dans extra_w
+      let ei=0;
+      while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+        let s;try{s=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
+        if(s) allSessions.push({s,si:'x'+ei,extra:true,ei});
+        ei++;
+      }
+    } else {
+      // Pré-migration : double source weeks[] + extra_w
+      const baseOrder=weeks[w.s-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${w.s}_s${si}`]);
+      let ei=0;
+      while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
+      const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
+      let savedOrder=null;try{savedOrder=state[`order_w${w.s}`]?JSON.parse(state[`order_w${w.s}`]).filter(Boolean):null;}catch(e){}
+      const orderedSessions = savedOrder
+        ? savedOrder.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
+        : [...baseOrder];
+      baseOrder.forEach(b=>{if(!orderedSessions.find(o=>sessionMatch(o,b)))orderedSessions.push(b);});
+      orderedSessions.forEach(({si,extra,ei:eid})=>{
+        let s;try{s=extra?JSON.parse(state[`extra_w${w.s}_s${eid}`]):getSession(w.s,si);}catch(e){return;}
+        if(!s)return;
+        allSessions.push({s,si,extra,ei:eid});
+      });
+    }
     const totalRows=allSessions.length;
 
     const sessionRowsHtml = isOpen ? allSessions.map(({s:s2,si,extra,ei:eid},rowIdx)=>{
@@ -1195,7 +1231,8 @@ function renderPlan(){
       const parts=s2.d.split('|');
       const title=normalizeSessionTitle(parts[0], s2.type);
       const detail=filterDetailDisplay(title, parts[1]||null);
-      const edited=!extra&&state[`edit_w${w.s}_s${si}`];
+      const edited=extra ? (s2._modified||false) : !!state[`edit_w${w.s}_s${si}`];
+      const isManual=extra && s2._src !== 'plan';
       const isDone=extra ? !!state[`extra_w${w.s}_s${eid}_done`] : !!state[gk(w.s,si)+'done'];
       const isSkip=extra ? !!state[`extra_w${w.s}_s${eid}_skip`] : !!state[gk(w.s,si)+'skip'];
       const skipReason=extra ? (state[`extra_w${w.s}_s${eid}_skip_reason`]||'') : (state[gk(w.s,si)+'skip_reason']||'');
@@ -1216,12 +1253,14 @@ function renderPlan(){
             schedHtml=`<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
           }
         }
-      } else {
-        // Séance extra : lire sched_day/sched_time depuis l'objet extra lui-même
-        if(s2.sched_day||s2.sched_time){
-          const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-          const dayStr=s2.sched_day?days[s2.sched_day]:'';
-          const timeStr=s2.sched_time||'';
+      } else if(s2.sched_day||s2.sched_time) {
+        const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+        const dayStr=s2.sched_day?days[s2.sched_day]:'';
+        const timeStr=s2.sched_time||'';
+        // Séances plan migrées : style type-coloré ; séances manuelles : style muted
+        if(s2._src==='plan'){
+          schedHtml=`<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
+        } else {
           schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block;">${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
         }
       }
@@ -1246,7 +1285,7 @@ function renderPlan(){
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="margin-bottom:4px;">${_typePill2}${(edited||extra)?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}</div>
+            <div style="margin-bottom:4px;">${_typePill2}${edited?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}${isManual?`&ensp;<span style="font-size:9px;color:#E8530A;font-weight:700;">+manuel</span>`:''}</div>
             <div style="font-size:14px;font-weight:700;color:${isDone?'#2E6B10':isSkip?'#C0392B':'var(--text)'};">${title}</div>
             ${detail?`<div style="font-size:12px;color:${isDone?'#5a8f2e':typeC};font-weight:600;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
