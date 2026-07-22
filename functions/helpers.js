@@ -173,22 +173,24 @@ async function buildNotifContext(state, cw) {
   const fcToday=state[`fc_repos_${todayStr}`]||null;
   const seancesDone=[],seancesRestantes=[],seancesAujourdHui=[],seancesNext=[];
   let seanceRunAujourdhui=null; // premier run non-supprimé non-fait du jour
-  for(let si=0;si<5;si++){
-    const edRaw=state[`edit_w${cw}_s${si}`];
-    const done=!!state[`s${cw}i${si}done`];
-    const deleted=!!state[`del_w${cw}_s${si}`];
-    if(deleted||!edRaw)continue;
-    let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-    if(ed.type==='rest')continue;
-    const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
-    const km=ed.km||'';
-    const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
-    if(done){let perf=null;try{perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;}catch(e){}seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
-    else{
-      seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
-      if(Number(ed.sched_day)===dayOfWeek){
-        seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
-        if(!seanceRunAujourdhui) seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre};
+  if(!state._plan_migrated){
+    for(let si=0;si<5;si++){
+      const edRaw=state[`edit_w${cw}_s${si}`];
+      const done=!!state[`s${cw}i${si}done`];
+      const deleted=!!state[`del_w${cw}_s${si}`];
+      if(deleted||!edRaw)continue;
+      let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+      if(ed.type==='rest')continue;
+      const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+      const km=ed.km||'';
+      const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
+      if(done){let perf=null;try{perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;}catch(e){}seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
+      else{
+        seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
+        if(Number(ed.sched_day)===dayOfWeek){
+          seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
+          if(!seanceRunAujourdhui) seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre};
+        }
       }
     }
   }
@@ -205,10 +207,13 @@ async function buildNotifContext(state, cw) {
     }
   }
   let extraIdx=0;
-  while(extraIdx<=20&&state[`extra_w${cw}_s${extraIdx}`]){
-    const done=!!state[`extra_w${cw}_s${extraIdx}_done`];
+  while(extraIdx<=50&&state[`extra_w${cw}_s${extraIdx}`]){
     let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraIdx}`]);}catch(e){extraIdx++;continue;}
     if(!es||es.type==='rest'){extraIdx++;continue;}
+    const _planSiCtx=es._src==='plan'&&es._plan_si!=null?es._plan_si:undefined;
+    const done=_planSiCtx!==undefined
+      ?!!(state[`extra_w${cw}_s${extraIdx}_done`]||state[`s${cw}i${_planSiCtx}done`])
+      :!!state[`extra_w${cw}_s${extraIdx}_done`];
     const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
     const km=es.km||'';
     if(done){
@@ -228,7 +233,7 @@ async function buildNotifContext(state, cw) {
   }
   let efPace=null;
   for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`s${ws}i${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;}
-  let kmSemaine=0;for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}let _exi=0;while(_exi<=20&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
+  let kmSemaine=0;if(!state._plan_migrated){for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}}let _exi=0;while(_exi<=50&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
   const cwNext=Math.min(cw+1,32);
   const typeSemNext=cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge';
   for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}

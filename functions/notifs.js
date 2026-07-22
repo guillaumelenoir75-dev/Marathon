@@ -56,63 +56,66 @@ exports.sessionReminder = onSchedule(
     try{
       if(await getUserPref(db,ADMIN_STATE,'notif_seance')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
-        for(let si=0;si<5;si++){
-          const done=!!state[`s${cw}i${si}done`];if(done)continue;
-          const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
-          let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-          if(Number(ed.sched_day)!==dayOfWeek||!ed.sched_time)continue;
-          const[h,m]=ed.sched_time.split(':').map(Number);
-          const sm=h*60+m;
-          if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
-          const rk=`_rappel_sent_w${cw}_s${si}`;
-          if(state[rk]===ts)continue;
-          const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
-          const isRunSession=['ef','tempo','frac','long','race'].includes((ed.type||'').toLowerCase());
-          let meteoStr='';
-          if(isRunSession){
-            try{
-              const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
-              const loc=locSnap.val();
-              const tsMs = loc && loc.ts ? (loc.ts < 1e10 ? loc.ts*1000 : loc.ts) : 0;
-              const locFresh = loc && loc.lat && tsMs && (Date.now()-tsMs)<30*24*3600*1000;
-              const lat=locFresh?loc.lat:48.8417;
-              const lng=locFresh?loc.lng:2.2945;
-              const seanceH=parseInt(ed.sched_time.split(':')[0]);
-              const meteoResp=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code&timezone=Europe%2FParis&forecast_days=1`);
-              const meteoData=await meteoResp.json();
-              if(meteoData.hourly){
-                const temp=meteoData.hourly.temperature_2m?.[seanceH];
-                const apparent=meteoData.hourly.apparent_temperature?.[seanceH];
-                const wcode=meteoData.hourly.weather_code?.[seanceH];
-                const wmoEmoji=wcode===0?'☀️':wcode<=2?'⛅':wcode<=3?'☁️':wcode<=48?'🌫️':wcode<=67?'🌧️':wcode<=77?'🌨️':wcode<=82?'🌦️':wcode<=99?'⛈️':'🌤️';
-                const wmoLabel=wcode===0?'Ensoleillé':wcode<=2?'Peu nuageux':wcode<=3?'Couvert':wcode<=48?'Brouillard':wcode<=55?'Bruine':wcode<=67?'Pluie':wcode<=77?'Neige':wcode<=82?'Averses':wcode<=99?'Orage':'Variable';
-                const t=Math.round(apparent??temp??0);
-                meteoStr=` ${wmoEmoji} ${wmoLabel}, ${t}°C.`;
-              }
-            }catch(e){}
+        if(!state._plan_migrated){
+          for(let si=0;si<5;si++){
+            const done=!!state[`s${cw}i${si}done`];if(done)continue;
+            const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
+            let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+            if(Number(ed.sched_day)!==dayOfWeek||!ed.sched_time)continue;
+            const[h,m]=ed.sched_time.split(':').map(Number);
+            const sm=h*60+m;
+            if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
+            const rk=`_rappel_sent_w${cw}_s${si}`;
+            if(state[rk]===ts)continue;
+            const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+            const isRunSession=['ef','tempo','frac','long','race'].includes((ed.type||'').toLowerCase());
+            let meteoStr='';
+            if(isRunSession){
+              try{
+                const locSnap=await db.ref(`${ADMIN_STATE}/_last_location`).once('value');
+                const loc=locSnap.val();
+                const tsMs = loc && loc.ts ? (loc.ts < 1e10 ? loc.ts*1000 : loc.ts) : 0;
+                const locFresh = loc && loc.lat && tsMs && (Date.now()-tsMs)<30*24*3600*1000;
+                const lat=locFresh?loc.lat:48.8417;
+                const lng=locFresh?loc.lng:2.2945;
+                const seanceH=parseInt(ed.sched_time.split(':')[0]);
+                const meteoResp=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,weather_code&timezone=Europe%2FParis&forecast_days=1`);
+                const meteoData=await meteoResp.json();
+                if(meteoData.hourly){
+                  const temp=meteoData.hourly.temperature_2m?.[seanceH];
+                  const apparent=meteoData.hourly.apparent_temperature?.[seanceH];
+                  const wcode=meteoData.hourly.weather_code?.[seanceH];
+                  const wmoEmoji=wcode===0?'☀️':wcode<=2?'⛅':wcode<=3?'☁️':wcode<=48?'🌫️':wcode<=67?'🌧️':wcode<=77?'🌨️':wcode<=82?'🌦️':wcode<=99?'⛈️':'🌤️';
+                  const wmoLabel=wcode===0?'Ensoleillé':wcode<=2?'Peu nuageux':wcode<=3?'Couvert':wcode<=48?'Brouillard':wcode<=55?'Bruine':wcode<=67?'Pluie':wcode<=77?'Neige':wcode<=82?'Averses':wcode<=99?'Orage':'Variable';
+                  const t=Math.round(apparent??temp??0);
+                  meteoStr=` ${wmoEmoji} ${wmoLabel}, ${t}°C.`;
+                }
+              }catch(e){}
+            }
+            const body=`🏃 ${titre}${ed.km?' — '+ed.km+'km':''} à ${ed.sched_time}.${meteoStr} Prépare ton équipement ! 💪`;
+            await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
+            await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
+            break;
           }
-          const body=`🏃 ${titre}${ed.km?' — '+ed.km+'km':''} à ${ed.sched_time}.${meteoStr} Prépare ton équipement ! 💪`;
-          await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
-          await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
-          break;
         }
         let extraRi=0;
-        while(extraRi<=20&&state[`extra_w${cw}_s${extraRi}`]){
-          const done=!!state[`extra_w${cw}_s${extraRi}_done`];
-          if(!done){
-            let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
-            if(Number(es.sched_day)===dayOfWeek&&es.sched_time){
-              const[h,m]=es.sched_time.split(':').map(Number);
-              const sm=h*60+m;
-              if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
-                const rk=`_rappel_extra_sent_w${cw}_s${extraRi}`;
-                if(state[rk]!==ts){
-                  const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
-                  const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
-                  await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
-                  await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
-                  break;
-                }
+        while(extraRi<=50&&state[`extra_w${cw}_s${extraRi}`]){
+          let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraRi}`]);}catch(e){extraRi++;continue;}
+          const _planSiRem=es._src==='plan'&&es._plan_si!=null?es._plan_si:undefined;
+          const done=_planSiRem!==undefined
+            ?!!(state[`extra_w${cw}_s${extraRi}_done`]||state[`s${cw}i${_planSiRem}done`])
+            :!!state[`extra_w${cw}_s${extraRi}_done`];
+          if(!done&&Number(es.sched_day)===dayOfWeek&&es.sched_time){
+            const[h,m]=es.sched_time.split(':').map(Number);
+            const sm=h*60+m;
+            if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
+              const rk=`_rappel_extra_sent_w${cw}_s${extraRi}`;
+              if(state[rk]!==ts){
+                const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+                const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
+                await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
+                await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
+                break;
               }
             }
           }
@@ -566,13 +569,15 @@ exports.unvalidatedSessionReminder = onSchedule(
       if(await getUserPref(db,ADMIN_STATE,'notif_unvalidated')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
         const manquees=[];
-        for(let si=0;si<5;si++){
-          const done=!!state[`s${cw}i${si}done`];if(done)continue;
-          const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
-          let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-          if(Number(ed.sched_day)!==dayOfWeek)continue;
-          const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
-          manquees.push(`🏃 ${titre} ${ed.km||''}km`);
+        if(!state._plan_migrated){
+          for(let si=0;si<5;si++){
+            const done=!!state[`s${cw}i${si}done`];if(done)continue;
+            const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
+            let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+            if(Number(ed.sched_day)!==dayOfWeek)continue;
+            const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+            manquees.push(`🏃 ${titre} ${ed.km||''}km`);
+          }
         }
         const _rAllNames={1:'Ischio-fessiers',2:'Bas du dos',3:'Gainage & Core',4:'Mollets & Chevilles',5:'Haut du corps'};
         const renfoNames={1:_rAllNames[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllNames[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
@@ -584,14 +589,15 @@ exports.unvalidatedSessionReminder = onSchedule(
           manquees.push(`💪 ${renfoNames[ri]}`);
         }
         let extraI=0;
-        while(extraI<=20&&state[`extra_w${cw}_s${extraI}`]){
-          const done=!!state[`extra_w${cw}_s${extraI}_done`];
-          if(!done){
-            let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
-            if(Number(es.sched_day)===dayOfWeek){
-              const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
-              manquees.push(`🏃 ${titre} ${es.km||''}km`);
-            }
+        while(extraI<=50&&state[`extra_w${cw}_s${extraI}`]){
+          let es;try{es=JSON.parse(state[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
+          const _planSiUnv=es._src==='plan'&&es._plan_si!=null?es._plan_si:undefined;
+          const done=_planSiUnv!==undefined
+            ?!!(state[`extra_w${cw}_s${extraI}_done`]||state[`s${cw}i${_planSiUnv}done`])
+            :!!state[`extra_w${cw}_s${extraI}_done`];
+          if(!done&&Number(es.sched_day)===dayOfWeek){
+            const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+            manquees.push(`🏃 ${titre} ${es.km||''}km`);
           }
           extraI++;
         }
@@ -649,17 +655,19 @@ exports.weekCompleteCongrats = onSchedule(
         const congratsKey=`_congrats_sent_w${cw}`;
         if(!state[congratsKey]){
           let totalRun=0, doneRun=0;
-          for(let si=0;si<5;si++){
-            const edRaw=state[`edit_w${cw}_s${si}`];
-            const deleted=!!state[`del_w${cw}_s${si}`];
-            if(deleted)continue;
-            if(!edRaw)continue;
-            let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-            if(ed.type==='rest')continue;
-            totalRun++;
-            if(!!state[`s${cw}i${si}done`])doneRun++;
+          if(!state._plan_migrated){
+            for(let si=0;si<5;si++){
+              const edRaw=state[`edit_w${cw}_s${si}`];
+              const deleted=!!state[`del_w${cw}_s${si}`];
+              if(deleted)continue;
+              if(!edRaw)continue;
+              let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
+              if(ed.type==='rest')continue;
+              totalRun++;
+              if(!!state[`s${cw}i${si}done`])doneRun++;
+            }
           }
-          let ei=0;while(ei<=20&&state[`extra_w${cw}_s${ei}`]){let ed2;try{ed2=JSON.parse(state[`extra_w${cw}_s${ei}`]);}catch(e){ei++;continue;}if(ed2&&ed2.type!=='rest'){totalRun++;if(!!state[`extra_w${cw}_s${ei}_done`])doneRun++;}ei++;}
+          let ei=0;while(ei<=50&&state[`extra_w${cw}_s${ei}`]){let ed2;try{ed2=JSON.parse(state[`extra_w${cw}_s${ei}`]);}catch(e){ei++;continue;}if(ed2&&ed2.type!=='rest'){totalRun++;const _planSiCg=ed2._src==='plan'&&ed2._plan_si!=null?ed2._plan_si:undefined;if(!!(state[`extra_w${cw}_s${ei}_done`]||(_planSiCg!==undefined&&state[`s${cw}i${_planSiCg}done`])))doneRun++;}ei++;}
           const renfo1Done=!!state[`rf${cw}r1done`];
           const renfo2Done=!!state[`rf${cw}r2done`];
           const lastValid=state[`_last_validation_w${cw}`]||0;
@@ -815,14 +823,26 @@ exports.shakerNoon = onSchedule(
       const stateSnap=await db.ref(ADMIN_STATE).once('value');
       const st=stateSnap.val()||{};
       let runPlanifieAujourdhui=false;
-      for(let si=0;si<5;si++){
-        const edRaw=st[`edit_w${cw}_s${si}`];
-        if(!edRaw||st[`del_w${cw}_s${si}`]) continue;
-        try{
-          const ed=JSON.parse(edRaw);
-          if(ed.type==='rest') continue;
-          if(Number(ed.sched_day)===todayDay){runPlanifieAujourdhui=true;break;}
-        }catch(e){}
+      if(!st._plan_migrated){
+        for(let si=0;si<5;si++){
+          const edRaw=st[`edit_w${cw}_s${si}`];
+          if(!edRaw||st[`del_w${cw}_s${si}`]) continue;
+          try{
+            const ed=JSON.parse(edRaw);
+            if(ed.type==='rest') continue;
+            if(Number(ed.sched_day)===todayDay){runPlanifieAujourdhui=true;break;}
+          }catch(e){}
+        }
+      }
+      if(!runPlanifieAujourdhui){
+        let _ski=0;
+        while(_ski<=50&&st[`extra_w${cw}_s${_ski}`]){
+          try{
+            const es=JSON.parse(st[`extra_w${cw}_s${_ski}`]);
+            if(es&&es.type!=='rest'&&es.type!=='renfo'&&Number(es.sched_day)===todayDay){runPlanifieAujourdhui=true;break;}
+          }catch(e){}
+          _ski++;
+        }
       }
       if(runPlanifieAujourdhui) return; // run prévu au planning → pas de notif shaker
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),
