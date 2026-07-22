@@ -66,21 +66,31 @@ function getOrderedWeekSessions(ws){
 
 function moveSession(ws, rowIdx, dir){
   const orderKey=`order_w${ws}`;
+  if(state._plan_migrated){
+    // Post-migration : ordre basé sur les ei (index extra_w)
+    const eiList=[]; let _ei=0;
+    while(_ei<=50&&state[`extra_w${ws}_s${_ei}`]!==undefined){eiList.push(_ei);_ei++;}
+    let savedOrd=null;try{const r=state[orderKey];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
+    let ordEis;
+    if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
+    else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
+    const swapIdx=rowIdx+dir;
+    if(swapIdx<0||swapIdx>=ordEis.length) return;
+    [ordEis[rowIdx],ordEis[swapIdx]]=[ordEis[swapIdx],ordEis[rowIdx]];
+    state[orderKey]=JSON.stringify(ordEis);
+    save();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
+    return;
+  }
+  // Pré-migration
   const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
   let ei=0;
   while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
-
-  // Utiliser baseOrder comme source de vérité pour les objets (structure normalisée)
-  // sessionMatch tolère les anciens formats (sans champ extra:false explicite)
   const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
   let savedRaw=null;try{savedRaw=state[orderKey]?JSON.parse(state[orderKey]).filter(Boolean):null;}catch(e){}
-  // Re-mapper sur baseOrder pour garantir la structure normalisée
   const current = savedRaw
     ? savedRaw.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
     : [...baseOrder];
-  // Ajouter les séances manquantes
   baseOrder.forEach(b => { if(!current.find(o => sessionMatch(o, b))) current.push(b); });
-
   const newOrder=[...current];
   const swapIdx=rowIdx+dir;
   if(swapIdx<0||swapIdx>=newOrder.length) return;

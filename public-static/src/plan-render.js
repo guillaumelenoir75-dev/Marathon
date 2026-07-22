@@ -1204,13 +1204,14 @@ function renderPlan(){
     // Séances
     const allSessions=[];
     if(state._plan_migrated) {
-      // Post-migration : toutes les séances (plan + manuelles) sont dans extra_w
-      let ei=0;
-      while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
-        let s;try{s=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
-        if(s) allSessions.push({s,si:'x'+ei,extra:true,ei});
-        ei++;
-      }
+      // Post-migration : toutes les séances dans extra_w, triées par sched_day (ou ordre sauvegardé)
+      const _eiList=[]; let _ei=0;
+      while(_ei<=50&&state[`extra_w${w.s}_s${_ei}`]!==undefined){_eiList.push(_ei);_ei++;}
+      let _savedOrd=null;try{const _r=state[`order_w${w.s}`];if(_r){const _p=JSON.parse(_r);if(Array.isArray(_p)&&_p.length>0&&typeof _p[0]==='number')_savedOrd=_p;}}catch(e){}
+      let _ordEis;
+      if(_savedOrd){_ordEis=_savedOrd.filter(e=>_eiList.includes(e));_eiList.forEach(e=>{if(!_ordEis.includes(e))_ordEis.push(e);});}
+      else{_ordEis=[..._eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${w.s}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${w.s}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
+      for(const _eiV of _ordEis){let s;try{s=JSON.parse(state[`extra_w${w.s}_s${_eiV}`]);}catch(e){continue;}if(s)allSessions.push({s,si:'x'+_eiV,extra:true,ei:_eiV});}
     } else {
       // Pré-migration : double source weeks[] + extra_w
       const baseOrder=weeks[w.s-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${w.s}_s${si}`]);
@@ -1305,7 +1306,7 @@ function renderPlan(){
             ${iconContent}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="margin-bottom:4px;">${_typePill2}${edited?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}${isManual?`&ensp;<span style="font-size:9px;color:#E8530A;font-weight:700;">+manuel</span>`:''}</div>
+            <div style="margin-bottom:4px;">${_typePill2}${edited?`&ensp;<span style="font-size:9px;color:var(--blue);font-weight:700;">✎ modifié</span>`:''}</div>
             <div style="font-size:14px;font-weight:700;color:${isDone?'#2E6B10':isSkip?'#C0392B':'var(--text)'};">${title}</div>
             ${detail?`<div style="font-size:12px;color:${isDone?'#5a8f2e':typeC};font-weight:600;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
