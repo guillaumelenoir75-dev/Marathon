@@ -248,21 +248,24 @@ exports.briefAfterFcRepos = onSchedule(
       // ── Récupérer les données WHOOP ───────────────────────────────────────────
       const wd=state['whoop_data']||(state.whoop_data)||null;
 
-      // Vérifier si les données WHOOP sont d'aujourd'hui
+      // Vérifier si les données WHOOP sont de la nuit précédente (date d'aujourd'hui OU hier —
+      // WHOOP date les recoveries à la date de DÉBUT du cycle de sommeil, donc souvent hier au matin)
       const whoopRecov=wd&&wd.recoveries&&wd.recoveries[0]?wd.recoveries[0]:null;
       const whoopDate=whoopRecov&&whoopRecov.date?whoopRecov.date.slice(0,10):null;
-      const whoopToday=(whoopDate===todayStr);
+      const yesterdayStr=(()=>{const d=new Date(todayStr+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
+      // Les données sont valides si elles datent d'aujourd'hui OU d'hier (nuit dernière)
+      const whoopRecent=(whoopDate===todayStr||whoopDate===yesterdayStr);
 
-      // Si WHOOP est connecté mais les données ne sont pas encore d'aujourd'hui,
-      // attendre jusqu'à 10 min que WHOOP finisse de traiter le sommeil avant de générer le brief.
+      // Si WHOOP est connecté mais les données semblent trop anciennes (avant hier),
+      // attendre au max 10 min que le client ait eu le temps de syncer WHOOP après le réveil.
       const whoopConnected=!!(state.whoop_token&&(typeof state.whoop_token==='object'?state.whoop_token.access_token:state.whoop_token));
-      if(whoopConnected&&!whoopToday&&ageMin<10){
-        console.log(`briefAfterFcRepos: WHOOP connecté mais données pas encore d'aujourd'hui (${whoopDate||'aucune'}) — on attend (${Math.round(ageMin)} min / 10 min max)`);
+      if(whoopConnected&&!whoopRecent&&ageMin<10){
+        console.log(`briefAfterFcRepos: WHOOP connecté mais données trop anciennes (${whoopDate||'aucune'}, attendu >= ${yesterdayStr}) — on attend (${Math.round(ageMin)} min / 10 min max)`);
         return; // conserver le trigger, réessayer au prochain tick (2 min)
       }
 
-      // FC repos : priorité WHOOP RHR d'aujourd'hui > valeur manuelle du jour
-      const fcWhoopRhr=(whoopToday&&whoopRecov&&whoopRecov.rhr)?whoopRecov.rhr:null;
+      // FC repos : priorité WHOOP RHR (données récentes) > valeur manuelle du jour
+      const fcWhoopRhr=(whoopRecent&&whoopRecov&&whoopRecov.rhr)?whoopRecov.rhr:null;
       const fcToday=fcWhoopRhr||state['fc_repos_'+todayStr]||null;
 
       let whoopBlock='';
@@ -501,7 +504,7 @@ ${memosLine}`;
         if(Number(sched.day)===dayOfWeekNum)renfoAujourdHui.push(renfoNoms[ri]);
       }
       // Emoji couleur récupération — uniquement si données WHOOP d'aujourd'hui
-      const recovScore=whoopToday&&whoopRecov&&whoopRecov.score!=null?whoopRecov.score:null;
+      const recovScore=whoopRecent&&whoopRecov&&whoopRecov.score!=null?whoopRecov.score:null;
       const recovEmoji=recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
       // Emoji météo
       const meteoEmoji=tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';

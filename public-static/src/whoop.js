@@ -247,7 +247,7 @@ function _renderWhoopPanel(wd, panel) {
 
 function _getWakeupDate() {
   const now = new Date();
-  if (now.getHours() < 3) {
+  if (now.getUTCHours() < 3) {
     const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
     return yesterday.toISOString().slice(0, 10);
   }
