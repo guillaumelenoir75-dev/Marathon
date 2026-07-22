@@ -686,7 +686,7 @@ function saveAdd(ws){
   let ei = 0;
   while(ei<=20&&state['extra_w' + ws + '_s' + ei]) ei++;
   if(ei>20){ alert('Limite de 21 séances extra atteinte pour cette semaine.'); return; }
-  const extraData = { d, km, type, shoe };
+  const extraData = { d, km, type, shoe, _uid: 'ex_' + Date.now().toString(36), _seq: 0 };
   if(schedDay)  extraData.sched_day  = schedDay;
   if(schedTime) extraData.sched_time = schedTime;
   state['extra_w' + ws + '_s' + ei] = JSON.stringify(extraData);
@@ -918,7 +918,7 @@ function saveExtraEdit(ws, ei){
   }
   const d=detail?`${name}|${detail}`:name;
   let existing2={};try{existing2=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
-  const updatedExtra = {d, km, type, shoe};
+  const updatedExtra = {d, km, type, shoe, _uid: existing2._uid || ('ex_' + Date.now().toString(36)), _seq: (existing2._seq || 0) + 1};
   // Sauvegarder le créneau depuis le formulaire (buildSchedFieldsHtml génère sched-day/sched-hour/sched-min)
   const newSchedDay = parseInt((document.getElementById('sched-day')||{}).value)||undefined;
   const newSchedH   = (document.getElementById('sched-hour')||{}).value;

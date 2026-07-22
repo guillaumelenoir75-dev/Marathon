@@ -33,7 +33,7 @@ function getWeekStartDate(weekNum) {
   return target;
 }
 
-function buildEvent(uid, title, description, startDate, durationMinutes) {
+function buildEvent(uid, title, description, startDate, durationMinutes, seq=0) {
   const end = new Date(startDate.getTime() + durationMinutes * 60000);
   const pad = n => String(n).padStart(2, '0');
   const fmt = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
@@ -43,7 +43,7 @@ function buildEvent(uid, title, description, startDate, durationMinutes) {
     `UID:${uid}@prepa-marathon`,
     `DTSTAMP:${fmt(now)}`,
     `LAST-MODIFIED:${fmt(now)}`,
-    `SEQUENCE:0`,
+    `SEQUENCE:${seq}`,
     `DTSTART;TZID=Europe/Paris:${fmt(startDate)}`,
     `DTEND;TZID=Europe/Paris:${fmt(end)}`,
     `SUMMARY:${title}`,
@@ -159,7 +159,9 @@ exports.calendar = onRequest(async (req, res) => {
       const title = typeToTitle[type] || "Run - EF";
       const parts = (d || '').split('|');
       const desc = [`${km} km`, parts[1]||''].filter(Boolean).join(' · ');
-      events.push(buildEvent(`extra_w${ws}_s${ei}`, title, desc, eventDate, 60));
+      const calUid = base._uid || `extra_w${ws}_s${ei}`;
+      const calSeq = base._seq || 0;
+      events.push(buildEvent(calUid, title, desc, eventDate, 60, calSeq));
     } catch(e) {}
   });
 
