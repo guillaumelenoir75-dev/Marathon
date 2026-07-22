@@ -100,7 +100,7 @@ function openPlanModifModal(){
 
   let sessionsHtml = '';
   const sessionsForWS = targetWS===CW
-    ? getOrderedWeekSessions(CW).filter(({extra})=>!extra).map(({s,si})=>({s,si,ws:CW}))
+    ? getOrderedWeekSessions(CW).map(({s,ei})=>({s,si:ei,ws:CW}))
     : weeks[targetWS-1].sessions.map((s,si)=>({s,si,ws:targetWS}));
 
   // Si un type est ciblé, ne montrer que les séances de ce type
@@ -110,7 +110,7 @@ function openPlanModifModal(){
   for(const [t,keys] of Object.entries(typeKWDisplay)){if(keys.some(k=>k.test(searchForDisplay))){targetTypeDisplay=t;break;}}
 
   sessionsForWS.forEach(({s,si,ws})=>{
-    const done = ws===CW ? !!state[gk(ws,si)+'done'] : false;
+    const done = ws===CW ? !!state[`extra_w${ws}_s${si}_done`] : false;
     // Ne pas sauter les séances done si l'utilisateur demande explicitement une modif
     // (ex: changer l'heure d'une séance déjà faite cette semaine)
     if(done && !userAskedModifGlobal) return;
@@ -155,7 +155,7 @@ function openPlanModifModal(){
       const jour2 = ed2&&ed2.sched_day?joursAbr[ed2.sched_day]:'';
       const heure2 = ed2&&ed2.sched_time?ed2.sched_time:'';
       const sched2 = [jour2,heure2].filter(Boolean).join(' ');
-      const done2 = ws===CW ? !!state[gk(ws,si)+'done'] : false;
+      const done2 = ws===CW ? !!state[`extra_w${ws}_s${si}_done`] : false;
       const doneL2 = done2 ? ' <span style="font-size:10px;color:#22c55e;font-weight:600;">✓ faite</span>' : '';
       sessionsHtml += '<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;'+(done2?'opacity:0.75;':'')+'"'
         +' onclick="selectSessionToModif('+si+',this,'+ws+')" id="modif-sess-'+si+'">'
@@ -187,7 +187,7 @@ function openPlanModifModal(){
   // mais pré-remplir _selectedModifSi et extraire les suggestions du coach
   const availableSessions = [];
   sessionsForWS.forEach(({s,si,ws:wsItem})=>{
-    const isDone = wsItem===CW ? !!state[gk(wsItem,si)+'done'] : false;
+    const isDone = wsItem===CW ? !!state[`extra_w${wsItem}_s${si}_done`] : false;
     if(!isDone || userAskedModifGlobal) availableSessions.push({si,ws:wsItem,type:s.type,done:isDone});
   });
   const searchAuto = ((_lastUserMessageBeforeProposal||'').toLowerCase()+' '+(_lastCoachProposalText||'').toLowerCase());

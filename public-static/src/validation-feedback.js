@@ -226,7 +226,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   let _whoopRaw = whoopData || null;
   if(!_whoopRaw && idx != null) {
     // Fallback : lire le perf de la séance planifiée
-    try { const _p = state[gk(CW,idx)+'perf'] ? JSON.parse(state[gk(CW,idx)+'perf']) : null; if(_p && _p.whoop) _whoopRaw = _p.whoop; } catch(e){}
+    try { const _p = state[`extra_w${CW}_s${idx}_perf`] ? JSON.parse(state[`extra_w${CW}_s${idx}_perf`]) : null; if(_p && _p.whoop) _whoopRaw = _p.whoop; } catch(e){}
   }
   if(_whoopRaw) {
     const _strain = _whoopRaw.workout_strain ?? _whoopRaw.cycle_strain ?? null;
@@ -361,7 +361,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         const minA=Math.floor(allureMoyAttendueSec/60);
         const secA=Math.round(allureMoyAttendueSec%60);
         // Récupérer les allures de blocs saisies
-        let blocsAllureSaisis=[];try{if(idx!=null&&state[gk(CW,idx)+'perf'])blocsAllureSaisis=JSON.parse(state[gk(CW,idx)+'perf']).blocsAllure||[];}catch(e){}
+        let blocsAllureSaisis=[];try{if(idx!=null&&state[`extra_w${CW}_s${idx}_perf`])blocsAllureSaisis=JSON.parse(state[`extra_w${CW}_s${idx}_perf`]).blocsAllure||[];}catch(e){}
 
         analysisContext.tempoDetail = {
           reps, dureeMin: durMin,

@@ -14,17 +14,17 @@ function buildMarathonPrediction() {
   const efPts = [], longPts = [], tempoPts = [];
   for(let ws = 1; ws <= CW; ws++) {
     if(ws === 22 || ws === 23) continue;
-    weeks[ws-1].sessions.forEach((s, si) => {
-      const k = gk(ws, si);
-      if(!state[k+'done']) return;
-      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
+    getOrderedWeekSessions(ws).forEach(({s, ei}) => {
+      const k = `extra_w${ws}_s${ei}`;
+      if(!state[k+'_done']) return;
+      let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
       if(!perf.pace || !perf.hr) return;
       const fc = parseInt(perf.hr);
       const paceSec = paceStrToSec(perf.pace);
       if(!paceSec || fc < 100) return;
       const cadence = perf.strava ? (perf.strava.cadence || perf.strava.cadence_moy || null) : null;
-      const km = parseFloat(state[k+'km'] || s.km) || s.km;
-      const entry = { ws, paceSec, fc, km, cadence, type: s.type };
+      const km = parseFloat(state[k+'_km'] || s.km) || s.km;
+      const entry = { ws, ei, paceSec, fc, km, cadence, type: s.type };
       if(s.type === 'ef' && fc <= 152) { efPts.push(entry); }
       else if(s.type === 'long' && fc <= 158) { longPts.push(entry); }
       else if(s.type === 'tempo' || s.type === 'frac') {
@@ -207,19 +207,15 @@ function buildMarathonPrediction() {
   // FC début (1er tiers) vs FC fin (dernier tiers) — 3 dernières longues uniquement
   let cardiacDrift = null, driftPenaltySec = 0, driftHistory = [];
   const longWithSplits = longPts.filter(p => {
-    const si = weeks[p.ws-1].sessions.findIndex(s=>s.type==='long');
-    if(si<0) return false;
-    const k = gk(p.ws, si);
-    let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
+    const k = `extra_w${p.ws}_s${p.ei}`;
+    let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
     return perf.strava && perf.strava.splits && perf.strava.splits.length >= 6; // min 6km pour avoir 4 après skip
   });
   if(longWithSplits.length > 0) {
     const drifts = [];
     longWithSplits.slice(-3).forEach(p => {
-      const si = weeks[p.ws-1].sessions.findIndex(s=>s.type==='long');
-      if(si<0) return;
-      const k = gk(p.ws, si);
-      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
+      const k = `extra_w${p.ws}_s${p.ei}`;
+      let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
       const allSplits = (perf.strava.splits||[]).filter(sp=>sp.fc&&sp.fc>0);
       if(allSplits.length < 6) return;
       // Ignorer les 2 premiers km (échauffement cardiaque — FC encore en montée)
@@ -1209,24 +1205,13 @@ function buildShortDistancePrediction(course) {
   };
   for(let ws=1;ws<=CW;ws++){
     if(ws===22||ws===23) continue;
-    weeks[ws-1].sessions.forEach((s,si)=>{
-      const k=gk(ws,si);
-      if(!state[k+'done']) return;
+    getOrderedWeekSessions(ws).forEach(({s,ei})=>{
+      const k=`extra_w${ws}_s${ei}`;
+      if(!state[k+'_done']) return;
       if(s.type!=='frac'&&s.type!=='tempo') return;
-      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
+      let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
       collectBlocs(s.type, perf);
     });
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      if(state[`extra_w${ws}_s${ei}_done`]){
-        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-        if(es&&(es.type==='frac'||es.type==='tempo')){
-          let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-          collectBlocs(es.type, perf);
-        }
-      }
-      ei++;
-    }
   }
 
   if(fracPts.length===0&&tempoPts.length===0) return {tempsStr:null,paceStr:null,confiance:0,nbSeances:0,nbFrac:0,nbTempo:0,_method:'blocs_directs'};

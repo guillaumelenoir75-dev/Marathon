@@ -419,28 +419,6 @@ function saveHomeModal(idx){
 function clearHomeModal(idx){
   resetSession(CW, idx);
 }
-function openModal(idx){
-  const s=weeks[CW-1].sessions[idx],cur=state[gk(CW,idx)+'km']||'';
-  const mc=document.getElementById('modal-container');
-  const overlay=document.createElement('div');
-  overlay.className='modal-overlay';
-  overlay.innerHTML=`<div class="modal-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <p style="font-size:16px;font-weight:600;color:var(--text);">${s.d}</p>
-      <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:24px;line-height:1;">×</button>
-    </div>
-    ${s.shoe?`<div style="margin-bottom:12px;">${shoeFullBadge(s.shoe)}</div>`:''}
-    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Planifié : <strong style="color:var(--text);">${s.km} km</strong> — saisissez vos km réels :</p>
-    <input type="number" id="modal-input" min="0" max="99" step="1" value="${cur}" placeholder="${s.km}" style="margin-bottom:16px;font-size:22px;text-align:center;font-weight:700;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <button class="btn-secondary" onclick="clearKm(${idx})">Effacer</button>
-      <button style="padding:12px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:#fff;cursor:pointer;" onclick="saveKm(${idx})">Enregistrer</button>
-    </div>
-  </div>`;
-  overlay.onclick=e=>{if(e.target===overlay)closeModal();};
-  _lockBodyScroll();
-  mc.appendChild(overlay);
-}
 function _lockBodyScroll(){
   if(document.body.dataset.scrollLocked) return; // déjà verrouillé
   const sy = window.scrollY || 0;
@@ -579,18 +557,6 @@ function _initSwipeToDismiss(overlay, box) {
   }, {passive: true});
 }
 
-function saveKm(idx){
-  const v=parseFloat(document.getElementById('modal-input').value);
-  if(!isNaN(v)&&v>=0){
-    const k=gk(CW,idx);
-    state[k+'km']=v; state[k+'done']=true;
-    if(typeof _syncPlanValidationToExtraW==='function') _syncPlanValidationToExtraW(CW,idx,k);
-    save();
-    if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
-  }
-  closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();
-}
-function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
 function confirmUndoSession(onConfirm){
   const mc=document.getElementById('modal-container');
   if(!mc) return;
@@ -613,28 +579,6 @@ function confirmUndoSession(onConfirm){
   };
 }
 
-function toggleDone(idx){
-  const k=gk(CW,idx)+'done';
-  const wasDone=!!state[k];
-  const wasSkip=!!state[gk(CW,idx)+'skip'];
-  if(!wasDone&&!wasSkip){
-    openValidationModal(idx);
-  } else if(wasSkip){
-    openValidationModal(idx);
-  } else {
-    confirmUndoSession(()=>{
-      state[k]=false;
-      delete state[gk(CW,idx)+'km'];
-      delete state[gk(CW,idx)+'perf'];
-      delete state[gk(CW,idx)+'skip'];
-      delete state[gk(CW,idx)+'skip_reason'];
-      save();
-      renderHome();
-      rendered.stats=false;
-      if(document.getElementById('sc-stats').style.display!=='none')renderStats();
-    });
-  }
-}
 
 const openWeeks=new Set();
 function getAthleteCW(){
