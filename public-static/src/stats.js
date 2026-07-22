@@ -194,26 +194,6 @@ function renderStats(){
   // Tableau performances
   const pr=document.getElementById('perf-rows');
   if(pr){
-    // Données de perf historiques S1-S6 (fallback si pas dans Firebase)
-    const staticPerf={
-      's1i0':{dur:'37:51',pace:'5:43',hr:158},
-      's1i1':{dur:'45:31',pace:'5:41',hr:159},
-      's1i2':{dur:'52:02',pace:'6:30',hr:139},
-      's2i0':{dur:'59:24',pace:'6:36',hr:142},
-      's2i1':{dur:'1:08:31',pace:'6:51',hr:149},
-      's2i2':{dur:'1:16:09',pace:'6:55',hr:148},
-      's3i0':{dur:'52:23',pace:'6:09',hr:156},
-      's3i1':{dur:'52:33',pace:'6:56',hr:141},
-      's3i2':{dur:'44:21',pace:'6:20',hr:145},
-      's4i0':{dur:'1:00:10',pace:'6:40',hr:144},
-      's4i2':{dur:'58:55',pace:'6:31',hr:152,date:'2026-04-04'},
-      's5i0':{dur:'45:50',pace:'6:33',hr:146},
-      's5i1':{dur:'41:03',pace:'5:52',hr:154},
-      's5i2':{dur:'54:56',pace:'5:59',hr:159},
-      's6i0':{dur:'51:30',pace:'6:26',hr:146},
-      's6i1':{dur:'44:22',pace:'5:31',hr:162},
-      's6i2':{dur:'56:39',pace:'6:17',hr:144},
-    };
     const perfRows=[];
     for(let ws=1;ws<=CW;ws++){
       getOrderedWeekSessions(ws).forEach(({s,ei})=>{
