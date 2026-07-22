@@ -26,19 +26,24 @@ function getWeekTotalKm(ws){
 
 function getOrderedWeekSessions(ws){
   if(!isAdmin()||state._plan_migrated){
-    // Post-migration ou athlète : toutes les séances dans extra_w, pas de dual-source
+    // Post-migration ou athlète : toutes les séances dans extra_w, ordre ei-based
+    const eiList=[]; let _ei=0;
+    while(_ei<=50&&state[`extra_w${ws}_s${_ei}`]!==undefined){eiList.push(_ei);_ei++;}
+    // Appliquer order_w si format ei-numérique, sinon trier par sched_day
+    let savedOrd=null;try{const r=state[`order_w${ws}`];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
+    let ordEis;
+    if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
+    else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
     const res=[];
-    let ei=0;
-    while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){
-      let s;try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-      if(!s){ei++;continue;}
+    for(const eiV of ordEis){
+      let s;try{s=JSON.parse(state[`extra_w${ws}_s${eiV}`]);}catch(e){continue;}
+      if(!s) continue;
       if(s.type==='frac'&&s.d&&!s.d.startsWith('Fractionné')){
         const parts=s.d.split('|');const m=parts[0].match(/(\d+)[×x](\d+)/);
         const ft=m?`Fractionné ${m[1]}×${m[2]} min`:'Fractionné 6×2 min';
         s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
       }
-      res.push({s,si:'x'+ei,extra:true,ei});
-      ei++;
+      res.push({s,si:'x'+eiV,extra:true,ei:eiV});
     }
     return res;
   }
