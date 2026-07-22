@@ -25,8 +25,8 @@ function getWeekTotalKm(ws){
 }
 
 function getOrderedWeekSessions(ws){
-  if(!isAdmin()||state._plan_migrated){
-    // Post-migration ou athlète : toutes les séances dans extra_w, ordre ei-based
+  {
+    // Toutes les séances dans extra_w, triées par sched_day (ou ordre sauvegardé)
     const eiList=[]; let _ei=0;
     while(_ei<=50&&state[`extra_w${ws}_s${_ei}`]!==undefined){eiList.push(_ei);_ei++;}
     // Appliquer order_w si format ei-numérique, sinon trier par sched_day
@@ -47,65 +47,21 @@ function getOrderedWeekSessions(ws){
     }
     return res;
   }
-  // Pré-migration admin : dual-source weeks[] + extra_w
-  const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
-  let ei=0;
-  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
-  const sessionMatch=(a,b)=>!!a.extra===!!b.extra&&(a.extra?a.ei===b.ei:a.si===b.si);
-  let savedOrder=null;try{savedOrder=state[`order_w${ws}`]?JSON.parse(state[`order_w${ws}`]).filter(Boolean):null;}catch(e){}
-  const ordered=savedOrder?savedOrder.map(o=>baseOrder.find(b=>sessionMatch(b,o))).filter(Boolean):[...baseOrder];
-  baseOrder.forEach(b=>{
-    if(!ordered.find(o=>sessionMatch(o,b))) ordered.push(b);
-  });
-  return ordered.map(({si,extra,ei})=>{
-    let s;try{s=extra?JSON.parse(state[`extra_w${ws}_s${ei}`]):getSession(ws,si);}catch(e){return null;}
-    if(!s) return null;
-    if(s.type==='frac'&&s.d&&!s.d.startsWith('Fractionné')){
-      const parts=s.d.split('|');const m=parts[0].match(/(\d+)[×x](\d+)/);
-      const ft=m?`Fractionné ${m[1]}×${m[2]} min`:'Fractionné 6×2 min';
-      s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
-    }
-    return {s,si,extra,ei};
-  }).filter(Boolean);
 }
 
 function moveSession(ws, rowIdx, dir){
   const orderKey=`order_w${ws}`;
-  if(state._plan_migrated){
-    // Post-migration : ordre basé sur les ei (index extra_w)
-    const eiList=[]; let _ei=0;
-    while(_ei<=50&&state[`extra_w${ws}_s${_ei}`]!==undefined){eiList.push(_ei);_ei++;}
-    let savedOrd=null;try{const r=state[orderKey];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
-    let ordEis;
-    if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
-    else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
-    const swapIdx=rowIdx+dir;
-    if(swapIdx<0||swapIdx>=ordEis.length) return;
-    [ordEis[rowIdx],ordEis[swapIdx]]=[ordEis[swapIdx],ordEis[rowIdx]];
-    state[orderKey]=JSON.stringify(ordEis);
-    save();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
-    return;
-  }
-  // Pré-migration
-  const baseOrder=weeks[ws-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${ws}_s${si}`]);
-  let ei=0;
-  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
-  const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
-  let savedRaw=null;try{savedRaw=state[orderKey]?JSON.parse(state[orderKey]).filter(Boolean):null;}catch(e){}
-  const current = savedRaw
-    ? savedRaw.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
-    : [...baseOrder];
-  baseOrder.forEach(b => { if(!current.find(o => sessionMatch(o, b))) current.push(b); });
-  const newOrder=[...current];
+  const eiList=[]; let _ei=0;
+  while(_ei<=50&&state[`extra_w${ws}_s${_ei}`]!==undefined){eiList.push(_ei);_ei++;}
+  let savedOrd=null;try{const r=state[orderKey];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
+  let ordEis;
+  if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
+  else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
   const swapIdx=rowIdx+dir;
-  if(swapIdx<0||swapIdx>=newOrder.length) return;
-  [newOrder[rowIdx],newOrder[swapIdx]]=[newOrder[swapIdx],newOrder[rowIdx]];
-  state[orderKey]=JSON.stringify(newOrder);
-  save();
-  rendered.plan=false;
-  rendered.stats=false;
-  renderPlan();
-  renderHome();
+  if(swapIdx<0||swapIdx>=ordEis.length) return;
+  [ordEis[rowIdx],ordEis[swapIdx]]=[ordEis[swapIdx],ordEis[rowIdx]];
+  state[orderKey]=JSON.stringify(ordEis);
+  save();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
 }
 
 function toggleWeek(s){

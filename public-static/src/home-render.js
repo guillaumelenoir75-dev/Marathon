@@ -126,15 +126,15 @@ function renderHome(){
   // KM semaine : basés sur la semaine affichée
   const weekDoneKm = (()=>{
     let km=0;
-    getOrderedWeekSessions(w).forEach(({s,si,extra,ei})=>{
-      const rv = extra ? state[`extra_w${w}_s${ei}_km`] : state[gk(w,si)+'km'];
+    getOrderedWeekSessions(w).forEach(({ei})=>{
+      const rv = state[`extra_w${w}_s${ei}_km`];
       if(rv!=null) km+=parseFloat(rv)||0;
     });
     return Math.round(km*10)/10;
   })();
   // ── Infos semaine dans le header ─────────────────────────────────────────────
   const allSessW=getOrderedWeekSessions(w).filter(({s})=>s.type!=='rest');
-  const doneCountW=allSessW.filter(({s,si,extra,ei})=>extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done']).length;
+  const doneCountW=allSessW.filter(({ei})=>!!state[`extra_w${w}_s${ei}_done`]).length;
   const weekSessionsEl=document.getElementById('h-week-sessions-label');
   const weekKmEl=document.getElementById('h-week-km-label');
   const allDone=allSessW.length>0&&doneCountW===allSessW.length;
@@ -153,10 +153,10 @@ function renderHome(){
     const rfDaysFull=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
     let nextSched=null;
     const todayDay=(new Date()).getDay()===0?7:(new Date()).getDay();
-    allSessW.forEach(({s,si,extra,ei})=>{
-      const done=extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done'];
+    allSessW.forEach(({s,ei})=>{
+      const done=!!state[`extra_w${w}_s${ei}_done`];
       if(done) return;
-      let sched=null;try{const sk=extra?`extra_w${w}_s${ei}_sched`:gk(w,si)+'sched';sched=state[sk]?JSON.parse(state[sk]):null;}catch(e){}
+      let sched=null;try{const sk=`extra_w${w}_s${ei}_sched`;sched=state[sk]?JSON.parse(state[sk]):null;}catch(e){}
       if(!sched||!sched.day) return;
       if(sched.day<todayDay) return; // passé
       if(!nextSched||sched.day<nextSched.day||(sched.day===nextSched.day&&(sched.time||'')>(nextSched.time||'')))
@@ -690,11 +690,11 @@ function renderHome(){
   const el=document.getElementById('home-sessions');
   if(!el) return;
   el.innerHTML='';
-  getOrderedWeekSessions(w).forEach(({s:s2,si,extra,ei},i)=>{
-    const done=extra?!!state[`extra_w${w}_s${ei}_done`]:!!state[gk(w,si)+'done'];
-    const skip=extra?!!state[`extra_w${w}_s${ei}_skip`]:!!state[gk(w,si)+'skip'];
-    const skipReason=extra?state[`extra_w${w}_s${ei}_skip_reason`]||'':state[gk(w,si)+'skip_reason']||''
-    const rv=extra?state[`extra_w${w}_s${ei}_km`]:state[gk(w,si)+'km'];
+  getOrderedWeekSessions(w).forEach(({s:s2,ei},i)=>{
+    const done=!!state[`extra_w${w}_s${ei}_done`];
+    const skip=!!state[`extra_w${w}_s${ei}_skip`];
+    const skipReason=state[`extra_w${w}_s${ei}_skip_reason`]||'';
+    const rv=state[`extra_w${w}_s${ei}_km`];
     const typeC=typeColor[s2.type]||'#888';
     const typeBgC=typeBg[s2.type]||'#f5f5f5';
     const lbl=typeLabel[s2.type]||'EF';
@@ -704,27 +704,18 @@ function renderHome(){
     // Horaire planifié
     const _schedDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
     let schedHtml='';
-    if(!extra){
-      const edRaw=state['edit_w'+w+'_s'+si];
-      if(edRaw){let ed;try{ed=JSON.parse(edRaw);}catch(e){}if(ed&&(ed.sched_day||ed.sched_time)){
-        schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[ed.sched_day?_schedDays[ed.sched_day]:'',ed.sched_time||''].filter(Boolean).join(' ')}</span>`;
-      }}
-    } else if(s2.sched_day||s2.sched_time){
+    if(s2.sched_day||s2.sched_time){
       schedHtml=`<span style="font-size:10px;color:#9BA8C0;font-weight:600;background:var(--bg2);padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">📅 ${[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ')}</span>`;
     }
     // "Aujourd'hui" seulement sur semaine en cours
-    const runEdRaw=extra?null:state['edit_w'+w+'_s'+si];
-    let runEd=null;try{runEd=runEdRaw?JSON.parse(runEdRaw):null;}catch(e){}
     const todayDayRun=(new Date()).getDay()===0?7:(new Date()).getDay();
     const isRunToday=isCurrent&&!done&&(
-      extra
-        ? (s2.sched_day===todayDayRun)
-        : (runEd&&runEd.sched_day===todayDayRun)
+      s2.sched_day===todayDayRun
     );
     // Boutons : actifs sur semaine en cours et futures, lecture seule sur passées
     const canEdit = isCurrent || isFuture;
-    const editFn = canEdit ? (extra?`openEditExtraModal(${w},${ei})`:`openEditModal(${w},${si})`) : '';
-    const doneFn = isCurrent ? (extra?`toggleDoneExtra(${w},${ei})`:`toggleDone(${si})`) : '';
+    const editFn = canEdit ? `openEditExtraModal(${w},${ei})` : '';
+    const doneFn = isCurrent ? `toggleDoneExtra(${w},${ei})` : '';
     const div=document.createElement('div');
     div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:'+(done?'8px':'11px')+' 14px;background:var(--bg);position:relative;cursor:default;'
       +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15,inset 3px 0 0 ${typeC};`
@@ -755,7 +746,7 @@ function renderHome(){
             const dur=estimateDuration(s2);
             return dur?`<span style="font-size:10px;color:#6B8DB5;font-weight:500;">⏱ ~${dur}</span>`:'';
           }
-          const perfRaw = extra ? state[`extra_w${w}_s${ei}_perf`] : state[gk(w,si)+'perf'];
+          const perfRaw = state[`extra_w${w}_s${ei}_perf`];
           let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{}}catch(e){}
           const realPace = perf2.pace || null;
           const realDur = perf2.dur || null;
@@ -811,9 +802,7 @@ function renderHome(){
   if(sessionsProgressEl){
     const allSessions = getOrderedWeekSessions(w).filter(({s})=>s.type!=='rest');
     const total = allSessions.length;
-    const doneCount = allSessions.filter(({s,si,extra,ei})=>
-      extra ? !!state[`extra_w${w}_s${ei}_done`] : !!state[gk(w,si)+'done']
-    ).length;
+    const doneCount = allSessions.filter(({ei})=>!!state[`extra_w${w}_s${ei}_done`]).length;
     const color = doneCount===total ? '#3B6D11' : doneCount>0 ? '#1B4FD8' : 'var(--muted)';
     sessionsProgressEl.style.color = color;
     sessionsProgressEl.textContent = `${doneCount}/${total}`;

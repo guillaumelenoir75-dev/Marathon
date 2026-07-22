@@ -1085,34 +1085,23 @@ function renderPlan(){
     // Calcul avancement semaine courante
     const weekDone=(()=>{
       if(!isCur) return 0;
-      if(state._plan_migrated) {
-        let total=0,done=0,ei=0;
-        while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
-          total++;
-          if(state[`extra_w${w.s}_s${ei}_done`]||state[`extra_w${w.s}_s${ei}_km`]!=null) done++;
-          ei++;
-        }
-        return total>0?Math.round(done/total*100):0;
+      let total=0,done=0,ei=0;
+      while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+        total++;
+        if(state[`extra_w${w.s}_s${ei}_done`]||state[`extra_w${w.s}_s${ei}_km`]!=null) done++;
+        ei++;
       }
-      const total=weeks[w.s-1].sessions.length;
-      if(total===0) return 0;
-      const done=weeks[w.s-1].sessions.filter((_,si)=>state[gk(w.s,si)+'done']||state[gk(w.s,si)+'km']!=null).length;
       return total>0?Math.round(done/total*100):0;
     })();
     const isCurrentAllDone=(()=>{
       if(!isCur) return false;
-      if(state._plan_migrated) {
-        let total=0,done=0,ei=0;
-        while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
-          total++;
-          if(state[`extra_w${w.s}_s${ei}_done`]) done++;
-          ei++;
-        }
-        return total>0&&done===total;
+      let total=0,done=0,ei=0;
+      while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+        total++;
+        if(state[`extra_w${w.s}_s${ei}_done`]) done++;
+        ei++;
       }
-      const base=weeks[w.s-1].sessions.filter((_,si)=>!state[`del_w${w.s}_s${si}`]);
-      if(base.length===0) return false;
-      return weeks[w.s-1].sessions.every((_,si)=>state[`del_w${w.s}_s${si}`]||!!state[gk(w.s,si)+'done']);
+      return total>0&&done===total;
     })();
 
     // Séparateur de mois
@@ -1151,36 +1140,15 @@ function renderPlan(){
     const kmTotal = getWeekTotalKm(w.s);
     // Calculer les km réels pour les semaines passées
     const realWeekKm = (isPast || (isCur && isCurrentAllDone)) ? (()=>{
-      let total = 0;
-      if(state._plan_migrated) {
-        let ei=0;
-        while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
-          if(state[`extra_w${w.s}_s${ei}_done`]){
-            const rv=state[`extra_w${w.s}_s${ei}_km`];
-            let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
-            if(!es){ei++;continue;}
-            total += rv!=null ? parseFloat(rv) : (parseFloat(es.km)||0);
-          }
-          ei++;
+      let total=0,ei=0;
+      while(ei<=50&&state[`extra_w${w.s}_s${ei}`]!==undefined){
+        if(state[`extra_w${w.s}_s${ei}_done`]){
+          const rv=state[`extra_w${w.s}_s${ei}_km`];
+          let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
+          if(!es){ei++;continue;}
+          total += rv!=null ? parseFloat(rv) : (parseFloat(es.km)||0);
         }
-      } else {
-        weeks[w.s-1].sessions.forEach((_,si)=>{
-          if(state[`del_w${w.s}_s${si}`]) return;
-          const rv = state[gk(w.s,si)+'km'];
-          const done = !!state[gk(w.s,si)+'done'];
-          if(rv!=null) total += parseFloat(rv);
-          else if(done) total += getSession(w.s,si).km;
-        });
-        let ei=0;
-        while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){
-          if(state[`extra_w${w.s}_s${ei}_done`]){
-            const rv=state[`extra_w${w.s}_s${ei}_km`];
-            let es;try{es=JSON.parse(state[`extra_w${w.s}_s${ei}`]);}catch(e){ei++;continue;}
-            if(!es){ei++;continue;}
-            total += rv!=null ? parseFloat(rv) : es.km;
-          }
-          ei++;
-        }
+        ei++;
       }
       return Math.round(total*10)/10;
     })() : null;
@@ -1201,34 +1169,8 @@ function renderPlan(){
       ? `<div class="plan-progress-bar"><div class="plan-progress-fill" style="width:100%;background:#3B6D11;opacity:0.35;"></div></div>`
       : '';
 
-    // Séances
-    const allSessions=[];
-    if(state._plan_migrated) {
-      // Post-migration : toutes les séances dans extra_w, triées par sched_day (ou ordre sauvegardé)
-      const _eiList=[]; let _ei=0;
-      while(_ei<=50&&state[`extra_w${w.s}_s${_ei}`]!==undefined){_eiList.push(_ei);_ei++;}
-      let _savedOrd=null;try{const _r=state[`order_w${w.s}`];if(_r){const _p=JSON.parse(_r);if(Array.isArray(_p)&&_p.length>0&&typeof _p[0]==='number')_savedOrd=_p;}}catch(e){}
-      let _ordEis;
-      if(_savedOrd){_ordEis=_savedOrd.filter(e=>_eiList.includes(e));_eiList.forEach(e=>{if(!_ordEis.includes(e))_ordEis.push(e);});}
-      else{_ordEis=[..._eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${w.s}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${w.s}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
-      for(const _eiV of _ordEis){let s;try{s=JSON.parse(state[`extra_w${w.s}_s${_eiV}`]);}catch(e){continue;}if(s)allSessions.push({s,si:'x'+_eiV,extra:true,ei:_eiV});}
-    } else {
-      // Pré-migration : double source weeks[] + extra_w
-      const baseOrder=weeks[w.s-1].sessions.map((_,si)=>({si,extra:false})).filter(({si})=>!state[`del_w${w.s}_s${si}`]);
-      let ei=0;
-      while(ei<=20&&state[`extra_w${w.s}_s${ei}`]){baseOrder.push({si:'x'+ei,extra:true,ei});ei++;}
-      const sessionMatch = (a, b) => !!a.extra === !!b.extra && (a.extra ? a.ei === b.ei : a.si === b.si);
-      let savedOrder=null;try{savedOrder=state[`order_w${w.s}`]?JSON.parse(state[`order_w${w.s}`]).filter(Boolean):null;}catch(e){}
-      const orderedSessions = savedOrder
-        ? savedOrder.map(o => baseOrder.find(b => sessionMatch(b, o))).filter(Boolean)
-        : [...baseOrder];
-      baseOrder.forEach(b=>{if(!orderedSessions.find(o=>sessionMatch(o,b)))orderedSessions.push(b);});
-      orderedSessions.forEach(({si,extra,ei:eid})=>{
-        let s;try{s=extra?JSON.parse(state[`extra_w${w.s}_s${eid}`]):getSession(w.s,si);}catch(e){return;}
-        if(!s)return;
-        allSessions.push({s,si,extra,ei:eid});
-      });
-    }
+    // Séances — getOrderedWeekSessions gère le tri (sched_day ou order_w sauvegardé)
+    const allSessions = getOrderedWeekSessions(w.s);
     const totalRows=allSessions.length;
 
     const sessionRowsHtml = isOpen ? allSessions.map(({s:s2,si,extra,ei:eid},rowIdx)=>{
@@ -1238,47 +1180,19 @@ function renderPlan(){
       const parts=s2.d.split('|');
       const title=normalizeSessionTitle(parts[0], s2.type);
       const detail=filterDetailDisplay(title, parts[1]||null);
-      const edited=extra ? (s2._modified||false) : !!state[`edit_w${w.s}_s${si}`];
-      const isManual=extra && s2._src !== 'plan';
-      // Pour les séances plan migrées, vérifier extra_w ET gk() (dual-read pendant transition)
-      const _planSi=extra&&s2._src==='plan'?s2._plan_si:undefined;
-      const isDone=extra
-        ? (_planSi!==undefined
-          ? !!(state[`extra_w${w.s}_s${eid}_done`]||state[gk(w.s,_planSi)+'done'])
-          : !!state[`extra_w${w.s}_s${eid}_done`])
-        : !!state[gk(w.s,si)+'done'];
-      const isSkip=extra
-        ? (_planSi!==undefined
-          ? !!(state[`extra_w${w.s}_s${eid}_skip`]||state[gk(w.s,_planSi)+'skip'])
-          : !!state[`extra_w${w.s}_s${eid}_skip`])
-        : !!state[gk(w.s,si)+'skip'];
-      const skipReason=extra
-        ? (_planSi!==undefined
-          ? (state[`extra_w${w.s}_s${eid}_skip_reason`]||state[gk(w.s,_planSi)+'skip_reason']||'')
-          : (state[`extra_w${w.s}_s${eid}_skip_reason`]||''))
-        : (state[gk(w.s,si)+'skip_reason']||'');
-      const clickFn=extra
-        ? (isDone ? `openPerfEditExtraModal(${w.s},${eid})` : `openEditExtraModal(${w.s},${eid})`)
-        : (isDone ? `openPerfEditModal(${w.s},${si})` : `openEditModal(${w.s},${si})`);
+      const edited=s2._modified||false;
+      const isManual=s2._src !== 'plan';
+      const isDone=!!state[`extra_w${w.s}_s${eid}_done`];
+      const isSkip=!!state[`extra_w${w.s}_s${eid}_skip`];
+      const skipReason=state[`extra_w${w.s}_s${eid}_skip_reason`]||'';
+      const clickFn=isDone ? `openPerfEditExtraModal(${w.s},${eid})` : `openEditExtraModal(${w.s},${eid})`;
 
       // Horaire planifié
       let schedHtml='';
-      if(!extra){
-        const edRaw=state[`edit_w${w.s}_s${si}`];
-        if(edRaw){
-          let ed;try{ed=JSON.parse(edRaw);}catch(e){}
-          if(ed&&(ed.sched_day||ed.sched_time)){
-            const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-            const dayStr=ed.sched_day?days[ed.sched_day]:'';
-            const timeStr=ed.sched_time||'';
-            schedHtml=`<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
-          }
-        }
-      } else if(s2.sched_day||s2.sched_time) {
+      if(s2.sched_day||s2.sched_time){
         const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
         const dayStr=s2.sched_day?days[s2.sched_day]:'';
         const timeStr=s2.sched_time||'';
-        // Séances plan migrées : style type-coloré ; séances manuelles : style muted
         if(s2._src==='plan'){
           schedHtml=`<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;
         } else {
@@ -1311,9 +1225,7 @@ function renderPlan(){
             ${detail?`<div style="font-size:12px;color:${isDone?'#5a8f2e':typeC};font-weight:600;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
               if(isDone){
-                const perfRaw = extra
-                  ? (state[`extra_w${w.s}_s${eid}_perf`]||(_planSi!==undefined?state[gk(w.s,_planSi)+'perf']:null))
-                  : state[gk(w.s,si)+'perf'];
+                const perfRaw = state[`extra_w${w.s}_s${eid}_perf`];
                 let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{};}catch(e){}
                 const rp = perf2.pace || null;
                 const rd = perf2.dur || null;
@@ -1333,9 +1245,7 @@ function renderPlan(){
         </div>
         <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
           ${(()=>{
-            const rvPlan = extra
-              ? (state[`extra_w${w.s}_s${eid}_km`]??(_planSi!==undefined?state[gk(w.s,_planSi)+'km']:null))
-              : state[gk(w.s,si)+'km'];
+            const rvPlan = state[`extra_w${w.s}_s${eid}_km`]??null;
             const kmShow = isDone && rvPlan!=null ? rvPlan : s2.km;
             return `<div style="text-align:right;min-width:40px;">
               <div style="font-size:17px;font-weight:800;color:${isDone?'#3B6D11':'var(--text)'};">${kmShow}</div>
@@ -1369,7 +1279,7 @@ function renderPlan(){
     const _spineColorA=isCur?'#1B4FD8':isDecharge?'#EA580C':phaseColA?phaseColA.accent:isPast?'#CBD5E1':'#E2E8F0';
     card.style.cssText=`border-left:4px solid ${_spineColorA};`;
     const _typeAbbrA={ef:'EF',tempo:'T',frac:'F',long:'L',race:'🏆'};
-    const _adminDotsHtml=allSessions.length>0?`<div style="display:flex;gap:3px;align-items:center;margin-top:5px;flex-wrap:nowrap;overflow:hidden;">${allSessions.map(({s:ss,si:xsi,extra:xe,ei:xe_i})=>{const isDoneA=xe?!!state[`extra_w${w.s}_s${xe_i}_done`]:!!state[gk(w.s,xsi)+'done'];const isSkipA=xe?!!state[`extra_w${w.s}_s${xe_i}_skip`]:!!state[gk(w.s,xsi)+'skip'];const tc=typeColor[ss.type]||'#888';const tbg=typeBg[ss.type]||'#f5f5f5';const abbr=_typeAbbrA[ss.type]||'?';const bg=isDoneA?'#D4EDBC':isSkipA?'#FDECEA':isCur?'rgba(255,255,255,0.2)':tbg;const color=isDoneA?'#2E6B10':isSkipA?'#C0392B':isCur?'rgba(255,255,255,0.9)':tc;return `<span style="font-size:8px;font-weight:800;padding:2px 5px;border-radius:5px;background:${bg};color:${color};letter-spacing:0.03em;">${isDoneA?'✓ ':isSkipA?'✕ ':''}${abbr}</span>`;}).join('')}</div>`:'';
+    const _adminDotsHtml=allSessions.length>0?`<div style="display:flex;gap:3px;align-items:center;margin-top:5px;flex-wrap:nowrap;overflow:hidden;">${allSessions.map(({s:ss,ei:xe_i})=>{const isDoneA=!!state[`extra_w${w.s}_s${xe_i}_done`];const isSkipA=!!state[`extra_w${w.s}_s${xe_i}_skip`];const tc=typeColor[ss.type]||'#888';const tbg=typeBg[ss.type]||'#f5f5f5';const abbr=_typeAbbrA[ss.type]||'?';const bg=isDoneA?'#D4EDBC':isSkipA?'#FDECEA':isCur?'rgba(255,255,255,0.2)':tbg;const color=isDoneA?'#2E6B10':isSkipA?'#C0392B':isCur?'rgba(255,255,255,0.9)':tc;return `<span style="font-size:8px;font-weight:800;padding:2px 5px;border-radius:5px;background:${bg};color:${color};letter-spacing:0.03em;">${isDoneA?'✓ ':isSkipA?'✕ ':''}${abbr}</span>`;}).join('')}</div>`:'';
 
     card.innerHTML = `
       ${_topBarA}
