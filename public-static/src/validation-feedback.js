@@ -55,69 +55,171 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   let title='Séance validée';
   let lines=[];
 
+  function _pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
   if(type==='ef'){
     icon='🌿'; title='Endurance Fondamentale';
     if(fcMax&&hrNum){
-      if(hrNum<=efMax) lines.push('✅ FC parfaitement dans la zone EF ('+hrNum+' bpm / cible '+efMin+'–'+efMax+' bpm) — tu coures à la bonne intensité, bravo ! 👍');
-      else if(hrNum<=efMax+10) lines.push('⚠️ FC légèrement au-dessus de la zone EF ('+hrNum+' bpm / cible max '+efMax+' bpm). Essaie de ralentir un peu la prochaine fois.');
-      else lines.push('🔴 FC trop élevée ('+hrNum+' bpm) pour une séance EF (zone cible : '+efMin+'–'+efMax+' bpm). N\'hésite pas à marcher quelques instants pour rester en zone.');
+      if(hrNum<=efMax) lines.push(_pick([
+        '✅ FC parfaitement dans la zone EF ('+hrNum+' bpm / cible '+efMin+'–'+efMax+' bpm) — tu coures exactement à la bonne intensité, c\'est ça la progression durable ! 👏',
+        '✅ Belle maîtrise de ton effort : '+hrNum+' bpm dans la cible '+efMin+'–'+efMax+' bpm. L\'EF bien dosée, c\'est le secret des coureurs qui progressent vite ! 🌿',
+        '✅ Zone EF respectée à la lettre ('+hrNum+' bpm). Ton cœur travaille exactement comme il faut — continue à construire cette base solide ! 💚',
+        '✅ '+hrNum+' bpm dans la zone — tu maîtrises ton allure, et c\'est précisément ça qui construit ton endurance profonde. Excellent boulot ! 🎯',
+      ]));
+      else if(hrNum<=efMax+10) lines.push(_pick([
+        '⚠️ FC légèrement au-dessus de la zone ('+hrNum+' bpm / cible max '+efMax+' bpm). Un poil plus lent la prochaine fois suffira — rien de grave, tu es dans le bon état d\'esprit ! 👍',
+        '⚠️ '+hrNum+' bpm, juste au-dessus de ta zone EF ('+efMax+' bpm max). Essaie de ralentir de 10–15 sec/km pour revenir dans la bonne zone. Tu y es presque ! 🙂',
+        '⚠️ FC un peu haute ('+hrNum+' bpm) — ça peut arriver par chaleur ou fatigue accumulée. Pars encore plus tranquille la prochaine sortie. C\'est pas grave du tout ! 😌',
+      ]));
+      else lines.push(_pick([
+        '🔴 FC élevée pour de l\'EF ('+hrNum+' bpm / zone cible '+efMin+'–'+efMax+' bpm). N\'hésite pas à marcher quelques instants pour récupérer et rester en zone basse — ça fait partie de la progression !',
+        '🔴 '+hrNum+' bpm, c\'est trop haut pour une séance EF. Ralentis significativement — l\'objectif est d\'accumuler du temps en zone douce, pas de te fatiguer. Ton corps te dira merci ! 😊',
+      ]));
     } else if(pace){
-      if(efPaceSec&&paceSec>=efPaceSec-15) lines.push('✅ Allure ('+pace+'/km) cohérente avec une séance EF — beau travail en endurance fondamentale 👏');
-      else if(efPaceSec&&paceSec<efPaceSec-15) lines.push('⚠️ Allure ('+pace+'/km) un peu rapide pour de l\'EF (cible ~'+efPaceStr+'/km). Ralentis pour bien rester en zone basse et construire ta base.');
-      else lines.push('✅ Séance EF complétée à '+pace+'/km. Pense à saisir ta FC pour un suivi encore plus précis.');
+      if(efPaceSec&&paceSec>=efPaceSec-15) lines.push(_pick([
+        '✅ Allure ('+pace+'/km) parfaitement cohérente avec une séance EF — beau travail en endurance fondamentale ! 👏',
+        '✅ '+pace+'/km, c\'est exactement dans la bonne fourchette pour de l\'EF. Tu gères bien ton effort, continue ! 🌿',
+        '✅ Belle allure EF à '+pace+'/km — tu construis ta base aérobie séance après séance, et ça va payer ! 💪',
+      ]));
+      else if(efPaceSec&&paceSec<efPaceSec-15) lines.push(_pick([
+        '⚠️ Allure ('+pace+'/km) un peu rapide pour de l\'EF (cible ~'+efPaceStr+'/km). Ralentis pour rester en zone basse — c\'est là que la vraie progression se construit ! 🙂',
+        '⚠️ '+pace+'/km, c\'est bien mais un poil trop rapide pour de l\'EF (cible '+efPaceStr+'/km). L\'EF doit se faire confortablement, sans forcer. Essaie de te freiner la prochaine fois ! 😊',
+      ]));
+      else lines.push(_pick([
+        '✅ Séance EF complétée à '+pace+'/km — ajoute ta FC la prochaine fois pour un suivi encore plus précis ! 💡',
+        '✅ '+pace+'/km en EF, c\'est dans la boîte ! Saisis ta FC sur ta prochaine sortie pour affiner le suivi 📊',
+      ]));
     } else {
-      lines.push('✅ Séance EF dans la boîte ! Saisis ta FC et ton allure pour mieux suivre ta progression.');
+      lines.push(_pick([
+        '✅ Séance EF dans la boîte ! Saisis ta FC et ton allure pour un suivi encore plus précis 📊',
+        '✅ Sortie EF validée ! Pense à saisir ta FC la prochaine fois pour mieux suivre ta progression 💚',
+      ]));
     }
     if(plannedKm>0){
-      if(kmRatio>=0.95&&kmRatio<=1.12) lines.push('📏 Volume parfait : '+realKm+' km réalisés sur '+plannedKm+' km prévus. 🎯');
-      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu t\'es écouté·e, c\'est la bonne décision — progresser sans se blesser, c\'est la priorité.');
-      else if(kmRatio>1.15) lines.push('📏 Tu as dépassé le volume prévu ('+realKm+' km). Attention à la fatigue accumulée — respecte le plan sur la durée.');
-      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km). Bien joué !');
+      if(kmRatio>=0.95&&kmRatio<=1.12) lines.push(_pick([
+        '📏 Volume au top : '+realKm+' km réalisés sur '+plannedKm+' km prévus. Plan respecté ! 🎯',
+        '📏 Parfait : '+realKm+' / '+plannedKm+' km — tu exécutes le plan à la lettre, et ça va payer ! ✅',
+        '📏 '+realKm+' km dans la boîte (prévu : '+plannedKm+' km) — régularité et constance, c\'est la recette du succès ! 🌟',
+      ]));
+      else if(kmRatio<0.8) lines.push(_pick([
+        '📏 '+realKm+' km sur '+plannedKm+' km prévus. Si tu t\'es écouté·e, c\'est la bonne décision — progresser sans se blesser, c\'est la priorité ! 😊',
+        '📏 Tu as raccourci la sortie ('+realKm+' km / prévu '+plannedKm+' km). Écouter son corps, c\'est aussi une compétence de coureur·se ! 💚',
+        '📏 '+realKm+' km — parfois moins, c\'est plus. La récupération fait partie de l\'entraînement, tu as bien fait ! 🛌',
+      ]));
+      else if(kmRatio>1.15) lines.push(_pick([
+        '📏 Tu as dépassé le volume prévu ('+realKm+' km / prévu '+plannedKm+' km). Attention à la fatigue cumulée — respecte le plan sur la durée, c\'est ce qui compte ! 😊',
+        '📏 '+realKm+' km, un peu plus que prévu ('+plannedKm+' km). L\'enthousiasme, c\'est bien — la gestion du volume, c\'est encore mieux ! 😄',
+      ]));
+      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km) — bien joué ! 👍');
     }
-    const tips=isPlaisir
-      ?['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression en course à pied.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.','Courir régulièrement en zone basse développe ton endurance naturellement. Continue !']
-      :['La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler.','L\'EF construit ta base aérobie — c\'est le socle de toute progression marathon.','Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide.','80 % de ton entraînement devrait être en zone EF — chaque sortie douce compte !'];
-    lines.push('💡 '+tips[Math.floor(Math.random()*tips.length)]);
+    lines.push('💡 '+_pick(isPlaisir?[
+      'La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler 😊',
+      'L\'EF construit ta base aérobie — c\'est le socle de toute progression en course à pied. Chaque km compte !',
+      'Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide. Continue sur cette lancée ! 💪',
+      'Courir lentement pour courir vite : c\'est le paradoxe de l\'endurance, et tu es en train de le vivre 🌿',
+      'Les séances EF sont celles qui construisent ton moteur — même si tu les sens "faciles", elles ont un impact énorme !',
+      'Chaque sortie douce renforce ton système cardio et tes tendons. Tu construis quelque chose de solide ! 🏗️',
+      'L\'EF, c\'est l\'entraînement invisible qui fait la vraie différence. Tu fais les bons choix 👏',
+    ]:[
+      'La règle d\'or de l\'EF : tu dois pouvoir tenir une conversation sans t\'essouffler — c\'est le bon tempo pour construire ta base marathon ! 😊',
+      'L\'EF construit ta base aérobie — c\'est le socle de tout marathon réussi. Chaque km en zone basse compte !',
+      'Régularité > intensité : une sortie EF facile vaut mieux qu\'une sortie trop rapide. La progression marathon se construit dans la durée ! 💪',
+      '80 % de ton entraînement devrait être en zone EF — chaque sortie douce rapproche ton marathon ! 🏃',
+      'Les semaines à venir te demanderont d\'aller chercher tes limites. Aujourd\'hui tu construis les fondations. C\'est essentiel ! 🏗️',
+      'L\'EF développe tes mitochondries et ton métabolisme lipidique — exactement ce qu\'il faut pour tenir 42 km ! 🔬',
+      'Courir lentement pour courir vite longtemps : tu es exactement dans la bonne logique pour le marathon 🎯',
+      'Les coureurs qui finissent leur marathon forts ont une chose en commun : beaucoup d\'EF bien dosée. Continue ! 🏅',
+      'Chaque sortie EF dépose une petite brique dans ton endurance. Dans quelques semaines tu sentiras la différence ! 🌱',
+    ]));
 
   } else if(type==='tempo'){
     icon='🔥'; title='Séance Tempo';
-    if(pace) lines.push('⚡ Allure moyenne (récupérations incluses) : '+pace+'/km.');
+    if(pace) lines.push(_pick([
+      '⚡ Allure moyenne (récupérations incluses) : '+pace+'/km — l\'essentiel, c\'est l\'allure sur les blocs !',
+      '⚡ '+pace+'/km en moyenne sur toute la séance (blocs + récup inclus). Les blocs sont ce qui compte vraiment 🎯',
+    ]));
     if(hrNum&&fcMax){
       const tMin=Math.floor(fcMax*0.80);
       const tMax=Math.floor(fcMax*0.88);
-      if(hrNum>=tMin&&hrNum<=tMax) lines.push('✅ FC dans la zone tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm) — belle qualité de travail au seuil ! 🔥');
-      else if(hrNum>tMax) lines.push('⚠️ FC élevée ('+hrNum+' bpm / cible max '+tMax+' bpm). Tu as bien sollicité ton organisme — récupère bien dans les 24–48h.');
-      else lines.push('💡 FC un peu basse pour du tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm). N\'hésite pas à pousser davantage sur les blocs la prochaine fois.');
+      if(hrNum>=tMin&&hrNum<=tMax) lines.push(_pick([
+        '✅ FC dans la zone tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm) — belle qualité de travail au seuil ! 🔥',
+        '✅ '+hrNum+' bpm, parfaitement dans ta zone de travail ('+tMin+'–'+tMax+' bpm). Tu as bien sollicité ton seuil lactique ! 💪',
+        '✅ FC au top sur cette séance tempo ('+hrNum+' bpm). C\'est exactement là qu\'il faut travailler pour progresser ! 🎯',
+      ]));
+      else if(hrNum>tMax) lines.push(_pick([
+        '⚠️ FC élevée ('+hrNum+' bpm / cible max '+tMax+' bpm). Tu as bien sollicité ton organisme — prévois une bonne récupération dans les 24–48h 🛌',
+        '⚠️ '+hrNum+' bpm, au-dessus de la zone tempo ('+tMax+' bpm max). Attention à la fatigue — récupère bien et pars moins vite sur les prochains blocs 😊',
+      ]));
+      else lines.push(_pick([
+        '💡 FC un peu basse pour du tempo ('+hrNum+' bpm / cible '+tMin+'–'+tMax+' bpm). N\'hésite pas à pousser davantage sur les blocs la prochaine fois — tu peux donner plus ! 🚀',
+        '💡 '+hrNum+' bpm, c\'est en dessous de ta zone tempo ('+tMin+'–'+tMax+' bpm). Essaie d\'accélérer un peu sur les blocs — ton corps peut aller chercher plus ! 💪',
+      ]));
     }
-    // Analyse des blocs tempo
     const tBlocs=blocsAllure.filter(b=>b&&b.trim());
     if(tBlocs.length>0){
       const tSecs=tBlocs.map(b=>_ps(b)).filter(v=>v>0);
       if(tSecs.length>0){
-        lines.push('⚡ Blocs : '+tBlocs.join(' · ')+' /km');
+        lines.push('⚡ Blocs réalisés : '+tBlocs.join(' · ')+' /km');
         if(tSecs.length>=2){
           const variation=Math.max(...tSecs)-Math.min(...tSecs);
-          if(variation<=5) lines.push('✅ Excellent régularité sur les blocs (≤ 5 sec/km d\'écart) — c\'est la marque d\'un effort parfaitement contrôlé ! 🎯');
-          else if(variation<=12) lines.push('📊 Bonne régularité ('+variation+' sec/km d\'écart entre les blocs) — à affiner progressivement.');
-          else lines.push('⚠️ Variation de '+variation+' sec/km entre les blocs. Essaie de partir un peu moins vite pour finir plus fort — ça s\'appelle le "négatif split" (finir plus vite qu\'on a commencé).');
+          const lastFaster=tSecs[tSecs.length-1]<tSecs[0];
+          if(variation<=5) lines.push(_pick([
+            '✅ Régularité exemplaire sur les blocs (≤ 5 sec/km d\'écart) — c\'est la marque d\'un effort parfaitement contrôlé ! 🎯',
+            '✅ Blocs ultra-réguliers ('+variation+' sec d\'écart) — tu gères ton énergie comme un pro ! 💎',
+            '✅ Incroyable régularité entre les blocs — c\'est exactement le signe d\'une bonne gestion de l\'effort. Bravo ! 🌟',
+          ]));
+          else if(variation<=12){
+            const msg=lastFaster?'✅ Tu as progressé sur le dernier bloc — c\'est un signe fort de bonne gestion de l\'effort ! 🚀':'📊 Bonne régularité ('+variation+' sec/km d\'écart entre les blocs) — à affiner progressivement, tu y arrives ! 💪';
+            lines.push(msg);
+          }
+          else lines.push(_pick([
+            '⚠️ Variation de '+variation+' sec/km entre les blocs. Essaie de partir un peu moins vite pour finir plus fort — le "négatif split", c\'est l\'objectif ! 😊',
+            '⚠️ '+variation+' sec d\'écart entre les blocs — pars plus conservateur sur le premier bloc pour maintenir la qualité jusqu\'au bout. Tu progresseras vite ! 💡',
+          ]));
         }
       }
     }
     if(plannedKm>0){
-      if(kmRatio>=0.9) lines.push('📏 Volume bien réalisé : '+realKm+' / '+plannedKm+' km. 👏');
-      else lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus — c\'est normal de ne pas toujours finir le tempo, il vaut mieux s\'arrêter proprement.');
+      if(kmRatio>=0.9) lines.push(_pick([
+        '📏 Volume bien réalisé : '+realKm+' / '+plannedKm+' km — mission accomplie ! 👏',
+        '📏 '+realKm+' km dans la boîte (prévu : '+plannedKm+' km). Tu as tout donné ! 🔥',
+      ]));
+      else lines.push(_pick([
+        '📏 '+realKm+' km sur '+plannedKm+' km prévus — c\'est normal de raccourcir un tempo. Mieux vaut s\'arrêter proprement que de se forcer. Bien joué ! 😊',
+        '📏 Tu as senti la limite et tu t\'es arrêté·e ('+realKm+' km / '+plannedKm+' km prévus). Écouter son corps pendant un tempo, c\'est une vraie compétence ! 💪',
+      ]));
     }
-    lines.push(isPlaisir?'💡 Les séances tempo développent ton seuil lactique — c\'est la clé pour progresser en vitesse et en confort de course.':'💡 Les séances tempo développent ton seuil lactique — c\'est la clé pour soutenir l\'allure marathon longtemps.');
+    lines.push('💡 '+_pick(isPlaisir?[
+      'Les séances tempo développent ton seuil lactique — c\'est la clé pour progresser en vitesse et tenir l\'allure longtemps !',
+      'Le tempo, c\'est l\'effort que tu peux soutenir environ 1h. En t\'entraînant à ce seuil, tu le repousses progressivement 🚀',
+      'Chaque séance tempo rend tes efforts plus économiques — tu courras plus vite pour le même effort cardio ! 💡',
+      'Le seuil lactique, c\'est ton moteur économique. Plus tu l\'entraînes, plus tu es efficace à toutes les allures 🔥',
+    ]:[
+      'Les séances tempo développent ton seuil lactique — c\'est la clé pour soutenir l\'allure marathon longtemps et finir fort ! 🏁',
+      'Le tempo, c\'est l\'effort que tu peux soutenir environ 1h. En l\'entraînant maintenant, tu tiens plus facilement le marathon ! 🎯',
+      'Chaque séance tempo te permet de courir plus vite pour le même effort — direct bénéfique pour ton marathon ! 🚀',
+      'Le travail au seuil fait monter ton lactate threshold — tu pourras soutenir ton allure marathon plus facilement. Continue ! 💪',
+      'Les séances tempo sont parmi les plus exigeantes — en les réussissant tu construis une vraie confiance pour le jour J ! 🌟',
+    ]));
 
   } else if(type==='frac'){
     icon='⚡'; title='Séance Fractionné';
-    if(pace) lines.push('🏃 Allure moyenne (récupérations incluses) : '+pace+'/km.');
+    if(pace) lines.push(_pick([
+      '🏃 Allure moyenne (récupérations incluses) : '+pace+'/km — ce qui compte c\'est l\'allure des répétitions !',
+      '🏃 '+pace+'/km en moyenne, récupérations incluses. La vraie mesure, c\'est l\'allure sur chaque intervalle 💪',
+    ]));
     if(hrNum&&fcMax){
       const fMin=Math.floor(fcMax*0.88);
-      if(hrNum>=fMin) lines.push('✅ FC bien haute ('+hrNum+' bpm) — les intervalles ont parfaitement sollicité ton système cardiovasculaire ! 💪');
-      else lines.push('💡 FC à '+hrNum+' bpm. Essaie de pousser davantage sur les répétitions pour dépasser '+fMin+' bpm et maximiser l\'effet entraînement.');
+      if(hrNum>=fMin) lines.push(_pick([
+        '✅ FC bien haute ('+hrNum+' bpm) — les intervalles ont parfaitement sollicité ton système cardio-vasculaire ! 💪',
+        '✅ '+hrNum+' bpm — tu as vraiment donné sur les répétitions ! C\'est exactement l\'intensité qu\'il faut pour développer ta VO2max ! 🔥',
+        '✅ Bonne sollicitation cardio ('+hrNum+' bpm) — les intervalles ont fait leur travail. Ton système aérobie a adoré ! ⚡',
+      ]));
+      else lines.push(_pick([
+        '💡 FC à '+hrNum+' bpm — essaie de pousser davantage sur les répétitions pour dépasser '+fMin+' bpm. Tu peux aller chercher plus ! 🚀',
+        '💡 '+hrNum+' bpm, tu as encore de la marge. N\'hésite pas à partir plus vite sur les intervalles — c\'est là que l\'effet entraînement est maximal ! ⚡',
+      ]));
     }
-    // Analyse des blocs fractionné
     const fBlocs=blocsAllure.filter(b=>b&&b.trim());
     if(fBlocs.length>0){
       const fSecs=fBlocs.map(b=>_ps(b)).filter(v=>v>0);
@@ -127,54 +229,178 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
           const variation=Math.max(...fSecs)-Math.min(...fSecs);
           const avgSec=fSecs.reduce((a,v)=>a+v,0)/fSecs.length;
           let _avgM=Math.floor(avgSec/60);let _avgS=Math.round(avgSec%60);if(_avgS===60){_avgM++;_avgS=0;}const avgStr=_avgM+':'+(_avgS<10?'0':'')+_avgS;
-          lines.push('📊 Allure moy. des répétitions : '+avgStr+'/km — écart max : '+variation+' sec/km.');
-          if(variation<=8) lines.push('✅ Régularité exemplaire sur les intervalles ! C\'est exactement ce qu\'on cherche. 🎯');
-          else if(variation<=20) lines.push('💪 Régularité correcte — avec l\'expérience, tu doseras encore mieux l\'effort sur chaque répétition.');
-          else lines.push('⚠️ Grande variation entre les répétitions ('+variation+' sec/km). Pars plus prudemment sur les premiers intervalles pour maintenir l\'allure jusqu\'à la fin.');
+          lines.push('📊 Allure moy. des répétitions : '+avgStr+'/km — écart max : '+variation+' sec/km');
+          if(variation<=8) lines.push(_pick([
+            '✅ Régularité exemplaire sur les intervalles ! C\'est exactement ce qu\'on cherche. 🎯',
+            '✅ Répétitions ultra-régulières ('+variation+' sec d\'écart max) — tu gères ton énergie comme un(e) pro ! 💎',
+            '✅ Incroyable constance sur les répétitions ! Cette régularité montre que tu maîtrises ton allure 🌟',
+          ]));
+          else if(variation<=20) lines.push(_pick([
+            '💪 Régularité correcte — avec l\'expérience tu doseras encore mieux l\'effort sur chaque répétition. C\'est en venant ! 😊',
+            '💪 '+variation+' sec d\'écart entre les répétitions — ça va dans le bon sens. Continue à travailler la gestion de l\'effort ! 🎯',
+          ]));
+          else lines.push(_pick([
+            '⚠️ Grande variation ('+variation+' sec/km) entre les répétitions. Pars plus prudemment sur les premières pour maintenir l\'allure jusqu\'à la fin — c\'est la clé des intervalles ! 😊',
+            '⚠️ '+variation+' sec d\'écart entre tes répétitions. Essaie de commencer 5–10% moins vite pour tenir la qualité jusqu\'au bout. Ça viendra ! 💡',
+          ]));
         }
       }
     }
-    if(plannedKm>0) lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km).');
-    lines.push('💡 Le fractionné développe ta VO2max et ta vitesse — c\'est l\'entraînement le plus puissant pour progresser rapidement. 🚀');
+    if(plannedKm>0) lines.push(_pick([
+      '📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km) — belle séance de qualité ! 🔥',
+      '📏 Volume : '+realKm+' / '+plannedKm+' km. L\'important c\'est la qualité des intervalles, et tu t\'es donné·e ! 💪',
+    ]));
+    lines.push('💡 '+_pick(isPlaisir?[
+      'Le fractionné développe ta VO2max et ta vitesse — c\'est l\'entraînement le plus puissant pour progresser rapidement ! 🚀',
+      'Chaque répétition repousse tes limites aérobies. Tu deviens plus rapide séance après séance ! ⚡',
+      'Les intervalles, c\'est inconfortable dans l\'effort mais incroyable pour la progression. Tu l\'as fait ! 💪',
+      'Ton système cardio-vasculaire adore les fractions — il s\'adapte et se renforce à chaque séance ! 🔥',
+    ]:[
+      'Le fractionné développe ta VO2max — directement bénéfique pour ton allure marathon et ton endurance ! 🚀',
+      'Les intervalles font de toi un(e) coureur·se plus efficace : même allure, moins d\'effort. Du direct pour le marathon ! ⚡',
+      'Chaque séance de fractionné repousse ta vitesse maximale — et ça se ressent ensuite sur toutes tes allures ! 💪',
+      'Le fractionné est difficile mais c\'est l\'entraînement qui te fera aller plus vite le jour du marathon. Continue ! 🎯',
+      'VO2max en hausse = marathon plus facile. Tu fais exactement ce qu\'il faut ! 🏅',
+    ]));
 
   } else if(type==='long'){
     icon='🏔️'; title='Sortie Longue';
     if(fcMax&&hrNum){
-      if(hrNum<=efMax) lines.push('✅ FC parfaitement maîtrisée ('+hrNum+' bpm) sur la durée — c\'est exactement ce qu\'on cherche en sortie longue ! Excellent travail. 🌟');
-      else if(hrNum<=efMax+12) lines.push('⚠️ FC un peu élevée ('+hrNum+' bpm / zone EF max '+efMax+' bpm). Ça peut arriver en fin de sortie ou par chaleur — pars un peu plus doucement la prochaine fois.');
-      else lines.push('🔴 FC trop haute ('+hrNum+' bpm) pour une sortie longue. Ralentis davantage — l\'objectif est d\'accumuler du temps en zone basse, pas de te fatiguer.');
+      if(hrNum<=efMax) lines.push(_pick([
+        '✅ FC parfaitement maîtrisée ('+hrNum+' bpm) sur la durée — c\'est exactement ce qu\'on cherche en sortie longue ! Excellent travail 🌟',
+        '✅ '+hrNum+' bpm sur toute la sortie — tu as couru dans la bonne zone du début à la fin. C\'est ça la vraie maîtrise ! 💚',
+        '✅ Contrôle cardiaque exemplaire ('+hrNum+' bpm / zone '+efMin+'–'+efMax+' bpm). La sortie longue bien dosée, c\'est du carburant pur pour le marathon ! 🏆',
+        '✅ '+hrNum+' bpm en zone — sur une longue sortie, tenir la zone du début à la fin demande de la discipline. Bravo ! 🎯',
+      ]));
+      else if(hrNum<=efMax+12) lines.push(_pick([
+        '⚠️ FC un peu élevée ('+hrNum+' bpm / zone EF max '+efMax+' bpm). Ça peut arriver en fin de sortie ou par chaleur — pars encore plus doucement la prochaine fois 😊',
+        '⚠️ '+hrNum+' bpm, au-dessus de la zone EF ('+efMax+' bpm max). La prochaine longue sortie, essaie de commencer encore plus tranquillement — ça finira mieux ! 🙂',
+      ]));
+      else lines.push(_pick([
+        '🔴 FC trop haute ('+hrNum+' bpm) pour une sortie longue. Ralentis davantage — l\'objectif est d\'accumuler du temps en zone basse, pas de te fatiguer 😊',
+        '🔴 '+hrNum+' bpm sur une longue, c\'est trop intense. La sortie longue doit être confortable du début à la fin — même si ça paraît trop facile ! 🐢',
+      ]));
     }
     if(plannedKm>0){
-      if(kmRatio>=0.9&&kmRatio<=1.05) lines.push('📏 Excellent volume : '+realKm+' km (prévu : '+plannedKm+' km) — la sortie longue construit ta résistance à l\'effort prolongé. 💪');
-      else if(realKm>=25) lines.push('📏 Belle sortie longue de '+realKm+' km ! Ce type de séance est fondamental pour construire ton endurance. 🏅');
-      else if(kmRatio<0.8) lines.push('📏 '+realKm+' km sur '+plannedKm+' km prévus. S\'arrêter à temps quand on ressent la fatigue, c\'est la bonne décision — la récupération fait partie de l\'entraînement.');
-      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km). Bien joué !');
+      if(kmRatio>=0.9&&kmRatio<=1.05) lines.push(_pick([
+        '📏 Volume au top : '+realKm+' km (prévu : '+plannedKm+' km) — la sortie longue construit ta résistance à l\'effort prolongé. Énorme séance ! 💪',
+        '📏 '+realKm+' km dans la boîte — c\'est une sortie longue comme ça qui fait la différence au km 35 du marathon ! 🏅',
+        '📏 Plan respecté : '+realKm+' / '+plannedKm+' km. Chaque sortie longue est une brique dans ton marathon ! 🏗️',
+      ]));
+      else if(realKm>=25) lines.push(_pick([
+        '📏 Belle sortie longue de '+realKm+' km ! Ce type de séance est le pilier de ta préparation marathon ! 🏅',
+        '📏 '+realKm+' km — c\'est une grosse séance dans les jambes ! Ton endurance s\'améliore à chaque sortie de ce genre 🌟',
+      ]));
+      else if(realKm>=18) lines.push(_pick([
+        '📏 '+realKm+' km — belle sortie longue ! L\'accumulation de km en zone EF, c\'est exactement ce qui construit le marathonien en toi 💪',
+        '📏 Solide sortie de '+realKm+' km ! Ton endurance fondamentale se renforce séance après séance 🌱',
+      ]));
+      else if(kmRatio<0.8) lines.push(_pick([
+        '📏 '+realKm+' km sur '+plannedKm+' km prévus. S\'arrêter à temps quand on ressent la fatigue, c\'est une décision de coureur·se sage — la récupération fait partie de l\'entraînement ! 😊',
+        '📏 Tu as raccourci la sortie ('+realKm+' km / '+plannedKm+' km prévus). Parfois c\'est la meilleure chose à faire — ton corps sait ce dont il a besoin ! 💚',
+      ]));
+      else lines.push('📏 '+realKm+' km réalisés (prévu : '+plannedKm+' km) — bien joué ! 👍');
     }
-    lines.push(isPlaisir?'💡 La sortie longue est la reine de l\'endurance — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue. 🏆':'💡 La sortie longue est la reine du marathon — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue. 🏆');
+    lines.push('💡 '+_pick(isPlaisir?[
+      'La sortie longue est la reine de l\'endurance — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue 🏆',
+      'Les longues sorties développent ton économie de course : ton corps apprend à brûler des graisses, et tu deviens plus efficace ! 🔬',
+      'La sortie longue, c\'est l\'entraînement le plus transformateur. Tu construis une résistance que les séances courtes ne peuvent pas donner ! 💪',
+      'Chaque sortie longue repousse ton "mur" un peu plus loin — ton endurance profonde se bâtit séance après séance 🌱',
+      'Ton corps s\'adapte après chaque longue sortie : plus de mitochondries, plus de capillaires, plus de résistance. Incroyable machine ! 🔥',
+    ]:[
+      'La sortie longue est la reine du marathon — chaque km en zone EF renforce tes mitochondries et ta résistance à la fatigue 🏆',
+      'Les longues sorties développent ton économie de course : ton corps apprend à utiliser les graisses comme carburant au km 30+ ! 🔬',
+      'Au marathon, les jambes qui tiennent au km 35 sont celles qui ont accumulé les longues sorties. Tu construis ça aujourd\'hui ! 💪',
+      'Chaque sortie longue repousse ton "mur" un peu plus loin — c\'est comme ça que les marathoniens battent leurs records ! 🏅',
+      'Ton corps s\'adapte après chaque longue sortie — plus de résistance, plus d\'efficacité, moins de fatigue le jour J. Continue ! 🌟',
+      'La sortie longue bien dosée est l\'investissement le plus rentable de ta préparation marathon. Tu l\'as dans les jambes ! 🎯',
+    ]));
+
+  } else if(type==='race'){
+    icon='🏁'; title='Compétition';
+    if(pace) lines.push(_pick([
+      '🏅 Allure de course : '+pace+'/km — chaque compétition est une expérience précieuse !',
+      '🏁 Tu as couru à '+pace+'/km — bravo pour t\'être aligné·e au départ, c\'est déjà une victoire en soi ! 🌟',
+    ]));
+    if(realKm) lines.push(_pick([
+      '✅ '+realKm+' km de compétition dans les jambes — une expérience de course qui vaut de l\'or pour la suite ! 💪',
+      '✅ '+realKm+' km en compétition — tu sais maintenant mieux ce que tu vaux, et c\'est une information précieuse ! 🎯',
+    ]));
+    if(hrNum&&fcMax){
+      if(hrNum>=Math.floor(fcMax*0.88)) lines.push('✅ Tu as bien sollicité ton organisme ('+hrNum+' bpm) — c\'est ça, aller chercher ses limites en compétition ! 🔥');
+      else lines.push('💡 FC à '+hrNum+' bpm en compétition — tu avais encore des réserves. Expérience précieuse pour la prochaine fois ! 😊');
+    }
+    lines.push('💡 '+_pick([
+      'Une compétition, c\'est aussi un entraînement déguisé. Tu apprends à chaque course ! 🧠',
+      'Les courses en chemin vers ton objectif sont des répétitions générales — chaque bib compte ! 🎽',
+      'La compétition révèle tes forces et tes axes de progression. C\'est une chance ! 🌟',
+      'Bravo d\'avoir couru sous pression — ça forge le mental de marathonien·ne ! 💪',
+    ]));
 
   } else {
-    icon='🏁'; title='Séance validée';
-    lines.push('✅ Séance complétée ! Bravo 💪');
-    if(realKm) lines.push('📏 '+realKm+' km réalisés.');
+    icon='🏃'; title='Séance validée';
+    if(realKm||pace) lines.push(_pick([
+      '✅ Séance complétée — tu t\'es donné·e, c\'est ce qui compte ! 💪',
+      '✅ Dans la boîte ! Chaque séance te rapproche un peu plus de ton objectif 🎯',
+      '✅ Bravo pour cette séance ! La régularité, c\'est le secret de la progression 🌟',
+    ]));
+    if(realKm) lines.push('📏 '+realKm+' km réalisés — belle sortie ! 👏');
     if(pace) lines.push('⚡ Allure : '+pace+'/km.');
+    lines.push('💡 '+_pick([
+      'Chaque séance compte, même celles qui paraissent anodines. Tu construis quelque chose de grand ! 🏗️',
+      'La régularité bat la brillance — en te montrant chaque semaine, tu progresses forcément ! 📈',
+      'Un pas après l\'autre, tu avances vers ton objectif. Continue comme ça ! 🏃',
+    ]));
   }
 
   // Contexte météo si disponible
   if(meteo&&meteo.temperature){
     const elevFC=(meteo.impact_performance&&meteo.impact_performance.elevation_fc_bpm)||0;
-    if(elevFC>0){
-      lines.push('🌡️ Séance par '+meteo.temperature+'°C (ressenti '+meteo.ressenti+'°C) : la chaleur a naturellement élevé ta FC de ~'+elevFC+' bpm — tiens-en compte dans l\'analyse de ton effort.');
+    if(elevFC>=5){
+      lines.push(_pick([
+        '🌡️ Séance par '+meteo.temperature+'°C : la chaleur a naturellement élevé ta FC de ~'+elevFC+' bpm — tiens-en compte, ton effort réel était meilleur que les chiffres bruts ne le montrent ! 💪',
+        '🌡️ '+meteo.temperature+'°C pendant la séance — bravo d\'avoir couru dans ces conditions ! La chaleur représente un vrai surcoût (FC +'+elevFC+' bpm) que les chiffres ne voient pas toujours. 🌞',
+        '🌡️ Courir par '+meteo.temperature+'°C demande un effort supplémentaire estimé à +'+elevFC+' bpm de FC. Tu as géré les conditions, c\'est une compétence à part entière ! 😎',
+      ]));
+    } else if(meteo.temperature<=5){
+      lines.push(_pick([
+        '🥶 Séance par '+meteo.temperature+'°C — du courage ! Le froid tonifie et les séances hivernales construisent un mental d\'acier 💪',
+        '🥶 '+meteo.temperature+'°C — chapeau pour être sorti·e courir dans ces conditions ! Les séances par temps froid renforcent aussi la résistance 🌬️',
+      ]));
     } else {
-      lines.push('🌤️ Conditions idéales : '+meteo.temperature+'°C — parfait pour courir !');
+      lines.push(_pick([
+        '🌤️ Conditions idéales : '+meteo.temperature+'°C — parfait pour courir et donner le meilleur de soi ! ☀️',
+        '🌤️ '+meteo.temperature+'°C, temps parfait ! Ces conditions permettent de donner le meilleur de soi 🎯',
+        '☀️ Belle météo aujourd\'hui ('+meteo.temperature+'°C) — une séance dans de bonnes conditions, ça fait du bien ! 😊',
+      ]));
     }
   }
 
   const nbWarnings=lines.filter(l=>l.startsWith('⚠️')||l.startsWith('🔴')).length;
   const nbOk=lines.filter(l=>l.startsWith('✅')).length;
+  const overallGood=[
+    'Belle séance, continue sur cette lancée ! 💪',
+    'Excellent boulot — chaque sortie te rend plus fort·e ! 🌟',
+    'Parfait, tu avances dans la bonne direction ! 🎯',
+    'C\'est du bon travail — tu peux être fier·e de toi ! 👏',
+    'Super séance dans la boîte ! La régularité paie toujours 🏅',
+  ];
+  const overallMixed=[
+    'Séance dans la boîte — chaque effort compte, même les plus difficiles ! 💪',
+    'Chaque sortie te rapproche de l\'objectif, quoi qu\'il arrive 🎯',
+    'Tu t\'es présenté·e, tu l\'as fait — c\'est déjà une victoire ! 🌟',
+    'L\'important c\'est d\'être sorti·e. Le reste s\'affine avec le temps ! 😊',
+  ];
+  const overallHard=[
+    'Séance dure dans la boîte — récupère bien cette nuit ! 🛌',
+    'Tu as repoussé tes limites aujourd\'hui — ton corps va s\'adapter ! 💪',
+    'Difficile, mais fait. C\'est dans ces moments-là qu\'on progresse le plus ! 🔥',
+    'Bien récupéré·e = mieux préparé·e pour la prochaine ! Repose-toi bien 🛌',
+  ];
   let overall;
-  if(nbWarnings===0&&nbOk>0) overall='Belle séance, continue comme ça ! 💪';
-  else if(nbWarnings>=2) overall='Séance dans la boîte — récupère bien ! 🛌';
-  else overall='Chaque sortie te rapproche de l\'objectif 🎯';
+  if(nbWarnings===0&&nbOk>0) overall=_pick(overallGood);
+  else if(nbWarnings>=2) overall=_pick(overallHard);
+  else overall=_pick(overallMixed);
 
   const mc=document.getElementById('modal-container');
   if(!mc) return;
