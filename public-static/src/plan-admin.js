@@ -1051,32 +1051,54 @@ function exportPlanDocument() {
   rows.sort((a, b) => a.ws - b.ws);
 
   const dayNames = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  let lastWs = null;
+  let tableRows = '';
   let totalKm = 0;
-
-  const esc = v => `"${String(v||'').replace(/"/g, '""')}"`;
-  const csvLines = ['﻿Semaine;Source;Type;Titre;Détail;Km;Jour;Heure;Chaussure;Modifiée'];
   rows.forEach(r => {
+    const color = typeColors[r.type] || '#333';
+    const badge = r.source === 'manuel'
+      ? `<span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">+manuel</span>`
+      : (r.modified ? `<span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">modifiée</span>` : '');
+    const sched = r.sched_day ? `${dayNames[r.sched_day]} ${r.sched_time}` : '—';
+    const weekHeader = r.ws !== lastWs
+      ? `<tr style="background:#0C447C;color:#fff;"><td colspan="7" style="padding:8px 12px;font-weight:800;font-size:13px;">Semaine ${r.ws}</td></tr>`
+      : '';
+    lastWs = r.ws;
+    tableRows += `${weekHeader}<tr style="border-bottom:1px solid #eee;">
+      <td style="padding:8px 12px;"><span style="color:${color};font-weight:700;font-size:12px;">${typeNames[r.type]||r.type}</span> ${badge}</td>
+      <td style="padding:8px 12px;font-size:13px;">${r.title}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#555;">${r.detail}</td>
+      <td style="padding:8px 12px;font-weight:700;font-size:13px;">${r.km > 0 ? r.km + ' km' : '—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#666;">${sched}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#666;">${r.shoe || '—'}</td>
+    </tr>`;
     totalKm += parseFloat(r.km) || 0;
-    csvLines.push([
-      r.ws,
-      esc(r.source),
-      esc(typeNames[r.type] || r.type),
-      esc(r.title),
-      esc(r.detail),
-      String(r.km || 0).replace('.', ','),
-      esc(dayNames[r.sched_day] || ''),
-      esc(r.sched_time || ''),
-      esc(r.shoe || ''),
-      r.modified ? 'oui' : ''
-    ].join(';'));
   });
 
-  const csv = csvLines.join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const html = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>Plan Marathon — Export ${today}</title>
+<style>body{font-family:-apple-system,sans-serif;margin:0;padding:20px;background:#F5F7FB;}
+h1{color:#0C447C;font-size:22px;margin-bottom:4px;}
+.meta{color:#666;font-size:13px;margin-bottom:20px;}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+th{background:#EDF2FB;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.05em;}
+tr:hover td{background:#F9FAFB;}
+.footer{margin-top:16px;font-size:13px;color:#666;}
+</style></head><body>
+<h1>Plan Marathon — Export complet</h1>
+<p class="meta">Généré le ${today} · ${rows.length} séances · ${Math.round(totalKm)} km total</p>
+<table>
+<thead><tr><th>Type</th><th>Titre</th><th>Détail</th><th>Distance</th><th>Créneau</th><th>Chaussure</th></tr></thead>
+<tbody>${tableRows}</tbody>
+</table>
+<p class="footer">Séances <span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">+manuel</span> = ajoutées manuellement &nbsp;|&nbsp; <span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">modifiée</span> = séance du plan modifiée</p>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `plan-marathon-export-${today}.csv`;
+  a.download = `plan-marathon-export-${today}.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
