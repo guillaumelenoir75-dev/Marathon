@@ -1,4 +1,5 @@
 const { onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
@@ -23,8 +24,10 @@ async function getValidWhoopToken(db) {
 
   // Verrou optimiste : prolonger expires_at avant le refresh pour éviter
   // que deux appels concurrents tentent tous les deux un refresh simultané
-  // (le second utiliserait l'ancien refresh_token déjà consommé → 400)
-  const lockUntil = Math.floor(Date.now() / 1000) + 60;
+  // (le second utiliserait l'ancien refresh_token déjà consommé → 400).
+  // +360s car la vérification est `expires_at - 300`, il faut donc au moins +305s
+  // pour que le second appel voie le token comme "encore valide" pendant le refresh.
+  const lockUntil = Math.floor(Date.now() / 1000) + 360;
   await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update({ expires_at: lockUntil });
 
   const body = new URLSearchParams({
@@ -129,6 +132,125 @@ exports.whoopCallback = onRequest(
   }
 );
 
+// Logique partagée : fetch + save WHOOP data. Retourne l'objet résultat ou null si pas de token.
+async function _whoopFetchAndSave(db) {
+  const accessToken = await getValidWhoopToken(db);
+  if (!accessToken) return null;
+
+  const whoopGet = async (path) => {
+    const r = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    }, 20000);
+    if (!r.ok) return null;
+    return r.json();
+  };
+
+  const whoopGetV2 = async (path) => {
+    const r = await fetchWithTimeout(`${WHOOP_API_V2}${path}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    }, 20000);
+    if (!r.ok) return null;
+    return r.json();
+  };
+
+  const [cycleJson, sleepJson, workoutJson, recoveryJson] = await Promise.all([
+    whoopGet('/cycle?limit=14'),
+    whoopGetV2('/activity/sleep?limit=14'),
+    whoopGetV2('/activity/workout?limit=14'),
+    whoopGetV2('/recovery?limit=14')
+  ]);
+
+  const cycles = (cycleJson?.records || [])
+    .filter(c => c.score_state === 'SCORED' && c.start)
+    .map(c => ({
+      date: c.start.slice(0, 10),
+      strain: c.score?.strain ?? null,
+      avg_hr: c.score?.average_heart_rate ?? null,
+      max_hr: c.score?.max_heart_rate ?? null,
+      calories: c.score?.kilojoule ? Math.round(c.score.kilojoule * 0.239) : null
+    }));
+
+  const _sleepRaw = (sleepJson?.records || [])
+    .filter(s => s.start)
+    .map(s => {
+      const ss = s.score?.stage_summary;
+      const lightMs = ss?.total_light_sleep_time_milli || 0;
+      const swsMs   = ss?.total_slow_wave_sleep_time_milli || 0;
+      const remMs   = ss?.total_rem_sleep_time_milli || 0;
+      const sleepMs = ss?.total_sleep_time_milli || (lightMs + swsMs + remMs);
+      const hh = Math.floor(sleepMs / 3600000);
+      const mm = Math.round((sleepMs % 3600000) / 60000);
+      const date = s.end ? s.end.slice(0, 10) : s.start.slice(0, 10);
+      return {
+        date,
+        sleepMs,
+        duration_hours: sleepMs ? `${hh}h${mm.toString().padStart(2,'0')}` : null,
+        performance_pct: s.score?.sleep_performance_percentage ?? null,
+        efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
+        rem_pct: sleepMs && remMs ? Math.round(remMs / sleepMs * 100) : null
+      };
+    });
+
+  const _sleepByDate = new Map();
+  for (const s of _sleepRaw) {
+    const existing = _sleepByDate.get(s.date);
+    if (!existing || s.sleepMs > existing.sleepMs) _sleepByDate.set(s.date, s);
+  }
+  const sleeps = [..._sleepByDate.values()]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map(({ sleepMs: _ms, ...rest }) => rest);
+
+  const workouts = (workoutJson?.records || [])
+    .filter(w => w.start)
+    .map(w => ({
+      date: w.start.slice(0, 10),
+      sport_id: w.sport_id,
+      strain: w.score?.strain ?? null,
+      avg_hr: w.score?.average_heart_rate ?? null,
+      max_hr: w.score?.max_heart_rate ?? null,
+      calories: w.score?.kilojoule ? Math.round(w.score.kilojoule * 0.239) : null,
+      duration_min: w.start && w.end ? Math.round((new Date(w.end) - new Date(w.start)) / 60000) : null
+    }));
+
+  const recoveries = (recoveryJson?.records || [])
+    .filter(r => r.created_at)
+    .map(r => ({
+      date: r.created_at.slice(0, 10),
+      score: r.score?.recovery_score ?? null,
+      rhr: r.score?.resting_heart_rate ?? null,
+      hrv: r.score?.hrv_rmssd_milli ?? r.score?.hrv_rms_sd ?? null,
+      spo2: r.score?.spo2_percentage ?? null
+    }));
+
+  const latestRecovery = recoveries[0] || null;
+  const rhr = latestRecovery?.rhr ?? null;
+  const latestCompletedCycle = cycles.find(c => c.avg_hr !== null);
+  const rhrProxy = rhr ?? latestCompletedCycle?.avg_hr ?? null;
+  const latestStrain = cycles[0]?.strain ?? null;
+
+  await db.ref(`users/${ADMIN_UID}/state/whoop_data`).set({
+    updatedAt: new Date().toISOString(),
+    cycles: cycles.slice(0, 14),
+    sleeps: sleeps.slice(0, 14),
+    workouts: workouts.slice(0, 14),
+    recoveries: recoveries.slice(0, 14),
+    latest_strain: latestStrain,
+    latest_rhr: rhr,
+    latest_rhr_proxy: rhrProxy,
+    latest_recovery_score: latestRecovery?.score ?? null,
+    latest_hrv: latestRecovery?.hrv ?? null
+  });
+
+  if (rhrProxy) {
+    const today = new Date().toISOString().slice(0, 10);
+    await db.ref(`users/${ADMIN_UID}/state/fc_repos_${today}`).transaction(existing => {
+      return existing === null ? rhrProxy : existing;
+    });
+  }
+
+  return { latestStrain, rhr, rhrProxy, latestRecovery, cycles, sleeps, workouts, recoveries };
+}
+
 exports.whoopSync = onRequest(
   { secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET], timeoutSeconds: 60, memory: '256MiB', cors: true },
   async (req, res) => {
@@ -139,128 +261,10 @@ exports.whoopSync = onRequest(
 
     try {
       const db = admin.database();
-      const accessToken = await getValidWhoopToken(db);
-      if (!accessToken) { res.json({ success: false, needsAuth: true }); return; }
+      const result = await _whoopFetchAndSave(db);
+      if (!result) { res.json({ success: false, needsAuth: true }); return; }
 
-      const whoopGet = async (path) => {
-        const r = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
-          headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-        }, 20000);
-        if (!r.ok) return null;
-        return r.json();
-      };
-
-      const whoopGetV2 = async (path) => {
-        const r = await fetchWithTimeout(`${WHOOP_API_V2}${path}`, {
-          headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-        }, 20000);
-        if (!r.ok) return null;
-        return r.json();
-      };
-
-      // cycle : API v1 / sleep + workout + recovery : API v2
-      const [cycleJson, sleepJson, workoutJson, recoveryJson] = await Promise.all([
-        whoopGet('/cycle?limit=14'),
-        whoopGetV2('/activity/sleep?limit=14'),
-        whoopGetV2('/activity/workout?limit=14'),
-        whoopGetV2('/recovery?limit=14')
-      ]);
-
-      const cycles = (cycleJson?.records || [])
-        .filter(c => c.score_state === 'SCORED' && c.start)
-        .map(c => ({
-          date: c.start.slice(0, 10),
-          strain: c.score?.strain ?? null,
-          avg_hr: c.score?.average_heart_rate ?? null,
-          max_hr: c.score?.max_heart_rate ?? null,
-          calories: c.score?.kilojoule ? Math.round(c.score.kilojoule * 0.239) : null
-        }));
-
-      const _sleepRaw = (sleepJson?.records || [])
-        .filter(s => s.start)
-        .map(s => {
-          const ss = s.score?.stage_summary;
-          const lightMs = ss?.total_light_sleep_time_milli || 0;
-          const swsMs   = ss?.total_slow_wave_sleep_time_milli || 0;
-          const remMs   = ss?.total_rem_sleep_time_milli || 0;
-          const sleepMs = ss?.total_sleep_time_milli || (lightMs + swsMs + remMs);
-          const hh = Math.floor(sleepMs / 3600000);
-          const mm = Math.round((sleepMs % 3600000) / 60000);
-          // Date = réveil (end), pas coucher (start), pour aligner avec le cycle WHOOP
-          const date = s.end ? s.end.slice(0, 10) : s.start.slice(0, 10);
-          return {
-            date,
-            sleepMs, // utilisé pour choisir le plus long (sommeil principal > sieste)
-            duration_hours: sleepMs ? `${hh}h${mm.toString().padStart(2,'0')}` : null,
-            performance_pct: s.score?.sleep_performance_percentage ?? null,
-            efficiency_pct: s.score?.sleep_efficiency_percentage ?? null,
-            rem_pct: sleepMs && remMs ? Math.round(remMs / sleepMs * 100) : null
-          };
-        });
-
-      // Garder uniquement le sommeil le plus long par jour (principal > sieste)
-      const _sleepByDate = new Map();
-      for (const s of _sleepRaw) {
-        const existing = _sleepByDate.get(s.date);
-        if (!existing || s.sleepMs > existing.sleepMs) _sleepByDate.set(s.date, s);
-      }
-      const sleeps = [..._sleepByDate.values()]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .map(({ sleepMs: _ms, ...rest }) => rest); // retirer sleepMs du résultat final
-
-      const workouts = (workoutJson?.records || [])
-        .filter(w => w.start)
-        .map(w => ({
-          date: w.start.slice(0, 10),
-          sport_id: w.sport_id,
-          strain: w.score?.strain ?? null,
-          avg_hr: w.score?.average_heart_rate ?? null,
-          max_hr: w.score?.max_heart_rate ?? null,
-          calories: w.score?.kilojoule ? Math.round(w.score.kilojoule * 0.239) : null,
-          duration_min: w.start && w.end ? Math.round((new Date(w.end) - new Date(w.start)) / 60000) : null
-        }));
-
-      const recoveries = (recoveryJson?.records || [])
-        .filter(r => r.created_at)
-        .map(r => ({
-          date: r.created_at.slice(0, 10),
-          score: r.score?.recovery_score ?? null,
-          rhr: r.score?.resting_heart_rate ?? null,
-          hrv: r.score?.hrv_rmssd_milli ?? r.score?.hrv_rms_sd ?? null,
-          spo2: r.score?.spo2_percentage ?? null
-        }));
-
-      // FC repos : depuis recovery si dispo, sinon avg_hr du cycle du jour (proxy)
-      const latestRecovery = recoveries[0] || null;
-      const rhr = latestRecovery?.rhr ?? null;
-
-      // Proxy FC repos depuis le cycle le plus récent complété (avg_hr journalier)
-      const latestCompletedCycle = cycles.find(c => c.avg_hr !== null);
-      const rhrProxy = rhr ?? latestCompletedCycle?.avg_hr ?? null;
-
-      const latestStrain = cycles[0]?.strain ?? null;
-
-      await db.ref(`users/${ADMIN_UID}/state/whoop_data`).set({
-        updatedAt: new Date().toISOString(),
-        cycles: cycles.slice(0, 14),
-        sleeps: sleeps.slice(0, 14),
-        workouts: workouts.slice(0, 14),
-        recoveries: recoveries.slice(0, 14),
-        latest_strain: latestStrain,
-        latest_rhr: rhr,
-        latest_rhr_proxy: rhrProxy,
-        latest_recovery_score: latestRecovery?.score ?? null,
-        latest_hrv: latestRecovery?.hrv ?? null
-      });
-
-      // Auto-fill fc_repos du jour sans écraser les mesures manuelles
-      if (rhrProxy) {
-        const today = new Date().toISOString().slice(0, 10);
-        await db.ref(`users/${ADMIN_UID}/state/fc_repos_${today}`).transaction(existing => {
-          return existing === null ? rhrProxy : existing;
-        });
-      }
-
+      const { latestStrain, rhr, rhrProxy, latestRecovery, cycles, sleeps, workouts, recoveries } = result;
       res.json({
         success: true,
         strain: latestStrain,
@@ -276,6 +280,25 @@ exports.whoopSync = onRequest(
     } catch(e) {
       console.error('whoopSync error:', e.message);
       res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);
+
+// Sync automatique WHOOP toutes les 2h de 5h à 22h (Europe/Paris)
+// Garantit que les données sont fraîches même si l'app n'est pas ouverte
+exports.whoopAutoSync = onSchedule(
+  { schedule: '0 5,7,9,11,13,15,17,19,21 * * *', timeZone: 'Europe/Paris', timeoutSeconds: 60, secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET] },
+  async () => {
+    try {
+      const db = admin.database();
+      const result = await _whoopFetchAndSave(db);
+      if (!result) {
+        console.log('whoopAutoSync: pas de token valide — sync ignorée');
+        return;
+      }
+      console.log(`whoopAutoSync: sync OK — recovery ${result.latestRecovery?.score ?? 'N/A'}% RHR ${result.rhr ?? 'N/A'} bpm`);
+    } catch(e) {
+      console.error('whoopAutoSync error:', e.message);
     }
   }
 );
