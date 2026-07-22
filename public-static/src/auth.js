@@ -3,18 +3,18 @@ function showLoginScreen(msg){
   if(!lo){
     lo=document.createElement('div');
     lo.id='loading-overlay';
-    lo.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;';
+    lo.style.cssText='position:fixed;inset:0;background:var(--bg,#fff);z-index:9999;display:flex;align-items:center;justify-content:center;';
     document.body.appendChild(lo);
   }
-  lo.innerHTML=`<form id="login-form" onsubmit="loginWithEmail();return false;" style="text-align:center;padding:32px 24px;font-family:sans-serif;max-width:360px;width:100%;">
+  lo.innerHTML=`<form id="login-form" onsubmit="loginWithEmail();return false;" style="text-align:center;padding:32px 24px;font-family:inherit;max-width:360px;width:100%;">
     <div style="font-size:44px;margin-bottom:12px;">🏃</div>
     <p style="font-size:20px;font-weight:700;color:#1B4FD8;margin:0 0 6px;">En Piste</p>
-    <p style="font-size:13px;color:#888;margin:0 0 28px;">${msg||'Connecte-toi pour accéder à ton plan'}</p>
-    <input id="login-email" type="email" name="email" placeholder="Adresse e-mail" autocomplete="username"
-      style="width:100%;padding:13px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none;font-family:sans-serif;">
+    <p style="font-size:13px;color:var(--muted,#6b6b6b);margin:0 0 28px;">${msg||'Connecte-toi pour accéder à ton plan'}</p>
+    <input id="login-email" type="email" name="email" placeholder="Adresse e-mail" autocomplete="username" aria-label="Adresse e-mail"
+      style="width:100%;padding:13px 14px;border:1.5px solid var(--border,#e0e0e0);border-radius:12px;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none;font-family:inherit;background:var(--bg,#fff);color:var(--text,#1a1a1a);">
     <div style="position:relative;margin-bottom:18px;">
-      <input id="login-password" type="password" name="password" placeholder="Mot de passe" autocomplete="current-password"
-        style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;font-family:sans-serif;">
+      <input id="login-password" type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" aria-label="Mot de passe"
+        style="width:100%;padding:13px 44px 13px 14px;border:1.5px solid var(--border,#e0e0e0);border-radius:12px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;background:var(--bg,#fff);color:var(--text,#1a1a1a);">
       <button type="button" onclick="togglePwd('login-password',this)" tabindex="-1"
         style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#888;">
         <svg id="eye-login" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>

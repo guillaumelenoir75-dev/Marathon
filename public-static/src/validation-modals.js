@@ -11,7 +11,7 @@ function openAmTrainingModal(){
     <p style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Allure AM entraînement</p>
     <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Allure cible pour les blocs AM dans tes séances Longues. Indépendante du prédicteur.</p>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-      <input type="text" id="am-training-input" value="${paceVal}" placeholder="5:20" maxlength="5" style="background:var(--bg2);border:2px solid #1B4FD8;border-radius:10px;padding:12px 16px;font-size:24px;font-weight:700;color:var(--text);width:110px;outline:none;text-align:center;">
+      <input type="text" id="am-training-input" value="${paceVal}" placeholder="5:20" maxlength="5" inputmode="numeric" aria-label="Allure AM en min:s par km" oninput="onPaceInput(this)" style="background:var(--bg2);border:2px solid #1B4FD8;border-radius:12px;padding:12px 16px;font-size:24px;font-weight:700;color:var(--text);width:110px;outline:none;text-align:center;">
       <span style="font-size:14px;color:var(--muted);">/km</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${chips}</div>
@@ -77,8 +77,8 @@ function openVo2maxModal() {
     <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Valeur actuelle — mise à jour par Garmin toutes les quelques semaines</p>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      <input id="vo2max-input" type="number" min="20" max="85" step="0.5" value="${current}" placeholder="52"
-        style="flex:1;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg2);font-size:22px;font-weight:700;color:var(--text);text-align:center;-moz-appearance:textfield;">
+      <input id="vo2max-input" type="number" min="20" max="85" step="0.5" value="${current}" placeholder="52" aria-label="VO2max en ml/kg/min"
+        style="flex:1;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);font-size:22px;font-weight:700;color:var(--text);text-align:center;-moz-appearance:textfield;">
       <span style="font-size:16px;color:var(--muted);font-weight:600;">ml/kg/min</span>
     </div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:16px;">Utilisée par le modèle VDOT pour prédire ton temps marathon.</p>
@@ -223,9 +223,9 @@ function openRecord10kmModal() {
     <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Format mm:ss (ex : 48:30) ou hh:mm:ss</p>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1B4FD8" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <input id="record10km-input" type="text" value="${current}" placeholder="48:30"
-        style="flex:1;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg2);font-size:22px;font-weight:700;color:var(--text);text-align:center;"
-        oninput="previewRecord10km(this.value)">
+      <input id="record10km-input" type="text" value="${current}" placeholder="48:30" inputmode="numeric" aria-label="Record 10km en mm:ss"
+        style="flex:1;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);font-size:22px;font-weight:700;color:var(--text);text-align:center;"
+        oninput="onPaceInput(this);previewRecord10km(this.value)">
     </div>
     <div id="record10km-preview">${predHtml}</div>
     <button onclick="saveRecord10km()" style="width:100%;padding:13px;background:#1B4FD8;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:12px;">Enregistrer</button>
@@ -315,17 +315,17 @@ function openTargetTimeModal(){
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px;">
         <div style="text-align:center;">
           <p style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">H</p>
-          <input id="tt-h" type="number" min="0" max="9" value="${curH}" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
+          <input id="tt-h" type="number" min="0" max="9" value="${curH}" inputmode="numeric" aria-label="Heures" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
         </div>
         <p style="font-size:28px;font-weight:800;color:var(--muted);margin-top:18px;">:</p>
         <div style="text-align:center;">
           <p style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">MIN</p>
-          <input id="tt-m" type="number" min="0" max="59" value="${String(curM).padStart(2,'0')}" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
+          <input id="tt-m" type="number" min="0" max="59" value="${String(curM).padStart(2,'0')}" inputmode="numeric" aria-label="Minutes" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
         </div>
         <p style="font-size:28px;font-weight:800;color:var(--muted);margin-top:18px;">:</p>
         <div style="text-align:center;">
           <p style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">SEC</p>
-          <input id="tt-s" type="number" min="0" max="59" value="${String(curS).padStart(2,'0')}" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
+          <input id="tt-s" type="number" min="0" max="59" value="${String(curS).padStart(2,'0')}" inputmode="numeric" aria-label="Secondes" style="width:62px;text-align:center;font-size:28px;font-weight:800;color:var(--text);background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;outline:none;">
         </div>
       </div>
       <button onclick="_saveTargetTime()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:15px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(27,79,216,0.3);">✅ Enregistrer</button>

@@ -75,7 +75,7 @@ function _shoeModalHtml({title, namePlaceholder='ex: Nike Pegasus 41', nameVal='
         <div style="display:flex;gap:6px;" id="shoe-max-picker">${maxBtns}</div>
         <input type="hidden" id="new-shoe-max" value="${maxVal}">
       </div>
-      <p id="shoe-add-error" style="display:none;color:#E24B4A;font-size:12px;text-align:center;margin:0;"></p>
+      <p id="shoe-add-error" style="display:none;color:var(--error,#DC2626);font-size:12px;text-align:center;margin:0;"></p>
       <button onclick="${saveBtn}" style="width:100%;padding:14px;background:#1B4FD8;border:none;border-radius:14px;font-size:15px;font-weight:800;color:#fff;cursor:pointer;letter-spacing:-0.01em;">${title}</button>
     </div>
   </div>`;

@@ -117,3 +117,27 @@ input[type=number]:focus{border-color:var(--orange);}
   .plan-progress-fill { height:100%; transition:width 0.5s ease; }
   .plan-month-sep { display:flex; align-items:center; gap:12px; margin:22px 0 10px; padding:0 2px; }
   .plan-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; display:inline-flex; align-items:center; }
+
+/* === Fix 1 : Focus ring global (accessibilité) === */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(27,79,216,0.22);
+}
+
+/* === Fix 6 : Rayon de bordure standard 12px === */
+input[type="text"], input[type="email"], input[type="password"], input[type="search"], input[type="date"] {
+  border-radius: 12px;
+}
+
+/* === Fix 7 : Select avec flèche personnalisée === */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+
+/* === Token erreur === */
+:root { --error: #DC2626; --error-bg: #FEF2F2; }

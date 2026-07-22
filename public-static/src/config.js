@@ -222,3 +222,14 @@ function getShoeOptions(currentShoe){
     `<option value="" ${!currentShoe?'selected':''}>— aucune —</option>`].join('');
 }
 
+/* Fix 4 : formatage automatique des champs durée mm:ss et allure mm:ss */
+function onDurInput(el){
+  let v=el.value.replace(/[^\d:]/g,'');
+  el.value=v;
+  if(typeof calcPerfEditPace==='function') calcPerfEditPace();
+}
+function onPaceInput(el){
+  let v=el.value.replace(/[^\d:]/g,'');
+  if(!v.includes(':')&&v.length>=2) v=v.slice(0,v.length>2?2:1)+':'+v.slice(v.length>2?2:1);
+  el.value=v;
+}

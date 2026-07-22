@@ -48,8 +48,8 @@ function openEditModal(ws, si){
       <!-- Grande input allure + badge durée -->
       <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:16px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <input type="text" id="edit-ef-pace" value="${efPaceVal}" placeholder="6:40" maxlength="5"
-            oninput="updateEfPreview()"
+          <input type="text" id="edit-ef-pace" value="${efPaceVal}" placeholder="6:40" maxlength="5" inputmode="numeric" aria-label="Allure cible EF en min:s par km"
+            oninput="onPaceInput(this);updateEfPreview()"
             style="background:var(--bg);border:3px solid #3B6D11;border-radius:14px;padding:14px 12px;font-size:32px;font-weight:900;color:#3B6D11;width:108px;outline:none;text-align:center;line-height:1;">
           <p style="font-size:9px;color:#3B6D11;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">/km</p>
         </div>
