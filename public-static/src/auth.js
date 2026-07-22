@@ -260,6 +260,8 @@ function renderCompteScreen(){
   if(wakeupTestBtn) wakeupTestBtn.style.display=isAdmin()?'flex':'none';
   const calUrlBtn=document.getElementById('cal-url-btn');
   if(calUrlBtn) calUrlBtn.style.display=isAdmin()?'flex':'none';
+  const exportPlanBtn=document.getElementById('export-plan-btn');
+  if(exportPlanBtn) exportPlanBtn.style.display=isAdmin()?'flex':'none';
   if(isAdmin()){
     if(typeof initWhoopStatus==='function') initWhoopStatus();
     const wd=state&&state.whoop_data;

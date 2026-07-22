@@ -992,3 +992,117 @@ async function deleteAthletePlan(){
   renderHome();
 }
 
+function exportPlanDocument() {
+  const today = new Date().toISOString().slice(0, 10);
+  const typeNames = { ef:'Footing EF', ef_long:'EF Long', tempo:'Tempo', seuil:'Seuil', vma:'VMA', frac:'Fractionné', long:'Sortie Longue', race:'Course', rest:'Récupération' };
+  const typeColors = { ef:'#3B6D11', ef_long:'#2E5E0A', tempo:'#E8530A', seuil:'#B45309', vma:'#7C3AED', frac:'#C4141B', long:'#534AB7', race:'#0C447C', rest:'#6B7280' };
+
+  let rows = [];
+
+  // Séances du plan (weeks[]) avec overrides edit_w et suppressions del_w
+  if (typeof weeks !== 'undefined' && weeks) {
+    weeks.forEach((week, wi) => {
+      const ws = wi + 1;
+      (week.sessions || []).forEach((s, si) => {
+        if (state[`del_w${ws}_s${si}`]) return;
+        let session = { ...s };
+        const editRaw = state[`edit_w${ws}_s${si}`];
+        if (editRaw) { try { session = { ...session, ...JSON.parse(editRaw) }; } catch(e) {} }
+        const parts = (session.d || '').split('|');
+        rows.push({
+          ws, source: 'plan',
+          type: session.type || 'ef',
+          title: parts[0] || '',
+          detail: parts[1] || '',
+          km: session.km || 0,
+          sched_day: session.sched_day || '',
+          sched_time: session.sched_time || '',
+          shoe: session.shoe || '',
+          modified: !!editRaw
+        });
+      });
+    });
+  }
+
+  // Séances manuelles (extra_w)
+  for (let ws = 1; ws <= 35; ws++) {
+    let ei = 0;
+    while (ei <= 20 && state[`extra_w${ws}_s${ei}`] !== undefined) {
+      try {
+        const s = JSON.parse(state[`extra_w${ws}_s${ei}`]);
+        const parts = (s.d || '').split('|');
+        rows.push({
+          ws, source: 'manuel',
+          type: s.type || 'ef',
+          title: parts[0] || '',
+          detail: parts[1] || '',
+          km: s.km || 0,
+          sched_day: s.sched_day || '',
+          sched_time: s.sched_time || '',
+          shoe: s.shoe || '',
+          modified: false
+        });
+      } catch(e) {}
+      ei++;
+    }
+  }
+
+  // Trier par semaine
+  rows.sort((a, b) => a.ws - b.ws);
+
+  const dayNames = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  let lastWs = null;
+  let tableRows = '';
+  let totalKm = 0;
+  rows.forEach(r => {
+    const color = typeColors[r.type] || '#333';
+    const badge = r.source === 'manuel'
+      ? `<span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">+manuel</span>`
+      : (r.modified ? `<span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">modifiée</span>` : '');
+    const sched = r.sched_day ? `${dayNames[r.sched_day]} ${r.sched_time}` : '—';
+    const weekHeader = r.ws !== lastWs
+      ? `<tr style="background:#0C447C;color:#fff;"><td colspan="7" style="padding:8px 12px;font-weight:800;font-size:13px;">Semaine ${r.ws}</td></tr>`
+      : '';
+    lastWs = r.ws;
+    tableRows += `${weekHeader}<tr style="border-bottom:1px solid #eee;">
+      <td style="padding:8px 12px;"><span style="color:${color};font-weight:700;font-size:12px;">${typeNames[r.type]||r.type}</span> ${badge}</td>
+      <td style="padding:8px 12px;font-size:13px;">${r.title}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#555;">${r.detail}</td>
+      <td style="padding:8px 12px;font-weight:700;font-size:13px;">${r.km > 0 ? r.km + ' km' : '—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#666;">${sched}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#666;">${r.shoe || '—'}</td>
+    </tr>`;
+    totalKm += parseFloat(r.km) || 0;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>Plan Marathon — Export ${today}</title>
+<style>body{font-family:-apple-system,sans-serif;margin:0;padding:20px;background:#F5F7FB;}
+h1{color:#0C447C;font-size:22px;margin-bottom:4px;}
+.meta{color:#666;font-size:13px;margin-bottom:20px;}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+th{background:#EDF2FB;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.05em;}
+tr:hover td{background:#F9FAFB;}
+.footer{margin-top:16px;font-size:13px;color:#666;}
+</style></head><body>
+<h1>Plan Marathon — Export complet</h1>
+<p class="meta">Généré le ${today} · ${rows.length} séances · ${Math.round(totalKm)} km total</p>
+<table>
+<thead><tr><th>Type</th><th>Titre</th><th>Détail</th><th>Distance</th><th>Créneau</th><th>Chaussure</th></tr></thead>
+<tbody>${tableRows}</tbody>
+</table>
+<p class="footer">Séances <span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">+manuel</span> = ajoutées manuellement &nbsp;|&nbsp; <span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">modifiée</span> = séance du plan modifiée</p>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `plan-marathon-export-${today}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showToast('Export téléchargé', '📋');
+}
+
