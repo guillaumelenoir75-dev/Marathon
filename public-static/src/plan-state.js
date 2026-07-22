@@ -192,6 +192,31 @@ function _migratePlanToExtraW() {
   if(dbRef) dbRef.update(updates).catch(e => console.error('Migration plan→extra_w:', e));
 }
 
+// Retourne l'index ei de la séance plan (ws,si) dans extra_w, ou null si absent
+function _findExtraEiForPlan(ws, si) {
+  if(!state._plan_migrated) return null;
+  let ei=0;
+  while(ei<=50 && state[`extra_w${ws}_s${ei}`] !== undefined) {
+    try {
+      const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
+      if(s._src==='plan' && s._plan_si===si) return ei;
+    } catch(e) {}
+    ei++;
+  }
+  return null;
+}
+
+// Synchronise les clés done/perf/km/skip d'une séance plan (gk→extra_w) après validation
+function _syncPlanValidationToExtraW(ws, si, doneKey) {
+  const ei=_findExtraEiForPlan(ws, si);
+  if(ei===null) return;
+  const ek=`extra_w${ws}_s${ei}`;
+  state[ek+'_done']=true;
+  delete state[ek+'_skip']; delete state[ek+'_skip_reason'];
+  if(state[doneKey+'km']!=null) state[ek+'_km']=state[doneKey+'km'];
+  if(state[doneKey+'perf']!=null) state[ek+'_perf']=state[doneKey+'perf'];
+}
+
 // Table EF → AM (depuis Excel)
 const EF_AM_TABLE=[
   // Mapping allure EF (FC≤148) → allure marathon cible

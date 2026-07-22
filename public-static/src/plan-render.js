@@ -581,7 +581,13 @@ function _initSwipeToDismiss(overlay, box) {
 
 function saveKm(idx){
   const v=parseFloat(document.getElementById('modal-input').value);
-  if(!isNaN(v)&&v>=0){state[gk(CW,idx)+'km']=v;state[gk(CW,idx)+'done']=true;save();if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});}
+  if(!isNaN(v)&&v>=0){
+    const k=gk(CW,idx);
+    state[k+'km']=v; state[k+'done']=true;
+    if(typeof _syncPlanValidationToExtraW==='function') _syncPlanValidationToExtraW(CW,idx,k);
+    save();
+    if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
+  }
   closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();
 }
 function clearKm(idx){delete state[gk(CW,idx)+'km'];save();closeModal();renderHome();rendered.stats=false;if(document.getElementById('sc-stats').style.display!=='none')renderStats();}
@@ -1233,9 +1239,23 @@ function renderPlan(){
       const detail=filterDetailDisplay(title, parts[1]||null);
       const edited=extra ? (s2._modified||false) : !!state[`edit_w${w.s}_s${si}`];
       const isManual=extra && s2._src !== 'plan';
-      const isDone=extra ? !!state[`extra_w${w.s}_s${eid}_done`] : !!state[gk(w.s,si)+'done'];
-      const isSkip=extra ? !!state[`extra_w${w.s}_s${eid}_skip`] : !!state[gk(w.s,si)+'skip'];
-      const skipReason=extra ? (state[`extra_w${w.s}_s${eid}_skip_reason`]||'') : (state[gk(w.s,si)+'skip_reason']||'');
+      // Pour les séances plan migrées, vérifier extra_w ET gk() (dual-read pendant transition)
+      const _planSi=extra&&s2._src==='plan'?s2._plan_si:undefined;
+      const isDone=extra
+        ? (_planSi!==undefined
+          ? !!(state[`extra_w${w.s}_s${eid}_done`]||state[gk(w.s,_planSi)+'done'])
+          : !!state[`extra_w${w.s}_s${eid}_done`])
+        : !!state[gk(w.s,si)+'done'];
+      const isSkip=extra
+        ? (_planSi!==undefined
+          ? !!(state[`extra_w${w.s}_s${eid}_skip`]||state[gk(w.s,_planSi)+'skip'])
+          : !!state[`extra_w${w.s}_s${eid}_skip`])
+        : !!state[gk(w.s,si)+'skip'];
+      const skipReason=extra
+        ? (_planSi!==undefined
+          ? (state[`extra_w${w.s}_s${eid}_skip_reason`]||state[gk(w.s,_planSi)+'skip_reason']||'')
+          : (state[`extra_w${w.s}_s${eid}_skip_reason`]||''))
+        : (state[gk(w.s,si)+'skip_reason']||'');
       const clickFn=extra
         ? (isDone ? `openPerfEditExtraModal(${w.s},${eid})` : `openEditExtraModal(${w.s},${eid})`)
         : (isDone ? `openPerfEditModal(${w.s},${si})` : `openEditModal(${w.s},${si})`);
@@ -1290,7 +1310,9 @@ function renderPlan(){
             ${detail?`<div style="font-size:12px;color:${isDone?'#5a8f2e':typeC};font-weight:600;margin-top:1px;line-height:1.35;">${detail}</div>`:''}
             ${(()=>{
               if(isDone){
-                const perfRaw = extra ? state[`extra_w${w.s}_s${eid}_perf`] : state[gk(w.s,si)+'perf'];
+                const perfRaw = extra
+                  ? (state[`extra_w${w.s}_s${eid}_perf`]||(_planSi!==undefined?state[gk(w.s,_planSi)+'perf']:null))
+                  : state[gk(w.s,si)+'perf'];
                 let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{};}catch(e){}
                 const rp = perf2.pace || null;
                 const rd = perf2.dur || null;
@@ -1310,7 +1332,9 @@ function renderPlan(){
         </div>
         <div style="display:flex;align-items:center;gap:2px;padding:12px 12px 12px 0;flex-shrink:0;">
           ${(()=>{
-            const rvPlan = extra ? state[`extra_w${w.s}_s${eid}_km`] : state[gk(w.s,si)+'km'];
+            const rvPlan = extra
+              ? (state[`extra_w${w.s}_s${eid}_km`]??(_planSi!==undefined?state[gk(w.s,_planSi)+'km']:null))
+              : state[gk(w.s,si)+'km'];
             const kmShow = isDone && rvPlan!=null ? rvPlan : s2.km;
             return `<div style="text-align:right;min-width:40px;">
               <div style="font-size:17px;font-weight:800;color:${isDone?'#3B6D11':'var(--text)'};">${kmShow}</div>

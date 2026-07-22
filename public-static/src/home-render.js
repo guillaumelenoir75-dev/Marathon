@@ -1536,6 +1536,8 @@ async function saveValidation(idx){
     }
     window._stravaActivityData = null;
   }
+  // Sync vers extra_w si plan migré (plan-render lit depuis extra_w_done)
+  if(isAdmin() && typeof _syncPlanValidationToExtraW === 'function') _syncPlanValidationToExtraW(CW, idx, k);
   save();
   // Enregistrer le timestamp de dernière validation pour les félicitations
   if(dbRef) dbRef.child('_last_validation_w'+CW).set(Date.now()).catch(()=>{});
