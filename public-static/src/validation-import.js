@@ -781,6 +781,7 @@ async function importWhoopForPerfEditExtra(ws, ei) {
     const ek = `extra_w${ws}_s${ei}`;
     let prev = {}; try { prev = state[ek+'_perf'] ? JSON.parse(state[ek+'_perf']) : {}; } catch(e) {}
     const sessionDate = prev.date
+      || (document.getElementById('val-date') ? document.getElementById('val-date').value : null)
       || (document.getElementById('pedit-date') ? document.getElementById('pedit-date').value : null)
       || new Date().toISOString().slice(0, 10);
     const workouts = (whoopData.workouts || []).filter(w => w.strain != null);
