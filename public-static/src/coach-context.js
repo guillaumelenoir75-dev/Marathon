@@ -220,12 +220,11 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   const recentSummary = [];
   for(let ws = Math.max(1, CW-8); ws <= CW; ws++) {
     const sessions = [];
-    weeks[ws-1].sessions.forEach((sess, si) => {
-      if(state[`del_w${ws}_s${si}`]) return;
-      const k = gk(ws, si);
-      const done = !!state[k+'done'];
-      let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
-      const kmReel = state[k+'km'] != null ? state[k+'km'] : sess.km;
+    getOrderedWeekSessions(ws).forEach(({s:sess,ei}) => {
+      const k = `extra_w${ws}_s${ei}`;
+      const done = !!state[k+'_done'];
+      let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
+      const kmReel = state[k+'_km'] != null ? state[k+'_km'] : sess.km;
       const whoopStrain = perf?.whoop?.workout_strain ?? perf?.whoop?.cycle_strain ?? null;
       sessions.push({
         type: sess.type,
@@ -253,17 +252,16 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   // Charge courante
   const coeff = {ef:1, long:1.1, tempo:1.5, frac:1.5, race:1.6, rest:0};
   let chargeCW = 0, chargePrev = 0;
-  weeks[CW-1].sessions.forEach((sess,si)=>{
-    if(state[`del_w${CW}_s${si}`]) return;
-    const k = gk(CW,si);
-    if(!state[k+'done']) return;
-    chargeCW += (state[k+'km']!=null?state[k+'km']:sess.km) * (coeff[sess.type]||1);
+  getOrderedWeekSessions(CW).forEach(({s:sess,ei})=>{
+    const k=`extra_w${CW}_s${ei}`;
+    if(!state[k+'_done']) return;
+    chargeCW += (state[k+'_km']!=null?state[k+'_km']:sess.km) * (coeff[sess.type]||1);
   });
   if(CW > 1) {
-    weeks[CW-2].sessions.forEach((sess,si)=>{
-      const k = gk(CW-1,si);
-      if(!state[k+'done']) return;
-      chargePrev += (state[k+'km']!=null?state[k+'km']:sess.km) * (coeff[sess.type]||1);
+    getOrderedWeekSessions(CW-1).forEach(({s:sess,ei})=>{
+      const k=`extra_w${CW-1}_s${ei}`;
+      if(!state[k+'_done']) return;
+      chargePrev += (state[k+'_km']!=null?state[k+'_km']:sess.km) * (coeff[sess.type]||1);
     });
   }
   const ratioCroissance = chargePrev > 0 ? Math.round(chargeCW/chargePrev*100)/100 : null;
@@ -276,10 +274,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     const defaultIdx = defaultNames.indexOf(sh.name);
     const baseKm = defaultIdx >= 0 ? (shoeKmTable[defaultIdx][CW-2]||0) : (state['shoe_km_'+sh.name]||0);
     let thisWeekKm = 0;
-    getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei})=>{
+    getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
       if(s2.shoe===sh.name){
-        if(extra){ const done=!!state[`extra_w${CW}_s${ei}_done`]; if(done) thisWeekKm+=(state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s2.km); }
-        else { const done=state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null; if(done) thisWeekKm+=(state[gk(CW,si)+'km']!=null?state[gk(CW,si)+'km']:s2.km); }
+        const done=!!state[`extra_w${CW}_s${ei}_done`];
+        if(done) thisWeekKm+=(state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s2.km);
       }
     });
     const kmReel = baseKm + thisWeekKm;
@@ -298,23 +296,14 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   // Prochaine séance à faire cette semaine
   const jours = ['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const prochaineSeance = [];
-  getOrderedWeekSessions(CW).forEach(({s,si,extra,ei})=>{
-    const done = extra ? !!state[`extra_w${CW}_s${ei}_done`] : !!state[gk(CW,si)+'done'];
+  getOrderedWeekSessions(CW).forEach(({s,ei})=>{
+    const done = !!state[`extra_w${CW}_s${ei}_done`];
     if(!done){
       const titre = s.d.split('|')[0];
       const detail = s.d.split('|')[1]||'';
-      // Récupérer le jour et l'heure planifiés
-      // s vient de getSession() qui lit déjà edit_w — utiliser s directement
       let planifie = '';
-      if(!extra){
-        // Lire directement depuis state pour avoir les données les plus fraîches
-        const edRaw = state['edit_w'+CW+'_s'+si];
-        let ed = s; try{ if(edRaw) ed = JSON.parse(edRaw); }catch(e){}
-        if(ed.sched_day && ed.sched_time) planifie = ` → ${jours[ed.sched_day]} ${ed.sched_time}`;
-        else if(ed.sched_day) planifie = ` → ${jours[ed.sched_day]}`;
-        else if(s.sched_day && s.sched_time) planifie = ` → ${jours[s.sched_day]} ${s.sched_time}`;
-        else if(s.sched_day) planifie = ` → ${jours[s.sched_day]}`;
-      }
+      if(s.sched_day && s.sched_time) planifie = ` → ${jours[s.sched_day]} ${s.sched_time}`;
+      else if(s.sched_day) planifie = ` → ${jours[s.sched_day]}`;
       const nonPlanifie = planifie === '';
       let detailFinal = detail;
       if((s.type === 'ef' || s.type === 'long') && detail) {
@@ -375,10 +364,9 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       // Tendance EF → projection allure marathon
       const efPoints = [];
       for(let ws=1; ws<=CW; ws++){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
-          const k = gk(ws,si);
-          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
+          let perf=null;try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):null;}catch(e){}
           if(!perf||!perf.pace||!perf.hr||parseInt(perf.hr)>148) return;
           efPoints.push({ws, sec: paceStrToSec(perf.pace)});
         });
@@ -433,13 +421,11 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       // Analyser si Guillaume court à heure régulière
       const heures = [];
       for(let ws=Math.max(1,CW-6); ws<=CW; ws++){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
-          const k=gk(ws,si);
-          if(!state[k+'done']) return;
-          const edRaw=state['edit_w'+ws+'_s'+si];
-          let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
-          if(ed&&ed.sched_time){
-            const h=parseInt(ed.sched_time.split(':')[0]);
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
+          const k=`extra_w${ws}_s${ei}`;
+          if(!state[k+'_done']) return;
+          if(sess.sched_time){
+            const h=parseInt(sess.sched_time.split(':')[0]);
             if(!isNaN(h)) heures.push({h, type:sess.type});
           }
         });
@@ -466,10 +452,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       // Calculer le délai depuis la dernière séance ET détecter deux séances intenses proches
       const seancesDates = [];
       for(let ws=Math.max(1,CW-2); ws<=CW; ws++){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
-          const k=gk(ws,si);
-          if(!state[k+'done']) return;
-          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
+          const k=`extra_w${ws}_s${ei}`;
+          if(!state[k+'_done']) return;
+          let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
           const dateStr=perf&&perf.date?perf.date:null;
           if(dateStr) seancesDates.push({date:new Date(dateStr),type:sess.type,ws});
         });
@@ -500,10 +486,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         // Vérifier si la FC EF monte aussi
         const efFCRecent = [];
         for(let ws=Math.max(1,CW-3); ws<=CW; ws++){
-          weeks[ws-1].sessions.forEach((sess,si)=>{
+          getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
             if(sess.type!=='ef'&&sess.type!=='long') return;
-            const k=gk(ws,si);
-            let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
+            const k=`extra_w${ws}_s${ei}`;
+            let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
             if(perf&&perf.hr&&parseInt(perf.hr)<=148) efFCRecent.push({ws,hr:parseInt(perf.hr)});
           });
         }
@@ -530,10 +516,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       // Analyser la dégradation/progression entre les blocs sur les dernières Tempo
       const tempoAvecBlocs = [];
       for(let ws=1; ws<=CW; ws++){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
           if(sess.type!=='tempo'&&sess.type!=='frac') return;
-          const k=gk(ws,si);
-          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
+          const k=`extra_w${ws}_s${ei}`;
+          let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
           if(!perf||!perf.blocsAllure||!perf.blocsAllure.some(b=>b)) return;
           const blocs=perf.blocsAllure.filter(Boolean).map(a=>paceStrToSec(a.replace("'",":")));
           if(blocs.length>=2&&blocs.every(b=>b>0)) tempoAvecBlocs.push({ws,blocs,titre:sess.d.split('|')[0]});
@@ -567,10 +553,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       // Comparer FC pour la même allure sur les dernières EF → détecter progression aérobie
       const efData = [];
       for(let ws=1; ws<=CW; ws++){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
-          const k = gk(ws,si);
-          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
+          const k = `extra_w${ws}_s${ei}`;
+          let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
           if(!perf || !perf.pace || !perf.hr) return;
           const sec = paceStrToSec(perf.pace);
           const hr = parseInt(perf.hr);
@@ -602,10 +588,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       // Régression linéaire sur les 8 dernières séances EF valides (FC < 148)
       const efPoints = [];
       for(let ws=1; ws<=CW; ws++){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
-          const k = gk(ws,si);
-          let perf=null;try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):null;}catch(e){}
+          const k = `extra_w${ws}_s${ei}`;
+          let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
           if(!perf || !perf.pace || !perf.hr) return;
           if(parseInt(perf.hr) > 148) return;
           const sec = paceStrToSec(perf.pace);
@@ -654,21 +640,11 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     seances_recentes_detail: (()=>{
       const det=[];
       for(let ws=CW;ws>=Math.max(1,CW-8);ws--){
-        weeks[ws-1].sessions.forEach((sess,si)=>{
-          const k=gk(ws,si); if(!state[k+'done']) return;
-          let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};} catch(e){}
-          det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null});
+        getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
+          const k=`extra_w${ws}_s${ei}`; if(!state[k+'_done']) return;
+          let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};} catch(e){}
+          det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'_km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null});
         });
-        let ei=0;
-        while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-          if(state[`extra_w${ws}_s${ei}_done`]){
-            let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-            if(!es){ei++;continue;}
-            let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};} catch(e){}
-            det.push({semaine:ws,type:es.type,titre:es.d.split('|')[0],extra:true,km:state[`extra_w${ws}_s${ei}_km`]||es.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:null});
-          }
-          ei++;
-        }
       }
       return det.slice(0,15);
     })(),
@@ -700,15 +676,14 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
   extra.seances_recentes_detail = (()=>{
     const detail = [];
     for(let ws = CW; ws >= 1; ws--) {
-      // Séances de base
-      weeks[ws-1].sessions.forEach((sess, si) => {
-        const k = gk(ws, si);
-        if(!state[k+'done']) return;
-        let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{};} catch(e){}
+      getOrderedWeekSessions(ws).forEach(({s:sess, ei}) => {
+        const k = `extra_w${ws}_s${ei}`;
+        if(!state[k+'_done']) return;
+        let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};} catch(e){}
         const st = perf.strava || null;
         detail.push({
           semaine: ws, type: sess.type, titre: sess.d.split('|')[0],
-          date: perf.date||null, km: state[k+'km']||sess.km,
+          date: perf.date||null, km: state[k+'_km']||sess.km,
           allure: perf.pace||null, fc_moy: perf.hr||null, duree: perf.dur||null,
           blocs_tempo: perf.blocsAllure||null,
           strava: st ? {
@@ -723,22 +698,6 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
           } : null
         });
       });
-      // Séances extra validées
-      let ei=0;
-      while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-        if(state[`extra_w${ws}_s${ei}_done`]){
-          let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-          if(!es){ei++;continue;}
-          let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{};} catch(e){}
-          detail.push({
-            semaine: ws, type: es.type, titre: es.d.split('|')[0], extra: true,
-            date: perf.date||null, km: state[`extra_w${ws}_s${ei}_km`]||es.km,
-            allure: perf.pace||null, fc_moy: perf.hr||null, duree: perf.dur||null,
-            blocs_tempo: perf.blocsAllure||null, strava: null
-          });
-        }
-        ei++;
-      }
     }
     return detail.slice(0, 30);
   })();
@@ -764,8 +723,8 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
       const defaultIdx=defaultNames.indexOf(sh.name);
       const baseKm=defaultIdx>=0?(shoeKmTable[defaultIdx][CW-2]||0):(state['shoe_km_'+sh.name]||0);
       let thisWeekKm=0;
-      getOrderedWeekSessions(CW).forEach(({s:s2,si,extra:ex,ei})=>{
-        if(s2.shoe===sh.name){ if(ex){const d=!!state[`extra_w${CW}_s${ei}_done`];if(d)thisWeekKm+=(state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s2.km);}else{const d=state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null;if(d)thisWeekKm+=(state[gk(CW,si)+'km']!=null?state[gk(CW,si)+'km']:s2.km);} }
+      getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
+        if(s2.shoe===sh.name){ const d=!!state[`extra_w${CW}_s${ei}_done`]; if(d) thisWeekKm+=(state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s2.km); }
       });
       const kmReel=baseKm+thisWeekKm;
       return {nom:sh.name, km_parcourus:kmReel, km_max:sh.max, km_restants:Math.max(0,sh.max-kmReel), usure:Math.round(kmReel/sh.max*100)+'%', alerte:kmReel>sh.max*0.9?'Proche limite!':kmReel>sh.max*0.75?'A surveiller':'OK'};
@@ -802,7 +761,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
     const chargeHist=[];
     for(let ws=Math.max(1,CW-7);ws<=CW;ws++){
       let charge=0;
-      weeks[ws-1].sessions.forEach((sess,si)=>{ if(state[`del_w${ws}_s${si}`])return; const k=gk(ws,si); if(!state[k+'done'])return; charge+=(state[k+'km']!=null?state[k+'km']:sess.km)*(coeff[sess.type]||1); });
+      getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{ const k=`extra_w${ws}_s${ei}`; if(!state[k+'_done'])return; charge+=(state[k+'_km']!=null?state[k+'_km']:sess.km)*(coeff[sess.type]||1); });
       chargeHist.push({semaine:ws,charge:Math.round(charge*10)/10});
     }
     extra.charge_detail_8_semaines = chargeHist;

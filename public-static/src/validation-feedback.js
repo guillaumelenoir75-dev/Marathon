@@ -8,29 +8,13 @@ function parsePaceToSec(paceStr){
 function getHistoricalComparison(type, pace, hr){
   const history=[];
   for(let ws=1;ws<CW;ws++){
-    weeks[ws-1].sessions.forEach((s,si)=>{
-      if(s.type!==type) return;
-      const k=gk(ws,si);
-      if(!state[k+'done']) return;
-      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
+    getOrderedWeekSessions(ws).forEach(({s:es,ei})=>{
+      if(es.type!==type||!state[`extra_w${ws}_s${ei}_done`]) return;
+      let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
       if(!perf.pace) return;
       const sec=paceStrToSec(perf.pace);
-      if(!sec) return;
-      history.push({ws,sec,pace:perf.pace,hr:perf.hr?parseInt(perf.hr):null});
+      if(sec) history.push({ws,sec,pace:perf.pace,hr:perf.hr?parseInt(perf.hr):null});
     });
-    // Extra sessions du même type
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-      if(es.type===type&&state[`extra_w${ws}_s${ei}_done`]){
-        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){};
-        if(perf.pace){
-          const sec=paceStrToSec(perf.pace);
-          if(sec) history.push({ws,sec,pace:perf.pace,hr:perf.hr?parseInt(perf.hr):null,extra:true});
-        }
-      }
-      ei++;
-    }
   }
   if(history.length===0||!pace) return null;
   const curSec=paceStrToSec(pace);
@@ -418,22 +402,11 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Historique récent
   const historyData=[];
   for(let ws=Math.max(1,CW-8);ws<CW;ws++){
-    weeks[ws-1].sessions.forEach((sess,si)=>{
-      const k=gk(ws,si);
-      if(!state[k+'done']) return;
-      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
-      historyData.push({semaine:ws,type:sess.type,km:state[k+'km']||sess.km,date_reelle:perf.date||null,...perf});
+    getOrderedWeekSessions(ws).forEach(({s:es,ei})=>{
+      if(!state[`extra_w${ws}_s${ei}_done`]) return;
+      let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
+      historyData.push({semaine:ws,type:es.type,km:state[`extra_w${ws}_s${ei}_km`]||es.km,date_reelle:perf.date||null,...perf});
     });
-    // Extra sessions
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      if(state[`extra_w${ws}_s${ei}_done`]){
-        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-        historyData.push({semaine:ws,type:es.type,km:state[`extra_w${ws}_s${ei}_km`]||es.km,date_reelle:perf.date||null,extra:true,...perf});
-      }
-      ei++;
-    }
   }
 
   // Fermer le modal de validation et aller dans le Coach
@@ -529,27 +502,22 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Position dans la semaine (pour contextualiser la charge)
   const _nbSeancesDoneThisWeek = (()=>{
     let n=0;
-    weeks[CW-1].sessions.forEach((_,si)=>{ if(state[gk(CW,si)+'done']) n++; });
-    let ei=0; while(ei<=20&&state['extra_w'+CW+'_s'+ei]){ if(state['extra_w'+CW+'_s'+ei+'_done']) n++; ei++; }
+    getOrderedWeekSessions(CW).forEach(({ei})=>{ if(state[`extra_w${CW}_s${ei}_done`]) n++; });
     return n;
   })();
   analysisContext.position_semaine = _nbSeancesDoneThisWeek+'ème séance de la semaine S'+CW+' ('+(([8,12,16,20,26,30].includes(CW)?'semaine de DÉCHARGE':'semaine NORMALE'))+')';
 
   const seancesAVenir = [];
   // Séances restantes semaine courante
-  getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei})=>{
+  getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
     if(seancesAVenir.length >= 3) return;
-    const done = extra ? !!state['extra_w'+CW+'_s'+ei+'_done'] : !!state[gk(CW,si)+'done'];
-    if(done) return;
-    const edRaw = !extra && state['edit_w'+CW+'_s'+si];
-    let ed=null;try{ed=edRaw?JSON.parse(edRaw):null;}catch(e){}
-    const titre = ed ? ed.d.split('|')[0] : s2.d.split('|')[0];
-    const detail = ed ? (ed.d.split('|')[1]||'') : (s2.d.split('|')[1]||'');
-    const type = ed ? ed.type : s2.type;
-    const km = ed ? ed.km : s2.km;
-    // Pour les extras, lire sched_day/sched_time depuis s2 directement
-    const schedDay = extra ? s2.sched_day : ((ed && ed.sched_day) || s2.sched_day);
-    const schedTime = extra ? s2.sched_time : ((ed && ed.sched_time) || s2.sched_time);
+    if(!!state[`extra_w${CW}_s${ei}_done`]) return;
+    const titre = s2.d.split('|')[0];
+    const detail = s2.d.split('|')[1]||'';
+    const type = s2.type;
+    const km = s2.km;
+    const schedDay = s2.sched_day;
+    const schedTime = s2.sched_time;
     const jour = schedDay ? joursAbr[schedDay] : '';
     const jourComplet = schedDay ? joursComplets[schedDay] : '';
     const heure = schedTime || '';

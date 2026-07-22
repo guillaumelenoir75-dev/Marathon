@@ -417,20 +417,10 @@ async function _fetchWeatherCoachAdvice(meteo, impactColor) {
 
   // Séances du jour
   const seancesAujourdhui = [];
-  getOrderedWeekSessions(CW).forEach(({s, si, extra, ei}) => {
-    if (extra) {
-      // Séances extra : lire sched_day directement sur l'objet extra
-      const done = !!state[`extra_w${CW}_s${ei}_done`];
-      if(done) return;
-      if(s.sched_day === todayDayNum)
-        seancesAujourdhui.push({type: s.type, titre: s.d.split('|')[0], km: s.km, heure: s.sched_time||null});
-      return;
-    }
-    const edRaw = state['edit_w' + CW + '_s' + si];
-    if (!edRaw) return;
-    const ed = JSON.parse(edRaw);
-    if (ed.sched_day === todayDayNum && !state[gk(CW, si) + 'done'])
-      seancesAujourdhui.push({type: ed.type||s.type, titre: ed.d ? ed.d.split('|')[0] : s.d.split('|')[0], km: ed.km||s.km, heure: ed.sched_time||null});
+  getOrderedWeekSessions(CW).forEach(({s, ei}) => {
+    if(!!state[`extra_w${CW}_s${ei}_done`]) return;
+    if(s.sched_day === todayDayNum)
+      seancesAujourdhui.push({type: s.type, titre: s.d.split('|')[0], km: s.km, heure: s.sched_time||null});
   });
 
   // Mémos coach
@@ -444,18 +434,12 @@ async function _fetchWeatherCoachAdvice(meteo, impactColor) {
   const seancesAVenir = [];
   const joursC = ['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
   const tDow = todayDayNum;
-  getOrderedWeekSessions(CW).forEach(({s, si, extra, ei}) => {
+  getOrderedWeekSessions(CW).forEach(({s, ei}) => {
     if (seancesAVenir.length >= 3) return;
-    const done = extra ? !!state['extra_w'+CW+'_s'+ei+'_done'] : !!state[gk(CW,si)+'done'];
-    if (done) return;
-    const edRaw = !extra && state['edit_w'+CW+'_s'+si];
-    const ed = edRaw ? JSON.parse(edRaw) : null;
-    const titre = ed ? ed.d.split('|')[0] : s.d.split('|')[0];
-    const type = ed ? ed.type : s.type;
-    const km = ed ? ed.km : s.km;
-    const jourC = ed && ed.sched_day ? joursC[ed.sched_day] : '';
-    const heure = ed && ed.sched_time ? ed.sched_time : '';
-    seancesAVenir.push({type, titre, km, quand: jourC + (heure ? ' à ' + heure : '')});
+    if(!!state[`extra_w${CW}_s${ei}_done`]) return;
+    const jourC = s.sched_day ? joursC[s.sched_day] : '';
+    const heure = s.sched_time || '';
+    seancesAVenir.push({type: s.type, titre: s.d.split('|')[0], km: s.km, quand: jourC + (heure ? ' à ' + heure : '')});
   });
 
   const elevFC = meteo.impact_performance?.elevation_fc_bpm || 0;
@@ -572,23 +556,19 @@ async function autoFetchMissingMeteo() {
   // Collecter les séances passées SANS météo, avec une date connue
   const missing = [];
   for (let ws = 1; ws <= CW; ws++) {
-    weeks[ws-1].sessions.forEach((sess, si) => {
-      const k = gk(ws, si);
-      if (!state[k + 'done']) return;
-      const perfRaw = state[k + 'perf'];
+    getOrderedWeekSessions(ws).forEach(({s:sess,ei}) => {
+      const k = `extra_w${ws}_s${ei}`;
+      if (!state[k + '_done']) return;
+      const perfRaw = state[k + '_perf'];
       if (!perfRaw) return;
       let perf = {};
       try { perf = typeof perfRaw === 'string' ? JSON.parse(perfRaw) : perfRaw; } catch(e) { return; }
-      if (!perf.date || perf.meteo) return; // déjà une météo ou pas de date
-      // Heure de la séance depuis les edits
-      const edRaw = state['edit_w' + ws + '_s' + si];
-      const ed = edRaw ? (typeof edRaw === 'string' ? JSON.parse(edRaw) : edRaw) : null;
-      const heureStr = ed && ed.sched_time ? ed.sched_time : '10:00'; // défaut 10h
+      if (!perf.date || perf.meteo) return;
+      const heureStr = sess.sched_time || '10:00';
       const loc = _getLocForDate(perf.date);
-      // Surcharge ville pour séances connues (lieu précis mémorisé)
       let villeOverride = null;
       if (perf.date === '2026-05-26') villeOverride = 'Porte de Seine';
-      missing.push({ ws, si, k, perf, date: perf.date, heure: heureStr, lat: loc.lat, lng: loc.lng, ville: villeOverride || loc.ville });
+      missing.push({ ws, ei, k, perf, date: perf.date, heure: heureStr, lat: loc.lat, lng: loc.lng, ville: villeOverride || loc.ville });
     });
   }
 
@@ -670,8 +650,9 @@ async function autoFetchMissingMeteo() {
 
         // Sauvegarder dans state + Firebase
         const updated = { ...sess.perf, meteo };
-        state[sess.k + 'perf'] = JSON.stringify(updated);
-        if (dbRef) dbRef.child(sess.k + 'perf').set(state[sess.k + 'perf']).catch(() => {});
+        const perfKey = sess.k + '_perf';
+        state[perfKey] = JSON.stringify(updated);
+        if (dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(() => {});
 
         console.log(`[AutoMeteo] ${date} ${sess.heure} → ${temp}°C ressenti ${apparent}°C (${impact.niveau})`);
       }
@@ -865,14 +846,9 @@ async function fetchWeatherForContext(targetHourStr, targetDate) {
 
 function calcWeekDoneKm(){
   let t=0;
-  getOrderedWeekSessions(CW).forEach(({s,si,extra,ei})=>{
-    if(extra){
-      const k=`extra_w${CW}_s${ei}`;
-      if(state[k+'_done']){const rv=state[k+'_km'];t+=(rv!=null?rv:s.km);}
-      return;
-    }
-    const dn=state[gk(CW,si)+'done'],rv=state[gk(CW,si)+'km'];
-    if(dn) t+=(rv!=null?rv:s.km);
+  getOrderedWeekSessions(CW).forEach(({s,ei})=>{
+    const k=`extra_w${CW}_s${ei}`;
+    if(state[k+'_done']){const rv=state[k+'_km'];t+=(rv!=null?rv:s.km);}
   });
   return Math.round(t*10)/10;
 }
@@ -904,14 +880,9 @@ function calcTotalDone(){
   let t = kmBase;
   for(let ws = FIRST_TRACKED_WEEK; ws <= CW; ws++){
     if(!weeks[ws-1]) continue;
-    getOrderedWeekSessions(ws).forEach(({s,si,extra,ei})=>{
-      if(extra){
-        const k=`extra_w${ws}_s${ei}`;
-        if(state[k+'_done']){const rv=state[k+'_km'];const _p=parseFloat(rv);t+=(rv!=null&&!isNaN(_p)?_p:s.km);}
-        return;
-      }
-      const dn=state[gk(ws,si)+'done'], rv=state[gk(ws,si)+'km'];
-      if(dn||rv!=null) t+=(rv!=null?parseFloat(rv):s.km);
+    getOrderedWeekSessions(ws).forEach(({s,ei})=>{
+      const k=`extra_w${ws}_s${ei}`;
+      if(state[k+'_done']){const rv=state[k+'_km'];const _p=parseFloat(rv);t+=(rv!=null&&!isNaN(_p)?_p:s.km);}
     });
   }
   return Math.round(t);

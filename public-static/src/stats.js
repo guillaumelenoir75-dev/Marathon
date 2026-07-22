@@ -9,7 +9,7 @@ function renderStats(){
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
 
   if(isAdmin()){
-    const cwDoneCount=weeks[CW-1].sessions.filter((_,si)=>state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null).length;
+    const _cwSess=getOrderedWeekSessions(CW);const cwDoneCount=_cwSess.filter(({ei})=>state[`extra_w${CW}_s${ei}_done`]||state[`extra_w${CW}_s${ei}_km`]!=null).length;
     const cwTotal=weeks[CW-1].sessions.length;
     eCW=CW;
     kmLabels = weeks.map((w, i) => {
@@ -149,15 +149,10 @@ function renderStats(){
     const baseKm=defaultIdx>=0?(shoeKm[defaultIdx][CW-2]||0):(state[`shoe_km_${sh.name}`]||0);
     // Ajouter les km réels des séances cochées cette semaine avec cette chaussure
     let thisWeekKm=0;
-    getOrderedWeekSessions(CW).forEach(({s:s2,si,extra,ei})=>{
+    getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
       if(s2.shoe===sh.name){
-        if(extra){
-          const done=!!state[`extra_w${CW}_s${ei}_done`];
-          if(done){const _ekm=parseFloat(state[`extra_w${CW}_s${ei}_km`]);thisWeekKm+=(!isNaN(_ekm)&&state[`extra_w${CW}_s${ei}_km`]!=null)?_ekm:s2.km;}
-        } else {
-          const done=state[gk(CW,si)+'done']||state[gk(CW,si)+'km']!=null;
-          if(done) thisWeekKm+=state[gk(CW,si)+'km']!=null?parseFloat(state[gk(CW,si)+'km']):s2.km;
-        }
+        const done=!!state[`extra_w${CW}_s${ei}_done`];
+        if(done){const _ekm=parseFloat(state[`extra_w${CW}_s${ei}_km`]);thisWeekKm+=(!isNaN(_ekm)&&state[`extra_w${CW}_s${ei}_km`]!=null)?_ekm:s2.km;}
       }
     });
     const km=baseKm+thisWeekKm;
@@ -221,28 +216,16 @@ function renderStats(){
     };
     const perfRows=[];
     for(let ws=1;ws<=CW;ws++){
-      getOrderedWeekSessions(ws).forEach(({s,si,extra,ei})=>{
+      getOrderedWeekSessions(ws).forEach(({s,ei})=>{
         if(s.type==='rest'||s.km===0) return;
-        if(extra){
-          // Séances ajoutées manuellement
-          const k=`extra_w${ws}_s${ei}`;
-          const done=!!state[k+'_done'];
-          if(!done) return;
-          const kmReal=state[k+'_km']!=null?state[k+'_km']:s.km;
-          let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-          const c=typeColor[s.type]||'#888';
-          const title=s.d.split('|')[0];
-          perfRows.push({ws,si:ei,title,km:kmReal,perf,c,type:s.type,extra:true});
-          return;
-        }
-        const k=gk(ws,si);
-        const done=!!state[k+'done']||(ws<CW&&state[k+'km']!=null);
+        const k=`extra_w${ws}_s${ei}`;
+        const done=!!state[k+'_done']||(ws<CW&&state[k+'_km']!=null);
         if(!done) return;
-        const kmReal=state[k+'km']!=null?state[k+'km']:s.km;
-        let perf=staticPerf[k]||{};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):(staticPerf[k]||{});}catch(e){}
+        const kmReal=state[k+'_km']!=null?state[k+'_km']:s.km;
+        let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
         const c=typeColor[s.type]||'#888';
         const title=s.d.split('|')[0];
-        perfRows.push({ws,si,title,km:kmReal,perf,c,type:s.type});
+        perfRows.push({ws,si:ei,title,km:kmReal,perf,c,type:s.type,extra:true});
       });
     }
     // Apply filter
@@ -1442,26 +1425,13 @@ function renderSessionsHistory() {
   const maxW = isAdmin() ? weeks.length : getAthleteMaxWeek();
 
   for (let ws = 1; ws <= maxW; ws++) {
-    const weekSessions = weeks[ws-1]?.sessions || [];
-    weekSessions.forEach((s, si) => {
-      const k = gk(ws, si);
-      if (!state[k+'done']) return;
-      let perf = {}; try { perf = state[k+'perf'] ? JSON.parse(state[k+'perf']) : {}; } catch(e) {}
-      sessions.push({ ws, type: s.type, title: s.d.split('|')[0],
-        km: parseFloat(state[k+'km'] || s.km) || null,
+    getOrderedWeekSessions(ws).forEach(({s:es,ei}) => {
+      if (!state[`extra_w${ws}_s${ei}_done`]) return;
+      let perf = {}; try { perf = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {}; } catch(e) {}
+      sessions.push({ ws, type: es.type, title: (es.d||'').split('|')[0] || 'Séance',
+        km: parseFloat(state[`extra_w${ws}_s${ei}_km`] || es.km) || null,
         date: perf.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null });
     });
-    let ei = 0;
-    while (ei <= 20 && state[`extra_w${ws}_s${ei}`]) {
-      if (state[`extra_w${ws}_s${ei}_done`]) {
-        let es = {}; try { es = JSON.parse(state[`extra_w${ws}_s${ei}`] || '{}'); } catch(e) {}
-        let perf = {}; try { perf = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {}; } catch(e) {}
-        sessions.push({ ws, type: es.type, title: (es.d||'').split('|')[0] || 'Séance extra',
-          km: parseFloat(state[`extra_w${ws}_s${ei}_km`] || es.km) || null,
-          date: perf.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null });
-      }
-      ei++;
-    }
   }
 
   sessions.sort((a, b) => {

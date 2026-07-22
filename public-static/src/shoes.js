@@ -118,43 +118,19 @@ function openShoeHistory(shoeName){
   const sh=getShoes().find(s=>s.name===shoeName);
   if(!sh) return;
   const sessions=[];
-  for(let ws=1;ws<CW;ws++){  // semaines passées uniquement
-    const w=weeks[ws-1];
-    weeks[ws-1].sessions.forEach((baseSess,si)=>{
-      if(state[`del_w${ws}_s${si}`]) return;
-      // Récupérer la session (avec modifications éventuelles)
-      const s=getSession(ws,si);
-      if(s.shoe!==shoeName) return;
-      if(s.km===0) return; // ignorer repos
-      const dk=gk(ws,si);
-      const kmReal=state[dk+'km']!=null?state[dk+'km']:s.km;
-      const title=s.d.split('|')[0];
-      sessions.push({title,km:kmReal,ws});
+  for(let ws=1;ws<CW;ws++){
+    getOrderedWeekSessions(ws).forEach(({s,ei})=>{
+      if(s.shoe!==shoeName||s.km===0||!state[`extra_w${ws}_s${ei}_done`]) return;
+      const kmReal=state[`extra_w${ws}_s${ei}_km`]!=null?state[`extra_w${ws}_s${ei}_km`]:s.km;
+      sessions.push({title:s.d.split('|')[0],km:kmReal,ws});
     });
-    // séances extra
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      let s;try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-      if(!s){ei++;continue;}
-      if(s.shoe===shoeName && s.km>0 && state[`extra_w${ws}_s${ei}_done`]){
-        const kmReal=state[`extra_w${ws}_s${ei}_km`]!=null?state[`extra_w${ws}_s${ei}_km`]:s.km;
-        sessions.push({title:s.d.split('|')[0],km:kmReal,ws});
-      }
-      ei++;
-    }
   }
-  // S7 en cours : séances déjà cochées
-  const w=weeks[CW-1];
-  getOrderedWeekSessions(CW).forEach(({s,si,extra,ei})=>{
+  // Semaine en cours : séances déjà cochées
+  getOrderedWeekSessions(CW).forEach(({s,ei})=>{
     if(s.shoe!==shoeName||s.km===0) return;
-    const doneKey = extra ? `extra_w${CW}_s${ei}` : gk(CW,si);
-    const done = extra
-      ? (state[doneKey+'_done']||state[doneKey+'_km']!=null)
-      : (state[doneKey+'done']||state[doneKey+'km']!=null);
+    const done=state[`extra_w${CW}_s${ei}_done`]||state[`extra_w${CW}_s${ei}_km`]!=null;
     if(!done) return;
-    const kmReal = extra
-      ? (state[doneKey+'_km']!=null ? state[doneKey+'_km'] : s.km)
-      : (state[doneKey+'km']!=null ? state[doneKey+'km'] : s.km);
+    const kmReal=state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s.km;
     sessions.push({title:s.d.split('|')[0],km:kmReal,ws:CW});
   });
 
