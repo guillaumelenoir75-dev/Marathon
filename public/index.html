@@ -103,7 +103,7 @@
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
         <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():openTargetTimeModal();" style="cursor:pointer;">
-          <div id="home-goal-label" style="font-size:9px;font-weight:700;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px;">🎯 Objectif marathon</div>
+          <div id="home-goal-label" style="font-size:10px;font-weight:700;opacity:0.75;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px;">🎯 Objectif marathon</div>
           <div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-1.5px;" id="kpi-marathon-time">—</div>
           <div style="font-size:10px;opacity:0.55;margin-top:3px;" id="today-date"></div>
 
@@ -126,15 +126,15 @@
       <!-- DROITE : EF + prédit + AM entraînement -->
       <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
         <div id="home-race-kpi-block">
-        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,0.18);border-radius:9px;padding:4px 8px;border:1px solid rgba(251,191,36,0.3);white-space:nowrap;cursor:pointer;">
+        <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,0.22);border-radius:9px;padding:5px 9px;border:1px solid rgba(251,191,36,0.4);white-space:nowrap;cursor:pointer;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.95)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span style="font-size:12px;font-weight:800;color:#FCD34D;" id="h-am-pred">—</span>
+          <span style="font-size:13px;font-weight:800;color:#FCD34D;" id="h-am-pred">—</span>
           <span style="font-size:10px;color:rgba(252,211,77,0.8);" id="h-pred-label">prédit</span>
         </div>
-        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():openTargetTimeModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.10);border-radius:9px;padding:4px 8px;border:1px solid rgba(255,255,255,0.13);white-space:nowrap;cursor:pointer;">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          <span style="font-size:12px;font-weight:800;" id="kpi-am-training">5'20</span>
-          <span style="font-size:10px;opacity:0.8;" id="h-am-train-label">objectif</span>
+        <div id="home-am-train-btn" onclick="isAdmin()?openAmTrainingModal():openTargetTimeModal()" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.08);border-radius:9px;padding:4px 8px;border:1px solid rgba(255,255,255,0.10);white-space:nowrap;cursor:pointer;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span style="font-size:11px;font-weight:700;opacity:0.75;" id="kpi-am-training">5'20</span>
+          <span style="font-size:10px;opacity:0.55;" id="h-am-train-label">entraînement</span>
         </div>
         </div>
         <div id="home-race-date" style="font-size:10px;opacity:0.65;text-align:right;margin-top:2px;"></div>
@@ -225,7 +225,8 @@
     </p>
     <p style="font-size:13px;font-weight:700;color:#0C447C;" id="week-total-km"></p>
   </div>
-  <div style="background:#EDF2FB;padding:8px 16px 4px;">
+  <div style="background:#EDF2FB;padding:8px 16px 4px;position:relative;">
+    <div id="home-sessions-fade" style="position:absolute;bottom:4px;left:0;right:0;height:52px;background:linear-gradient(to bottom,rgba(237,242,251,0),rgba(237,242,251,0.95));pointer-events:none;z-index:2;"></div>
     <div id="home-ef-auto-banner" style="display:none;align-items:flex-start;gap:10px;background:#EDF7EF;border:1.5px solid #3B6D11;border-radius:12px;padding:10px 12px;margin-bottom:10px;">
       <span style="font-size:18px;flex-shrink:0;">🏃</span>
       <span id="home-ef-auto-msg" style="font-size:13px;font-weight:600;color:#2F5010;flex:1;line-height:1.4;"></span>
@@ -236,7 +237,7 @@
       <span id="home-adapted-msg" style="font-size:13px;font-weight:600;color:#7A3B00;flex:1;line-height:1.4;"></span>
       <button onclick="dismissPlanAdapted()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#7A3B00;line-height:1;flex-shrink:0;padding:0;">✕</button>
     </div>
-    <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;"></div>
   </div>
   <div id="home-renfo-section" style="background:#EDF2FB;padding:0 16px 4px;">
     <p style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
