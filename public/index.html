@@ -33,9 +33,9 @@
 
 <!-- ACCUEIL -->
 <div id="sc-home" style="background:#EDF2FB;min-height:100vh;">
-  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:12px 16px 22px;border-radius:22px;color:#fff;margin-bottom:-12px;padding-bottom:22px;">
+  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:14px 16px 24px;border-radius:22px;color:#fff;margin-bottom:-12px;">
     <!-- Badge semaine + allure EF sur même ligne -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div style="display:flex;align-items:center;gap:6px;">
         <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:20px;padding:3px 10px 3px 7px;">
           <div style="width:5px;height:5px;border-radius:50%;background:#7FD4A8;flex-shrink:0;"></div>
@@ -99,7 +99,7 @@
       </div>
     </div>
     <!-- Ligne principale : temps marathon + KPIs -->
-    <div id="home-header-main-row" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+    <div id="home-header-main-row" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
       <div>
         <div id="home-marathon-time-block" onclick="isAdmin()?openMarathonPredModal():openTargetTimeModal();" style="cursor:pointer;">
@@ -124,7 +124,7 @@
         </div>
       </div>
       <!-- DROITE : EF + prédit + AM entraînement -->
-      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
         <div id="home-race-kpi-block">
         <div id="home-pred-btn" onclick="isAdmin()?openMarathonPredModal():null" style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,0.18);border-radius:9px;padding:4px 8px;border:1px solid rgba(251,191,36,0.3);white-space:nowrap;cursor:pointer;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.95)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -152,9 +152,9 @@
       </div>
     </div>
     <!-- Bloc progression -->
-    <div id="home-progression-block" style="background:rgba(255,255,255,0.09);border-radius:12px;padding:8px 12px;">
+    <div id="home-progression-block" style="background:rgba(255,255,255,0.09);border-radius:14px;padding:11px 13px;">
       <!-- Semaine en cours : séances + km -->
-      <div id="h-week-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.13);">
+      <div id="h-week-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.13);">
         <div>
           <div style="font-size:10px;font-weight:500;opacity:0.6;margin-bottom:1px;">📅 Cette semaine</div>
           <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;" id="h-week-sessions-label">— séances</div>
@@ -165,15 +165,15 @@
         </div>
       </div>
       <!-- Progression plan global -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-        <span style="font-size:10px;opacity:0.65;" id="h-prog-label">Progression du plan</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:10px;opacity:0.7;font-weight:500;" id="h-prog-label">Progression du plan</span>
         <span style="font-size:16px;font-weight:800;letter-spacing:-0.5px;" id="h-pct">19%</span>
       </div>
-      <div style="background:rgba(255,255,255,0.18);border-radius:5px;height:5px;overflow:hidden;">
-        <div id="h-bar" style="background:#fff;border-radius:5px;height:5px;width:19%;transition:width 0.6s ease;"></div>
+      <div style="background:rgba(255,255,255,0.18);border-radius:6px;height:6px;overflow:hidden;">
+        <div id="h-bar" style="background:#fff;border-radius:6px;height:6px;width:19%;transition:width 0.6s ease;"></div>
       </div>
       <!-- Km parcourus + total + restants + semaines sur 2 colonnes -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;">
         <div>
           <div style="font-size:12px;font-weight:700;" id="h-done-km">252 km</div>
           <div style="font-size:9px;opacity:0.5;">parcourus</div>
@@ -202,7 +202,7 @@
     </div>
   </div>
   <!-- Bandeau navigation semaine -->
-  <div id="home-week-nav" style="background:#EDF2FB;padding:8px 16px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+  <div id="home-week-nav" style="background:#EDF2FB;padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
     <button id="home-week-prev" onclick="homeNavWeek(-1)" style="width:28px;height:28px;border-radius:50%;border:1px solid #d0dff5;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B8DB5" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -218,9 +218,9 @@
   <!-- Bannière notifications (affichée si non activées) -->
   <div id="home-notif-banner" style="display:none;background:#EDF2FB;padding:8px 16px 0;"></div>
   <!-- Charnière séances -->
-  <div style="background:#EDF2FB;padding:4px 16px 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
+  <div style="background:#EDF2FB;padding:6px 16px 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
     <p style="font-size:13px;font-weight:700;color:#0C447C;display:flex;align-items:center;gap:6px;">
-      <span style="width:6px;height:6px;border-radius:50%;background:#3B6D11;flex-shrink:0;display:inline-block;"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:#3B6D11;flex-shrink:0;display:inline-block;"></span>
       Séances <span style="font-size:13px;font-weight:500;color:#4A6FA5;" id="sessions-progress"></span>
     </p>
     <p style="font-size:13px;font-weight:700;color:#0C447C;" id="week-total-km"></p>
