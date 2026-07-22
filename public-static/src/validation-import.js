@@ -780,7 +780,9 @@ async function importWhoopForPerfEditExtra(ws, ei) {
     if (!whoopData) { if (btn) { btn.textContent = '⚡ WHOOP'; btn.disabled = false; } return; }
     const ek = `extra_w${ws}_s${ei}`;
     let prev = {}; try { prev = state[ek+'_perf'] ? JSON.parse(state[ek+'_perf']) : {}; } catch(e) {}
-    const sessionDate = prev.date || null;
+    const sessionDate = prev.date
+      || (document.getElementById('pedit-date') ? document.getElementById('pedit-date').value : null)
+      || new Date().toISOString().slice(0, 10);
     const workouts = (whoopData.workouts || []).filter(w => w.strain != null);
     const sorted = [...workouts].sort((a, b) => {
       if (sessionDate) {
@@ -814,7 +816,8 @@ async function importWhoopForPerfEditExtra(ws, ei) {
         const dateLabel = `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;
         const diffDays = sessionDate ? Math.round((new Date(w.date) - new Date(sessionDate)) / 86400000) : null;
         const isSameDay = diffDays === 0;
-        const diffLabel = isSameDay ? '<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">Même jour</span>'
+        const isActuallyToday = w.date === new Date().toISOString().slice(0, 10);
+        const diffLabel = isSameDay ? `<span style="color:#3B6D11;font-size:9px;font-weight:700;background:#EAF3DE;padding:1px 6px;border-radius:8px;">${isActuallyToday ? "Aujourd'hui" : "Même jour"}</span>`
           : diffDays != null ? `<span style="color:#888;font-size:9px;">${diffDays > 0 ? '+' : ''}${diffDays}j</span>` : '';
         const strainColor = w.strain == null ? '#888' : w.strain >= 18 ? '#dc2626' : w.strain >= 14 ? '#f59e0b' : w.strain >= 8 ? '#16a34a' : w.strain >= 4 ? '#3b82f6' : '#6b7280';
         const chargeLabel = w.strain == null ? '—' : w.strain >= 18 ? 'Maximum' : w.strain >= 14 ? 'Intense' : w.strain >= 8 ? 'Modéré' : w.strain >= 4 ? 'Léger' : 'Repos';
