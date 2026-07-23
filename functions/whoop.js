@@ -137,10 +137,13 @@ async function _whoopFetchAndSave(db) {
   const accessToken = await getValidWhoopToken(db);
   if (!accessToken) return null;
 
+  let _unauthorized = false;
+
   const whoopGet = async (path) => {
     const r = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
     }, 20000);
+    if (r.status === 401) { _unauthorized = true; return null; }
     if (!r.ok) return null;
     return r.json();
   };
@@ -149,6 +152,7 @@ async function _whoopFetchAndSave(db) {
     const r = await fetchWithTimeout(`${WHOOP_API_V2}${path}`, {
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
     }, 20000);
+    if (r.status === 401) { _unauthorized = true; return null; }
     if (!r.ok) return null;
     return r.json();
   };
@@ -159,6 +163,13 @@ async function _whoopFetchAndSave(db) {
     whoopGetV2('/activity/workout?limit=14'),
     whoopGetV2('/recovery?limit=14')
   ]);
+
+  // Token invalide côté WHOOP : forcer expires_at=0 pour que le prochain appel renouvelle
+  if (_unauthorized) {
+    console.warn('WHOOP API returned 401 — forcing token expiry for next refresh');
+    await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update({ expires_at: 0 });
+    return null;
+  }
 
   const cycles = (cycleJson?.records || [])
     .filter(c => c.score_state === 'SCORED' && c.start)

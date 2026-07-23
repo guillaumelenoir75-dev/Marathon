@@ -71,6 +71,28 @@ function connectWhoop() {
   }, 1500);
 }
 
+// Relit whoop_data ET fc_repos_today depuis Firebase et met à jour state
+async function _pullWhoopStateFromFirebase() {
+  if (!dbRef) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const [wdSnap, fcSnap] = await Promise.all([
+    dbRef.child('whoop_data').once('value'),
+    dbRef.child('fc_repos_' + today).once('value')
+  ]);
+  const wd = wdSnap.val();
+  if (wd) {
+    state.whoop_data = wd;
+    if (typeof renderWhoopStats === 'function') renderWhoopStats();
+  }
+  const fcVal = fcSnap.val();
+  if (fcVal && fcVal >= 30 && fcVal <= 100) {
+    state['fc_repos_' + today] = fcVal;
+    state['fc_repos'] = fcVal;
+    if (typeof renderHome === 'function') renderHome();
+  }
+  return wd || null;
+}
+
 // Sync WHOOP — retourne { wd, serverData } ou { wd: null, serverData, error }
 async function syncWhoopFresh() {
   if (_whoopSyncing) {
@@ -85,13 +107,8 @@ async function syncWhoopFresh() {
     const serverData = await resp.json();
     if (serverData.needsAuth) return { wd: null, serverData, error: 'needsAuth' };
     if (!serverData.success) return { wd: null, serverData, error: serverData.error || 'sync_failed' };
-    if (dbRef) {
-      const snap = await dbRef.child('whoop_data').once('value');
-      const wd = snap.val();
-      if (wd) { state.whoop_data = wd; if (typeof renderWhoopStats === 'function') renderWhoopStats(); }
-      return { wd: wd || null, serverData };
-    }
-    return { wd: null, serverData };
+    const wd = await _pullWhoopStateFromFirebase();
+    return { wd, serverData };
   } catch(e) {
     console.error('syncWhoopFresh error:', e);
     return { wd: null, serverData: null, error: e.message };
@@ -123,25 +140,8 @@ async function syncWhoop() {
 
     if (!data.success) throw new Error(data.error || 'Erreur inconnue');
 
-    // Mettre à jour l'état local et afficher les données
-    if (dbRef) {
-      dbRef.child('whoop_data').once('value').then(snap => {
-        const wd = snap.val();
-        if (wd) {
-          state.whoop_data = wd;
-          if (typeof renderWhoopStats === 'function') renderWhoopStats();
-          // Auto-remplir la FC repos uniquement si les données WHOOP sont d'aujourd'hui
-          // (évite de polluer fc_repos avec les valeurs de la veille au démarrage)
-          const today = new Date().toISOString().slice(0, 10);
-          const recovDate = wd.recoveries && wd.recoveries[0] && wd.recoveries[0].date
-            ? wd.recoveries[0].date.slice(0, 10) : null;
-          const rhrValue = data.rhr || data.rhr_proxy;
-          if (rhrValue && recovDate === today) {
-            _autoFillFcRepos(rhrValue);
-          }
-        }
-      });
-    }
+    // Mettre à jour l'état local depuis Firebase (whoop_data + fc_repos_today)
+    _pullWhoopStateFromFirebase();
 
     if (status) { status.textContent = 'Sync à l\'instant'; status.style.color = '#22c55e'; }
 
