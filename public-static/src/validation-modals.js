@@ -548,15 +548,10 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     const newDuration = newWd && newWd.sleeps && newWd.sleeps[0] ? newWd.sleeps[0].duration_hours : null;
     const newDate = newWd && newWd.recoveries && newWd.recoveries[0] ? newWd.recoveries[0].date : null;
 
-    // Triple vérification : date aujourd'hui ET (score OU durée a changé par rapport au snapshot précédent)
-    // Note : score ou durée identiques 2 jours de suite est possible — on ne bloque pas sur les 2 à la fois
+    // Si la date des données WHOOP est aujourd'hui → données fraîches, on s'arrête
     const dateOk = newDate === today;
-    const scoreChanged = newScore !== null && newScore !== prevScore;
-    const durationChanged = newDuration !== null && newDuration !== prevDuration;
-    // Données fraîches si date = aujourd'hui + au moins un indicateur a changé (ou pas de données prev)
-    const noPrev = prevScore === null && prevDuration === null;
 
-    if (dateOk && (noPrev || scoreChanged || durationChanged)) {
+    if (dateOk) {
       whoopFresh = true;
       break;
     }
@@ -585,24 +580,10 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     _removeBriefToast();
   }
 
-  // Déclencher le brief matin
+  // Déclencher le brief matin — toujours, que le Coach soit ouvert ou non
   if (typeof checkMorningBrief === 'function') {
-    const coachOpen = document.getElementById('sc-coach') && document.getElementById('sc-coach').style.display !== 'none';
-    if (coachOpen) {
-      const memos = typeof _coachMemos !== 'undefined' ? _coachMemos : [];
-      checkMorningBrief(memos, true);
-    } else {
-      // Coach fermé : effacer le flag push_sent pour que checkMorningBrief génère le brief à la prochaine ouverture
-      if (dbRef) {
-        try {
-          const briefKey = '_brief_matin_' + today;
-          const snap = await dbRef.child(briefKey).once('value');
-          if (snap.val() === 'push_sent') {
-            await dbRef.child(briefKey).remove();
-          }
-        } catch(e) {}
-      }
-    }
+    const memos = typeof _coachMemos !== 'undefined' ? _coachMemos : [];
+    checkMorningBrief(memos, true);
   }
   if(document.getElementById('sc-stats') && document.getElementById('sc-stats').style.display!=='none') renderStats();
   _briefWaitRunning = false;
