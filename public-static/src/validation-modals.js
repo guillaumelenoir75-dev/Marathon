@@ -548,8 +548,12 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     const newDuration = newWd && newWd.sleeps && newWd.sleeps[0] ? newWd.sleeps[0].duration_hours : null;
     const newDate = newWd && newWd.recoveries && newWd.recoveries[0] ? newWd.recoveries[0].date : null;
 
-    // Si la date des données WHOOP est aujourd'hui → données fraîches, on s'arrête
-    const dateOk = newDate === today;
+    // WHOOP date ses recoveries à la date de début du cycle (souvent J-1 le matin)
+    // → on accepte aujourd'hui OU hier comme données fraîches de la nuit
+    const yesterday = new Date(today + 'T12:00:00Z');
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const dateOk = newDate === today || newDate === yesterdayStr;
 
     if (dateOk) {
       whoopFresh = true;

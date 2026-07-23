@@ -14,16 +14,25 @@ async function initWhoopStatus() {
   if (!btn || !status) return;
 
   const token = state.whoop_token;
+  const whoopDisconnected = state._whoop_disconnected;
   if (token && token.access_token) {
     const data = state.whoop_data;
     const updatedAt = data && data.updatedAt ? new Date(data.updatedAt) : null;
     const minutesAgo = updatedAt ? Math.round((Date.now() - updatedAt.getTime()) / 60000) : null;
-    status.textContent = minutesAgo !== null
-      ? `Sync il y a ${minutesAgo < 60 ? minutesAgo + ' min' : Math.round(minutesAgo/60) + 'h'}`
-      : 'Connecté';
-    status.style.color = '#22c55e';
-    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser';
-    btn.onclick = syncWhoop;
+    if (whoopDisconnected) {
+      // Le backend a détecté que le token est invalide — afficher alerte reconnexion
+      status.textContent = '⚠️ Reconnexion nécessaire';
+      status.style.color = '#f59e0b';
+      btn.innerHTML = '⚡ Reconnecter WHOOP';
+      btn.onclick = connectWhoop;
+    } else {
+      status.textContent = minutesAgo !== null
+        ? `Sync il y a ${minutesAgo < 60 ? minutesAgo + ' min' : Math.round(minutesAgo/60) + 'h'}`
+        : 'Connecté';
+      status.style.color = minutesAgo !== null && minutesAgo > 90 ? '#f59e0b' : '#22c55e';
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser';
+      btn.onclick = syncWhoop;
+    }
     if (disBtn) disBtn.style.display = 'block';
   } else {
     status.textContent = 'Non connecté';
@@ -61,6 +70,9 @@ function connectWhoop() {
             const token = snap.val();
             if (token && token.access_token) {
               Object.assign(state, { whoop_token: token });
+              // Effacer le flag de déconnexion si une reconnexion vient d'être faite
+              dbRef.child('_whoop_disconnected').remove().catch(()=>{});
+              state._whoop_disconnected = null;
               initWhoopStatus();
               syncWhoop();
             }
@@ -134,14 +146,17 @@ async function syncWhoop() {
 
     if (data.needsAuth) {
       const status = document.getElementById('whoop-status');
-      if (status) { status.textContent = 'Token expiré — reconnecte WHOOP'; status.style.color = '#f59e0b'; }
+      if (status) { status.textContent = '⚠️ Reconnexion nécessaire'; status.style.color = '#f59e0b'; }
+      // Afficher un bouton de reconnexion si on est sur l'écran Compte
+      const btn2 = document.getElementById('whoop-connect-btn');
+      if (btn2) { btn2.innerHTML = '⚡ Reconnecter WHOOP'; btn2.onclick = connectWhoop; btn2.disabled = false; }
       return;
     }
 
     if (!data.success) throw new Error(data.error || 'Erreur inconnue');
 
     // Mettre à jour l'état local depuis Firebase (whoop_data + fc_repos_today)
-    _pullWhoopStateFromFirebase();
+    await _pullWhoopStateFromFirebase();
 
     if (status) { status.textContent = 'Sync à l\'instant'; status.style.color = '#22c55e'; }
 

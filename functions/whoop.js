@@ -7,7 +7,10 @@ if (!admin.apps.length) admin.initializeApp();
 const WHOOP_CLIENT_ID = defineSecret("WHOOP_CLIENT_ID");
 const WHOOP_CLIENT_SECRET = defineSecret("WHOOP_CLIENT_SECRET");
 
-const { fetchWithTimeout } = require('./helpers');
+const { fetchWithTimeout, sendPush } = require('./helpers');
+
+const VAPID_PUBLIC_KEY = defineSecret("VAPID_PUBLIC_KEY");
+const VAPID_PRIVATE_KEY = defineSecret("VAPID_PRIVATE_KEY");
 
 const ADMIN_UID = 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1';
 const WHOOP_TOKEN_URL = 'https://api.prod.whoop.com/oauth/oauth2/token';
@@ -15,25 +18,11 @@ const WHOOP_API_BASE = 'https://api.prod.whoop.com/developer/v1';
 const WHOOP_API_V2 = 'https://api.prod.whoop.com/developer/v2'; // sleep, workout, recovery
 const CALLBACK_URL = 'https://us-central1-prepa-marathon.cloudfunctions.net/whoopCallback';
 
-async function getValidWhoopToken(db) {
-  const snap = await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value');
-  const token = snap.val();
-  if (!token) return null;
-
-  if (Date.now() / 1000 <= token.expires_at - 300) return token.access_token;
-
-  // Verrou optimiste : prolonger expires_at avant le refresh pour éviter
-  // que deux appels concurrents tentent tous les deux un refresh simultané
-  // (le second utiliserait l'ancien refresh_token déjà consommé → 400).
-  // +360s car la vérification est `expires_at - 300`, il faut donc au moins +305s
-  // pour que le second appel voie le token comme "encore valide" pendant le refresh.
-  const lockUntil = Math.floor(Date.now() / 1000) + 360;
-  await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update({ expires_at: lockUntil });
-
+async function _whoopRefreshToken(db, refreshToken) {
   const body = new URLSearchParams({
     client_id: WHOOP_CLIENT_ID.value(),
     client_secret: WHOOP_CLIENT_SECRET.value(),
-    refresh_token: token.refresh_token,
+    refresh_token: refreshToken,
     grant_type: 'refresh_token'
   }).toString();
 
@@ -43,28 +32,75 @@ async function getValidWhoopToken(db) {
     body
   }, 15000);
 
-  if (!res.ok) {
-    // Ne JAMAIS supprimer le token — une erreur 400/401 peut être due à un appel
-    // concurrent qui a déjà consommé le refresh_token (rotation WHOOP).
-    // On retourne null (sync échoue) mais le token reste intact pour la prochaine sync.
-    console.error(`WHOOP token refresh failed: ${res.status} — token conservé en base`);
-    return null;
-  }
+  if (!res.ok) return { ok: false, status: res.status };
+
   const refreshed = await res.json();
-  if (!refreshed.access_token) {
-    console.error('WHOOP refresh: no access_token in response — token conservé en base');
-    return null;
-  }
+  if (!refreshed.access_token) return { ok: false, status: 200, noToken: true };
 
   const tokenUpdate = {
     access_token: refreshed.access_token,
     expires_at: Math.floor(Date.now() / 1000) + (refreshed.expires_in || 3600),
     updatedAt: new Date().toISOString()
   };
-  // WHOOP utilise des refresh tokens rotatifs — sauvegarder le nouveau à chaque refresh
   if (refreshed.refresh_token) tokenUpdate.refresh_token = refreshed.refresh_token;
   await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update(tokenUpdate);
-  return refreshed.access_token;
+  return { ok: true, access_token: refreshed.access_token };
+}
+
+async function getValidWhoopToken(db) {
+  const snap = await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value');
+  const token = snap.val();
+  if (!token || !token.refresh_token) return null;
+
+  if (Date.now() / 1000 <= token.expires_at - 300) return token.access_token;
+
+  // Verrou optimiste : prolonger expires_at pour bloquer les appels concurrents.
+  // Un second appel concurrent verra expires_at dans le futur → retournera l'access_token actuel.
+  const lockUntil = Math.floor(Date.now() / 1000) + 360;
+  await db.ref(`users/${ADMIN_UID}/state/whoop_token`).update({ expires_at: lockUntil });
+
+  // Tentative 1 : refresh avec le refresh_token stocké
+  const result = await _whoopRefreshToken(db, token.refresh_token);
+  if (result.ok) return result.access_token;
+
+  if (result.status === 400 || result.status === 401) {
+    // Échec probable dû à une race condition : un appel concurrent a déjà consommé
+    // ce refresh_token (WHOOP rotation). Attendre 4s puis relire le token Firebase :
+    // si le concurrent a réussi, le nouveau token est maintenant en base.
+    console.warn(`WHOOP refresh attempt 1 failed (${result.status}) — retry after 4s`);
+    await new Promise(r => setTimeout(r, 4000));
+
+    const retrySnap = await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value');
+    const retryToken = retrySnap.val();
+    if (retryToken && retryToken.access_token && Date.now() / 1000 <= retryToken.expires_at - 60) {
+      // Le concurrent a réussi — utiliser son token
+      console.log('WHOOP: token récupéré depuis l\'appel concurrent');
+      return retryToken.access_token;
+    }
+
+    // Le refresh_token a changé (concurrent a eu un nouveau) — retenter avec le nouveau
+    if (retryToken && retryToken.refresh_token && retryToken.refresh_token !== token.refresh_token) {
+      console.log('WHOOP: nouveau refresh_token disponible — tentative 2');
+      const result2 = await _whoopRefreshToken(db, retryToken.refresh_token);
+      if (result2.ok) return result2.access_token;
+    }
+
+    // Token réellement mort — notifier l'admin
+    console.error('WHOOP: token définitivement invalide — alerte admin envoyée');
+    try {
+      await db.ref(`users/${ADMIN_UID}/state/_whoop_disconnected`).set(new Date().toISOString());
+      if (VAPID_PUBLIC_KEY.value && VAPID_PRIVATE_KEY.value) {
+        await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(),
+          '⚡ WHOOP déconnecté',
+          'Reconnexion nécessaire dans l\'app → Compte → WHOOP',
+          'whoop-disconnected', '/');
+      }
+    } catch(eNotif) { console.warn('WHOOP alerte push failed:', eNotif.message); }
+  } else {
+    console.error(`WHOOP token refresh failed: ${result.status}`);
+  }
+
+  return null;
 }
 
 exports.whoopAuth = onRequest(
@@ -120,10 +156,36 @@ exports.whoopCallback = onRequest(
         updatedAt: new Date().toISOString()
       });
 
-      res.send(`<html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0a0a0a;color:#fff;">
-        <h2 style="color:#22c55e;">✅ WHOOP connecté !</h2>
-        <p>Tu peux fermer cette page et retourner dans l'app.</p>
-        <script>setTimeout(() => window.close(), 2000);</script>
+      res.send(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WHOOP connecté</title><style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0a0f1e 0%,#0d1f3c 60%,#0a2a1a 100%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;}
+        .card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:40px 32px;max-width:340px;width:100%;text-align:center;backdrop-filter:blur(12px);}
+        .icon-wrap{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#22c55e);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 0 40px rgba(34,197,94,0.4);animation:pop .5s cubic-bezier(.175,.885,.32,1.275) both;}
+        @keyframes pop{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+        .checkmark{width:38px;height:38px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:60;animation:draw .4s .3s ease forwards;}
+        @keyframes draw{to{stroke-dashoffset:0;}}
+        h1{color:#fff;font-size:22px;font-weight:800;letter-spacing:-0.3px;margin-bottom:8px;}
+        p{color:rgba(255,255,255,0.6);font-size:14px;line-height:1.5;margin-bottom:28px;}
+        .badge{display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:100px;padding:8px 16px;margin-bottom:28px;}
+        .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 1.5s ease-in-out infinite;}
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.75);}}
+        .badge span{color:#22c55e;font-size:13px;font-weight:700;}
+        .close-bar{height:4px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-top:4px;}
+        .close-fill{height:100%;background:#22c55e;border-radius:4px;animation:fill 3s linear forwards;}
+        @keyframes fill{from{width:0;}to{width:100%;}}
+        .close-hint{color:rgba(255,255,255,0.3);font-size:11px;margin-top:8px;}
+      </style></head><body>
+        <div class="card">
+          <div class="icon-wrap">
+            <svg class="checkmark" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h1>WHOOP connecté !</h1>
+          <p>Tes données de récupération, sommeil et HRV sont maintenant synchronisées avec l'app.</p>
+          <div class="badge"><div class="dot"></div><span>Synchronisation active</span></div>
+          <div class="close-bar"><div class="close-fill"></div></div>
+          <p class="close-hint">Fermeture automatique dans 3 s…</p>
+        </div>
+        <script>setTimeout(()=>window.close(),3000);</script>
       </body></html>`);
     } catch(e) {
       console.error('whoopCallback error:', e.message);
@@ -295,10 +357,10 @@ exports.whoopSync = onRequest(
   }
 );
 
-// Sync automatique WHOOP toutes les 2h de 5h à 22h (Europe/Paris)
-// Garantit que les données sont fraîches même si l'app n'est pas ouverte
+// Sync automatique WHOOP toutes les heures de 5h à 22h (Europe/Paris)
+// Garantit des données fraîches et renouvelle le token proactivement
 exports.whoopAutoSync = onSchedule(
-  { schedule: '0 5,7,9,11,13,15,17,19,21 * * *', timeZone: 'Europe/Paris', timeoutSeconds: 60, secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET] },
+  { schedule: '0 5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22 * * *', timeZone: 'Europe/Paris', timeoutSeconds: 60, secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
   async () => {
     try {
       const db = admin.database();
@@ -310,6 +372,31 @@ exports.whoopAutoSync = onSchedule(
       console.log(`whoopAutoSync: sync OK — recovery ${result.latestRecovery?.score ?? 'N/A'}% RHR ${result.rhr ?? 'N/A'} bpm`);
     } catch(e) {
       console.error('whoopAutoSync error:', e.message);
+    }
+  }
+);
+
+// Keepalive token WHOOP toutes les 40 min (refresh proactif, sans fetch données)
+// Évite les déconnexions dues à l'expiration du token entre deux auto-syncs
+exports.whoopTokenKeepAlive = onSchedule(
+  { schedule: '20 * * * *', timeZone: 'Europe/Paris', timeoutSeconds: 30, secrets: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
+  async () => {
+    try {
+      const db = admin.database();
+      const snap = await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value');
+      const token = snap.val();
+      if (!token || !token.refresh_token) return; // pas de token configuré
+      // Refresh proactif si expiry dans moins de 90 min
+      if (token.expires_at && Date.now() / 1000 <= token.expires_at - 5400) return;
+      console.log('whoopTokenKeepAlive: refresh proactif du token');
+      const accessToken = await getValidWhoopToken(db);
+      if (accessToken) {
+        console.log('whoopTokenKeepAlive: token rafraîchi avec succès');
+      } else {
+        console.warn('whoopTokenKeepAlive: refresh échoué');
+      }
+    } catch(e) {
+      console.error('whoopTokenKeepAlive error:', e.message);
     }
   }
 );
