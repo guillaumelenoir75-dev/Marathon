@@ -266,6 +266,13 @@ exports.briefAfterFcRepos = onSchedule(
         console.log(`briefAfterFcRepos: WHOOP connecté mais données trop anciennes (${whoopDate||'aucune'}, attendu >= ${yesterdayStr}) — on attend (${Math.round(ageMin)} min / 10 min max)`);
         return; // conserver le trigger, réessayer au prochain tick (2 min)
       }
+      // Si WHOOP est connecté et les données sont récentes mais le score n'est pas encore calculé
+      // (WHOOP analyse le sommeil plusieurs minutes après le réveil), attendre jusqu'à 15 min
+      const whoopScoreReady=!!(whoopRecent&&whoopRecov&&whoopRecov.score!=null);
+      if(whoopConnected&&whoopRecent&&!whoopScoreReady&&ageMin<15){
+        console.log(`briefAfterFcRepos: WHOOP récent mais score non calculé (${whoopDate}) — on attend (${Math.round(ageMin)} min / 15 min max)`);
+        return; // conserver le trigger, réessayer au prochain tick (2 min)
+      }
 
       // FC repos : priorité WHOOP RHR (données récentes) > valeur manuelle du jour
       const fcWhoopRhr=(whoopRecent&&whoopRecov&&whoopRecov.rhr)?whoopRecov.rhr:null;
