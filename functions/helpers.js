@@ -529,7 +529,9 @@ async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
     const v = parseFloat(state['fc_repos_' + ds]);
     if (v && !isNaN(v)) { fcSum += v; fcCount++; if (v < fcMin) fcMin = v; if (v > fcMax) fcMax = v; }
   }
-  const fcMoyBlock = fcCount >= 3 ? `\nFC repos manuelle (${fcCount}j) : moy ${Math.round(fcSum/fcCount)} bpm, min ${fcMin}, max ${fcMax}` : '';
+  // N'afficher la FC manuelle que si WHOOP n'a pas de données RHR (évite le doublon)
+  const whoopHasRhr = wd && (wd.recoveries || []).some(r => r.rhr != null);
+  const fcMoyBlock = (!whoopHasRhr && fcCount >= 3) ? `\nFC repos manuelle (${fcCount}j) : moy ${Math.round(fcSum/fcCount)} bpm, min ${fcMin}, max ${fcMax}` : '';
 
   // ── Séances de la semaine ──────────────────────────────────────────────────
   const ctx = await buildNotifContext(state, cw);

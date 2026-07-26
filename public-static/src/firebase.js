@@ -252,8 +252,14 @@ async function openCoachFromNotif() {
   if (badge) badge.style.display = 'none';
   window._coachHasUnread = false;
   if (dbRef) dbRef.child('_coach_unread').set(false);
-  // Overlay de chargement — s'affiche immédiatement, masqué par coach-ui quand le brief est prêt
-  try { if (typeof showBriefOverlay === 'function') showBriefOverlay('morning'); } catch(e) {}
+  // Overlay de chargement — type détecté depuis le pending local pour éviter "brief matin" avant un bilan
+  try {
+    if (typeof showBriefOverlay === 'function') {
+      const _pendingLocal = state && state['_brief_pending'];
+      const _overlayType = (_pendingLocal && _pendingLocal.type === 'weekly_bilan') ? 'weekly' : 'morning';
+      showBriefOverlay(_overlayType);
+    }
+  } catch(e) {}
 
   // ── Nettoyage Firebase et refresh state (après le switch tab) ──
   // Consommer _open_coach (le chemin postMessage ne le supprime pas,
