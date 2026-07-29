@@ -49,7 +49,7 @@ Ensuite les blocs dans cet ordre :
 
 ⭐ ÉVALUATION
 [DEUX LIGNES OBLIGATOIRES, SÉPARÉES PAR UN SAUT DE LIGNE :
-Ligne 1 — score uniquement : ●●●●○ **4/5**  ← le chiffre toujours en gras
+Ligne 1 — score uniquement : ●●●●●●●●○○ **8/10**  ← le chiffre toujours en gras (échelle sur 10)
 Ligne 2 — verdict synthétique en 1 phrase courte (max 12 mots). Ex : "Exécution quasi parfaite malgré la chaleur."]
 
 ✅ BILAN DE SÉANCE
