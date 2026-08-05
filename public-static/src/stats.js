@@ -987,10 +987,10 @@ function renderRenfoExercises(){
   }
 
   // Si skip actif : afficher message et masquer le reste
-  const banner=document.getElementById('renfo-done-banner');
+  const renfoBanner=document.getElementById('renfo-done-banner');
   const renfoBtn=document.getElementById('renfo-btn');
   if(isSkipped){
-    banner.style.display='none';
+    if(renfoBanner) renfoBanner.style.display='none';
     if(renfoBtn) renfoBtn.style.display='none';
     const cancelBtn2=document.getElementById('renfo-cancel-btn');
     if(cancelBtn2) cancelBtn2.style.display='none';
