@@ -238,13 +238,14 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     });
     const kmFait = sessions.filter(s=>s.fait).reduce((a,s)=>a+s.km,0);
     const kmPlan = sessions.reduce((a,s)=>a+s.km,0);
-    const renfoFaitSemaine = [1,2].filter(r => !!state['rf'+ws+'r'+r+'done']).length;
+    const renfoSkippedSemaine = !!state['rf'+ws+'skip'];
+    const renfoFaitSemaine = renfoSkippedSemaine ? null : [1,2].filter(r => !!state['rf'+ws+'r'+r+'done']).length;
     recentSummary.push({
       semaine: ws,
       km_fait: Math.round(kmFait*10)/10,
       km_plan: Math.round(kmPlan*10)/10,
       type: [8,12,16,20,26,30].includes(ws) ? 'DÉCHARGE' : 'CHARGE',
-      renfo: renfoFaitSemaine + '/2 renfo faits',
+      renfo: renfoSkippedSemaine ? 'désactivé (semaine sans renfo)' : renfoFaitSemaine + '/2 renfo faits',
       seances: sessions.map(s=>`${s.type}${s.fait?(' '+s.km+'km'+(s.allure?' @'+s.allure:'')+(s.fc?' FC'+s.fc:'')+(s.blocsAllure?' [blocs:'+s.blocsAllure.filter(Boolean).join('/')+']':'')):' (à faire)'}`).join(' | ')
     });
   }
@@ -286,12 +287,12 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   }).join(' | ');
 
   // Renfo semaine en cours résumé
-  const renfoStatus = [
-    {r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}
-  ].map(rd=>{
-    const done = !!state[rfk(CW,rd.r)+'done'];
-    return `${rd.name}: ${done?'✓ fait':'à faire'}`;
-  }).join(' | ');
+  const renfoStatus = state['rf'+CW+'skip']
+    ? 'désactivé cette semaine (pas de renfo prévu)'
+    : [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].map(rd=>{
+        const done = !!state[rfk(CW,rd.r)+'done'];
+        return `${rd.name}: ${done?'✓ fait':'à faire'}`;
+      }).join(' | ');
 
   // Prochaine séance à faire cette semaine
   const jours = ['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];

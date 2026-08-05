@@ -553,6 +553,19 @@ function renderHome(){
   const renfoEl=document.getElementById('home-renfo');
   if(renfoEl){
     renfoEl.innerHTML='';
+    const renfoSkipKey='rf'+w+'skip';
+    // Si skip actif pour cette semaine → afficher une carte neutre
+    if(state[renfoSkipKey]){
+      const skipCard=document.createElement('div');
+      skipCard.style.cssText='border-radius:14px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);border:1px dashed #aaa;cursor:'+(isCurrent?'pointer':'default')+';';
+      if(isCurrent) skipCard.onclick=()=>showScreen('renfo');
+      skipCard.innerHTML=`<div style="width:40px;height:40px;border-radius:12px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:18px;">⏸</span></div>
+        <div style="flex:1;min-width:0;"><span style="font-size:13px;font-weight:600;color:var(--muted);">Renfo désactivé — S${w}</span>
+        <p style="font-size:11px;color:var(--muted);margin-top:2px;">Semaine sans renforcement</p></div>`;
+      renfoEl.appendChild(skipCard);
+      const renfoProgressEl=document.getElementById('renfo-progress');
+      if(renfoProgressEl){renfoProgressEl.style.color='var(--muted)';renfoProgressEl.textContent='—';}
+    } else {
     const renfoData=[1,2].map(r=>{const p=getRenfoData(r);return{name:p.name,sub:p.sub,r};});
     renfoData.forEach(rd=>{
       const done=!!state[rfk(w,rd.r)+'done'];
@@ -650,6 +663,7 @@ function renderHome(){
         });
       }
     }
+    } // fin else (renfo non skipé)
   }
 
   // ── Bannière EF auto-calculée (S1) ──────────────────────────────────────────

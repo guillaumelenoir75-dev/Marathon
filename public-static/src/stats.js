@@ -935,6 +935,25 @@ function switchRenfo(n){
   renderRenfoExercises();
 }
 
+function toggleRenfoSkip(){
+  const skipKey='rf'+CW+'skip';
+  if(state[skipKey]){
+    delete state[skipKey];
+  } else {
+    state[skipKey]=true;
+    // Effacer les progressions déjà enregistrées pour cette semaine si skip
+    [1,2].forEach(r=>{
+      const dk=rfk(CW,r);
+      const exos=getRenfoData(r).exos;
+      exos.forEach((_,i)=>delete state[dk+'e'+i+'_series']);
+      delete state[dk+'done'];
+    });
+  }
+  save();
+  renderRenfoExercises();
+  renderHome();
+}
+
 function renderRenfoExercises(){
   const prog=getRenfoData(curRenfo);
   const exos=prog.exos;
@@ -948,6 +967,41 @@ function renderRenfoExercises(){
     if(ps[1]) ps[1].textContent=prog.sub;
   });
   const el=document.getElementById('renfo-exercises');el.innerHTML='';
+
+  // Bouton skip (admin only) — affiché sous les onglets
+  let skipBtn=document.getElementById('renfo-skip-btn');
+  if(!skipBtn && isAdmin()){
+    skipBtn=document.createElement('button');
+    skipBtn.id='renfo-skip-btn';
+    skipBtn.style.cssText='width:100%;padding:10px;background:transparent;border:1px dashed #aaa;border-radius:var(--radius);font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:16px;';
+    skipBtn.onclick=toggleRenfoSkip;
+    const exArea=document.getElementById('renfo-exercises');
+    exArea.parentNode.insertBefore(skipBtn, exArea);
+  }
+  const skipKey='rf'+CW+'skip';
+  const isSkipped=!!state[skipKey];
+  if(skipBtn){
+    skipBtn.textContent=isSkipped?'↩ Réactiver le renfo S'+CW:'⏸ Pas de renfo cette semaine (S'+CW+')';
+    skipBtn.style.borderColor=isSkipped?'#1B4FD8':'#aaa';
+    skipBtn.style.color=isSkipped?'#1B4FD8':'var(--muted)';
+  }
+
+  // Si skip actif : afficher message et masquer le reste
+  const banner=document.getElementById('renfo-done-banner');
+  const renfoBtn=document.getElementById('renfo-btn');
+  if(isSkipped){
+    banner.style.display='none';
+    if(renfoBtn) renfoBtn.style.display='none';
+    const cancelBtn2=document.getElementById('renfo-cancel-btn');
+    if(cancelBtn2) cancelBtn2.style.display='none';
+    el.innerHTML=`<div style="text-align:center;padding:32px 16px;color:var(--muted);">
+      <div style="font-size:28px;margin-bottom:10px;">⏸</div>
+      <p style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Renfo désactivé — S${CW}</p>
+      <p style="font-size:12px;">Profite de tes vacances, la reprise sera pour la semaine prochaine !</p>
+    </div>`;
+    return;
+  }
+  if(renfoBtn) renfoBtn.style.display='';
   const dk=rfk(CW,curRenfo),isDone=!!state[dk+'done'];
   const banner=document.getElementById('renfo-done-banner');
   banner.style.display=isDone?'flex':'none';
