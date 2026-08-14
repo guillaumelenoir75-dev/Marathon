@@ -270,9 +270,13 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     const hrvScore = Math.max(0, Math.min(100, Math.round((r0.hrv - 40) / 50 * 100)));
     globalScoreComponents.push(hrvScore);
   }
-  const globalScore = globalScoreComponents.length
+  let globalScore = globalScoreComponents.length
     ? Math.round(globalScoreComponents.reduce((a,b)=>a+b,0)/globalScoreComponents.length)
     : null;
+  // Si le score WHOOP du jour est rouge, le score global ne peut pas dépasser le rouge
+  if (whoopToday && r0?.score != null && r0.score < 34 && globalScore !== null && globalScore >= 34) {
+    globalScore = Math.min(globalScore, 33);
+  }
   const globalScoreEmoji = globalScore===null?'':globalScore>=67?'🟢':globalScore>=34?'🟡':'🔴';
   const globalScoreLabel = globalScore===null?''
     : globalScore>=67?'Bonne forme':globalScore>=34?'Forme moyenne':'Récupération insuffisante';

@@ -139,6 +139,7 @@ exports.sessionReminder = onSchedule(
           const rk=`_rappel_renfo_sent_w${cw}_r${ri}`;
           if(state[rk]===ts)continue;
           const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
+          const skip=!!state[`rf${cw}skip`];if(skip)continue;
           console.log(`sessionReminder: renfo R${ri} planifié ${sched.time} J${sched.day} → push envoyé`);
           await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Renfo dans 1h',`💪 ${renfoNames[ri]} à ${sched.time}. Prépare-toi !`,'session-reminder','/');
           await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
@@ -590,6 +591,7 @@ exports.unvalidatedSessionReminder = onSchedule(
         const renfoNames={1:_rAllNames[parseInt(state.renfo_prog1)||1]||'Ischio-fessiers',2:_rAllNames[parseInt(state.renfo_prog2)||2]||'Bas du dos'};
         for(let ri=1;ri<=2;ri++){
           const done=!!state[`rf${cw}r${ri}done`];if(done)continue;
+          const skip=!!state[`rf${cw}skip`];if(skip)continue;
           const schedRaw=state[`rf${cw}r${ri}sched`];if(!schedRaw)continue;
           let sched;try{sched=JSON.parse(schedRaw);}catch(e){continue;}
           if(!sched.day||Number(sched.day)!==dayOfWeek)continue;
