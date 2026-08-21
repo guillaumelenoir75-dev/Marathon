@@ -1025,6 +1025,7 @@ function renderPlan(){
     const isCur=w.s===CW, isPast=w.s<CW, isOpen=openWeeks.has(w.s);
     const isDecharge=[8,12,16,20].includes(w.s);
     const isAffutageAdmin=[30,31].includes(w.s);
+    const isPicAdmin=w.s===29;
     const isSemi=w.s===28, isMarathon=w.s===32;
 
     // Calcul avancement semaine courante
@@ -1079,6 +1080,7 @@ function renderPlan(){
     if(isCur) badges.push(`<span class="plan-badge" style="background:#1B4FD8;color:#fff;font-weight:800;">En cours</span>`);
     if(isDecharge) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
     if(isAffutageAdmin) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">Affûtage</span>`);
+    if(isPicAdmin) badges.push(`<span class="plan-badge" style="background:#FEF9E7;color:#B7791F;">Pic 🔥</span>`);
     if(isSemi) badges.push(`<span class="plan-badge" style="background:#EEF2FF;color:#3730A3;">Semi</span>`);
     if(isMarathon) badges.push(`<span class="plan-badge" style="background:#EEEDFE;color:#3C3489;">🏆 Marathon</span>`);
 
