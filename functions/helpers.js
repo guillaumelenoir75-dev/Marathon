@@ -165,7 +165,7 @@ function getCurrentWeek() {
 async function buildNotifContext(state, cw) {
   const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const joursLong=['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
-  const typesSemaine=['','','','','','','','','décharge','','','','décharge','','','','décharge','','','','décharge','','','','','','décharge','','','','décharge','',''];
+  const typesSemaine=['','','','','','','','','décharge','','','','décharge','','','','décharge','','','','décharge','','','','','','','','','','décharge','',''];
   const now=new Date();
   const dayOfWeek=now.getDay()===0?7:now.getDay();
   const todayStr=now.toISOString().slice(0,10);
