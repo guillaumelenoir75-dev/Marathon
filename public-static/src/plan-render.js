@@ -1023,7 +1023,8 @@ function renderPlan(){
   weeks.forEach(w=>{
     try {
     const isCur=w.s===CW, isPast=w.s<CW, isOpen=openWeeks.has(w.s);
-    const isDecharge=[8,12,16,20,26,30].includes(w.s);
+    const isDecharge=[8,12,16,20].includes(w.s);
+    const isAffutageAdmin=[30,31].includes(w.s);
     const isSemi=w.s===28, isMarathon=w.s===32;
 
     // Calcul avancement semaine courante
@@ -1077,6 +1078,7 @@ function renderPlan(){
     const badges = [];
     if(isCur) badges.push(`<span class="plan-badge" style="background:#1B4FD8;color:#fff;font-weight:800;">En cours</span>`);
     if(isDecharge) badges.push(`<span class="plan-badge" style="background:#FEF3EE;color:#E8530A;">Décharge</span>`);
+    if(isAffutageAdmin) badges.push(`<span class="plan-badge" style="background:#EDF7EF;color:#2F6E44;">Affûtage</span>`);
     if(isSemi) badges.push(`<span class="plan-badge" style="background:#E1F5EE;color:#085041;">Semi</span>`);
     if(isMarathon) badges.push(`<span class="plan-badge" style="background:#EEEDFE;color:#3C3489;">🏆 Marathon</span>`);
 
@@ -1220,7 +1222,7 @@ function renderPlan(){
     const _hStyleA=isCur?'background:linear-gradient(135deg,#0C2D6A 0%,#1048C0 100%);':phaseColA?`background:${phaseColA.hdr};`:'';
     const _dateCa=isCur?'rgba(255,255,255,0.9)':'var(--text)';
     const _topBarA='';
-    const _spineColorA=isCur?'#1B4FD8':isDecharge?'#EA580C':phaseColA?phaseColA.accent:isPast?'#CBD5E1':'#E2E8F0';
+    const _spineColorA=isCur?'#1B4FD8':isDecharge?'#EA580C':isAffutageAdmin?'#16A34A':phaseColA?phaseColA.accent:isPast?'#CBD5E1':'#E2E8F0';
     card.style.cssText=`border-left:4px solid ${_spineColorA};`;
     const _typeAbbrA={ef:'EF',tempo:'T',frac:'F',long:'L',race:'🏆'};
     const _adminDotsHtml=allSessions.length>0?`<div style="display:flex;gap:3px;align-items:center;margin-top:5px;flex-wrap:nowrap;overflow:hidden;">${allSessions.map(({s:ss,ei:xe_i})=>{const isDoneA=!!state[`extra_w${w.s}_s${xe_i}_done`];const isSkipA=!!state[`extra_w${w.s}_s${xe_i}_skip`];const tc=typeColor[ss.type]||'#888';const tbg=typeBg[ss.type]||'#f5f5f5';const abbr=_typeAbbrA[ss.type]||'?';const bg=isDoneA?'#D4EDBC':isSkipA?'#FDECEA':isCur?'rgba(255,255,255,0.2)':tbg;const color=isDoneA?'#2E6B10':isSkipA?'#C0392B':isCur?'rgba(255,255,255,0.9)':tc;return `<span style="font-size:8px;font-weight:800;padding:2px 5px;border-radius:5px;background:${bg};color:${color};letter-spacing:0.03em;">${isDoneA?'✓ ':isSkipA?'✕ ':''}${abbr}</span>`;}).join('')}</div>`:'';
