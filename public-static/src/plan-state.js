@@ -244,6 +244,8 @@ const EF_AM_TABLE=[
 ];
 
 function getBestEfPace(){
+  // EF saisie manuellement (non auto-calculée) : priorité absolue sur les sessions
+  if(state.ef_pace && state.ef_pace_auto !== 'true') return state.ef_pace;
   const paces=[]; // valeurs EF valides, ordre chronologique (secondes/km)
   // Seed : EF déclarée à l'onboarding
   if(state.ef_pace){

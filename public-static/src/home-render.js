@@ -1337,6 +1337,7 @@ function saveEditEF(){
   }
   const formatted = mins + "'" + String(secs).padStart(2,'0');
   state.ef_pace = formatted;
+  state.ef_pace_auto = null; // EF saisie manuellement → ne plus utiliser le calcul automatique
   save();
   closeEditEFModal();
   rendered.home = false;
