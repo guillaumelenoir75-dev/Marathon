@@ -137,16 +137,23 @@ function updateLongDuration(){
   if(!blocks||blocks.length===0){durEl.textContent='—';return;}
   const efField=document.getElementById('long-ef-pace');
   const efPaceRaw=(efField&&efField.value.trim())||getBestEfPace()||"6'40";
-  const parsePaceStr=p=>{const m=(p||'').replace("'",'!').replace(':','!').match(/(\d+)!(\d+)/);return m?parseInt(m[1])+parseInt(m[2])/60:null;};
-  const efPace=parsePaceStr(efPaceRaw);
+  const parsePaceStr=p=>{const norm=(p||'').replace(/[''′`]/g,'!').replace(':','!');const m=norm.match(/(\d+)!(\d+)/);return m?parseInt(m[1])+parseInt(m[2])/60:null;};
+  const efPace=parsePaceStr(efPaceRaw)||5.583;
   const {pace:racePaceRaw}=getRaceBlockInfo();
-  const racePace=parsePaceStr(racePaceRaw)||parsePaceStr(getAmTrainingPace());
-  if(!efPace||!racePace){durEl.textContent='—';return;}
+  const racePace=parsePaceStr(racePaceRaw)||parsePaceStr(getAmTrainingPace())||parsePaceStr("5'40")||5.667;
   let totalMin=0;
+  const totalKm=blocks.reduce((a,b)=>a+b.km,0);
   blocks.forEach(b=>totalMin+=(b.type!=='EF'?racePace:efPace)*b.km);
   const tsL=Math.round(totalMin*60),h=Math.floor(tsL/3600),m=Math.floor((tsL%3600)/60),sL=tsL%60;
   const baseL=h>0?h+'h'+String(m).padStart(2,'0')+"'":m+"'";
   durEl.textContent=baseL+(sL>0?String(sL).padStart(2,'0')+'"':'');
+  // Allure globale estimée
+  const globalEl=document.getElementById('long-global-pace-val');
+  if(globalEl&&totalKm>0){
+    const avgSec=tsL/totalKm;
+    const gm=Math.floor(avgSec/60),gs=Math.round(avgSec%60);
+    globalEl.textContent=gm+"'"+String(gs).padStart(2,'0')+"/km";
+  }
   // Synchroniser le header modal
   const hdrEl=document.querySelector('.modal-box p[style*="color:var(--blue)"][style*="font-weight:600"]');
   if(hdrEl&&hdrEl.textContent.includes('estimées')){
@@ -219,12 +226,14 @@ function stepLongBlockKm(i, delta){
   const kmEl=document.getElementById('lb-km-'+i);
   if(kmEl) kmEl.textContent=blocks[i].km;
   updateLongBlocksTotal(blocks);
+  updateLongDuration();
 }
 function toggleLongBlockType(i){
   const blocks=getLongBlocksData();
   const {label:raceLabel}=getRaceBlockInfo();
   blocks[i].type=blocks[i].type==='EF'?raceLabel:'EF';
   setLongBlocksData(blocks);
+  updateLongDuration();
 }
 function updateLongBlockKm(i,val){
   const blocks=getLongBlocksData();
@@ -237,11 +246,13 @@ function addLongBlock(){
   const blocks=getLongBlocksData();
   blocks.push({km:2,type:'EF'});
   setLongBlocksData(blocks);
+  updateLongDuration();
 }
 function removeLongBlock(i){
   const blocks=getLongBlocksData();
   blocks.splice(i,1);
   setLongBlocksData(blocks);
+  updateLongDuration();
 }
 function buildLongDetail(blocks){
   const {label:raceLabel,pace:racePace}=getRaceBlockInfo();

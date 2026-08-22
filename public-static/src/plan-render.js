@@ -399,6 +399,8 @@ function buildLongModalHtml(detail, totalKm){
     +'<div style="background:#F0FDF4;border-radius:8px;padding:9px 12px;" id="long-duration-box">'
     +'<p style="font-size:10px;color:#3B6D11;margin-bottom:3px;">Durée estimée</p>'
     +'<p style="font-size:15px;font-weight:700;color:#3B6D11;" id="long-duration-val">—</p>'
+    +'<p style="font-size:10px;color:#3B6D11;margin-top:6px;margin-bottom:2px;">Allure globale</p>'
+    +'<p style="font-size:13px;font-weight:700;color:#3B6D11;" id="long-global-pace-val">—</p>'
     +'</div>'
     +'</div>'
     +'</div>'
