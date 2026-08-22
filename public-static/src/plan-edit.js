@@ -188,6 +188,7 @@ function renderLongBlocks(){
       <button onclick="removeLongBlock(${i})" style="background:none;border:none;cursor:pointer;color:#E24B4A;font-size:20px;padding:0 4px;flex-shrink:0;">×</button>
     </div>`;}).join('');
   updateLongBlocksTotal(blocks);
+  updateLongDuration();
 }
 
 function updateLongBlocksTotal(blocks){
