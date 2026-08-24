@@ -81,6 +81,14 @@ exports.calendar = onRequest(async (req, res) => {
   // Ancien format (weeks hardcodé) avec overrides edit_w
   // Ignorer les edit_w qui correspondent à des sessions extra_w du MÊME jour (overrides)
   // Si extra_w existe mais est un jour différent (ajout manuel avec index collison), traiter edit_w quand même
+  // Précalculer les types déjà couverts par extra_w, par semaine
+  const extraTypesByWeek = {};
+  Object.keys(state).forEach(k => {
+    const em = k.match(/^extra_w(\d+)_s(\d+)$/);
+    if (!em) return;
+    try { const s = JSON.parse(state[k]); if (s && s.type) { const wk = em[1]; (extraTypesByWeek[wk] = extraTypesByWeek[wk] || new Set()).add(s.type); } } catch(e) {}
+  });
+
   Object.keys(state).forEach(key => {
     const match = key.match(/^edit_w(\d+)_s(\d+)$/);
     if (!match) return;
@@ -91,6 +99,8 @@ exports.calendar = onRequest(async (req, res) => {
     try {
       const session = JSON.parse(state[key]);
       if (!session.sched_day || !session.sched_time) return;
+      // Si un extra_w de la même semaine a déjà ce type, ne pas générer de doublon
+      if (extraTypesByWeek[match[1]] && extraTypesByWeek[match[1]].has(session.type)) return;
       const ws = parseInt(match[1]);
       const [h, m] = session.sched_time.split(":").map(Number);
       const weekStart = getWeekStartDate(ws);
