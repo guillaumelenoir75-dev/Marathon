@@ -322,7 +322,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   const kmNext = CW < 32 ? weeks[CW].km : kmCW;
   const hasLegere = weeks[CW-1].sessions.some(s => s.d.toLowerCase().includes('légère') || s.d.toLowerCase().includes('legere'));
   const ratioDecharge = kmCW / Math.max(kmPrev, kmNext);
-  const isDecharge = [8,12,16,20,26,30].includes(CW);
+  const isDecharge = [8,12,16,20].includes(CW);
   const efActuelle = getBestEfPace() || "6'00";
   // La consigne EF = allure EF actuelle validée (pas de fourchette inventée)
   const efParts = efActuelle.split("'");
