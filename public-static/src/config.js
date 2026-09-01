@@ -145,7 +145,9 @@ const weeks=[
   {s:32,km:51,date:'12/10',month:'Octobre',sessions:[{d:"Séance EF",km:5,type:"ef",shoe:P},{d:"Séance EF légère",km:4,type:"ef",shoe:Z},{d:"MARATHON",km:42,type:"race",shoe:Z}]},
 ];
 
+const renfoTibial={nom:"Tibial Postérieur — Ballon",desc:"Assis ou allongé, ballon entre les bords internes des pieds (voûte plantaire). Comprimer fort 1 min 20 sec en imaginant écraser le ballon, relâcher 40 sec. Talons au sol, chevilles neutres. Répéter sur ~8 min. Fréquence recommandée : 3×/semaine.",series:"5 cycles × 1min20s"};
 const renfo1=[
+  renfoTibial,
   {nom:"Pont fessier",desc:"Genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"3 séries × 10 rép."},
   {nom:"Pont fessier unipodal",desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Battements latéraux",desc:"Allongé sur le côté, jambe du dessus tendue — battements avec élastique à la cheville.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
@@ -154,6 +156,7 @@ const renfo1=[
   {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
 ];
 const renfo2=[
+  renfoTibial,
   {nom:"Battements latéraux",desc:"Allongé sur le côté, jambe du dessus tendue — battements avec élastique à la cheville.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Bird dog",desc:"À 4 pattes, tendez simultanément la jambe droite et le bras gauche, maintenez 2 sec puis alternez. Gardez le dos plat et les abdos gainés.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Relevé de jambes",desc:"Allongé sur le dos, jambes tendues — montez-les lentement à 90° puis redescendez doucement.",series:"3 séries × 10 rép."},
@@ -161,6 +164,7 @@ const renfo2=[
   {nom:"Superman",desc:"Allongé sur le ventre, bras tendus devant toi — soulevez simultanément les bras et les jambes en creusant légèrement le bas du dos, maintenez 2 sec puis redescendez lentement.",series:"3 séries × 10 rép."},
 ];
 const renfo3=[
+  renfoTibial,
   {nom:"Planche frontale",desc:"Abdos gainés, dos plat, bras à 90° — maintenez la position sans laisser le bassin tomber.",series:"3 séries × 45 sec"},
   {nom:"Planche latérale",desc:"Corps aligné de la tête aux pieds, hanche haute, regard vers l'avant.",series:"3 séries × 30 sec (chaque côté)"},
   {nom:"Dead bug",desc:"Allongé sur le dos, tendez alternativement le bras droit et la jambe gauche sans cambrer le bas du dos.",series:"3 séries × 10 rép. (chaque côté)"},
@@ -168,6 +172,7 @@ const renfo3=[
   {nom:"Mountain climber",desc:"Position pompe, amenez alternativement les genoux vers la poitrine rapidement en maintenant le dos plat.",series:"3 séries × 20 rép."},
 ];
 const renfo4=[
+  renfoTibial,
   {nom:"Montées sur pointe de pieds",desc:"Debout, montez lentement sur la pointe des pieds, maintenez 1 sec en haut puis redescendez lentement.",series:"4 séries × 20 rép."},
   {nom:"Montées excentriques",desc:"Sur une marche, montez à deux pieds puis descendez lentement sur un seul pied — contrôlez l'amortissement.",series:"3 séries × 12 rép. (chaque jambe)"},
   {nom:"Cercles de cheville",desc:"Assis, jambe tendue — tournez lentement la cheville dans les deux sens avec une amplitude maximale.",series:"2 séries × 15 rép. (chaque sens, chaque cheville)"},
@@ -175,6 +180,7 @@ const renfo4=[
   {nom:"Saut unipodal stabilisé",desc:"Sautez légèrement sur un pied et atterrissez en contrôlant l'amortissement — maintenez 2 sec en équilibre.",series:"3 séries × 10 rép. (chaque pied)"},
 ];
 const renfo5=[
+  renfoTibial,
   {nom:"Pompes",desc:"Corps aligné, coudes à 45° — descendez lentement (3 sec) et remontez de façon explosive.",series:"3 séries × 10 rép."},
   {nom:"Extension dorsale alternée",desc:"Allongé sur le ventre, levez alternativement le bras droit et la jambe gauche, maintenez 2 sec — dos plat.",series:"3 séries × 12 rép. (chaque côté)"},
   {nom:"Tirage élastique",desc:"Élastique fixé devant vous à hauteur de poitrine — tirez vers vous en serrant les omoplates et en gardant les coudes près du corps.",series:"3 séries × 15 rép."},
@@ -183,11 +189,11 @@ const renfo5=[
 ];
 // Map globale des programmes de renforcement
 const RENFO_PROGRAMS={
-  1:{name:'Genoux & Hanches',   sub:'6 ex.',emoji:'🦵',exos:renfo1},
-  2:{name:'Gainage & Dos',      sub:'5 ex.',emoji:'🔒',exos:renfo2},
-  3:{name:'Abdos & Gainage',    sub:'5 ex.',emoji:'💪',exos:renfo3},
-  4:{name:'Mollets & Chevilles',sub:'5 ex.',emoji:'⚡',exos:renfo4},
-  5:{name:'Bras & Posture',     sub:'5 ex.',emoji:'🏋️',exos:renfo5},
+  1:{name:'Genoux & Hanches',   sub:'7 ex.',emoji:'🦵',exos:renfo1},
+  2:{name:'Gainage & Dos',      sub:'6 ex.',emoji:'🔒',exos:renfo2},
+  3:{name:'Abdos & Gainage',    sub:'6 ex.',emoji:'💪',exos:renfo3},
+  4:{name:'Mollets & Chevilles',sub:'6 ex.',emoji:'⚡',exos:renfo4},
+  5:{name:'Bras & Posture',     sub:'6 ex.',emoji:'🏋️',exos:renfo5},
 };
 // Retourne les données du programme sélectionné pour le slot r (1 ou 2)
 function getRenfoData(r){
