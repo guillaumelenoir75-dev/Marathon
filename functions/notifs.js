@@ -359,7 +359,7 @@ exports.briefAfterFcRepos = onSchedule(
       }
       efPace=efPace||"6'40";
 
-      const isDecharge=[8,12,16,20,26,30].includes(cw);
+      const isDecharge=[8,12,16,20].includes(cw);
       const consignesEf=isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
       const memos=state['_coach_memos']||'';
       const seancesStr=ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'Récupération';

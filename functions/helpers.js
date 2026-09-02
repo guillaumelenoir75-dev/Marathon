@@ -543,7 +543,7 @@ async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
   const seancesManquees = ctx.seancesRestantes || [];
   const kmSemaine = ctx.kmSemaine || 0;
   const renfo = [1, 2].filter(r => !!state[`rf${cw}r${r}done`]).length;
-  const typeSem = ctx.typeSem || ([8,12,16,20,26,30].includes(cw) ? 'DÉCHARGE' : 'CHARGE');
+  const typeSem = ctx.typeSem || ([8,12,16,20].includes(cw) ? 'DÉCHARGE' : 'CHARGE');
   const memos = state['_coach_memos'] || '';
 
   // Score semaine global (séances + récup)
