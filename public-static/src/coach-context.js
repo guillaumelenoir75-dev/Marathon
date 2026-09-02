@@ -244,7 +244,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       semaine: ws,
       km_fait: Math.round(kmFait*10)/10,
       km_plan: Math.round(kmPlan*10)/10,
-      type: [8,12,16,20,26,30].includes(ws) ? 'DÉCHARGE' : 'CHARGE',
+      type: [8,12,16,20].includes(ws) ? 'DÉCHARGE' : 'CHARGE',
       renfo: renfoSkippedSemaine ? 'désactivé (semaine sans renfo)' : renfoFaitSemaine + '/2 renfo faits',
       seances: sessions.map(s=>`${s.type}${s.fait?(' '+s.km+'km'+(s.allure?' @'+s.allure:'')+(s.fc?' FC'+s.fc:'')+(s.blocsAllure?' [blocs:'+s.blocsAllure.filter(Boolean).join('/')+']':'')):' (à faire)'}`).join(' | ')
     });
@@ -637,7 +637,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const _fait=_dow>1||(_dow===1&&_h>=12.5);
       return {fait:_fait,statut:_fait?'FAIT (lundi 12h30)':'À VENIR (lundi 12h30)',jour:'lundi',note:'Horaire normal lundi 12h30.'};
     })(),
-    semaine_suivante: CW < 32 ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:[8,12,16,20,26,30].includes(CW+1)?'DÉCHARGE':'CHARGE'} : null,
+    semaine_suivante: CW < 32 ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:[8,12,16,20].includes(CW+1)?'DÉCHARGE':'CHARGE'} : null,
     seances_recentes_detail: (()=>{
       const det=[];
       for(let ws=CW;ws>=Math.max(1,CW-8);ws--){

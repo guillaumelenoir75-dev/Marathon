@@ -15,7 +15,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           semaineActuelle: CW, totalSemaines: 32,
           allureMarathon: getMarathonPaceStr(),
           semaines_restantes: 32-CW,
-          type_semaine: [8,12,16,20,26,30].includes(CW) ? 'DÉCHARGE' : 'NORMALE',
+          type_semaine: [8,12,16,20].includes(CW) ? 'DÉCHARGE' : 'NORMALE',
           fc_repos: state['fc_repos'] || 51,
           fc_repos_context: buildFcReposContext(),
           date_reelle: (()=>{

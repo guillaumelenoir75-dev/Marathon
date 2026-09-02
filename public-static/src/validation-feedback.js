@@ -731,7 +731,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     getOrderedWeekSessions(CW).forEach(({ei})=>{ if(state[`extra_w${CW}_s${ei}_done`]) n++; });
     return n;
   })();
-  analysisContext.position_semaine = _nbSeancesDoneThisWeek+'ème séance de la semaine S'+CW+' ('+(([8,12,16,20,26,30].includes(CW)?'semaine de DÉCHARGE':'semaine NORMALE'))+')';
+  analysisContext.position_semaine = _nbSeancesDoneThisWeek+'ème séance de la semaine S'+CW+' ('+(([8,12,16,20].includes(CW)?'semaine de DÉCHARGE':'semaine NORMALE'))+')';
 
   const seancesAVenir = [];
   // Séances restantes semaine courante
