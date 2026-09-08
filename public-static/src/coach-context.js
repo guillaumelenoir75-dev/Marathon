@@ -335,7 +335,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   return {
     semaine_actuelle: CW,
     date_marathon: '18 octobre 2026',
-    semi_marathon: CW >= 24 ? {date:'07/09/2026', semaine:27, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 27-CW} : undefined,
+    semi_marathon: CW >= 24 ? {date:'14/09/2026', semaine:28, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 28-CW} : undefined,
     semaines_restantes: 32-CW,
     infos_importantes_Guillaume: coachMemos||undefined,
     type_semaine: isDecharge
@@ -629,7 +629,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     })(),
     logique_allure_marathon: "EF<148bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
     chaussures_plan_verite: `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
-    contexte_semaines_speciales: {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S27:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'},
+    contexte_semaines_speciales: {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'},
     note: "Pour avoir plus de détails, précise ta question.",
     bodyhit_semaine: (()=>{
       const _now=new Date(); const _dow=_now.getDay()===0?7:_now.getDay();
