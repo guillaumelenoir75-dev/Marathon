@@ -565,6 +565,64 @@ function renderHome(){
       renfoEl.appendChild(skipCard);
       const renfoProgressEl=document.getElementById('renfo-progress');
       if(renfoProgressEl){renfoProgressEl.style.color='var(--muted)';renfoProgressEl.textContent='—';}
+    } else if(isAdmin()&&w>=30&&w<=32){
+    // ── Mode Affûtage (S30-S32) ─────────────────────────────────────────────
+    const affData=[
+      {slot:'a1',name:'Échauffement',sub:'Avant chaque sortie · 5 exos',exos:renfoEchauffement,emoji:'🔥'},
+      {slot:'a2',name:'Séance unique',sub:'1 fois / semaine · 7 exos',exos:renfoAffutageUnique,emoji:'⚡'},
+    ];
+    affData.forEach(rd=>{
+      const done=!!state[rfk(w,rd.slot)+'done'];
+      const exos=rd.exos;
+      const totalSeries=exos.length;
+      const doneSeries=exos.filter((_,i)=>(state[rfk(w,rd.slot)+'e'+i+'_series']||0)>=getNbSeries(exos[i].series)).length;
+      const pct=Math.min(100,Math.round(doneSeries/totalSeries*100));
+      const card=document.createElement('div');
+      const accentColor=done?'#3B6D11':'#FF6B35';
+      card.style.cssText='border-radius:14px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;'
+        +(isCurrent?'cursor:pointer;':'cursor:default;')
+        +(done?'border:1px solid #3B6D1130;background:linear-gradient(90deg,#EAF3DE50,var(--bg));box-shadow:inset 3px 0 0 #3B6D11;'
+        :'border:1px solid #FF6B3530;box-shadow:inset 3px 0 0 #FF6B35;');
+      if(isCurrent) card.onclick=()=>showScreen('renfo',rd.slot==='a1'?1:2);
+      card.innerHTML=`
+      <div style="width:40px;height:40px;border-radius:12px;background:${done?'#EAF3DE':'#FFF4EF'};border:1.5px solid ${done?'#3B6D1125':'#FF6B3525'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        ${done
+          ?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+          :`<span style="font-size:18px;line-height:1;">${rd.emoji}</span>`
+        }
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-size:13px;font-weight:600;color:${done?'#3B6D11':'#1a2e4a'};">${rd.name}</span>
+          ${done?'<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>':''}
+        </div>
+        <p style="font-size:11px;color:#6B8DB5;font-weight:500;margin-top:1px;">${rd.sub}</p>
+        ${!done&&doneSeries>0?`<div style="background:var(--bg2);border-radius:3px;height:3px;margin-top:5px;"><div style="background:#FF6B35;border-radius:3px;height:3px;width:${pct}%;"></div></div>`:''}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        ${done
+          ?`<div style="width:32px;height:32px;border-radius:50%;background:#3B6D11;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>`
+          :isCurrent
+          ?`<button onclick="event.stopPropagation();showScreen('renfo',${rd.slot==='a1'?1:2})" style="background:rgba(255,107,53,0.10);color:#FF6B35;border:1.5px solid rgba(255,107,53,0.3);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+              ${doneSeries>0?`${pct}% →`:'Commencer →'}
+            </button>`
+          :''
+        }
+      </div>`;
+      renfoEl.appendChild(card);
+    });
+    // Compteur affûtage
+    const renfoProgressEl=document.getElementById('renfo-progress');
+    if(renfoProgressEl){
+      const doneCount=affData.filter(rd=>!!state[rfk(w,rd.slot)+'done']).length;
+      const color=doneCount===2?'#3B6D11':doneCount>0?'#FF6B35':'var(--muted)';
+      renfoProgressEl.style.color=color;
+      renfoProgressEl.textContent=`${doneCount}/2`;
+    }
+    const renfoNextSection=document.getElementById('renfo-next-label');
+    if(renfoNextSection) renfoNextSection.closest('div').style.display='none';
     } else {
     const renfoData=[1,2].map(r=>{const p=getRenfoData(r);return{name:p.name,sub:p.sub,r};});
     renfoData.forEach(rd=>{
