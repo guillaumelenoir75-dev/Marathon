@@ -1051,7 +1051,7 @@ function renderRenfoExercises(){
   const doneLabel=affutageMode?(curRenfo===1?'Échauffement':'Séance unique'):(getRenfoData(curRenfo).name);
   if(isDone)document.getElementById('renfo-done-text').textContent=`${doneLabel} validé — S${CW}`;
   const btn=document.getElementById('renfo-btn');
-  btn.textContent=isDone?`${prog.name} déjà validé ✓`:`Valider — ${prog.name}`;
+  btn.textContent=isDone?'Séance déjà validée':'Valider la séance';
   btn.style.background=isDone?'#639922':'#1B4FD8';
   let cancelBtn=document.getElementById('renfo-cancel-btn');
   if(!cancelBtn){
