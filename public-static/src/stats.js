@@ -737,6 +737,61 @@ function switchWhoopChart(mode) { switchUnifiedChart(mode === 'hrv' ? 'hrv' : mo
 function switchFcReposChart(type) { switchUnifiedChart(type === 'vfc' ? 'hrv' : 'fc'); }
 
 let curRenfo=1;
+let affutageMode=false;
+
+function toggleAffutageMode(){
+  affutageMode=!affutageMode;
+  const btn=document.getElementById('affutage-toggle');
+  const sub=document.getElementById('renfo-subtitle');
+  if(btn){
+    btn.style.background=affutageMode?'#FF6B35':'transparent';
+    btn.style.color=affutageMode?'#fff':'#FF6B35';
+  }
+  if(sub) sub.textContent=affutageMode?'Mode affûtage · S'+CW+' · 3 dernières semaines':'2 séances / semaine · Prescrit par kiné';
+  updateRenfoTabs();
+  curRenfo=1;
+  renderRenfoExercises();
+}
+
+function updateRenfoTabs(){
+  const t1=document.getElementById('renfo-tab-1');
+  const t2=document.getElementById('renfo-tab-2');
+  if(!t1||!t2) return;
+  if(affutageMode){
+    const ps1=t1.querySelectorAll('p');
+    if(ps1[0]) ps1[0].textContent='Échauffement';
+    if(ps1[1]) ps1[1].textContent='Avant chaque sortie · 5 exos';
+    const ps2=t2.querySelectorAll('p');
+    if(ps2[0]) ps2[0].textContent='Séance unique';
+    if(ps2[1]) ps2[1].textContent='1 fois / semaine · 7 exos';
+  } else {
+    [1,2].forEach(x=>{
+      const t=document.getElementById('renfo-tab-'+x);
+      if(!t) return;
+      const prog=getRenfoData(x);
+      const ps=t.querySelectorAll('p');
+      if(ps[0]) ps[0].textContent=prog.name;
+      if(ps[1]) ps[1].textContent=prog.sub;
+    });
+  }
+  // Highlight active tab
+  [1,2].forEach(x=>{
+    const t=document.getElementById('renfo-tab-'+x);
+    if(!t) return;
+    const active=x===curRenfo;
+    t.style.background=active?'#1B4FD8':'var(--bg2)';
+    t.style.border=active?'none':'1px solid var(--border)';
+    const ps=t.querySelectorAll('p');
+    if(ps[0]) ps[0].style.color=active?'#fff':'var(--text)';
+    if(ps[1]) ps[1].style.color=active?'rgba(255,255,255,0.8)':'var(--muted)';
+  });
+}
+
+function initAffutageBtn(){
+  const btn=document.getElementById('affutage-toggle');
+  if(!btn) return;
+  btn.style.display=isAffutageWeek()?'block':'none';
+}
 let _fcReposChartType = 'fc';
 
 function renderFcReposChart(){
@@ -930,38 +985,27 @@ function _fcLineConfig(entries,vals,color,ptColors,unit,isDark,yMin,yMax,yCallba
 
 function switchRenfo(n){
   curRenfo=n;
-  [1,2].forEach(x=>{
-    const t=document.getElementById('renfo-tab-'+x);
-    if(!t) return;
-    const prog=getRenfoData(x);
-    const ps=t.querySelectorAll('p');
-    if(ps[0]) ps[0].textContent=prog.name;
-    if(ps[1]) ps[1].textContent=prog.sub;
-    t.style.background=x===n?'#1B4FD8':'var(--bg2)';
-    t.style.border=x===n?'none':'1px solid var(--border)';
-    ps[0].style.color=x===n?'#fff':'var(--text)';
-    ps[1].style.color=x===n?'rgba(255,255,255,0.8)':'var(--muted)';
-  });
+  updateRenfoTabs();
   renderRenfoExercises();
 }
 
 function renderRenfoExercises(){
-  const prog=getRenfoData(curRenfo);
-  const exos=prog.exos;
-  // Mettre à jour les libellés des onglets avec les programmes sélectionnés
-  [1,2].forEach(r=>{
-    const t=document.getElementById('renfo-tab-'+r);
-    if(!t) return;
-    const prog=getRenfoData(r);
-    const ps=t.querySelectorAll('p');
-    if(ps[0]) ps[0].textContent=prog.name;
-    if(ps[1]) ps[1].textContent=prog.sub;
-  });
+  let exos, dkSlot;
+  if(affutageMode){
+    exos=curRenfo===1?renfoEchauffement:renfoAffutageUnique;
+    dkSlot=curRenfo===1?'a1':'a2';
+  } else {
+    const prog=getRenfoData(curRenfo);
+    exos=prog.exos;
+    dkSlot=curRenfo;
+  }
+  updateRenfoTabs();
   const el=document.getElementById('renfo-exercises');el.innerHTML='';
-  const dk=rfk(CW,curRenfo),isDone=!!state[dk+'done'];
+  const dk=rfk(CW,dkSlot),isDone=!!state[dk+'done'];
   const banner=document.getElementById('renfo-done-banner');
   banner.style.display=isDone?'flex':'none';
-  if(isDone)document.getElementById('renfo-done-text').textContent=`${prog.name} validé — S${CW}`;
+  const doneLabel=affutageMode?(curRenfo===1?'Échauffement':'Séance unique'):(getRenfoData(curRenfo).name);
+  if(isDone)document.getElementById('renfo-done-text').textContent=`${doneLabel} validé — S${CW}`;
   const btn=document.getElementById('renfo-btn');
   btn.textContent=isDone?'Séance déjà validée':'Valider la séance';
   btn.style.background=isDone?'#639922':'#1B4FD8';
@@ -972,10 +1016,11 @@ function renderRenfoExercises(){
     cancelBtn.style.cssText='width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;';
     cancelBtn.textContent='Annuler la validation';
     cancelBtn.onclick=()=>{
-      const exos=getRenfoData(curRenfo).exos;
-      const dk=rfk(CW,curRenfo);
-      exos.forEach((_,i)=>{ delete state[dk+'e'+i+'_series']; });
-      delete state[dk+'done'];
+      const _slot=affutageMode?(curRenfo===1?'a1':'a2'):curRenfo;
+      const _exos=affutageMode?(curRenfo===1?renfoEchauffement:renfoAffutageUnique):getRenfoData(curRenfo).exos;
+      const _dk=rfk(CW,_slot);
+      _exos.forEach((_,i)=>{ delete state[_dk+'e'+i+'_series']; });
+      delete state[_dk+'done'];
       save();
       renderRenfoExercises();
       renderHome();
@@ -998,7 +1043,8 @@ function renderRenfoExercises(){
       seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#1B4FD8':'var(--border)'};background:${done?'#1B4FD8':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
     }
 
-    div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+    const imgHtml=ex.img?`<img src="${ex.img}" alt="${ex.nom}" style="width:100%;border-radius:8px;object-fit:cover;max-height:180px;margin-bottom:10px;" loading="lazy">`:'';
+    div.innerHTML=`${imgHtml}<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
       <div style="flex:1;min-width:0;">
         <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;${allDone?'opacity:0.5;':''}">${ex.nom} ${allDone?'<span style="font-size:11px;color:#3B6D11;">✓ terminé</span>':''}</p>
         <p style="font-size:12px;color:var(--muted);margin-bottom:5px;${allDone?'opacity:0.5;':''}">${ex.desc}</p>
@@ -1014,7 +1060,6 @@ function renderRenfoExercises(){
   });
 
   // Check if all exercises done → auto-suggest validate
-  const total=exos.length;
   const allComplete=exos.every((_,i)=>{
     const nb=getNbSeries(exos[i].series);
     return (state[dk+'e'+i+'_series']||0)>=nb;
@@ -1043,9 +1088,15 @@ function toggleSerie(dk,exoIdx,serieNum,total){
 }
 
 function markRenfoDone(){
-  const exos=curRenfo===1?renfo1:renfo2;
-  const dk=rfk(CW,curRenfo);
-  // Cocher toutes les séries automatiquement
+  let exos,slot;
+  if(affutageMode){
+    exos=curRenfo===1?renfoEchauffement:renfoAffutageUnique;
+    slot=curRenfo===1?'a1':'a2';
+  } else {
+    exos=curRenfo===1?renfo1:renfo2;
+    slot=curRenfo;
+  }
+  const dk=rfk(CW,slot);
   exos.forEach((_,i)=>{
     const nb=getNbSeries(exos[i].series);
     state[dk+'e'+i+'_series']=nb;
@@ -1102,6 +1153,7 @@ function showScreen(name, renfoTab){
   }
   if(name==='renfo'){
     if(!rendered.renfo)rendered.renfo=true;
+    initAffutageBtn();
     if(renfoTab&&renfoTab!==curRenfo) switchRenfo(renfoTab);
     else renderRenfoExercises();
   }
