@@ -618,12 +618,12 @@ function renderHome(){
             </div>`
           :isCurrent
           ?`<div style="display:flex;align-items:center;gap:5px;">
-              ${isA2?`<span onclick="event.stopPropagation();openRenfoSchedModal('a2',${w})" style="font-size:15px;cursor:pointer;opacity:${hasSched?0.9:0.3};line-height:1;" title="Planifier">📅</span>`:''}
+              ${isA2?`<span onclick="event.stopPropagation();openRenfoSchedModal('a2',${w})" style="font-size:17px;cursor:pointer;opacity:${hasSched?1:0.55};line-height:1;" title="Planifier">📅</span>`:''}
               <button onclick="event.stopPropagation();showScreen('renfo',${rd.tab})" style="background:rgba(255,107,53,0.10);color:#FF6B35;border:1.5px solid rgba(255,107,53,0.3);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
                 ${doneSeries>0?`${pct}% →`:'Commencer →'}
               </button>
             </div>`
-          :`${isA2?`<span onclick="event.stopPropagation();openRenfoSchedModal('a2',${w})" style="font-size:15px;cursor:pointer;opacity:${hasSched?0.9:0.3};line-height:1;" title="Planifier">📅</span>`:''}`
+          :`${isA2?`<span onclick="event.stopPropagation();openRenfoSchedModal('a2',${w})" style="font-size:17px;cursor:pointer;opacity:${hasSched?1:0.55};line-height:1;" title="Planifier">📅</span>`:''}`
         }
       </div>`;
       renfoEl.appendChild(card);
