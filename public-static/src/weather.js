@@ -909,6 +909,7 @@ function formatTargetTime(t){
 
 function openRenfoSchedModal(r, targetWeek){
   const tw = targetWeek || CW;
+  const rJs = typeof r === 'string' ? `'${r}'` : r;
   const key = rfk(tw,r)+'sched';
   let existing={};try{existing=state[key]?JSON.parse(state[key]):{};}catch(e){}
   const renfoNames = ['','Ischio-fessiers','Bas du dos'];
@@ -979,8 +980,8 @@ function openRenfoSchedModal(r, targetWeek){
 
       <!-- Boutons action -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">
-        <button onclick="clearRenfoSched(${JSON.stringify(r)},${tw})" style="padding:14px;background:var(--bg2);border:2px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">↺ Effacer</button>
-        <button onclick="saveRenfoSched(${JSON.stringify(r)},${tw})" class="modal-btn-primary" style="background:#0C447C;">Enregistrer ✓</button>
+        <button onclick="clearRenfoSched(${rJs},${tw})" style="padding:14px;background:var(--bg2);border:2px solid var(--border);border-radius:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">↺ Effacer</button>
+        <button onclick="saveRenfoSched(${rJs},${tw})" class="modal-btn-primary" style="background:#0C447C;">Enregistrer ✓</button>
       </div>
 
     </div>
