@@ -1014,7 +1014,9 @@ function renderRenfoExercises(){
   let exos, dkSlot;
   if(affutageMode){
     exos=curRenfo===1?renfoEchauffement:renfoAffutageUnique;
-    dkSlot=curRenfo===1?'a1':'a2';
+    // Échauffement : clé quotidienne (réinitialisation par jour de sortie)
+    if(curRenfo===1){const n=new Date();dkSlot='a1_'+(n.getFullYear()*10000+(n.getMonth()+1)*100+n.getDate());}
+    else dkSlot='a2';
   } else {
     const prog=getRenfoData(curRenfo);
     exos=prog.exos;
@@ -1072,7 +1074,7 @@ function renderRenfoExercises(){
     cancelBtn.style.cssText='width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;';
     cancelBtn.textContent='Annuler la validation';
     cancelBtn.onclick=()=>{
-      const _slot=affutageMode?(curRenfo===1?'a1':'a2'):curRenfo;
+      let _slot;if(affutageMode){if(curRenfo===1){const n=new Date();_slot='a1_'+(n.getFullYear()*10000+(n.getMonth()+1)*100+n.getDate());}else _slot='a2';}else _slot=curRenfo;
       const _exos=affutageMode?(curRenfo===1?renfoEchauffement:renfoAffutageUnique):getRenfoData(curRenfo).exos;
       const _dk=rfk(CW,_slot);
       _exos.forEach((_,i)=>{ delete state[_dk+'e'+i+'_series']; });
@@ -1170,7 +1172,7 @@ function markRenfoDone(){
   let exos,slot;
   if(affutageMode){
     exos=curRenfo===1?renfoEchauffement:renfoAffutageUnique;
-    slot=curRenfo===1?'a1':'a2';
+    if(curRenfo===1){const n=new Date();slot='a1_'+(n.getFullYear()*10000+(n.getMonth()+1)*100+n.getDate());}else slot='a2';
   } else {
     exos=curRenfo===1?renfo1:renfo2;
     slot=curRenfo;

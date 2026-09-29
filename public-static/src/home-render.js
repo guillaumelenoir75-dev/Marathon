@@ -567,9 +567,10 @@ function renderHome(){
       if(renfoProgressEl){renfoProgressEl.style.color='var(--muted)';renfoProgressEl.textContent='—';}
     } else if(isAdmin()&&w>=30&&w<=32){
     // ── Mode Affûtage (S30-S32) ─────────────────────────────────────────────
+    const _n=new Date();const _today=_n.getFullYear()*10000+(_n.getMonth()+1)*100+_n.getDate();
     const affData=[
-      {slot:'a1',name:'Échauffement',sub:'Avant chaque sortie · 5 exos',exos:renfoEchauffement,emoji:'🔥'},
-      {slot:'a2',name:'Séance unique',sub:'1 fois / semaine · 7 exos',exos:renfoAffutageUnique,emoji:'⚡'},
+      {slot:'a1_'+_today,name:'Échauffement',sub:'Avant chaque sortie · 5 exos',exos:renfoEchauffement,emoji:'🔥',tab:1},
+      {slot:'a2',name:'Séance unique',sub:'1 fois / semaine · 7 exos',exos:renfoAffutageUnique,emoji:'⚡',tab:2},
     ];
     affData.forEach(rd=>{
       const done=!!state[rfk(w,rd.slot)+'done'];
@@ -583,7 +584,7 @@ function renderHome(){
         +(isCurrent?'cursor:pointer;':'cursor:default;')
         +(done?'border:1px solid #3B6D1130;background:linear-gradient(90deg,#EAF3DE50,var(--bg));box-shadow:inset 3px 0 0 #3B6D11;'
         :'border:1px solid #FF6B3530;box-shadow:inset 3px 0 0 #FF6B35;');
-      if(isCurrent) card.onclick=()=>showScreen('renfo',rd.slot==='a1'?1:2);
+      if(isCurrent) card.onclick=()=>showScreen('renfo',rd.tab);
       card.innerHTML=`
       <div style="width:40px;height:40px;border-radius:12px;background:${done?'#EAF3DE':'#FFF4EF'};border:1.5px solid ${done?'#3B6D1125':'#FF6B3525'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         ${done
@@ -605,7 +606,7 @@ function renderHome(){
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             </div>`
           :isCurrent
-          ?`<button onclick="event.stopPropagation();showScreen('renfo',${rd.slot==='a1'?1:2})" style="background:rgba(255,107,53,0.10);color:#FF6B35;border:1.5px solid rgba(255,107,53,0.3);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          ?`<button onclick="event.stopPropagation();showScreen('renfo',${rd.tab})" style="background:rgba(255,107,53,0.10);color:#FF6B35;border:1.5px solid rgba(255,107,53,0.3);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
               ${doneSeries>0?`${pct}% →`:'Commencer →'}
             </button>`
           :''
