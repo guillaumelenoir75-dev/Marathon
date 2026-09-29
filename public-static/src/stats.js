@@ -780,7 +780,19 @@ function updateRenfoTabs(){
 function initAffutageBtn(){
   const btn=document.getElementById('affutage-toggle');
   if(!btn) return;
-  btn.style.display=isAffutageWeek()?'block':'none';
+  const isAff=isAffutageWeek();
+  btn.style.display=isAff?'block':'none';
+  // Activer automatiquement le mode affûtage en S30-S32
+  if(isAff&&!affutageMode){
+    affutageMode=true;
+    btn.style.background='#FF6B35';
+    btn.style.color='#fff';
+    const sub=document.getElementById('renfo-subtitle');
+    if(sub) sub.textContent='Mode affûtage · S'+CW+' · 3 dernières semaines';
+    updateRenfoTabs();
+    // Précharger toutes les images affûtage en avance
+    [...renfoEchauffement,...renfoAffutageUnique].forEach(ex=>{if(ex.img){const i=new Image();i.src=ex.img;}});
+  }
 }
 let _fcReposChartType = 'fc';
 
@@ -1082,7 +1094,7 @@ function renderRenfoExercises(){
     if(affutageMode){
       // Mode affûtage : design simplifié avec bouton "Fait" unique
       div.style.cssText=`background:var(--bg);border:2px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s;`;
-      const imgHtml=ex.img?`<img src="${ex.img}" alt="${ex.nom}" style="width:100%;display:block;" loading="lazy">`:'';
+      const imgHtml=ex.img?`<div style="position:relative;background:#e8edf5;min-height:180px;overflow:hidden;"><img src="${ex.img}" alt="${ex.nom}" style="width:100%;display:block;opacity:0;transition:opacity 0.25s;" loading="eager" onload="this.style.opacity=1"></div>`:'';
       div.innerHTML=`${imgHtml}
       <div style="padding:12px 14px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
