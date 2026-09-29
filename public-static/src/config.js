@@ -207,11 +207,11 @@ const ECHAUF_IMG4="img/echauf4.webp";
 const ECHAUF_IMG5="img/echauf5.webp";
 // Exercices affûtage (S30-S32) — échauffement avant chaque sortie
 const renfoEchauffement=[
-  {nom:"Étirements actifs ischios",desc:"Debout, jambe tendue en avant sur un appui — penchez le buste en avant en gardant le dos droit.",series:"15 rép. par jambe",img:ECHAUF_IMG1},
-  {nom:"Squats",desc:"Pieds à largeur d'épaules, genou dans l'axe du pied — descendez en gardant le dos droit et les talons au sol.",series:"12 rép.",img:ECHAUF_IMG2},
-  {nom:"Fentes",desc:"Grand pas en avant, genou avant aligné au-dessus du pied, buste droit — revenez en poussant sur le talon.",series:"12 rép. par jambe",img:ECHAUF_IMG3},
-  {nom:"Chaise + décollage des talons",desc:"Dos contre le mur, cuisses parallèles au sol — montez lentement sur la pointe des pieds et redescendez.",series:"3 × 20 sec",img:ECHAUF_IMG4},
-  {nom:"Équilibre unipodal",desc:"Debout sur un pied, genou légèrement fléchi — maintenez l'équilibre sans balancement.",series:"3 × 20 sec par jambe",img:ECHAUF_IMG5},
+  {nom:"Étirements actifs ischios",desc:"Debout, jambe tendue en avant sur un appui — penchez le buste en avant en gardant le dos droit.",series:"15 rép. par jambe",img:ECHAUF_IMG3},
+  {nom:"Squats",desc:"Pieds à largeur d'épaules, genou dans l'axe du pied — descendez en gardant le dos droit et les talons au sol.",series:"12 rép.",img:ECHAUF_IMG1},
+  {nom:"Fentes",desc:"Grand pas en avant, genou avant aligné au-dessus du pied, buste droit — revenez en poussant sur le talon.",series:"12 rép. par jambe",img:ECHAUF_IMG2},
+  {nom:"Chaise + décollage des talons",desc:"Dos contre le mur, cuisses parallèles au sol — montez lentement sur la pointe des pieds et redescendez.",series:"3 × 20 sec",img:ECHAUF_IMG5},
+  {nom:"Équilibre unipodal",desc:"Debout sur un pied, genou légèrement fléchi — maintenez l'équilibre sans balancement.",series:"3 × 20 sec par jambe",img:ECHAUF_IMG4},
 ];
 const RENFO_IMG6="img/renfo6.webp";
 const RENFO_IMG7="img/renfo7.webp";
