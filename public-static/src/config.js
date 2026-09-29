@@ -148,11 +148,11 @@ const weeks=[
 const renfoTibial={nom:"Tibial Postérieur — Ballon",desc:"Assis ou allongé, ballon entre les bords internes des pieds (voûte plantaire). Comprimer fort 1 min 20 sec en imaginant écraser le ballon, relâcher 40 sec. Talons au sol, chevilles neutres. Répéter sur ~8 min. Fréquence recommandée : 3×/semaine.",series:"5 cycles × 1min20s"};
 const renfo1=[
   renfoTibial,
-  {nom:"Pont fessier",img:RENFO_IMG11,desc:"Genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"3 séries × 10 rép."},
-  {nom:"Pont fessier unipodal",img:RENFO_IMG10,desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Pont fessier",desc:"Genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"3 séries × 10 rép."},
+  {nom:"Pont fessier unipodal",desc:"Idem avec une jambe levée. Gardez le bassin bien droit.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Battements latéraux",desc:"Allongé sur le côté, jambe du dessus tendue — battements avec élastique à la cheville.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Ouvertures de hanche",desc:"Allongé sur le côté, élastique au-dessus des genoux — ouvrez en gardant les pieds serrés.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
-  {nom:"Extension de jambe",img:RENFO_IMG7,desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement (4 sec).",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
+  {nom:"Extension de jambe",desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement (4 sec).",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
   {nom:"Montées sur banc",desc:"Montez puis descendez doucement d'un banc ou d'une marche.",series:"4 séries × 10 rép. (2 à gauche · 2 à droite)"},
 ];
 const renfo2=[
@@ -223,11 +223,11 @@ const RENFO_IMG12="img/renfo12.webp";
 // Exercices affûtage — séance de renfo unique (1 fois / semaine)
 const renfoAffutageUnique=[
   {nom:"Tibial postérieur avec ballon",img:RENFO_IMG12,desc:"Debout sur une jambe, ballon coincé entre la jambe et un mur — contractez sans bouger le genou.",series:"3 × 1min20 · récup 40s"},
-  {nom:"Pont fessier",desc:"Allongé sur le dos, genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"2 × 10 rép."},
-  {nom:"Pont fessier unipodal",desc:"Idem pont fessier mais avec une jambe levée — gardez le bassin bien horizontal.",series:"2 × 8 rép. par jambe"},
+  {nom:"Pont fessier",img:RENFO_IMG11,desc:"Allongé sur le dos, genoux fléchis, talons au sol — levez le bassin lentement puis redescendez.",series:"2 × 10 rép."},
+  {nom:"Pont fessier unipodal",img:RENFO_IMG10,desc:"Idem pont fessier mais avec une jambe levée — gardez le bassin bien horizontal.",series:"2 × 8 rép. par jambe"},
   {nom:"Battements latéraux avec élastique",img:RENFO_IMG9,desc:"Debout, élastique aux chevilles — levez la jambe sur le côté en gardant le buste droit et l'appui stable.",series:"2 × 10 rép. par côté"},
   {nom:"Ouvertures de hanche (clamshell)",img:RENFO_IMG8,desc:"Allongé sur le côté, élastique au-dessus des genoux — ouvrez le genou comme une coquillage en gardant les pieds serrés.",series:"2 × 10 rép. par côté"},
-  {nom:"Extension de jambe",desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement. Charge très légère.",series:"2 × 8 rép. par côté"},
+  {nom:"Extension de jambe",img:RENFO_IMG7,desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement. Charge très légère.",series:"2 × 8 rép. par côté"},
   {nom:"Montées sur banc / marche",img:RENFO_IMG6,desc:"Montez puis descendez lentement d'une marche basse en contrôlant l'appui.",series:"2 × 8 rép. par côté"},
 ];
 function isAffutageWeek(){return isAdmin()&&CW>=30&&CW<=32;}
