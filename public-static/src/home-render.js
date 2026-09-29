@@ -578,8 +578,18 @@ function renderHome(){
       const totalSeries=exos.length;
       const doneSeries=exos.filter((_,i)=>(state[rfk(w,rd.slot)+'e'+i+'_series']||0)>=getNbSeries(exos[i].series)).length;
       const pct=Math.min(100,Math.round(doneSeries/totalSeries*100));
+      // Planification séance unique (slot a2)
+      const isA2=rd.slot==='a2';
+      let schedBadge='',hasSched=false;
+      if(isA2){
+        let sc={};try{sc=state[rfk(w,'a2')+'sched']?JSON.parse(state[rfk(w,'a2')+'sched']):{}}catch(e){}
+        if(sc.day){
+          hasSched=true;
+          const rfDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+          schedBadge=`<span style="font-size:10px;color:#FF6B35;font-weight:700;background:#FFF4EF;border:1px solid #FF6B3530;padding:2px 7px;border-radius:6px;white-space:nowrap;">📅 ${rfDays[sc.day]}${sc.time?' '+sc.time:''}</span>`;
+        }
+      }
       const card=document.createElement('div');
-      const accentColor=done?'#3B6D11':'#FF6B35';
       card.style.cssText='border-radius:14px;display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);position:relative;'
         +(isCurrent?'cursor:pointer;':'cursor:default;')
         +(done?'border:1px solid #3B6D1130;background:linear-gradient(90deg,#EAF3DE50,var(--bg));box-shadow:inset 3px 0 0 #3B6D11;'
@@ -598,6 +608,7 @@ function renderHome(){
           ${done?'<span style="font-size:10px;color:#3B6D11;font-weight:700;">✓</span>':''}
         </div>
         <p style="font-size:11px;color:#6B8DB5;font-weight:500;margin-top:1px;">${rd.sub}</p>
+        ${schedBadge?`<div style="margin-top:4px;">${schedBadge}</div>`:''}
         ${!done&&doneSeries>0?`<div style="background:var(--bg2);border-radius:3px;height:3px;margin-top:5px;"><div style="background:#FF6B35;border-radius:3px;height:3px;width:${pct}%;"></div></div>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
@@ -606,10 +617,13 @@ function renderHome(){
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             </div>`
           :isCurrent
-          ?`<button onclick="event.stopPropagation();showScreen('renfo',${rd.tab})" style="background:rgba(255,107,53,0.10);color:#FF6B35;border:1.5px solid rgba(255,107,53,0.3);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
-              ${doneSeries>0?`${pct}% →`:'Commencer →'}
-            </button>`
-          :''
+          ?`<div style="display:flex;align-items:center;gap:5px;">
+              ${isA2?`<span onclick="event.stopPropagation();openRenfoSchedModal('a2',${w})" style="font-size:15px;cursor:pointer;opacity:${hasSched?0.9:0.3};line-height:1;" title="Planifier">📅</span>`:''}
+              <button onclick="event.stopPropagation();showScreen('renfo',${rd.tab})" style="background:rgba(255,107,53,0.10);color:#FF6B35;border:1.5px solid rgba(255,107,53,0.3);border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                ${doneSeries>0?`${pct}% →`:'Commencer →'}
+              </button>
+            </div>`
+          :`${isA2?`<span onclick="event.stopPropagation();openRenfoSchedModal('a2',${w})" style="font-size:15px;cursor:pointer;opacity:${hasSched?0.9:0.3};line-height:1;" title="Planifier">📅</span>`:''}`
         }
       </div>`;
       renfoEl.appendChild(card);

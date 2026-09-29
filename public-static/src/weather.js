@@ -913,8 +913,8 @@ function openRenfoSchedModal(r, targetWeek){
   let existing={};try{existing=state[key]?JSON.parse(state[key]):{};}catch(e){}
   const renfoNames = ['','Ischio-fessiers','Bas du dos'];
   const renfoSubs  = ['','Fémoro-patellaire · 6 exos','Core stabilisation · 5 exos'];
-  const name = renfoNames[r] || 'Renforcement';
-  const sub  = renfoSubs[r]  || '';
+  const name = r==='a2'?'Séance unique affûtage':(renfoNames[r]||'Renforcement');
+  const sub  = r==='a2'?'1 fois / semaine · 7 exos':(renfoSubs[r]||'');
   const isNextWeek = tw !== CW;
   const weekLabel = isNextWeek ? `S${tw} · Planification` : `S${tw} · Modifier le créneau`;
 
