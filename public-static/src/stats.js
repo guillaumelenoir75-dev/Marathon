@@ -1078,28 +1078,43 @@ function renderRenfoExercises(){
     const doneSeries=state[dk+'e'+i+'_series']||0;
     const allDone=doneSeries>=nb;
     const div=document.createElement('div');
-    div.style.cssText=`background:var(--bg);border:1px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);padding:12px 14px;`;
 
-    // Series buttons
-    let seriesBtns='';
-    for(let s=1;s<=nb;s++){
-      const done=s<=doneSeries;
-      seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#1B4FD8':'var(--border)'};background:${done?'#1B4FD8':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
-    }
-
-    const imgHtml=ex.img?`<img src="${ex.img}" alt="${ex.nom}" style="width:100%;border-radius:8px;object-fit:cover;max-height:180px;margin-bottom:10px;" loading="lazy">`:'';
-    div.innerHTML=`${imgHtml}<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
-      <div style="flex:1;min-width:0;">
-        <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;${allDone?'opacity:0.5;':''}">${ex.nom} ${allDone?'<span style="font-size:11px;color:#3B6D11;">✓ terminé</span>':''}</p>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:5px;${allDone?'opacity:0.5;':''}">${ex.desc}</p>
-        <span style="font-size:11px;background:#EEF2FD;color:#1438A8;padding:2px 8px;border-radius:20px;font-weight:600;">${ex.series}</span>
+    if(affutageMode){
+      // Mode affûtage : design simplifié avec bouton "Fait" unique
+      div.style.cssText=`background:var(--bg);border:2px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s;`;
+      const imgHtml=ex.img?`<img src="${ex.img}" alt="${ex.nom}" style="width:100%;display:block;" loading="lazy">`:'';
+      div.innerHTML=`${imgHtml}
+      <div style="padding:12px 14px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:14px;font-weight:700;color:${allDone?'#3B6D11':'var(--text)'};margin-bottom:3px;">${ex.nom}</p>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">${ex.desc}</p>
+            <span style="font-size:12px;font-weight:700;background:${allDone?'#EAF3DE':'#EEF2FD'};color:${allDone?'#27500A':'#1438A8'};padding:3px 10px;border-radius:20px;">${ex.series}</span>
+          </div>
+          <button onclick="toggleAffutageExo('${dk}','${i}',${nb})" style="flex-shrink:0;width:48px;height:48px;border-radius:50%;border:none;background:${allDone?'#3B6D11':'var(--bg2)'};color:${allDone?'#fff':'var(--muted)'};font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">${allDone?'✓':'○'}</button>
+        </div>
+      </div>`;
+    } else {
+      // Mode normal : boutons par série
+      div.style.cssText=`background:var(--bg);border:1px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);padding:12px 14px;`;
+      let seriesBtns='';
+      for(let s=1;s<=nb;s++){
+        const done=s<=doneSeries;
+        seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:32px;height:32px;border-radius:50%;border:2px solid ${done?'#1B4FD8':'var(--border)'};background:${done?'#1B4FD8':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
+      }
+      div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;${allDone?'opacity:0.5;':''}">${ex.nom} ${allDone?'<span style="font-size:11px;color:#3B6D11;">✓ terminé</span>':''}</p>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:5px;${allDone?'opacity:0.5;':''}">${ex.desc}</p>
+          <span style="font-size:11px;background:#EEF2FD;color:#1438A8;padding:2px 8px;border-radius:20px;font-weight:600;">${ex.series}</span>
+        </div>
       </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <span style="font-size:11px;color:var(--muted);margin-right:2px;">Séries :</span>
-      ${seriesBtns}
-      ${doneSeries>0&&!allDone?`<span style="font-size:11px;color:#1B4FD8;font-weight:600;">${doneSeries}/${nb}</span>`:''}
-    </div>`;
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--muted);margin-right:2px;">Séries :</span>
+        ${seriesBtns}
+        ${doneSeries>0&&!allDone?`<span style="font-size:11px;color:#1B4FD8;font-weight:600;">${doneSeries}/${nb}</span>`:''}
+      </div>`;
+    }
     el.appendChild(div);
   });
 
@@ -1115,6 +1130,14 @@ function renderRenfoExercises(){
     renderHome();
     return;
   }
+}
+
+function toggleAffutageExo(dk,exoIdx,nb){
+  const key=dk+'e'+exoIdx+'_series';
+  const isDone=(state[key]||0)>=nb;
+  if(isDone){ delete state[key]; } else { state[key]=nb; }
+  save();
+  renderRenfoExercises();
 }
 
 function toggleSerie(dk,exoIdx,serieNum,total){
