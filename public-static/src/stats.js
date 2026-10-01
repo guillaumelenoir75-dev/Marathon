@@ -1094,20 +1094,39 @@ function renderRenfoExercises(){
     const div=document.createElement('div');
 
     if(affutageMode){
-      // Mode affûtage : design simplifié avec bouton "Fait" unique
       div.style.cssText=`background:var(--bg);border:2px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s;`;
       const imgHtml=ex.img?`<div style="position:relative;background:#e8edf5;min-height:180px;overflow:hidden;"><img src="${ex.img}" alt="${ex.nom}" style="width:100%;display:block;opacity:0;transition:opacity 0.25s;" loading="eager" onload="this.style.opacity=1"></div>`:'';
-      div.innerHTML=`${imgHtml}
-      <div style="padding:12px 14px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-          <div style="flex:1;min-width:0;">
-            <p style="font-size:14px;font-weight:700;color:${allDone?'#3B6D11':'var(--text)'};margin-bottom:3px;">${ex.nom}</p>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">${ex.desc}</p>
-            <span style="font-size:12px;font-weight:700;background:${allDone?'#EAF3DE':'#EEF2FD'};color:${allDone?'#27500A':'#1438A8'};padding:3px 10px;border-radius:20px;">${ex.series}</span>
+      if(curRenfo===1){
+        // Échauffement : cercles par série (3 séries)
+        let seriesBtns='';
+        for(let s=1;s<=nb;s++){
+          const done=s<=doneSeries;
+          seriesBtns+=`<button onclick="toggleSerie('${dk}','${i}',${s},${nb})" style="width:38px;height:38px;border-radius:50%;border:2px solid ${done?'#FF6B35':'var(--border)'};background:${done?'#FF6B35':'transparent'};color:${done?'#fff':'var(--muted)'};font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;">${done?'✓':s}</button>`;
+        }
+        div.innerHTML=`${imgHtml}
+        <div style="padding:12px 14px;">
+          <p style="font-size:14px;font-weight:700;color:${allDone?'#3B6D11':'var(--text)'};margin-bottom:3px;">${ex.nom} ${allDone?'<span style="font-size:11px;color:#3B6D11;">✓</span>':''}</p>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">${ex.desc}</p>
+          <span style="font-size:12px;font-weight:700;background:${allDone?'#EAF3DE':'#EEF2FD'};color:${allDone?'#27500A':'#1438A8'};padding:3px 10px;border-radius:20px;">${ex.series}</span>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+            <span style="font-size:11px;color:var(--muted);">Séries :</span>
+            ${seriesBtns}
           </div>
-          <button onclick="toggleAffutageExo('${dk}','${i}',${nb})" style="flex-shrink:0;width:48px;height:48px;border-radius:50%;border:none;background:${allDone?'#3B6D11':'var(--bg2)'};color:${allDone?'#fff':'var(--muted)'};font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">${allDone?'✓':'○'}</button>
-        </div>
-      </div>`;
+        </div>`;
+      } else {
+        // Séance unique : bouton toggle unique
+        div.innerHTML=`${imgHtml}
+        <div style="padding:12px 14px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+            <div style="flex:1;min-width:0;">
+              <p style="font-size:14px;font-weight:700;color:${allDone?'#3B6D11':'var(--text)'};margin-bottom:3px;">${ex.nom}</p>
+              <p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">${ex.desc}</p>
+              <span style="font-size:12px;font-weight:700;background:${allDone?'#EAF3DE':'#EEF2FD'};color:${allDone?'#27500A':'#1438A8'};padding:3px 10px;border-radius:20px;">${ex.series}</span>
+            </div>
+            <button onclick="toggleAffutageExo('${dk}','${i}',${nb})" style="flex-shrink:0;width:48px;height:48px;border-radius:50%;border:none;background:${allDone?'#3B6D11':'var(--bg2)'};color:${allDone?'#fff':'var(--muted)'};font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">${allDone?'✓':'○'}</button>
+          </div>
+        </div>`;
+      }
     } else {
       // Mode normal : boutons par série
       div.style.cssText=`background:var(--bg);border:1px solid ${allDone?'#3B6D11':'var(--border)'};border-radius:var(--radius);padding:12px 14px;`;
