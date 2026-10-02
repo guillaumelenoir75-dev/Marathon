@@ -801,7 +801,7 @@ function renderHome(){
     );
     // Boutons : actifs sur semaine en cours et futures, lecture seule sur passées
     const canEdit = isCurrent || isFuture;
-    const editFn = canEdit ? `openEditExtraModal(${w},${ei})` : '';
+    const editFn = canEdit ? `openEditExtraModal(${w},${ei})` : (done||skip?`openValidationModalExtra(${w},${ei})`:'');
     const doneFn = isCurrent ? `toggleDoneExtra(${w},${ei})` : '';
     const div=document.createElement('div');
     div.style.cssText='border-radius:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;padding:'+(done?'8px':'11px')+' 14px;background:var(--bg);position:relative;cursor:default;'
@@ -872,7 +872,7 @@ function renderHome(){
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
         </div>`:skip?`<div style="width:32px;height:32px;border-radius:50%;border:2px solid #C0392B;background:#FDECEA;display:flex;align-items:center;justify-content:center;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>
-        </div>`:''}
+        </div>`:isPast&&!done&&!skip?`<button onclick="openValidationModalExtra(${w},${ei})" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Valider →</button>`:''}
       </div>`;
     el.appendChild(div);
   });
