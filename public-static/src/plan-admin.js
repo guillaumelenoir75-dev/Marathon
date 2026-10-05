@@ -993,13 +993,47 @@ async function deleteAthletePlan(){
 }
 
 function exportPlanDocument() {
+  // Modal de choix du type d'export
+  const mc = document.getElementById('modal-container');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
+  overlay.onclick = e => { if(e.target===overlay) closeModal(); };
+  overlay.innerHTML = `<div class="modal-box" style="max-height:92vh;">
+    <div style="background:linear-gradient(145deg,#082050 0%,#0C447C 55%,#1560A8 100%);padding:16px 16px 18px;border-radius:24px 24px 0 0;flex-shrink:0;">
+      <div style="width:36px;height:4px;border-radius:4px;background:rgba(255,255,255,0.3);margin:0 auto 12px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <p style="font-size:10px;font-weight:800;opacity:0.7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;color:#fff;">📋 Export</p>
+          <p style="font-size:22px;font-weight:900;letter-spacing:-0.03em;color:#fff;">Exporter le plan</p>
+        </div>
+        <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:18px;line-height:1;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+      </div>
+    </div>
+    <div class="modal-scroll-body"><div class="modal-body" style="gap:12px;">
+      <button onclick="closeModal();_doExportPlan(false)" style="width:100%;padding:16px;background:var(--bg);border:2px solid #d0dff5;border-radius:16px;text-align:left;cursor:pointer;">
+        <div style="font-size:16px;font-weight:800;color:#0C447C;margin-bottom:4px;">📋 Plan seul</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.4;">Type · Titre · Distance prévue · Créneau · Chaussure</div>
+      </button>
+      <button onclick="closeModal();_doExportPlan(true)" style="width:100%;padding:16px;background:linear-gradient(135deg,#EEF2FD,#E8EDFF);border:2px solid #1B4FD8;border-radius:16px;text-align:left;cursor:pointer;">
+        <div style="font-size:16px;font-weight:800;color:#1B4FD8;margin-bottom:4px;">📊 Plan + Résultats</div>
+        <div style="font-size:12px;color:#3B5CC4;line-height:1.4;">Tout le plan <strong>+</strong> pour chaque séance validée : temps réalisé · distance · allure · fréquence cardiaque</div>
+      </button>
+    </div></div>
+  </div>`;
+  _lockBodyScroll();
+  mc.appendChild(overlay);
+  _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
+}
+
+function _doExportPlan(withResults) {
   const today = new Date().toISOString().slice(0, 10);
   const typeNames = { ef:'Footing EF', ef_long:'EF Long', tempo:'Tempo', seuil:'Seuil', vma:'VMA', frac:'Fractionné', long:'Sortie Longue', race:'Course', rest:'Récupération' };
   const typeColors = { ef:'#3B6D11', ef_long:'#2E5E0A', tempo:'#E8530A', seuil:'#B45309', vma:'#7C3AED', frac:'#C4141B', long:'#534AB7', race:'#0C447C', rest:'#6B7280' };
+  const typeBgs   = { ef:'#EAF3DE', ef_long:'#DFF0D0', tempo:'#FEF3EC', seuil:'#FEF9EC', vma:'#F3EDFF', frac:'#FEECEC', long:'#ECEAFD', race:'#EDF2FB', rest:'#F3F4F6' };
 
   let rows = [];
 
-  // Séances du plan (weeks[]) avec overrides edit_w et suppressions del_w
   if (typeof weeks !== 'undefined' && weeks) {
     weeks.forEach((week, wi) => {
       const ws = wi + 1;
@@ -1009,6 +1043,13 @@ function exportPlanDocument() {
         const editRaw = state[`edit_w${ws}_s${si}`];
         if (editRaw) { try { session = { ...session, ...JSON.parse(editRaw) }; } catch(e) {} }
         const parts = (session.d || '').split('|');
+        // Recherche de l'index extra correspondant à cette séance plan
+        let ei = si; // extra_w uses same index for plan sessions
+        const k = `extra_w${ws}_s${ei}`;
+        const done = !!state[k+'_done'];
+        const skip = !!state[k+'_skip'];
+        const realKm = state[k+'_km'] != null ? state[k+'_km'] : null;
+        let perf = {}; try { perf = state[k+'_perf'] ? JSON.parse(state[k+'_perf']) : {}; } catch(e) {}
         rows.push({
           ws, source: 'plan',
           type: session.type || 'ef',
@@ -1018,91 +1059,193 @@ function exportPlanDocument() {
           sched_day: session.sched_day || '',
           sched_time: session.sched_time || '',
           shoe: session.shoe || '',
-          modified: !!editRaw
+          modified: !!editRaw,
+          done, skip,
+          realKm: realKm != null ? realKm : (done ? session.km : null),
+          dur: perf.dur || null,
+          pace: perf.pace || null,
+          hr: perf.hr || null
         });
       });
     });
   }
 
-  // Séances manuelles (extra_w)
   for (let ws = 1; ws <= 35; ws++) {
     let ei = 0;
     while (ei <= 20 && state[`extra_w${ws}_s${ei}`] !== undefined) {
-      try {
-        const s = JSON.parse(state[`extra_w${ws}_s${ei}`]);
-        const parts = (s.d || '').split('|');
-        rows.push({
-          ws, source: 'manuel',
-          type: s.type || 'ef',
-          title: parts[0] || '',
-          detail: parts[1] || '',
-          km: s.km || 0,
-          sched_day: s.sched_day || '',
-          sched_time: s.sched_time || '',
-          shoe: s.shoe || '',
-          modified: false
-        });
-      } catch(e) {}
+      // Éviter les doublons avec les séances plan (celles-ci ont le même index que les sessions plan)
+      const isFromPlan = typeof weeks !== 'undefined' && weeks && (ws-1) < weeks.length
+        && ei < (weeks[ws-1].sessions||[]).length && !state[`del_w${ws}_s${ei}`];
+      if (!isFromPlan) {
+        try {
+          const s = JSON.parse(state[`extra_w${ws}_s${ei}`]);
+          const parts = (s.d || '').split('|');
+          const k = `extra_w${ws}_s${ei}`;
+          const done = !!state[k+'_done'];
+          const skip = !!state[k+'_skip'];
+          const realKm = state[k+'_km'] != null ? state[k+'_km'] : null;
+          let perf = {}; try { perf = state[k+'_perf'] ? JSON.parse(state[k+'_perf']) : {}; } catch(e) {}
+          rows.push({
+            ws, source: 'manuel',
+            type: s.type || 'ef',
+            title: parts[0] || '',
+            detail: parts[1] || '',
+            km: s.km || 0,
+            sched_day: s.sched_day || '',
+            sched_time: s.sched_time || '',
+            shoe: s.shoe || '',
+            modified: false,
+            done, skip,
+            realKm: realKm != null ? realKm : (done ? s.km : null),
+            dur: perf.dur || null,
+            pace: perf.pace || null,
+            hr: perf.hr || null
+          });
+        } catch(e) {}
+      }
       ei++;
     }
   }
 
-  // Trier par semaine
   rows.sort((a, b) => a.ws - b.ws);
 
   const dayNames = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   let lastWs = null;
   let tableRows = '';
   let totalKm = 0;
+  let totalRealKm = 0;
+  let doneCount = 0;
+
   rows.forEach(r => {
     const color = typeColors[r.type] || '#333';
+    const bg    = typeBgs[r.type]   || '#f9f9f9';
     const badge = r.source === 'manuel'
-      ? `<span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">+manuel</span>`
-      : (r.modified ? `<span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">modifiée</span>` : '');
+      ? `<span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;">+manuel</span>`
+      : (r.modified ? `<span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;">modifiée</span>` : '');
     const sched = r.sched_day ? `${dayNames[r.sched_day]} ${r.sched_time}` : '—';
+
+    // Statut réalisation
+    let statusCell = '';
+    let durCell = '—', distCell = '—', paceCell = '—', hrCell = '—';
+    if (withResults) {
+      if (r.done) {
+        doneCount++;
+        statusCell = `<td style="padding:7px 10px;text-align:center;"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${color};line-height:20px;font-size:11px;color:#fff;font-weight:700;">✓</span></td>`;
+        durCell  = r.dur  || '—';
+        distCell = r.realKm != null ? r.realKm + ' km' : '—';
+        paceCell = r.pace ? r.pace + '/km' : '—';
+        hrCell   = r.hr   ? r.hr + ' bpm' : '—';
+        totalRealKm += parseFloat(r.realKm) || 0;
+      } else if (r.skip) {
+        statusCell = `<td style="padding:7px 10px;text-align:center;"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#e5e7eb;line-height:20px;font-size:11px;color:#9ca3af;font-weight:700;">✕</span></td>`;
+      } else {
+        statusCell = `<td style="padding:7px 10px;text-align:center;"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid #e5e7eb;"></span></td>`;
+      }
+    }
+
     const weekHeader = r.ws !== lastWs
-      ? `<tr style="background:#0C447C;color:#fff;"><td colspan="7" style="padding:8px 12px;font-weight:800;font-size:13px;">Semaine ${r.ws}</td></tr>`
+      ? `<tr style="background:#0C447C;color:#fff;">
+          <td colspan="${withResults?10:7}" style="padding:9px 12px;font-weight:800;font-size:13px;letter-spacing:0.03em;">
+            ◆ Semaine ${r.ws}
+          </td>
+        </tr>`
       : '';
     lastWs = r.ws;
-    tableRows += `${weekHeader}<tr style="border-bottom:1px solid #eee;">
-      <td style="padding:8px 12px;"><span style="color:${color};font-weight:700;font-size:12px;">${typeNames[r.type]||r.type}</span> ${badge}</td>
-      <td style="padding:8px 12px;font-size:13px;">${r.title}</td>
-      <td style="padding:8px 12px;font-size:12px;color:#555;">${r.detail}</td>
-      <td style="padding:8px 12px;font-weight:700;font-size:13px;">${r.km > 0 ? r.km + ' km' : '—'}</td>
-      <td style="padding:8px 12px;font-size:12px;color:#666;">${sched}</td>
-      <td style="padding:8px 12px;font-size:12px;color:#666;">${r.shoe || '—'}</td>
-    </tr>`;
+
+    const rowBg = r.done ? '#F6FBF0' : r.skip ? '#FFF8F8' : '#fff';
+
+    if (withResults) {
+      tableRows += `${weekHeader}<tr style="border-bottom:1px solid #f0f0f0;background:${rowBg};">
+        ${statusCell}
+        <td style="padding:7px 10px;"><span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;">${typeNames[r.type]||r.type}</span>${badge?'<br>'+badge:''}</td>
+        <td style="padding:7px 10px;font-size:13px;font-weight:600;color:#1a2e4a;">${r.title}</td>
+        <td style="padding:7px 10px;font-size:11px;color:#6b7280;max-width:160px;">${r.detail||'—'}</td>
+        <td style="padding:7px 10px;font-size:12px;color:#374151;text-align:right;">${r.km > 0 ? r.km + ' km' : '—'}</td>
+        <td style="padding:7px 10px;font-size:12px;color:#374151;text-align:right;font-weight:${r.realKm?700:400};color:${r.done?color:'#9ca3af'};">${distCell}</td>
+        <td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:${r.dur?700:400};color:${r.done?'#374151':'#9ca3af'};">${durCell}</td>
+        <td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:${r.pace?700:400};color:${r.done?color:'#9ca3af'};">${paceCell}</td>
+        <td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:${r.hr?700:400};color:${r.done?'#DC2626':'#9ca3af'};">${hrCell}</td>
+        <td style="padding:7px 10px;font-size:11px;color:#9ca3af;">${sched}</td>
+      </tr>`;
+    } else {
+      tableRows += `${weekHeader}<tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:8px 12px;"><span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;">${typeNames[r.type]||r.type}</span> ${badge}</td>
+        <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1a2e4a;">${r.title}</td>
+        <td style="padding:8px 12px;font-size:12px;color:#6b7280;">${r.detail||'—'}</td>
+        <td style="padding:8px 12px;font-weight:700;font-size:13px;text-align:right;">${r.km > 0 ? r.km + ' km' : '—'}</td>
+        <td style="padding:8px 12px;font-size:12px;color:#666;">${sched}</td>
+        <td style="padding:8px 12px;font-size:12px;color:#666;">${r.shoe || '—'}</td>
+      </tr>`;
+    }
     totalKm += parseFloat(r.km) || 0;
   });
 
+  const thStyle = 'background:#EDF2FB;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #D1DEFA;';
+
+  const theadResults = withResults
+    ? `<tr>
+        <th style="${thStyle}text-align:center;width:32px;">✓</th>
+        <th style="${thStyle}">Type</th>
+        <th style="${thStyle}">Titre</th>
+        <th style="${thStyle}">Détail</th>
+        <th style="${thStyle}text-align:right;">Prévu</th>
+        <th style="${thStyle}text-align:right;">Réalisé</th>
+        <th style="${thStyle}text-align:right;">Temps</th>
+        <th style="${thStyle}text-align:right;">Allure</th>
+        <th style="${thStyle}text-align:right;">FC moy.</th>
+        <th style="${thStyle}">Créneau</th>
+      </tr>`
+    : `<tr>
+        <th style="${thStyle}">Type</th>
+        <th style="${thStyle}">Titre</th>
+        <th style="${thStyle}">Détail</th>
+        <th style="${thStyle}text-align:right;">Distance</th>
+        <th style="${thStyle}">Créneau</th>
+        <th style="${thStyle}">Chaussure</th>
+      </tr>`;
+
+  const metaExtra = withResults
+    ? ` · ${doneCount} séances réalisées · ${Math.round(totalRealKm)} km courus`
+    : '';
+
+  const title = withResults ? 'Plan + Résultats' : 'Plan complet';
+  const filename = withResults ? `plan-marathon-resultats-${today}.html` : `plan-marathon-export-${today}.html`;
+
   const html = `<!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"><title>Plan Marathon — Export ${today}</title>
-<style>body{font-family:-apple-system,sans-serif;margin:0;padding:20px;background:#F5F7FB;}
-h1{color:#0C447C;font-size:22px;margin-bottom:4px;}
-.meta{color:#666;font-size:13px;margin-bottom:20px;}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
-th{background:#EDF2FB;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.05em;}
-tr:hover td{background:#F9FAFB;}
-.footer{margin-top:16px;font-size:13px;color:#666;}
+<html lang="fr"><head><meta charset="UTF-8"><title>Plan Marathon — ${title} ${today}</title>
+<style>
+*{box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:24px;background:#F5F7FB;color:#1a2e4a;}
+h1{color:#0C447C;font-size:20px;font-weight:800;margin-bottom:4px;letter-spacing:-0.02em;}
+.meta{color:#6b7280;font-size:12px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #e5e7eb;}
+.meta strong{color:#0C447C;}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.07);font-size:13px;}
+tr:hover td{background:#f8faff !important;}
+.legend{margin-top:14px;font-size:11px;color:#9ca3af;display:flex;gap:16px;flex-wrap:wrap;}
+.legend span{display:inline-flex;align-items:center;gap:5px;}
+${withResults?`.res-col{background:#FAFBFF;}`:''}
 </style></head><body>
-<h1>Plan Marathon — Export complet</h1>
-<p class="meta">Généré le ${today} · ${rows.length} séances · ${Math.round(totalKm)} km total</p>
+<h1>🏃 Plan Marathon — ${title}</h1>
+<p class="meta">Généré le <strong>${today}</strong> · <strong>${rows.length}</strong> séances prévues · <strong>${Math.round(totalKm)} km</strong> au total${metaExtra}</p>
 <table>
-<thead><tr><th>Type</th><th>Titre</th><th>Détail</th><th>Distance</th><th>Créneau</th><th>Chaussure</th></tr></thead>
+<thead>${theadResults}</thead>
 <tbody>${tableRows}</tbody>
 </table>
-<p class="footer">Séances <span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">+manuel</span> = ajoutées manuellement &nbsp;|&nbsp; <span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">modifiée</span> = séance du plan modifiée</p>
+<div class="legend">
+  <span><span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;">+manuel</span> = séance ajoutée manuellement</span>
+  <span><span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;">modifiée</span> = séance du plan modifiée</span>
+</div>
 </body></html>`;
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `plan-marathon-export-${today}.html`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
-  showToast('Export téléchargé', '📋');
+  showToast(withResults ? 'Export avec résultats téléchargé' : 'Export téléchargé', '📋');
 }
 
