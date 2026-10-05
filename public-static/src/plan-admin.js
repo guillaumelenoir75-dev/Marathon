@@ -1110,134 +1110,57 @@ function _doExportPlan(withResults) {
   rows.sort((a, b) => a.ws - b.ws);
 
   const dayNames = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-  let lastWs = null;
-  let tableRows = '';
   let totalKm = 0;
   let totalRealKm = 0;
   let doneCount = 0;
+  let csvRows = [];
 
   rows.forEach(r => {
-    const color = typeColors[r.type] || '#333';
-    const bg    = typeBgs[r.type]   || '#f9f9f9';
-    const badge = r.source === 'manuel'
-      ? `<span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;">+manuel</span>`
-      : (r.modified ? `<span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;">modifiée</span>` : '');
-    const sched = r.sched_day ? `${dayNames[r.sched_day]} ${r.sched_time}` : '—';
+    const sched = r.sched_day ? `${dayNames[r.sched_day]} ${r.sched_time}` : '';
 
-    // Statut réalisation
-    let statusCell = '';
-    let durCell = '—', distCell = '—', paceCell = '—', hrCell = '—';
     if (withResults) {
       if (r.done) {
         doneCount++;
-        statusCell = `<td style="padding:7px 10px;text-align:center;"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${color};line-height:20px;font-size:11px;color:#fff;font-weight:700;">✓</span></td>`;
-        durCell  = r.dur  || '—';
-        distCell = r.realKm != null ? r.realKm + ' km' : '—';
-        paceCell = r.pace ? r.pace + '/km' : '—';
-        hrCell   = r.hr   ? r.hr + ' bpm' : '—';
         totalRealKm += parseFloat(r.realKm) || 0;
       } else if (r.skip) {
-        statusCell = `<td style="padding:7px 10px;text-align:center;"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#e5e7eb;line-height:20px;font-size:11px;color:#9ca3af;font-weight:700;">✕</span></td>`;
-      } else {
-        statusCell = `<td style="padding:7px 10px;text-align:center;"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid #e5e7eb;"></span></td>`;
+        // rien de plus
       }
     }
 
-    const weekHeader = r.ws !== lastWs
-      ? `<tr style="background:#0C447C;color:#fff;">
-          <td colspan="${withResults?10:7}" style="padding:9px 12px;font-weight:800;font-size:13px;letter-spacing:0.03em;">
-            ◆ Semaine ${r.ws}
-          </td>
-        </tr>`
-      : '';
-    lastWs = r.ws;
-
-    const rowBg = r.done ? '#F6FBF0' : r.skip ? '#FFF8F8' : '#fff';
-
+    // Ligne CSV — échapper les champs contenant ; " ou saut de ligne
+    const esc = v => { const s = String(v==null?'':v); return (s.includes(';')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+    const status = r.done ? 'Fait' : r.skip ? 'Non réalisée' : '';
+    const srcLabel = r.source === 'manuel' ? 'Manuel' : (r.modified ? 'Plan (modifiée)' : 'Plan');
     if (withResults) {
-      tableRows += `${weekHeader}<tr style="border-bottom:1px solid #f0f0f0;background:${rowBg};">
-        ${statusCell}
-        <td style="padding:7px 10px;"><span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;">${typeNames[r.type]||r.type}</span>${badge?'<br>'+badge:''}</td>
-        <td style="padding:7px 10px;font-size:13px;font-weight:600;color:#1a2e4a;">${r.title}</td>
-        <td style="padding:7px 10px;font-size:11px;color:#6b7280;max-width:160px;">${r.detail||'—'}</td>
-        <td style="padding:7px 10px;font-size:12px;color:#374151;text-align:right;">${r.km > 0 ? r.km + ' km' : '—'}</td>
-        <td style="padding:7px 10px;font-size:12px;color:#374151;text-align:right;font-weight:${r.realKm?700:400};color:${r.done?color:'#9ca3af'};">${distCell}</td>
-        <td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:${r.dur?700:400};color:${r.done?'#374151':'#9ca3af'};">${durCell}</td>
-        <td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:${r.pace?700:400};color:${r.done?color:'#9ca3af'};">${paceCell}</td>
-        <td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:${r.hr?700:400};color:${r.done?'#DC2626':'#9ca3af'};">${hrCell}</td>
-        <td style="padding:7px 10px;font-size:11px;color:#9ca3af;">${sched}</td>
-      </tr>`;
+      csvRows.push([
+        'S'+r.ws, esc(typeNames[r.type]||r.type), esc(srcLabel), esc(r.title), esc(r.detail||''),
+        r.km>0?r.km:'', sched, r.shoe||'',
+        status,
+        r.realKm!=null?r.realKm:'', r.dur||'', r.pace||'', r.hr||''
+      ].join(';'));
     } else {
-      tableRows += `${weekHeader}<tr style="border-bottom:1px solid #f0f0f0;">
-        <td style="padding:8px 12px;"><span style="background:${bg};color:${color};font-weight:700;font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;">${typeNames[r.type]||r.type}</span> ${badge}</td>
-        <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1a2e4a;">${r.title}</td>
-        <td style="padding:8px 12px;font-size:12px;color:#6b7280;">${r.detail||'—'}</td>
-        <td style="padding:8px 12px;font-weight:700;font-size:13px;text-align:right;">${r.km > 0 ? r.km + ' km' : '—'}</td>
-        <td style="padding:8px 12px;font-size:12px;color:#666;">${sched}</td>
-        <td style="padding:8px 12px;font-size:12px;color:#666;">${r.shoe || '—'}</td>
-      </tr>`;
+      csvRows.push([
+        'S'+r.ws, esc(typeNames[r.type]||r.type), esc(srcLabel), esc(r.title), esc(r.detail||''),
+        r.km>0?r.km:'', sched, r.shoe||''
+      ].join(';'));
     }
     totalKm += parseFloat(r.km) || 0;
   });
 
-  const thStyle = 'background:#EDF2FB;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #D1DEFA;';
+  // En-tête CSV
+  const header = withResults
+    ? ['Semaine','Type','Source','Titre','Détail','Distance prévue (km)','Créneau','Chaussure','Statut','Distance réalisée (km)','Temps','Allure (/km)','FC moy. (bpm)'].join(';')
+    : ['Semaine','Type','Source','Titre','Détail','Distance (km)','Créneau','Chaussure'].join(';');
 
-  const theadResults = withResults
-    ? `<tr>
-        <th style="${thStyle}text-align:center;width:32px;">✓</th>
-        <th style="${thStyle}">Type</th>
-        <th style="${thStyle}">Titre</th>
-        <th style="${thStyle}">Détail</th>
-        <th style="${thStyle}text-align:right;">Prévu</th>
-        <th style="${thStyle}text-align:right;">Réalisé</th>
-        <th style="${thStyle}text-align:right;">Temps</th>
-        <th style="${thStyle}text-align:right;">Allure</th>
-        <th style="${thStyle}text-align:right;">FC moy.</th>
-        <th style="${thStyle}">Créneau</th>
-      </tr>`
-    : `<tr>
-        <th style="${thStyle}">Type</th>
-        <th style="${thStyle}">Titre</th>
-        <th style="${thStyle}">Détail</th>
-        <th style="${thStyle}text-align:right;">Distance</th>
-        <th style="${thStyle}">Créneau</th>
-        <th style="${thStyle}">Chaussure</th>
-      </tr>`;
+  const metaLine = withResults
+    ? `# Plan Marathon — Export avec résultats — ${today} — ${rows.length} séances — ${Math.round(totalKm)} km prévus — ${doneCount} réalisées — ${Math.round(totalRealKm)} km courus`
+    : `# Plan Marathon — Export — ${today} — ${rows.length} séances — ${Math.round(totalKm)} km`;
 
-  const metaExtra = withResults
-    ? ` · ${doneCount} séances réalisées · ${Math.round(totalRealKm)} km courus`
-    : '';
+  // BOM UTF-8 pour qu'Excel détecte l'encodage
+  const csv = '﻿' + metaLine + '\n' + header + '\n' + csvRows.join('\n');
+  const filename = withResults ? `plan-marathon-resultats-${today}.csv` : `plan-marathon-export-${today}.csv`;
 
-  const title = withResults ? 'Plan + Résultats' : 'Plan complet';
-  const filename = withResults ? `plan-marathon-resultats-${today}.html` : `plan-marathon-export-${today}.html`;
-
-  const html = `<!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"><title>Plan Marathon — ${title} ${today}</title>
-<style>
-*{box-sizing:border-box;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:24px;background:#F5F7FB;color:#1a2e4a;}
-h1{color:#0C447C;font-size:20px;font-weight:800;margin-bottom:4px;letter-spacing:-0.02em;}
-.meta{color:#6b7280;font-size:12px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #e5e7eb;}
-.meta strong{color:#0C447C;}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.07);font-size:13px;}
-tr:hover td{background:#f8faff !important;}
-.legend{margin-top:14px;font-size:11px;color:#9ca3af;display:flex;gap:16px;flex-wrap:wrap;}
-.legend span{display:inline-flex;align-items:center;gap:5px;}
-${withResults?`.res-col{background:#FAFBFF;}`:''}
-</style></head><body>
-<h1>🏃 Plan Marathon — ${title}</h1>
-<p class="meta">Généré le <strong>${today}</strong> · <strong>${rows.length}</strong> séances prévues · <strong>${Math.round(totalKm)} km</strong> au total${metaExtra}</p>
-<table>
-<thead>${theadResults}</thead>
-<tbody>${tableRows}</tbody>
-</table>
-<div class="legend">
-  <span><span style="background:#FFF3CD;color:#92400E;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;">+manuel</span> = séance ajoutée manuellement</span>
-  <span><span style="background:#EEF2FD;color:#1B4FD8;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;">modifiée</span> = séance du plan modifiée</span>
-</div>
-</body></html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1246,6 +1169,6 @@ ${withResults?`.res-col{background:#FAFBFF;}`:''}
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
-  showToast(withResults ? 'Export avec résultats téléchargé' : 'Export téléchargé', '📋');
+  showToast(withResults ? 'Export CSV avec résultats téléchargé' : 'Export CSV téléchargé', '📋');
 }
 
