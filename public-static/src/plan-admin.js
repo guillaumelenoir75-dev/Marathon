@@ -1027,148 +1027,154 @@ function exportPlanDocument() {
 }
 
 function _doExportPlan(withResults) {
-  const today = new Date().toISOString().slice(0, 10);
-  const typeNames = { ef:'Footing EF', ef_long:'EF Long', tempo:'Tempo', seuil:'Seuil', vma:'VMA', frac:'Fractionné', long:'Sortie Longue', race:'Course', rest:'Récupération' };
-  const typeColors = { ef:'#3B6D11', ef_long:'#2E5E0A', tempo:'#E8530A', seuil:'#B45309', vma:'#7C3AED', frac:'#C4141B', long:'#534AB7', race:'#0C447C', rest:'#6B7280' };
-  const typeBgs   = { ef:'#EAF3DE', ef_long:'#DFF0D0', tempo:'#FEF3EC', seuil:'#FEF9EC', vma:'#F3EDFF', frac:'#FEECEC', long:'#ECEAFD', race:'#EDF2FB', rest:'#F3F4F6' };
-
-  let rows = [];
-
-  if (typeof weeks !== 'undefined' && weeks) {
-    weeks.forEach((week, wi) => {
-      const ws = wi + 1;
-      (week.sessions || []).forEach((s, si) => {
-        if (state[`del_w${ws}_s${si}`]) return;
-        let session = { ...s };
-        const editRaw = state[`edit_w${ws}_s${si}`];
-        if (editRaw) { try { session = { ...session, ...JSON.parse(editRaw) }; } catch(e) {} }
-        const parts = (session.d || '').split('|');
-        // Recherche de l'index extra correspondant à cette séance plan
-        let ei = si; // extra_w uses same index for plan sessions
-        const k = `extra_w${ws}_s${ei}`;
-        const done = !!state[k+'_done'];
-        const skip = !!state[k+'_skip'];
-        const realKm = state[k+'_km'] != null ? state[k+'_km'] : null;
-        let perf = {}; try { perf = state[k+'_perf'] ? JSON.parse(state[k+'_perf']) : {}; } catch(e) {}
-        rows.push({
-          ws, source: 'plan',
-          type: session.type || 'ef',
-          title: parts[0] || '',
-          detail: parts[1] || '',
-          km: session.km || 0,
-          sched_day: session.sched_day || '',
-          sched_time: session.sched_time || '',
-          shoe: session.shoe || '',
-          modified: !!editRaw,
-          done, skip,
-          realKm: realKm != null ? realKm : (done ? session.km : null),
-          dur: perf.dur || null,
-          pace: perf.pace || null,
-          hr: perf.hr || null
-        });
-      });
-    });
+  // Charger SheetJS si pas encore présent
+  function _loadXlsx(cb) {
+    if (window.XLSX) { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = cb;
+    s.onerror = () => { showToast('Impossible de charger la librairie Excel', '⚠️'); };
+    document.head.appendChild(s);
   }
 
-  for (let ws = 1; ws <= 35; ws++) {
-    let ei = 0;
-    while (ei <= 20 && state[`extra_w${ws}_s${ei}`] !== undefined) {
-      // Éviter les doublons avec les séances plan (celles-ci ont le même index que les sessions plan)
-      const isFromPlan = typeof weeks !== 'undefined' && weeks && (ws-1) < weeks.length
-        && ei < (weeks[ws-1].sessions||[]).length && !state[`del_w${ws}_s${ei}`];
-      if (!isFromPlan) {
-        try {
-          const s = JSON.parse(state[`extra_w${ws}_s${ei}`]);
-          const parts = (s.d || '').split('|');
-          const k = `extra_w${ws}_s${ei}`;
+  _loadXlsx(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const typeNames = { ef:'Footing EF', ef_long:'EF Long', tempo:'Tempo', seuil:'Seuil', vma:'VMA', frac:'Fractionné', long:'Sortie Longue', race:'Course', rest:'Récupération' };
+
+    // Calcule la date d'une séance : weekStart (DD/MM) + offset jour
+    function _sessDate(ws, sched_day) {
+      if (!sched_day || !weeks || !weeks[ws-1] || !weeks[ws-1].date) return '';
+      const parts = weeks[ws-1].date.split('/'); // DD/MM
+      const d = new Date(2026, parseInt(parts[1])-1, parseInt(parts[0]));
+      // sched_day : 1=Lun … 7=Dim. Semaine commence lundi (jour 1)
+      d.setDate(d.getDate() + (sched_day - 1));
+      return ('0'+d.getDate()).slice(-2) + '/' + ('0'+(d.getMonth()+1)).slice(-2);
+    }
+
+    let rows = [];
+
+    if (typeof weeks !== 'undefined' && weeks) {
+      weeks.forEach((week, wi) => {
+        const ws = wi + 1;
+        (week.sessions || []).forEach((s, si) => {
+          if (state[`del_w${ws}_s${si}`]) return;
+          let session = { ...s };
+          const editRaw = state[`edit_w${ws}_s${si}`];
+          if (editRaw) { try { session = { ...session, ...JSON.parse(editRaw) }; } catch(e) {} }
+          const parts = (session.d || '').split('|');
+          const k = `extra_w${ws}_s${si}`;
           const done = !!state[k+'_done'];
           const skip = !!state[k+'_skip'];
           const realKm = state[k+'_km'] != null ? state[k+'_km'] : null;
           let perf = {}; try { perf = state[k+'_perf'] ? JSON.parse(state[k+'_perf']) : {}; } catch(e) {}
           rows.push({
-            ws, source: 'manuel',
-            type: s.type || 'ef',
-            title: parts[0] || '',
-            detail: parts[1] || '',
-            km: s.km || 0,
-            sched_day: s.sched_day || '',
-            sched_time: s.sched_time || '',
-            shoe: s.shoe || '',
-            modified: false,
+            ws, type: session.type || 'ef',
+            title: parts[0] || '', detail: parts[1] || '',
+            km: session.km || 0,
+            sched_day: session.sched_day || '',
+            modified: !!editRaw, source: 'plan',
             done, skip,
-            realKm: realKm != null ? realKm : (done ? s.km : null),
-            dur: perf.dur || null,
-            pace: perf.pace || null,
-            hr: perf.hr || null
+            realKm: realKm != null ? realKm : (done ? session.km : null),
+            dur: perf.dur || null, pace: perf.pace || null, hr: perf.hr || null
           });
-        } catch(e) {}
-      }
-      ei++;
-    }
-  }
-
-  rows.sort((a, b) => a.ws - b.ws);
-
-  const dayNames = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-  let totalKm = 0;
-  let totalRealKm = 0;
-  let doneCount = 0;
-  let csvRows = [];
-
-  rows.forEach(r => {
-    const sched = r.sched_day ? `${dayNames[r.sched_day]} ${r.sched_time}` : '';
-
-    if (withResults) {
-      if (r.done) {
-        doneCount++;
-        totalRealKm += parseFloat(r.realKm) || 0;
-      } else if (r.skip) {
-        // rien de plus
-      }
+        });
+      });
     }
 
-    // Ligne CSV — échapper les champs contenant ; " ou saut de ligne
-    const esc = v => { const s = String(v==null?'':v); return (s.includes(';')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s; };
-    const status = r.done ? 'Fait' : r.skip ? 'Non réalisée' : '';
-    const srcLabel = r.source === 'manuel' ? 'Manuel' : (r.modified ? 'Plan (modifiée)' : 'Plan');
+    for (let ws = 1; ws <= 35; ws++) {
+      let ei = 0;
+      while (ei <= 20 && state[`extra_w${ws}_s${ei}`] !== undefined) {
+        const isFromPlan = typeof weeks !== 'undefined' && weeks && (ws-1) < weeks.length
+          && ei < (weeks[ws-1].sessions||[]).length && !state[`del_w${ws}_s${ei}`];
+        if (!isFromPlan) {
+          try {
+            const s = JSON.parse(state[`extra_w${ws}_s${ei}`]);
+            const parts = (s.d || '').split('|');
+            const k = `extra_w${ws}_s${ei}`;
+            const done = !!state[k+'_done'];
+            const skip = !!state[k+'_skip'];
+            const realKm = state[k+'_km'] != null ? state[k+'_km'] : null;
+            let perf = {}; try { perf = state[k+'_perf'] ? JSON.parse(state[k+'_perf']) : {}; } catch(e) {}
+            rows.push({
+              ws, type: s.type || 'ef',
+              title: parts[0] || '', detail: parts[1] || '',
+              km: s.km || 0, sched_day: s.sched_day || '',
+              modified: false, source: 'manuel',
+              done, skip,
+              realKm: realKm != null ? realKm : (done ? s.km : null),
+              dur: perf.dur || null, pace: perf.pace || null, hr: perf.hr || null
+            });
+          } catch(e) {}
+        }
+        ei++;
+      }
+    }
+
+    rows.sort((a, b) => a.ws - b.ws);
+
+    let totalKm = 0, totalRealKm = 0, doneCount = 0;
+
+    // ── Construction des lignes Excel ──────────────────────────────────────
+    const data = [];
+
     if (withResults) {
-      csvRows.push([
-        'S'+r.ws, esc(typeNames[r.type]||r.type), esc(srcLabel), esc(r.title), esc(r.detail||''),
-        r.km>0?r.km:'', sched, r.shoe||'',
-        status,
-        r.realKm!=null?r.realKm:'', r.dur||'', r.pace||'', r.hr||''
-      ].join(';'));
+      data.push(['Semaine', 'Date', 'Type', 'Titre', 'Détail', 'Prévu (km)', 'Statut', 'Réalisé (km)', 'Temps', 'Allure (/km)', 'FC moy. (bpm)']);
     } else {
-      csvRows.push([
-        'S'+r.ws, esc(typeNames[r.type]||r.type), esc(srcLabel), esc(r.title), esc(r.detail||''),
-        r.km>0?r.km:'', sched, r.shoe||''
-      ].join(';'));
+      data.push(['Semaine', 'Date', 'Type', 'Titre', 'Détail', 'Distance (km)', 'Créneau', 'Chaussure']);
     }
-    totalKm += parseFloat(r.km) || 0;
+
+    rows.forEach(r => {
+      const sessDate = _sessDate(r.ws, r.sched_day);
+      totalKm += parseFloat(r.km) || 0;
+
+      if (withResults) {
+        const status = r.done ? '✓ Fait' : r.skip ? '✕ Non réalisée' : '';
+        if (r.done) { doneCount++; totalRealKm += parseFloat(r.realKm) || 0; }
+        data.push([
+          'S' + r.ws,
+          sessDate,
+          typeNames[r.type] || r.type,
+          r.title,
+          r.detail || '',
+          r.km > 0 ? r.km : '',
+          status,
+          r.realKm != null ? r.realKm : '',
+          r.dur || '',
+          r.pace || '',
+          r.hr || ''
+        ]);
+      } else {
+        const dayNames = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+        data.push([
+          'S' + r.ws,
+          sessDate,
+          typeNames[r.type] || r.type,
+          r.title,
+          r.detail || '',
+          r.km > 0 ? r.km : '',
+          r.sched_day ? dayNames[r.sched_day] : '',
+          r.shoe || ''
+        ]);
+      }
+    });
+
+    // ── Création du fichier Excel ───────────────────────────────────────────
+    const wb = XLSX.utils.book_new();
+    const ws2 = XLSX.utils.aoa_to_sheet(data);
+
+    // Largeurs de colonnes
+    const colWidths = withResults
+      ? [{ wch: 9 }, { wch: 7 }, { wch: 14 }, { wch: 28 }, { wch: 32 }, { wch: 11 }, { wch: 14 }, { wch: 12 }, { wch: 9 }, { wch: 11 }, { wch: 12 }]
+      : [{ wch: 9 }, { wch: 7 }, { wch: 14 }, { wch: 28 }, { wch: 32 }, { wch: 12 }, { wch: 9 }, { wch: 18 }];
+    ws2['!cols'] = colWidths;
+
+    const sheetName = withResults ? 'Plan + Résultats' : 'Plan complet';
+    XLSX.utils.book_append_sheet(wb, ws2, sheetName);
+
+    const filename = withResults ? `plan-marathon-resultats-${today}.xlsx` : `plan-marathon-export-${today}.xlsx`;
+    XLSX.writeFile(wb, filename);
+
+    showToast(withResults ? 'Export Excel avec résultats téléchargé' : 'Export Excel téléchargé', '📊');
   });
-
-  // En-tête CSV
-  const header = withResults
-    ? ['Semaine','Type','Source','Titre','Détail','Distance prévue (km)','Créneau','Chaussure','Statut','Distance réalisée (km)','Temps','Allure (/km)','FC moy. (bpm)'].join(';')
-    : ['Semaine','Type','Source','Titre','Détail','Distance (km)','Créneau','Chaussure'].join(';');
-
-  const metaLine = withResults
-    ? `# Plan Marathon — Export avec résultats — ${today} — ${rows.length} séances — ${Math.round(totalKm)} km prévus — ${doneCount} réalisées — ${Math.round(totalRealKm)} km courus`
-    : `# Plan Marathon — Export — ${today} — ${rows.length} séances — ${Math.round(totalKm)} km`;
-
-  // BOM UTF-8 pour qu'Excel détecte l'encodage
-  const csv = '﻿' + metaLine + '\n' + header + '\n' + csvRows.join('\n');
-  const filename = withResults ? `plan-marathon-resultats-${today}.csv` : `plan-marathon-export-${today}.csv`;
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-  showToast(withResults ? 'Export CSV avec résultats téléchargé' : 'Export CSV téléchargé', '📋');
 }
 
