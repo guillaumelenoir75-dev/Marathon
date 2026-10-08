@@ -994,24 +994,88 @@ async function deleteAthletePlan(){
 
 // ── Carte Organisation Course ─────────────────────────────────────────────────
 let _raceMapInstance = null;
+let _raceMapFullscreen = false;
+
+function _toggleRaceMapFS(){
+  const container = document.getElementById('race-map');
+  const btn = document.getElementById('race-map-fs-btn');
+  if(!container) return;
+  _raceMapFullscreen = !_raceMapFullscreen;
+  if(_raceMapFullscreen){
+    container.style.cssText = 'position:fixed;inset:0;z-index:9000;height:100%;border-radius:0;border:none;background:#e8f0fb;';
+    document.body.style.overflow = 'hidden';
+    if(btn) btn.textContent = '✕ Fermer';
+  } else {
+    container.style.cssText = 'height:320px;border-radius:10px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;';
+    document.body.style.overflow = '';
+    if(btn) btn.textContent = '⛶ Plein écran';
+  }
+  if(_raceMapInstance) _raceMapInstance.invalidateSize();
+}
 
 function initRaceOrgMap(){
   const container = document.getElementById('race-map');
   if(!container) return;
-  if(_raceMapInstance) return; // déjà initialisée
+  if(_raceMapInstance) return;
+
+  // Bouton plein écran dans le bandeau (au-dessus de la map)
+  if(!document.getElementById('race-map-fs-btn')){
+    const fsBtn = document.createElement('button');
+    fsBtn.id = 'race-map-fs-btn';
+    fsBtn.textContent = '⛶ Plein écran';
+    fsBtn.style.cssText = 'position:absolute;top:-36px;right:0;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;z-index:10;';
+    fsBtn.onclick = _toggleRaceMapFS;
+    container.parentNode.style.position = 'relative';
+    container.parentNode.appendChild(fsBtn);
+  }
 
   function _buildMap(){
     if(_raceMapInstance) return;
 
     // Tracé exact GPX — Marathon Seine-Eure 2026 (OpenRunner #22022506)
-    // 224 points simplifiés (Douglas-Peucker) depuis les 502 points d'origine, 42.19 km
     const ROUTE = [[49.14762,1.15084],[49.14845,1.15258],[49.14977,1.15458],[49.15112,1.15793],[49.15229,1.15974],[49.15311,1.16187],[49.15319,1.16233],[49.15266,1.1678],[49.1541,1.17141],[49.15464,1.17336],[49.15623,1.17633],[49.15657,1.17774],[49.1652,1.17919],[49.16524,1.17949],[49.16633,1.18052],[49.16796,1.18132],[49.16859,1.18186],[49.16906,1.18499],[49.16924,1.18519],[49.17009,1.18483],[49.17068,1.18396],[49.17253,1.18339],[49.17286,1.18556],[49.17403,1.18773],[49.17526,1.18688],[49.17794,1.18448],[49.18025,1.18191],[49.18082,1.18149],[49.18194,1.18093],[49.18328,1.18059],[49.18463,1.18074],[49.18565,1.17855],[49.1872,1.17739],[49.18826,1.17722],[49.18914,1.17685],[49.18851,1.17473],[49.18846,1.17391],[49.1888,1.17349],[49.18933,1.17329],[49.19008,1.17353],[49.19083,1.17348],[49.19078,1.16991],[49.19235,1.17037],[49.19388,1.17119],[49.19925,1.17512],[49.20184,1.1758],[49.20457,1.17767],[49.20439,1.17868],[49.20486,1.1791],[49.20582,1.17961],[49.2083,1.18048],[49.2088,1.18],[49.20927,1.17999],[49.20935,1.17983],[49.21053,1.17402],[49.2105,1.17313],[49.21135,1.17316],[49.21234,1.17355],[49.21328,1.1736],[49.21431,1.17313],[49.2152,1.1721],[49.21583,1.1717],[49.21544,1.16897],[49.21561,1.16845],[49.21889,1.16651],[49.22029,1.16652],[49.23613,1.17095],[49.23712,1.1715],[49.23637,1.17715],[49.23791,1.17874],[49.23854,1.17974],[49.23839,1.18001],[49.23698,1.18003],[49.23616,1.17949],[49.23627,1.17727],[49.23577,1.17672],[49.23533,1.17658],[49.23406,1.17661],[49.23149,1.1751],[49.22984,1.17439],[49.22764,1.174],[49.2246,1.17274],[49.22415,1.17275],[49.22363,1.17299],[49.22048,1.17277],[49.2189,1.17139],[49.218,1.17105],[49.21558,1.17211],[49.21558,1.17262],[49.21646,1.17475],[49.21913,1.17711],[49.21952,1.17797],[49.21971,1.17891],[49.2199,1.17908],[49.22301,1.17872],[49.22336,1.17913],[49.22401,1.18156],[49.23112,1.18453],[49.23416,1.18679],[49.23801,1.19021],[49.24012,1.19291],[49.24146,1.1951],[49.24483,1.20285],[49.24632,1.20723],[49.24726,1.2106],[49.24747,1.21347],[49.24686,1.21797],[49.24644,1.21864],[49.24488,1.21993],[49.24278,1.22021],[49.239,1.22003],[49.2366,1.22472],[49.23635,1.22604],[49.2376,1.22642],[49.2381,1.22667],[49.23842,1.22707],[49.23891,1.22893],[49.23933,1.2297],[49.24672,1.24072],[49.24604,1.24268],[49.24547,1.24726],[49.2453,1.25167],[49.24542,1.25336],[49.24557,1.25364],[49.24679,1.25511],[49.252,1.25697],[49.25273,1.257],[49.25524,1.25657],[49.25667,1.2568],[49.25765,1.25674],[49.26025,1.25825],[49.26148,1.25853],[49.26455,1.25882],[49.26607,1.25868],[49.26712,1.25921],[49.26813,1.25947],[49.27037,1.25892],[49.27304,1.25911],[49.27477,1.25947],[49.27974,1.25914],[49.28101,1.25949],[49.28171,1.25986],[49.28241,1.25985],[49.28379,1.25951],[49.28489,1.25949],[49.28602,1.25971],[49.28629,1.26168],[49.28804,1.26205],[49.28958,1.26179],[49.29162,1.2609],[49.292,1.26023],[49.29259,1.25764],[49.29363,1.25683],[49.29634,1.25542],[49.29722,1.25472],[49.29836,1.25222],[49.2989,1.25139],[49.29955,1.25258],[49.30207,1.2505],[49.30283,1.24899],[49.30466,1.24694],[49.30606,1.24349],[49.30759,1.24098],[49.30816,1.23826],[49.30845,1.23814],[49.30863,1.23762],[49.30843,1.23531],[49.30887,1.23388],[49.30893,1.23262],[49.30947,1.2302],[49.30936,1.22872],[49.3091,1.22763],[49.30911,1.22773],[49.30882,1.22712],[49.30812,1.22654],[49.30694,1.22507],[49.30644,1.21944],[49.30616,1.21896],[49.30628,1.21798],[49.30599,1.21779],[49.30461,1.21807],[49.30291,1.21494],[49.3025,1.21455],[49.30195,1.21451],[49.3012,1.21414],[49.3011,1.2139],[49.3026,1.21026],[49.30259,1.20957],[49.30227,1.20857],[49.30198,1.20803],[49.30164,1.20787],[49.30139,1.20795],[49.30088,1.20859],[49.29933,1.20909],[49.29757,1.21027],[49.29704,1.21032],[49.29648,1.20979],[49.29551,1.21039],[49.2949,1.21126],[49.29312,1.21249],[49.29213,1.21344],[49.29018,1.21644],[49.28939,1.21478],[49.28799,1.21577],[49.28751,1.21589],[49.28737,1.2154],[49.28778,1.21063],[49.2877,1.21019],[49.28757,1.21019],[49.28699,1.21068],[49.28664,1.21139],[49.28618,1.21351],[49.28566,1.21453],[49.28521,1.21493],[49.28427,1.21531],[49.28307,1.21606],[49.28283,1.21626],[49.28258,1.21699],[49.28159,1.21736],[49.27916,1.21993],[49.27812,1.22037],[49.27612,1.22167],[49.27361,1.22359],[49.27229,1.21911]];
 
-    // Points ravitaillement calculés depuis le GPX (distances cumulées exactes)
+    // Points ravitaillement (km exacts depuis GPX)
     const RAVITOS = [
-      { km: 10, coord: [49.21053, 1.17402], label: 'km 10 — Louviers sud' },
-      { km: 20, coord: [49.23748, 1.18973], label: 'km 20 — Incarville' },
-      { km: 30, coord: [49.27756, 1.25922], label: 'km 30 — Poses' },
+      { km: 10, coord: [49.21053, 1.17402], heure: '~10h15', lieu: 'Louviers sud' },
+      { km: 20, coord: [49.23748, 1.18973], heure: '~11h15', lieu: 'Incarville' },
+      { km: 30, coord: [49.27756, 1.25922], heure: '~12h15', lieu: 'Poses nord' },
+    ];
+
+    // Itinéraire voiture recommandé (3 étapes : parking → km10 → km20 → km30)
+    // Axe A13/D6015 au nord du parcours, évite toutes les routes fermées
+    const CAR_ROUTE = [
+      // ① Approche depuis A13 (sortie Louviers/Incarville) → km 10 Louviers-sud
+      [49.2620, 1.1920], // A13 sortie Louviers/Incarville
+      [49.2555, 1.1910],
+      [49.2480, 1.1885],
+      [49.2390, 1.1840],
+      [49.2310, 1.1810],
+      [49.2220, 1.1775],
+      [49.2150, 1.1745],
+      [49.2105, 1.1740], // km 10
+      // ② km 10 → km 20 : contournement par l'ouest de Louviers
+      [49.2105, 1.1640], // D316 / rue Beauséjour ouest
+      [49.2180, 1.1630],
+      [49.2265, 1.1660],
+      [49.2320, 1.1720],
+      [49.2375, 1.1897], // km 20
+      // ③ km 20 → km 30 : D316 est puis D19 vers Poses nord
+      [49.2450, 1.1980],
+      [49.2520, 1.2100],
+      [49.2590, 1.2250],
+      [49.2650, 1.2400],
+      [49.2720, 1.2530],
+      [49.2776, 1.2592], // km 30
+    ];
+
+    // Segments route confirmés fermés (rouge) :
+    // 1. Tout le parcours marathon est fermé à la circulation (règlement officiel, 9h15–14h45)
+    // 2. RN154 sortie 5 Acquigny : fermée 9h–11h (confirmé DIRNO)
+    const RN154_CLOSED = [
+      [49.1690, 1.1860], // bretelle sortie 5 RN154 (début)
+      [49.1660, 1.1840], // entrée Acquigny
+      [49.1640, 1.1820], // fin bretelle
     ];
 
     container.innerHTML = '';
@@ -1020,34 +1084,72 @@ function initRaceOrgMap(){
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 17,
+      maxZoom: 18,
     }).addTo(_raceMapInstance);
 
-    // Tracé du parcours
-    const poly = L.polyline(ROUTE, { color: '#1B4FD8', weight: 4, opacity: 0.88, lineJoin: 'round' }).addTo(_raceMapInstance);
+    // Parcours marathon — grisé/orange pour indiquer fermeture à la circulation
+    L.polyline(ROUTE, { color: '#FF6B35', weight: 5, opacity: 0.75, lineJoin: 'round' })
+      .addTo(_raceMapInstance)
+      .bindPopup('<b>🚫 Parcours fermé</b><br>Toutes ces routes sont fermées à la circulation<br>de 9h15 à ~14h45');
 
-    // Marker départ
-    const iconStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[0], { icon: iconStart }).addTo(_raceMapInstance).bindPopup('<b>Départ</b><br>Amfreville-sur-Iton');
+    // RN154 sortie 5 Acquigny — rouge vif, fermée 9h–11h
+    L.polyline(RN154_CLOSED, { color: '#DC2626', weight: 7, opacity: 0.9, lineJoin: 'round' })
+      .addTo(_raceMapInstance)
+      .bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00 à 11h00</b><br>Source : DIRNO<br>Utiliser la sortie n°6');
 
-    // Marker arrivée
-    const iconEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[ROUTE.length-1], { icon: iconEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée</b><br>Val-de-Reuil');
+    // Itinéraire voiture — vert
+    L.polyline(CAR_ROUTE, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round', dashArray: null })
+      .addTo(_raceMapInstance)
+      .bindPopup('<b>🚗 Itinéraire conseillé</b><br>Contourne toutes les routes fermées');
 
-    // Markers ravitaillement
+    // Marqueur départ
+    const iStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
+    L.marker(ROUTE[0], { icon: iStart }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
+
+    // Marqueur arrivée
+    const iEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
+    L.marker(ROUTE[ROUTE.length-1], { icon: iEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15 à 14h45</b><br>Val-de-Reuil');
+
+    // Marqueurs ravitaillement avec heure estimée
     RAVITOS.forEach(r => {
-      const icon = L.divIcon({ html: `<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km ${r.km}</div>`, className: '', iconAnchor: [0, 0] });
-      L.marker(r.coord, { icon }).addTo(_raceMapInstance).bindPopup('<b>' + r.label + '</b><br>Point ravitaillement amis');
+      const iRav = L.divIcon({ html: `<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km ${r.km}</div>`, className: '', iconAnchor: [0, 0] });
+      L.marker(r.coord, { icon: iRav }).addTo(_raceMapInstance)
+        .bindPopup(`<b>💧 km ${r.km} — ${r.lieu}</b><br>Passage estimé : <b>${r.heure}</b><br>Point ravitaillement amis`);
     });
 
-    _raceMapInstance.fitBounds(poly.getBounds(), { padding: [22, 22] });
+    // Marqueurs parking (🅿) aux 3 ravitos
+    const iPark = (label) => L.divIcon({ html: `<div style="background:#fff;color:#1B4FD8;font-size:12px;font-weight:900;border-radius:8px;padding:2px 7px;border:2px solid #1B4FD8;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;">🅿 ${label}</div>`, className: '', iconAnchor: [0, 0] });
+    // Parking km 10 : côté ouest Louviers (hors parcours)
+    L.marker([49.2105, 1.1640], { icon: iPark('km 10') }).addTo(_raceMapInstance)
+      .bindPopup('<b>🅿 Parking km 10</b><br>Louviers — stationnement hors parcours<br>Rejoindre le km 10 à pied (~500 m)');
+    // Parking km 20 : Incarville nord
+    L.marker([49.2400, 1.1850], { icon: iPark('km 20') }).addTo(_raceMapInstance)
+      .bindPopup('<b>🅿 Parking km 20</b><br>Incarville — stationnement nord<br>Rejoindre le km 20 à pied (~400 m)');
+    // Parking km 30 : Poses barrage, rive ouest
+    L.marker([49.2776, 1.2510], { icon: iPark('km 30') }).addTo(_raceMapInstance)
+      .bindPopup('<b>🅿 Parking km 30</b><br>Poses — barrage rive ouest<br>Rejoindre le km 30 à pied (~600 m)');
+
+    // Légende Leaflet
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function(){
+      const div = L.DomUtil.create('div');
+      div.style.cssText = 'background:#fff;border-radius:10px;padding:8px 12px;font-size:11px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);line-height:1.8;min-width:160px;';
+      div.innerHTML = `
+        <div style="font-weight:800;font-size:12px;margin-bottom:4px;color:#1a1a1a;">Légende</div>
+        <div><span style="display:inline-block;width:22px;height:4px;background:#FF6B35;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Parcours (fermé 9h–14h45)</div>
+        <div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 sortie 5 (9h–11h)</div>
+        <div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraire voiture</div>
+        <div style="margin-top:2px;">💧 Ravitaillement · 🅿 Parking</div>`;
+      return div;
+    };
+    legend.addTo(_raceMapInstance);
+
+    const poly = L.polyline(ROUTE);
+    _raceMapInstance.fitBounds(poly.getBounds(), { padding: [30, 30] });
   }
 
-  // Chargement dynamique de Leaflet si nécessaire
-  if(window.L){
-    _buildMap();
-    return;
-  }
+  // Chargement dynamique de Leaflet
+  if(window.L){ _buildMap(); return; }
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
