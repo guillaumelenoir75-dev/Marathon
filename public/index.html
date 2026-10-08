@@ -549,6 +549,41 @@
       </button>
     </div>
   </div>
+  <!-- Organisation course — admin uniquement -->
+  <div id="race-org-panel" style="display:none;margin-bottom:16px;">
+    <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#0F7B3B,#1DA054);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="font-size:18px;line-height:1;">🗺️</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">Organisation course</p>
+          <p style="font-size:12px;color:#888;margin:2px 0 0;">Marathon Seine-Eure · 18 octobre 2026</p>
+        </div>
+      </div>
+      <!-- Points ravitaillement -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;background:#EBF5FF;border:1.5px solid #b3d4f5;border-radius:20px;padding:6px 12px;">
+          <span style="font-size:14px;">💧</span>
+          <div><p style="font-size:11px;font-weight:800;color:#1B4FD8;margin:0;">km 10</p><p style="font-size:10px;color:#5a7fa8;margin:0;">Acquigny</p></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;background:#EBF5FF;border:1.5px solid #b3d4f5;border-radius:20px;padding:6px 12px;">
+          <span style="font-size:14px;">💧</span>
+          <div><p style="font-size:11px;font-weight:800;color:#1B4FD8;margin:0;">km 20</p><p style="font-size:10px;color:#5a7fa8;margin:0;">Louviers</p></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;background:#EBF5FF;border:1.5px solid #b3d4f5;border-radius:20px;padding:6px 12px;">
+          <span style="font-size:14px;">💧</span>
+          <div><p style="font-size:11px;font-weight:800;color:#1B4FD8;margin:0;">km 30</p><p style="font-size:10px;color:#5a7fa8;margin:0;">Poses</p></div>
+        </div>
+      </div>
+      <!-- Carte Leaflet -->
+      <div id="race-map" style="height:320px;border-radius:10px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;display:flex;align-items:center;justify-content:center;">
+        <p style="color:#888;font-size:13px;">Chargement de la carte…</p>
+      </div>
+      <p style="font-size:11px;color:#aaa;margin:8px 0 0;text-align:center;">Source : OpenStreetMap · Tracé approximatif Marathon Seine-Eure 2026</p>
+    </div>
+  </div>
+
   <div id="user-integrations" style="display:none;margin-bottom:16px;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
       <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0 0 14px;">Intégrations</p>

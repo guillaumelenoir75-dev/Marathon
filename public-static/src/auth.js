@@ -248,6 +248,9 @@ function renderCompteScreen(){
   if(sub&&user){const prenom=user.displayName||user.email?.split('@')[0]||'';sub.textContent=prenom?prenom+' · '+user.email:user.email;}
   const adminPanel=document.getElementById('admin-panel');
   if(adminPanel) adminPanel.style.display=isAdmin()?'block':'none';
+  const raceOrgPanel=document.getElementById('race-org-panel');
+  if(raceOrgPanel) raceOrgPanel.style.display=isAdmin()?'block':'none';
+  if(isAdmin()&&typeof initRaceOrgMap==='function') initRaceOrgMap();
   const adminIntegrations=document.getElementById('user-integrations');
   if(adminIntegrations) adminIntegrations.style.display='block';
   // La liste des comptes se charge à la demande via openUsersListModal()

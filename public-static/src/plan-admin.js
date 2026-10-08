@@ -992,6 +992,107 @@ async function deleteAthletePlan(){
   renderHome();
 }
 
+// ── Carte Organisation Course ─────────────────────────────────────────────────
+let _raceMapInstance = null;
+
+function initRaceOrgMap(){
+  const container = document.getElementById('race-map');
+  if(!container) return;
+  if(_raceMapInstance) return; // déjà initialisée
+
+  function _buildMap(){
+    if(_raceMapInstance) return;
+
+    // Tracé approximatif Marathon Seine-Eure 2026
+    // Amfreville-sur-Iton → Acquigny → Pinterville → Louviers → Incarville
+    // → St-Étienne-du-Vauvray → St-Pierre-du-Vauvray → Porte-de-Seine
+    // → Poses → Léry → Val-de-Reuil
+    const ROUTE = [
+      [49.1248, 1.0578], // Départ — Amfreville-sur-Iton
+      [49.1305, 1.0715],
+      [49.1382, 1.0898],
+      [49.1455, 1.1148],
+      [49.1524, 1.1452],
+      [49.1578, 1.1692],
+      [49.1632, 1.1782], // Acquigny
+      [49.1625, 1.1952],
+      [49.1618, 1.2142], // Pinterville
+      [49.1695, 1.2045],
+      [49.1818, 1.1925],
+      [49.1942, 1.1818],
+      [49.2068, 1.1745],
+      [49.2128, 1.1712], // Louviers
+      [49.2188, 1.1762],
+      [49.2248, 1.1822],
+      [49.2312, 1.1932], // Incarville
+      [49.2278, 1.2145],
+      [49.2268, 1.2238], // St-Étienne-du-Vauvray
+      [49.2142, 1.2318], // St-Pierre-du-Vauvray
+      [49.2028, 1.2448],
+      [49.1962, 1.2558], // Porte-de-Seine
+      [49.1885, 1.2765],
+      [49.1862, 1.2852], // Poses
+      [49.1935, 1.2838],
+      [49.2085, 1.2762],
+      [49.2218, 1.2658],
+      [49.2388, 1.2508],
+      [49.2432, 1.2288], // Léry
+      [49.2518, 1.2152],
+      [49.2638, 1.1985], // Arrivée — Val-de-Reuil
+    ];
+
+    // Points ravitaillement (km 10, 20, 30)
+    const RAVITOS = [
+      { km: 10, coord: [49.1632, 1.1782], label: 'km 10 — Acquigny' },
+      { km: 20, coord: [49.2128, 1.1712], label: 'km 20 — Louviers' },
+      { km: 30, coord: [49.1962, 1.2558], label: 'km 30 — Poses' },
+    ];
+
+    container.innerHTML = '';
+    container.style.background = '';
+    _raceMapInstance = L.map(container, { zoomControl: true, attributionControl: true });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 17,
+    }).addTo(_raceMapInstance);
+
+    // Tracé du parcours
+    const poly = L.polyline(ROUTE, { color: '#1B4FD8', weight: 4, opacity: 0.88, lineJoin: 'round' }).addTo(_raceMapInstance);
+
+    // Marker départ
+    const iconStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
+    L.marker(ROUTE[0], { icon: iconStart }).addTo(_raceMapInstance).bindPopup('<b>Départ</b><br>Amfreville-sur-Iton');
+
+    // Marker arrivée
+    const iconEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
+    L.marker(ROUTE[ROUTE.length-1], { icon: iconEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée</b><br>Val-de-Reuil');
+
+    // Markers ravitaillement
+    RAVITOS.forEach(r => {
+      const icon = L.divIcon({ html: `<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km ${r.km}</div>`, className: '', iconAnchor: [0, 0] });
+      L.marker(r.coord, { icon }).addTo(_raceMapInstance).bindPopup('<b>' + r.label + '</b><br>Point ravitaillement amis');
+    });
+
+    _raceMapInstance.fitBounds(poly.getBounds(), { padding: [22, 22] });
+  }
+
+  // Chargement dynamique de Leaflet si nécessaire
+  if(window.L){
+    _buildMap();
+    return;
+  }
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  document.head.appendChild(link);
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  script.onload = _buildMap;
+  script.onerror = () => { container.innerHTML = '<p style="color:#888;padding:16px;text-align:center;">Impossible de charger la carte.</p>'; };
+  document.head.appendChild(script);
+}
+
 function exportPlanDocument() {
   // Modal de choix du type d'export
   const mc = document.getElementById('modal-container');
