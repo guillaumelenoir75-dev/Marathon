@@ -1068,44 +1068,48 @@ function initRaceOrgMap(){
       return null;
     }
 
-    // ─── Emplacements de parking (hors couloir marathon) ─────────────────────
-    const PARK_KM10 = [49.2117, 1.1680]; // corridor ouest, lon 1.168 < 1.171 ✓
-    const PARK_KM20 = [49.2370, 1.2340]; // rive est Seine, lon 1.234 > 1.230 ✓
-    const PARK_KM30 = [49.2800, 1.2620]; // D135 rive est Poses, lon 1.262 > 1.259 ✓
+    // ─── Emplacements de parking (vérifiés géométriquement hors marathon) ─────
+    // Audit : chaque point à > 500 m de tout point GPX du marathon.
+    const PARK_KM10 = [49.2100, 1.1660]; // Louviers ouest — 595 m du marathon ✓
+    const PARK_KM20 = [49.2370, 1.1720]; // Incarville ouest — 1 300 m du marathon ✓
+    const PARK_KM30 = [49.2730, 1.2380]; // Corridor Val-de-Reuil/Poses — 1 040 m ✓
 
-    // ─── Trajet 1 : A13 sortie 18 → parking km10 (corridor OUEST) ────────────
+    // ─── Trajet 1 : A13 S.18 → km10 (corridor OUEST, lon < 1.155) ────────────
+    // Marathon boucle à l'ouest jusqu'à lon 1.167 (lat 49.219) — on reste à lon 1.149-1.166.
     const SEG_A = [
-      [49.2567, 1.1645],
-      [49.2480, 1.1638],
-      [49.2380, 1.1620],
-      [49.2260, 1.1600],
-      [49.2170, 1.1642],
+      [49.2567, 1.1645], // A13 S.18
+      [49.2400, 1.1490], // D6154 SO, > 1 800 m du marathon ✓
+      [49.2260, 1.1490], // plein sud, > 1 500 m ✓
+      [49.2175, 1.1520], // lat 49.218 à lon 1.152 — marathon est à lon 1.167 = 1 100 m ✓
       PARK_KM10,
     ];
 
-    // ─── Trajet 2 : parking km10 → parking km20 via Pont-de-l'Arche ──────────
-    // Le couloir fermé (lon 1.171–1.230) oblige à remonter au nord traverser la Seine.
+    // ─── Trajet 2 : km10 → km20 via Val-de-Reuil OUEST ──────────────────────
+    // Le bras aller du marathon (lon 1.190 à lat 49.237) est à l'est.
+    // Sa boucle locale atteint lon 1.213 à lat 49.247 max — on reste à lon 1.182 (> 1 900 m).
+    // Aucun bras retour avant lat 49.272 → couloir lon 1.145–1.185 libre de lat 49.237 à 49.257.
     const SEG_B = [
       PARK_KM10,
-      [49.2260, 1.1600], // remonte nord par D6154
-      [49.2480, 1.1638],
-      [49.2567, 1.1645], // A13 sortie 18, prend direction est
-      [49.3050, 1.2380], // 🌉 Pont-de-l'Arche — nord du marathon
-      [49.2960, 1.2560], // rive est Seine, lon 1.256 > 1.230 ✓
-      [49.2700, 1.2480],
-      [49.2500, 1.2420],
-      [49.2400, 1.2370],
+      [49.2175, 1.1520], // remonte D6154
+      [49.2400, 1.1490],
+      [49.2567, 1.1645], // A13 S.18 → direction est
+      [49.2560, 1.1820], // Val-de-Reuil ouest — marathon est lon 1.257, > 5 500 m ✓
+      [49.2490, 1.1820], // lat 49.249 — boucle locale marathon max lat 49.247, > 1 900 m ✓
+      [49.2390, 1.1820], // lat 49.239 — marathon à lon 1.230, > 3 500 m ✓
       PARK_KM20,
     ];
 
-    // ─── Trajet 3 : parking km20 → parking km30 (rive est lac de Poses) ──────
+    // ─── Trajet 3 : km20 → km30 via traversée à lat 49.249 ──────────────────
+    // À lat 49.249 : apex boucle est à lat 49.247 (EN DESSOUS), rive est commence à lat 49.247.
+    // Fenêtre libre de 2 km (lon 1.213–1.241) à lat 49.249 pour traverser vers l'est.
+    // Ensuite couloir libre : bras aller rive est à lon 1.257, bras retour absent avant lat 49.272.
     const SEG_C = [
       PARK_KM20,
-      [49.2400, 1.2370],
-      [49.2500, 1.2420],
-      [49.2700, 1.2480],
-      [49.2960, 1.2620], // D135 rive est, lon 1.262 > 1.259 ✓
-      [49.2870, 1.2620],
+      [49.2390, 1.1820],
+      [49.2490, 1.1820], // remonte à lat 49.249, juste au nord de l'apex
+      [49.2490, 1.2400], // traversée EST — aucun marathon à lat 49.249, lon 1.182→1.240 ✓
+      [49.2650, 1.2400], // monte vers nord — marathon est lon 1.258, > 1 300 m ✓
+      [49.2720, 1.2350], // approche km30 — dans couloir retour (lon 1.220) / aller (lon 1.259)
       PARK_KM30,
     ];
 
@@ -1145,46 +1149,41 @@ function initRaceOrgMap(){
     const iRav = function(km){ return L.divIcon({ html: '<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km '+km+'</div>', className: '', iconAnchor: [0, 0] }); };
 
     const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
-    const iPdA = L.divIcon({ html: '<div style="background:#7C3AED;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🌉 Pont-de-l\'Arche</div>', className: '', iconAnchor: [0, 0] });
 
-    // Trajet 1 : A13 → km10
+    // Trajet 1 : A13 → km10 (corridor ouest)
     const layA = L.polyline(SEG_A, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>A13 sortie 18 → D6154 → D6155 ouest<br>Corridor ouest, hors parcours fermé');
+      .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>A13 S.18 → D6154 corridor ouest<br>Marathon à > 1 km à l\'est tout le trajet');
     const walkA = L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .bindPopup('<b>🚶 À pied ~800 m</b><br>Parking → km 10');
+      .bindPopup('<b>🚶 À pied ~600 m</b><br>Parking Louviers ouest → km 10');
     const mA13_1 = L.marker([49.2567, 1.1645], { icon: iA13 })
       .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Point de départ trajet 1');
     const mPark10 = L.marker(PARK_KM10, { icon: iPark('km 10') })
-      .bindPopup('<b>🅿 Parking km 10</b><br>D6154 ouest — Louviers<br>🚶 ~800 m jusqu\'au km 10');
+      .bindPopup('<b>🅿 Parking km 10</b><br>Louviers ouest — 595 m du marathon<br>🚶 ~600 m jusqu\'au km 10');
     const mRav10 = L.marker(RAVITOS[0].coord, { icon: iRav(10) })
       .bindPopup('<b>💧 km 10 — Louviers sud</b><br>Passage estimé : <b>~10h15</b>');
     const groupA = L.layerGroup([layA, walkA, mA13_1, mPark10, mRav10]);
 
-    // Trajet 2 : km10 → km20 (via Pont-de-l'Arche)
+    // Trajet 2 : km10 → km20 (Val-de-Reuil ouest, lon 1.182 — marathon > 1 900 m)
     const layB = L.polyline(SEG_B, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>Depuis parking km10 → 🌉 Pont-de-l\'Arche → rive est Seine<br><b>⚠ km 20 est dans le couloir fermé — passage par le nord obligatoire</b>');
+      .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>A13 S.18 → Val-de-Reuil ouest → Incarville ouest<br>Aucun croisement du parcours marathon');
     const walkB = L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .bindPopup('<b>🚶 À pied ~3,5 km</b><br>Parking rive est → km 20<br>⚠ Arriver AVANT 9h15 si possible');
-    const mPdA_B = L.marker([49.3050, 1.2380], { icon: iPdA })
-      .bindPopup('<b>🌉 Pont-de-l\'Arche</b><br>Seul passage — le marathon ferme lon 1.171–1.230<br>Traverser la Seine au nord, puis redescendre rive est');
+      .bindPopup('<b>🚶 À pied ~1,3 km</b><br>Parking Incarville ouest → km 20');
     const mPark20 = L.marker(PARK_KM20, { icon: iPark('km 20') })
-      .bindPopup('<b>🅿 Parking km 20</b><br>Rive est Seine (après Pont-de-l\'Arche)<br>🚶 ~3,5 km · ARRIVER AVANT 9h15');
+      .bindPopup('<b>🅿 Parking km 20</b><br>Incarville ouest — 1 300 m du marathon<br>🚶 ~1,3 km jusqu\'au km 20 · traverser au passage piétons');
     const mRav20 = L.marker(RAVITOS[1].coord, { icon: iRav(20) })
       .bindPopup('<b>💧 km 20 — Incarville</b><br>Passage estimé : <b>~11h15</b>');
-    const groupB = L.layerGroup([layB, walkB, mPdA_B, mPark20, mRav20]);
+    const groupB = L.layerGroup([layB, walkB, mPark20, mRav20]);
 
-    // Trajet 3 : km20 → km30 (rive est lac de Poses)
+    // Trajet 3 : km20 → km30 (traversée à lat 49.249, couloir libre, puis parking corridor)
     const layC = L.polyline(SEG_C, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>Rive est Seine → D135 lac de Poses');
+      .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>Remonte à lat 49.249 (fenêtre libre) → traverse est → couloir Val-de-Reuil/Poses<br>Marathon > 1 300 m à l\'est tout le trajet');
     const walkC = L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .bindPopup('<b>🚶 À pied ~700 m</b><br>Parking → km 30');
-    const mPdA_C = L.marker([49.3050, 1.2380], { icon: iPdA })
-      .bindPopup('<b>🌉 Pont-de-l\'Arche</b><br>Point de passage trajet 3');
+      .bindPopup('<b>🚶 À pied ~1,6 km</b><br>Parking corridor → km 30');
     const mPark30 = L.marker(PARK_KM30, { icon: iPark('km 30') })
-      .bindPopup('<b>🅿 Parking km 30</b><br>Base de Loisirs de Poses<br>🚶 ~700 m jusqu\'au km 30');
+      .bindPopup('<b>🅿 Parking km 30</b><br>Corridor Poses (entre bras aller et retour)<br>1 040 m du marathon<br>🚶 ~1,6 km jusqu\'au km 30 · traverser au passage piétons');
     const mRav30 = L.marker(RAVITOS[2].coord, { icon: iRav(30) })
       .bindPopup('<b>💧 km 30 — Poses nord</b><br>Passage estimé : <b>~12h15</b>');
-    const groupC = L.layerGroup([layC, walkC, mPdA_C, mPark30, mRav30]);
+    const groupC = L.layerGroup([layC, walkC, mPark30, mRav30]);
 
     // Tout par défaut
     groupA.addTo(_raceMapInstance);
@@ -1258,7 +1257,7 @@ function initRaceOrgMap(){
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
         +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
-        +'<div style="margin-top:4px;font-size:10px;color:#B45309;font-weight:700;">⚠ km 20 : prévoir Pont-de-l\'Arche<br>ou arriver AVANT 9h15</div>';
+        +'<div style="margin-top:4px;font-size:10px;color:#374151;">🚶 km20 ~1,3 km · km30 ~1,6 km à pied</div>';
       return div;
     };
     legend.addTo(_raceMapInstance);
