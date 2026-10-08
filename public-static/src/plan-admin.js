@@ -1004,11 +1004,23 @@ function _toggleRaceMapFS(){
   if(_raceMapFullscreen){
     container.style.cssText = 'position:fixed;inset:0;z-index:9000;height:100%;border-radius:0;border:none;background:#e8f0fb;';
     document.body.style.overflow = 'hidden';
-    if(btn) btn.textContent = '✕ Fermer';
+    if(btn) btn.style.display = 'none';
+    // Bouton ✕ superposé directement sur la carte
+    if(!document.getElementById('race-map-close-btn')){
+      const cb = document.createElement('button');
+      cb.id = 'race-map-close-btn';
+      cb.textContent = '✕';
+      cb.title = 'Fermer le plein écran';
+      cb.style.cssText = 'position:absolute;top:12px;right:12px;z-index:9100;background:rgba(255,255,255,0.95);border:1.5px solid #b3c5f5;border-radius:50%;width:36px;height:36px;font-size:18px;font-weight:700;color:#1B4FD8;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;line-height:1;';
+      cb.onclick = _toggleRaceMapFS;
+      container.appendChild(cb);
+    }
   } else {
     container.style.cssText = 'height:320px;border-radius:10px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;';
     document.body.style.overflow = '';
-    if(btn) btn.textContent = '⛶ Plein écran';
+    if(btn){ btn.style.display = ''; btn.textContent = '⛶ Plein écran'; }
+    const cb = document.getElementById('race-map-close-btn');
+    if(cb) cb.remove();
   }
   if(_raceMapInstance) _raceMapInstance.invalidateSize();
 }
@@ -1057,44 +1069,43 @@ function initRaceOrgMap(){
     }
 
     // ─── Emplacements de parking (hors couloir marathon) ─────────────────────
-    // Marathon lat 49.21–49.24 couvre lon 1.171→1.230 : ces parkings sont hors zone.
-    // km10 : D6154 ouest Louviers, lon 1.168 < 1.171 ✓
-    const PARK_KM10 = [49.2117, 1.1680];
-    // km20 : rive EST Seine après Pont-de-l'Arche, lon 1.234 > 1.230 ✓
-    const PARK_KM20 = [49.2370, 1.2340];
-    // km30 : D135 rive est lac de Poses, lon 1.262 > 1.259 ✓
-    const PARK_KM30 = [49.2800, 1.2620];
+    const PARK_KM10 = [49.2117, 1.1680]; // corridor ouest, lon 1.168 < 1.171 ✓
+    const PARK_KM20 = [49.2370, 1.2340]; // rive est Seine, lon 1.234 > 1.230 ✓
+    const PARK_KM30 = [49.2800, 1.2620]; // D135 rive est Poses, lon 1.262 > 1.259 ✓
 
-    // ─── 3 segments de route indépendants depuis l'A13 ───────────────────────
-    // CONTRAINTE : le marathon lon 1.171–1.230 est FERMÉ aux voitures.
-    // km20 est géographiquement À L'INTÉRIEUR du couloir — seul accès : Pont-de-l'Arche.
-    //
-    // Segment A → km10 : corridor OUEST (lon < 1.171 tout le trajet)
+    // ─── Trajet 1 : A13 sortie 18 → parking km10 (corridor OUEST) ────────────
     const SEG_A = [
-      [49.2567, 1.1645], // A13 sortie 18
-      [49.2480, 1.1638], // D6015 plein sud
-      [49.2380, 1.1620], // lon 1.162 < 1.171 ✓
-      [49.2260, 1.1600], // Louviers centre-ouest
-      [49.2170, 1.1642], // Louviers sud-ouest
+      [49.2567, 1.1645],
+      [49.2480, 1.1638],
+      [49.2380, 1.1620],
+      [49.2260, 1.1600],
+      [49.2170, 1.1642],
       PARK_KM10,
     ];
-    // Segment B → km20 : DÉTOUR PONT-DE-L'ARCHE (nord du marathon, puis rive est Seine)
-    // Impossible de rejoindre km20 autrement sans traverser le couloir fermé.
+
+    // ─── Trajet 2 : parking km10 → parking km20 via Pont-de-l'Arche ──────────
+    // Le couloir fermé (lon 1.171–1.230) oblige à remonter au nord traverser la Seine.
     const SEG_B = [
-      [49.2567, 1.1645], // A13 sortie 18
-      [49.3050, 1.2380], // Pont-de-l'Arche — NORD du marathon (lon 1.238, hors zone)
-      [49.2960, 1.2560], // D313 rive est Seine, lon 1.256 > 1.230 ✓
-      [49.2700, 1.2480], // Descend rive est vers Incarville
-      [49.2500, 1.2420], // Suite rive est
-      [49.2400, 1.2370], // Approche est parking
+      PARK_KM10,
+      [49.2260, 1.1600], // remonte nord par D6154
+      [49.2480, 1.1638],
+      [49.2567, 1.1645], // A13 sortie 18, prend direction est
+      [49.3050, 1.2380], // 🌉 Pont-de-l'Arche — nord du marathon
+      [49.2960, 1.2560], // rive est Seine, lon 1.256 > 1.230 ✓
+      [49.2700, 1.2480],
+      [49.2500, 1.2420],
+      [49.2400, 1.2370],
       PARK_KM20,
     ];
-    // Segment C → km30 : Pont-de-l'Arche puis D135 rive est lac de Poses
+
+    // ─── Trajet 3 : parking km20 → parking km30 (rive est lac de Poses) ──────
     const SEG_C = [
-      [49.2567, 1.1645], // A13 sortie 18
-      [49.3050, 1.2380], // Pont-de-l'Arche
+      PARK_KM20,
+      [49.2400, 1.2370],
+      [49.2500, 1.2420],
+      [49.2700, 1.2480],
       [49.2960, 1.2620], // D135 rive est, lon 1.262 > 1.259 ✓
-      [49.2870, 1.2620], // Longe le lac vers le sud
+      [49.2870, 1.2620],
       PARK_KM30,
     ];
 
@@ -1123,24 +1134,62 @@ function initRaceOrgMap(){
       .addTo(_raceMapInstance)
       .bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00–11h00</b><br>Source : DIRNO · Prendre sortie 6 Incarville');
 
-    // 3 couches voiture (placeholder → remplacées par OSRM)
-    const layA = L.polyline(SEG_A, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 Itinéraire → km 10</b><br>A13 sortie 18 → D6154 → D6155 ouest<br>Arrive à Louviers par l\'ouest (hors parcours)');
-    const layB = L.polyline(SEG_B, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 Itinéraire → km 20</b><br>A13 S.18 → 🌉 Pont-de-l\'Arche → rive est Seine<br><b>⚠ km 20 est dans le couloir fermé</b><br>Parking rive est, ~3,5 km à pied');
-    const layC = L.polyline(SEG_C, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 Itinéraire → km 30</b><br>A13 S.18 → 🌉 Pont-de-l\'Arche → D135 rive est lac<br>Parking Base Loisirs Poses');
+    // Marqueurs permanents (toujours visibles)
+    const iStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
+    L.marker(ROUTE[0], { icon: iStart }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
+    const iEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
+    L.marker(ROUTE[ROUTE.length-1], { icon: iEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
 
-    // Chemins piétons (pointillés bleus) : parking → km marker
-    L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~800 m</b><br>Parking → km 10');
-    L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~3,5 km</b><br>Parking rive est → km 20<br>⚠ Long trajet — arriver AVANT 9h15 si possible');
-    L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~700 m</b><br>Parking → km 30');
+    // ─── Couches par trajet ────────────────────────────────────────────────────
+    const iPark = function(label) { return L.divIcon({ html: '<div style="background:#fff;color:#1B4FD8;font-size:12px;font-weight:900;border-radius:8px;padding:2px 7px;border:2px solid #1B4FD8;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;">🅿 '+label+'</div>', className: '', iconAnchor: [0, 0] }); };
+    const iRav = function(km){ return L.divIcon({ html: '<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km '+km+'</div>', className: '', iconAnchor: [0, 0] }); };
+
+    const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
+    const iPdA = L.divIcon({ html: '<div style="background:#7C3AED;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🌉 Pont-de-l\'Arche</div>', className: '', iconAnchor: [0, 0] });
+
+    // Trajet 1 : A13 → km10
+    const layA = L.polyline(SEG_A, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
+      .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>A13 sortie 18 → D6154 → D6155 ouest<br>Corridor ouest, hors parcours fermé');
+    const walkA = L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
+      .bindPopup('<b>🚶 À pied ~800 m</b><br>Parking → km 10');
+    const mA13_1 = L.marker([49.2567, 1.1645], { icon: iA13 })
+      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Point de départ trajet 1');
+    const mPark10 = L.marker(PARK_KM10, { icon: iPark('km 10') })
+      .bindPopup('<b>🅿 Parking km 10</b><br>D6154 ouest — Louviers<br>🚶 ~800 m jusqu\'au km 10');
+    const mRav10 = L.marker(RAVITOS[0].coord, { icon: iRav(10) })
+      .bindPopup('<b>💧 km 10 — Louviers sud</b><br>Passage estimé : <b>~10h15</b>');
+    const groupA = L.layerGroup([layA, walkA, mA13_1, mPark10, mRav10]);
+
+    // Trajet 2 : km10 → km20 (via Pont-de-l'Arche)
+    const layB = L.polyline(SEG_B, { color: '#F59E0B', weight: 4, opacity: 0.92, lineJoin: 'round' })
+      .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>Depuis parking km10 → 🌉 Pont-de-l\'Arche → rive est Seine<br><b>⚠ km 20 est dans le couloir fermé — passage par le nord obligatoire</b>');
+    const walkB = L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
+      .bindPopup('<b>🚶 À pied ~3,5 km</b><br>Parking rive est → km 20<br>⚠ Arriver AVANT 9h15 si possible');
+    const mPdA_B = L.marker([49.3050, 1.2380], { icon: iPdA })
+      .bindPopup('<b>🌉 Pont-de-l\'Arche</b><br>Seul passage — le marathon ferme lon 1.171–1.230<br>Traverser la Seine au nord, puis redescendre rive est');
+    const mPark20 = L.marker(PARK_KM20, { icon: iPark('km 20') })
+      .bindPopup('<b>🅿 Parking km 20</b><br>Rive est Seine (après Pont-de-l\'Arche)<br>🚶 ~3,5 km · ARRIVER AVANT 9h15');
+    const mRav20 = L.marker(RAVITOS[1].coord, { icon: iRav(20) })
+      .bindPopup('<b>💧 km 20 — Incarville</b><br>Passage estimé : <b>~11h15</b>');
+    const groupB = L.layerGroup([layB, walkB, mPdA_B, mPark20, mRav20]);
+
+    // Trajet 3 : km20 → km30 (rive est lac de Poses)
+    const layC = L.polyline(SEG_C, { color: '#06B6D4', weight: 4, opacity: 0.92, lineJoin: 'round' })
+      .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>Rive est Seine → D135 lac de Poses');
+    const walkC = L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
+      .bindPopup('<b>🚶 À pied ~700 m</b><br>Parking → km 30');
+    const mPdA_C = L.marker([49.3050, 1.2380], { icon: iPdA })
+      .bindPopup('<b>🌉 Pont-de-l\'Arche</b><br>Point de passage trajet 3');
+    const mPark30 = L.marker(PARK_KM30, { icon: iPark('km 30') })
+      .bindPopup('<b>🅿 Parking km 30</b><br>Base de Loisirs de Poses<br>🚶 ~700 m jusqu\'au km 30');
+    const mRav30 = L.marker(RAVITOS[2].coord, { icon: iRav(30) })
+      .bindPopup('<b>💧 km 30 — Poses nord</b><br>Passage estimé : <b>~12h15</b>');
+    const groupC = L.layerGroup([layC, walkC, mPdA_C, mPark30, mRav30]);
+
+    // Tout par défaut
+    groupA.addTo(_raceMapInstance);
+    groupB.addTo(_raceMapInstance);
+    groupC.addTo(_raceMapInstance);
 
     // Chargement OSRM asynchrone — tracés précis sur routes réelles
     _fetchOSRM(SEG_A).then(function(c){ if(c && c.length>2) layA.setLatLngs(c); }).catch(function(){});
@@ -1148,40 +1197,56 @@ function initRaceOrgMap(){
     _fetchOSRM(SEG_C).then(function(c){ if(c && c.length>2) layC.setLatLngs(c); }).catch(function(){});
     _fetchOSRM(RN154_SEG).then(function(c){ if(c && c.length>2) rn154Layer.setLatLngs(c); }).catch(function(){});
 
-    // Marqueur A13 sortie 18
-    const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
-    L.marker([49.2567, 1.1645], { icon: iA13 }).addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Val-de-Reuil / Louviers<br><b>Point de départ commun</b> pour les 3 ravitos');
+    // ─── Sélecteur de trajet ─────────────────────────────────────────────────
+    const sel = L.control({ position: 'topleft' });
+    sel.onAdd = function(){
+      const wrap = L.DomUtil.create('div');
+      wrap.style.cssText = 'display:flex;gap:4px;background:rgba(255,255,255,0.96);border-radius:10px;padding:5px 6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-family:sans-serif;';
+      L.DomEvent.disableClickPropagation(wrap);
 
-    // Marqueur Pont-de-l'Arche (point de passage obligatoire pour km20 et km30)
-    const iPdA = L.divIcon({ html: '<div style="background:#7C3AED;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🌉 Pont-de-l\'Arche</div>', className: '', iconAnchor: [0, 0] });
-    L.marker([49.3050, 1.2380], { icon: iPdA }).addTo(_raceMapInstance)
-      .bindPopup('<b>🌉 Pont-de-l\'Arche</b><br>Point de passage obligatoire pour km 20 et km 30<br>Le marathon est fermé entre lon 1.171 et 1.230<br>Seul passage : traverser la Seine <b>au nord</b> via ce pont');
+      const TABS = [
+        { label: 'Tout', color: '#374151' },
+        { label: '1 · A13 → km 10', color: '#1DA054' },
+        { label: '2 · km 10 → km 20', color: '#F59E0B' },
+        { label: '3 · km 20 → km 30', color: '#06B6D4' },
+      ];
+      var active = 0;
+      var bounds = [
+        L.polyline(ROUTE).getBounds(),
+        L.polyline(SEG_A).getBounds(),
+        L.polyline(SEG_B).getBounds(),
+        L.polyline(SEG_C).getBounds(),
+      ];
 
-    // Marqueur départ marathon
-    const iStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[0], { icon: iStart }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
+      var btns = TABS.map(function(t, i){
+        var b = L.DomUtil.create('button', '', wrap);
+        b.textContent = t.label;
+        b.style.cssText = 'border:none;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s;';
+        b.style.background = i === 0 ? t.color : '#f0f4ff';
+        b.style.color = i === 0 ? '#fff' : '#374151';
+        b.onclick = function(){
+          active = i;
+          btns.forEach(function(btn, j){
+            btn.style.background = j === i ? TABS[j].color : '#f0f4ff';
+            btn.style.color = j === i ? '#fff' : '#374151';
+          });
+          if(i === 0){
+            groupA.addTo(_raceMapInstance); groupB.addTo(_raceMapInstance); groupC.addTo(_raceMapInstance);
+          } else if(i === 1){
+            groupA.addTo(_raceMapInstance); groupB.remove(); groupC.remove();
+          } else if(i === 2){
+            groupA.remove(); groupB.addTo(_raceMapInstance); groupC.remove();
+          } else {
+            groupA.remove(); groupB.remove(); groupC.addTo(_raceMapInstance);
+          }
+          _raceMapInstance.fitBounds(bounds[i], { padding: [40, 40] });
+        };
+        return b;
+      });
 
-    // Marqueur arrivée marathon
-    const iEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[ROUTE.length-1], { icon: iEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
-
-    // Marqueurs ravitaillement
-    RAVITOS.forEach(function(r) {
-      const iRav = L.divIcon({ html: '<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km '+r.km+'</div>', className: '', iconAnchor: [0, 0] });
-      L.marker(r.coord, { icon: iRav }).addTo(_raceMapInstance)
-        .bindPopup('<b>💧 km '+r.km+' — '+r.lieu+'</b><br>Passage estimé : <b>'+r.heure+'</b><br>Point ravitaillement amis');
-    });
-
-    // Marqueurs parking
-    const iPark = function(label) { return L.divIcon({ html: '<div style="background:#fff;color:#1B4FD8;font-size:12px;font-weight:900;border-radius:8px;padding:2px 7px;border:2px solid #1B4FD8;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;">🅿 '+label+'</div>', className: '', iconAnchor: [0, 0] }); };
-
-    L.marker(PARK_KM10, { icon: iPark('km 10') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 10</b><br>D6155 ouest — Louviers<br>Accessible depuis A13 sans croiser le parcours<br>🚶 ~800 m à pied jusqu\'au km 10');
-    L.marker(PARK_KM20, { icon: iPark('km 20') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 20</b><br>Rive est Seine (après Pont-de-l\'Arche)<br>⚠ km 20 est dans le couloir fermé — seul accès par l\'est<br>🚶 ~3,5 km à pied · ARRIVER AVANT 9h15');
-    L.marker(PARK_KM30, { icon: iPark('km 30') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 30</b><br>Base de Loisirs de Poses<br>Grand parking gratuit — accès route de Léry<br>🚶 ~700 m à pied jusqu\'au km 30');
+      return wrap;
+    };
+    sel.addTo(_raceMapInstance);
 
     // Légende
     const legend = L.control({ position: 'bottomright' });
@@ -1191,10 +1256,10 @@ function initRaceOrgMap(){
       div.innerHTML = '<div style="font-weight:800;font-size:12px;margin-bottom:4px;color:#1a1a1a;">Légende</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#FF6B35;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Parcours (fermé 9h–14h45)</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Trajet 1 · A13 → km 10</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#F59E0B;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Trajet 2 · km 10 → km 20</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#06B6D4;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Trajet 3 · km 20 → km 30</div>'
         +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
-        +'<div><span style="display:inline-block;width:14px;height:14px;background:#7C3AED;border-radius:50%;vertical-align:middle;margin-right:6px;"></span>Pont-de-l\'Arche (passage obligatoire)</div>'
-        +'<div style="margin-top:2px;">💧 Ravito · 🅿 Parking · 🚗 A13</div>'
         +'<div style="margin-top:4px;font-size:10px;color:#B45309;font-weight:700;">⚠ km 20 : prévoir Pont-de-l\'Arche<br>ou arriver AVANT 9h15</div>';
       return div;
     };
