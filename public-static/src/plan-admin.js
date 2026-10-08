@@ -1161,7 +1161,7 @@ function initRaceOrgMap(){
     const groupA = L.layerGroup([layA, walkA, mA13_1, mPark10, mRav10]);
 
     // Trajet 2 : km10 → km20 (via Pont-de-l'Arche)
-    const layB = L.polyline(SEG_B, { color: '#F59E0B', weight: 4, opacity: 0.92, lineJoin: 'round' })
+    const layB = L.polyline(SEG_B, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
       .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>Depuis parking km10 → 🌉 Pont-de-l\'Arche → rive est Seine<br><b>⚠ km 20 est dans le couloir fermé — passage par le nord obligatoire</b>');
     const walkB = L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
       .bindPopup('<b>🚶 À pied ~3,5 km</b><br>Parking rive est → km 20<br>⚠ Arriver AVANT 9h15 si possible');
@@ -1174,7 +1174,7 @@ function initRaceOrgMap(){
     const groupB = L.layerGroup([layB, walkB, mPdA_B, mPark20, mRav20]);
 
     // Trajet 3 : km20 → km30 (rive est lac de Poses)
-    const layC = L.polyline(SEG_C, { color: '#06B6D4', weight: 4, opacity: 0.92, lineJoin: 'round' })
+    const layC = L.polyline(SEG_C, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
       .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>Rive est Seine → D135 lac de Poses');
     const walkC = L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
       .bindPopup('<b>🚶 À pied ~700 m</b><br>Parking → km 30');
@@ -1207,8 +1207,8 @@ function initRaceOrgMap(){
       const TABS = [
         { label: 'Tout', color: '#374151' },
         { label: '1 · A13 → km 10', color: '#1DA054' },
-        { label: '2 · km 10 → km 20', color: '#F59E0B' },
-        { label: '3 · km 20 → km 30', color: '#06B6D4' },
+        { label: '2 · km 10 → km 20', color: '#1DA054' },
+        { label: '3 · km 20 → km 30', color: '#1DA054' },
       ];
       var active = 0;
       var bounds = [
@@ -1256,9 +1256,7 @@ function initRaceOrgMap(){
       div.innerHTML = '<div style="font-weight:800;font-size:12px;margin-bottom:4px;color:#1a1a1a;">Légende</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#FF6B35;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Parcours (fermé 9h–14h45)</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Trajet 1 · A13 → km 10</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#F59E0B;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Trajet 2 · km 10 → km 20</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#06B6D4;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Trajet 3 · km 20 → km 30</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
         +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
         +'<div style="margin-top:4px;font-size:10px;color:#B45309;font-weight:700;">⚠ km 20 : prévoir Pont-de-l\'Arche<br>ou arriver AVANT 9h15</div>';
       return div;
