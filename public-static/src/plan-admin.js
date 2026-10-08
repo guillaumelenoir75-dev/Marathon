@@ -1042,31 +1042,61 @@ function initRaceOrgMap(){
       { km: 30, coord: [49.27756, 1.25922], heure: '~12h15', lieu: 'Poses nord' },
     ];
 
-    // Fetch itinéraire routier depuis OSRM (côté navigateur, pas de blocage proxy)
+    // Fetch itinéraire routier OSRM (côté navigateur, pas bloqué par le proxy)
     async function _fetchOSRM(waypoints) {
-      const coords = waypoints.map(([lat, lon]) => lon + ',' + lat).join(';');
-      const url = 'https://router.project-osrm.org/route/v1/driving/' + coords + '?geometries=geojson&overview=full';
-      const resp = await fetch(url);
-      const data = await resp.json();
-      if (data.routes && data.routes[0]) {
-        return data.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
-      }
+      try {
+        const coords = waypoints.map(([lat, lon]) => lon + ',' + lat).join(';');
+        const url = 'https://router.project-osrm.org/route/v1/driving/' + coords + '?geometries=geojson&overview=full';
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.routes && data.routes[0]) {
+          return data.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
+        }
+      } catch(e) {}
       return null;
     }
 
-    // Points de passage voiture :
-    // A13 sortie 18 Val-de-Reuil/Louviers → km10 → km20 → km30
-    const CAR_WAYPOINTS = [
-      [49.2567, 1.1645], // A13 sortie 18 — échangeur Val-de-Reuil/Louviers
-      [49.21053, 1.17402], // km 10 — Louviers sud
-      [49.23748, 1.18973], // km 20 — Incarville
-      [49.27756, 1.25922], // km 30 — Poses nord
+    // ─── Emplacements de parking (hors parcours) ─────────────────────────────
+    // km10 : D6155 à l'OUEST de Louviers — le marathon ne va pas à l'ouest du km10
+    const PARK_KM10 = [49.2100, 1.1555];
+    // km20 : approche par le NORD-EST via Val-de-Reuil (hors couloir marathon)
+    const PARK_KM20 = [49.2485, 1.1945];
+    // km30 : Base de Loisirs de Poses — accès par l'est (route de Léry), hors marathon
+    const PARK_KM30 = [49.2845, 1.2600];
+
+    // ─── 3 segments de route indépendants depuis l'A13 ───────────────────────
+    // Les waypoints intermédiaires FORCENT l'évitement du couloir marathon.
+    //
+    // Segment A → km10 : A13 sortie 18 → D6154 sud → D6155 OUEST (jamais sur le marathon)
+    const SEG_A = [
+      [49.2567, 1.1645], // A13 sortie 18
+      [49.2260, 1.1560], // D6154 sud-ouest, passe à l'ouest de Louviers
+      [49.2140, 1.1540], // Louviers entrée ouest (hors centre)
+      PARK_KM10,         // Parking D6155 ouest
+    ];
+    // Segment B → km20 : A13 → Val-de-Reuil NORD → descente NE vers Incarville
+    // Force via Val-de-Reuil nord (lon 1.197) → approche km20 par le nord-est
+    const SEG_B = [
+      [49.2567, 1.1645], // A13 sortie 18
+      [49.2565, 1.1970], // A13 vers l'est / Val-de-Reuil nord
+      [49.2530, 1.1960], // Val-de-Reuil nord
+      [49.2490, 1.1942], // Descente vers Incarville nord-est
+      PARK_KM20,         // Parking Incarville nord
+    ];
+    // Segment C → km30 : A13 → Val-de-Reuil EST → route de Léry → Poses Base Loisirs
+    // Force à l'est du couloir marathon (lon > 1.22 jusqu'à Poses)
+    const SEG_C = [
+      [49.2567, 1.1645], // A13 sortie 18
+      [49.2565, 1.1970], // A13 est
+      [49.2600, 1.2150], // Val-de-Reuil / Léry est
+      [49.2720, 1.2430], // Route de Léry nord
+      PARK_KM30,         // Base de Loisirs Poses
     ];
 
-    // RN154 sortie 5 Acquigny (fermée 9h-11h) — 2 points de part et d'autre
-    const RN154_WAYPOINTS = [
-      [49.1710, 1.1820], // nord bretelle Acquigny
-      [49.1630, 1.1790], // sud bretelle Acquigny
+    // RN154 sortie 5 Acquigny — fermée 9h-11h (points de la bretelle)
+    const RN154_SEG = [
+      [49.1720, 1.1825], // bretelle nord sortie 5
+      [49.1650, 1.1795], // bretelle sud / entrée Acquigny
     ];
 
     container.innerHTML = '';
@@ -1081,69 +1111,79 @@ function initRaceOrgMap(){
     // Parcours marathon — orange, fermé à la circulation
     L.polyline(ROUTE, { color: '#FF6B35', weight: 5, opacity: 0.75, lineJoin: 'round' })
       .addTo(_raceMapInstance)
-      .bindPopup('<b>🚫 Parcours fermé</b><br>Toutes ces routes sont fermées à la circulation<br>de 9h15 à ~14h45');
+      .bindPopup('<b>🚫 Parcours fermé 9h15–14h45</b><br>Toutes ces routes sont inaccessibles en voiture');
 
-    // RN154 sortie 5 Acquigny — rouge vif, chargement route réelle
-    const rn154Layer = L.polyline(RN154_WAYPOINTS, { color: '#DC2626', weight: 7, opacity: 0.9, lineJoin: 'round' })
+    // RN154 sortie 5 Acquigny — rouge, fermée 9h–11h
+    const rn154Layer = L.polyline(RN154_SEG, { color: '#DC2626', weight: 6, opacity: 0.9, lineJoin: 'round' })
       .addTo(_raceMapInstance)
-      .bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00 à 11h00</b><br>Source : DIRNO<br>Utiliser la sortie n°6 (Incarville)');
+      .bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00–11h00</b><br>Source : DIRNO · Prendre sortie 6 Incarville');
 
-    // Itinéraire voiture — vert, chargement route réelle
-    const carLayer = L.polyline(CAR_WAYPOINTS, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
+    // 3 couches voiture (placeholder → remplacées par OSRM)
+    const layA = L.polyline(SEG_A, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
       .addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 Itinéraire conseillé</b><br>A13 sortie 18 → km10 → km20 → km30<br>Contourne toutes les routes fermées');
+      .bindPopup('<b>🚗 Itinéraire → km 10</b><br>A13 sortie 18 → D6154 → D6155 ouest<br>Arrive à Louviers par l\'ouest (hors parcours)');
+    const layB = L.polyline(SEG_B, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
+      .addTo(_raceMapInstance)
+      .bindPopup('<b>🚗 Itinéraire → km 20</b><br>A13 sortie 18 → Val-de-Reuil nord<br>Descente nord-est vers Incarville');
+    const layC = L.polyline(SEG_C, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
+      .addTo(_raceMapInstance)
+      .bindPopup('<b>🚗 Itinéraire → km 30</b><br>A13 → Val-de-Reuil → route de Léry<br>Accès Base Loisirs Poses par l\'est');
 
-    // Chargement asynchrone des vrais tracés routiers OSRM (depuis le navigateur)
-    _fetchOSRM(CAR_WAYPOINTS).then(function(coords){
-      if(coords && coords.length > 2) carLayer.setLatLngs(coords);
-    }).catch(function(){});
-    _fetchOSRM(RN154_WAYPOINTS).then(function(coords){
-      if(coords && coords.length > 2) rn154Layer.setLatLngs(coords);
-    }).catch(function(){});
+    // Chemins piétons (pointillés bleus) : parking → km marker
+    L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
+      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~800 m</b><br>Parking → km 10');
+    L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
+      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~500 m</b><br>Parking → km 20');
+    L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
+      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~700 m</b><br>Parking → km 30');
 
-    // Marqueur A13 sortie 18 (point de départ itinéraire voiture)
-    const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 sortie 18</div>', className: '', iconAnchor: [0, 0] });
+    // Chargement OSRM asynchrone — tracés précis sur routes réelles
+    _fetchOSRM(SEG_A).then(function(c){ if(c && c.length>2) layA.setLatLngs(c); }).catch(function(){});
+    _fetchOSRM(SEG_B).then(function(c){ if(c && c.length>2) layB.setLatLngs(c); }).catch(function(){});
+    _fetchOSRM(SEG_C).then(function(c){ if(c && c.length>2) layC.setLatLngs(c); }).catch(function(){});
+    _fetchOSRM(RN154_SEG).then(function(c){ if(c && c.length>2) rn154Layer.setLatLngs(c); }).catch(function(){});
+
+    // Marqueur A13 sortie 18
+    const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
     L.marker([49.2567, 1.1645], { icon: iA13 }).addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Val-de-Reuil / Louviers<br>Prendre direction Louviers (D6155)');
+      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Val-de-Reuil / Louviers<br><b>Point de départ commun</b> pour les 3 ravitos');
 
-    // Marqueur départ
+    // Marqueur départ marathon
     const iStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
     L.marker(ROUTE[0], { icon: iStart }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
 
-    // Marqueur arrivée
+    // Marqueur arrivée marathon
     const iEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[ROUTE.length-1], { icon: iEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15 à 14h45</b><br>Val-de-Reuil');
+    L.marker(ROUTE[ROUTE.length-1], { icon: iEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
 
-    // Marqueurs ravitaillement avec heure estimée
-    RAVITOS.forEach(r => {
-      const iRav = L.divIcon({ html: `<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km ${r.km}</div>`, className: '', iconAnchor: [0, 0] });
+    // Marqueurs ravitaillement
+    RAVITOS.forEach(function(r) {
+      const iRav = L.divIcon({ html: '<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km '+r.km+'</div>', className: '', iconAnchor: [0, 0] });
       L.marker(r.coord, { icon: iRav }).addTo(_raceMapInstance)
-        .bindPopup(`<b>💧 km ${r.km} — ${r.lieu}</b><br>Passage estimé : <b>${r.heure}</b><br>Point ravitaillement amis`);
+        .bindPopup('<b>💧 km '+r.km+' — '+r.lieu+'</b><br>Passage estimé : <b>'+r.heure+'</b><br>Point ravitaillement amis');
     });
 
-    // Marqueurs parking (🅿) aux 3 ravitos
-    const iPark = (label) => L.divIcon({ html: `<div style="background:#fff;color:#1B4FD8;font-size:12px;font-weight:900;border-radius:8px;padding:2px 7px;border:2px solid #1B4FD8;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;">🅿 ${label}</div>`, className: '', iconAnchor: [0, 0] });
-    // Parking km 10 : zone commerciale Route de Paris, Louviers — hors course
-    L.marker([49.2118, 1.1612], { icon: iPark('km 10') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 10</b><br>Zone commerciale Route de Paris<br>Louviers — accessible depuis A13 sortie 18<br>🚶 ~600 m à pied jusqu\'au km 10');
-    // Parking km 20 : Incarville — parking ZI nord, avant le croisement
-    L.marker([49.2418, 1.1862], { icon: iPark('km 20') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 20</b><br>Zone Industrielle Incarville nord<br>Se garer avant le carrefour D6155<br>🚶 ~400 m à pied jusqu\'au km 20');
-    // Parking km 30 : Base de Loisirs de Poses (grand parking gratuit)
-    L.marker([49.2812, 1.2558], { icon: iPark('km 30') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 30</b><br>Base de Loisirs de Poses<br>Grand parking gratuit sur la rive<br>🚶 ~500 m à pied jusqu\'au km 30');
+    // Marqueurs parking
+    const iPark = function(label) { return L.divIcon({ html: '<div style="background:#fff;color:#1B4FD8;font-size:12px;font-weight:900;border-radius:8px;padding:2px 7px;border:2px solid #1B4FD8;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;">🅿 '+label+'</div>', className: '', iconAnchor: [0, 0] }); };
 
-    // Légende Leaflet
+    L.marker(PARK_KM10, { icon: iPark('km 10') }).addTo(_raceMapInstance)
+      .bindPopup('<b>🅿 Parking km 10</b><br>D6155 ouest — Louviers<br>Accessible depuis A13 sans croiser le parcours<br>🚶 ~800 m à pied jusqu\'au km 10');
+    L.marker(PARK_KM20, { icon: iPark('km 20') }).addTo(_raceMapInstance)
+      .bindPopup('<b>🅿 Parking km 20</b><br>Val-de-Reuil / Incarville nord<br>Approche par le nord-est hors couloir marathon<br>🚶 ~500 m à pied jusqu\'au km 20');
+    L.marker(PARK_KM30, { icon: iPark('km 30') }).addTo(_raceMapInstance)
+      .bindPopup('<b>🅿 Parking km 30</b><br>Base de Loisirs de Poses<br>Grand parking gratuit — accès route de Léry<br>🚶 ~700 m à pied jusqu\'au km 30');
+
+    // Légende
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function(){
       const div = L.DomUtil.create('div');
-      div.style.cssText = 'background:#fff;border-radius:10px;padding:8px 12px;font-size:11px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);line-height:1.8;min-width:160px;';
-      div.innerHTML = `
-        <div style="font-weight:800;font-size:12px;margin-bottom:4px;color:#1a1a1a;">Légende</div>
-        <div><span style="display:inline-block;width:22px;height:4px;background:#FF6B35;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Parcours (fermé 9h–14h45)</div>
-        <div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 sortie 5 (9h–11h)</div>
-        <div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraire voiture</div>
-        <div style="margin-top:2px;">💧 Ravitaillement · 🅿 Parking</div>`;
+      div.style.cssText = 'background:#fff;border-radius:10px;padding:8px 12px;font-size:11px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);line-height:1.9;min-width:170px;';
+      div.innerHTML = '<div style="font-weight:800;font-size:12px;margin-bottom:4px;color:#1a1a1a;">Légende</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#FF6B35;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Parcours (fermé 9h–14h45)</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
+        +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
+        +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
+        +'<div style="margin-top:2px;">💧 Ravito · 🅿 Parking · 🚗 A13</div>';
       return div;
     };
     legend.addTo(_raceMapInstance);
