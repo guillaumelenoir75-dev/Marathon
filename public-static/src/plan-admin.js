@@ -1056,41 +1056,46 @@ function initRaceOrgMap(){
       return null;
     }
 
-    // ─── Emplacements de parking (hors parcours) ─────────────────────────────
-    // km10 : D6155 à l'OUEST de Louviers — le marathon ne va pas à l'ouest du km10
-    const PARK_KM10 = [49.2100, 1.1555];
-    // km20 : approche par le NORD-EST via Val-de-Reuil (hors couloir marathon)
-    const PARK_KM20 = [49.2485, 1.1945];
-    // km30 : Base de Loisirs de Poses — accès par l'est (route de Léry), hors marathon
-    const PARK_KM30 = [49.2845, 1.2600];
+    // ─── Emplacements de parking (hors couloir marathon) ─────────────────────
+    // Marathon lat 49.21–49.24 couvre lon 1.171→1.230 : ces parkings sont hors zone.
+    // km10 : D6154 ouest Louviers, lon 1.168 < 1.171 ✓
+    const PARK_KM10 = [49.2117, 1.1680];
+    // km20 : rive EST Seine après Pont-de-l'Arche, lon 1.234 > 1.230 ✓
+    const PARK_KM20 = [49.2370, 1.2340];
+    // km30 : D135 rive est lac de Poses, lon 1.262 > 1.259 ✓
+    const PARK_KM30 = [49.2800, 1.2620];
 
     // ─── 3 segments de route indépendants depuis l'A13 ───────────────────────
-    // Les waypoints intermédiaires FORCENT l'évitement du couloir marathon.
+    // CONTRAINTE : le marathon lon 1.171–1.230 est FERMÉ aux voitures.
+    // km20 est géographiquement À L'INTÉRIEUR du couloir — seul accès : Pont-de-l'Arche.
     //
-    // Segment A → km10 : A13 sortie 18 → D6154 sud → D6155 OUEST (jamais sur le marathon)
+    // Segment A → km10 : corridor OUEST (lon < 1.171 tout le trajet)
     const SEG_A = [
       [49.2567, 1.1645], // A13 sortie 18
-      [49.2260, 1.1560], // D6154 sud-ouest, passe à l'ouest de Louviers
-      [49.2140, 1.1540], // Louviers entrée ouest (hors centre)
-      PARK_KM10,         // Parking D6155 ouest
+      [49.2480, 1.1638], // D6015 plein sud
+      [49.2380, 1.1620], // lon 1.162 < 1.171 ✓
+      [49.2260, 1.1600], // Louviers centre-ouest
+      [49.2170, 1.1642], // Louviers sud-ouest
+      PARK_KM10,
     ];
-    // Segment B → km20 : A13 → Val-de-Reuil NORD → descente NE vers Incarville
-    // Force via Val-de-Reuil nord (lon 1.197) → approche km20 par le nord-est
+    // Segment B → km20 : DÉTOUR PONT-DE-L'ARCHE (nord du marathon, puis rive est Seine)
+    // Impossible de rejoindre km20 autrement sans traverser le couloir fermé.
     const SEG_B = [
       [49.2567, 1.1645], // A13 sortie 18
-      [49.2565, 1.1970], // A13 vers l'est / Val-de-Reuil nord
-      [49.2530, 1.1960], // Val-de-Reuil nord
-      [49.2490, 1.1942], // Descente vers Incarville nord-est
-      PARK_KM20,         // Parking Incarville nord
+      [49.3050, 1.2380], // Pont-de-l'Arche — NORD du marathon (lon 1.238, hors zone)
+      [49.2960, 1.2560], // D313 rive est Seine, lon 1.256 > 1.230 ✓
+      [49.2700, 1.2480], // Descend rive est vers Incarville
+      [49.2500, 1.2420], // Suite rive est
+      [49.2400, 1.2370], // Approche est parking
+      PARK_KM20,
     ];
-    // Segment C → km30 : A13 → Val-de-Reuil EST → route de Léry → Poses Base Loisirs
-    // Force à l'est du couloir marathon (lon > 1.22 jusqu'à Poses)
+    // Segment C → km30 : Pont-de-l'Arche puis D135 rive est lac de Poses
     const SEG_C = [
       [49.2567, 1.1645], // A13 sortie 18
-      [49.2565, 1.1970], // A13 est
-      [49.2600, 1.2150], // Val-de-Reuil / Léry est
-      [49.2720, 1.2430], // Route de Léry nord
-      PARK_KM30,         // Base de Loisirs Poses
+      [49.3050, 1.2380], // Pont-de-l'Arche
+      [49.2960, 1.2620], // D135 rive est, lon 1.262 > 1.259 ✓
+      [49.2870, 1.2620], // Longe le lac vers le sud
+      PARK_KM30,
     ];
 
     // RN154 sortie 5 Acquigny — fermée 9h-11h (points de la bretelle)
@@ -1124,16 +1129,16 @@ function initRaceOrgMap(){
       .bindPopup('<b>🚗 Itinéraire → km 10</b><br>A13 sortie 18 → D6154 → D6155 ouest<br>Arrive à Louviers par l\'ouest (hors parcours)');
     const layB = L.polyline(SEG_B, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
       .addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 Itinéraire → km 20</b><br>A13 sortie 18 → Val-de-Reuil nord<br>Descente nord-est vers Incarville');
+      .bindPopup('<b>🚗 Itinéraire → km 20</b><br>A13 S.18 → 🌉 Pont-de-l\'Arche → rive est Seine<br><b>⚠ km 20 est dans le couloir fermé</b><br>Parking rive est, ~3,5 km à pied');
     const layC = L.polyline(SEG_C, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
       .addTo(_raceMapInstance)
-      .bindPopup('<b>🚗 Itinéraire → km 30</b><br>A13 → Val-de-Reuil → route de Léry<br>Accès Base Loisirs Poses par l\'est');
+      .bindPopup('<b>🚗 Itinéraire → km 30</b><br>A13 S.18 → 🌉 Pont-de-l\'Arche → D135 rive est lac<br>Parking Base Loisirs Poses');
 
     // Chemins piétons (pointillés bleus) : parking → km marker
     L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
       .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~800 m</b><br>Parking → km 10');
     L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~500 m</b><br>Parking → km 20');
+      .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~3,5 km</b><br>Parking rive est → km 20<br>⚠ Long trajet — arriver AVANT 9h15 si possible');
     L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
       .addTo(_raceMapInstance).bindPopup('<b>🚶 À pied ~700 m</b><br>Parking → km 30');
 
@@ -1147,6 +1152,11 @@ function initRaceOrgMap(){
     const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
     L.marker([49.2567, 1.1645], { icon: iA13 }).addTo(_raceMapInstance)
       .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Val-de-Reuil / Louviers<br><b>Point de départ commun</b> pour les 3 ravitos');
+
+    // Marqueur Pont-de-l'Arche (point de passage obligatoire pour km20 et km30)
+    const iPdA = L.divIcon({ html: '<div style="background:#7C3AED;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🌉 Pont-de-l\'Arche</div>', className: '', iconAnchor: [0, 0] });
+    L.marker([49.3050, 1.2380], { icon: iPdA }).addTo(_raceMapInstance)
+      .bindPopup('<b>🌉 Pont-de-l\'Arche</b><br>Point de passage obligatoire pour km 20 et km 30<br>Le marathon est fermé entre lon 1.171 et 1.230<br>Seul passage : traverser la Seine <b>au nord</b> via ce pont');
 
     // Marqueur départ marathon
     const iStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
@@ -1169,7 +1179,7 @@ function initRaceOrgMap(){
     L.marker(PARK_KM10, { icon: iPark('km 10') }).addTo(_raceMapInstance)
       .bindPopup('<b>🅿 Parking km 10</b><br>D6155 ouest — Louviers<br>Accessible depuis A13 sans croiser le parcours<br>🚶 ~800 m à pied jusqu\'au km 10');
     L.marker(PARK_KM20, { icon: iPark('km 20') }).addTo(_raceMapInstance)
-      .bindPopup('<b>🅿 Parking km 20</b><br>Val-de-Reuil / Incarville nord<br>Approche par le nord-est hors couloir marathon<br>🚶 ~500 m à pied jusqu\'au km 20');
+      .bindPopup('<b>🅿 Parking km 20</b><br>Rive est Seine (après Pont-de-l\'Arche)<br>⚠ km 20 est dans le couloir fermé — seul accès par l\'est<br>🚶 ~3,5 km à pied · ARRIVER AVANT 9h15');
     L.marker(PARK_KM30, { icon: iPark('km 30') }).addTo(_raceMapInstance)
       .bindPopup('<b>🅿 Parking km 30</b><br>Base de Loisirs de Poses<br>Grand parking gratuit — accès route de Léry<br>🚶 ~700 m à pied jusqu\'au km 30');
 
@@ -1183,7 +1193,9 @@ function initRaceOrgMap(){
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
         +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
-        +'<div style="margin-top:2px;">💧 Ravito · 🅿 Parking · 🚗 A13</div>';
+        +'<div><span style="display:inline-block;width:14px;height:14px;background:#7C3AED;border-radius:50%;vertical-align:middle;margin-right:6px;"></span>Pont-de-l\'Arche (passage obligatoire)</div>'
+        +'<div style="margin-top:2px;">💧 Ravito · 🅿 Parking · 🚗 A13</div>'
+        +'<div style="margin-top:4px;font-size:10px;color:#B45309;font-weight:700;">⚠ km 20 : prévoir Pont-de-l\'Arche<br>ou arriver AVANT 9h15</div>';
       return div;
     };
     legend.addTo(_raceMapInstance);
