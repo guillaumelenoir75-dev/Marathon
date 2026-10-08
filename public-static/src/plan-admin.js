@@ -1068,53 +1068,24 @@ function initRaceOrgMap(){
       return null;
     }
 
-    // ─── Emplacements de parking (vérifiés géométriquement hors marathon) ─────
-    // Audit : chaque point à > 500 m de tout point GPX du marathon.
-    const PARK_KM10 = [49.2100, 1.1660]; // Louviers ouest — 595 m du marathon ✓
-    const PARK_KM20 = [49.2370, 1.1720]; // Incarville ouest — 1 300 m du marathon ✓
-    const PARK_KM30 = [49.2730, 1.2380]; // Corridor Val-de-Reuil/Poses — 1 040 m ✓
+    // ─── Itinéraires voiture — calculés sur le réseau OpenStreetMap réel ─────
+    // Parcours marathon retiré du graphe (routes + intersections : aucune traversée à niveau,
+    // seuls les ponts sont autorisés, ex. A13 au-dessus de la D313). Plus court chemin en temps.
+    // Bretelles A154 Acquigny exclues (fermées 9h-11h). Tracés figés : pas de recalcul OSRM.
+    const PARK_KM10 = [49.20913,1.18206]; // Louviers est, parking près du rond-point D6155
+    const PARK_KM20 = [49.23448,1.18448]; // Parking Voie Verte, rue Abbé Delamare (Incarville)
+    const PARK_KM30 = [49.27367,1.25606]; // Bord de route, chemin de Poses (cul-de-sac côté parcours)
 
-    // ─── Trajet 1 : A13 S.18 → km10 (bypass nord Val-de-Reuil via RN154) ──────
-    // Boucle marathon VdR : lat 49.244-49.248, lon 1.203-1.213.
-    // A13 S.18 se situe à lon 1.195 — OSRM traverserait VdR sans bypass.
-    // On passe par la RN154 nord (lat 49.263) → jamais sous lat 49.248 avant lon 1.172. ✓
-    const SEG_A = [
-      [49.2590, 1.1950], // A13 S.18 — sortie réelle (lon 1.195)
-      [49.2630, 1.1900], // RN154 nord — lat 49.263, > 1 500 m de la boucle VdR ✓
-      [49.2630, 1.1720], // RN154 ouest — lon 1.172, > 1 200 m de la boucle ✓
-      [49.2400, 1.1490], // D6154 descend sud — > 1 800 m du marathon ✓
-      [49.2260, 1.1490], // plein sud, > 1 500 m ✓
-      [49.2175, 1.1520], // lat 49.218 à lon 1.152 — marathon à lon 1.167 = 1 100 m ✓
-      PARK_KM10,
-    ];
+    // Trajet 1 : A13 (depuis Paris) → sortie 18 Louviers-la-Roquette → D6155 → Louviers est
+    const DRIVE_A = [[49.17357,1.24681],[49.17547,1.24483],[49.17732,1.24305],[49.18122,1.23972],[49.1847,1.23716],[49.18853,1.23454],[49.18958,1.23393],[49.19148,1.23329],[49.19195,1.23297],[49.19405,1.23214],[49.19472,1.23192],[49.19514,1.23192],[49.19539,1.23201],[49.19571,1.23234],[49.19681,1.23392],[49.197,1.2345],[49.19711,1.23456],[49.19723,1.23446],[49.19722,1.23417],[49.19697,1.23401],[49.1959,1.23243],[49.19563,1.23192],[49.19546,1.23132],[49.19542,1.23062],[49.19637,1.22245],[49.19648,1.22237],[49.19653,1.22221],[49.19643,1.22194],[49.19666,1.21988],[49.1971,1.21678],[49.19762,1.21219],[49.19823,1.20743],[49.19853,1.20668],[49.20069,1.20428],[49.20103,1.20385],[49.20127,1.20333],[49.20577,1.1928],[49.20636,1.19127],[49.20671,1.18988],[49.20776,1.18293],[49.20801,1.18256],[49.20822,1.18252],[49.20841,1.18257],[49.20856,1.18285],[49.20872,1.18298],[49.20875,1.18263],[49.20909,1.18254],[49.20913,1.18206]];
+    // Trajet 2 : D6155 → A13 dir. Rouen (sortie 18) → sortie 19 Val-de-Reuil → D6154 → rue Abbé Delamare
+    const DRIVE_B = [[49.20913,1.18206],[49.20909,1.18254],[49.20875,1.18263],[49.20872,1.18298],[49.20856,1.18285],[49.20841,1.18257],[49.20851,1.18241],[49.20853,1.18225],[49.20845,1.18205],[49.20833,1.18199],[49.20822,1.18206],[49.20801,1.18256],[49.20776,1.18293],[49.20671,1.18988],[49.20636,1.19127],[49.20577,1.1928],[49.20127,1.20333],[49.20103,1.20385],[49.20069,1.20428],[49.19853,1.20668],[49.19823,1.20743],[49.19643,1.22194],[49.19627,1.22197],[49.19619,1.22216],[49.19625,1.22239],[49.19637,1.22245],[49.19529,1.23099],[49.19533,1.23139],[49.1955,1.23195],[49.19571,1.23234],[49.19681,1.23392],[49.19698,1.23446],[49.19707,1.23456],[49.19723,1.23446],[49.19724,1.23423],[49.19697,1.23401],[49.19579,1.23226],[49.19559,1.23159],[49.19559,1.23106],[49.19568,1.23081],[49.1959,1.23054],[49.19792,1.22847],[49.20052,1.22658],[49.20081,1.22628],[49.22934,1.20701],[49.23276,1.20437],[49.23522,1.20201],[49.23778,1.1991],[49.23911,1.19733],[49.24046,1.19536],[49.24162,1.19351],[49.24333,1.19039],[49.24345,1.19032],[49.2442,1.18906],[49.24577,1.18765],[49.24701,1.1862],[49.24466,1.18817],[49.24433,1.18833],[49.24385,1.1883],[49.24171,1.18747],[49.24155,1.18727],[49.24146,1.18698],[49.24125,1.18682],[49.24103,1.18691],[49.24092,1.18712],[49.24089,1.18737],[49.24095,1.18762],[49.2409,1.18787],[49.24075,1.18811],[49.24052,1.1882],[49.24008,1.18793],[49.239,1.18702],[49.23845,1.18674],[49.23777,1.18659],[49.23574,1.18653],[49.23528,1.1864],[49.23495,1.18605],[49.23475,1.18552],[49.23475,1.18492],[49.23483,1.18448],[49.23464,1.18438],[49.23448,1.18448]];
+    // Trajet 3 : D6154 → D71 (sud Val-de-Reuil) → D110 → route de Poses
+    const DRIVE_C = [[49.23448,1.18448],[49.23464,1.18438],[49.23477,1.18444],[49.23469,1.18499],[49.23475,1.18552],[49.23495,1.18605],[49.23528,1.1864],[49.23574,1.18653],[49.23777,1.18659],[49.23845,1.18674],[49.23918,1.18715],[49.24032,1.18819],[49.24055,1.18832],[49.24076,1.18826],[49.24106,1.18787],[49.24135,1.1878],[49.24161,1.18757],[49.24209,1.18765],[49.24385,1.1883],[49.24433,1.18833],[49.24466,1.18817],[49.24587,1.18721],[49.24716,1.18606],[49.24756,1.18586],[49.24781,1.18593],[49.24811,1.18558],[49.24936,1.18546],[49.24996,1.18553],[49.25056,1.18587],[49.25099,1.18634],[49.25296,1.1893],[49.2539,1.19088],[49.2542,1.19161],[49.25416,1.19223],[49.25314,1.19404],[49.25305,1.19404],[49.25306,1.1942],[49.25205,1.19661],[49.25191,1.19666],[49.25193,1.19689],[49.24932,1.20306],[49.24881,1.20451],[49.24856,1.20567],[49.24851,1.20616],[49.2485,1.20744],[49.24859,1.20881],[49.24851,1.20924],[49.24872,1.20958],[49.24891,1.21038],[49.25115,1.22305],[49.25158,1.22564],[49.25168,1.22651],[49.2517,1.22756],[49.25158,1.22881],[49.25074,1.23377],[49.25052,1.23472],[49.25016,1.23587],[49.25067,1.23619],[49.25282,1.23695],[49.25462,1.23708],[49.25622,1.2367],[49.26372,1.23436],[49.26459,1.2343],[49.26638,1.23452],[49.26687,1.23449],[49.26756,1.23427],[49.26852,1.23373],[49.26921,1.23348],[49.26965,1.23342],[49.27008,1.23624],[49.27111,1.24104],[49.27146,1.24439],[49.27226,1.25081],[49.27249,1.25191],[49.27285,1.25312],[49.2735,1.2549],[49.27367,1.25606]];
 
-    // ─── Trajet 2 : km10 → km20 via RN154 nord et couloir lon 1.182 ──────────
-    // Même bypass RN154 nord (lat 49.263) pour éviter VdR, puis descente à lon 1.182 > 1 900 m.
-    const SEG_B = [
-      PARK_KM10,
-      [49.2175, 1.1520], // remonte D6154
-      [49.2400, 1.1490],
-      [49.2630, 1.1720], // RN154 nord-ouest — partage le bypass de SEG_A ✓
-      [49.2630, 1.1900], // RN154 nord — lat 49.263, > 1 500 m de la boucle VdR ✓
-      [49.2560, 1.1820], // redescend lon 1.182 — > 1 900 m de la boucle VdR ✓
-      [49.2490, 1.1820], // lat 49.249 — boucle locale marathon max lat 49.247, > 1 900 m ✓
-      [49.2390, 1.1820], // lat 49.239 — marathon à lon 1.230, > 3 500 m ✓
-      PARK_KM20,
-    ];
-
-    // ─── Trajet 3 : km20 → km30 via traversée à lat 49.249 ──────────────────
-    // À lat 49.249 : apex boucle est à lat 49.247 (EN DESSOUS), rive est commence à lat 49.247.
-    // Fenêtre libre de 2 km (lon 1.213–1.241) à lat 49.249 pour traverser vers l'est.
-    // Ensuite couloir libre : bras aller rive est à lon 1.257, bras retour absent avant lat 49.272.
-    const SEG_C = [
-      PARK_KM20,
-      [49.2390, 1.1820],
-      [49.2490, 1.1820], // remonte à lat 49.249, juste au nord de l'apex
-      [49.2490, 1.2400], // traversée EST — aucun marathon à lat 49.249, lon 1.182→1.240 ✓
-      [49.2650, 1.2400], // monte vers nord — marathon est lon 1.258, > 1 300 m ✓
-      [49.2720, 1.2350], // approche km30 — dans couloir retour (lon 1.220) / aller (lon 1.259)
-      PARK_KM30,
-    ];
+    const WALK_A = [[49.20913,1.18206],[49.20909,1.18254],[49.20875,1.18263],[49.20872,1.18298],[49.20856,1.18285],[49.20841,1.18257],[49.20851,1.18241],[49.2086,1.18193],[49.20911,1.18079],[49.20936,1.1806],[49.20943,1.18045],[49.2094,1.17983],[49.20952,1.17897],[49.21053,1.17402]];
+    const WALK_B = [PARK_KM20, RAVITOS[1].coord];
+    const WALK_C = [[49.27367,1.25606],[49.27399,1.25932],[49.27459,1.25949],[49.27756,1.25922]];
 
     // RN154 sortie 5 Acquigny — fermée 9h-11h (points de la bretelle)
     const RN154_SEG = [
@@ -1153,37 +1124,40 @@ function initRaceOrgMap(){
 
     const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
 
-    // Trajet 1 : A13 → km10 (corridor ouest)
-    const layA = L.polyline(SEG_A, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>A13 S.18 → D6154 corridor ouest<br>Marathon à > 1 km à l\'est tout le trajet');
-    const walkA = L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .bindPopup('<b>🚶 À pied ~600 m</b><br>Parking Louviers ouest → km 10');
-    const mA13_1 = L.marker([49.2590, 1.1950], { icon: iA13 })
-      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Val-de-Reuil / Louviers Est — point de départ trajet 1');
+    const GREEN = { color: '#1DA054', weight: 5, opacity: 0.95, lineJoin: 'round' };
+    const WALK = { color:'#1B4FD8', weight:3, opacity:0.8, dashArray:'6 6' };
+
+    // Trajet 1 : A13 → km10 (24,7 km · ~16 min)
+    const layA = L.polyline(DRIVE_A, GREEN)
+      .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>24,7 km · ~16 min depuis Gaillon<br>A13 sortie 18 <i>Louviers-la-Roquette</i> → D6155 vers Louviers<br>✅ Aucun passage sur le parcours');
+    const walkA = L.polyline(WALK_A, WALK)
+      .bindPopup('<b>🚶 À pied ~850 m (~11 min)</b><br>Parking → km 10');
+    const mA13_1 = L.marker([49.1915, 1.2333], { icon: iA13 })
+      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Louviers-la-Roquette<br>Prendre ensuite la D6155 vers Louviers');
     const mPark10 = L.marker(PARK_KM10, { icon: iPark('km 10') })
-      .bindPopup('<b>🅿 Parking km 10</b><br>Louviers ouest — 595 m du marathon<br>🚶 ~600 m jusqu\'au km 10');
+      .bindPopup('<b>🅿 Parking km 10</b><br>Louviers est, rond-point D6155<br>🚶 ~850 m jusqu\'au km 10');
     const mRav10 = L.marker(RAVITOS[0].coord, { icon: iRav(10) })
       .bindPopup('<b>💧 km 10 — Louviers sud</b><br>Passage estimé : <b>~10h15</b>');
     const groupA = L.layerGroup([layA, walkA, mA13_1, mPark10, mRav10]);
 
-    // Trajet 2 : km10 → km20 (Val-de-Reuil ouest, lon 1.182 — marathon > 1 900 m)
-    const layB = L.polyline(SEG_B, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>A13 S.18 → Val-de-Reuil ouest → Incarville ouest<br>Aucun croisement du parcours marathon');
-    const walkB = L.polyline([PARK_KM20, RAVITOS[1].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .bindPopup('<b>🚶 À pied ~1,3 km</b><br>Parking Incarville ouest → km 20');
+    // Trajet 2 : km10 → km20 (13,2 km · ~12 min)
+    const layB = L.polyline(DRIVE_B, GREEN)
+      .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>13,2 km · ~12 min<br>D6155 → A13 dir. Rouen (sortie 18) → sortie 19 <i>Val-de-Reuil</i> → D6154 → rue Abbé Delamare<br>✅ L\'A13 passe en pont au-dessus du parcours');
+    const walkB = L.polyline(WALK_B, WALK)
+      .bindPopup('<b>🚶 À pied ~650 m</b><br>Parking Voie Verte → km 20');
     const mPark20 = L.marker(PARK_KM20, { icon: iPark('km 20') })
-      .bindPopup('<b>🅿 Parking km 20</b><br>Incarville ouest — 1 300 m du marathon<br>🚶 ~1,3 km jusqu\'au km 20 · traverser au passage piétons');
+      .bindPopup('<b>🅿 Parking km 20</b><br>Parking Voie Verte, rue Abbé Delamare (Incarville)<br>🚶 ~650 m jusqu\'au km 20');
     const mRav20 = L.marker(RAVITOS[1].coord, { icon: iRav(20) })
       .bindPopup('<b>💧 km 20 — Incarville</b><br>Passage estimé : <b>~11h15</b>');
     const groupB = L.layerGroup([layB, walkB, mPark20, mRav20]);
 
-    // Trajet 3 : km20 → km30 (traversée à lat 49.249, couloir libre, puis parking corridor)
-    const layC = L.polyline(SEG_C, { color: '#1DA054', weight: 4, opacity: 0.92, lineJoin: 'round' })
-      .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>Remonte à lat 49.249 (fenêtre libre) → traverse est → couloir Val-de-Reuil/Poses<br>Marathon > 1 300 m à l\'est tout le trajet');
-    const walkC = L.polyline([PARK_KM30, RAVITOS[2].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
-      .bindPopup('<b>🚶 À pied ~1,6 km</b><br>Parking corridor → km 30');
+    // Trajet 3 : km20 → km30 (10,0 km · ~10 min)
+    const layC = L.polyline(DRIVE_C, GREEN)
+      .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>10,0 km · ~10 min<br>D6154 → D71 (sud de Val-de-Reuil) → D110 → route de Poses<br>✅ Aucun passage sur le parcours');
+    const walkC = L.polyline(WALK_C, WALK)
+      .bindPopup('<b>🚶 À pied ~650 m (~8 min)</b><br>Bord de route → km 30');
     const mPark30 = L.marker(PARK_KM30, { icon: iPark('km 30') })
-      .bindPopup('<b>🅿 Parking km 30</b><br>Corridor Poses (entre bras aller et retour)<br>1 040 m du marathon<br>🚶 ~1,6 km jusqu\'au km 30 · traverser au passage piétons');
+      .bindPopup('<b>🅿 Stationnement km 30</b><br>Bord de route, avant le barrage (route en cul-de-sac côté parcours)<br>🚶 ~650 m jusqu\'au km 30');
     const mRav30 = L.marker(RAVITOS[2].coord, { icon: iRav(30) })
       .bindPopup('<b>💧 km 30 — Poses nord</b><br>Passage estimé : <b>~12h15</b>');
     const groupC = L.layerGroup([layC, walkC, mPark30, mRav30]);
@@ -1193,10 +1167,6 @@ function initRaceOrgMap(){
     groupB.addTo(_raceMapInstance);
     groupC.addTo(_raceMapInstance);
 
-    // Chargement OSRM asynchrone — tracés précis sur routes réelles
-    _fetchOSRM(SEG_A).then(function(c){ if(c && c.length>2) layA.setLatLngs(c); }).catch(function(){});
-    _fetchOSRM(SEG_B).then(function(c){ if(c && c.length>2) layB.setLatLngs(c); }).catch(function(){});
-    _fetchOSRM(SEG_C).then(function(c){ if(c && c.length>2) layC.setLatLngs(c); }).catch(function(){});
     _fetchOSRM(RN154_SEG).then(function(c){ if(c && c.length>2) rn154Layer.setLatLngs(c); }).catch(function(){});
 
     // ─── Sélecteur de trajet ─────────────────────────────────────────────────
@@ -1215,9 +1185,9 @@ function initRaceOrgMap(){
       var active = 0;
       var bounds = [
         L.polyline(ROUTE).getBounds(),
-        L.polyline(SEG_A).getBounds(),
-        L.polyline(SEG_B).getBounds(),
-        L.polyline(SEG_C).getBounds(),
+        L.polyline(DRIVE_A.concat(WALK_A)).getBounds(),
+        L.polyline(DRIVE_B.concat(WALK_B)).getBounds(),
+        L.polyline(DRIVE_C.concat(WALK_C)).getBounds(),
       ];
 
       var btns = TABS.map(function(t, i){
@@ -1260,7 +1230,7 @@ function initRaceOrgMap(){
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
         +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
         +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
-        +'<div style="margin-top:4px;font-size:10px;color:#374151;">🚶 km20 ~1,3 km · km30 ~1,6 km à pied</div>';
+        +'<div style="margin-top:4px;font-size:10px;color:#374151;">🚶 À pied : km10 ~850 m · km20 ~650 m · km30 ~650 m</div>';
       return div;
     };
     legend.addTo(_raceMapInstance);
