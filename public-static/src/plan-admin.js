@@ -1074,26 +1074,29 @@ function initRaceOrgMap(){
     const PARK_KM20 = [49.2370, 1.1720]; // Incarville ouest — 1 300 m du marathon ✓
     const PARK_KM30 = [49.2730, 1.2380]; // Corridor Val-de-Reuil/Poses — 1 040 m ✓
 
-    // ─── Trajet 1 : A13 S.18 → km10 (corridor OUEST, lon < 1.155) ────────────
-    // Marathon boucle à l'ouest jusqu'à lon 1.167 (lat 49.219) — on reste à lon 1.149-1.166.
+    // ─── Trajet 1 : A13 S.18 → km10 (bypass nord Val-de-Reuil via RN154) ──────
+    // Boucle marathon VdR : lat 49.244-49.248, lon 1.203-1.213.
+    // A13 S.18 se situe à lon 1.195 — OSRM traverserait VdR sans bypass.
+    // On passe par la RN154 nord (lat 49.263) → jamais sous lat 49.248 avant lon 1.172. ✓
     const SEG_A = [
-      [49.2567, 1.1645], // A13 S.18
-      [49.2400, 1.1490], // D6154 SO, > 1 800 m du marathon ✓
+      [49.2590, 1.1950], // A13 S.18 — sortie réelle (lon 1.195)
+      [49.2630, 1.1900], // RN154 nord — lat 49.263, > 1 500 m de la boucle VdR ✓
+      [49.2630, 1.1720], // RN154 ouest — lon 1.172, > 1 200 m de la boucle ✓
+      [49.2400, 1.1490], // D6154 descend sud — > 1 800 m du marathon ✓
       [49.2260, 1.1490], // plein sud, > 1 500 m ✓
-      [49.2175, 1.1520], // lat 49.218 à lon 1.152 — marathon est à lon 1.167 = 1 100 m ✓
+      [49.2175, 1.1520], // lat 49.218 à lon 1.152 — marathon à lon 1.167 = 1 100 m ✓
       PARK_KM10,
     ];
 
-    // ─── Trajet 2 : km10 → km20 via Val-de-Reuil OUEST ──────────────────────
-    // Le bras aller du marathon (lon 1.190 à lat 49.237) est à l'est.
-    // Sa boucle locale atteint lon 1.213 à lat 49.247 max — on reste à lon 1.182 (> 1 900 m).
-    // Aucun bras retour avant lat 49.272 → couloir lon 1.145–1.185 libre de lat 49.237 à 49.257.
+    // ─── Trajet 2 : km10 → km20 via RN154 nord et couloir lon 1.182 ──────────
+    // Même bypass RN154 nord (lat 49.263) pour éviter VdR, puis descente à lon 1.182 > 1 900 m.
     const SEG_B = [
       PARK_KM10,
       [49.2175, 1.1520], // remonte D6154
       [49.2400, 1.1490],
-      [49.2567, 1.1645], // A13 S.18 → direction est
-      [49.2560, 1.1820], // Val-de-Reuil ouest — marathon est lon 1.257, > 5 500 m ✓
+      [49.2630, 1.1720], // RN154 nord-ouest — partage le bypass de SEG_A ✓
+      [49.2630, 1.1900], // RN154 nord — lat 49.263, > 1 500 m de la boucle VdR ✓
+      [49.2560, 1.1820], // redescend lon 1.182 — > 1 900 m de la boucle VdR ✓
       [49.2490, 1.1820], // lat 49.249 — boucle locale marathon max lat 49.247, > 1 900 m ✓
       [49.2390, 1.1820], // lat 49.239 — marathon à lon 1.230, > 3 500 m ✓
       PARK_KM20,
@@ -1155,8 +1158,8 @@ function initRaceOrgMap(){
       .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>A13 S.18 → D6154 corridor ouest<br>Marathon à > 1 km à l\'est tout le trajet');
     const walkA = L.polyline([PARK_KM10, RAVITOS[0].coord], { color:'#1B4FD8', weight:2, opacity:0.7, dashArray:'6 5' })
       .bindPopup('<b>🚶 À pied ~600 m</b><br>Parking Louviers ouest → km 10');
-    const mA13_1 = L.marker([49.2567, 1.1645], { icon: iA13 })
-      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Point de départ trajet 1');
+    const mA13_1 = L.marker([49.2590, 1.1950], { icon: iA13 })
+      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Val-de-Reuil / Louviers Est — point de départ trajet 1');
     const mPark10 = L.marker(PARK_KM10, { icon: iPark('km 10') })
       .bindPopup('<b>🅿 Parking km 10</b><br>Louviers ouest — 595 m du marathon<br>🚶 ~600 m jusqu\'au km 10');
     const mRav10 = L.marker(RAVITOS[0].coord, { icon: iRav(10) })
