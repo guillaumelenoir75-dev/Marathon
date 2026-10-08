@@ -1,0 +1,37 @@
+name: OSM fetch (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Télécharger routes + parkings OSM (Overpass)
+        run: |
+          mkdir -p osmdata
+          Q='[out:json][timeout:180];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|road|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"](49.08,1.02,49.38,1.42););out tags geom;'
+          P='[out:json][timeout:120];(nwr["amenity"="parking"](49.12,1.10,49.33,1.32););out tags center;'
+          for EP in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass.private.coffee/api/interpreter; do
+            if curl -sSf -m 300 --data-urlencode "data=$Q" "$EP" -o osmdata/roads.json && curl -sSf -m 200 --data-urlencode "data=$P" "$EP" -o osmdata/parking.json; then
+              echo "OK via $EP"; break
+            fi
+            sleep 10
+          done
+          ls -la osmdata
+          gzip -9 osmdata/roads.json osmdata/parking.json
+      - name: Commit des données
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add osmdata
+          git commit -m "data: extrait OSM routes + parkings (temporaire)"
+          git push
