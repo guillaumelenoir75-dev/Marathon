@@ -1111,6 +1111,10 @@ function initRaceOrgMap(){
     const rn154Layer = rn154Cased[1];
     rn154Layer.bindPopup('<b>🔴 A154 — sortie Acquigny fermée</b><br>Bretelles fermées <b>9h00–11h00</b><br>Source : DIRNO');
     rn154Cased.forEach(function(l){ l.addTo(_raceMapInstance); });
+    L.marker([49.1848, 1.1655], { keyboard: false, icon: L.divIcon({ className: '', iconSize: [124, 22], iconAnchor: [124, 11],
+      html: '<div style="height:22px;display:flex;align-items:center;justify-content:flex-end;"><span style="background:#DC2626;color:#fff;font:800 10px/1 system-ui,sans-serif;border-radius:11px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);padding:4px 8px;white-space:nowrap;">Sortie fermée 9h–11h</span></div>' }) })
+      .bindPopup('<b>🔴 A154 — sortie Acquigny fermée</b><br>Bretelles fermées <b>9h00–11h00</b><br>Source : DIRNO')
+      .addTo(kmLayer);
 
     // ─── Marqueurs (icônes centrées sur leur point) ──────────────────────────
     const SH = 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
