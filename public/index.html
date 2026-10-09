@@ -573,7 +573,11 @@
         .rm-tab:focus-visible,.rm-fs:focus-visible,.rm-row:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
         #race-map{height:320px;border-radius:12px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;display:flex;align-items:center;justify-content:center;}
         #race-map.leaflet-container{display:block;}
-        .rm-fs{width:34px;height:34px;border:none;border-radius:8px;background:#fff;color:#0C447C;box-shadow:0 1px 5px rgba(0,0,0,.25);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+        .rm-fs{height:36px;border:none;border-radius:10px;background:#fff;color:#0C447C;box-shadow:0 1px 6px rgba(0,0,0,.25);cursor:pointer;display:flex;align-items:center;gap:6px;padding:0 12px 0 10px;font:800 12.5px/1 system-ui,-apple-system,sans-serif;}
+        .rm-close{display:none;position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:12px;z-index:1001;width:44px;height:44px;border-radius:50%;border:none;background:#fff;color:#0C447C;box-shadow:0 2px 10px rgba(0,0,0,.3);cursor:pointer;align-items:center;justify-content:center;padding:0;}
+        .rm-close:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+        .rm-sum{display:none;position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 26px);z-index:1000;background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.22);padding:10px 14px;font-size:12.5px;color:#1f2d3d;}
+        .rm-sum b{color:#0C447C;}
         .rm-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:#4a5b73;}
         .rm-legend i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px;}
         .rm-legend i.walk{height:0;border-top:2.5px dashed #1B4FD8;border-radius:0;}
@@ -592,12 +596,20 @@
         .rm-row .t{flex:1;min-width:0;font-size:12px;color:#1f2d3d;}
         .rm-row .t b{color:#0C447C;}
         .rm-row .m{font-size:11px;color:#6b7f99;white-space:nowrap;font-variant-numeric:tabular-nums;}
-        .rmw.is-fs{position:fixed;inset:0;z-index:9000;background:#fff;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 10px);gap:8px;}
-        .rmw.is-fs #race-map{flex:1 1 auto;height:auto;min-height:0;}
-        .rmw.is-fs .rm-info{max-height:34vh;overflow-y:auto;flex-shrink:0;}
+        .rmw.is-fs{position:fixed;inset:0;z-index:9000;background:#e8f0fb;gap:0;}
+        .rmw.is-fs #race-map{position:absolute !important;inset:0;height:auto;border-radius:0;border:none;}
+        .rmw.is-fs .rm-tabs{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:12px;right:68px;z-index:1000;margin:0;padding:0;}
+        .rmw.is-fs .rm-tab{box-shadow:0 2px 8px rgba(0,0,0,.18);border-color:#fff;}
+        .rmw.is-fs .rm-tab[aria-selected="true"]{border-color:#0C447C;}
+        .rmw.is-fs .leaflet-top{top:calc(env(safe-area-inset-top) + 70px);}
+        .rmw.is-fs .rm-fs,.rmw.is-fs .rm-legend,.rmw.is-fs .rm-info{display:none;}
+        .rmw.is-fs .rm-close{display:flex;}
+        .rmw.is-fs .rm-sum{display:block;}
       </style>
       <div id="race-map-wrap" class="rmw">
         <div id="race-tabs" class="rm-tabs" role="tablist" aria-label="Trajets"></div>
+        <button type="button" id="race-map-close" class="rm-close" aria-label="Fermer le plein écran" title="Fermer le plein écran" onclick="_toggleRaceMapFS(false)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <div id="race-fs-sum" class="rm-sum" aria-live="polite"></div>
         <div id="race-map">
           <p style="color:#888;font-size:13px;">Chargement de la carte…</p>
         </div>

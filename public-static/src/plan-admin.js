@@ -995,9 +995,9 @@ async function deleteAthletePlan(){
 // ── Carte Organisation Course ─────────────────────────────────────────────────
 let _raceMapInstance = null;
 let _raceMapFullscreen = false;
+let _raceMapRefit = null;
 
-const _FS_ICON_OPEN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
-const _FS_ICON_CLOSE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const _FS_ICON_OPEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
 
 function _toggleRaceMapFS(force){
   const wrap = document.getElementById('race-map-wrap');
@@ -1005,13 +1005,8 @@ function _toggleRaceMapFS(force){
   _raceMapFullscreen = typeof force === 'boolean' ? force : !_raceMapFullscreen;
   wrap.classList.toggle('is-fs', _raceMapFullscreen);
   document.body.style.overflow = _raceMapFullscreen ? 'hidden' : '';
-  const btn = document.getElementById('race-map-fs-btn');
-  if(btn){
-    btn.innerHTML = _raceMapFullscreen ? _FS_ICON_CLOSE : _FS_ICON_OPEN;
-    btn.setAttribute('aria-label', _raceMapFullscreen ? 'Quitter le plein écran' : 'Plein écran');
-    btn.title = btn.getAttribute('aria-label');
-  }
-  if(_raceMapInstance) setTimeout(function(){ _raceMapInstance.invalidateSize(); }, 50);
+  if(_raceMapFullscreen){ const c = document.getElementById('race-map-close'); if(c) c.focus(); }
+  if(_raceMapInstance) setTimeout(function(){ _raceMapInstance.invalidateSize(); if(_raceMapRefit) _raceMapRefit(); }, 60);
 }
 
 document.addEventListener('keydown', function(e){
@@ -1158,9 +1153,7 @@ function initRaceOrgMap(){
       const b = L.DomUtil.create('button', 'rm-fs');
       b.id = 'race-map-fs-btn';
       b.type = 'button';
-      b.innerHTML = _raceMapFullscreen ? _FS_ICON_CLOSE : _FS_ICON_OPEN;
-      b.setAttribute('aria-label', 'Plein écran');
-      b.title = 'Plein écran';
+      b.innerHTML = _FS_ICON_OPEN + '<span>Plein écran</span>';
       L.DomEvent.disableClickPropagation(b);
       L.DomEvent.on(b, 'click', function(){ _toggleRaceMapFS(); });
       return b;
@@ -1173,7 +1166,16 @@ function initRaceOrgMap(){
     const courseBounds = L.polyline(ROUTE).getBounds();
     const TABS = [{ tab: 'Vue d\'ensemble', sub: '3 ravitos' }].concat(TRAJETS);
 
+    const sumEl = document.getElementById('race-fs-sum');
+    function renderSum(i){
+      if(!sumEl) return;
+      if(i === 0){ sumEl.innerHTML = '<b>3 trajets</b> · touchez un onglet pour voir un trajet'; return; }
+      const t = TRAJETS[i - 1];
+      sumEl.innerHTML = '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure;
+    }
+
     function renderInfo(i){
+      renderSum(i);
       if(!infoEl) return;
       if(i === 0){
         infoEl.innerHTML = '<div class="rm-head"><b>Suivre la course en voiture</b><span>Dim. 18 oct. · départ 9h15</span></div>'
@@ -1192,13 +1194,21 @@ function initRaceOrgMap(){
         + '<li class="walk">'+t.walkStep+'</li></ol>';
     }
 
+    let current = 0;
+    _raceMapRefit = function(){
+      const b = current === 0 ? courseBounds : TRAJETS[current - 1].bounds;
+      const pad = _raceMapFullscreen ? { paddingTopLeft: [24, 90], paddingBottomRight: [24, 100] } : { padding: [24, 24] };
+      _raceMapInstance.fitBounds(b, pad);
+    };
+
     function select(i){
+      current = i;
       if(tabsEl) tabsEl.querySelectorAll('.rm-tab').forEach(function(b, j){ b.setAttribute('aria-selected', j === i ? 'true' : 'false'); });
       TRAJETS.forEach(function(t, k){
         if(i === 0 || k === i - 1) t.group.addTo(_raceMapInstance); else t.group.remove();
         if(k === i - 1) t.detail.addTo(_raceMapInstance); else t.detail.remove();
       });
-      _raceMapInstance.fitBounds(i === 0 ? courseBounds : TRAJETS[i - 1].bounds, { padding: [24, 24] });
+      _raceMapRefit();
       renderInfo(i);
     }
 
