@@ -996,50 +996,32 @@ async function deleteAthletePlan(){
 let _raceMapInstance = null;
 let _raceMapFullscreen = false;
 
-function _toggleRaceMapFS(){
-  const container = document.getElementById('race-map');
+const _FS_ICON_OPEN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+const _FS_ICON_CLOSE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+function _toggleRaceMapFS(force){
+  const wrap = document.getElementById('race-map-wrap');
+  if(!wrap) return;
+  _raceMapFullscreen = typeof force === 'boolean' ? force : !_raceMapFullscreen;
+  wrap.classList.toggle('is-fs', _raceMapFullscreen);
+  document.body.style.overflow = _raceMapFullscreen ? 'hidden' : '';
   const btn = document.getElementById('race-map-fs-btn');
-  if(!container) return;
-  _raceMapFullscreen = !_raceMapFullscreen;
-  if(_raceMapFullscreen){
-    container.style.cssText = 'position:fixed;inset:0;z-index:9000;height:100%;border-radius:0;border:none;background:#e8f0fb;';
-    document.body.style.overflow = 'hidden';
-    if(btn) btn.style.display = 'none';
-    // Bouton ✕ superposé directement sur la carte
-    if(!document.getElementById('race-map-close-btn')){
-      const cb = document.createElement('button');
-      cb.id = 'race-map-close-btn';
-      cb.textContent = '✕';
-      cb.title = 'Fermer le plein écran';
-      cb.style.cssText = 'position:absolute;top:12px;right:12px;z-index:9100;background:rgba(255,255,255,0.95);border:1.5px solid #b3c5f5;border-radius:50%;width:36px;height:36px;font-size:18px;font-weight:700;color:#1B4FD8;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;line-height:1;';
-      cb.onclick = _toggleRaceMapFS;
-      container.appendChild(cb);
-    }
-  } else {
-    container.style.cssText = 'height:320px;border-radius:10px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;';
-    document.body.style.overflow = '';
-    if(btn){ btn.style.display = ''; btn.textContent = '⛶ Plein écran'; }
-    const cb = document.getElementById('race-map-close-btn');
-    if(cb) cb.remove();
+  if(btn){
+    btn.innerHTML = _raceMapFullscreen ? _FS_ICON_CLOSE : _FS_ICON_OPEN;
+    btn.setAttribute('aria-label', _raceMapFullscreen ? 'Quitter le plein écran' : 'Plein écran');
+    btn.title = btn.getAttribute('aria-label');
   }
-  if(_raceMapInstance) _raceMapInstance.invalidateSize();
+  if(_raceMapInstance) setTimeout(function(){ _raceMapInstance.invalidateSize(); }, 50);
 }
+
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && _raceMapFullscreen) _toggleRaceMapFS(false);
+});
 
 function initRaceOrgMap(){
   const container = document.getElementById('race-map');
   if(!container) return;
   if(_raceMapInstance) return;
-
-  // Bouton plein écran dans le bandeau (au-dessus de la map)
-  if(!document.getElementById('race-map-fs-btn')){
-    const fsBtn = document.createElement('button');
-    fsBtn.id = 'race-map-fs-btn';
-    fsBtn.textContent = '⛶ Plein écran';
-    fsBtn.style.cssText = 'position:absolute;top:-36px;right:0;background:#EBF0FF;border:1.5px solid #b3c5f5;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;z-index:10;';
-    fsBtn.onclick = _toggleRaceMapFS;
-    container.parentNode.style.position = 'relative';
-    container.parentNode.appendChild(fsBtn);
-  }
 
   function _buildMap(){
     if(_raceMapInstance) return;
@@ -1096,7 +1078,7 @@ function initRaceOrgMap(){
 
     container.innerHTML = '';
     container.style.background = '';
-    _raceMapInstance = L.map(container, { zoomControl: true, attributionControl: true });
+    _raceMapInstance = L.map(container, { zoomControl: true, attributionControl: true, zoomSnap: 0.25, zoomDelta: 0.5 });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -1113,131 +1095,126 @@ function initRaceOrgMap(){
       .addTo(_raceMapInstance)
       .bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00–11h00</b><br>Source : DIRNO · Prendre sortie 6 Incarville');
 
-    // Marqueurs permanents (toujours visibles)
-    const iStart = L.divIcon({ html: '<div style="background:#0F7B3B;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏁 Départ</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[0], { icon: iStart }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
-    const iEnd = L.divIcon({ html: '<div style="background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🏆 Arrivée</div>', className: '', iconAnchor: [0, 0] });
-    L.marker(ROUTE[ROUTE.length-1], { icon: iEnd }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
+    // ─── Marqueurs (icônes centrées sur leur point) ──────────────────────────
+    const SH = 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+    const pill = function(text, bg, w){
+      return L.divIcon({ className: '', iconSize: [w, 22], iconAnchor: [w / 2, 11],
+        html: '<div style="height:22px;display:flex;align-items:center;justify-content:center;background:'+bg+';color:#fff;font:800 10.5px/1 system-ui,sans-serif;border-radius:11px;border:2px solid #fff;'+SH+'white-space:nowrap;">'+text+'</div>' });
+    };
+    const iRav = function(km){
+      return L.divIcon({ className: '', iconSize: [30, 30], iconAnchor: [15, 15],
+        html: '<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#1B4FD8;color:#fff;font:800 11px/1 system-ui,sans-serif;border-radius:50%;border:2.5px solid #fff;'+SH+'">'+km+'</div>' });
+    };
+    const iPark = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+      html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#fff;color:#1B4FD8;font:900 12px/1 system-ui,sans-serif;border-radius:6px;border:2px solid #1B4FD8;'+SH+'">P</div>' });
 
-    // ─── Couches par trajet ────────────────────────────────────────────────────
-    const iPark = function(label) { return L.divIcon({ html: '<div style="background:#fff;color:#1B4FD8;font-size:12px;font-weight:900;border-radius:8px;padding:2px 7px;border:2px solid #1B4FD8;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;">🅿 '+label+'</div>', className: '', iconAnchor: [0, 0] }); };
-    const iRav = function(km){ return L.divIcon({ html: '<div style="background:#1B4FD8;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">💧 km '+km+'</div>', className: '', iconAnchor: [0, 0] }); };
+    L.marker(ROUTE[0], { icon: pill('Départ', '#0F7B3B', 58) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
+    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#DC2626', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
 
-    const iA13 = L.divIcon({ html: '<div style="background:#1DA054;color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:nowrap;">🚗 A13 S.18</div>', className: '', iconAnchor: [0, 0] });
-
+    // ─── Trajets ─────────────────────────────────────────────────────────────
     const GREEN = { color: '#1DA054', weight: 5, opacity: 0.95, lineJoin: 'round' };
-    const WALK = { color:'#1B4FD8', weight:3, opacity:0.8, dashArray:'6 6' };
-
-    // Trajet 1 : A13 → km10 (24,6 km · ~16 min)
-    const layA = L.polyline(DRIVE_A, GREEN)
-      .bindPopup('<b>🚗 Trajet 1 — A13 → km 10</b><br>24,6 km · ~16 min depuis Gaillon<br>A13 sortie 18 <i>Louviers-la-Roquette</i> → D6155 vers Louviers<br>✅ Aucun passage sur le parcours');
-    const walkA = L.polyline(WALK_A, WALK)
-      .bindPopup('<b>🚶 À pied ~700 m (~9 min)</b><br>Stationnement → km 10');
-    const mA13_1 = L.marker([49.1915, 1.2333], { icon: iA13 })
-      .bindPopup('<b>🚗 A13 — Sortie 18</b><br>Louviers-la-Roquette<br>Prendre ensuite la D6155 vers Louviers');
-    const mPark10 = L.marker(PARK_KM10, { icon: iPark('km 10') })
-      .bindPopup('<b>🅿 Parking km 10</b><br>Louviers est, avenue des Peupliers (rond-point du Béquet)<br>🚶 ~700 m jusqu\'au km 10');
-    const mRav10 = L.marker(RAVITOS[0].coord, { icon: iRav(10) })
-      .bindPopup('<b>💧 km 10 — Louviers sud</b><br>Passage estimé : <b>~10h15</b>');
-    const groupA = L.layerGroup([layA, walkA, mA13_1, mPark10, mRav10]);
-
-    // Trajet 2 : km10 → km20 (6,9 km · ~10 min)
-    const layB = L.polyline(DRIVE_B, GREEN)
-      .bindPopup('<b>🚗 Trajet 2 — km 10 → km 20</b><br>6,9 km · ~10 min<br>D6155 → chemin de la Roquette → chaussée Decretot → ancien chemin Saint-Pierre → D77 → rue de Crémonville → petite route vers la D313<br>✅ Aucun passage sur le parcours');
-    const walkB = L.polyline(WALK_B, WALK)
-      .bindPopup('<b>🚶 À pied ~750 m (~10 min)</b><br>Suivre la petite route jusqu\'à la D313 (sous l\'A13), puis longer la D313 vers le sud-ouest<br>Même rive de l\'Eure que le ravito : rien à traverser');
-    const mPark20 = L.marker(PARK_KM20, { icon: iPark('km 20') })
-      .bindPopup('<b>🅿 Parking km 20</b><br>Bord de route, à l\'est de la D313 sous l\'A13<br>Accès par Saint-Pierre-du-Vauvray / rue de Crémonville<br>🚶 ~750 m jusqu\'au km 20');
-    const mRav20 = L.marker(RAVITOS[1].coord, { icon: iRav(20) })
-      .bindPopup('<b>💧 km 20 — Incarville</b><br>Passage estimé : <b>~11h15</b>');
-    const groupB = L.layerGroup([layB, walkB, mPark20, mRav20]);
-
-    // Trajet 3 : km20 → km30 (12,8 km · ~14 min)
-    const layC = L.polyline(DRIVE_C, GREEN)
-      .bindPopup('<b>🚗 Trajet 3 — km 20 → km 30</b><br>12,8 km · ~14 min<br>D77 → D6015 (passe en pont au-dessus du parcours) → Val-de-Reuil → D71 → D110 → route de Poses<br>✅ Aucun passage sur le parcours');
-    const walkC = L.polyline(WALK_C, WALK)
-      .bindPopup('<b>🚶 À pied ~650 m (~8 min)</b><br>Bord de route → km 30');
-    const mPark30 = L.marker(PARK_KM30, { icon: iPark('km 30') })
-      .bindPopup('<b>🅿 Stationnement km 30</b><br>Bord de route, avant le barrage (route en cul-de-sac côté parcours)<br>🚶 ~650 m jusqu\'au km 30');
-    const mRav30 = L.marker(RAVITOS[2].coord, { icon: iRav(30) })
-      .bindPopup('<b>💧 km 30 — Poses nord</b><br>Passage estimé : <b>~12h15</b>');
-    const groupC = L.layerGroup([layC, walkC, mPark30, mRav30]);
-
-    // Tout par défaut
-    groupA.addTo(_raceMapInstance);
-    groupB.addTo(_raceMapInstance);
-    groupC.addTo(_raceMapInstance);
+    const WALK = { color:'#1B4FD8', weight:3, opacity:0.85, dashArray:'6 6' };
+    const TRAJETS = [
+      { tab: 'Trajet 1', sub: 'A13 → km 10', drive: DRIVE_A, walk: WALK_A, park: PARK_KM10, rav: RAVITOS[0],
+        km: '24,6 km', min: '16 min', marche: '700 m', from: 'depuis Gaillon',
+        extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', '#1DA054', 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
+        steps: ['A13 depuis Paris, sortie 18 <b>Louviers-la-Roquette</b>',
+                'D6155 vers Louviers sur ~4,5 km',
+                'Se garer <b>avenue des Peupliers</b>, au rond-point du Béquet'],
+        walkStep: '~700 m à pied jusqu\'au ravito (~9 min)' },
+      { tab: 'Trajet 2', sub: 'km 10 → km 20', drive: DRIVE_B, walk: WALK_B, park: PARK_KM20, rav: RAVITOS[1],
+        km: '6,9 km', min: '10 min', marche: '750 m', extra: [],
+        steps: ['D6155 vers l\'est, puis <b>chemin de la Roquette</b>',
+                '<b>Chaussée Decretot</b> puis ancien chemin Saint-Pierre',
+                '<b>D77</b> puis rue de Crémonville',
+                'Petite route vers l\'ouest : se garer avant la D313, sous l\'A13'],
+        walkStep: '~750 m à pied : rejoindre la D313 et la longer vers le sud-ouest (même rive de l\'Eure, rien à traverser)' },
+      { tab: 'Trajet 3', sub: 'km 20 → km 30', drive: DRIVE_C, walk: WALK_C, park: PARK_KM30, rav: RAVITOS[2],
+        km: '12,8 km', min: '14 min', marche: '650 m', extra: [],
+        steps: ['Rue de Crémonville puis <b>D77</b> vers le nord',
+                '<b>D6015</b> vers Val-de-Reuil — elle passe en pont au-dessus du parcours',
+                'Rue Bernard Chédeville puis <b>D71</b> vers l\'est',
+                '<b>D110</b> vers le nord, puis route de Poses vers l\'est',
+                'Se garer en bord de route, avant le barrage'],
+        walkStep: '~650 m à pied jusqu\'au ravito (~8 min)' },
+    ];
+    TRAJETS.forEach(function(t){
+      t.group = L.layerGroup([
+        L.polyline(t.drive, GREEN).bindPopup('<b>'+t.tab+' — '+t.sub+'</b><br>'+t.km+' · ~'+t.min),
+        L.polyline(t.walk, WALK).bindPopup('<b>À pied</b> ~'+t.marche),
+        L.marker(t.rav.coord, { icon: iRav(t.rav.km) }).bindPopup('<b>Ravito km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
+      ]).addTo(_raceMapInstance);
+      t.detail = L.layerGroup([
+        L.marker(t.park, { icon: iPark }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au ravito'),
+      ].concat(t.extra));
+      t.bounds = L.polyline(t.drive.concat(t.walk)).getBounds();
+    });
 
     _fetchOSRM(RN154_SEG).then(function(c){ if(c && c.length>2) rn154Layer.setLatLngs(c); }).catch(function(){});
 
-    // ─── Sélecteur de trajet ─────────────────────────────────────────────────
-    const sel = L.control({ position: 'topleft' });
-    sel.onAdd = function(){
-      const wrap = L.DomUtil.create('div');
-      wrap.style.cssText = 'display:flex;gap:4px;background:rgba(255,255,255,0.96);border-radius:10px;padding:5px 6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-family:sans-serif;';
-      L.DomEvent.disableClickPropagation(wrap);
+    // ─── Bouton plein écran (dans la carte, sous forme de contrôle) ──────────
+    const fsCtl = L.control({ position: 'topright' });
+    fsCtl.onAdd = function(){
+      const b = L.DomUtil.create('button', 'rm-fs');
+      b.id = 'race-map-fs-btn';
+      b.type = 'button';
+      b.innerHTML = _raceMapFullscreen ? _FS_ICON_CLOSE : _FS_ICON_OPEN;
+      b.setAttribute('aria-label', 'Plein écran');
+      b.title = 'Plein écran';
+      L.DomEvent.disableClickPropagation(b);
+      L.DomEvent.on(b, 'click', function(){ _toggleRaceMapFS(); });
+      return b;
+    };
+    fsCtl.addTo(_raceMapInstance);
 
-      const TABS = [
-        { label: 'Tout', color: '#374151' },
-        { label: '1 · A13 → km 10', color: '#1DA054' },
-        { label: '2 · km 10 → km 20', color: '#1DA054' },
-        { label: '3 · km 20 → km 30', color: '#1DA054' },
-      ];
-      var active = 0;
-      var bounds = [
-        L.polyline(ROUTE).getBounds(),
-        L.polyline(DRIVE_A.concat(WALK_A)).getBounds(),
-        L.polyline(DRIVE_B.concat(WALK_B)).getBounds(),
-        L.polyline(DRIVE_C.concat(WALK_C)).getBounds(),
-      ];
+    // ─── Onglets + panneau d'étapes ──────────────────────────────────────────
+    const tabsEl = document.getElementById('race-tabs');
+    const infoEl = document.getElementById('race-info');
+    const courseBounds = L.polyline(ROUTE).getBounds();
+    const TABS = [{ tab: 'Vue d\'ensemble', sub: '3 ravitos' }].concat(TRAJETS);
 
-      var btns = TABS.map(function(t, i){
-        var b = L.DomUtil.create('button', '', wrap);
-        b.textContent = t.label;
-        b.style.cssText = 'border:none;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s;';
-        b.style.background = i === 0 ? t.color : '#f0f4ff';
-        b.style.color = i === 0 ? '#fff' : '#374151';
-        b.onclick = function(){
-          active = i;
-          btns.forEach(function(btn, j){
-            btn.style.background = j === i ? TABS[j].color : '#f0f4ff';
-            btn.style.color = j === i ? '#fff' : '#374151';
-          });
-          if(i === 0){
-            groupA.addTo(_raceMapInstance); groupB.addTo(_raceMapInstance); groupC.addTo(_raceMapInstance);
-          } else if(i === 1){
-            groupA.addTo(_raceMapInstance); groupB.remove(); groupC.remove();
-          } else if(i === 2){
-            groupA.remove(); groupB.addTo(_raceMapInstance); groupC.remove();
-          } else {
-            groupA.remove(); groupB.remove(); groupC.addTo(_raceMapInstance);
-          }
-          _raceMapInstance.fitBounds(bounds[i], { padding: [40, 40] });
-        };
-        return b;
+    function renderInfo(i){
+      if(!infoEl) return;
+      if(i === 0){
+        infoEl.innerHTML = '<div class="rm-head"><b>Suivre la course en voiture</b><span>Dim. 18 oct. · départ 9h15</span></div>'
+          + TRAJETS.map(function(t, k){
+              return '<button type="button" class="rm-row" data-tab="'+(k+1)+'"><span class="n">'+(k+1)+'</span>'
+                + '<span class="t"><b>'+t.sub+'</b> · '+t.rav.lieu+'</span>'
+                + '<span class="m">'+t.km+' · '+t.min+'<br>passage '+t.rav.heure+'</span></button>';
+            }).join('');
+        infoEl.querySelectorAll('.rm-row').forEach(function(r){ r.onclick = function(){ select(+r.dataset.tab); }; });
+        return;
+      }
+      const t = TRAJETS[i - 1];
+      infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>Ravito '+t.rav.lieu+' · '+t.rav.heure+'</span></div>'
+        + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
+        + '<ol class="rm-steps">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
+        + '<li class="walk">'+t.walkStep+'</li></ol>';
+    }
+
+    function select(i){
+      if(tabsEl) tabsEl.querySelectorAll('.rm-tab').forEach(function(b, j){ b.setAttribute('aria-selected', j === i ? 'true' : 'false'); });
+      TRAJETS.forEach(function(t, k){
+        if(i === 0 || k === i - 1) t.group.addTo(_raceMapInstance); else t.group.remove();
+        if(k === i - 1) t.detail.addTo(_raceMapInstance); else t.detail.remove();
       });
+      _raceMapInstance.fitBounds(i === 0 ? courseBounds : TRAJETS[i - 1].bounds, { padding: [24, 24] });
+      renderInfo(i);
+    }
 
-      return wrap;
-    };
-    sel.addTo(_raceMapInstance);
-
-    // Légende
-    const legend = L.control({ position: 'bottomright' });
-    legend.onAdd = function(){
-      const div = L.DomUtil.create('div');
-      div.style.cssText = 'background:#fff;border-radius:10px;padding:8px 12px;font-size:11px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);line-height:1.9;min-width:170px;';
-      div.innerHTML = '<div style="font-weight:800;font-size:12px;margin-bottom:4px;color:#1a1a1a;">Légende</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#FF6B35;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Parcours (fermé 9h–14h45)</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#DC2626;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>RN154 S.5 Acquigny (9h–11h)</div>'
-        +'<div><span style="display:inline-block;width:22px;height:4px;background:#1DA054;vertical-align:middle;border-radius:2px;margin-right:6px;"></span>Itinéraires voiture (×3)</div>'
-        +'<div><span style="display:inline-block;width:22px;height:3px;border-top:2px dashed #1B4FD8;vertical-align:middle;margin-right:6px;"></span>Trajet à pied</div>'
-        +'<div style="margin-top:4px;font-size:10px;color:#374151;">🚶 À pied : km10 ~700 m · km20 ~750 m · km30 ~650 m</div>';
-      return div;
-    };
-    legend.addTo(_raceMapInstance);
-
-    const poly = L.polyline(ROUTE);
-    _raceMapInstance.fitBounds(poly.getBounds(), { padding: [30, 30] });
+    if(tabsEl){
+      tabsEl.innerHTML = '';
+      TABS.forEach(function(t, i){
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'rm-tab';
+        b.setAttribute('role', 'tab');
+        b.innerHTML = '<b>'+t.tab+'</b><span>'+t.sub+'</span>';
+        b.onclick = function(){ select(i); b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); };
+        tabsEl.appendChild(b);
+      });
+    }
+    select(0);
   }
 
   // Chargement dynamique de Leaflet

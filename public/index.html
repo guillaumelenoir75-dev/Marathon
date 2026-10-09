@@ -561,26 +561,53 @@
           <p style="font-size:12px;color:#888;margin:2px 0 0;">Marathon Seine-Eure · 18 octobre 2026</p>
         </div>
       </div>
-      <!-- Points ravitaillement -->
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;background:#EBF5FF;border:1.5px solid #b3d4f5;border-radius:20px;padding:6px 12px;">
-          <span style="font-size:14px;">💧</span>
-          <div><p style="font-size:11px;font-weight:800;color:#1B4FD8;margin:0;">km 10</p><p style="font-size:10px;color:#5a7fa8;margin:0;">Louviers sud</p></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;background:#EBF5FF;border:1.5px solid #b3d4f5;border-radius:20px;padding:6px 12px;">
-          <span style="font-size:14px;">💧</span>
-          <div><p style="font-size:11px;font-weight:800;color:#1B4FD8;margin:0;">km 20</p><p style="font-size:10px;color:#5a7fa8;margin:0;">Incarville</p></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;background:#EBF5FF;border:1.5px solid #b3d4f5;border-radius:20px;padding:6px 12px;">
-          <span style="font-size:14px;">💧</span>
-          <div><p style="font-size:11px;font-weight:800;color:#1B4FD8;margin:0;">km 30</p><p style="font-size:10px;color:#5a7fa8;margin:0;">Poses</p></div>
-        </div>
-      </div>
-      <!-- Carte Leaflet -->
-      <div style="position:relative;padding-top:36px;">
-        <div id="race-map" style="height:320px;border-radius:10px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;display:flex;align-items:center;justify-content:center;">
+      <style>
+        .rmw{display:flex;flex-direction:column;gap:10px;}
+        .rm-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:1px;margin:0 -1px;}
+        .rm-tabs::-webkit-scrollbar{display:none;}
+        .rm-tab{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1.5px solid #d6e2f5;background:#fff;border-radius:12px;padding:7px 12px;cursor:pointer;font-family:inherit;text-align:left;transition:background .15s,border-color .15s;}
+        .rm-tab b{font-size:12px;font-weight:800;color:#0C447C;white-space:nowrap;}
+        .rm-tab span{font-size:10.5px;color:#6b7f99;white-space:nowrap;}
+        .rm-tab[aria-selected="true"]{background:#0C447C;border-color:#0C447C;}
+        .rm-tab[aria-selected="true"] b,.rm-tab[aria-selected="true"] span{color:#fff;}
+        .rm-tab:focus-visible,.rm-fs:focus-visible,.rm-row:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+        #race-map{height:320px;border-radius:12px;overflow:hidden;border:1px solid #e0e8f5;background:#e8f0fb;display:flex;align-items:center;justify-content:center;}
+        #race-map.leaflet-container{display:block;}
+        .rm-fs{width:34px;height:34px;border:none;border-radius:8px;background:#fff;color:#0C447C;box-shadow:0 1px 5px rgba(0,0,0,.25);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+        .rm-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:#4a5b73;}
+        .rm-legend i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px;}
+        .rm-legend i.walk{height:0;border-top:2.5px dashed #1B4FD8;border-radius:0;}
+        .rm-info{background:#F5F8FD;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#1f2d3d;}
+        .rm-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;}
+        .rm-head b{font-size:13.5px;color:#0C447C;}
+        .rm-head span{font-size:11px;color:#6b7f99;white-space:nowrap;}
+        .rm-stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+        .rm-stat{background:#fff;border:1px solid #e0e8f5;border-radius:8px;padding:4px 9px;font-size:11.5px;font-weight:700;color:#0C447C;font-variant-numeric:tabular-nums;}
+        .rm-steps{margin:0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:6px;}
+        .rm-steps li{position:relative;padding-left:26px;line-height:1.4;}
+        .rm-steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;background:#1DA054;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+        .rm-steps li.walk::before{content:"";background:#fff;border:2px dashed #1B4FD8;width:14px;height:14px;}
+        .rm-row{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border:1px solid #e0e8f5;border-radius:10px;padding:8px 10px;margin-top:6px;cursor:pointer;font-family:inherit;text-align:left;}
+        .rm-row .n{width:22px;height:22px;border-radius:50%;background:#1DA054;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .rm-row .t{flex:1;min-width:0;font-size:12px;color:#1f2d3d;}
+        .rm-row .t b{color:#0C447C;}
+        .rm-row .m{font-size:11px;color:#6b7f99;white-space:nowrap;font-variant-numeric:tabular-nums;}
+        .rmw.is-fs{position:fixed;inset:0;z-index:9000;background:#fff;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 10px);gap:8px;}
+        .rmw.is-fs #race-map{flex:1 1 auto;height:auto;min-height:0;}
+        .rmw.is-fs .rm-info{max-height:34vh;overflow-y:auto;flex-shrink:0;}
+      </style>
+      <div id="race-map-wrap" class="rmw">
+        <div id="race-tabs" class="rm-tabs" role="tablist" aria-label="Trajets"></div>
+        <div id="race-map">
           <p style="color:#888;font-size:13px;">Chargement de la carte…</p>
         </div>
+        <div class="rm-legend">
+          <span><i style="background:#FF6B35"></i>Parcours fermé 9h–14h45</span>
+          <span><i style="background:#1DA054"></i>Voiture</span>
+          <span><i class="walk"></i>À pied</span>
+          <span><i style="background:#DC2626"></i>A154 Acquigny 9h–11h</span>
+        </div>
+        <div id="race-info" class="rm-info" aria-live="polite"></div>
       </div>
       <p style="font-size:11px;color:#aaa;margin:8px 0 0;text-align:center;">Source : OpenStreetMap · GPX OpenRunner #22022506 · Fermetures DIRNO</p>
     </div>
