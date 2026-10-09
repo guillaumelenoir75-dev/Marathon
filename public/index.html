@@ -565,6 +565,8 @@
         .rmw{display:flex;flex-direction:column;gap:10px;}
         .rm-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:1px;margin:0 -1px;}
         .rm-tabs::-webkit-scrollbar{display:none;}
+        .rm-tabs{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);}
+        .rm-tabs.at-end{-webkit-mask-image:none;mask-image:none;}
         .rm-tab{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1.5px solid #d6e2f5;background:#fff;border-radius:12px;padding:7px 12px;cursor:pointer;font-family:inherit;text-align:left;transition:background .15s,border-color .15s;}
         .rm-tab b{font-size:12px;font-weight:800;color:#0C447C;white-space:nowrap;}
         .rm-tab span{font-size:10.5px;color:#6b7f99;white-space:nowrap;}
@@ -580,7 +582,10 @@
         .rm-sum b{color:#0C447C;}
         .rm-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:#4a5b73;}
         .rm-legend i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px;}
-        .rm-legend i.walk{height:0;border-top:2.5px dashed #1B4FD8;border-radius:0;}
+        .rm-legend span{display:inline-flex;align-items:center;}
+        .rm-legend i.walk{height:0;border-top:3px dotted #1D4ED8;border-radius:0;}
+        .rm-legend i.dir{width:14px;height:14px;border-radius:50%;background:#16A34A;display:inline-flex;align-items:center;justify-content:center;transform:rotate(90deg);}
+        .rm-legend i.km{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #F26B1D;}
         .rm-info{background:#F5F8FD;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#1f2d3d;}
         .rm-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;}
         .rm-head b{font-size:13.5px;color:#0C447C;}
@@ -614,9 +619,11 @@
           <p style="color:#888;font-size:13px;">Chargement de la carte…</p>
         </div>
         <div class="rm-legend">
-          <span><i style="background:#FF6B35"></i>Parcours fermé 9h–14h45</span>
-          <span><i style="background:#1DA054"></i>Voiture</span>
+          <span><i style="background:#F26B1D"></i>Parcours fermé 9h–14h45</span>
+          <span><i style="background:#16A34A"></i>Voiture</span>
+          <span><i class="dir"><svg width="8" height="8" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1L8.6 8.6L5 6.6L1.4 8.6Z" fill="#fff"/></svg></i>Sens du trajet</span>
           <span><i class="walk"></i>À pied</span>
+          <span><i class="km"></i>Borne km</span>
           <span><i style="background:#DC2626"></i>A154 Acquigny 9h–11h</span>
         </div>
         <div id="race-info" class="rm-info" aria-live="polite"></div>

@@ -1075,20 +1075,59 @@ function initRaceOrgMap(){
     container.style.background = '';
     _raceMapInstance = L.map(container, { zoomControl: true, attributionControl: true, zoomSnap: 0.25, zoomDelta: 0.5 });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 18,
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
     }).addTo(_raceMapInstance);
 
+    // ─── Helpers géométriques (distances en mètres, cap en degrés depuis le nord) ─
+    const RAD = Math.PI / 180;
+    const _d = function(a, b){ const dy = (b[0]-a[0]) * 110540, dx = (b[1]-a[1]) * 111320 * Math.cos(a[0]*RAD); return Math.sqrt(dx*dx + dy*dy); };
+    const _cap = function(a, b){ return Math.atan2((b[1]-a[1]) * Math.cos(a[0]*RAD), b[0]-a[0]) / RAD; };
+    const _len = function(line){ let L = 0; for(let i = 1; i < line.length; i++) L += _d(line[i-1], line[i]); return L; };
+    const _along = function(line, every, offset){
+      const out = []; let acc = 0, next = offset;
+      for(let i = 1; i < line.length; i++){
+        const a = line[i-1], b = line[i], d = _d(a, b);
+        while(d > 0 && acc + d >= next){
+          const f = (next - acc) / d;
+          out.push({ p: [a[0] + (b[0]-a[0]) * f, a[1] + (b[1]-a[1]) * f], cap: _cap(a, b), at: next });
+          next += every;
+        }
+        acc += d;
+      }
+      return out;
+    };
+    const _at = function(line, dist){ const r = _along(line, Infinity, Math.max(0, dist))[0]; return r ? r.p : line[line.length - 1]; };
+    // Tracé avec liseré blanc dessous (lisibilité aux croisements)
+    const _cased = function(line, color, weight, extra){
+      const casing = L.polyline(line, { color: '#fff', weight: weight + 4, opacity: 1, lineJoin: 'round', lineCap: 'round', interactive: false });
+      const main = L.polyline(line, Object.assign({ color: color, weight: weight, opacity: 1, lineJoin: 'round', lineCap: 'round' }, extra || {}));
+      return [casing, main];
+    };
+
     // Parcours marathon — orange, fermé à la circulation
-    L.polyline(ROUTE, { color: '#FF6B35', weight: 5, opacity: 0.75, lineJoin: 'round' })
-      .addTo(_raceMapInstance)
-      .bindPopup('<b>🚫 Parcours fermé 9h15–14h45</b><br>Toutes ces routes sont inaccessibles en voiture');
+    const courseLayers = _cased(ROUTE, '#F26B1D', 5);
+    courseLayers[1].bindPopup('<b>🚫 Parcours fermé 9h15–14h45</b><br>Toutes ces routes sont inaccessibles en voiture');
+    courseLayers.forEach(function(l){ l.addTo(_raceMapInstance); });
+
+    // Bornes kilométriques tous les 5 km (les km 10/20/30 sont les ravitos)
+    const kmLayer = L.layerGroup();
+    _along(ROUTE, 5000, 5000).forEach(function(k){
+      const km = Math.round(k.at / 1000);
+      if(km % 10 === 0) return;
+      L.marker(k.p, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10],
+        html: '<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:#fff;color:#C2410C;font:800 9px/1 system-ui,sans-serif;border-radius:50%;border:2px solid #F26B1D;">'+km+'</div>' }) }).addTo(kmLayer);
+    });
+    const _kmVis = function(){ if(_raceMapInstance.getZoom() >= 11) kmLayer.addTo(_raceMapInstance); else kmLayer.remove(); };
+    _raceMapInstance.on('zoomend', _kmVis);
 
     // RN154 sortie 5 Acquigny — rouge, fermée 9h–11h
-    const rn154Layer = L.polyline(RN154_SEG, { color: '#DC2626', weight: 6, opacity: 0.9, lineJoin: 'round' })
-      .addTo(_raceMapInstance)
-      .bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00–11h00</b><br>Source : DIRNO · Prendre sortie 6 Incarville');
+    const rn154Cased = _cased(RN154_SEG, '#DC2626', 5);
+    const rn154Layer = rn154Cased[1];
+    rn154Layer.bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00–11h00</b><br>Source : DIRNO · Prendre sortie 6 Incarville');
+    rn154Cased.forEach(function(l){ l.addTo(_raceMapInstance); });
 
     // ─── Marqueurs (icônes centrées sur leur point) ──────────────────────────
     const SH = 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
@@ -1107,8 +1146,15 @@ function initRaceOrgMap(){
     L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#DC2626', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
 
     // ─── Trajets ─────────────────────────────────────────────────────────────
-    const GREEN = { color: '#1DA054', weight: 5, opacity: 0.95, lineJoin: 'round' };
-    const WALK = { color:'#1B4FD8', weight:3, opacity:0.85, dashArray:'6 6' };
+    const CAR = '#16A34A';
+    const iArrow = function(cap){
+      return L.divIcon({ className: '', iconSize: [18, 18], iconAnchor: [9, 9],
+        html: '<div style="width:18px;height:18px;border-radius:50%;background:'+CAR+';border:2px solid #fff;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transform:rotate('+cap.toFixed(0)+'deg);"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1L8.6 8.6L5 6.6L1.4 8.6Z" fill="#fff" stroke="#fff" stroke-width="0.8" stroke-linejoin="round"/></svg></div>' });
+    };
+    const iNum = function(n){
+      return L.divIcon({ className: '', iconSize: [24, 24], iconAnchor: [12, 12],
+        html: '<div style="width:24px;height:24px;border-radius:50%;background:'+CAR+';color:#fff;border:2.5px solid #fff;'+SH+'display:flex;align-items:center;justify-content:center;font:900 11.5px/1 system-ui,sans-serif;">'+n+'</div>' });
+    };
     const TRAJETS = [
       { tab: 'Trajet 1', sub: 'A13 → km 10', drive: DRIVE_A, walk: WALK_A, park: PARK_KM10, rav: RAVITOS[0],
         km: '24,6 km', min: '16 min', marche: '700 m', from: 'depuis Gaillon',
@@ -1133,15 +1179,28 @@ function initRaceOrgMap(){
                 'Se garer en bord de route, avant le barrage'],
         walkStep: '~650 m à pied jusqu\'au ravito (~8 min)' },
     ];
-    TRAJETS.forEach(function(t){
-      t.group = L.layerGroup([
-        L.polyline(t.drive, GREEN).bindPopup('<b>'+t.tab+' — '+t.sub+'</b><br>'+t.km+' · ~'+t.min),
-        L.polyline(t.walk, WALK).bindPopup('<b>À pied</b> ~'+t.marche),
-        L.marker(t.rav.coord, { icon: iRav(t.rav.km) }).bindPopup('<b>Ravito km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
-      ]).addTo(_raceMapInstance);
+    TRAJETS.forEach(function(t, k){
+      const drive = _cased(t.drive, CAR, 5);
+      drive[1].bindPopup('<b>'+t.tab+' — '+t.sub+'</b><br>'+t.km+' · ~'+t.min);
+      const walk = _cased(t.walk, '#1D4ED8', 3, { dashArray: '1 7', weight: 4 });
+      walk[1].bindPopup('<b>À pied</b> ~'+t.marche);
+      t.group = L.layerGroup(drive.concat(walk, [
+        L.marker(t.rav.coord, { icon: iRav(t.rav.km), zIndexOffset: 500 }).bindPopup('<b>Ravito km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
+      ])).addTo(_raceMapInstance);
+
+      const L_ = _len(t.drive);
+      const every = Math.min(2500, Math.max(700, L_ / 6));
+      const arrows = _along(t.drive, every, every / 2).map(function(a){
+        const cap = _cap(_at(t.drive, a.at - 60), _at(t.drive, a.at + 60));
+        return L.marker(a.p, { icon: iArrow(cap), interactive: false, keyboard: false });
+      });
       t.detail = L.layerGroup([
-        L.marker(t.park, { icon: iPark }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au ravito'),
-      ].concat(t.extra));
+        L.circleMarker(t.drive[0], { radius: 6, color: '#fff', weight: 3, fillColor: CAR, fillOpacity: 1 }).bindPopup('<b>Départ '+t.tab.toLowerCase()+'</b>'),
+        L.marker(t.park, { icon: iPark, zIndexOffset: 400 }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au ravito'),
+      ].concat(arrows, t.extra));
+
+      const mid = _along(t.drive, L_, L_ * 0.5)[0];
+      t.badge = L.layerGroup(mid ? [L.marker(mid.p, { icon: iNum(k + 1), zIndexOffset: 300 }).on('click', function(){ select(k + 1); })] : []);
       t.bounds = L.polyline(t.drive.concat(t.walk)).getBounds();
     });
 
@@ -1207,12 +1266,17 @@ function initRaceOrgMap(){
       TRAJETS.forEach(function(t, k){
         if(i === 0 || k === i - 1) t.group.addTo(_raceMapInstance); else t.group.remove();
         if(k === i - 1) t.detail.addTo(_raceMapInstance); else t.detail.remove();
+        if(i === 0) t.badge.addTo(_raceMapInstance); else t.badge.remove();
       });
       _raceMapRefit();
       renderInfo(i);
     }
 
     if(tabsEl){
+      const _tabsEnd = function(){ tabsEl.classList.toggle('at-end', tabsEl.scrollLeft + tabsEl.clientWidth >= tabsEl.scrollWidth - 2); };
+      tabsEl.addEventListener('scroll', _tabsEnd, { passive: true });
+      window.addEventListener('resize', _tabsEnd);
+      setTimeout(_tabsEnd, 0);
       tabsEl.innerHTML = '';
       TABS.forEach(function(t, i){
         const b = document.createElement('button');
@@ -1220,7 +1284,7 @@ function initRaceOrgMap(){
         b.className = 'rm-tab';
         b.setAttribute('role', 'tab');
         b.innerHTML = '<b>'+t.tab+'</b><span>'+t.sub+'</span>';
-        b.onclick = function(){ select(i); b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); };
+        b.onclick = function(){ select(i); b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); };
         tabsEl.appendChild(b);
       });
     }
