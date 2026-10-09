@@ -1031,19 +1031,6 @@ function initRaceOrgMap(){
       { km: 30, coord: [49.27756, 1.25922], heure: '~12h15', lieu: 'Poses nord' },
     ];
 
-    // Fetch itinéraire routier OSRM (côté navigateur, pas bloqué par le proxy)
-    async function _fetchOSRM(waypoints) {
-      try {
-        const coords = waypoints.map(([lat, lon]) => lon + ',' + lat).join(';');
-        const url = 'https://router.project-osrm.org/route/v1/driving/' + coords + '?geometries=geojson&overview=full';
-        const resp = await fetch(url);
-        const data = await resp.json();
-        if (data.routes && data.routes[0]) {
-          return data.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
-        }
-      } catch(e) {}
-      return null;
-    }
 
     // ─── Itinéraires voiture — calculés sur le réseau OpenStreetMap réel ─────
     // Parcours marathon retiré du graphe (routes + intersections : aucune traversée à niveau,
@@ -1065,11 +1052,8 @@ function initRaceOrgMap(){
     const WALK_B = [[49.24091,1.19644],[49.2411,1.19657],[49.24121,1.19656],[49.24129,1.1964],[49.24129,1.19629],[49.24082,1.19437],[49.24084,1.19401],[49.24023,1.19307],[49.23904,1.1915],[49.23808,1.19032],[49.23735,1.18959],[49.23748,1.18973]];
     const WALK_C = [[49.27367,1.25606],[49.27399,1.25932],[49.27459,1.25949],[49.27756,1.25922]];
 
-    // RN154 sortie 5 Acquigny — fermée 9h-11h (points de la bretelle)
-    const RN154_SEG = [
-      [49.1720, 1.1825], // bretelle nord sortie 5
-      [49.1650, 1.1795], // bretelle sud / entrée Acquigny
-    ];
+    // Bretelles A154 sortie Acquigny — fermées 9h-11h (géométrie OpenStreetMap)
+    const RN154_SEG = [[[49.18917,1.17008],[49.18892,1.17],[49.18868,1.16998],[49.18807,1.16994],[49.18778,1.16988]],[[49.18625,1.16873],[49.18624,1.16879],[49.18624,1.16883],[49.18625,1.16892],[49.18626,1.16896],[49.1863,1.16905],[49.18634,1.16915],[49.18638,1.16924],[49.1864,1.16937],[49.18641,1.1695],[49.18639,1.1696],[49.18636,1.16971],[49.18631,1.1698],[49.18625,1.16987],[49.18619,1.16992],[49.18613,1.16995],[49.18602,1.16996],[49.18569,1.17003]],[[49.18099,1.17139],[49.18101,1.17135],[49.18102,1.17127],[49.18102,1.17118],[49.18101,1.17107],[49.18097,1.17095],[49.18094,1.17078],[49.18094,1.17065],[49.18097,1.17052],[49.18102,1.17039],[49.18108,1.17029],[49.18115,1.17023],[49.18123,1.1702],[49.18158,1.17013]],[[49.18005,1.17009],[49.1804,1.17015],[49.18053,1.17022],[49.18063,1.17032],[49.1807,1.17041],[49.18076,1.17053],[49.1808,1.17065],[49.18082,1.17079],[49.18084,1.17088],[49.18083,1.17097],[49.18082,1.17107],[49.1808,1.17116],[49.18078,1.17125],[49.18075,1.17135],[49.18071,1.17146],[49.18068,1.17151],[49.18064,1.17155]],[[49.18778,1.16988],[49.18723,1.16977]],[[49.18723,1.16977],[49.187,1.16972],[49.18685,1.16969],[49.18672,1.16963],[49.18665,1.16957],[49.18661,1.16954],[49.18658,1.1695],[49.18654,1.16944],[49.1865,1.16936],[49.18646,1.16926],[49.18641,1.16907],[49.18639,1.16898],[49.18637,1.1689],[49.18636,1.16886],[49.18634,1.16879],[49.18631,1.16874],[49.18628,1.16872]],[[49.1852,1.16958],[49.18553,1.16931],[49.18585,1.16904],[49.186,1.16896],[49.18612,1.16894],[49.1862,1.16899],[49.18621,1.169],[49.18628,1.16907],[49.18634,1.16915]],[[49.18173,1.17106],[49.18147,1.17115],[49.18134,1.17119],[49.18124,1.17121],[49.18115,1.17118],[49.18108,1.17114],[49.18101,1.17107]],[[49.18641,1.16907],[49.1864,1.16892],[49.18641,1.16889],[49.18642,1.16882],[49.18645,1.16873],[49.18649,1.16867],[49.18655,1.16863],[49.18664,1.16858],[49.18675,1.16852],[49.18694,1.16845],[49.18705,1.16839],[49.18714,1.16831]]];
 
     container.innerHTML = '';
     container.style.background = '';
@@ -1122,10 +1106,10 @@ function initRaceOrgMap(){
     const _kmVis = function(){ if(_raceMapInstance.getZoom() >= 11) kmLayer.addTo(_raceMapInstance); else kmLayer.remove(); };
     _raceMapInstance.on('zoomend', _kmVis);
 
-    // RN154 sortie 5 Acquigny — rouge, fermée 9h–11h
+    // A154 sortie Acquigny — bretelles en rouge, fermées 9h–11h
     const rn154Cased = _cased(RN154_SEG, '#DC2626', 5);
     const rn154Layer = rn154Cased[1];
-    rn154Layer.bindPopup('<b>🔴 RN154 Sortie 5 fermée</b><br>Acquigny — <b>9h00–11h00</b><br>Source : DIRNO · Prendre sortie 6 Incarville');
+    rn154Layer.bindPopup('<b>🔴 A154 — sortie Acquigny fermée</b><br>Bretelles fermées <b>9h00–11h00</b><br>Source : DIRNO');
     rn154Cased.forEach(function(l){ l.addTo(_raceMapInstance); });
 
     // ─── Marqueurs (icônes centrées sur leur point) ──────────────────────────
@@ -1203,7 +1187,6 @@ function initRaceOrgMap(){
       t.bounds = L.polyline(t.drive.concat(t.walk)).getBounds();
     });
 
-    _fetchOSRM(RN154_SEG).then(function(c){ if(c && c.length>2) rn154Layer.setLatLngs(c); }).catch(function(){});
 
     // ─── Bouton plein écran (dans la carte, sous forme de contrôle) ──────────
     const fsCtl = L.control({ position: 'topright' });
