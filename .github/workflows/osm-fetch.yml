@@ -1,0 +1,46 @@
+name: OSM fetch fond de carte (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Télécharger eau, forêts, zones bâties, lieux, voies ferrées
+        run: |
+          mkdir -p osmdata
+          UA="prepa-marathon-route-planner/1.0 (github.com/guillaumelenoir75-dev/Marathon)"
+          fetch() {
+            local query="$1" out="$2"
+            for attempt in 1 2 3 4; do
+              for EP in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+                if curl -sSf -m 300 -A "$UA" --data-urlencode "data=$query" "$EP" -o "$out.tmp" && python3 -c "import json; d=json.load(open('$out.tmp')); print(len(d['elements']),'elements')"; then
+                  mv "$out.tmp" "$out"; echo "OK $out via $EP"; return 0
+                fi
+                sleep 15
+              done
+            done
+            return 1
+          }
+          BB='49.15,1.10,49.32,1.30'
+          fetch "[out:json][timeout:240];(way[\"natural\"=\"water\"]($BB);relation[\"natural\"=\"water\"]($BB);way[\"waterway\"~\"^(river|canal|riverbank)$\"]($BB);relation[\"waterway\"=\"riverbank\"]($BB););out tags geom;" osmdata/water.json || echo "ECHEC water"
+          fetch "[out:json][timeout:240];(way[\"landuse\"~\"^(forest|residential|industrial|commercial|retail)$\"]($BB);relation[\"landuse\"~\"^(forest|residential|industrial|commercial)$\"]($BB);way[\"natural\"=\"wood\"]($BB);relation[\"natural\"=\"wood\"]($BB););out tags geom;" osmdata/land.json || echo "ECHEC land"
+          fetch "[out:json][timeout:120];(node[\"place\"~\"^(city|town|village|hamlet|suburb)$\"](49.05,1.05,49.35,1.45);way[\"railway\"=\"rail\"]($BB););out tags geom;" osmdata/places.json || echo "ECHEC places"
+          ls -la osmdata
+          ls osmdata/*.json && gzip -9 osmdata/*.json
+      - name: Commit des données
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add osmdata
+          git commit -m "data: extrait OSM fond de carte (temporaire)"
+          git push
