@@ -1026,7 +1026,7 @@ function initRaceOrgMap(){
 
     // Points ravitaillement (km exacts depuis GPX)
     const RAVITOS = [
-      { km: 10, coord: [49.21053, 1.17402], heure: '~10h15', lieu: 'Louviers sud' },
+      { km: '9,7', coord: [49.20905, 1.18025], heure: '~10h13', lieu: 'Rond-point de Folleville', rdv: true }, // RDV au bord du rond-point, avant le ravito km 10
       { km: 20, coord: [49.23748, 1.18973], heure: '~11h15', lieu: 'Incarville' },
       { km: 30, coord: [49.27756, 1.25922], heure: '~12h15', lieu: 'Poses nord' },
     ];
@@ -1048,7 +1048,7 @@ function initRaceOrgMap(){
     const DRIVE_C = [[49.24091,1.19644],[49.24072,1.19628],[49.24054,1.19643],[49.24011,1.19816],[49.24013,1.19834],[49.24018,1.19859],[49.24024,1.19884],[49.24061,1.20005],[49.24063,1.20042],[49.24057,1.20079],[49.2395,1.20312],[49.23822,1.20647],[49.23742,1.20826],[49.23651,1.21005],[49.23622,1.2105],[49.23584,1.21081],[49.23565,1.21108],[49.23557,1.21141],[49.22813,1.2122],[49.22774,1.21225],[49.22717,1.21251],[49.22696,1.21244],[49.22688,1.21228],[49.22685,1.21214],[49.22694,1.21195],[49.22841,1.21124],[49.22915,1.21075],[49.22958,1.21036],[49.22997,1.20988],[49.23233,1.2063],[49.23343,1.20507],[49.23449,1.20414],[49.2355,1.20349],[49.23724,1.2026],[49.23824,1.20178],[49.23916,1.20058],[49.23935,1.20024],[49.23997,1.19903],[49.24026,1.19848],[49.24056,1.19794],[49.241,1.19728],[49.24482,1.19288],[49.24588,1.192],[49.24857,1.19012],[49.24881,1.19016],[49.2492,1.19051],[49.2497,1.19107],[49.24995,1.19148],[49.25023,1.19245],[49.25059,1.19316],[49.25079,1.19395],[49.25109,1.19471],[49.25133,1.19557],[49.25164,1.19626],[49.25191,1.19666],[49.25193,1.19689],[49.24932,1.20306],[49.24881,1.20451],[49.24856,1.20567],[49.24851,1.20616],[49.2485,1.20744],[49.24859,1.20881],[49.24851,1.20924],[49.24872,1.20958],[49.24891,1.21038],[49.25115,1.22305],[49.25158,1.22564],[49.25168,1.22651],[49.2517,1.22756],[49.25158,1.22881],[49.25074,1.23377],[49.25052,1.23472],[49.25016,1.23587],[49.25067,1.23619],[49.25282,1.23695],[49.25462,1.23708],[49.25622,1.2367],[49.26372,1.23436],[49.26459,1.2343],[49.26638,1.23452],[49.26687,1.23449],[49.26756,1.23427],[49.26852,1.23373],[49.26921,1.23348],[49.26965,1.23342],[49.27008,1.23624],[49.27111,1.24104],[49.27146,1.24439],[49.27226,1.25081],[49.27249,1.25191],[49.27285,1.25312],[49.2735,1.2549],[49.27367,1.25606]];
 
     // Trajets à pied calculés sur le réseau routier (ponts compris)
-    const WALK_A = [[49.20841,1.18257],[49.20851,1.18241],[49.2086,1.18193],[49.20911,1.18079],[49.20936,1.1806],[49.20943,1.18045],[49.2094,1.17983],[49.20952,1.17897],[49.21053,1.17402]];
+    const WALK_A = [[49.20841,1.18257],[49.20851,1.18241],[49.2086,1.18193],[49.20911,1.18079],[49.20911,1.18059],[49.20904,1.18039],[49.20905,1.18025]];
     const WALK_B = [[49.24091,1.19644],[49.2411,1.19657],[49.24121,1.19656],[49.24129,1.1964],[49.24129,1.19629],[49.24082,1.19437],[49.24084,1.19401],[49.24023,1.19307],[49.23904,1.1915],[49.23808,1.19032],[49.23735,1.18959],[49.23748,1.18973]];
     const WALK_C = [[49.27367,1.25606],[49.27399,1.25932],[49.27459,1.25949],[49.27756,1.25922]];
 
@@ -1131,12 +1131,12 @@ function initRaceOrgMap(){
     };
     const TRAJETS = [
       { tab: 'Trajet 1', sub: 'A13 → km 10', drive: DRIVE_A, walk: WALK_A, park: PARK_KM10, rav: RAVITOS[0],
-        km: '24,6 km', min: '16 min', marche: '700 m', from: 'depuis Gaillon',
+        km: '24,6 km', min: '16 min', marche: '200 m', from: 'depuis Gaillon',
         extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', '#1DA054', 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
         steps: ['A13 depuis Paris, sortie 18 <b>Louviers-la-Roquette</b>',
                 'D6155 vers Louviers sur ~4,5 km',
                 'Se garer <b>avenue des Peupliers</b>, au rond-point du Béquet'],
-        walkStep: '~700 m à pied jusqu\'au ravito (~9 min)' },
+        walkStep: '~200 m à pied (~3 min) : revenir au rond-point du Béquet, suivre la D6155 vers l\'ouest jusqu\'au <b>rond-point de Folleville</b>. Se placer au bord du rond-point, là où arrivent les coureurs (chemin du Roy) — sans aller sur le parcours' },
       { tab: 'Trajet 2', sub: 'km 10 → km 20', drive: DRIVE_B, walk: WALK_B, park: PARK_KM20, rav: RAVITOS[1],
         km: '6,9 km', min: '10 min', marche: '750 m', extra: [],
         steps: ['D6155 vers l\'est, puis <b>chemin de la Roquette</b>',
@@ -1159,7 +1159,7 @@ function initRaceOrgMap(){
       const walk = _cased(t.walk, '#1D4ED8', 3, { dashArray: '1 7', weight: 4 });
       walk[1].bindPopup('<b>À pied</b> ~'+t.marche);
       t.group = L.layerGroup(drive.concat(walk, [
-        L.marker(t.rav.coord, { icon: iRav(t.rav.km), zIndexOffset: 500 }).bindPopup('<b>Ravito km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
+        L.marker(t.rav.coord, { icon: iRav(t.rav.km), zIndexOffset: 500 }).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
       ])).addTo(_raceMapInstance);
 
       const L_ = _len(t.drive);
@@ -1170,7 +1170,7 @@ function initRaceOrgMap(){
       });
       t.detail = L.layerGroup([
         L.circleMarker(t.drive[0], { radius: 6, color: '#fff', weight: 3, fillColor: CAR, fillOpacity: 1 }).bindPopup('<b>Départ '+t.tab.toLowerCase()+'</b>'),
-        L.marker(t.park, { icon: iPark, zIndexOffset: 400 }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au ravito'),
+        L.marker(t.park, { icon: iPark, zIndexOffset: 400 }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au '+(t.rav.rdv ? 'point de RDV' : 'ravito')),
       ].concat(arrows, t.extra));
 
       const mid = _along(t.drive, L_, L_ * 0.5)[0];
@@ -1220,7 +1220,7 @@ function initRaceOrgMap(){
         return;
       }
       const t = TRAJETS[i - 1];
-      infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>Ravito '+t.rav.lieu+' · '+t.rav.heure+'</span></div>'
+      infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>'+(t.rav.rdv ? 'RDV ' : 'Ravito ')+t.rav.lieu+' · '+t.rav.heure+'</span></div>'
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
         + '<ol class="rm-steps">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>';
