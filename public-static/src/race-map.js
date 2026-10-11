@@ -114,8 +114,11 @@ function initRaceOrgMap(){
     };
 
     // Parcours marathon — orange, fermé à la circulation
-    const courseLayers = _cased(ROUTE, '#F26B1D', 5);
-    courseLayers[1].bindPopup('<b>🚫 Parcours fermé 9h15–14h45</b><br>Toutes ces routes sont inaccessibles en voiture');
+    // Parcours : rouge « route barrée » à tirets blancs (lisible aussi sans distinguer rouge/vert)
+    const COURSE_RED = '#DC2626';
+    const courseLayers = _cased(ROUTE, COURSE_RED, 6);
+    courseLayers.push(L.polyline(ROUTE, { color: '#fff', weight: 2, opacity: 1, dashArray: '7 9', lineCap: 'butt', interactive: false }));
+    courseLayers[1].bindPopup('<b>🚫 Parcours du marathon</b><br>Routes fermées à la circulation de 9h à 14h45<br>Ne pas l\'emprunter ni le traverser en voiture');
     courseLayers.forEach(function(l){ l.addTo(_raceMapInstance); });
 
     // Bornes kilométriques tous les 5 km (les km 10/20/30 sont les ravitos)
@@ -124,7 +127,7 @@ function initRaceOrgMap(){
       const km = Math.round(k.at / 1000);
       if(km % 10 === 0) return;
       L.marker(k.p, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10],
-        html: '<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:#fff;color:#C2410C;font:800 9px/1 system-ui,sans-serif;border-radius:50%;border:2px solid #F26B1D;">'+km+'</div>' }) }).addTo(kmLayer);
+        html: '<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:#fff;color:#B91C1C;font:800 9px/1 system-ui,sans-serif;border-radius:50%;border:2px solid #DC2626;">'+km+'</div>' }) }).addTo(kmLayer);
     });
     const _kmVis = function(){ if(_raceMapInstance.getZoom() >= 11) kmLayer.addTo(_raceMapInstance); else kmLayer.remove(); };
     _raceMapInstance.on('zoomend', _kmVis);
@@ -142,8 +145,8 @@ function initRaceOrgMap(){
     const iPark = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11],
       html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#fff;color:#1B4FD8;font:900 12px/1 system-ui,sans-serif;border-radius:6px;border:2px solid #1B4FD8;'+SH+'">P</div>' });
 
-    L.marker(ROUTE[0], { icon: pill('Départ', '#0F7B3B', 58) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
-    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#DC2626', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
+    L.marker(ROUTE[0], { icon: pill('Départ', '#B91C1C', 58) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
+    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#B91C1C', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
 
     // ─── Trajets ─────────────────────────────────────────────────────────────
     const CAR = '#16A34A';
@@ -227,9 +230,10 @@ function initRaceOrgMap(){
     const sumEl = document.getElementById('race-fs-sum');
     function renderSum(i){
       if(!sumEl) return;
-      if(i === 0){ sumEl.innerHTML = '<b>3 trajets</b> · touchez un onglet pour voir un trajet'; return; }
+      const leg = '<div class="rm-sum-leg"><span><i class="course"></i>Parcours fermé</span><span><i class="car"></i>Voiture</span><span><i class="walk"></i>À pied</span></div>';
+      if(i === 0){ sumEl.innerHTML = leg + '<b>3 trajets</b> · touchez un onglet pour voir un trajet'; return; }
       const t = TRAJETS[i - 1];
-      sumEl.innerHTML = '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure;
+      sumEl.innerHTML = leg + '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure;
     }
 
     function renderInfo(i){
