@@ -132,7 +132,7 @@ function highlightLongEfChip(pace){
 }
 function updateLongDuration(){
   const durEl=document.getElementById('long-duration-val');
-  if(!durEl) return;
+  if(!durEl){ _refreshEfPreviews(); return; }
   const blocks=getLongBlocksData();
   if(!blocks||blocks.length===0){durEl.textContent='—';return;}
   const efField=document.getElementById('long-ef-pace');
@@ -264,6 +264,85 @@ function buildLongDetail(blocks){
   return detail;
 }
 
+
+// ── EF : organisation optionnelle en blocs (même mécanique que la sortie longue) ──
+function parseEfBlocks(detail){
+  const blocks=[];
+  (detail||'').split('·').forEach(part=>{
+    const m=part.trim().match(/^(\d+(?:\.\d+)?)\s*(EF|AM|A10|A5|ASEMI|SEMI)\b/i);
+    if(m) blocks.push({km:parseFloat(m[1]),type:m[2].toUpperCase()});
+  });
+  return blocks;
+}
+function efHasBlocks(detail){
+  const b=parseEfBlocks(detail);
+  return b.length>1||b.some(x=>x.type!=='EF');
+}
+function _defaultEfBlocks(km){
+  const {label}=getRaceBlockInfo();
+  km=Math.max(1,Math.round(km||8));
+  if(km<3) return [{km:km,type:'EF'}];
+  const r=km>=5?2:1, a=Math.floor((km-r)/2), b=km-r-a;
+  return [{km:a,type:'EF'},{km:r,type:label},{km:b,type:'EF'}].filter(x=>x.km>0);
+}
+function buildEfBlocksSection(detail, km){
+  const on=efHasBlocks(detail);
+  const blocks=on?parseEfBlocks(detail):[{km:Math.max(1,Math.round(km||8)),type:'EF'}];
+  const json=JSON.stringify(blocks).replace(/"/g,'&quot;');
+  return '<div class="modal-section">'
+    +'<label style="display:flex;align-items:center;gap:12px;cursor:pointer;">'
+    +'<span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;color:#534AB7;text-transform:uppercase;letter-spacing:0.1em;">🗓 Organisation de la séance</span>'
+    +'<span style="display:block;font-size:12px;color:var(--muted);margin-top:3px;">Alterner EF et allure course (ex. 2 EF · 2 AM · 2 EF)</span></span>'
+    +'<input type="checkbox" id="ef-blocks-on" '+(on?'checked':'')+' onchange="toggleEfBlocks(this.checked)" style="width:22px;height:22px;accent-color:#534AB7;cursor:pointer;flex-shrink:0;">'
+    +'</label>'
+    +'<div id="ef-blocks-wrap" style="margin-top:12px;'+(on?'':'display:none;')+'">'
+    +'<div id="long-blocks" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>'
+    +'<div id="long-blocks-total" style="font-size:13px;font-weight:800;padding:10px 14px;border-radius:12px;border:2px solid;margin-bottom:10px;"></div>'
+    +'<button type="button" onclick="addLongBlock()" style="width:100%;padding:11px;background:var(--bg);border:2px dashed #534AB750;border-radius:12px;font-size:13px;font-weight:700;color:#534AB7;cursor:pointer;">+ Ajouter un bloc</button>'
+    +'</div>'
+    +'<input type="hidden" id="long-blocks-data" value="'+json+'">'
+    +'</div>';
+}
+function efBlocksActive(){
+  const cb=document.getElementById('ef-blocks-on');
+  return !!(cb&&cb.checked);
+}
+function toggleEfBlocks(on){
+  const wrap=document.getElementById('ef-blocks-wrap');
+  if(wrap) wrap.style.display=on?'':'none';
+  if(on){
+    const blocks=getLongBlocksData();
+    const kmEl=document.getElementById('edit-km')||document.getElementById('add-km')||document.getElementById('exedit-km');
+    if(!(blocks.length>1||blocks.some(b=>b.type!=='EF'))) setLongBlocksData(_defaultEfBlocks(parseFloat(kmEl?kmEl.value:0)));
+    else renderLongBlocks();
+  }
+  _refreshEfPreviews();
+}
+// Durée (s) d'une séance EF selon les blocs, ou null si les blocs sont désactivés
+function efBlocksDurationSec(efPaceSec){
+  if(!efBlocksActive()) return null;
+  const blocks=getLongBlocksData();
+  if(!blocks.length) return null;
+  const rp=(getRaceBlockInfo().pace||'').replace(/[''′`]/g,':').match(/(\d+):(\d+)/);
+  const raceSec=rp?parseInt(rp[1])*60+parseInt(rp[2]):efPaceSec;
+  return blocks.reduce((a,b)=>a+b.km*(b.type==='EF'?efPaceSec:raceSec),0);
+}
+// Détail enregistré : allure EF en tête (lue par les autres écrans), puis les blocs
+function buildEfBlocksDetail(efPaceStr, km){
+  if(!efBlocksActive()) return {detail:null};
+  const blocks=getLongBlocksData();
+  if(!(blocks.length>1||blocks.some(b=>b.type!=='EF'))) return {detail:null};
+  const total=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
+  if(Math.abs(total-km)>=0.1) return {error:'Total des blocs ('+total+' km) ≠ distance planifiée ('+km+' km). Ajuste les blocs.'};
+  const {label,pace}=getRaceBlockInfo();
+  const parts=blocks.map(b=>b.type==='EF'?b.km+' EF':b.km+' '+label+' @ '+pace+'/km');
+  return {detail:(efPaceStr?'EF @ '+efPaceStr+'/km · ':'')+parts.join(' · ')};
+}
+function _refreshEfPreviews(){
+  if(document.getElementById('ef-preview-time')&&typeof updateEfPreview==='function') updateEfPreview();
+  if(document.getElementById('add-ef-preview-time')&&typeof updateAddEfPreview==='function') updateAddEfPreview();
+  if(document.getElementById('exedit-ef-preview-time')&&typeof updateExEditEfPreview==='function') updateExEditEfPreview();
+}
 
 function buildSchedFieldsHtml(day, time){
   const days=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];

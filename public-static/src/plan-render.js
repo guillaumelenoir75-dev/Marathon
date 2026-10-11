@@ -198,6 +198,13 @@ function estimateDuration(s) {
       if(totalMin === 0) totalMin = km * paceMin; // fallback
       return fmtDur(totalMin);
     }
+    if(typeof efHasBlocks === 'function' && efHasBlocks(detail)) {
+      // EF organisée en blocs : blocs EF × allure EF + blocs course × allure course
+      const rp = (getRaceBlockInfo().pace || '').replace(/[''′`]/g, ':');
+      const raceMin = parsePaceMin(rp) || paceMin;
+      const tot = parseEfBlocks(detail).reduce((a, b) => a + b.km * (b.type === 'EF' ? paceMin : raceMin), 0);
+      if(tot > 0) return fmtDur(tot);
+    }
     return fmtDur(km * paceMin);
   }
 
@@ -831,6 +838,7 @@ function renderAthletePlan(el){
           const m=title.match(/(\d+)×(\d+)/);
           return m?`3 km d'échauffement EF → ${m[1]}×${m[2]} min à haute intensité → EF de fin`:"3 km d'échauffement EF → blocs fractionnés → EF de fin";
         }
+        if(s.type==='ef'&&detail&&typeof efHasBlocks==='function'&&efHasBlocks(detail)) return 'EF organisée en blocs — alterne allure confort et allure course comme indiqué.';
         if(s.type==='ef') return 'Allure confort du début à la fin — tu dois pouvoir parler sans effort.';
         if(s.type==='long') return 'Sortie longue à allure confort — construire l\'endurance de fond.';
         if(s.type==='race') return 'Jour de course — exécute ta stratégie d\'allure !';

@@ -68,6 +68,7 @@ function openEditModal(ws, si){
       <p style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Raccourcis allure</p>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">${paceChips}</div>
     </div>
+    ${buildEfBlocksSection(detail, s.km)}
     <input type="hidden" id="edit-detail" value="${detail}">
     `;
   })()
@@ -183,6 +184,7 @@ function openEditModal(ws, si){
   if(s.type==='tempo') setTimeout(()=>{ calcEfRestant(); }, 50);
   if(s.type==='frac') setTimeout(()=>{ calcEfRestantForPrefix('edit'); selectTempoEfPace('edit', document.getElementById('edit-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
   if(s.type==='ef') setTimeout(()=>{
+    renderLongBlocks();
     updateEfPreview();
     // Highlight current pace chip
     const paceEl=document.getElementById('edit-ef-pace');
@@ -235,7 +237,10 @@ function updateEfPreview(){
   const km = parseFloat(kmEl.value) || 0;
   const m = paceStr.match(/(\d+)[':](\d+)/);
   if(!m || km === 0){ timeEl.textContent = '—'; return; }
-  const totalSec = (parseInt(m[1])*60 + parseInt(m[2])) * km;
+  const _efSec = parseInt(m[1])*60 + parseInt(m[2]);
+  const _bSec = efBlocksDurationSec(_efSec);
+  const totalSec = _bSec !== null ? _bSec : _efSec * km;
+  if(efBlocksActive()) updateLongBlocksTotal(getLongBlocksData());
   const h = Math.floor(totalSec/3600);
   const min = Math.floor((totalSec%3600)/60);
   const sec = Math.round(totalSec%60);
@@ -273,6 +278,9 @@ function saveEdit(ws, si){
       name = nameEl2 && nameEl2.value.trim() ? nameEl2.value.trim() : existingTitle;
       const efPaceStr=paceEl2?paceEl2.value.trim():'';
       detail=efPaceStr?efPaceStr+'/km':'';
+      const eb=buildEfBlocksDetail(efPaceStr, km);
+      if(eb.error){ alert(eb.error); return; }
+      if(eb.detail) detail=eb.detail;
     }
   }
   if(type==='tempo'||type==='frac'){
@@ -519,8 +527,9 @@ function onAddTypeChange(ws){
         <p style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Raccourcis allure</p>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">${paceChips}</div>
       </div>
+      ${buildEfBlocksSection('', parseFloat(document.getElementById('add-km')?.value)||0)}
       <input type="hidden" id="add-detail" value="">`;
-    setTimeout(() => updateAddEfPreview(), 50);
+    setTimeout(() => { renderLongBlocks(); updateAddEfPreview(); }, 50);
   }
 }
 
@@ -577,8 +586,10 @@ function updateAddEfPreview(){
   const parts = paceInp.value.split(':');
   const km = parseFloat(kmInp ? kmInp.value : 0) || 0;
   const sec = parseInt(parts[0]||0)*60 + parseInt(parts[1]||0);
+  if(efBlocksActive()) updateLongBlocksTotal(getLongBlocksData());
   if(sec > 0 && km > 0){
-    const total = Math.round(km * sec);
+    const _b = efBlocksDurationSec(sec);
+    const total = Math.round(_b !== null ? _b : km * sec);
     const m = Math.floor(total/60), s = total%60;
     timeEl.textContent = m + 'min' + (s>0?' '+String(s).padStart(2,'0')+'s':'');
   } else {
@@ -680,6 +691,9 @@ function saveAdd(ws){
     const efPace = efPaceEl ? efPaceEl.value.trim() : (getBestEfPace() || '6:40');
     name   = 'Footing EF';
     detail = efPace + '/km';
+    const eb = buildEfBlocksDetail(efPace, km);
+    if(eb.error){ showAddError(eb.error); return; }
+    if(eb.detail) detail = eb.detail;
   }
 
   const d = detail ? (name + '|' + detail) : name;
@@ -753,7 +767,9 @@ function onExEditTypeChange(){
         </div>
         <p style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Raccourcis allure</p>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">${paceChips}</div>
-      </div>`;
+      </div>
+      ${buildEfBlocksSection('', parseFloat(document.getElementById('exedit-km')?.value)||0)}`;
+    setTimeout(()=>{ renderLongBlocks(); updateExEditEfPreview(); }, 0);
   }
 }
 
@@ -817,7 +833,8 @@ function openEditExtraModal(ws, ei){
         </div>
         <p style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Raccourcis allure</p>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">${paceChips}</div>
-      </div>`;
+      </div>
+      ${buildEfBlocksSection(detail, s.km)}`;
   }
 
   const overlay=document.createElement('div');
@@ -850,9 +867,9 @@ function openEditExtraModal(ws, ei){
         <div style="display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-bottom:10px;">
           <div style="text-align:center;">
             <div style="display:flex;align-items:center;gap:6px;">
-              <button type="button" onclick="const el=document.getElementById('exedit-km');el.value=Math.max(0,parseFloat(el.value||0)-1);" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
-              <input type="number" id="exedit-km" value="${s.km}" min="0" max="99" step="1" oninput="calcEfRestantForPrefix('exedit')" style="background:var(--bg);border:2px solid ${_hacc}40;border-radius:10px;padding:8px;font-size:22px;font-weight:800;color:${_hacc};width:66px;outline:none;text-align:center;">
-              <button type="button" onclick="const el=document.getElementById('exedit-km');el.value=Math.min(99,parseFloat(el.value||0)+1);" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+              <button type="button" onclick="const el=document.getElementById('exedit-km');el.value=Math.max(0,parseFloat(el.value||0)-1);el.dispatchEvent(new Event('input'));" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+              <input type="number" id="exedit-km" value="${s.km}" min="0" max="99" step="1" oninput="calcEfRestantForPrefix('exedit');updateExEditEfPreview()" style="background:var(--bg);border:2px solid ${_hacc}40;border-radius:10px;padding:8px;font-size:22px;font-weight:800;color:${_hacc};width:66px;outline:none;text-align:center;">
+              <button type="button" onclick="const el=document.getElementById('exedit-km');el.value=Math.min(99,parseFloat(el.value||0)+1);el.dispatchEvent(new Event('input'));" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
             </div>
             <p style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;">km</p>
           </div>
@@ -879,6 +896,7 @@ function openEditExtraModal(ws, ei){
   mc.appendChild(overlay);
   _initSwipeToDismiss(overlay, overlay.querySelector('.modal-box'));
   if(s.type==='long') renderLongBlocks();
+  if(s.type!=='long'&&s.type!=='tempo'&&s.type!=='frac') setTimeout(()=>{ renderLongBlocks(); updateExEditEfPreview(); }, 0);
   if(s.type==='tempo'||s.type==='frac') setTimeout(()=>{ calcEfRestantForPrefix('exedit'); selectTempoEfPace('exedit', document.getElementById('exedit-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
 }
 
@@ -915,6 +933,9 @@ function saveExtraEdit(ws, ei){
     let existing3={};try{existing3=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
     name=existing3.d.split('|')[0]||'Footing EF';
     detail=efPaceStr?efPaceStr+'/km':'';  // même format que saveEdit
+    const eb=buildEfBlocksDetail(efPaceStr, km);
+    if(eb.error){ alert(eb.error); return; }
+    if(eb.detail) detail=eb.detail;
   }
   const d=detail?`${name}|${detail}`:name;
   let existing2={};try{existing2=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
@@ -956,8 +977,10 @@ function updateExEditEfPreview(){
   const parts2=paceInp.value.split(':');
   const km2=parseFloat(kmInp?kmInp.value:0)||0;
   const sec2=parseInt(parts2[0]||0)*60+parseInt(parts2[1]||0);
+  if(efBlocksActive()) updateLongBlocksTotal(getLongBlocksData());
   if(sec2>0&&km2>0){
-    const total=Math.round(km2*sec2);
+    const _b2=efBlocksDurationSec(sec2);
+    const total=Math.round(_b2!==null?_b2:km2*sec2);
     const m2=Math.floor(total/60),s2=total%60;
     timeEl.textContent=m2+'min'+(s2>0?' '+String(s2).padStart(2,'0')+'s':'');
   } else { timeEl.textContent='—'; }
