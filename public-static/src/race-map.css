@@ -66,3 +66,22 @@
 .rm-legend i.car{width:30px;}
 .rm-legend i.pt{width:auto;height:16px;display:inline-flex;align-items:center;border:1.5px solid #1B4FD8;border-radius:8px;overflow:hidden;background:#fff;color:#1B4FD8;font:800 9px/1 system-ui,sans-serif;font-style:normal;padding-right:4px;gap:3px;}
 .rm-legend i.pt b{background:#1B4FD8;color:#fff;height:100%;display:flex;align-items:center;padding:0 3px;}
+.rm-loc{width:34px;height:34px;border:none;border-radius:8px;background:#fff;color:#0C447C;box-shadow:0 1px 5px rgba(0,0,0,.25);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;margin-top:8px !important;}
+.rm-loc.on{color:#1A73E8;}
+.rm-loc.follow{background:#1A73E8;color:#fff;}
+.rm-loc:focus-visible,.rm-nav:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+.rm-gps{font-size:12.5px;line-height:1.4;color:#0C2D57;background:#E8F0FE;border:1px solid #BFD3F5;border-radius:10px;padding:8px 11px;}
+.rm-gps.warn{background:#FFF7E6;border-color:#F5D08A;color:#7A4B00;}
+.rm-gps.alert{background:#FDECEC;border-color:#F3A9A9;color:#991B1B;}
+.rm-gps .acc{color:#5b6675;font-size:11.5px;}
+.rmw.is-fs .rm-gps{position:absolute;z-index:1000;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 70px);box-shadow:0 2px 10px rgba(0,0,0,.2);}
+.rmw.is-fs .rm-gps:not([hidden]) ~ #race-map .leaflet-top{top:calc(env(safe-area-inset-top) + 128px);}
+.rm-me{position:relative;width:44px;height:44px;}
+.rm-me-dot{position:absolute;left:14px;top:14px;width:16px;height:16px;border-radius:50%;background:#1A73E8;border:3px solid #fff;box-sizing:border-box;box-shadow:0 0 0 0 rgba(26,115,232,.5);animation:rm-pulse 2s infinite;}
+.rm-me-head{position:absolute;left:0;top:0;width:44px;height:44px;}
+.rm-me-head::before{content:"";position:absolute;left:15px;top:1px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid rgba(26,115,232,.75);}
+@keyframes rm-pulse{0%{box-shadow:0 0 0 0 rgba(26,115,232,.5);}70%{box-shadow:0 0 0 12px rgba(26,115,232,0);}100%{box-shadow:0 0 0 0 rgba(26,115,232,0);}}
+@media (prefers-reduced-motion:reduce){.rm-me-dot{animation:none;}}
+.rm-nav{display:flex;align-items:center;justify-content:center;margin-top:12px;height:42px;border-radius:10px;background:#1A73E8;color:#fff;font:800 13.5px/1 system-ui,-apple-system,sans-serif;text-decoration:none;}
+.rm-nav.sm{display:inline-flex;height:28px;margin:6px 0 0;padding:0 12px;font-size:12px;}
+.rm-nav-note{margin:6px 0 0;font-size:11.5px;color:#5b6675;line-height:1.4;}

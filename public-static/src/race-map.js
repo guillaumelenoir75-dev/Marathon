@@ -184,12 +184,14 @@ function initRaceOrgMap(){
       { tab: 'Trajet 1', sub: 'A13 → km 10', drive: DRIVE_A, walk: WALK_A, park: PARK_KM10, rav: RAVITOS[0],
         km: '24,6 km', min: '16 min', marche: '200 m', from: 'depuis Gaillon',
         extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', CARS[0].c, 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
+        nav: [[49.19751, 1.21317], [49.20161, 1.20252]],
         steps: ['A13 depuis Paris, sortie 18 <b>Louviers-la-Roquette</b>',
                 'D6155 vers Louviers sur ~4,5 km',
                 'Se garer <b>avenue des Peupliers</b>, au rond-point du Béquet'],
         walkStep: '~200 m à pied (~3 min) : revenir au rond-point du Béquet, suivre la D6155 vers l\'ouest jusqu\'au <b>rond-point de Folleville</b>. Se placer au bord du rond-point, là où arrivent les coureurs (chemin du Roy) — sans aller sur le parcours' },
       { tab: 'Trajet 2', sub: 'km 10 → km 20', drive: DRIVE_B, walk: WALK_B, park: PARK_KM20, rav: RAVITOS[1],
         km: '6,9 km', min: '10 min', marche: '750 m', extra: [],
+        nav: [[49.21479, 1.18342], [49.2238, 1.19887], [49.23146, 1.2119]],
         steps: ['D6155 vers l\'est, puis <b>chemin de la Roquette</b>',
                 '<b>Chaussée Decretot</b> puis ancien chemin Saint-Pierre',
                 '<b>D77</b> puis rue de Crémonville',
@@ -197,6 +199,7 @@ function initRaceOrgMap(){
         walkStep: '~750 m à pied : rejoindre la D313 et la longer vers le sud-ouest (même rive de l\'Eure, rien à traverser)' },
       { tab: 'Trajet 3', sub: 'km 20 → km 30', drive: DRIVE_C, walk: WALK_C, park: PARK_KM30, rav: RAVITOS[2],
         km: '12,8 km', min: '14 min', marche: '650 m', extra: [],
+        nav: [[49.2295, 1.21043], [49.24464, 1.19307], [49.26059, 1.23532]],
         steps: ['Rue de Crémonville puis <b>D77</b> vers le nord',
                 '<b>D6015</b> vers Val-de-Reuil — elle passe en pont au-dessus du parcours',
                 'Rue Bernard Chédeville puis <b>D71</b> vers l\'est',
@@ -246,6 +249,141 @@ function initRaceOrgMap(){
     };
     fsCtl.addTo(_raceMapInstance);
 
+    // ─── Localisation en direct + suivi de progression ───────────────────────
+    const _LOC_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
+    const gps = { watch: null, follow: false, fix: null, marker: null, circle: null, btn: null };
+    const gpsEl = document.createElement('div');
+    gpsEl.className = 'rm-gps'; gpsEl.setAttribute('aria-live', 'polite'); gpsEl.hidden = true;
+    container.parentNode.insertBefore(gpsEl, container);
+
+    // Projection d'un point sur une polyligne (mètres) : distance au tracé, distance parcourue, longueur totale
+    const _proj = function(line, p){
+      const kx = 111320 * Math.cos(p[0] * RAD), ky = 110540;
+      let best = { dist: Infinity, along: 0 }, acc = 0;
+      for(let i = 1; i < line.length; i++){
+        const ax = (line[i-1][1] - p[1]) * kx, ay = (line[i-1][0] - p[0]) * ky;
+        const bx = (line[i][1] - p[1]) * kx, by = (line[i][0] - p[0]) * ky;
+        const dx = bx - ax, dy = by - ay, L2 = dx*dx + dy*dy, seg = Math.sqrt(L2);
+        const u = L2 ? Math.max(0, Math.min(1, -(ax*dx + ay*dy) / L2)) : 0;
+        const d = Math.hypot(ax + u*dx, ay + u*dy);
+        if(d < best.dist) best = { dist: d, along: acc + u * seg };
+        acc += seg;
+      }
+      best.total = acc;
+      return best;
+    };
+    const _fmtD = function(m){ return m >= 1000 ? (m / 1000).toFixed(1).replace('.', ',') + ' km' : (Math.round(m / 10) * 10) + ' m'; };
+
+    const _gpsStatus = function(){
+      const f = gps.fix; if(!f) return;
+      const p = [f.lat, f.lon];
+      const list = current > 0 ? [TRAJETS[current - 1]] : TRAJETS;
+      let best = null;
+      list.forEach(function(t, k){
+        const dr = _proj(t.drive, p), dw = _proj(t.walk, p);
+        const c = { t: t, n: current > 0 ? current : k + 1, dr: dr, dw: dw, d: Math.min(dr.dist, dw.dist) };
+        if(!best || c.d < best.d) best = c;
+      });
+      const onCourse = _proj(ROUTE, p).dist < 25 && f.speed !== null && f.speed > 4;
+      const dest = function(t){ return t.rav.rdv ? 'point de RDV' : 'ravito'; };
+      let cls = 'ok', html;
+      if(onCourse){
+        cls = 'alert';
+        html = '<b>⚠️ Vous êtes sur le parcours fermé.</b> Quittez-le dès que possible et rejoignez le tracé vert.';
+      } else if(best.dw.dist <= 60 && best.dw.dist <= best.dr.dist){
+        const rest = Math.max(0, best.dw.total - best.dw.along);
+        html = rest < 40 ? '<b>📍 Vous y êtes</b> · ' + dest(best.t) + ' ' + best.t.rav.lieu + ' · passage ' + best.t.rav.heure
+                         : '<b>🚶 Encore ' + _fmtD(rest) + ' à pied</b> jusqu\'au ' + dest(best.t) + ' · passage ' + best.t.rav.heure;
+      } else if(best.dr.dist <= 120){
+        const rest = Math.max(0, best.dr.total - best.dr.along);
+        const min = Math.max(1, Math.round(parseInt(best.t.min, 10) * rest / best.dr.total));
+        html = rest < 60 ? '<b>🅿 Vous êtes au stationnement</b> · puis ' + best.t.marche + ' à pied'
+                         : '<b>🚗 Trajet ' + best.n + ' · encore ' + _fmtD(rest) + '</b> (~' + min + ' min) jusqu\'au stationnement';
+      } else if(current > 0 && best.d > 3000){
+        html = '<b>📍 Stationnement à ' + _fmtD(_d(p, best.t.park)) + '</b> à vol d\'oiseau · lancez le « Guidage GPS » ci-dessous pour y aller.';
+      } else if(current > 0){
+        cls = 'warn';
+        html = '<b>📍 Hors du trajet ' + current + '</b> · stationnement à ' + _fmtD(_d(p, best.t.park)) + ' à vol d\'oiseau. Rejoignez le tracé vert.';
+      } else {
+        html = '<b>📍 Position affichée</b> · choisissez votre trajet en haut pour suivre la distance restante.';
+      }
+      if(f.acc > 150) html += ' <span class="acc">(précision ±' + Math.round(f.acc) + ' m)</span>';
+      gpsEl.className = 'rm-gps ' + cls; gpsEl.innerHTML = html; gpsEl.hidden = false;
+    };
+
+    const _gpsBtnState = function(){
+      if(!gps.btn) return;
+      gps.btn.classList.toggle('on', !!gps.watch);
+      gps.btn.classList.toggle('follow', !!gps.watch && gps.follow);
+      gps.btn.setAttribute('aria-label', !gps.watch ? 'Afficher ma position' : gps.follow ? 'Arrêter la localisation' : 'Centrer sur ma position');
+      gps.btn.title = gps.btn.getAttribute('aria-label');
+    };
+
+    const _gpsOnPos = function(pos){
+      const c = pos.coords, first = !gps.fix;
+      gps.fix = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, speed: c.speed, heading: c.heading };
+      const ll = [c.latitude, c.longitude];
+      const head = (c.heading !== null && !isNaN(c.heading) && c.speed > 1)
+        ? '<div class="rm-me-head" style="transform:rotate(' + Math.round(c.heading) + 'deg)"></div>' : '';
+      const icon = L.divIcon({ className: '', iconSize: [44, 44], iconAnchor: [22, 22], html: '<div class="rm-me">' + head + '<div class="rm-me-dot"></div></div>' });
+      if(!gps.marker){
+        gps.circle = L.circle(ll, { radius: c.accuracy, color: '#1A73E8', weight: 1, opacity: 0.4, fillColor: '#1A73E8', fillOpacity: 0.1, interactive: false }).addTo(_raceMapInstance);
+        gps.marker = L.marker(ll, { icon: icon, zIndexOffset: 1000, keyboard: false }).addTo(_raceMapInstance).bindPopup('<b>Vous êtes ici</b>');
+      } else {
+        gps.marker.setLatLng(ll).setIcon(icon);
+        gps.circle.setLatLng(ll).setRadius(c.accuracy);
+      }
+      if(gps.follow){
+        if(first) _raceMapInstance.setView(ll, Math.max(_raceMapInstance.getZoom(), 15));
+        else _raceMapInstance.panTo(ll, { animate: true });
+      }
+      _gpsStatus();
+    };
+    const _gpsOnErr = function(err){
+      gpsEl.className = 'rm-gps warn'; gpsEl.hidden = false;
+      gpsEl.innerHTML = err.code === 1
+        ? '<b>Localisation refusée.</b> Autorisez-la pour ce site dans les réglages du téléphone (iPhone : Réglages › Confidentialité › Service de localisation › Safari).'
+        : '<b>Position introuvable pour l\'instant.</b> Nouvel essai en cours…';
+      if(err.code === 1) _gpsStop();
+    };
+    const _gpsStart = function(){
+      if(!navigator.geolocation){ gpsEl.className = 'rm-gps warn'; gpsEl.hidden = false; gpsEl.innerHTML = 'La localisation n\'est pas disponible sur cet appareil.'; return; }
+      gps.follow = true;
+      gpsEl.className = 'rm-gps'; gpsEl.hidden = false; gpsEl.innerHTML = '📍 Recherche de votre position…';
+      gps.watch = navigator.geolocation.watchPosition(_gpsOnPos, _gpsOnErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+      _gpsBtnState();
+    };
+    const _gpsStop = function(){
+      if(gps.watch !== null && navigator.geolocation) navigator.geolocation.clearWatch(gps.watch);
+      gps.watch = null; gps.follow = false; gps.fix = null;
+      if(gps.marker){ gps.marker.remove(); gps.circle.remove(); gps.marker = gps.circle = null; }
+      if(!gpsEl.classList.contains('warn')) gpsEl.hidden = true;
+      _gpsBtnState();
+    };
+    _raceMapInstance.on('dragstart', function(){ if(gps.follow){ gps.follow = false; _gpsBtnState(); } });
+
+    const locCtl = L.control({ position: 'topleft' });
+    locCtl.onAdd = function(){
+      const b = L.DomUtil.create('button', 'rm-loc');
+      b.type = 'button'; b.innerHTML = _LOC_ICON;
+      L.DomEvent.disableClickPropagation(b);
+      L.DomEvent.on(b, 'click', function(){
+        if(!gps.watch) _gpsStart();
+        else if(!gps.follow){ gps.follow = true; if(gps.fix) _raceMapInstance.setView([gps.fix.lat, gps.fix.lon], Math.max(_raceMapInstance.getZoom(), 15)); }
+        else _gpsStop();
+        _gpsBtnState();
+      });
+      gps.btn = b; _gpsBtnState();
+      return b;
+    };
+    locCtl.addTo(_raceMapInstance);
+
+    const _navUrl = function(t){
+      return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate'
+        + '&destination=' + t.park[0] + ',' + t.park[1]
+        + '&waypoints=' + encodeURIComponent(t.nav.map(function(w){ return w[0] + ',' + w[1]; }).join('|'));
+    };
+
     // ─── Onglets + panneau d'étapes ──────────────────────────────────────────
     const tabsEl = document.getElementById('race-tabs');
     const infoEl = document.getElementById('race-info');
@@ -258,7 +396,8 @@ function initRaceOrgMap(){
       const leg = '<div class="rm-sum-leg"><span><i class="course"></i>Parcours fermé</span><span><i class="car"></i>Voiture</span><span><i class="walk"></i>À pied</span></div>';
       if(i === 0){ sumEl.innerHTML = leg + '<b>Choisissez votre trajet</b> · touchez Trajet 1, 2 ou 3 en haut'; return; }
       const t = TRAJETS[i - 1];
-      sumEl.innerHTML = leg + '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure;
+      sumEl.innerHTML = leg + '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure
+        + '<a class="rm-nav sm" href="'+_navUrl(t)+'" target="_blank" rel="noopener">▶ Guidage GPS</a>';
     }
 
     function renderInfo(i){
@@ -279,7 +418,9 @@ function initRaceOrgMap(){
       infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>'+(t.rav.rdv ? 'RDV ' : 'Ravito ')+t.rav.lieu+' · '+t.rav.heure+'</span></div>'
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
-        + '<li class="walk">'+t.walkStep+'</li></ol>';
+        + '<li class="walk">'+t.walkStep+'</li></ol>'
+        + '<a class="rm-nav" href="'+_navUrl(t)+'" target="_blank" rel="noopener">▶ Guidage GPS (Google Maps)</a>'
+        + '<p class="rm-nav-note">Le guidage passe par nos points de passage pour éviter le parcours fermé. Gardez cette carte ouverte et touchez ◎ pour voir votre position.</p>';
     }
 
     let current = 0;
@@ -316,9 +457,11 @@ function initRaceOrgMap(){
         if(k === i - 1) t.detail.addTo(_raceMapInstance); else t.detail.remove();
         if(i === 0) t.badge.addTo(_raceMapInstance); else t.badge.remove();
       });
+      if(gps.follow){ gps.follow = false; _gpsBtnState(); }
       _raceMapRefit();
       _placeParks();
       renderInfo(i);
+      _gpsStatus();
     }
 
     if(tabsEl){
