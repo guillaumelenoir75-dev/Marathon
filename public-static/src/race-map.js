@@ -225,13 +225,13 @@ function initRaceOrgMap(){
     const tabsEl = document.getElementById('race-tabs');
     const infoEl = document.getElementById('race-info');
     const courseBounds = L.polyline(ROUTE).getBounds();
-    const TABS = [{ tab: 'Vue d\'ensemble', sub: '3 ravitos' }].concat(TRAJETS);
+    const TABS = [{ tab: 'Les 3 trajets', sub: 'parcours complet' }].concat(TRAJETS);
 
     const sumEl = document.getElementById('race-fs-sum');
     function renderSum(i){
       if(!sumEl) return;
       const leg = '<div class="rm-sum-leg"><span><i class="course"></i>Parcours fermé</span><span><i class="car"></i>Voiture</span><span><i class="walk"></i>À pied</span></div>';
-      if(i === 0){ sumEl.innerHTML = leg + '<b>3 trajets</b> · touchez un onglet pour voir un trajet'; return; }
+      if(i === 0){ sumEl.innerHTML = leg + '<b>Choisissez votre trajet</b> · touchez Trajet 1, 2 ou 3 en haut'; return; }
       const t = TRAJETS[i - 1];
       sumEl.innerHTML = leg + '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure;
     }
@@ -240,11 +240,12 @@ function initRaceOrgMap(){
       renderSum(i);
       if(!infoEl) return;
       if(i === 0){
-        infoEl.innerHTML = '<div class="rm-head"><b>Suivre la course en voiture</b><span>Dim. 18 oct. · départ 9h15</span></div>'
+        infoEl.innerHTML = '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
+          + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.</p>'
           + TRAJETS.map(function(t, k){
               return '<button type="button" class="rm-row" data-tab="'+(k+1)+'"><span class="n">'+(k+1)+'</span>'
                 + '<span class="t"><b>'+t.sub+'</b> · '+t.rav.lieu+'</span>'
-                + '<span class="m">'+t.km+' · '+t.min+'<br>passage '+t.rav.heure+'</span></button>';
+                + '<span class="m">'+t.km+' · '+t.min+'<br>passage '+t.rav.heure+'</span><span class="chev" aria-hidden="true">›</span></button>';
             }).join('');
         infoEl.querySelectorAll('.rm-row').forEach(function(r){ r.onclick = function(){ select(+r.dataset.tab); }; });
         return;
