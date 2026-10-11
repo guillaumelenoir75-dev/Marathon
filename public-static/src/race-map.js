@@ -52,9 +52,9 @@ function initRaceOrgMap(){
 
     // Points ravitaillement (km exacts depuis GPX)
     const RAVITOS = [
-      { km: '9,7', coord: [49.20905, 1.18025], heure: '~10h13', lieu: 'Rond-point de Folleville', rdv: true }, // RDV au bord du rond-point, avant le ravito km 10
-      { km: 20, coord: [49.23748, 1.18973], heure: '~11h15', lieu: 'Incarville' },
-      { km: 30, coord: [49.27756, 1.25922], heure: '~12h15', lieu: 'Poses nord' },
+      { km: '9,7', coord: [49.20905, 1.18025], heure: '~10h06', lieu: 'Rond-point de Folleville', rdv: true }, // RDV au bord du rond-point, avant le ravito km 10
+      { km: 20, coord: [49.23748, 1.18973], heure: '~11h00', lieu: 'Incarville' },
+      { km: 30, coord: [49.27756, 1.25922], heure: '~11h52', lieu: 'Poses nord' },
     ];
 
 
@@ -146,7 +146,7 @@ function initRaceOrgMap(){
       html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#fff;color:#1B4FD8;font:900 12px/1 system-ui,sans-serif;border-radius:6px;border:2px solid #1B4FD8;'+SH+'">P</div>' });
 
     L.marker(ROUTE[0], { icon: pill('Départ', '#B91C1C', 58) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
-    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#B91C1C', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
+    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#B91C1C', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — Val-de-Reuil</b><br>Passage estimé : <b>~12h53</b> (objectif 3h38)');
 
     // ─── Trajets ─────────────────────────────────────────────────────────────
     // Une nuance de vert par trajet, très différentes en clarté (foncé / franc / clair)
@@ -248,7 +248,7 @@ function initRaceOrgMap(){
       if(!infoEl) return;
       if(i === 0){
         infoEl.innerHTML = '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
-          + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.</p>'
+          + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.<br>Heures de passage estimées d\'après le plan de course (objectif 3h38, départ 9h15).</p>'
           + TRAJETS.map(function(t, k){
               return '<button type="button" class="rm-row" data-tab="'+(k+1)+'"><span class="n" style="background:'+t.col.c+';color:'+t.col.ink+'">'+(k+1)+'</span>'
                 + '<span class="t"><b>'+t.sub+'</b> · '+t.rav.lieu+'</span>'
