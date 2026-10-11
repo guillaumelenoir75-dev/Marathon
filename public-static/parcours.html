@@ -17,7 +17,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/enpiste-icon-192.png">
-<link rel="stylesheet" href="/src/race-map.css?v=2">
+<link rel="stylesheet" href="/src/race-map.css?v=3">
 <style>
   :root{--navy:#0C447C;--ink:#1f2d3d;--muted:#5b6675;--bg:#EEF3FB;--card:#fff;--line:#e0e8f5;--warn-bg:#FFF4EC;--warn-ink:#7C2D12;}
   *{box-sizing:border-box;}
@@ -65,6 +65,7 @@
         <span><i class="car"></i>Voiture — trajets 1 · 2 · 3</span>
         <span><i class="dir"><svg width="8" height="8" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1L8.6 8.6L5 6.6L1.4 8.6Z" fill="#fff"/></svg></i>Sens du trajet</span>
         <span><i class="walk"></i>À pied</span>
+        <span><i class="pt"><b>20</b>11h00</i>Point de RDV · heure de passage</span>
         <span><i class="km"></i>Borne km du parcours</span>
       </div>
       <div id="race-info" class="rm-info" aria-live="polite"></div>
@@ -82,7 +83,7 @@
 
   <p class="foot">Itinéraires calculés sur OpenStreetMap en excluant toutes les routes du parcours. Horaires de passage estimés.<br>Vérifiez l'arrêté de circulation de la préfecture avant le jour J.</p>
 </main>
-<script defer src="/src/race-map.js?v=2"></script>
+<script defer src="/src/race-map.js?v=3"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ initRaceOrgMap(); });</script>
 </body>
 </html>

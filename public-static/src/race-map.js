@@ -129,13 +129,13 @@ function initRaceOrgMap(){
       L.marker(k.p, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10],
         html: '<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:#fff;color:#B91C1C;font:800 9px/1 system-ui,sans-serif;border-radius:50%;border:2px solid #DC2626;">'+km+'</div>' }) }).addTo(kmLayer);
     });
-    const _kmVis = function(){ if(_raceMapInstance.getZoom() >= 11) kmLayer.addTo(_raceMapInstance); else kmLayer.remove(); };
+    const _kmVis = function(){ if(_raceMapInstance.getZoom() >= 12) kmLayer.addTo(_raceMapInstance); else kmLayer.remove(); };
     _raceMapInstance.on('zoomend', _kmVis);
 
     // ─── Marqueurs (icônes centrées sur leur point) ──────────────────────────
     const SH = 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
-    const pill = function(text, bg, w){
-      return L.divIcon({ className: '', iconSize: [w, 22], iconAnchor: [w / 2, 11],
+    const pill = function(text, bg, w, ax){
+      return L.divIcon({ className: '', iconSize: [w, 22], iconAnchor: [ax === undefined ? w / 2 : ax, 11],
         html: '<div style="height:22px;display:flex;align-items:center;justify-content:center;background:'+bg+';color:#fff;font:800 10.5px/1 system-ui,sans-serif;border-radius:11px;border:2px solid #fff;'+SH+'white-space:nowrap;">'+text+'</div>' });
     };
     // Pastille du point + étiquette « Passage ~hh:mm » dans la même icône (aucun débordement)
@@ -152,11 +152,18 @@ function initRaceOrgMap(){
       return L.divIcon({ className: '', iconSize: [W, 30], iconAnchor: [side === 'w' ? W - 15 : 15, 15],
         html: '<div style="width:'+W+'px;height:30px;display:flex;align-items:center;gap:4px;flex-direction:'+(side === 'w' ? 'row-reverse' : 'row')+';justify-content:flex-start;">'+dot+lab+'</div>' });
     };
+    const iRavCompact = function(km, heure){
+      const W = 84;
+      return L.divIcon({ className: '', iconSize: [W, 26], iconAnchor: [13, 13],
+        html: '<div style="width:'+W+'px;height:26px;display:flex;align-items:center;background:#fff;border:2px solid #1B4FD8;border-radius:13px;box-sizing:border-box;overflow:hidden;'+SH+'">'
+          + '<span style="flex:0 0 auto;min-width:24px;height:100%;padding:0 5px;display:flex;align-items:center;justify-content:center;background:#1B4FD8;color:#fff;font:800 11px/1 system-ui,sans-serif;">'+km+'</span>'
+          + '<span style="flex:1;text-align:center;color:#1B4FD8;font:800 11.5px/1 system-ui,sans-serif;white-space:nowrap;">'+heure.replace('~', '')+'</span></div>' });
+    };
     const iPark = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11],
       html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#fff;color:#1B4FD8;font:900 12px/1 system-ui,sans-serif;border-radius:6px;border:2px solid #1B4FD8;'+SH+'">P</div>' });
 
     L.marker(ROUTE[0], { icon: pill('Départ · 9h15', '#B91C1C', 96) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
-    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée · ~12h53', '#B91C1C', 112) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — Val-de-Reuil</b><br>Passage estimé : <b>~12h53</b> (objectif 3h38)');
+    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée · ~12h53', '#B91C1C', 112, 104) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — Val-de-Reuil</b><br>Passage estimé : <b>~12h53</b> (objectif 3h38)');
 
     // ─── Trajets ─────────────────────────────────────────────────────────────
     // Une nuance de vert par trajet, très différentes en clarté (foncé / franc / clair)
@@ -205,7 +212,7 @@ function initRaceOrgMap(){
       const walk = _cased(t.walk, '#1D4ED8', 3, { dashArray: '1 7', weight: 4 });
       walk[1].bindPopup('<b>À pied</b> ~'+t.marche);
       t.group = L.layerGroup(drive.concat(walk, [
-        L.marker(t.rav.coord, { icon: iRav(t.rav.km, t.rav.heure, t.rav.side), zIndexOffset: 500 }).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
+        (t.ravMarker = L.marker(t.rav.coord, { icon: iRav(t.rav.km, t.rav.heure, t.rav.side), zIndexOffset: 500 })).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
       ])).addTo(_raceMapInstance);
 
       const L_ = _len(t.drive);
@@ -216,7 +223,8 @@ function initRaceOrgMap(){
       });
       t.detail = L.layerGroup([
         L.circleMarker(t.drive[0], { radius: 6, color: '#fff', weight: 3, fillColor: t.col.c, fillOpacity: 1 }).bindPopup('<b>Départ '+t.tab.toLowerCase()+'</b>'),
-        L.marker(t.park, { icon: iPark, zIndexOffset: 700 }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au '+(t.rav.rdv ? 'point de RDV' : 'ravito')),
+        (t.parkLeader = L.polyline([t.park, t.park], { color: '#1B4FD8', weight: 1.5, opacity: 0.9, interactive: false })),
+        (t.parkMarker = L.marker(t.park, { icon: iPark, zIndexOffset: 450 })).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au '+(t.rav.rdv ? 'point de RDV' : 'ravito')),
       ].concat(arrows, t.extra));
 
       const mid = _along(t.drive, L_, L_ * 0.5)[0];
@@ -281,8 +289,27 @@ function initRaceOrgMap(){
       _raceMapInstance.fitBounds(b, pad);
     };
 
+    // Le P est souvent à quelques pixels du point de RDV : on l'écarte sur le côté avec un trait de rappel
+    const _placeParks = function(){
+      TRAJETS.forEach(function(t){
+        const m = _raceMapInstance;
+        const a = m.latLngToLayerPoint(t.rav.coord), b = m.latLngToLayerPoint(t.park);
+        let dx = b.x - a.x, dy = Math.min(0, b.y - a.y);
+        if(Math.abs(dx) < 1 && dy === 0) dx = 1;
+        const d = Math.hypot(dx, dy), MIN = 40;
+        const target = Math.hypot(b.x - a.x, b.y - a.y) < MIN ? L.point(a.x + dx / d * MIN, a.y + dy / d * MIN) : b;
+        const ll = m.layerPointToLatLng(target);
+        t.parkMarker.setLatLng(ll);
+        t.parkLeader.setLatLngs([t.park, ll]);
+      });
+    };
+    _raceMapInstance.on('zoomend', _placeParks);
+
     function select(i){
       current = i;
+      TRAJETS.forEach(function(t){
+        t.ravMarker.setIcon(i === 0 ? iRavCompact(t.rav.km, t.rav.heure) : iRav(t.rav.km, t.rav.heure, t.rav.side));
+      });
       if(tabsEl) tabsEl.querySelectorAll('.rm-tab').forEach(function(b, j){ b.setAttribute('aria-selected', j === i ? 'true' : 'false'); });
       TRAJETS.forEach(function(t, k){
         if(i === 0 || k === i - 1) t.group.addTo(_raceMapInstance); else t.group.remove();
@@ -290,6 +317,7 @@ function initRaceOrgMap(){
         if(i === 0) t.badge.addTo(_raceMapInstance); else t.badge.remove();
       });
       _raceMapRefit();
+      _placeParks();
       renderInfo(i);
     }
 

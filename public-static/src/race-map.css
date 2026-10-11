@@ -64,3 +64,5 @@
 .rm-tab b{display:inline-flex;align-items:center;gap:6px;}
 .rm-dot{display:inline-block;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1.5px #fff;}
 .rm-legend i.car{width:30px;}
+.rm-legend i.pt{width:auto;height:16px;display:inline-flex;align-items:center;border:1.5px solid #1B4FD8;border-radius:8px;overflow:hidden;background:#fff;color:#1B4FD8;font:800 9px/1 system-ui,sans-serif;font-style:normal;padding-right:4px;gap:3px;}
+.rm-legend i.pt b{background:#1B4FD8;color:#fff;height:100%;display:flex;align-items:center;padding:0 3px;}
