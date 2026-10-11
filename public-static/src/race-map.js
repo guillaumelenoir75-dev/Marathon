@@ -52,9 +52,9 @@ function initRaceOrgMap(){
 
     // Points ravitaillement (km exacts depuis GPX)
     const RAVITOS = [
-      { km: '9,7', coord: [49.20905, 1.18025], heure: '~10h06', lieu: 'Rond-point de Folleville', rdv: true }, // RDV au bord du rond-point, avant le ravito km 10
-      { km: 20, coord: [49.23748, 1.18973], heure: '~11h00', lieu: 'Incarville' },
-      { km: 30, coord: [49.27756, 1.25922], heure: '~11h52', lieu: 'Poses nord' },
+      { km: '9,7', coord: [49.20905, 1.18025], heure: '~10h06', lieu: 'Rond-point de Folleville', rdv: true, side: 'w' }, // RDV au bord du rond-point, avant le ravito km 10
+      { km: 20, coord: [49.23748, 1.18973], heure: '~11h00', lieu: 'Incarville', side: 'w' },
+      { km: 30, coord: [49.27756, 1.25922], heure: '~11h52', lieu: 'Poses nord', side: 's' },
     ];
 
 
@@ -138,15 +138,20 @@ function initRaceOrgMap(){
       return L.divIcon({ className: '', iconSize: [w, 22], iconAnchor: [w / 2, 11],
         html: '<div style="height:22px;display:flex;align-items:center;justify-content:center;background:'+bg+';color:#fff;font:800 10.5px/1 system-ui,sans-serif;border-radius:11px;border:2px solid #fff;'+SH+'white-space:nowrap;">'+text+'</div>' });
     };
-    const iRav = function(km){
+    // Pastille du point + étiquette d'heure de passage collée à gauche ou à droite
+    const iRav = function(km, heure, side){
+      const pos = side === 'w' ? 'top:5px;right:33px;' : side === 's' ? 'top:33px;left:50%;transform:translateX(-50%);' : 'top:5px;left:33px;';
       return L.divIcon({ className: '', iconSize: [30, 30], iconAnchor: [15, 15],
-        html: '<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#1B4FD8;color:#fff;font:800 11px/1 system-ui,sans-serif;border-radius:50%;border:2.5px solid #fff;'+SH+'">'+km+'</div>' });
+        html: '<div style="position:relative;width:30px;height:30px;">'
+          + '<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#1B4FD8;color:#fff;font:800 11px/1 system-ui,sans-serif;border-radius:50%;border:2.5px solid #fff;box-sizing:border-box;'+SH+'">'+km+'</div>'
+          + (heure ? '<div style="position:absolute;'+pos+'height:20px;padding:0 7px;display:flex;align-items:center;background:#fff;color:#1B4FD8;font:800 11px/1 system-ui,sans-serif;border-radius:10px;border:1.5px solid #1B4FD8;white-space:nowrap;'+SH+'">'+heure+'</div>' : '')
+          + '</div>' });
     };
     const iPark = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11],
       html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#fff;color:#1B4FD8;font:900 12px/1 system-ui,sans-serif;border-radius:6px;border:2px solid #1B4FD8;'+SH+'">P</div>' });
 
-    L.marker(ROUTE[0], { icon: pill('Départ', '#B91C1C', 58) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
-    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#B91C1C', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — Val-de-Reuil</b><br>Passage estimé : <b>~12h53</b> (objectif 3h38)');
+    L.marker(ROUTE[0], { icon: pill('Départ · 9h15', '#B91C1C', 96) }).addTo(_raceMapInstance).bindPopup('<b>Départ — 9h15</b><br>Amfreville-sur-Iton');
+    L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée · ~12h53', '#B91C1C', 112) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — Val-de-Reuil</b><br>Passage estimé : <b>~12h53</b> (objectif 3h38)');
 
     // ─── Trajets ─────────────────────────────────────────────────────────────
     // Une nuance de vert par trajet, très différentes en clarté (foncé / franc / clair)
@@ -195,7 +200,7 @@ function initRaceOrgMap(){
       const walk = _cased(t.walk, '#1D4ED8', 3, { dashArray: '1 7', weight: 4 });
       walk[1].bindPopup('<b>À pied</b> ~'+t.marche);
       t.group = L.layerGroup(drive.concat(walk, [
-        L.marker(t.rav.coord, { icon: iRav(t.rav.km), zIndexOffset: 500 }).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
+        L.marker(t.rav.coord, { icon: iRav(t.rav.km, t.rav.heure, t.rav.side), zIndexOffset: 500 }).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
       ])).addTo(_raceMapInstance);
 
       const L_ = _len(t.drive);
