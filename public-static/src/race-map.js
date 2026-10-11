@@ -149,19 +149,24 @@ function initRaceOrgMap(){
     L.marker(ROUTE[ROUTE.length-1], { icon: pill('Arrivée', '#B91C1C', 60) }).addTo(_raceMapInstance).bindPopup('<b>Arrivée — 13h15–14h45</b><br>Val-de-Reuil');
 
     // ─── Trajets ─────────────────────────────────────────────────────────────
-    const CAR = '#16A34A';
-    const iArrow = function(cap){
+    // Une nuance de vert par trajet, très différentes en clarté (foncé / franc / clair)
+    const CARS = [
+      { c: '#14532D', ink: '#fff', casing: '#fff' },
+      { c: '#16A34A', ink: '#fff', casing: '#fff' },
+      { c: '#A3E635', ink: '#1A2E05', casing: '#3F6212' },
+    ];
+    const iArrow = function(cap, col){
       return L.divIcon({ className: '', iconSize: [18, 18], iconAnchor: [9, 9],
-        html: '<div style="width:18px;height:18px;border-radius:50%;background:'+CAR+';border:2px solid #fff;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transform:rotate('+cap.toFixed(0)+'deg);"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1L8.6 8.6L5 6.6L1.4 8.6Z" fill="#fff" stroke="#fff" stroke-width="0.8" stroke-linejoin="round"/></svg></div>' });
+        html: '<div style="width:18px;height:18px;border-radius:50%;background:'+col.c+';border:2px solid #fff;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transform:rotate('+cap.toFixed(0)+'deg);"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1L8.6 8.6L5 6.6L1.4 8.6Z" fill="'+col.ink+'" stroke="'+col.ink+'" stroke-width="0.8" stroke-linejoin="round"/></svg></div>' });
     };
-    const iNum = function(n){
+    const iNum = function(n, col){
       return L.divIcon({ className: '', iconSize: [24, 24], iconAnchor: [12, 12],
-        html: '<div style="width:24px;height:24px;border-radius:50%;background:'+CAR+';color:#fff;border:2.5px solid #fff;'+SH+'display:flex;align-items:center;justify-content:center;font:900 11.5px/1 system-ui,sans-serif;">'+n+'</div>' });
+        html: '<div style="width:24px;height:24px;border-radius:50%;background:'+col.c+';color:'+col.ink+';border:2.5px solid #fff;'+SH+'display:flex;align-items:center;justify-content:center;font:900 11.5px/1 system-ui,sans-serif;">'+n+'</div>' });
     };
     const TRAJETS = [
       { tab: 'Trajet 1', sub: 'A13 → km 10', drive: DRIVE_A, walk: WALK_A, park: PARK_KM10, rav: RAVITOS[0],
         km: '24,6 km', min: '16 min', marche: '200 m', from: 'depuis Gaillon',
-        extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', '#1DA054', 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
+        extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', CARS[0].c, 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
         steps: ['A13 depuis Paris, sortie 18 <b>Louviers-la-Roquette</b>',
                 'D6155 vers Louviers sur ~4,5 km',
                 'Se garer <b>avenue des Peupliers</b>, au rond-point du Béquet'],
@@ -183,7 +188,9 @@ function initRaceOrgMap(){
         walkStep: '~650 m à pied jusqu\'au ravito (~8 min)' },
     ];
     TRAJETS.forEach(function(t, k){
-      const drive = _cased(t.drive, CAR, 5);
+      t.col = CARS[k];
+      const drive = _cased(t.drive, t.col.c, 5);
+      drive[0].setStyle({ color: t.col.casing, weight: t.col.casing === '#fff' ? 9 : 7 });
       drive[1].bindPopup('<b>'+t.tab+' — '+t.sub+'</b><br>'+t.km+' · ~'+t.min);
       const walk = _cased(t.walk, '#1D4ED8', 3, { dashArray: '1 7', weight: 4 });
       walk[1].bindPopup('<b>À pied</b> ~'+t.marche);
@@ -195,15 +202,15 @@ function initRaceOrgMap(){
       const every = Math.min(2500, Math.max(700, L_ / 6));
       const arrows = _along(t.drive, every, every / 2).map(function(a){
         const cap = _cap(_at(t.drive, a.at - 60), _at(t.drive, a.at + 60));
-        return L.marker(a.p, { icon: iArrow(cap), interactive: false, keyboard: false });
+        return L.marker(a.p, { icon: iArrow(cap, t.col), interactive: false, keyboard: false });
       });
       t.detail = L.layerGroup([
-        L.circleMarker(t.drive[0], { radius: 6, color: '#fff', weight: 3, fillColor: CAR, fillOpacity: 1 }).bindPopup('<b>Départ '+t.tab.toLowerCase()+'</b>'),
+        L.circleMarker(t.drive[0], { radius: 6, color: '#fff', weight: 3, fillColor: t.col.c, fillOpacity: 1 }).bindPopup('<b>Départ '+t.tab.toLowerCase()+'</b>'),
         L.marker(t.park, { icon: iPark, zIndexOffset: 400 }).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au '+(t.rav.rdv ? 'point de RDV' : 'ravito')),
       ].concat(arrows, t.extra));
 
       const mid = _along(t.drive, L_, L_ * 0.5)[0];
-      t.badge = L.layerGroup(mid ? [L.marker(mid.p, { icon: iNum(k + 1), zIndexOffset: 300 }).on('click', function(){ select(k + 1); })] : []);
+      t.badge = L.layerGroup(mid ? [L.marker(mid.p, { icon: iNum(k + 1, t.col), zIndexOffset: 300 }).on('click', function(){ select(k + 1); })] : []);
       t.bounds = L.polyline(t.drive.concat(t.walk)).getBounds();
     });
 
@@ -243,7 +250,7 @@ function initRaceOrgMap(){
         infoEl.innerHTML = '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
           + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.</p>'
           + TRAJETS.map(function(t, k){
-              return '<button type="button" class="rm-row" data-tab="'+(k+1)+'"><span class="n">'+(k+1)+'</span>'
+              return '<button type="button" class="rm-row" data-tab="'+(k+1)+'"><span class="n" style="background:'+t.col.c+';color:'+t.col.ink+'">'+(k+1)+'</span>'
                 + '<span class="t"><b>'+t.sub+'</b> · '+t.rav.lieu+'</span>'
                 + '<span class="m">'+t.km+' · '+t.min+'<br>passage '+t.rav.heure+'</span><span class="chev" aria-hidden="true">›</span></button>';
             }).join('');
@@ -253,7 +260,7 @@ function initRaceOrgMap(){
       const t = TRAJETS[i - 1];
       infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>'+(t.rav.rdv ? 'RDV ' : 'Ravito ')+t.rav.lieu+' · '+t.rav.heure+'</span></div>'
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
-        + '<ol class="rm-steps">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
+        + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>';
     }
 
@@ -287,7 +294,7 @@ function initRaceOrgMap(){
         b.type = 'button';
         b.className = 'rm-tab';
         b.setAttribute('role', 'tab');
-        b.innerHTML = '<b>'+t.tab+'</b><span>'+t.sub+'</span>';
+        b.innerHTML = '<b>'+(t.col ? '<i class="rm-dot" style="background:'+t.col.c+'"></i>' : '')+t.tab+'</b><span>'+t.sub+'</span>';
         b.onclick = function(){ select(i); b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); };
         tabsEl.appendChild(b);
       });
