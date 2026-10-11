@@ -22,6 +22,7 @@ Chargés dans cet ordre (dépendances respectées) :
 | `onboarding.js` | Écran de bienvenue premier lancement |
 | `plan-generate.js` | Génération du plan marathon (semaines/séances) |
 | `plan-admin.js` | Interface admin : gestion users, vue Coach sur athlètes |
+| `race-map.js` | Carte « Organisation course » (parcours + 3 trajets). Aussi chargé seul par la page publique `/parcours` (`public-static/parcours.html`) — conservé hors bundle via `keepFiles` dans `vite.config.js` |
 | `plan-state.js` | État du plan, migration, helpers allure/pace, `save()` |
 | `plan-predict.js` | Prédiction marathon, modal prédiction |
 | `weather.js` | Météo (WMO), intégration météo dans les séances |

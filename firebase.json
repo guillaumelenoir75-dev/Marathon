@@ -8,7 +8,8 @@
     ],
     "rewrites": [
       { "source": "/privacy", "destination": "/privacy.html" },
-      { "source": "/legal", "destination": "/legal.html" }
+      { "source": "/legal", "destination": "/legal.html" },
+      { "source": "/parcours", "destination": "/parcours.html" }
     ],
     "headers": [
       {
@@ -16,6 +17,12 @@
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
           { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+        ]
+      },
+      {
+        "source": "/parcours.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {

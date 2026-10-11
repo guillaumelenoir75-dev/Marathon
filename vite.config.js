@@ -5,12 +5,15 @@ import { resolve } from 'path';
 // Ordre de chargement exact des scripts classiques (dépendances respectées)
 const scriptFiles = [
   'config.js', 'firebase.js', 'auth.js', 'onboarding.js',
-  'plan-generate.js', 'plan-admin.js', 'plan-state.js', 'plan-predict.js',
+  'plan-generate.js', 'plan-admin.js', 'race-map.js', 'plan-state.js', 'plan-predict.js',
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
   'coach-memos.js', 'coach-ui.js', 'notifs.js', 'whoop.js',
 ];
+
+// Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours
+const keepFiles = ['race-map.js'];
 
 function bundleClassicScripts() {
   return {
@@ -41,8 +44,8 @@ function bundleClassicScripts() {
       });
       writeFileSync(htmlPath, html);
 
-      // 4. Supprime les 23 fichiers individuels du dist
-      scriptFiles.forEach(f => { try { unlinkSync(resolve(distSrc, f)); } catch(e) {} });
+      // 4. Supprime les fichiers individuels du dist (sauf keepFiles)
+      scriptFiles.filter(f => !keepFiles.includes(f)).forEach(f => { try { unlinkSync(resolve(distSrc, f)); } catch(e) {} });
 
       const sizeKb = Math.round(Buffer.byteLength(code) / 1024);
       console.log(`[bundle] ${bundleName} créé — ${sizeKb} Ko minifié (${scriptFiles.length} fichiers fusionnés)`);
