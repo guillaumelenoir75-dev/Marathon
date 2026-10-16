@@ -55,7 +55,7 @@ function initRaceOrgMap(){
     const RAVITOS = [
       { km: 10, coord: [49.20905, 1.18025], heure: '~10h01', lieu: 'Rond-point de Folleville', rdv: true, side: 's' }, // RDV au bord du rond-point, avant le ravito km 10
       { km: 20, coord: [49.23748, 1.18973], heure: '~10h55', lieu: 'D313 sous l\'A13', side: 's' },
-      { km: 30, coord: [49.27756, 1.25922], heure: '~11h47', lieu: 'Tournedos', side: 's' },
+      { km: 30, coord: [49.27160, 1.25909], heure: '~11h44', lieu: '24 route de Portejoie', addr: '24 route de Portejoie', rdv: true, side: 's' }, // devant la maison de Guillaume (≈ km 29,4, la famille y attend)
     ];
 
 
@@ -79,7 +79,7 @@ function initRaceOrgMap(){
     // Trajets à pied calculés sur le réseau routier (ponts compris)
     const WALK_A = [[49.20633,1.18227],[49.20633,1.18219],[49.207,1.18204],[49.20801,1.18256],[49.20822,1.18206],[49.20833,1.18199],[49.20845,1.18205],[49.2086,1.18193],[49.20911,1.18079],[49.20905,1.18025]];
     const WALK_B = [[49.24091,1.19644],[49.2411,1.19657],[49.24121,1.19656],[49.24129,1.1964],[49.24129,1.19629],[49.24082,1.19437],[49.24084,1.19401],[49.24023,1.19307],[49.23904,1.1915],[49.23808,1.19032],[49.23735,1.18959],[49.23748,1.18973]];
-    const WALK_C = [[49.27367,1.25606],[49.27399,1.25932],[49.27459,1.25949],[49.27756,1.25922]];
+    const WALK_C = [[49.27367,1.25606],[49.27399,1.25932],[49.27303,1.25911],[49.27160,1.25909]];
 
     container.innerHTML = '';
     container.style.background = '';
@@ -142,11 +142,17 @@ function initRaceOrgMap(){
         html: '<div style="height:22px;display:flex;align-items:center;justify-content:center;background:'+bg+';color:#fff;font:800 10.5px/1 system-ui,sans-serif;border-radius:11px;border:2px solid #fff;'+SH+'white-space:nowrap;">'+text+'</div>' });
     };
     // Pastille du point + étiquette « Passage ~hh:mm » dans la même icône (aucun débordement)
-    const iRav = function(km, heure, side){
+    const iRav = function(km, heure, side, addr){
       const dot = '<div style="flex:0 0 30px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#1B4FD8;color:#fff;font:800 11px/1 system-ui,sans-serif;border-radius:50%;border:2.5px solid #fff;box-sizing:border-box;'+SH+'">'+km+'</div>';
       if(!heure) return L.divIcon({ className: '', iconSize: [30, 30], iconAnchor: [15, 15], html: dot });
       const LW = 112;
       const lab = '<div style="height:22px;padding:0 8px;display:flex;align-items:center;gap:4px;background:#fff;color:#1B4FD8;font:700 11px/1 system-ui,sans-serif;border-radius:11px;border:1.5px solid #1B4FD8;white-space:nowrap;box-sizing:border-box;'+SH+'">Passage <b style="font-weight:900;">'+heure+'</b></div>';
+      if(side === 's' && addr){
+        // point chez un proche : l'adresse au-dessus de l'heure de passage
+        const AW = 156, lab2 = '<div style="padding:4px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;background:#fff;color:#1B4FD8;font:700 11px/1.1 system-ui,sans-serif;border-radius:10px;border:1.5px solid #1B4FD8;white-space:nowrap;box-sizing:border-box;'+SH+'"><b style="font-weight:900;color:#0C447C;font-size:11.5px;">'+addr+'</b><span>Passage <b style="font-weight:900;">'+heure+'</b></span></div>';
+        return L.divIcon({ className: '', iconSize: [AW, 74], iconAnchor: [AW / 2, 15],
+          html: '<div style="width:'+AW+'px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+dot+lab2+'</div>' });
+      }
       if(side === 's'){
         return L.divIcon({ className: '', iconSize: [LW, 56], iconAnchor: [LW / 2, 15],
           html: '<div style="width:'+LW+'px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+dot+lab+'</div>' });
@@ -202,14 +208,14 @@ function initRaceOrgMap(){
                 'À gauche <b>rue de Crémonville</b>, puis petite route vers l\'ouest : se garer avant la D313, sous l\'A13'],
         walkStep: '~750 m à pied : rejoindre la D313 et la longer vers le sud-ouest (même rive de l\'Eure, rien à traverser)' },
       { tab: 'Trajet 3', sub: 'km 20 → km 30', drive: DRIVE_C, walk: WALK_C, park: PARK_KM30, rav: RAVITOS[2],
-        km: '12,1 km', min: '14 min', marche: '650 m', extra: [],
+        km: '12,1 km', min: '14 min', marche: '500 m', extra: [],
         nav: [[49.2387, 1.20124], [49.25573, 1.19389]],
         steps: ['Repartir vers l\'est par la petite route, puis <b>rue de Crémonville</b> et <b>D77</b>',
                 'Au rond-point, 1ʳᵉ sortie : <b>D6015</b> vers Val-de-Reuil — elle passe en pont au-dessus du parcours',
                 '<b>D6154</b> puis, au rond-point, <b>avenue des Falaises</b> (partie ouest, ouverte)',
                 'Au rond-point, <b>chaussée du Village</b>, puis au suivant <b>route de Seine</b> (déviation officielle)',
                 'Serrer à droite sur la <b>route de Tournedos</b> (ouverte vers Val-de-Reuil) ; se garer en bord de route, hors de la zone de croisement et de demi-tour des bus'],
-        walkStep: '~650 m à pied jusqu\'au ravito (~8 min) : rue Michel Godret (fermée aux voitures dès 9h, ouverte aux piétons) puis route de Poses, sur le bas-côté' },
+        walkStep: '~500 m à pied (~7 min) : descendre la route de Tournedos jusqu\'au carrefour, puis à droite sur la <b>route de Portejoie</b> (parcours, sur le bas-côté) jusqu\'au <b>n°24</b>, devant la maison où attend la famille de Guillaume. Traverser prudemment entre deux coureurs pour rejoindre le côté de la maison (est)' },
     ];
     TRAJETS.forEach(function(t, k){
       t.col = CARS[k];
@@ -219,7 +225,7 @@ function initRaceOrgMap(){
       const walk = _cased(t.walk, '#1D4ED8', 3, { dashArray: '1 7', weight: 4 });
       walk[1].bindPopup('<b>À pied</b> ~'+t.marche);
       t.group = L.layerGroup(drive.concat(walk, [
-        (t.ravMarker = L.marker(t.rav.coord, { icon: iRav(t.rav.km, t.rav.heure, t.rav.side), zIndexOffset: 500 })).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
+        (t.ravMarker = L.marker(t.rav.coord, { icon: iRav(t.rav.km, t.rav.heure, t.rav.side, t.rav.addr), zIndexOffset: 500 })).bindPopup('<b>'+(t.rav.rdv ? 'Point de RDV' : 'Ravito')+' km '+t.rav.km+' — '+t.rav.lieu+'</b><br>Passage estimé : <b>'+t.rav.heure+'</b>'),
       ])).addTo(_raceMapInstance);
 
       const L_ = _len(t.drive);
@@ -401,7 +407,7 @@ function initRaceOrgMap(){
       if(i === 0){ sumEl.innerHTML = leg + '<b>Choisissez votre trajet</b> · touchez Trajet 1, 2 ou 3 en haut'; return; }
       const t = TRAJETS[i - 1];
       sumEl.innerHTML = leg + '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure
-        + '<button type="button" class="rm-nav sm" onclick="RaceNav.start('+(t.rav.rdv ? 10 : t.rav.km)+')">▶ Me guider</button>';
+        + '<button type="button" class="rm-nav sm" onclick="RaceNav.start('+t.rav.km+')">▶ Me guider</button>';
     }
 
     function renderInfo(i){
@@ -409,7 +415,7 @@ function initRaceOrgMap(){
       if(!infoEl) return;
       if(i === 0){
         infoEl.innerHTML = '<div class="rm-guide"><b>🧭 Me guider jusqu\'au point</b><span>GPS intégré, guidage vocal, évite les routes fermées</span><div class="rm-guide-btns">'
-          + TRAJETS.map(function(t){ const k = t.rav.rdv ? 10 : t.rav.km; return '<button type="button" onclick="RaceNav.start('+k+')"><b>'+('km '+t.rav.km)+'</b><span>passage '+t.rav.heure+'</span></button>'; }).join('')
+          + TRAJETS.map(function(t){ const k = t.rav.km; return '<button type="button" onclick="RaceNav.start('+k+')"><b>'+('km '+t.rav.km)+'</b><span>passage '+t.rav.heure+'</span></button>'; }).join('')
           + '</div></div>'
           + '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
           + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.<br>Heures de passage estimées d\'après le plan de course (objectif 3h38, départ 9h15), avancées de 5 min pour garder une marge.</p>'
@@ -426,7 +432,7 @@ function initRaceOrgMap(){
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>'
-        + '<button type="button" class="rm-nav" onclick="RaceNav.start('+(t.rav.rdv ? 10 : t.rav.km)+')">▶ Me guider jusqu\'au '+('km '+t.rav.km)+'</button>'
+        + '<button type="button" class="rm-nav" onclick="RaceNav.start('+t.rav.km+')">▶ Me guider jusqu\'au '+('km '+t.rav.km)+'</button>'
         + '<p class="rm-nav-note">Guidage vocal intégré depuis votre position, sur l\'itinéraire sécurisé. Gardez l\'écran allumé. '
         + 'Autre option : <a href="'+_navUrl(t)+'" target="_blank" rel="noopener">ouvrir dans Google Maps</a>.</p>';
     }
@@ -457,7 +463,7 @@ function initRaceOrgMap(){
     function select(i){
       current = i;
       TRAJETS.forEach(function(t){
-        t.ravMarker.setIcon(i === 0 ? iRavCompact(t.rav.km, t.rav.heure) : iRav(t.rav.km, t.rav.heure, t.rav.side));
+        t.ravMarker.setIcon(i === 0 ? iRavCompact(t.rav.km, t.rav.heure) : iRav(t.rav.km, t.rav.heure, t.rav.side, t.rav.addr));
       });
       if(tabsEl) tabsEl.querySelectorAll('.rm-tab').forEach(function(b, j){ b.setAttribute('aria-selected', j === i ? 'true' : 'false'); });
       TRAJETS.forEach(function(t, k){

@@ -7,7 +7,7 @@ const RaceNav = (function(){
   const DEST = {
     10: { label: 'RDV km 10 — rond-point de Folleville', short: 'km 10', routes: ['A'], walk: '10' },
     20: { label: 'Ravito km 20 — D313 sous l\'A13', short: 'km 20', routes: ['B', 'A2'], walk: '20' },
-    30: { label: 'Ravito km 30 — Tournedos', short: 'km 30', routes: ['C', 'A3'], walk: '30' },
+    30: { label: 'km 30 — 24 route de Portejoie (Tournedos)', short: 'km 30', routes: ['C', 'A3'], walk: '30' },
   };
   const OSRM = 'https://router.project-osrm.org/route/v1/driving/';
   let ctx = null, pending = null;
