@@ -19,58 +19,93 @@
 <link rel="icon" href="/enpiste-icon-192.png">
 <link rel="stylesheet" href="/src/race-map.css?v=9">
 <style>
-  :root{--navy:#0C447C;--ink:#1f2d3d;--muted:#5b6675;--bg:#EEF3FB;--card:#fff;--line:#e0e8f5;--warn-bg:#FFF4EC;--warn-ink:#7C2D12;}
+  :root{--navy:#0C447C;--navy-2:#0A3766;--ink:#1f2d3d;--muted:#5b6675;--bg:#EEF3FB;--card:#fff;--line:#e0e8f5;--go:#15803D;--go-2:#116B33;--warn-bg:#FFF4EC;--warn-ink:#7C2D12;}
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
-  .page{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:14px;}
-  .hero{background:var(--navy);color:#fff;border-radius:16px;padding:18px 18px 16px;}
-  .eyebrow{margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#BFD3EE;}
-  h1{margin:0;font-size:clamp(24px,6.4vw,32px);line-height:1.1;font-weight:850;letter-spacing:-.02em;text-wrap:balance;}
-  .lede{margin:10px 0 0;font-size:14.5px;line-height:1.45;color:#DCE7F7;max-width:60ch;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;}
-  .warn{background:var(--warn-bg);border:1px solid #F7C9A8;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;color:var(--warn-ink);}
+  .page{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:14px;}
+  .top{padding:2px 2px 0;}
+  .eyebrow{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#4A6A93;}
+  h1{margin:0;font-size:clamp(23px,6.2vw,30px);line-height:1.1;font-weight:850;letter-spacing:-.02em;color:var(--navy);text-wrap:balance;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;}
+  h2{margin:0;font-size:15px;color:var(--navy);}
+
+  /* Lancer le GPS */
+  .go{background:var(--navy);border-color:var(--navy);color:#fff;padding:16px 14px 14px;box-shadow:0 6px 20px rgba(12,68,124,.22);}
+  .go-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .go-ic{width:44px;height:44px;border-radius:12px;background:#1A73E8;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .go h2{color:#fff;font-size:20px;font-weight:850;letter-spacing:-.01em;}
+  .go-head p{margin:3px 0 0;font-size:13px;line-height:1.35;color:#C9DAF0;}
+  .go-list{display:flex;flex-direction:column;gap:9px;}
+  .go-btn{display:flex;align-items:center;gap:12px;width:100%;min-height:68px;padding:10px 10px 10px 10px;border:none;border-radius:14px;background:#fff;color:var(--ink);font-family:inherit;text-align:left;cursor:pointer;transition:transform .12s ease;}
+  .go-btn:active{transform:scale(.985);}
+  .go-btn:focus-visible{outline:3px solid #FFD54F;outline-offset:2px;}
+  .go-km{width:52px;height:48px;border-radius:11px;background:#E8F0FB;color:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  .go-km b{font-size:19px;line-height:1;letter-spacing:-.02em;text-transform:none;font-variant-numeric:tabular-nums;}
+  .go-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .go-t b{font-size:16px;font-weight:800;color:var(--navy);}
+  .go-t span{font-size:12.5px;line-height:1.3;color:var(--muted);}
+  .go-t i{font-style:normal;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .go-play{display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;height:46px;padding:0 15px 0 13px;border-radius:999px;background:var(--go);color:#fff;font-size:14.5px;font-weight:850;box-shadow:inset 0 -2px 0 var(--go-2);}
+  .go-play em{font-style:normal;}
+  @media (max-width:419px){ .go-play{width:48px;height:48px;padding:0 0 0 3px;} .go-play svg{width:18px;height:18px;} .go-play em{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} }
+  .go-tip{margin:12px 2px 0;font-size:12px;line-height:1.4;color:#C9DAF0;}
+  .go-tip b{color:#fff;}
+
+  /* Carte */
+  .map-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;margin:0 2px 10px;}
+  .map-head p{margin:0;font-size:12px;color:var(--muted);}
   .card #race-map{height:min(62vh,560px);min-height:340px;}
-  h2{margin:0 0 10px;font-size:15px;color:var(--navy);}
-  .docs{display:flex;flex-direction:column;gap:8px;}
+
+  .docs{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
   .doc{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--ink);background:#fff;}
   .doc:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
-  .doc .n{width:26px;height:26px;border-radius:50%;background:#15803D;color:#fff;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .doc .n{width:26px;height:26px;border-radius:50%;background:var(--go);color:#fff;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .doc .t{flex:1;min-width:0;font-size:13.5px;line-height:1.3;}
   .doc .t b{color:var(--navy);}
   .doc .t span{display:block;font-size:12px;color:var(--muted);}
   .doc .dl{font-size:12px;font-weight:800;color:#1B4FD8;white-space:nowrap;}
-  .guide{background:var(--navy);border-color:var(--navy);color:#fff;}
-  .guide h2{color:#fff;margin-bottom:4px;}
-  .guide-sub{margin:0 0 12px;font-size:12.5px;line-height:1.4;color:#DCE7F7;}
-  .guide-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-  .guide-btns button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:11px 4px;border:none;border-radius:12px;background:#fff;color:var(--navy);font-family:inherit;cursor:pointer;}
-  .guide-btns b{font-size:16px;font-weight:900;}
-  .guide-btns span{font-size:11px;color:var(--muted);}
-  .guide-btns button:focus-visible{outline:2px solid #FFD54F;outline-offset:2px;}
   .foot{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted);text-align:center;}
+  @media (min-width:640px){ .go-list{display:grid;grid-template-columns:repeat(3,1fr);} .go-btn{flex-direction:column;align-items:stretch;text-align:center;padding:14px 12px;} .go-km{align-self:center;} .go-t{align-items:center;} .go-play{justify-content:center;} }
+  @media (prefers-reduced-motion:reduce){ .go-btn{transition:none;} }
 </style>
 </head>
 <body>
 <main class="page">
-  <header class="hero">
+  <header class="top">
     <p class="eyebrow">Marathon Seine-Eure · dimanche 18 octobre 2026</p>
     <h1>Suivre la course en voiture</h1>
-    <p class="lede">Le parcours du marathon, en rouge à tirets blancs, est fermé à la circulation de 8h à 15h. Ces 3 trajets mènent aux points de passage sans jamais l'emprunter. Touchez un trajet pour voir les étapes, ou passez en plein écran pour zoomer.</p>
   </header>
 
-  <div class="warn"><b>Votre GPS peut proposer de passer par le parcours.</b> Il ne connaît pas les fermetures : suivez plutôt ces trajets.</div>
-
-  <section class="card guide" aria-label="Guidage GPS">
-    <h2>🧭 Me guider jusqu'au point</h2>
-    <p class="guide-sub">Guidage vocal depuis votre position, uniquement par des routes ouvertes. Autorisez la localisation et gardez l'écran allumé.</p>
-    <div class="guide-btns">
-      <button type="button" onclick="RaceNav.start(10)"><b>km 9,7</b><span>Louviers · ~10h01</span></button>
-      <button type="button" onclick="RaceNav.start(20)"><b>km 20</b><span>D313 · ~10h55</span></button>
-      <button type="button" onclick="RaceNav.start(30)"><b>km 30</b><span>Tournedos · ~11h47</span></button>
+  <section class="card go" aria-labelledby="go-title">
+    <div class="go-head">
+      <span class="go-ic"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l7.5 18-7.5-4.2-7.5 4.2z" fill="#fff"/></svg></span>
+      <div>
+        <h2 id="go-title">Lancer le GPS</h2>
+        <p>Touchez votre point de rendez-vous : guidage vocal par des routes ouvertes uniquement.</p>
+      </div>
     </div>
+    <div class="go-list">
+      <button type="button" class="go-btn" onclick="RaceNav.start(10)" aria-label="Démarrer le GPS vers le km 9,7, Louviers, rond-point de Folleville">
+        <span class="go-km"><b>9,7</b>km</span>
+        <span class="go-t"><b>Louviers · Folleville</b><span>Passage du coureur <i>~10h01</i></span></span>
+        <span class="go-play"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"/></svg><em>Démarrer</em></span>
+      </button>
+      <button type="button" class="go-btn" onclick="RaceNav.start(20)" aria-label="Démarrer le GPS vers le km 20, D313 sous l’A13">
+        <span class="go-km"><b>20</b>km</span>
+        <span class="go-t"><b>D313 sous l’A13</b><span>Passage du coureur <i>~10h55</i></span></span>
+        <span class="go-play"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"/></svg><em>Démarrer</em></span>
+      </button>
+      <button type="button" class="go-btn" onclick="RaceNav.start(30)" aria-label="Démarrer le GPS vers le km 30, Tournedos">
+        <span class="go-km"><b>30</b>km</span>
+        <span class="go-t"><b>Tournedos</b><span>Passage du coureur <i>~11h47</i></span></span>
+        <span class="go-play"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"/></svg><em>Démarrer</em></span>
+      </button>
+    </div>
+    <p class="go-tip"><b>Le parcours est fermé de 8h à 15h.</b> Un autre GPS ne connaît pas les fermetures : suivez ce guidage. Autorisez la localisation et gardez l’écran allumé.</p>
   </section>
 
-  <section class="card" aria-label="Carte du parcours et des trajets">
+  <section class="card" aria-labelledby="map-title">
+    <div class="map-head"><h2 id="map-title">Carte du parcours</h2><p>Touchez un trajet pour voir les étapes</p></div>
     <div id="race-map-wrap" class="rmw">
       <div id="race-tabs" class="rm-tabs" role="tablist" aria-label="Trajets"></div>
       <button type="button" id="race-map-close" class="rm-close" aria-label="Fermer le plein écran" title="Fermer le plein écran" onclick="_toggleRaceMapFS(false)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
