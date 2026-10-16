@@ -1,0 +1,14 @@
+=== Trajet A (A13 → km 9,7)
+  📸 A_autoroute {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":-54,"pitch":60,"zoom":15.5}
+  📸 A_sortie {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":-38,"pitch":60,"zoom":15.4}
+  📸 A_ville {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":-137,"pitch":60,"zoom":15.4}
+  📸 A_vue_ensemble {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":0,"pitch":0,"zoom":14.1}
+  📸 A_recentre {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":-70,"pitch":60,"zoom":15.4}
+=== Trajet B (km 9,7 → km 20)
+  📸 B_rondpoint {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":105,"pitch":60,"zoom":16}
+  📸 B_campagne {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-todo","brg":64,"pitch":60,"zoom":16}
+=== Marche km 30
+  📸 marche_30 {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-walk","brg":48,"pitch":45,"zoom":17.6}
+=== Approche réelle Pont-de-l Arche → km 20
+  📸 approche_depart {"ready":true,"src":"ne2_shaded+openmaptiles+rn-course+rn-appr+rn-todo","brg":0,"pitch":60,"zoom":16.6}
+ERREURS JS : []
