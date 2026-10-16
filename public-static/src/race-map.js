@@ -388,12 +388,6 @@ function initRaceOrgMap(){
     };
     locCtl.addTo(_raceMapInstance);
 
-    const _navUrl = function(t){
-      return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate'
-        + '&destination=' + t.park[0] + ',' + t.park[1]
-        + '&waypoints=' + encodeURIComponent(t.nav.map(function(w){ return w[0] + ',' + w[1]; }).join('|'));
-    };
-
     // ─── Onglets + panneau d'étapes ──────────────────────────────────────────
     const tabsEl = document.getElementById('race-tabs');
     const infoEl = document.getElementById('race-info');
@@ -433,8 +427,7 @@ function initRaceOrgMap(){
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>'
         + '<button type="button" class="rm-nav" onclick="RaceNav.start('+t.rav.km+')">▶ Me guider jusqu\'au '+('km '+t.rav.km)+'</button>'
-        + '<p class="rm-nav-note">Guidage vocal intégré depuis votre position, sur l\'itinéraire sécurisé. Gardez l\'écran allumé. '
-        + 'Autre option : <a href="'+_navUrl(t)+'" target="_blank" rel="noopener">ouvrir dans Google Maps</a>.</p>';
+        + '<p class="rm-nav-note">Guidage vocal intégré, uniquement sur cet itinéraire sécurisé : aucun autre chemin n\'est proposé. Gardez l\'écran allumé.</p>';
     }
 
     let current = 0;

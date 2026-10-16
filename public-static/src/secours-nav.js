@@ -585,11 +585,12 @@ const SecoursNav = (function(){
     if((st.phase === 'locating' || st.phase === 'lost') && startOnFoot()){ rmLine('appr'); toWalk0(); return walk0(); }
     const on = onRoute();
     if(on){
-      if(st.route !== on.k){ st.route = on.k; st.s = on.pr.s; st.sPrev = on.pr.s; st.back = 0; rmLine('appr'); if(st.phase === 'lost') say('Vous êtes sur l\'itinéraire. Le guidage reprend.'); }
+      if(st.route !== on.k){ st.route = on.k; st.s = on.pr.s; st.sPrev = on.pr.s; st.back = 0; rmLine('appr'); }
       // sens de circulation : la position recule le long de l'itinéraire plusieurs fois de suite
       const ds = on.pr.s - st.sPrev; st.sPrev = on.pr.s;
       if(ds < -5 && st.fix.speed > 2) st.back = (st.back || 0) + 1;
       else if(ds > 5){ if(st.back >= 4) st.wrongAt = 0; st.back = 0; }
+      if(st.phase === 'lost'){ rmLine('appr'); say('Vous êtes sur l\'itinéraire. Le guidage reprend.'); }
       st.phase = 'drive'; st.off = 0; st.offT = 0;
       if(st.back >= 4){
         st.s = on.pr.s;

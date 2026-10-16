@@ -1,6 +1,6 @@
 // Guidage GPS intégré (carte « Organisation course » et page /parcours).
 // - Sur nos trajets : suit les itinéraires sûrs pré-calculés (NAV_DATA) avec manœuvres et voix.
-// - Pour rejoindre un trajet : itinéraire d'approche OSRM, refusé s'il coupe le parcours ou une voie fermée.
+// - Aucun itinéraire calculé ailleurs : hors du tracé, indique seulement où rejoindre le départ du trajet.
 
 const RaceNav = (function(){
   const RAD = Math.PI / 180;
@@ -9,7 +9,6 @@ const RaceNav = (function(){
     20: { label: 'Ravito km 20 — D313 sous l\'A13', short: 'km 20', routes: ['B', 'A2'], walk: '20' },
     30: { label: 'km 30 — 24 route de Portejoie (Tournedos)', short: 'km 30', routes: ['C', 'A3'], walk: '30' },
   };
-  const OSRM = 'https://router.project-osrm.org/route/v1/driving/';
   let ctx = null, pending = null;
   let st = null;   // état du guidage en cours
 
@@ -331,7 +330,7 @@ const RaceNav = (function(){
     announce(m, m.at - s, 'walk');
   }
 
-  // ─── approche (OSRM) ─────────────────────────────────────────────────────
+  // ─── hors du trajet : contrôle des fermetures (tests) et retour vers le tracé ───
   function crossesClosed(pts){
     // contrôle sur la partie de l'itinéraire d'approche située dans la zone de course
     const C = ctx.ROUTE, B = NAV_DATA.bridges, GR = NAV_DATA.grade || [];
@@ -358,122 +357,34 @@ const RaceNav = (function(){
     }
     return null;
   }
-  function osrmMan(route){
-    const out = []; let at = 0;
-    route.legs[0].steps.forEach(function(s, k){
-      const mv = s.maneuver, road = s.ref ? s.ref.replace(/\s/g, '') + (s.name ? ' (' + s.name + ')' : '') : s.name;
-      let m = null;
-      const t = mv.type;
-      if(k === 0) m = { type: 'depart', road: road };
-      else if(t === 'roundabout' || t === 'rotary') m = { type: 'roundabout', exit: mv.exit || 1, road: road };
-      else if(t === 'exit roundabout' || t === 'exit rotary') m = null;
-      else if(t === 'off ramp') m = { type: 'exit', ref: (s.exits || '').split(';')[0], dest: (s.destinations || '').split(':').pop().split(',')[0].trim(), road: road };
-      else if(t === 'on ramp') m = { type: 'ramp', dest: (s.destinations || '').split(':').pop().split(',')[0].trim(), road: road };
-      else if(t === 'merge') m = { type: 'merge', road: road };
-      else if(t === 'fork') m = { type: 'fork', mod: mv.modifier, road: road };
-      else if(t === 'arrive') m = { type: 'join', road: '' };
-      else if(t === 'new name' || t === 'continue' && (mv.modifier === 'straight' || !mv.modifier)) m = { type: 'continue', road: road };
-      else if(t === 'notification') m = null;
-      else m = { type: 'turn', mod: mv.modifier || 'straight', road: road };
-      if(m){ m.at = at; out.push(m); }
-      at += s.distance;
-    });
-    return out;
-  }
-  function targets(){
-    const p = [st.fix.lat, st.fix.lon], out = [];
-    DEST[st.dest].routes.forEach(function(k){
-      const L_ = routeLine(k), r = NAV_DATA.routes[k];
-      for(let s = 0; s < L_.len - 200; s += 400){
-        const q = pointAt(L_, s), q2 = pointAt(L_, s + 40);
-        out.push({ k: k, s: s, pt: q, brg: Math.round(bearing(q, q2)), score: dist(p, q) * 1.3 + (L_.len - s) });
-      }
-    });
-    out.sort(function(a, b){ return a.score - b.score; });
-    const pick = [];
-    out.forEach(function(t){ if(pick.length < 5 && pick.every(function(u){ return (u.k !== t.k || Math.abs(u.s - t.s) > 1500) && dist(u.pt, t.pt) > 300; })) pick.push(t); });
-    // en dernier recours : l'entrée des trajets sûrs sur l'A13 (sortie 17), loin de toute fermeture
-    DEST[st.dest].routes.forEach(function(k){
-      if(k.charAt(0) !== 'A' || pick.some(function(u){ return u.k === k && u.s < 1500; })) return;
-      const L_ = routeLine(k), q = pointAt(L_, 300), q2 = pointAt(L_, 340);
-      if(!pick.some(function(u){ return dist(u.pt, q) < 200; })) pick.push({ k: k, s: 300, pt: q, brg: Math.round(bearing(q, q2)) });
-    });
-    return pick;
-  }
-  async function approach(reason){
-    if(!st || st.busy) return;
-    const me = st;
-    st.busy = true; st.lastApproach = Date.now();
-    message(reason === 'off' ? '<b>Itinéraire quitté</b> · recalcul…' : '<b>Calcul de l\'itinéraire…</b>', 'rn-msg');
+  // AUCUN itinéraire calculé ailleurs : le GPS ne suit que les trajets sûrs construits (NAV_DATA).
+  // Hors du tracé, il indique seulement où rejoindre le départ du trajet ; le guidage reprend dès que l'on est dessus.
+  const START_LABEL = {
+    A: 'l\'A13 en venant de Paris, avant la sortie 17 (Gaillon)', A2: 'l\'A13 en venant de Paris, avant la sortie 17 (Gaillon)', A3: 'l\'A13 en venant de Paris, avant la sortie 17 (Gaillon)',
+    B: 'le stationnement du km 10 (rue Dutens, Louviers)', C: 'le stationnement du km 20 (petite route sous l\'A13)',
+  };
+  function approach(reason){
+    if(!st || !st.fix) return;
+    const first = st.phase !== 'lost' || st.lostReason !== reason;
+    st.phase = 'lost'; st.lostReason = reason; st.lastApproach = Date.now();
     const p = [st.fix.lat, st.fix.lon];
-    let ok = null, why = null, first = null;
-    for(const t of targets()){
-      try {
-        const url = OSRM + p[1] + ',' + p[0] + ';' + t.pt[1] + ',' + t.pt[0]
-          + '?overview=full&geometries=geojson&steps=true&bearings=;' + t.brg + ',45&radiuses=;30';
-        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const timer = setTimeout(function(){ if(ctl) ctl.abort(); }, 9000);
-        let js = null;
-        try { const res = await fetch(url, ctl ? { signal: ctl.signal } : {}); js = await res.json(); } finally { clearTimeout(timer); }
-        if(st !== me) return;
-        if(!js || !js.routes || !js.routes[0]) continue;
-        const pts = js.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
-        const bad = crossesClosed(pts);
-        if(bad){ why = bad; if(!first) first = { t: t, pts: pts, route: js.routes[0], d0: dist(p, pts[0]), unsafe: bad }; continue; }
-        ok = { t: t, pts: pts, route: js.routes[0], d0: dist(p, pts[0]) };
-        break;
-      } catch(e) { why = 'réseau'; break; }
+    let tgt, lab, k;
+    if(reason === 'off' && st.route && st.s !== null){
+      k = st.route; const L_ = routeLine(k), pr = project(L_, p, Math.max(0, st.s - 200), st.s + 1500);
+      tgt = pointAt(L_, pr.s); lab = 'l\'itinéraire (tracé bleu)';
+    } else {
+      k = DEST[st.dest].routes.slice().sort(function(a, b){ return dist(p, NAV_DATA.routes[a].line[0]) - dist(p, NAV_DATA.routes[b].line[0]); })[0];
+      tgt = NAV_DATA.routes[k].line[0]; lab = 'le départ du trajet : ' + START_LABEL[k];
     }
-    if(st !== me) return;
-    st.busy = false;
-    // aucun itinéraire vérifié : on guide quand même par le meilleur, avec un avertissement
-    if(!ok && first) ok = first;
-    if(!ok){
-      st.phase = 'lost';
-      const near = targets()[0];
-      message((why === 'réseau'
-          ? '<b>Pas de connexion pour calculer l\'itinéraire.</b><br>Rejoignez le tracé vert sans traverser le parcours rouge. '
-          : '<b>Aucune route ouverte trouvée depuis ici.</b><br>Le parcours fermé vous entoure sans doute : rejoignez le tracé vert sans le traverser, ou suivez les consignes des signaleurs. ')
-        + (near ? 'Point le plus proche : ' + fmtD(dist(p, near.pt)) + ' vers ' + compass(bearing(p, near.pt)) + '.' : ''), 'rn-warn');
-      if(near) drawLine('appr', [p, near.pt], { color: '#1A73E8', weight: 3, dashArray: '4 8', opacity: 0.8, interactive: false });
-      if(!st.lostSaid){ st.lostSaid = true; say('Aucune route ouverte trouvée. Rejoignez l\'itinéraire vert sans traverser le parcours.'); }
-      return;
-    }
-    st.phase = 'approach'; st.apprN = (st.apprN || 0) + 1; st.lostSaid = false;
-    // la position GPS est souvent à quelques dizaines de mètres du point de départ « accroché » à la route par OSRM
-    const lead = ok.d0 > 5 ? [p].concat(ok.pts) : ok.pts;
-    const man = osrmMan(ok.route); if(ok.d0 > 5) man.forEach(function(m){ m.at += ok.d0; });
-    st.appr = { line: mkLine(lead), man: man, t: ok.t, dur: ok.route.duration, unsafe: ok.unsafe || null };
-    drawLine('appr', lead, { color: '#1A73E8', weight: 7, opacity: 0.85, lineCap: 'round', interactive: false });
-    rmLine('todo');
-    const L_ = routeLine(ok.t.k);
-    drawLine('todo', L_.pts.slice(project(L_, ok.t.pt).i - 1), { color: '#1A73E8', weight: 5, opacity: 0.5, lineCap: 'round', interactive: false });
-    say((reason === 'off' ? 'Nouvel itinéraire.' : 'Itinéraire calculé. ' + (st.appr.man[0] ? text(st.appr.man[0], true) + '.' : ''))
-      + (st.appr.unsafe && !st.unsafeSaid ? ' Attention : le début peut emprunter une route fermée le jour de la course.' : ''));
-    if(st.appr.unsafe) st.unsafeSaid = true;
-    step();
+    const d = dist(p, tgt);
+    message('<b>' + (reason === 'off' ? 'Itinéraire quitté' : 'Vous n\'êtes pas sur un trajet prévu') + '</b><br>Rejoignez ' + lab + ' : '
+      + fmtD(d) + ' vers ' + compass(bearing(p, tgt)) + '. Le guidage reprend automatiquement sur le tracé.', 'rn-warn');
+    drawLine('appr', [p, tgt], { color: '#1A73E8', weight: 3, dashArray: '4 8', opacity: 0.8, interactive: false });
+    if(!st.want.todo) drawLine('todo', routeLine(k).pts, { color: '#1A73E8', weight: 5, opacity: 0.5, lineCap: 'round', interactive: false });
+    if(reason !== 'off'){ const wl = NAV_DATA.walks[DEST[st.dest].walk].len; eta(remT(k, 0), wl, NAV_DATA.routes[k].len); }
+    if(first) say(reason === 'off' ? 'Faites demi-tour dès que possible et rejoignez l\'itinéraire.' : 'Vous n\'êtes pas sur un trajet prévu. Rejoignez ' + lab.replace(/\s*\(.*?\)/g, '') + '.');
   }
   const compass = function(b){ return ['le nord', 'le nord-est', 'l\'est', 'le sud-est', 'le sud', 'le sud-ouest', 'l\'ouest', 'le nord-ouest'][Math.round(b / 45) % 8]; };
-  function approachStep(){
-    const A = st.appr, pr = project(A.line, [st.fix.lat, st.fix.lon]);
-    if(pr.d > Math.max(60, st.fix.acc * 1.3)){
-      st.offA = (st.offA || 0) + 1;
-      if(st.offA >= 3 && Date.now() - st.lastApproach > 12000){ st.offA = 0; approach('off'); }
-      return;
-    }
-    st.offA = 0;
-    const ahead = A.man.filter(function(m){ return m.at > pr.s + 3 && m.type !== 'depart'; });
-    const m = ahead[0] || { type: 'join', at: A.line.len }, n = ahead[1];
-    banner(m, m.at - pr.s, n && n.at - m.at < 250 ? n : null);
-    if(A.unsafe){ const nx = ui().top.querySelector('.rn-next'); nx.textContent = '⚠ Itinéraire non vérifié jusqu\'au tracé sûr : il peut passer par une route fermée le jour de la course.'; nx.hidden = false; }
-    const r = NAV_DATA.routes[A.t.k], rem = remT(A.t.k, A.t.s);
-    const wl = NAV_DATA.walks[DEST[st.dest].walk].len;
-    eta(A.dur * (1 - pr.s / A.line.len) + rem, wl, A.line.len - pr.s + r.len - A.t.s);
-    road(curRoad(A.man, pr.s));
-    st.phase = 'approach'; st.route = null;
-    announce(m, m.at - pr.s, 'car');
-  }
-
   // ─── vue 3D (MapLibre) : caméra derrière la voiture, cap toujours en haut ──
   // Repli automatique sur la carte Leaflet 2D si WebGL ou le chargement échoue.
   const CAR_IMG = '/img/nav-car.webp?v=2';
@@ -578,7 +489,6 @@ const RaceNav = (function(){
     const along = function(L_, s){ return bearing(pointAt(L_, s - 5), pointAt(L_, s + 35)); };
     let b = null;
     if(st.phase === 'drive' && st.route && st.s !== null && !(st.back >= 4)) b = along(routeLine(st.route), st.s);
-    else if(st.phase === 'approach' && st.appr){ const pr = project(st.appr.line, p); if(pr.d < 50) b = along(st.appr.line, pr.s); }
     else if(st.phase === 'walk' || st.phase === 'arrived'){ const WL = walkLine(DEST[st.dest].walk), pr = project(WL, p); if(pr.d < 40 && pr.s < WL.len - 15) b = along(WL, pr.s); }
     if(b === null) b = gps;
     if(b === null) return st.lastB === undefined ? 0 : st.lastB;
@@ -633,11 +543,12 @@ const RaceNav = (function(){
     if(st.phase === 'walk') return walk();
     const on = onRoute();
     if(on){
-      if(st.route !== on.k){ st.route = on.k; st.s = on.pr.s; st.sPrev = on.pr.s; st.back = 0; rmLine('appr'); if(st.phase === 'approach') say('Vous êtes sur l\'itinéraire sécurisé.'); }
+      if(st.route !== on.k){ st.route = on.k; st.s = on.pr.s; st.sPrev = on.pr.s; st.back = 0; rmLine('appr'); }
       // sens de circulation : la position recule le long de l'itinéraire plusieurs fois de suite
       const ds = on.pr.s - st.sPrev; st.sPrev = on.pr.s;
       if(ds < -5 && st.fix.speed > 2) st.back = (st.back || 0) + 1;
       else if(ds > 5){ if(st.back >= 4) st.wrongAt = 0; st.back = 0; }
+      if(st.phase === 'lost'){ rmLine('appr'); say('Vous êtes sur l\'itinéraire. Le guidage reprend.'); }
       st.phase = 'drive'; st.off = 0; st.offT = 0;
       if(st.back >= 4){
         st.s = on.pr.s;
@@ -652,11 +563,10 @@ const RaceNav = (function(){
     if(st.phase === 'drive'){
       st.off = (st.off || 0) + 1; st.offT = st.offT || Date.now();
       if(st.off < 3 || Date.now() - st.offT < 5000) return drive();
-      st.off = 0; st.offT = 0; say('Vous avez quitté l\'itinéraire. Recalcul.');
+      st.off = 0; st.offT = 0; say('Vous avez quitté l\'itinéraire.');
       return approach('off');
     }
-    if(st.phase === 'approach' && st.appr) return approachStep();
-    if(st.phase === 'lost' && Date.now() - st.lastApproach > 20000) return approach('start');
+    if(st.phase === 'lost') return approach(st.lostReason);
     if(st.phase === 'locating') return approach('start');
   }
   function onPos(pos){
