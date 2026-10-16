@@ -45,8 +45,8 @@ function initSecoursMap(){
               L.polyline(line, Object.assign({ color: color, weight: weight, opacity: 1, lineJoin: 'round', lineCap: 'round' }, extra || {}))];
     };
     const SH = 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
-    const tag = function(html, bg, fg, w, h){
-      return L.divIcon({ className: '', iconSize: [w, h], iconAnchor: [w / 2, h / 2],
+    const tag = function(html, bg, fg, w, h, ax, ay){
+      return L.divIcon({ className: '', iconSize: [w, h], iconAnchor: [ax === undefined ? w / 2 : ax, ay === undefined ? h / 2 : ay],
         html: '<div style="height:' + h + 'px;display:flex;align-items:center;justify-content:center;gap:5px;padding:0 9px;background:' + bg + ';color:' + fg + ';font:800 11px/1.1 system-ui,sans-serif;border-radius:' + h / 2 + 'px;border:2px solid #fff;white-space:nowrap;' + SH + '">' + html + '</div>' });
     };
 
@@ -79,16 +79,16 @@ function initSecoursMap(){
     });
     // repères
     const P = D.points;
-    L.marker(P.house, { zIndexOffset: 600, icon: tag('🏠 Maison · 24 route de Portejoie', '#C2410C', '#fff', 214, 26) }).bindPopup('<b>Départ à pied</b><br>24 route de Portejoie (Tournedos)').addTo(map);
+    L.marker(P.house, { zIndexOffset: 600, icon: tag('🏠 Maison · 24 route de Portejoie', '#C2410C', '#fff', 214, 26, 204, 40) }).bindPopup('<b>Départ à pied</b><br>24 route de Portejoie (Tournedos)').addTo(map);
     const park = function(p, txt){ return L.marker(p, { zIndexOffset: 500, icon: L.divIcon({ className: '', iconSize: [26, 26], iconAnchor: [13, 13],
       html: '<div style="width:26px;height:26px;border-radius:7px;background:#fff;color:#1D4ED8;border:2px solid #1D4ED8;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:900 14px/1 system-ui,sans-serif;' + SH + '">P</div>' }) }).bindPopup(txt).addTo(map); };
     park(P.car, '<b>Voiture</b><br>Garée la veille route de Tournedos, dans le sens de Val-de-Reuil');
     park(P.park, '<b>Stationnement</b><br>Rue Dutens (Louviers est)');
-    L.marker(P.rdv, { zIndexOffset: 700, icon: tag('<span style="background:#fff;color:#1B4FD8;border-radius:9px;padding:2px 6px;">10</span> RDV · passage ~10h01', '#1B4FD8', '#fff', 176, 28) })
+    L.marker(P.rdv, { zIndexOffset: 700, icon: tag('<span style="background:#fff;color:#1B4FD8;border-radius:9px;padding:2px 6px;">10</span> RDV · passage ~10h01', '#1B4FD8', '#fff', 176, 28, 10, 42) })
       .bindPopup('<b>RDV km 10 — rond-point de Folleville</b><br>Passage de Guillaume environ 10h01').addTo(map);
 
     const bounds = L.polyline(R.line.concat(D.walks.start.line, D.walks.end.line)).getBounds();
-    _secMapRefit = function(){ map.fitBounds(bounds, { padding: [24, 24] }); };
+    _secMapRefit = function(){ map.fitBounds(bounds, { paddingTopLeft: [30, 56], paddingBottomRight: [30, 30] }); };
     _secMapRefit();
 
     // plein écran
