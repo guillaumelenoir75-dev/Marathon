@@ -497,6 +497,7 @@ const RaceNav = (function(){
       glDecorate(); st.glReady = true;
       Object.keys(st.want).forEach(glLine);
       el.classList.add('on');
+      const at = el.querySelector('.maplibregl-ctrl-attrib'); if(at) at.classList.remove('maplibregl-compact-show');   // crédits repliés (bouton ⓘ)
       if(st.fix) glFollow(st.follow);
     });
     m.on('webglcontextlost', function(){ if(st === me) glDestroy(); });
@@ -513,11 +514,13 @@ const RaceNav = (function(){
   function glDecorate(){
     // parcours fermé (rouge à tirets blancs) sous les noms de rues, puis repères P et RDV
     const m = st.gl, before = glBefore(), w = NAV_DATA.walks[DEST[st.dest].walk].line;
+    // bâtiments 3D allégés pour garder l'itinéraire lisible
+    m.getStyle().layers.forEach(function(l){ if(l.type === 'fill-extrusion') m.setPaintProperty(l.id, 'fill-extrusion-opacity', 0.45); });
     m.addSource('rn-course', { type: 'geojson', data: geo(ctx.ROUTE) });
     m.addLayer({ id: 'rn-course', type: 'line', source: 'rn-course', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#D62828', 'line-width': W(6), 'line-opacity': 0.85 } }, before);
     m.addLayer({ id: 'rn-course-d', type: 'line', source: 'rn-course', layout: { 'line-join': 'round' }, paint: { 'line-color': '#fff', 'line-width': W(1.8), 'line-dasharray': [3, 3] } }, before);
     if(!st.glMk){
-      const pin = function(cls, html, p){ const e = document.createElement('div'); e.className = 'rn-pin ' + cls; e.innerHTML = html;
+      const pin = function(cls, html, p){ const e = document.createElement('div'); e.className = 'rn-pin'; e.innerHTML = '<div class="rn-pin-in ' + cls + '">' + html + '</div>';
         return new maplibregl.Marker({ element: e, anchor: 'bottom', pitchAlignment: 'viewport', rotationAlignment: 'viewport' }).setLngLat([p[1], p[0]]).addTo(m); };
       const rav = ctx.RAVITOS[{10: 0, 20: 1, 30: 2}[st.dest]];
       st.glMk = [pin('is-p', '<b>P</b>', w[0]), pin('is-rdv', '<b>' + rav.km + '</b><span>' + rav.heure.replace('~', '') + '</span>', w[w.length - 1])];
