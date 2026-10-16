@@ -1,0 +1,36 @@
+name: Récupération infos Le Vaudreuil (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Article
+        run: |
+          mkdir -p fetch/vdr && cd fetch/vdr
+          curl -sSL -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36" "https://www.ski-nordique.net/marathon-seine-eure-2026-resultats-et-suivi-live.6755009-476262.html" -o article.html || true
+          python3 - <<'PY'
+          import re, html
+          src = open('article.html', encoding='utf-8', errors='ignore').read()
+          txt = re.sub(r'<script.*?</script>|<style.*?</style>|<nav.*?</nav>|<footer.*?</footer>', '', src, flags=re.S)
+          txt = html.unescape(re.sub(r'<[^>]+>', '\n', txt)); txt = re.sub(r'\n\s*\n+', '\n', txt)
+          open('texte.txt', 'w').write(txt)
+          print(len(src), len(txt))
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fetch
+          git commit -m "data: infos Le Vaudreuil (temporaire)" || true
+          git push
