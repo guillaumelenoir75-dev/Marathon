@@ -1,0 +1,46 @@
+name: Récupération arrêté Département (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dossier
+        run: |
+          mkdir -p fetch/dep && cd fetch/dep
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
+          curl -sSL -A "$UA" -c cookies.txt -D headers.txt "https://declaration-manifestations.gouv.fr/dossier/114280/" -o page.html -w "%{http_code} %{url_effective}\n" > status.txt || true
+          cat status.txt
+          python3 - <<'PY'
+          import re, html, urllib.parse, subprocess
+          base = 'https://declaration-manifestations.gouv.fr/dossier/114280/'
+          src = open('page.html', encoding='utf-8', errors='ignore').read()
+          links = sorted(set(urllib.parse.urljoin(base, html.unescape(u)) for u in re.findall(r'href="([^"]+)"', src)))
+          open('links.txt', 'w').write('\n'.join(links))
+          docs = [u for u in links if re.search(r'\.pdf|/document|/download|/fichier|/media|/arrete|piece', u, re.I)]
+          print('\n'.join(docs[:40]))
+          for i, u in enumerate(docs[:20]):
+              subprocess.run(['curl', '-sSL', '-A', 'Mozilla/5.0', '-b', 'cookies.txt', u, '-o', f'doc{i}.bin'])
+          txt = re.sub(r'<script.*?</script>|<style.*?</style>', '', src, flags=re.S)
+          txt = html.unescape(re.sub(r'<[^>]+>', '\n', txt)); txt = re.sub(r'\n\s*\n+', '\n', txt)
+          open('texte.txt', 'w').write(txt)
+          PY
+          rm -f cookies.txt
+          file * || true
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fetch
+          git commit -m "data: dossier Département (temporaire)" || true
+          git push
