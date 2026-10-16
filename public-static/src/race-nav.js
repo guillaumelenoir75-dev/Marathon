@@ -336,6 +336,8 @@ const RaceNav = (function(){
     // contrôle sur la partie de l'itinéraire d'approche située dans la zone de course
     const C = ctx.ROUTE, B = NAV_DATA.bridges, GR = NAV_DATA.grade || [];
     const allowed = function(q){ return B.some(function(b){ return dist(b, q) < 80; }) || GR.some(function(g){ return dist(g, q) < 35; }); };
+    // fermetures limitées dans le temps (ex. chaussée du Vexin 7h-10h), actives seulement pendant leur créneau
+    const now = Date.now(), TZ = (NAV_DATA.timed || []).filter(function(z){ return now >= Date.parse(z.from) && now < Date.parse(z.to); });
     const total = mkLine(pts), skipEnd = total.len - 80;
     for(let i = 0; i < pts.length; i++){
       const p = pts[i];
@@ -344,6 +346,7 @@ const RaceNav = (function(){
       const nearBridge = allowed(p);
       if(!nearBridge && nearPolyline(p, C, 18)) return 'le parcours';
       if(!nearBridge && NAV_DATA.closed.some(function(c){ return nearPolyline(p, c, 10); })) return 'une rue fermée';
+      for(const z of TZ){ if(z.lines.some(function(c){ return nearPolyline(p, c, 10); })) return z.label; }
       // segments longs : échantillonner
       if(i + 1 < pts.length){
         const L2 = dist(p, pts[i+1]);
