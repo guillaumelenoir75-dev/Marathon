@@ -5,7 +5,7 @@
 const RaceNav = (function(){
   const RAD = Math.PI / 180;
   const DEST = {
-    10: { label: 'RDV km 9,7 — rond-point de Folleville', short: 'km 9,7', routes: ['A'], walk: '10' },
+    10: { label: 'RDV km 10 — rond-point de Folleville', short: 'km 10', routes: ['A'], walk: '10' },
     20: { label: 'Ravito km 20 — D313 sous l\'A13', short: 'km 20', routes: ['B', 'A2'], walk: '20' },
     30: { label: 'Ravito km 30 — Tournedos', short: 'km 30', routes: ['C', 'A3'], walk: '30' },
   };
@@ -188,7 +188,7 @@ const RaceNav = (function(){
     const total = remainDriveS + walkM / 1.25, mn = Math.max(1, Math.round(total / 60));
     const dur = mn < 60 ? mn + ' min' : Math.floor(mn / 60) + ' h ' + String(mn % 60).padStart(2, '0');
     u.bot.querySelector('.rn-eta').innerHTML = '<b>' + dur + '</b><i>' + fmtD(remainM === undefined ? walkM : remainM) + '</i>'
-      + '<span>Arrivée ' + hhmm(Date.now() + total * 1000) + ' · ' + DEST[st.dest].short + ' · coureur ' + rav.heure + '</span>';
+      + '<span>Arrivée ' + hhmm(Date.now() + total * 1000) + ' · ' + DEST[st.dest].short + ' · Guillaume ' + rav.heure.replace('~', 'environ ') + '</span>';
   }
 
   // ─── carte ───────────────────────────────────────────────────────────────
@@ -309,8 +309,8 @@ const RaceNav = (function(){
       st.phase = 'arrived';
       const rav = ctx.RAVITOS[{10: 0, 20: 1, 30: 2}[st.dest]];
       road(null);
-      message('<b>Vous êtes arrivé ✔</b><br>' + DEST[st.dest].label + ' · passage du coureur <b>' + rav.heure + '</b>', 'rn-ok');
-      say('Vous êtes arrivé. Passage du coureur vers ' + rav.heure.replace('~', '').replace('h', ' heures ') + '.');
+      message('<b>Vous êtes arrivé ✔</b><br>' + DEST[st.dest].label + ' · passage de Guillaume <b>' + rav.heure.replace('~', 'environ ') + '</b>', 'rn-ok');
+      say('Vous êtes arrivé. Passage de Guillaume vers ' + rav.heure.replace('~', '').replace('h', ' heures ') + '.');
       ui().bot.querySelector('.rn-eta').innerHTML = '<b>Arrivé</b> · bon encouragement !';
       return;
     }

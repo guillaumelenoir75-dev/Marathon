@@ -53,7 +53,7 @@ function initRaceOrgMap(){
 
     // Points ravitaillement (km exacts depuis GPX)
     const RAVITOS = [
-      { km: '9,7', coord: [49.20905, 1.18025], heure: '~10h01', lieu: 'Rond-point de Folleville', rdv: true, side: 's' }, // RDV au bord du rond-point, avant le ravito km 10
+      { km: 10, coord: [49.20905, 1.18025], heure: '~10h01', lieu: 'Rond-point de Folleville', rdv: true, side: 's' }, // RDV au bord du rond-point, avant le ravito km 10
       { km: 20, coord: [49.23748, 1.18973], heure: '~10h55', lieu: 'D313 sous l\'A13', side: 's' },
       { km: 30, coord: [49.27756, 1.25922], heure: '~11h47', lieu: 'Tournedos', side: 's' },
     ];
@@ -409,7 +409,7 @@ function initRaceOrgMap(){
       if(!infoEl) return;
       if(i === 0){
         infoEl.innerHTML = '<div class="rm-guide"><b>🧭 Me guider jusqu\'au point</b><span>GPS intégré, guidage vocal, évite les routes fermées</span><div class="rm-guide-btns">'
-          + TRAJETS.map(function(t){ const k = t.rav.rdv ? 10 : t.rav.km; return '<button type="button" onclick="RaceNav.start('+k+')"><b>'+(t.rav.rdv ? 'km 9,7' : 'km '+t.rav.km)+'</b><span>passage '+t.rav.heure+'</span></button>'; }).join('')
+          + TRAJETS.map(function(t){ const k = t.rav.rdv ? 10 : t.rav.km; return '<button type="button" onclick="RaceNav.start('+k+')"><b>'+('km '+t.rav.km)+'</b><span>passage '+t.rav.heure+'</span></button>'; }).join('')
           + '</div></div>'
           + '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
           + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.<br>Heures de passage estimées d\'après le plan de course (objectif 3h38, départ 9h15), avancées de 5 min pour garder une marge.</p>'
@@ -426,7 +426,7 @@ function initRaceOrgMap(){
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>'
-        + '<button type="button" class="rm-nav" onclick="RaceNav.start('+(t.rav.rdv ? 10 : t.rav.km)+')">▶ Me guider jusqu\'au '+(t.rav.rdv ? 'km 9,7' : 'km '+t.rav.km)+'</button>'
+        + '<button type="button" class="rm-nav" onclick="RaceNav.start('+(t.rav.rdv ? 10 : t.rav.km)+')">▶ Me guider jusqu\'au '+('km '+t.rav.km)+'</button>'
         + '<p class="rm-nav-note">Guidage vocal intégré depuis votre position, sur l\'itinéraire sécurisé. Gardez l\'écran allumé. '
         + 'Autre option : <a href="'+_navUrl(t)+'" target="_blank" rel="noopener">ouvrir dans Google Maps</a>.</p>';
     }
