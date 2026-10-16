@@ -9,7 +9,8 @@
     "rewrites": [
       { "source": "/privacy", "destination": "/privacy.html" },
       { "source": "/legal", "destination": "/legal.html" },
-      { "source": "/parcours", "destination": "/parcours.html" }
+      { "source": "/parcours", "destination": "/parcours.html" },
+      { "source": "/secours", "destination": "/secours.html" }
     ],
     "headers": [
       {
@@ -21,6 +22,12 @@
       },
       {
         "source": "/parcours.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/secours.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache" }
         ]

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Plan de secours · Maison → km 10</title>
+<meta name="description" content="Guidage GPS de secours : du 24 route de Portejoie (Tournedos) au rond-point de Folleville (km 10 du Marathon Seine-Eure), uniquement par des routes ouvertes.">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#7C2D12">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://prepa-marathon.web.app/secours">
+<meta property="og:title" content="Plan de secours · Maison → RDV km 10">
+<meta property="og:description" content="GPS vocal du 24 route de Portejoie jusqu'au km 10 du marathon, sans passer par les routes fermées.">
+<link rel="icon" href="/enpiste-icon-192.png">
+<link rel="stylesheet" href="/src/secours-map.css?v=1">
+<style>
+  :root{--brick:#7C2D12;--brick-2:#9A3412;--navy:#0C447C;--ink:#1f2d3d;--muted:#5b6675;--bg:#F7F1EC;--card:#fff;--line:#EADFD6;--go:#15803D;--go-2:#116B33;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
+  .page{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:14px;}
+  .top{padding:2px 2px 0;}
+  .eyebrow{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9A6A4E;}
+  h1{margin:0;font-size:clamp(25px,6.6vw,32px);line-height:1.1;font-weight:850;letter-spacing:-.02em;color:var(--brick);text-wrap:balance;}
+  .lede{margin:6px 0 0;font-size:14px;line-height:1.4;color:var(--muted);}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;}
+  h2{margin:0;font-size:15px;color:var(--brick);}
+  .go{background:var(--brick);border-color:var(--brick);color:#fff;padding:16px 14px 14px;box-shadow:0 6px 20px rgba(124,45,18,.25);}
+  .go-btn{display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:12px 14px;border:none;border-radius:14px;background:#fff;color:var(--ink);font-family:inherit;text-align:left;cursor:pointer;transition:transform .12s ease;}
+  .go-btn:active{transform:scale(.985);}
+  .go-btn:focus-visible{outline:3px solid #FFD54F;outline-offset:2px;}
+  .go-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .go-t b{font-size:18px;font-weight:850;color:var(--brick);}
+  .go-t span{font-size:13px;line-height:1.3;color:var(--muted);}
+  .go-t i{font-style:normal;font-weight:800;color:var(--ink);}
+  .go-play{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:56px;height:56px;border-radius:50%;background:var(--go);color:#fff;box-shadow:inset 0 -2px 0 var(--go-2);}
+  .go-tip{margin:12px 2px 0;font-size:12.5px;line-height:1.45;color:#FFE4D2;}
+  .go-tip b{color:#fff;}
+  .facts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .fact{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
+  .fact span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .fact b{display:block;margin-top:3px;font-size:19px;font-weight:850;color:var(--navy);font-variant-numeric:tabular-nums;}
+  .fact.hot b{color:#C2410C;}
+  @media (min-width:640px){ .facts{grid-template-columns:repeat(4,1fr);} }
+  .map-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;margin:0 2px 10px;}
+  .map-head p{margin:0;font-size:12px;color:var(--muted);}
+  .card #race-map{height:min(62vh,560px);min-height:340px;}
+  .steps{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;}
+  .steps li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;padding:9px 0;border-top:1px solid #F1E8E1;font-size:14px;line-height:1.4;}
+  .steps li:first-child{border-top:none;}
+  .steps .n{width:26px;height:26px;border-radius:50%;background:var(--go);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;}
+  .steps .n.walk{background:#1D4ED8;}
+  .steps .d{font-size:12.5px;font-weight:800;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .steps b{color:var(--ink);}
+  .note{background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;color:#7C2D12;}
+  .doc{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--ink);background:#fff;}
+  .doc:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+  .doc .t{flex:1;font-size:14px;line-height:1.3;}
+  .doc .t span{display:block;font-size:12px;color:var(--muted);}
+  .doc .dl{font-size:12px;font-weight:800;color:#1B4FD8;}
+  .foot{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted);text-align:center;}
+  @media (prefers-reduced-motion:reduce){ .go-btn{transition:none;} }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <p class="eyebrow">Marathon Seine-Eure · dimanche 18 octobre 2026 · plan de secours</p>
+    <h1>Maison → RDV km 10</h1>
+    <p class="lede">Si les amis ne peuvent pas venir, la famille rejoint Guillaume au km 10 avec la voiture garée la veille route de Tournedos.</p>
+  </header>
+
+  <section class="card go" aria-label="Lancer le GPS">
+    <button type="button" class="go-btn" onclick="SecoursNav.start()" aria-label="Démarrer le GPS de la maison jusqu'au km 10">
+      <span class="go-t"><b>Lancer le GPS</b><span>24 route de Portejoie → rond-point de Folleville (Louviers)<br>Passage de Guillaume <i>environ 10h01</i></span></span>
+      <span class="go-play"><svg width="22" height="22" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"/></svg></span>
+    </button>
+    <p class="go-tip"><b>Quitter la maison avant 9h05.</b> Le GPS guide d'abord à pied jusqu'à la voiture, puis en voiture, puis à pied jusqu'au rond-point, uniquement par des routes ouvertes. Autorisez la localisation et gardez l'écran allumé.</p>
+  </section>
+
+  <div class="facts">
+    <div class="fact"><span>En voiture</span><b>18,4 km</b></div>
+    <div class="fact"><span>Durée</span><b>~20 min</b></div>
+    <div class="fact"><span>À pied</span><b>500 + 430 m</b></div>
+    <div class="fact hot"><span>Quitter la maison</span><b>avant 9h05</b></div>
+  </div>
+
+  <div class="note"><b>La veille (samedi) :</b> garer une voiture route de Tournedos, ~240 m avant le carrefour avec la route de Portejoie, <b>dans le sens de Val-de-Reuil</b> (vers l'ouest), hors de la zone de demi-tour des bus. Cette route reste ouverte le jour de la course.</div>
+
+  <section class="card" aria-labelledby="map-title">
+    <div class="map-head"><h2 id="map-title">Carte de l'itinéraire</h2><p>Étapes numérotées comme ci-dessous</p></div>
+    <div id="race-map-wrap" class="rmw">
+      <button type="button" id="race-map-close" class="rm-close" aria-label="Fermer le plein écran" title="Fermer le plein écran" onclick="_toggleSecMapFS(false)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div id="race-map"><p style="color:#888;font-size:13px;">Chargement de la carte…</p></div>
+      <div class="rm-legend">
+        <span class="course-item"><i class="course"></i><b>Parcours du marathon</b> — routes fermées à la circulation de 8h à 15h</span>
+        <span><i class="car" style="background:#15803D"></i>En voiture</span>
+        <span><i class="walk"></i>À pied</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="steps-title">
+    <h2 id="steps-title">Étapes</h2>
+    <ol class="steps">
+      <li><span class="n walk">🚶</span><span>De la maison, remonter la <b>route de Portejoie</b> vers le nord sur le bas-côté (~260 m), <b>traverser prudemment</b> au carrefour, puis à gauche <b>route de Tournedos</b> jusqu'à la voiture.</span><span class="d">500 m</span></li>
+      <li><span class="n">1</span><span>Partir vers l'<b>ouest</b> sur la <b>route de Tournedos</b>, direction Val-de-Reuil.</span><span class="d">2,2 km</span></li>
+      <li><span class="n">2</span><span>Serrer à <b>gauche</b> : <b>route de Seine</b> (déviation officielle de Val-de-Reuil).</span><span class="d">1,4 km</span></li>
+      <li><span class="n">3</span><span>Au rond-point, 2ᵉ sortie : <b>chaussée du Village</b>.</span><span class="d">810 m</span></li>
+      <li><span class="n">4</span><span>Au rond-point, 3ᵉ sortie : <b>avenue des Falaises</b> (D6154), partie ouverte.</span><span class="d">1,7 km</span></li>
+      <li><span class="n">5</span><span>Au rond-point, 2ᵉ sortie : rester sur la <b>D6154</b>. <b>Ne pas</b> prendre la chaussée du Vexin (fermée jusqu'à 10h).</span><span class="d">940 m</span></li>
+      <li><span class="n">6</span><span>Au rond-point, 3ᵉ sortie : toujours la <b>D6154</b>.</span><span class="d">810 m</span></li>
+      <li><span class="n">7</span><span>Au rond-point suivant, 1ʳᵉ sortie puis bretelle <b>A13 direction Paris</b>.</span><span class="d">440 m</span></li>
+      <li><span class="n">8</span><span><b>A13</b> sur ~5,9 km (viaduc au-dessus du parcours).</span><span class="d">5,9 km</span></li>
+      <li><span class="n">9</span><span>Prendre la <b>sortie 18</b> (Louviers), puis la <b>D6155</b> vers Louviers.</span><span class="d">750 m</span></li>
+      <li><span class="n">10</span><span>Au rond-point, 2ᵉ sortie : <b>D6155</b> (route de Paris).</span><span class="d">3,1 km</span></li>
+      <li><span class="n">11</span><span>Tourner à <b>gauche</b> : <b>D164</b> (route de Pacy). La rue de Paris tout droit est fermée.</span><span class="d">140 m</span></li>
+      <li><span class="n">12</span><span>Tourner à <b>droite</b> : <b>rue Dutens</b>. Se garer en bord de rue.</span><span class="d">210 m</span></li>
+      <li><span class="n walk">🚶</span><span>Rue de l'Adjudant-Chef Mourad, rue de Paris et rond-point du Béquet (ouverts aux piétons), puis la D6155 jusqu'au <b>rond-point de Folleville</b>. Se placer côté sud-ouest, sur le trottoir.</span><span class="d">430 m</span></li>
+    </ol>
+  </section>
+
+  <a class="doc" href="/docs/Plan-de-secours_Maison-km10.pdf" target="_blank" rel="noopener"><span class="t"><b>Fiche PDF du plan de secours</b><span>5 pages, cartes détaillées · à garder sur le téléphone</span></span><span class="dl">PDF</span></a>
+
+  <p class="foot">Itinéraire calculé sur OpenStreetMap en excluant le parcours et les voies fermées par les arrêtés de Louviers, Val-de-Reuil, Poses, Porte-de-Seine, Le Vaudreuil, Saint-Pierre et Saint-Étienne-du-Vauvray.<br>Ensuite, pour les km 20 et 30 : prepa-marathon.web.app/parcours</p>
+</main>
+<script defer src="/src/secours-data.js?v=1"></script>
+<script defer src="/src/secours-map.js?v=1"></script>
+<script defer src="/src/secours-nav.js?v=1"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ initSecoursMap(); });</script>
+</body>
+</html>
