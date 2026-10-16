@@ -208,8 +208,8 @@ function initRaceOrgMap(){
                 'Au rond-point, 1ʳᵉ sortie : <b>D6015</b> vers Val-de-Reuil — elle passe en pont au-dessus du parcours',
                 '<b>D6154</b> puis, au rond-point, <b>avenue des Falaises</b> (partie ouest, ouverte)',
                 'Au rond-point, <b>chaussée du Village</b>, puis au suivant <b>route de Seine</b> (déviation officielle)',
-                'Serrer à droite vers Tournedos ; se garer en bord de route, avant le barrage'],
-        walkStep: '~650 m à pied jusqu\'au ravito (~8 min)' },
+                'Serrer à droite sur la <b>route de Tournedos</b> (ouverte vers Val-de-Reuil) ; se garer en bord de route, hors de la zone de croisement et de demi-tour des bus'],
+        walkStep: '~650 m à pied jusqu\'au ravito (~8 min) : rue Michel Godret (fermée aux voitures dès 9h, ouverte aux piétons) puis route de Poses, sur le bas-côté' },
     ];
     TRAJETS.forEach(function(t, k){
       t.col = CARS[k];
