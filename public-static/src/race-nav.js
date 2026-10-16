@@ -183,12 +183,23 @@ const RaceNav = (function(){
   }
   const curRoad = function(man, s){ let r = null; man.forEach(function(m){ if(m.at <= s + 3 && m.road && m.type !== 'park' && m.type !== 'arrive') r = m.road; }); return r; };
   const hhmm = function(t){ const d = new Date(t); return d.getHours() + 'h' + String(d.getMinutes()).padStart(2, '0'); };
-  function eta(remainDriveS, walkM, remainM){
-    const u = ui(), rav = ctx.RAVITOS[{10: 0, 20: 1, 30: 2}[st.dest]];
-    const total = remainDriveS + walkM / 1.25, mn = Math.max(1, Math.round(total / 60));
-    const dur = mn < 60 ? mn + ' min' : Math.floor(mn / 60) + ' h ' + String(mn % 60).padStart(2, '0');
-    u.bot.querySelector('.rn-eta').innerHTML = '<b>' + dur + '</b><i>' + fmtD(remainM === undefined ? walkM : remainM) + '</i>'
-      + '<span>Arrivée ' + hhmm(Date.now() + total * 1000) + ' · ' + DEST[st.dest].short + ' · Guillaume ' + rav.heure.replace('~', 'environ ') + '</span>';
+  const fmtMin = function(sec){ const mn = Math.max(1, Math.round(sec / 60)); return mn < 60 ? mn + ' min' : Math.floor(mn / 60) + ' h ' + String(mn % 60).padStart(2, '0'); };
+  function eta(driveS, walkM, driveM){
+    // en voiture : temps jusqu'au stationnement (en gros), la marche est indiquée à part
+    const u = ui(), rav = ctx.RAVITOS[{10: 0, 20: 1, 30: 2}[st.dest]], walkS = walkM / 1.25;
+    const arr = 'Arrivée au point ' + hhmm(Date.now() + (driveS + walkS) * 1000) + ' · Guillaume ' + rav.heure.replace('~', 'environ ');
+    u.bot.querySelector('.rn-eta').innerHTML = driveS > 0
+      ? '<b>' + fmtMin(driveS) + '</b><i>' + fmtD(driveM) + '</i><span>puis ' + fmtMin(walkS) + ' à pied · ' + arr + '</span>'
+      : '<b>' + fmtMin(walkS) + '</b><i>' + fmtD(walkM) + ' à pied</i><span>' + arr + '</span>';
+  }
+  function remT(k, s){
+    // temps restant sur un trajet sûr, tronçon par tronçon (limitations de vitesse OSM)
+    const r = NAV_DATA.routes[k], L_ = routeLine(k);
+    if(!r.tt) return (L_.len - s) * r.t / r.len;
+    s = Math.max(0, Math.min(L_.len, s));
+    let i = 1; while(i < L_.cum.length - 1 && L_.cum[i] < s) i++;
+    const f = (s - L_.cum[i-1]) / ((L_.cum[i] - L_.cum[i-1]) || 1);
+    return r.tt[r.tt.length - 1] - (r.tt[i-1] + (r.tt[i] - r.tt[i-1]) * f);
   }
 
   // ─── carte ───────────────────────────────────────────────────────────────
@@ -267,7 +278,7 @@ const RaceNav = (function(){
     let i0 = 1; while(i0 < L_.pts.length - 1 && L_.cum[i0] <= st.s) i0++;
     drawLine('todo', [pointAt(L_, st.s)].concat(L_.pts.slice(i0)), { color: '#1A73E8', weight: 7, opacity: 0.9, lineCap: 'round', interactive: false });
     const wl = NAV_DATA.walks[DEST[st.dest].walk].len;
-    eta((L_.len - st.s) * r.t / r.len, wl, L_.len - st.s + wl);
+    eta(remT(st.route, st.s), wl, L_.len - st.s);
     road(curRoad(r.man, st.s));
     ui().bot.querySelector('.rn-parked').hidden = L_.len - st.s > 400;
     announce(m, dM, 'car');
@@ -452,9 +463,9 @@ const RaceNav = (function(){
     const m = ahead[0] || { type: 'join', at: A.line.len }, n = ahead[1];
     banner(m, m.at - pr.s, n && n.at - m.at < 250 ? n : null);
     if(A.unsafe){ const nx = ui().top.querySelector('.rn-next'); nx.textContent = '⚠ Itinéraire non vérifié jusqu\'au tracé sûr : il peut passer par une route fermée le jour de la course.'; nx.hidden = false; }
-    const r = NAV_DATA.routes[A.t.k], rem = (r.len - A.t.s) * r.t / r.len;
+    const r = NAV_DATA.routes[A.t.k], rem = remT(A.t.k, A.t.s);
     const wl = NAV_DATA.walks[DEST[st.dest].walk].len;
-    eta(A.dur * (1 - pr.s / A.line.len) + rem, wl, A.line.len - pr.s + r.len - A.t.s + wl);
+    eta(A.dur * (1 - pr.s / A.line.len) + rem, wl, A.line.len - pr.s + r.len - A.t.s);
     road(curRoad(A.man, pr.s));
     st.phase = 'approach'; st.route = null;
     announce(m, m.at - pr.s, 'car');
