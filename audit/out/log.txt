@@ -1,0 +1,5 @@
+statut 200 https://prepa-marathon.web.app/secours
+maison walk0 | 250 m | Tournez à gauche sur Route de Tournedos
+voiture drive | 2 | 1,7 km | Au rond-point, prenez la 2e sortie vers D6154
+parcours toujours en ligne : 200
+ERREURS []
