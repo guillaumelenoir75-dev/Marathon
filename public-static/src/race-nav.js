@@ -233,7 +233,7 @@ const RaceNav = (function(){
     const f = st.fix, ll = [f.lat, f.lon];
     if(!st.me){
       const ic = L.divIcon({ className: '', iconSize: [72, 60], iconAnchor: [36, 52],
-        html: '<div class="rn-car rn-car-2d"><i class="rn-car-sh"></i><img src="' + CAR_IMG + '" alt="" width="72" height="60" draggable="false"></div>' });
+        html: '<div class="rn-car rn-car-2d"><i class="rn-car-sh"></i><img src="' + CAR_IMG + '" alt="" width="72" height="61" draggable="false"></div>' });
       st.acc = L.circle(ll, { radius: f.acc, color: '#1A73E8', weight: 1, opacity: 0.35, fillColor: '#1A73E8', fillOpacity: 0.08, interactive: false }).addTo(ctx.map);
       st.me = L.marker(ll, { icon: ic, zIndexOffset: 2000, interactive: false, keyboard: false }).addTo(ctx.map);
     } else { st.me.setLatLng(ll); st.acc.setLatLng(ll).setRadius(f.acc); }
@@ -462,7 +462,7 @@ const RaceNav = (function(){
 
   // ─── vue 3D (MapLibre) : caméra derrière la voiture, cap toujours en haut ──
   // Repli automatique sur la carte Leaflet 2D si WebGL ou le chargement échoue.
-  const CAR_IMG = '/img/nav-car.webp?v=1';
+  const CAR_IMG = '/img/nav-car.webp?v=2';
   const GL_CDN = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/';
   const STYLE_VEC = 'https://tiles.openfreemap.org/styles/liberty';
   const STYLE_RASTER = { version: 8, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19,
@@ -579,7 +579,7 @@ const RaceNav = (function(){
     if(!st.puck){
       // la petite voiture reste debout face à l'écran ; c'est la carte qui tourne sous elle
       const e = document.createElement('div'); e.className = 'rn-car';
-      e.innerHTML = '<i class="rn-car-sh"></i><img src="' + CAR_IMG + '" alt="" width="100" height="83" draggable="false">';
+      e.innerHTML = '<i class="rn-car-sh"></i><img src="' + CAR_IMG + '" alt="" width="100" height="85" draggable="false">';
       st.puck = new maplibregl.Marker({ element: e, anchor: 'bottom', offset: [0, 10], rotationAlignment: 'viewport', pitchAlignment: 'viewport' }).setLngLat(to).addTo(m);
     }
     let a = st.ga;
