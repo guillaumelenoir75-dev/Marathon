@@ -114,7 +114,7 @@ const RaceNav = (function(){
   function say(txt, force){
     if(!st || (!st.voice && !force) || !('speechSynthesis' in window)) return;
     try {
-      speechSynthesis.cancel();
+      if(speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(txt);
       u.lang = 'fr-FR'; if(frVoice) u.voice = frVoice; u.rate = 1.02;
       speechSynthesis.speak(u);
@@ -274,13 +274,14 @@ const RaceNav = (function(){
   // ─── approche (OSRM) ─────────────────────────────────────────────────────
   function crossesClosed(pts){
     // contrôle sur la partie de l'itinéraire d'approche située dans la zone de course
-    const C = ctx.ROUTE, B = NAV_DATA.bridges;
+    const C = ctx.ROUTE, B = NAV_DATA.bridges, GR = NAV_DATA.grade || [];
+    const allowed = function(q){ return B.some(function(b){ return dist(b, q) < 80; }) || GR.some(function(g){ return dist(g, q) < 35; }); };
     const total = mkLine(pts), skipEnd = total.len - 80;
     for(let i = 0; i < pts.length; i++){
       const p = pts[i];
       if(p[0] < 49.13 || p[0] > 49.33 || p[1] < 1.12 || p[1] > 1.32) continue;
       if(total.cum[i] > skipEnd || total.cum[i] < 40) continue;
-      const nearBridge = B.some(function(b){ return dist(b, p) < 80; });
+      const nearBridge = allowed(p);
       if(!nearBridge && nearPolyline(p, C, 18)) return 'le parcours';
       if(!nearBridge && NAV_DATA.closed.some(function(c){ return nearPolyline(p, c, 10); })) return 'une rue fermée';
       // segments longs : échantillonner
@@ -288,7 +289,7 @@ const RaceNav = (function(){
         const L2 = dist(p, pts[i+1]);
         for(let f = 25; f < L2; f += 25){
           const q = [p[0] + (pts[i+1][0]-p[0]) * f / L2, p[1] + (pts[i+1][1]-p[1]) * f / L2];
-          if(!B.some(function(b){ return dist(b, q) < 80; }) && nearPolyline(q, C, 18)) return 'le parcours';
+          if(!allowed(q) && nearPolyline(q, C, 18)) return 'le parcours';
         }
       }
     }
@@ -331,7 +332,8 @@ const RaceNav = (function(){
     return pick;
   }
   async function approach(reason){
-    if(st.busy) return;
+    if(!st || st.busy) return;
+    const me = st;
     st.busy = true; st.lastApproach = Date.now();
     message(reason === 'off' ? '<b>Itinéraire quitté</b> · recalcul…' : '<b>Calcul de l\'itinéraire…</b>', 'rn-msg');
     const p = [st.fix.lat, st.fix.lon];
@@ -340,31 +342,38 @@ const RaceNav = (function(){
       try {
         const url = OSRM + p[1] + ',' + p[0] + ';' + t.pt[1] + ',' + t.pt[0]
           + '?overview=full&geometries=geojson&steps=true&bearings=;' + t.brg + ',45&radiuses=;30';
-        const res = await fetch(url);
-        const js = await res.json();
-        if(!js.routes || !js.routes[0]) continue;
+        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = setTimeout(function(){ if(ctl) ctl.abort(); }, 9000);
+        let js = null;
+        try { const res = await fetch(url, ctl ? { signal: ctl.signal } : {}); js = await res.json(); } finally { clearTimeout(timer); }
+        if(st !== me) return;
+        if(!js || !js.routes || !js.routes[0]) continue;
         const pts = js.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
         const bad = crossesClosed(pts);
         if(bad){ why = bad; continue; }
-        ok = { t: t, pts: pts, route: js.routes[0] };
+        ok = { t: t, pts: pts, route: js.routes[0], d0: dist(p, pts[0]) };
         break;
       } catch(e) { why = 'réseau'; break; }
     }
+    if(st !== me) return;
     st.busy = false;
-    if(!st || st.phase === 'stopped') return;
     if(!ok){
       st.phase = 'lost';
       const near = targets()[0];
-      message('<b>Rejoignez le tracé vert sans traverser le parcours rouge.</b><br>'
-        + (near ? 'Point le plus proche : ' + fmtD(dist(p, near.pt)) + ' vers ' + compass(bearing(p, near.pt)) + '.' : '')
-        + (why === 'réseau' ? ' (pas de connexion pour calculer un itinéraire)' : ''), 'rn-warn');
+      message((why === 'réseau'
+          ? '<b>Pas de connexion pour calculer l\'itinéraire.</b><br>Rejoignez le tracé vert sans traverser le parcours rouge. '
+          : '<b>Aucune route ouverte trouvée depuis ici.</b><br>Le parcours fermé vous entoure sans doute : rejoignez le tracé vert sans le traverser, ou suivez les consignes des signaleurs. ')
+        + (near ? 'Point le plus proche : ' + fmtD(dist(p, near.pt)) + ' vers ' + compass(bearing(p, near.pt)) + '.' : ''), 'rn-warn');
       if(near) drawLine('appr', [p, near.pt], { color: '#1A73E8', weight: 3, dashArray: '4 8', opacity: 0.8, interactive: false });
-      say('Rejoignez l\'itinéraire vert, sans traverser le parcours.');
+      if(!st.lostSaid){ st.lostSaid = true; say('Aucune route ouverte trouvée. Rejoignez l\'itinéraire vert sans traverser le parcours.'); }
       return;
     }
-    st.phase = 'approach'; st.apprN = (st.apprN || 0) + 1;
-    st.appr = { line: mkLine(ok.pts), man: osrmMan(ok.route), t: ok.t, dur: ok.route.duration };
-    drawLine('appr', ok.pts, { color: '#1A73E8', weight: 7, opacity: 0.85, lineCap: 'round', interactive: false });
+    st.phase = 'approach'; st.apprN = (st.apprN || 0) + 1; st.lostSaid = false;
+    // la position GPS est souvent à quelques dizaines de mètres du point de départ « accroché » à la route par OSRM
+    const lead = ok.d0 > 5 ? [p].concat(ok.pts) : ok.pts;
+    const man = osrmMan(ok.route); if(ok.d0 > 5) man.forEach(function(m){ m.at += ok.d0; });
+    st.appr = { line: mkLine(lead), man: man, t: ok.t, dur: ok.route.duration };
+    drawLine('appr', lead, { color: '#1A73E8', weight: 7, opacity: 0.85, lineCap: 'round', interactive: false });
     if(st.layers.todo) st.layers.todo.remove();
     const L_ = routeLine(ok.t.k);
     drawLine('todo', L_.pts.slice(project(L_, ok.t.pt).i - 1), { color: '#1A73E8', weight: 5, opacity: 0.5, lineCap: 'round', interactive: false });
@@ -395,14 +404,26 @@ const RaceNav = (function(){
     if(st.phase === 'walk') return walk();
     const on = onRoute();
     if(on){
-      if(st.route !== on.k){ st.route = on.k; st.s = on.pr.s; if(st.layers.appr) st.layers.appr.remove(); if(st.phase === 'approach') say('Vous êtes sur l\'itinéraire sécurisé.'); }
-      st.s = Math.max(st.s - 30, on.pr.s); st.phase = 'drive'; st.off = 0;
+      if(st.route !== on.k){ st.route = on.k; st.s = on.pr.s; st.sPrev = on.pr.s; st.back = 0; if(st.layers.appr) st.layers.appr.remove(); if(st.phase === 'approach') say('Vous êtes sur l\'itinéraire sécurisé.'); }
+      // sens de circulation : la position recule le long de l'itinéraire plusieurs fois de suite
+      const ds = on.pr.s - st.sPrev; st.sPrev = on.pr.s;
+      if(ds < -5 && st.fix.speed > 2) st.back = (st.back || 0) + 1;
+      else if(ds > 5){ if(st.back >= 4) st.wrongAt = 0; st.back = 0; }
+      st.phase = 'drive'; st.off = 0; st.offT = 0;
+      if(st.back >= 4){
+        st.s = on.pr.s;
+        banner({ type: 'uturn' }, null, null, 'rn-warn');
+        ui().top.querySelector('.rn-txt').textContent = 'Mauvais sens : faites demi-tour dès que possible';
+        if(!st.wrongAt || Date.now() - st.wrongAt > 45000){ st.wrongAt = Date.now(); say('Vous roulez dans le mauvais sens. Faites demi-tour dès que possible.'); }
+        return;
+      }
+      st.s = Math.max(st.s - 30, on.pr.s);
       return drive();
     }
     if(st.phase === 'drive'){
-      st.off = (st.off || 0) + 1;
-      if(st.off < 3) return drive();
-      st.off = 0; say('Vous avez quitté l\'itinéraire. Recalcul.');
+      st.off = (st.off || 0) + 1; st.offT = st.offT || Date.now();
+      if(st.off < 3 || Date.now() - st.offT < 5000) return drive();
+      st.off = 0; st.offT = 0; say('Vous avez quitté l\'itinéraire. Recalcul.');
       return approach('off');
     }
     if(st.phase === 'approach' && st.appr) return approachStep();
@@ -467,5 +488,5 @@ const RaceNav = (function(){
     if(pending !== null){ const d = pending; pending = null; start(d); }
   }
   function active(){ return !!st; }
-  return { attach: attach, start: start, stop: stop, active: active, DEST: DEST, _state: function(){ return st; } };
+  return { attach: attach, start: start, stop: stop, active: active, DEST: DEST, _state: function(){ return st; }, _check: function(pts){ return crossesClosed(pts); } };
 })();
