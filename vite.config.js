@@ -5,7 +5,7 @@ import { resolve } from 'path';
 // Ordre de chargement exact des scripts classiques (dépendances respectées)
 const scriptFiles = [
   'config.js', 'firebase.js', 'auth.js', 'onboarding.js',
-  'plan-generate.js', 'plan-admin.js', 'race-map.js', 'plan-state.js', 'plan-predict.js',
+  'plan-generate.js', 'plan-admin.js', 'race-map.js', 'race-nav-data.js', 'race-nav.js', 'plan-state.js', 'plan-predict.js',
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
@@ -13,7 +13,7 @@ const scriptFiles = [
 ];
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours
-const keepFiles = ['race-map.js'];
+const keepFiles = ['race-map.js', 'race-nav-data.js', 'race-nav.js'];
 
 function bundleClassicScripts() {
   return {

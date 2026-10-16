@@ -11,6 +11,7 @@ function _toggleRaceMapFS(force){
   const wrap = document.getElementById('race-map-wrap');
   if(!wrap) return;
   _raceMapFullscreen = typeof force === 'boolean' ? force : !_raceMapFullscreen;
+  if(!_raceMapFullscreen && typeof RaceNav !== 'undefined' && RaceNav.active()) RaceNav.stop(true);
   wrap.classList.toggle('is-fs', _raceMapFullscreen);
   document.body.style.overflow = _raceMapFullscreen ? 'hidden' : '';
   if(_raceMapFullscreen){ const c = document.getElementById('race-map-close'); if(c) c.focus(); }
@@ -400,14 +401,17 @@ function initRaceOrgMap(){
       if(i === 0){ sumEl.innerHTML = leg + '<b>Choisissez votre trajet</b> · touchez Trajet 1, 2 ou 3 en haut'; return; }
       const t = TRAJETS[i - 1];
       sumEl.innerHTML = leg + '<b>'+t.tab+' · '+t.sub+'</b><br>🚗 '+t.km+' · ⏱ ~'+t.min+' · 🚶 '+t.marche+' · ravito '+t.rav.heure
-        + '<a class="rm-nav sm" href="'+_navUrl(t)+'" target="_blank" rel="noopener">▶ Guidage GPS</a>';
+        + '<button type="button" class="rm-nav sm" onclick="RaceNav.start('+(t.rav.rdv ? 10 : t.rav.km)+')">▶ Me guider</button>';
     }
 
     function renderInfo(i){
       renderSum(i);
       if(!infoEl) return;
       if(i === 0){
-        infoEl.innerHTML = '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
+        infoEl.innerHTML = '<div class="rm-guide"><b>🧭 Me guider jusqu\'au point</b><span>GPS intégré, guidage vocal, évite les routes fermées</span><div class="rm-guide-btns">'
+          + TRAJETS.map(function(t){ const k = t.rav.rdv ? 10 : t.rav.km; return '<button type="button" onclick="RaceNav.start('+k+')"><b>'+(t.rav.rdv ? 'km 9,7' : 'km '+t.rav.km)+'</b><span>passage '+t.rav.heure+'</span></button>'; }).join('')
+          + '</div></div>'
+          + '<div class="rm-head"><b>Choisissez votre trajet</b><span>Dim. 18 oct. · départ 9h15</span></div>'
           + '<p class="rm-hint">Touchez un trajet pour voir les étapes, où se garer et le chemin à pied.<br>Heures de passage estimées d\'après le plan de course (objectif 3h38, départ 9h15), avancées de 5 min pour garder une marge.</p>'
           + TRAJETS.map(function(t, k){
               return '<button type="button" class="rm-row" data-tab="'+(k+1)+'"><span class="n" style="background:'+t.col.c+';color:'+t.col.ink+'">'+(k+1)+'</span>'
@@ -422,8 +426,9 @@ function initRaceOrgMap(){
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>'
-        + '<a class="rm-nav" href="'+_navUrl(t)+'" target="_blank" rel="noopener">▶ Guidage GPS (Google Maps)</a>'
-        + '<p class="rm-nav-note">Le guidage passe par nos points de passage pour éviter le parcours fermé. Gardez cette carte ouverte et touchez ◎ pour voir votre position.</p>';
+        + '<button type="button" class="rm-nav" onclick="RaceNav.start('+(t.rav.rdv ? 10 : t.rav.km)+')">▶ Me guider jusqu\'au '+(t.rav.rdv ? 'km 9,7' : 'km '+t.rav.km)+'</button>'
+        + '<p class="rm-nav-note">Guidage vocal intégré depuis votre position, sur l\'itinéraire sécurisé. Gardez l\'écran allumé. '
+        + 'Autre option : <a href="'+_navUrl(t)+'" target="_blank" rel="noopener">ouvrir dans Google Maps</a>.</p>';
     }
 
     let current = 0;
@@ -484,6 +489,8 @@ function initRaceOrgMap(){
       });
     }
     select(0);
+    window._raceCtx = { map: _raceMapInstance, TRAJETS: TRAJETS, RAVITOS: RAVITOS, ROUTE: ROUTE, select: select, gpsStop: _gpsStop };
+    if(typeof RaceNav !== 'undefined') RaceNav.attach(window._raceCtx);
   }
 
   // Chargement dynamique de Leaflet
