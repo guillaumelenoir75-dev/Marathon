@@ -152,3 +152,7 @@ button.rm-nav.sm{width:auto;}
 .rn-pin-in.is-rdv span{font-size:12px;font-weight:700;opacity:.92;}
 .rn-pin-in.is-rdv::after{content:"";position:absolute;left:50%;bottom:-10px;margin-left:-7px;border:7px solid transparent;border-top:8px solid #fff;border-bottom:0;}
 @media (prefers-reduced-motion: reduce){.rn-gl{transition:none;}}
+.rn-car{position:relative;width:100px;height:83px;pointer-events:none;}
+.rn-car img{position:relative;display:block;width:100%;height:100%;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35));-webkit-user-select:none;user-select:none;}
+.rn-car-sh{position:absolute;left:12%;right:12%;bottom:2px;height:16px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.35),rgba(0,0,0,0));}
+.rn-car.rn-car-2d{width:72px;height:60px;}

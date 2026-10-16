@@ -231,13 +231,12 @@ const RaceNav = (function(){
   }
   function drawMe(){
     const f = st.fix, ll = [f.lat, f.lon];
-    const head = f.heading !== null && !isNaN(f.heading) && f.speed > 1 ? f.heading : null;
-    const ic = L.divIcon({ className: '', iconSize: [40, 40], iconAnchor: [20, 20],
-      html: '<div class="rn-me">' + (head !== null ? '<div class="rn-me-cone" style="transform:rotate(' + Math.round(head) + 'deg)"></div>' : '') + '<div class="rn-me-dot"></div></div>' });
     if(!st.me){
+      const ic = L.divIcon({ className: '', iconSize: [72, 60], iconAnchor: [36, 52],
+        html: '<div class="rn-car rn-car-2d"><i class="rn-car-sh"></i><img src="' + CAR_IMG + '" alt="" width="72" height="60" draggable="false"></div>' });
       st.acc = L.circle(ll, { radius: f.acc, color: '#1A73E8', weight: 1, opacity: 0.35, fillColor: '#1A73E8', fillOpacity: 0.08, interactive: false }).addTo(ctx.map);
       st.me = L.marker(ll, { icon: ic, zIndexOffset: 2000, interactive: false, keyboard: false }).addTo(ctx.map);
-    } else { st.me.setLatLng(ll).setIcon(ic); st.acc.setLatLng(ll).setRadius(f.acc); }
+    } else { st.me.setLatLng(ll); st.acc.setLatLng(ll).setRadius(f.acc); }
   }
 
   // ─── routes ──────────────────────────────────────────────────────────────
@@ -452,6 +451,7 @@ const RaceNav = (function(){
 
   // ─── vue 3D (MapLibre) : caméra derrière la voiture, cap toujours en haut ──
   // Repli automatique sur la carte Leaflet 2D si WebGL ou le chargement échoue.
+  const CAR_IMG = '/img/nav-car.webp?v=1';
   const GL_CDN = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/';
   const STYLE_VEC = 'https://tiles.openfreemap.org/styles/liberty';
   const STYLE_RASTER = { version: 8, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19,
@@ -566,11 +566,11 @@ const RaceNav = (function(){
     const m = st.gl; if(!m || !st.glReady || !st.fix) return;
     const to = [st.fix.lon, st.fix.lat], b = headingNow();
     if(!st.puck){
-      const e = document.createElement('div'); e.className = 'rn-puck';
-      e.innerHTML = '<svg class="rn-arrow" viewBox="0 0 48 48" width="56" height="56" aria-hidden="true"><path d="M24 5 L39 41 L24 33 L9 41 Z" fill="#1A73E8" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg><i class="rn-dot"></i>';
-      st.puck = new maplibregl.Marker({ element: e, rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat(to).addTo(m);
+      // la petite voiture reste debout face à l'écran ; c'est la carte qui tourne sous elle
+      const e = document.createElement('div'); e.className = 'rn-car';
+      e.innerHTML = '<i class="rn-car-sh"></i><img src="' + CAR_IMG + '" alt="" width="100" height="83" draggable="false">';
+      st.puck = new maplibregl.Marker({ element: e, anchor: 'bottom', offset: [0, 10], rotationAlignment: 'viewport', pitchAlignment: 'viewport' }).setLngLat(to).addTo(m);
     }
-    st.puck.getElement().classList.toggle('is-dot', !st.hasB);
     let a = st.ga;
     if(!a){ a = st.ga = { cur: to, curB: b, raf: 0 }; force = st.follow; }
     const jump = dist([a.cur[1], a.cur[0]], [to[1], to[0]]) > 400;
@@ -588,7 +588,7 @@ const RaceNav = (function(){
     const t = a.dur ? Math.min(1, (performance.now() - a.t0) / a.dur) : 1;
     a.cur = [a.from[0] + (a.to[0] - a.from[0]) * t, a.from[1] + (a.to[1] - a.from[1]) * t];
     a.curB = (a.b0 + angD(a.b0, a.b1) * t + 360) % 360;
-    st.puck.setLngLat(a.cur).setRotation(a.curB);
+    st.puck.setLngLat(a.cur);
     let more = t < 1;
     if(st.follow && !st.overview){
       if(Date.now() < (st.glHold || 0)) more = true;
