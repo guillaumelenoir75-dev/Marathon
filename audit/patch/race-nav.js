@@ -484,9 +484,11 @@ const RaceNav = (function(){
     let m;
     try {
       m = new maplibregl.Map({ container: el, style: STYLE_VEC, center: st.fix ? [st.fix.lon, st.fix.lat] : [1.2, 49.24], zoom: st.fix ? 15 : 10,
-        maxPitch: 70, attributionControl: { compact: true }, fadeDuration: 0, dragRotate: false, pitchWithRotate: false });
+        maxPitch: 70, attributionControl: false, fadeDuration: 0, dragRotate: false, pitchWithRotate: false });
     } catch(e) { el.remove(); return; }
     st.gl = m; st.glEl = el;
+    const cr = document.createElement('a'); cr.className = 'rn-credit'; cr.href = 'https://www.openstreetmap.org/copyright'; cr.target = '_blank'; cr.rel = 'noopener';
+    cr.textContent = '© OpenStreetMap · OpenMapTiles · OpenFreeMap'; el.appendChild(cr);
     let raster = false;
     const toRaster = function(){ if(raster || st !== me || st.glReady) return; raster = true; m.setStyle(STYLE_RASTER); };
     const tmo = setTimeout(toRaster, 8000);                 // style vectoriel trop lent ou bloqué → tuiles OSM classiques
@@ -497,7 +499,6 @@ const RaceNav = (function(){
       glDecorate(); st.glReady = true;
       Object.keys(st.want).forEach(glLine);
       el.classList.add('on');
-      const at = el.querySelector('.maplibregl-ctrl-attrib'); if(at) at.classList.remove('maplibregl-compact-show');   // crédits repliés (bouton ⓘ)
       if(st.fix) glFollow(st.follow);
     });
     m.on('webglcontextlost', function(){ if(st === me) glDestroy(); });
