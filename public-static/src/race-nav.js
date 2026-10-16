@@ -377,7 +377,13 @@ const RaceNav = (function(){
     });
     out.sort(function(a, b){ return a.score - b.score; });
     const pick = [];
-    out.forEach(function(t){ if(pick.length < 5 && pick.every(function(u){ return u.k !== t.k || Math.abs(u.s - t.s) > 1500; })) pick.push(t); });
+    out.forEach(function(t){ if(pick.length < 5 && pick.every(function(u){ return (u.k !== t.k || Math.abs(u.s - t.s) > 1500) && dist(u.pt, t.pt) > 300; })) pick.push(t); });
+    // en dernier recours : l'entrée des trajets sûrs sur l'A13 (sortie 17), loin de toute fermeture
+    DEST[st.dest].routes.forEach(function(k){
+      if(k.charAt(0) !== 'A' || pick.some(function(u){ return u.k === k && u.s < 1500; })) return;
+      const L_ = routeLine(k), q = pointAt(L_, 300), q2 = pointAt(L_, 340);
+      if(!pick.some(function(u){ return dist(u.pt, q) < 200; })) pick.push({ k: k, s: 300, pt: q, brg: Math.round(bearing(q, q2)) });
+    });
     return pick;
   }
   async function approach(reason){
@@ -386,7 +392,7 @@ const RaceNav = (function(){
     st.busy = true; st.lastApproach = Date.now();
     message(reason === 'off' ? '<b>Itinéraire quitté</b> · recalcul…' : '<b>Calcul de l\'itinéraire…</b>', 'rn-msg');
     const p = [st.fix.lat, st.fix.lon];
-    let ok = null, why = null;
+    let ok = null, why = null, first = null;
     for(const t of targets()){
       try {
         const url = OSRM + p[1] + ',' + p[0] + ';' + t.pt[1] + ',' + t.pt[0]
@@ -399,13 +405,15 @@ const RaceNav = (function(){
         if(!js || !js.routes || !js.routes[0]) continue;
         const pts = js.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
         const bad = crossesClosed(pts);
-        if(bad){ why = bad; continue; }
+        if(bad){ why = bad; if(!first) first = { t: t, pts: pts, route: js.routes[0], d0: dist(p, pts[0]), unsafe: bad }; continue; }
         ok = { t: t, pts: pts, route: js.routes[0], d0: dist(p, pts[0]) };
         break;
       } catch(e) { why = 'réseau'; break; }
     }
     if(st !== me) return;
     st.busy = false;
+    // aucun itinéraire vérifié : on guide quand même par le meilleur, avec un avertissement
+    if(!ok && first) ok = first;
     if(!ok){
       st.phase = 'lost';
       const near = targets()[0];
@@ -421,12 +429,14 @@ const RaceNav = (function(){
     // la position GPS est souvent à quelques dizaines de mètres du point de départ « accroché » à la route par OSRM
     const lead = ok.d0 > 5 ? [p].concat(ok.pts) : ok.pts;
     const man = osrmMan(ok.route); if(ok.d0 > 5) man.forEach(function(m){ m.at += ok.d0; });
-    st.appr = { line: mkLine(lead), man: man, t: ok.t, dur: ok.route.duration };
+    st.appr = { line: mkLine(lead), man: man, t: ok.t, dur: ok.route.duration, unsafe: ok.unsafe || null };
     drawLine('appr', lead, { color: '#1A73E8', weight: 7, opacity: 0.85, lineCap: 'round', interactive: false });
     rmLine('todo');
     const L_ = routeLine(ok.t.k);
     drawLine('todo', L_.pts.slice(project(L_, ok.t.pt).i - 1), { color: '#1A73E8', weight: 5, opacity: 0.5, lineCap: 'round', interactive: false });
-    say(reason === 'off' ? 'Nouvel itinéraire.' : 'Itinéraire calculé. ' + (st.appr.man[0] ? text(st.appr.man[0], true) + '.' : ''));
+    say((reason === 'off' ? 'Nouvel itinéraire.' : 'Itinéraire calculé. ' + (st.appr.man[0] ? text(st.appr.man[0], true) + '.' : ''))
+      + (st.appr.unsafe && !st.unsafeSaid ? ' Attention : le début peut emprunter une route fermée le jour de la course.' : ''));
+    if(st.appr.unsafe) st.unsafeSaid = true;
     step();
   }
   const compass = function(b){ return ['le nord', 'le nord-est', 'l\'est', 'le sud-est', 'le sud', 'le sud-ouest', 'l\'ouest', 'le nord-ouest'][Math.round(b / 45) % 8]; };
@@ -441,6 +451,7 @@ const RaceNav = (function(){
     const ahead = A.man.filter(function(m){ return m.at > pr.s + 3 && m.type !== 'depart'; });
     const m = ahead[0] || { type: 'join', at: A.line.len }, n = ahead[1];
     banner(m, m.at - pr.s, n && n.at - m.at < 250 ? n : null);
+    if(A.unsafe){ const nx = ui().top.querySelector('.rn-next'); nx.textContent = '⚠ Itinéraire non vérifié jusqu\'au tracé sûr : il peut passer par une route fermée le jour de la course.'; nx.hidden = false; }
     const r = NAV_DATA.routes[A.t.k], rem = (r.len - A.t.s) * r.t / r.len;
     const wl = NAV_DATA.walks[DEST[st.dest].walk].len;
     eta(A.dur * (1 - pr.s / A.line.len) + rem, wl, A.line.len - pr.s + r.len - A.t.s + wl);
@@ -616,7 +627,7 @@ const RaceNav = (function(){
       st.phase = 'drive'; st.off = 0; st.offT = 0;
       if(st.back >= 4){
         st.s = on.pr.s;
-        banner({ type: 'uturn' }, null, null, 'rn-warn');
+        banner({ type: 'uturn' }, null, null, 'rn-alert');
         ui().top.querySelector('.rn-txt').textContent = 'Mauvais sens : faites demi-tour dès que possible';
         if(!st.wrongAt || Date.now() - st.wrongAt > 45000){ st.wrongAt = Date.now(); say('Vous roulez dans le mauvais sens. Faites demi-tour dès que possible.'); }
         return;
