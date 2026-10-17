@@ -44,7 +44,8 @@ const SuiviAdmin = (function(){
     if(live.status !== 'running' && !confirm('Démarrer la course ' + label + ' ? Le suivi devient visible par tous.')) return;
     lastS = at ? null : 0; lastAccT = 0; lastTrackS = -1;
     await ref.update({ status: 'running', startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null });
-    startGps();
+    // par défaut, la position vient d'OwnTracks (écran verrouillé) : le GPS de Safari n'est lancé qu'à la demande
+    msg('Course démarrée. OwnTracks envoie votre position : vous pouvez verrouiller l\'iPhone.');
   }
   async function finish(){
     if(!confirm('Déclarer l\'arrivée maintenant ? Le chrono s\'arrête pour tout le monde.')) return;
@@ -142,6 +143,9 @@ const SuiviAdmin = (function(){
     $('wake').className = watch === null ? '' : wakeLock ? 'ok' : 'bad';
     $('b-start').hidden = st === 'running';
     $('b-resume').hidden = !(st === 'running' && watch === null);
+    const otOk = live.ota && live.ota.ts && t - live.ota.ts < 180000;
+    $('src').textContent = watch !== null ? 'OwnTracks + Safari (écran allumé)' : 'OwnTracks (écran verrouillé possible)';
+    $('src-warn').hidden = otOk || watch !== null;
     $('b-finish').hidden = st !== 'running';
     $('b-black').hidden = watch === null;
     const ot = live.ota;

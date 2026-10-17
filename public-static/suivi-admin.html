@@ -68,12 +68,14 @@
       <dl>
         <dt>Chrono</dt><dd id="chrono">–</dd>
         <dt>Distance</dt><dd id="dist">–</dd>
-        <dt>GPS</dt><dd id="gps">–</dd>
+        <dt>Source</dt><dd id="src">OwnTracks</dd>
+        <dt>GPS Safari</dt><dd id="gps">–</dd>
         <dt>Dernier envoi</dt><dd id="last">–</dd>
         <dt>Écran</dt><dd id="wake">–</dd>
       </dl>
+      <p id="src-warn" class="msg err" hidden>OwnTracks n'a rien envoyé depuis plus de 3 min : ouvrez OwnTracks et vérifiez le mode Déplacement.</p>
       <button id="b-start" class="go" onclick="SuiviAdmin.start()">▶ Démarrer la course maintenant</button>
-      <button id="b-resume" class="go" onclick="SuiviAdmin.resume()" hidden>▶ Reprendre l'envoi GPS (sans changer le chrono)</button>
+      <button id="b-resume" class="ghost" onclick="SuiviAdmin.resume()" hidden>Secours : envoyer aussi depuis Safari (écran allumé obligatoire)</button>
       <button id="b-black" class="dark" onclick="SuiviAdmin.black(true)" hidden>⬛ Écran noir anti-touches (poche)</button>
       <button id="b-finish" class="fin" onclick="SuiviAdmin.finish()" hidden>🏁 Je suis arrivé</button>
     </section>
@@ -127,6 +129,6 @@
 <div id="black" hidden>Suivi en cours · appui long pour revenir</div>
 <script defer src="/src/suivi-data.js?v=1"></script>
 <script defer src="/src/suivi-core.js?v=2"></script>
-<script defer src="/src/suivi-admin.js?v=2"></script>
+<script defer src="/src/suivi-admin.js?v=3"></script>
 </body>
 </html>
