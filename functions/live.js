@@ -95,8 +95,10 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
                             : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - (prev.ts || t)) / 1000 * 6));
   let s = lastS === null ? 0 : lastS;
   const dt = prev && prev.ts ? Math.max(1, (t - prev.ts) / 1000) : 1e6;
-  if (pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150)) s = lastS === null ? pr.s : Math.max(s, pr.s);
+  const ok = pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150);
+  if (ok) s = lastS === null ? pr.s : Math.max(s, pr.s);
   fix.s = Math.round(s); fix.off = Math.round(pr.d);
+  fix.sts = ok ? t : (prev && !free && (prev.sts || prev.ts)) || t;   // dernière mesure de distance acceptée
   if (free && pr.d < 120 && fix.acc < 80) { up.s0 = fix.s; up.s0t = t; }
   up.pos = fix;
   // passages : heure interpolée entre les deux positions ; ligne d'arrivée franchie → arrivée automatique (chrono arrêté)

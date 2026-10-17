@@ -77,58 +77,66 @@ const SuiviPlan = (function(){
   return { t: t, pace: pace, bounds: bounds };
 })();
 
-// ─── Distance et allure (pages /suivi-guillaume, /suivi-admin et panneau « Course en direct ») ──
-// Le dernier pointage officiel (km + temps) est acquis définitivement : seul le tronçon parcouru depuis
-// ce pointage (ou depuis le départ) est mesuré au GPS (ou estimé), puis ajouté aux km et au temps validés.
-// Hors essai, le tronçon GPS est ramené dans les allures plausibles du plan (GPS figé ou qui saute).
-// d : mètres officiels parcourus · el : temps de course (ms) à cette distance · ts : instant de cette distance
-// s / ll : position sur le tracé (carte) · speed : m/s moyens · known : allure mesurée · adj : GPS recalé
+// ─── Distance et allure (pages /suivi-guillaume, /parcours, /suivi-admin et panneau « Course en direct ») ──
+// Distance : uniquement la position GPS projetée sur le tracé officiel (42,195 km) — un pointage ne la fait jamais
+// reculer ; il ne la remplace que si le GPS est absent ou en retard sur lui. Temps : le dernier pointage officiel
+// (km + temps) cale le chrono à l'instant où la trace GPS a franchi ce km ; le tronçon suivant est chronométré au GPS.
+// Hors essai, l'allure moyenne affichée reste dans les bornes plausibles du plan.
+// d : mètres parcourus · el : temps de course (ms) à cette distance · ts : instant de cette distance
+// s / ll : position sur le tracé (carte) · speed : m/s moyens · known : allure mesurée · adj : allure bornée
+let _suiviMax = { key: null, d: 0 };
 function suiviCalc(live, t){
   const o = { st: live.status || 'idle', t: t };
   if(!live.startedAt) return o;
-  // essai : le temps part de la première position sur le parcours (s0t), pas du bouton « Lancer un essai »
-  const t0 = live.test && typeof live.s0t === 'number' ? live.s0t : live.startedAt, R = SUIVI_DATA.route;
+  const test = !!live.test, R = SUIVI_DATA.route, K = SuiviGeo.scale;
+  // essai : distance et temps partent de la première position sur le parcours (s0 / s0t), où qu'elle soit
+  const s0 = test && typeof live.s0 === 'number' ? live.s0 : 0;
+  const t0 = test && typeof live.s0t === 'number' ? live.s0t : live.startedAt;
   const planSpeed = function(d){ return 1000 / SuiviPlan.pace(d); };
   if(o.st === 'finished'){
-    const el = (live.finishedAt || t) - t0;
+    const el = (live.finishedAt || t) - live.startedAt;
     return Object.assign(o, { d: 42195, el: el, ts: live.finishedAt || t, s: SuiviGeo.len, ll: R[R.length - 1], speed: 42195 / (el / 1000), known: true });
   }
-  // ancrage : pointage officiel le plus loin, sinon le départ
-  let A = null;
+  let A = null;                                          // pointage officiel le plus loin
   if(live.splits) Object.keys(live.splits).forEach(function(k){ const x = live.splits[k]; if(x && x.km > 0 && x.el > 0 && (!A || x.km > A.km)) A = x; });
   const P = live.pos && typeof live.pos.s === 'number' && live.pos.src !== 'officiel' ? live.pos : null;
-  if(!A && !P) return Object.assign(o, { d: 0, el: t - t0, ts: t, s: 0, ll: null, speed: planSpeed(0), known: false });
-  if(!A) A = { km: 0, el: 0 };
-  const At = t0 + A.el, Ad = Math.min(42195, A.km * 1000), As = Math.min(SuiviGeo.len, Ad / SuiviGeo.scale);
-  // position GPS au moment du pointage (trace interpolée) : le tronçon GPS est mesuré à partir de là
-  // essai démarré ailleurs qu'au départ : la distance part de l'origine de l'essai (s0, posée par le serveur)
-  let gA = A.km ? null : (live.test && typeof live.s0 === 'number' ? live.s0 : 0);
-  if(gA === null){
-    const g = live.track ? Object.keys(live.track).map(function(k){ const x = live.track[k]; return [x[2], x[3]]; }) : [];
-    if(P) g.push([P.ts, P.s]);
-    g.sort(function(a, b){ return a[0] - b[0]; });
-    for(let i = 1; i < g.length; i++) if(g[i-1][0] <= At && g[i][0] >= At){ const f = (At - g[i-1][0]) / ((g[i][0] - g[i-1][0]) || 1); gA = g[i-1][1] + (g[i][1] - g[i-1][1]) * f; break; }
-    if(gA === null) gA = As;
+  if(!A && !P) return Object.assign(o, { d: 0, el: t - t0, ts: t, s: s0, ll: null, speed: planSpeed(0), known: false });
+  let ref = null;
+  if(P){
+    const Pt = P.sts || P.ts;                            // instant où la distance GPS a été mesurée
+    ref = { d: Math.max(0, Math.min(42195, (P.s - s0) * K)), el: Pt - t0, ts: Pt, s: P.s, ll: [P.lat, P.lon] };
   }
-  let ref;
-  if(P && P.ts > At){
-    const e = (P.ts - At) / 1000, raw = Math.max(0, (P.s - gA) * SuiviGeo.scale);
-    let dd = raw;
-    if(!live.test && e >= 20){ const B = SuiviPlan.bounds(Ad, Ad + raw); dd = Math.max(e / B.max * 1000, Math.min(e / B.min * 1000, raw)); }
-    dd = Math.min(42195 - Ad, dd);
-    const adj = Math.abs(dd - raw) > 1, s = adj ? Math.max(0, Math.min(SuiviGeo.len, gA + dd / SuiviGeo.scale)) : P.s;
-    ref = { d: Ad + dd, el: A.el + (P.ts - At), ts: P.ts, s: s, ll: adj ? SuiviGeo.pointAt(s) : [P.lat, P.lon], adj: adj };
-  } else ref = { d: Ad, el: A.el, ts: At, s: As, ll: SuiviGeo.pointAt(As) };
+  if(A){
+    const sA = s0 + A.km * 1000 / K;
+    if(ref && ref.d >= A.km * 1000 - 1){
+      // instant où la trace GPS a franchi le km pointé (interpolé sur la distance, pas sur l'heure de départ)
+      const g = live.track ? Object.keys(live.track).map(function(k){ const x = live.track[k]; return [x[2], x[3]]; }) : [];
+      g.push([ref.ts, P.s]);
+      g.sort(function(a, b){ return a[0] - b[0]; });
+      let TA = null;
+      for(let i = 1; i < g.length; i++) if(g[i-1][1] < sA && g[i][1] >= sA){ TA = g[i-1][0] + (g[i][0] - g[i-1][0]) * (sA - g[i-1][1]) / ((g[i][1] - g[i-1][1]) || 1); break; }
+      if(TA !== null) ref.el = A.el + (ref.ts - TA);
+    } else {
+      // GPS absent ou en retard sur le pointage : le pointage donne la position (jamais en arrière)
+      ref = { d: Math.min(42195, A.km * 1000), el: A.el, ts: t0 + A.el, s: Math.min(SuiviGeo.len, sA), ll: SuiviGeo.pointAt(sA) };
+    }
+  }
   o.known = ref.d > 300 && ref.el > 60000;
-  o.speed = o.known ? ref.d / (ref.el / 1000) : planSpeed(ref.d);
-  o.ref = ref; o.adj = !!ref.adj; o.d = ref.d; o.el = ref.el; o.ts = ref.ts; o.s = ref.s; o.ll = ref.ll;
+  let pace = o.known ? ref.el / 1000 / ref.d : 1 / planSpeed(ref.d);   // s/m
+  if(o.known && !test){ const B = SuiviPlan.bounds(0, ref.d), q = Math.max(B.min, Math.min(B.max, pace * 1000)) / 1000; o.adj = Math.abs(q - pace) > 1e-6; pace = q; }
+  o.speed = 1 / pace;
+  o.ref = ref; o.d = ref.d; o.el = ref.el; o.ts = ref.ts; o.s = ref.s; o.ll = ref.ll;
   o.age = t - ref.ts;
-  // sans nouvelle position depuis 2 min : avancée estimée à l'allure moyenne
+  // sans nouvelle distance depuis 2 min : avancée estimée à l'allure moyenne
   if(o.age > 120000 && o.st === 'running'){
     const add = Math.min(42195 - ref.d, o.speed * o.age / 1000);
     o.est = true; o.d = ref.d + add; o.el = ref.el + o.age; o.ts = t;
-    o.s = Math.min(SuiviGeo.len, ref.s + add / SuiviGeo.scale); o.ll = SuiviGeo.pointAt(o.s);
+    o.s = Math.min(SuiviGeo.len, ref.s + add / K); o.ll = SuiviGeo.pointAt(o.s);
   }
+  // la distance affichée ne recule jamais pendant une même course (sur cet écran)
+  const key = live.startedAt + '|' + s0;
+  if(_suiviMax.key === key && _suiviMax.d > o.d){ o.d = _suiviMax.d; o.s = _suiviMax.s; if(o.est || !P) o.ll = SuiviGeo.pointAt(o.s); }
+  else _suiviMax = { key: key, d: o.d, s: o.s };
   return o;
 }
 

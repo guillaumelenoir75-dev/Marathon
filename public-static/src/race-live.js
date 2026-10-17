@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=6'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=7'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -125,7 +125,7 @@ function _liveRender(){
   const eta = suiviEta(c, L);
   document.getElementById('lv-eta').textContent = suiviFmt.hhmm(eta.at) + ' · ' + suiviFmt.hm(eta.dur);
   const ot = L.ota;
-  document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + (c.adj ? ' · GPS recalé sur le plan' : '') + ' · ' : '')
+  document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + (c.adj ? ' · allure bornée sur le plan' : '') + ' · ' : '')
     + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
   // actions selon l'état (reconstruites seulement si l'état change)
   const key = st + (L.test ? 't' : '');
