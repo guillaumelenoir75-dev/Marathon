@@ -1,0 +1,11 @@
+owntracks clé invalide (403) : 403
+owntracksToken sans connexion (403) : 403
+clé privée : {"error":"Permissiondenied"}
+écriture /live anonyme : {"error":"Permissiondenied"}
+/live : status="idle" ; test=null ; startedAt=null ; finishedAt=null ; s0=null ; s0t=null ; noAuto=null ; splits=null ; pos=null ; 
+ota : {"acc":20,"batt":60,"m":2,"prev":1792255993915,"ts":1792256173704}
+/suivi-guillaume : 200 src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=7" src="/src/suivi-view.js?v=9"  cache=cache-control: no-cache
+/parcours : 200 src="/src/race-map.js?v=15" src="/src/race-nav-data.js?v=8" src="/src/race-nav.js?v=17" src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=7" src="/src/suivi-view.js?v=9"  cache=cache-control: no-cache
+/suivi-admin : 200 src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=7" src="/src/suivi-admin.js?v=7"  cache=cache-control: no-cache
+suivi-admin.js en ligne (noAuto: !live.test) : 1
+Sat Oct 17 18:45:37 UTC 2026
