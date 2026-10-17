@@ -1,6 +1,0 @@
-lecture /live : 200 null
-écriture anonyme /live : 401
-lecture /users (doit être refusée) : 401
-suivi-guillaume HTTP 200 | Pas encore parti | Départ prévu à 9h15 d'Amfreville-sur-Iton · dans 20:16:42 | 0 | 12h48
-suivi-admin HTTP 200 | formulaire de connexion affiché : true | panneau caché : true
-erreurs JS []
