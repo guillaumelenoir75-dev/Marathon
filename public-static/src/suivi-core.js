@@ -130,9 +130,24 @@ function suiviCalc(live, t){
   return o;
 }
 
+// Arrivée estimée : temps restant du plan PacePro depuis la distance atteinte, ajusté au rythme réel
+// (temps réalisé ÷ temps prévu à cette distance ; pris en compte progressivement sur les 10 premiers km).
+// at : heure d'arrivée (ms) · dur : temps final estimé (ms) · done : arrivée réelle
+function suiviEta(o, live){
+  const total = SuiviPlan.t(42195) * 1000;
+  if(o.st === 'finished' && live.startedAt) return { at: live.finishedAt, dur: live.finishedAt - live.startedAt, done: true };
+  if(!live.startedAt){ const st = suiviFmt.planned(SUIVI_DATA.start); return { at: st + total, dur: total }; }
+  const t0 = live.startedAt, d = o.d || 0;
+  if(d < 200 || !(o.el > 0)) return { at: Math.max(o.t, t0 + total), dur: Math.max(o.t - t0, total) };
+  const planEl = SuiviPlan.t(d) * 1000, r = Math.max(0.85, Math.min(1.5, o.el / planEl)), w = Math.min(1, d / 10000);
+  const rem = (total - planEl) * (1 + (r - 1) * w), at = Math.max(o.t, t0 + o.el + rem);
+  return { at: at, dur: at - t0 };
+}
+
 // ─── Formats ────────────────────────────────────────────────────────────────
 const suiviFmt = {
   hhmm: function(t){ const d = new Date(t); return d.getHours() + 'h' + String(d.getMinutes()).padStart(2, '0'); },
+  hm: function(ms){ const m = Math.round(Math.max(0, ms) / 60000); return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); },
   dur: function(ms){ ms = Math.max(0, ms); const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); },
   km: function(m){ return (m / 1000).toFixed(m >= 9950 ? 1 : 2).replace('.', ','); },
   pace: function(secPerKm){ if(!isFinite(secPerKm) || secPerKm <= 0) return '–'; const m = Math.floor(secPerKm / 60), s = Math.round(secPerKm % 60); return m + "'" + String(s === 60 ? 59 : s).padStart(2, '0') + '"/km'; },

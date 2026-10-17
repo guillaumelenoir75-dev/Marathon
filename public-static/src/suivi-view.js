@@ -67,6 +67,9 @@ const SuiviView = (function(){
     $('v-time-sub').textContent = o.st === 'finished' ? 'temps final' : live.startedAt ? 'depuis ' + suiviFmt.hhmm(live.startedAt) : 'départ prévu 9h15';
     const pace = o.known ? 1000 / o.speed : NaN;
     $('v-pace').textContent = suiviFmt.pace(pace);
+    const eta = suiviEta(o, live);
+    $('v-eta').textContent = suiviFmt.hhmm(eta.at);
+    $('v-eta-sub').textContent = eta.done ? 'en ' + suiviFmt.dur(eta.dur) : o.st === 'idle' ? 'pour un départ à 9h15 · temps ≈ ' + suiviFmt.hm(eta.dur) : 'temps final ≈ ' + suiviFmt.hm(eta.dur);
     $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, 42195 - (dist || 0))).replace(/,00$/, '');
     // carte
     if(!map) return;
