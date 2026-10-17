@@ -1,0 +1,31 @@
+name: Lecture état OwnTracks (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lecture
+        continue-on-error: true
+        run: |
+          mkdir -p audit/out
+          curl -s https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app/live.json > audit/out/live.json
+          date -u +%s >> audit/out/live.json
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/out
+          git commit -m "data: état OwnTracks (temporaire)" || true
+          git push
