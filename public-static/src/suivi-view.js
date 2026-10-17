@@ -70,52 +70,18 @@ const SuiviView = (function(){
     pill.className = 'pill ' + o.st;
     pill.textContent = o.st === 'running' ? (live.test ? 'Essai en cours' : 'En course') : o.st === 'finished' ? (live.test ? 'Essai terminé' : 'Arrivé ✔') : 'Pas encore parti';
     const start = live.startedAt || suiviFmt.planned(SUIVI_DATA.start);
-    if(o.st === 'idle'){
-      $('status-line').textContent = 'Départ prévu à 9h15 d\'Amfreville-sur-Iton' + (t < start ? ' · dans ' + suiviFmt.dur(start - t).replace(/^0:/, '') : '');
-    } else if(o.st === 'finished'){
-      $('status-line').textContent = 'Arrivé à ' + suiviFmt.hhmm(live.finishedAt) + ' en ' + suiviFmt.dur(live.finishedAt - live.startedAt) + ' 🎉';
-    } else {
-      $('status-line').textContent = live.pos ? (o.est ? '⚠ Signal perdu depuis ' + suiviFmt.ago(o.age).replace('il y a ', '') + ' : position estimée' : 'Position mise à jour ' + suiviFmt.ago(o.age)) : 'Départ donné à ' + suiviFmt.hhmm(live.startedAt) + ' · en attente de la première position GPS';
-    }
-    if(live.test && o.st !== 'idle') $('status-line').textContent = '🧪 Essai du suivi : ce n\'est pas la course. ' + $('status-line').textContent;
-    $('status-line').className = 'status' + (o.est ? ' warn' : '');
+    if(o.st === 'idle') $('status-line').textContent = 'Départ prévu à 9h15 d\'Amfreville-sur-Iton' + (t < start ? ' · dans ' + suiviFmt.dur(start - t).replace(/^0:/, '') : '');
+    else if(o.st === 'finished') $('status-line').textContent = 'Arrivé en ' + suiviFmt.dur(live.finishedAt - live.startedAt) + ' 🎉';
+    else $('status-line').textContent = 'Départ donné à ' + suiviFmt.hhmm(live.startedAt);
+    if(live.test && o.st !== 'idle') $('status-line').textContent = '🧪 Essai : ce n\'est pas la course. ' + $('status-line').textContent;
     const dist = o.s !== undefined ? o.s * SuiviGeo.scale : null;
-    $('v-dist').textContent = dist !== null ? suiviFmt.km(dist) : '0';
-    $('v-rest').textContent = dist !== null ? suiviFmt.km(Math.max(0, 42195 - dist)) + ' km restants' : '42,2 km au total';
     $('v-time').textContent = o.el !== undefined ? suiviFmt.dur(o.el) : '–';
-    $('v-time-sub').textContent = live.startedAt ? 'départ à ' + suiviFmt.hhmm(live.startedAt) : 'départ prévu 9h15';
-    const pace = o.st === 'finished' ? (live.finishedAt - live.startedAt) / 1000 / 42.195 : o.speed ? 1000 / o.speed : NaN;
+    $('v-time-sub').textContent = o.st === 'finished' ? 'temps final' : live.startedAt ? 'depuis ' + suiviFmt.hhmm(live.startedAt) : 'départ prévu 9h15';
+    const pace = o.st === 'finished' ? (live.finishedAt - live.startedAt) / 1000 / 42.195 : o.speed && dist > 300 ? 1000 / o.speed : NaN;
     $('v-pace').textContent = suiviFmt.pace(pace);
-    let eta = null;
-    if(o.st === 'finished') eta = live.finishedAt;
-    else if(o.st === 'running' && live.pos && o.speed) eta = live.pos.ts + (42195 - live.pos.s * SuiviGeo.scale) / o.speed * 1000;
-    $('v-eta').textContent = eta ? suiviFmt.hhmm(eta) : '12h48';
-    $('v-eta-sub').textContent = o.st === 'finished' ? 'temps final ' + suiviFmt.dur(live.finishedAt - live.startedAt) : eta ? 'estimation à l\'allure actuelle' : 'prévision';
-    $('bar').style.width = (dist !== null ? Math.min(100, dist / 421.95) : 0) + '%';
-    $('bar-me').style.left = (dist !== null ? Math.min(100, dist / 421.95) : 0) + '%';
-    $('bar-me').hidden = o.st === 'idle';
-    // points de passage
-    $('passages').innerHTML = SUIVI_DATA.points.map(function(pt){
-      const done = live.passages && live.passages[pt.id];
-      let val, cls;
-      if(done){ val = 'Passé à <b>' + suiviFmt.hhmm(done) + '</b>'; cls = 'done'; }
-      else if(o.st === 'running' && live.pos && o.speed && live.pos.s < pt.s){ val = 'Estimé <b>' + suiviFmt.hhmm(live.pos.ts + (pt.s - live.pos.s) * SuiviGeo.scale / o.speed * 1000) + '</b>'; cls = 'next'; }
-      else if(o.st === 'running' && live.pos && live.pos.s >= pt.s){ val = 'Passé'; cls = 'done'; }
-      else { val = 'Prévu <b>' + pt.prevu.replace(':', 'h') + '</b>'; cls = ''; }
-      return '<li class="' + cls + '"><span class="pk">' + (pt.id === 'finish' ? '🏁' : pt.km) + '</span><span class="pl"><b>' + pt.label + '</b><span>' + pt.lieu + '</span></span><span class="pv">' + val + '</span></li>';
-    }).join('');
-    const sp = live.splits ? Object.keys(live.splits).map(function(k){ return live.splits[k]; }).sort(function(a, b){ return a.km - b.km; }) : [];
-    $('splits-card').hidden = !sp.length;
-    $('splits').innerHTML = sp.map(function(x){
-      return '<li class="done"><span class="pk">' + (x.km >= 42.1 ? '🏁' : Math.round(x.km)) + '</span><span class="pl"><b>km ' + String(+x.km.toFixed(3)).replace('.', ',') + '</b><span>allure ' + suiviFmt.pace(x.el / 1000 / x.km) + '</span></span><span class="pv"><b>' + suiviFmt.dur(x.el) + '</b><br>à ' + suiviFmt.hhmm(x.ts) + '</span></li>';
-    }).join('');
-    $('garmin').hidden = !live.garmin; if(live.garmin) $('garmin').href = live.garmin;
+    $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, 42195 - (dist || 0))).replace(/,00$/, '');
     // carte
     if(!map) return;
-    if(data){
-      const tr = live.track ? Object.keys(live.track).sort().map(function(k){ return live.track[k]; }) : [];
-      trail.setLatLngs(tr.map(function(x){ return [x[0], x[1]]; }).concat(live.pos && o.st === 'running' ? [[live.pos.lat, live.pos.lon]] : []));
-    }
     if(o.s !== undefined && o.st !== 'idle'){
       const cut = []; const R = SUIVI_DATA.route; let acc = 0;
       cut.push(R[0]);
@@ -124,9 +90,9 @@ const SuiviView = (function(){
     } else passedL.setLatLngs([]);
     if(o.ll && o.st !== 'idle'){
       meLL = o.ll;
-      const ic = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.est ? ' est' : '') + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' });
+      const ic = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' });
       if(!me){ me = L.marker(o.ll, { icon: ic, zIndexOffset: 3000, keyboard: false }).addTo(map); me.bindPopup('Guillaume'); if(follow) map.setView(o.ll, 14); $('b-follow').hidden = true; }
-      else { me.setLatLng(o.ll); if(data || o.est) me.setIcon(ic); if(follow && data) map.panTo(o.ll, { animate: true }); }
+      else { me.setLatLng(o.ll); if(data) me.setIcon(ic); if(follow && data) map.panTo(o.ll, { animate: true }); }
     } else if(me){ me.remove(); me = null; meLL = null; }
   }
 

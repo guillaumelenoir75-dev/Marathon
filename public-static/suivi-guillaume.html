@@ -40,7 +40,7 @@
   .stat i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:1px;}
   .stat.big{grid-column:1/-1;}
   .stat.big b{font-size:40px;}
-  @media (min-width:640px){ .stats{grid-template-columns:repeat(4,1fr);} .stat.big,.stat.wide{grid-column:span 1;} }
+  @media (min-width:640px){ .stats{grid-template-columns:repeat(3,1fr);} .stat.big{grid-column:span 1;} }
   .prog{position:relative;height:12px;background:#E5EAF2;border-radius:6px;margin:14px 4px 22px;}
   .prog .bar{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#16A34A,#15803D);border-radius:6px;transition:width .6s;}
   .prog .tick{position:absolute;top:-3px;width:2px;height:18px;background:#94A3B8;}
@@ -89,44 +89,20 @@
   <div id="net" class="net" hidden>Connexion perdue : les informations reprendront dès le retour du réseau.</div>
 
   <div class="stats">
-    <div class="stat big"><span>Distance parcourue</span><b><output id="v-dist">0</output><small>km</small></b><i id="v-rest">42,2 km au total</i></div>
-    <div class="stat"><span>Temps de course</span><b id="v-time">–</b><i id="v-time-sub">départ prévu 9h15</i></div>
-    <div class="stat"><span>Allure moyenne</span><b id="v-pace">–</b><i>depuis le départ</i></div>
-    <div class="stat wide"><span>Arrivée</span><b id="v-eta">12h48</b><i id="v-eta-sub">prévision</i></div>
-  </div>
-
-  <div class="prog" aria-hidden="true">
-    <div id="bar" class="bar" style="width:0"></div>
-    <div class="tick" style="left:0"><span>Départ</span></div>
-    <div class="tick" style="left:23.7%"><span>10</span></div>
-    <div class="tick" style="left:47.4%"><span>20</span></div>
-    <div class="tick" style="left:70.2%"><span>🏠 30</span></div>
-    <div class="tick" style="left:100%"><span>🏁</span></div>
-    <div id="bar-me" class="me" hidden></div>
+    <div class="stat big"><span>Chrono</span><b id="v-time">–</b><i id="v-time-sub">départ prévu 9h15</i></div>
+    <div class="stat"><span>Allure moyenne</span><b id="v-pace">–</b></div>
+    <div class="stat"><span>Km restants</span><b><output id="v-rest">42,2</output><small>km</small></b></div>
   </div>
 
   <section class="card" aria-labelledby="map-title">
-    <div class="maphead"><h2 id="map-title">Sur le parcours</h2>
+    <div class="maphead"><h2 id="map-title">Où est Guillaume ?</h2>
       <div class="btns"><button type="button" id="b-follow" onclick="SuiviView.center()" hidden>◎ Guillaume</button><button type="button" onclick="SuiviView.whole()">Tout le parcours</button></div></div>
     <div id="map"><p class="nomap">Chargement de la carte…</p></div>
   </section>
 
-  <section class="card" aria-labelledby="pas-title">
-    <h2 id="pas-title">Points de passage</h2>
-    <ul id="passages" class="pas"></ul>
-  </section>
-
-  <section id="splits-card" class="card" aria-labelledby="sp-title" hidden>
-    <h2 id="sp-title">Temps officiels</h2>
-    <ul id="splits" class="pas"></ul>
-  </section>
-
-  <a id="garmin" class="garmin" href="#" target="_blank" rel="noopener" hidden>Suivi Garmin LiveTrack (secours) ↗</a>
-
-  <p class="foot">Position envoyée par le téléphone de Guillaume, mise à jour toutes les quelques secondes. Si le signal se perd, la position est estimée d'après son allure (marqueur en pointillés).</p>
 </main>
 <script defer src="/src/suivi-data.js?v=1"></script>
 <script defer src="/src/suivi-core.js?v=2"></script>
-<script defer src="/src/suivi-view.js?v=3"></script>
+<script defer src="/src/suivi-view.js?v=4"></script>
 </body>
 </html>
