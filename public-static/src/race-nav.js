@@ -292,8 +292,8 @@ const RaceNav = (function(){
     const far = mode === 'walk' ? null : (fast ? 1000 : 400), near = mode === 'walk' ? 25 : (fast ? 300 : 120), now = mode === 'walk' ? 8 : 25;
     const quiet = m.type === 'continue';
     if(quiet) return;
-    if(far && d <= far && d > near * 1.6 && !done.far){ done.far = true; say('Dans ' + sayD(d) + ', ' + lc(text(m, true))); }
-    else if(d <= near && d > now && !done.near){ done.near = done.far = true; say('Dans ' + sayD(d) + ', ' + lc(text(m, true))); }
+    if(far && d <= far && d > near * 1.6 && !done.far){ done.far = true; done.farD = d; say('Dans ' + sayD(d) + ', ' + lc(text(m, true))); }
+    else if(d <= near && d > now && !done.near){ done.near = done.far = true; if(done.farD === undefined || done.farD - d > 80) say('Dans ' + sayD(d) + ', ' + lc(text(m, true))); }
     else if(d <= now && !done.now && m.type !== 'park' && m.type !== 'arrive'){ done.now = done.near = done.far = true; say(text(m, true)); }
   }
   const lc = function(t){ return t.charAt(0).toLowerCase() + t.slice(1); };
