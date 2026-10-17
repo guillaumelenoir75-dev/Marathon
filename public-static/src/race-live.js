@@ -8,16 +8,30 @@ function _liveLoadCore(){
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
   return load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=2'); });
 }
-// "1:42:10", "42:10", "1h42", "1h42m10" → millisecondes
+// Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
+// (secondes, minutes, heures) : 1458 → 14:58 · 14823 → 1:48:23. Formats « 1h42 » / « 1h42m10 » acceptés aussi.
 function _liveParseTime(v){
-  v = String(v || '').trim().toLowerCase().replace(/\s/g, '').replace(/h/g, ':').replace(/m(in)?/g, ':').replace(/s$/, '').replace(/:$/, '');
-  if(!/^\d{1,2}(:\d{1,2}){0,2}$/.test(v)) return null;
-  const p = v.split(':').map(Number);
-  let s;
-  if(p.length === 3) s = p[0] * 3600 + p[1] * 60 + p[2];
-  else if(p.length === 2) s = p[0] < 7 ? p[0] * 3600 + p[1] * 60 : p[0] * 60 + p[1];     // "1:42" = 1h42 ; "42:10" = 42 min 10
-  else s = p[0] * 60;
-  return s > 0 && s < 8 * 3600 ? s * 1000 : null;
+  v = String(v || '').trim().toLowerCase().replace(/\s/g, '');
+  let h = 0, m = 0, s = 0;
+  if(/h/.test(v)){
+    const x = v.match(/^(\d{1,2})h(\d{1,2})?(?:m(?:in)?)?(\d{1,2})?s?$/);
+    if(!x) return null;
+    h = +x[1]; m = +(x[2] || 0); s = +(x[3] || 0);
+  } else {
+    if(!/^[\d:]+$/.test(v)) return null;
+    const d = v.replace(/:/g, '');
+    if(!d || d.length > 6) return null;
+    s = +d.slice(-2); m = d.length > 2 ? +d.slice(-4, -2) : 0; h = d.length > 4 ? +d.slice(0, -4) : 0;
+  }
+  if(m > 59 || s > 59) return null;
+  const tot = h * 3600 + m * 60 + s;
+  return tot > 0 && tot < 8 * 3600 ? tot * 1000 : null;
+}
+// mise en forme pendant la frappe : 1 → 1 · 145 → 1:45 · 1458 → 14:58 · 14823 → 1:48:23
+function _liveFmtTimeInput(el){
+  if(/h/i.test(el.value)) return;                       // saisie « 1h42 » laissée telle quelle
+  const d = el.value.replace(/\D/g, '').slice(0, 6);
+  el.value = d.length <= 2 ? d : d.length <= 4 ? d.slice(0, -2) + ':' + d.slice(-2) : d.slice(0, -4) + ':' + d.slice(-4, -2) + ':' + d.slice(-2);
 }
 
 async function openLivePanel(){
@@ -57,7 +71,8 @@ async function openLivePanel(){
     +   '<div class="lv-card"><p class="lv-h">⏱ Pointage officiel</p>'
     +     '<p class="lv-note" style="margin:0 0 8px;">Saisissez un km et votre temps de course officiel : distance, allure, passages et page de suivi sont mis à jour.</p>'
     +     '<div style="display:flex;gap:8px;"><label class="lv-lab">Km<input id="lv-km" type="text" inputmode="decimal" placeholder="21,1"></label>'
-    +     '<label class="lv-lab">Temps<input id="lv-t" type="text" inputmode="numeric" placeholder="1:42:10"></label></div>'
+    +     '<label class="lv-lab">Temps<input id="lv-t" type="text" inputmode="numeric" placeholder="1:48:23" oninput="_liveFmtTimeInput(this)"></label></div>'
+    +     '<p class="lv-note" style="margin:6px 0 0;">Tapez seulement les chiffres : 1458 → 14:58 · 14823 → 1:48:23</p>'
     +     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;">' + chips + '</div>'
     +     '<button type="button" class="lv-btn lv-go" onclick="liveSaveSplit()">Enregistrer le pointage</button>'
     +     '<div id="lv-splits" style="margin-top:10px;"></div></div>'
@@ -208,7 +223,7 @@ async function liveSaveSplit(){
   const km = parseFloat(String(document.getElementById('lv-km').value).replace(',', '.'));
   const el = _liveParseTime(document.getElementById('lv-t').value);
   if(!(km > 0 && km <= 42.3)){ alert('Km invalide (entre 0 et 42,195).'); return; }
-  if(!el){ alert('Temps invalide. Exemples : 1:42:10 · 47:30 · 1h42'); return; }
+  if(!el){ alert('Temps invalide. Tapez les chiffres : 1458 = 14:58 · 14823 = 1:48:23'); return; }
   if(!L.startedAt || L.status === 'idle'){
     if(!confirm('La course n\'est pas démarrée. La démarrer avec ce pointage (départ = maintenant − ' + suiviFmt.dur(el) + ') ?')) return;
     await _liveRef.update({ status: 'running', test: null, startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, splits: null });
