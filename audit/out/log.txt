@@ -1,0 +1,53 @@
+
+== /parcours · Paris 13e → km 10 (HTTP 200)
+  départ : approach  | 2 | 300 m | Au rond-point, prenez la 2e sortie vers Boulevard Auguste Blanqui
+  approche libre 47009 m, contrôle : OK
+  fin : arrived  | Vous êtes arrivé ✔ | RDV km 10 — rond-point de Folleville · passage de Guillaume environ 10h01
+  phases : approach,drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 1
+  annonces vocales : 23 | erreurs JS : []
+
+== /parcours · Paris 13e → km 20 (HTTP 200)
+  départ : approach  | 2 | 300 m | Au rond-point, prenez la 2e sortie vers Boulevard Auguste Blanqui
+  approche libre 47009 m, contrôle : OK
+  fin : arrived  | Vous êtes arrivé ✔ | Ravito km 20 — D313 sous l'A13 · passage de Guillaume environ 10h55
+  phases : approach,drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 1
+  annonces vocales : 20 | erreurs JS : []
+
+== /parcours · Paris 13e → km 30 (HTTP 200)
+  départ : approach  | 2 | 300 m | Au rond-point, prenez la 2e sortie vers Boulevard Auguste Blanqui
+  approche libre 47009 m, contrôle : OK
+  fin : arrived  | Vous êtes arrivé ✔ | km 30 — 24 route de Portejoie (Tournedos) · passage de Guillaume environ 11h44
+  phases : approach,drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 1
+  annonces vocales : 22 | erreurs JS : []
+
+== /parcours · km 10 → km 20 (HTTP 200)
+  départ : drive B | 200 m | Tournez à gauche sur D164 (Route de Pacy) | Puis : Tournez à droite sur D6155 (Chaussée de Paris)
+  fin : arrived  | Vous êtes arrivé ✔ | Ravito km 20 — D313 sous l'A13 · passage de Guillaume environ 10h55
+  phases : drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 0
+  annonces vocales : 17 | erreurs JS : []
+
+== /parcours · km 20 → km 30 (HTTP 200)
+  départ : drive C | 1,2 km | Continuez sur Rue de Crémonville | Puis : Serrez à droite sur D77
+  fin : arrived  | Vous êtes arrivé ✔ | km 30 — 24 route de Portejoie (Tournedos) · passage de Guillaume environ 11h44
+  phases : drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 0
+  annonces vocales : 17 | erreurs JS : []
+
+== /secours · maison → km 10 (HTTP 200)
+  départ : walk0  | 250 m | Tournez à gauche sur Route de Tournedos
+  fin : arrived  | Vous êtes arrivé ✔ | RDV km 10 — rond-point de Folleville (Louviers) · passage de Guillaume environ 10h01
+  phases : drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 0
+  annonces vocales : 31 | erreurs JS : []
+
+== /trajet-amis · Paris 13e → maison (HTTP 200)
+  départ : approach  | 2 | 300 m | Au rond-point, prenez la 2e sortie vers Boulevard Auguste Blanqui
+  approche libre 47009 m, contrôle : OK
+  fin : arrived  | Vous êtes arrivé ✔ | Maison — 24 route de Portejoie (Tournedos) · passage de Guillaume environ 11h44
+  phases : approach,drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 1
+  annonces vocales : 22 | erreurs JS : []
+
+== /trajet-amis · Versailles → maison (HTTP 200)
+  départ : approach  | 200 m | Tournez à droite sur Rue Robert de Cotte | Puis : Tournez à gauche sur Rue du Peintre Lebrun
+  approche libre 30426 m, contrôle : OK
+  fin : arrived  | Vous êtes arrivé ✔ | Maison — 24 route de Portejoie (Tournedos) · passage de Guillaume environ 11h44
+  phases : approach,drive,walk | alertes hors trajet pendant la conduite : 0 | requêtes itinéraire en ligne : 1
+  annonces vocales : 20 | erreurs JS : []
