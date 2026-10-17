@@ -75,8 +75,9 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   // filet de sécurité du jour J : course non démarrée depuis l'app (ou essai oublié) → départ automatique à 9h15
   // dès la première position (désactivé si le suivi a été annulé volontairement après 9h15 : noAuto)
   const nowMs = Date.now();
-  if ((!live.startedAt || live.test) && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
-    await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
+  // (un essai, ou une course d'un autre jour, restés en mémoire sont remplacés)
+  if ((!live.startedAt || live.test || live.startedAt < RACE_START - 3 * 3600000) && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
+    await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null, noAuto: null });
     live = (await db.ref('live').once('value')).val() || {};
   }
   const t = m.tst ? Math.min(Date.now(), m.tst * 1000) : Date.now();
@@ -88,32 +89,39 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (live.status !== 'running' || !live.startedAt) { await db.ref('live').update(up); res.json([]); return; }
   const prev = live.pos || null;
   if (prev && prev.ts && t <= prev.ts) { await db.ref('live').update(up); res.json([]); return; }   // message en retard (file d'attente)
+  if (t < live.startedAt) { await db.ref('live').update(up); res.json([]); return; }                // position d'avant le départ
   // essai : départ là où l'on se trouve sur le parcours (n'importe quel km) ; s0 = origine de l'essai
   const free = !!live.test && typeof live.s0 !== 'number';
   // distance le long du parcours, comme sur /suivi-admin
   const lastS = !free && prev && typeof prev.s === 'number' ? prev.s : null;
+  // temps de référence : dernière position ACCEPTÉE (sts), pas le dernier message (sinon une série de positions
+  // rejetées figerait la distance pour le reste de la course)
+  const tAcc = prev ? (prev.sts || prev.ts || t) : t;
   const el = (t - live.startedAt) / 1000;
   const pr = free ? project([m.lat, m.lon])
            : lastS === null ? project([m.lat, m.lon], el * PLAN_SPEED / SCALE - 6000, el * PLAN_SPEED / SCALE + 6000)
-                            : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - (prev.ts || t)) / 1000 * 6), lastS + Math.max(0, (t - (prev.sts || prev.ts || t)) / 1000) * PLAN_SPEED / SCALE);
+                            : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - tAcc) / 1000 * 6), lastS + Math.max(0, (t - tAcc) / 1000) * PLAN_SPEED / SCALE);
   let s = lastS === null ? 0 : lastS;
-  const dt = prev && prev.ts ? Math.max(1, (t - prev.ts) / 1000) : 1e6;
+  const dt = prev ? Math.max(1, (t - tAcc) / 1000) : 1e6;
   const ok = pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150);
   if (ok) s = lastS === null ? pr.s : Math.max(s, pr.s);
-  fix.s = Math.round(s); fix.off = Math.round(pr.d);
-  fix.sts = ok ? t : (prev && !free && (prev.sts || prev.ts)) || t;   // dernière mesure de distance acceptée
+  fix.off = Math.round(pr.d);
+  // aucune position encore acceptée : pas de distance écrite (la suivante sera recherchée autour de l'allure prévue)
+  // sts : dernière mesure qui confirme la progression (une position rattachée en arrière ne compte pas)
+  const adv = ok && (lastS === null || pr.s >= lastS - 50);
+  if (lastS !== null || ok) { fix.s = Math.round(s); fix.sts = adv ? t : tAcc; }
   if (free && pr.d < 120 && fix.acc < 80) { up.s0 = fix.s; up.s0t = t; }
   up.pos = fix;
   // passages : heure interpolée entre les deux positions ; ligne d'arrivée franchie → arrivée automatique (chrono arrêté)
   for (const pt of POINTS) if (lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) {
-    let tp = Math.round(prev.ts + (t - prev.ts) * (pt.s - lastS) / ((s - lastS) || 1));
+    let tp = Math.round(tAcc + (t - tAcc) * (pt.s - lastS) / ((s - lastS) || 1));
     // l'arrivée est détectée 60 m avant le bout du tracé : on prolonge jusqu'à la ligne à la vitesse du dernier tronçon
-    if (pt.id === 'finish') tp += Math.round(Math.min(60000, (LEN - pt.s) / Math.max(1, (s - lastS) / Math.max(1, (t - prev.ts) / 1000)) * 1000));
+    if (pt.id === 'finish') tp += Math.round(Math.min(60000, (LEN - pt.s) / Math.max(1, (s - lastS) / Math.max(1, (t - tAcc) / 1000)) * 1000));
     up['passages/' + pt.id] = tp;
     if (pt.id === 'finish' && !live.test) { up.status = 'finished'; up.finishedAt = tp; }
   }
   await db.ref('live').update(up);
   const lastTrack = live.track ? Object.values(live.track).reduce((a, x) => (x[2] > a[2] ? x : a), [0, 0, 0, -1]) : null;
-  if (!lastTrack || t - lastTrack[2] >= 45000 || Math.abs(s - lastTrack[3]) >= 400) await db.ref('live/track').push([+m.lat.toFixed(5), +m.lon.toFixed(5), t, Math.round(s)]);
+  if (typeof fix.s === 'number' && (!lastTrack || t - lastTrack[2] >= 45000 || Math.abs(s - lastTrack[3]) >= 400)) await db.ref('live/track').push([+m.lat.toFixed(5), +m.lon.toFixed(5), t, Math.round(s)]);
   res.json([]);
 });
