@@ -43,7 +43,7 @@ const SuiviAdmin = (function(){
     if(live.status === 'running' && !confirm('Un suivi est déjà en cours. Redémarrer ' + what + ' ' + label + ' et effacer la trace ?')) return;
     if(live.status !== 'running' && !confirm(test ? 'Lancer un essai ? La page de suivi affichera « Essai », et vous pourrez tout annuler ensuite.' : 'Démarrer la course ' + label + ' ? Le suivi devient visible par tous.')) return;
     lastS = at ? null : 0; lastAccT = 0; lastTrackS = -1;
-    await ref.update({ status: 'running', test: test ? true : null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null });
+    await ref.update({ status: 'running', test: test ? true : null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
     // par défaut, la position vient d'OwnTracks (écran verrouillé) : le GPS de Safari n'est lancé qu'à la demande
     msg((test ? 'Essai lancé' : 'Course démarrée') + '. OwnTracks envoie votre position : vous pouvez verrouiller l\'iPhone.' + (test ? ' Touchez « Annuler » pour tout effacer.' : ''));
   }
@@ -58,7 +58,7 @@ const SuiviAdmin = (function(){
     if(!confirm(live.test ? 'Annuler l\'essai ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».' : 'Annuler le suivi ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».')) return;
     stopGps(); lastS = null;
     const p0 = suiviFmt.planned(SUIVI_DATA.start), n0 = now();
-    await ref.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, noAuto: n0 >= p0 && n0 < p0 + 5 * 3600000 ? true : null });
+    await ref.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null, noAuto: n0 >= p0 && n0 < p0 + 5 * 3600000 ? true : null });
     msg('Suivi annulé : tout est revenu à zéro.');
   }
   // OwnTracks : clé + configuration générées côté serveur (fonction owntracksToken, réservée à l'admin)

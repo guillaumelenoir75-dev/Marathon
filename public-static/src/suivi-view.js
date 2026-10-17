@@ -59,7 +59,7 @@ const SuiviView = (function(){
     pill.className = 'pill ' + o.st;
     pill.textContent = o.st === 'running' ? (live.test ? 'Essai en cours' : 'En course') : o.st === 'finished' ? (live.test ? 'Essai terminé' : 'Arrivé ✔') : 'Pas encore parti';
     const start = live.startedAt || suiviFmt.planned(SUIVI_DATA.start);
-    if(o.st === 'idle') $('status-line').textContent = 'Départ prévu à 9h15 d\'Amfreville-sur-Iton' + (t < start ? ' · dans ' + suiviFmt.dur(start - t).replace(/^0:/, '') : '');
+    if(o.st === 'idle') $('status-line').textContent = 'Départ prévu à 9h15 d\'Amfreville-sur-Iton' + (t < start ? ' · dans ' + (start - t >= 3600000 ? suiviFmt.hm(start - t).replace('h', ' h ') : Math.max(1, Math.round((start - t) / 60000)) + ' min') : '');
     else if(o.st === 'finished') $('status-line').textContent = 'Arrivé en ' + suiviFmt.dur(live.finishedAt - live.startedAt) + ' 🎉';
     else $('status-line').textContent = 'Départ donné à ' + suiviFmt.hhmm(live.startedAt);
     if(live.test && o.st !== 'idle') $('status-line').textContent = '🧪 Essai : ce n\'est pas la course. ' + $('status-line').textContent;
@@ -70,6 +70,7 @@ const SuiviView = (function(){
     $('v-pace').textContent = suiviFmt.pace(pace);
     const eta = suiviEta(o, live);
     $('v-eta').textContent = suiviFmt.hhmm(eta.at);
+    $('v-eta').previousElementSibling.textContent = eta.done ? 'Arrivée' : 'Arrivée estimée';
     $('v-eta-sub').textContent = eta.done ? 'en ' + suiviFmt.dur(eta.dur) : o.st === 'idle' ? 'départ 9h15 · ≈ ' + suiviFmt.hm(eta.dur) : 'temps final ≈ ' + suiviFmt.hm(eta.dur);
     if($('v-done')) $('v-done').textContent = o.st === 'finished' ? '42,2' : suiviFmt.km(dist || 0).replace(/,00$/, '');
     $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, 42195 - (dist || 0))).replace(/,00$/, '');

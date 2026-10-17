@@ -69,10 +69,10 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   const m = typeof req.body === 'object' && req.body ? req.body : {};
   if (m._type !== 'location' || typeof m.lat !== 'number' || typeof m.lon !== 'number') { res.json([]); return; }
   let live = (await db.ref('live').once('value')).val() || {};
-  // filet de sécurité du jour J : course non démarrée depuis l'app → départ automatique à 9h15 dès la première position
-  // (désactivé si le suivi a été annulé volontairement après 9h15 : noAuto)
+  // filet de sécurité du jour J : course non démarrée depuis l'app (ou essai oublié) → départ automatique à 9h15
+  // dès la première position (désactivé si le suivi a été annulé volontairement après 9h15 : noAuto)
   const nowMs = Date.now();
-  if (live.status !== 'running' && !live.startedAt && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
+  if ((!live.startedAt || live.test) && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
     await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
     live = (await db.ref('live').once('value')).val() || {};
   }
@@ -103,7 +103,9 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   up.pos = fix;
   // passages : heure interpolée entre les deux positions ; ligne d'arrivée franchie → arrivée automatique (chrono arrêté)
   for (const pt of POINTS) if (lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) {
-    const tp = Math.round(prev.ts + (t - prev.ts) * (pt.s - lastS) / ((s - lastS) || 1));
+    let tp = Math.round(prev.ts + (t - prev.ts) * (pt.s - lastS) / ((s - lastS) || 1));
+    // l'arrivée est détectée 60 m avant le bout du tracé : on prolonge jusqu'à la ligne à la vitesse du dernier tronçon
+    if (pt.id === 'finish') tp += Math.round(Math.min(60000, (LEN - pt.s) / Math.max(1, (s - lastS) / Math.max(1, (t - prev.ts) / 1000)) * 1000));
     up['passages/' + pt.id] = tp;
     if (pt.id === 'finish' && !live.test) { up.status = 'finished'; up.finishedAt = tp; }
   }
