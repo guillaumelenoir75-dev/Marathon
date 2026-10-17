@@ -44,6 +44,12 @@ async function openLivePanel(){
     +     '<div class="lv-stat"><span>Arrivée estimée</span><b id="lv-eta">–</b></div>'
     +   '</div>'
     +   '<p id="lv-src" class="lv-note"></p>'
+    +   '<div class="lv-card" id="lv-ot"><p class="lv-h">📲 OwnTracks (position écran verrouillé)</p>'
+    +     '<ol class="lv-note" style="padding-left:18px;margin:0 0 8px;"><li>Installez <b>OwnTracks</b> (App Store) et ouvrez-la une fois.</li><li>Touchez le bouton ci-dessous et acceptez l\'ouverture puis l\'import dans OwnTracks.</li><li>Réglages iPhone › OwnTracks › Position : <b>Toujours</b> + <b>Position exacte</b>.</li><li>Dans OwnTracks : mode <b>Move</b>, puis touchez la flèche d\'envoi : « OwnTracks » ci-dessus doit passer au vert.</li></ol>'
+    +     '<button type="button" class="lv-btn lv-go" onclick="liveOwnTracks()">📲 Connecter OwnTracks</button>'
+    +     '<div id="lv-ot-man" hidden style="margin-top:8px;"><p class="lv-note" style="margin:0 0 4px;">Si l\'import ne s\'ouvre pas : OwnTracks › Réglages › Mode <b>HTTP</b>, collez cette URL, authentification désactivée.</p>'
+    +     '<input id="lv-ot-url" readonly onclick="this.select()" style="width:100%;box-sizing:border-box;font-size:12px;padding:9px;border:1px solid #cbd5e1;border-radius:10px;">'
+    +     '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveCopyOt()">Copier l\'URL</button></div></div>'
     +   '<div id="lv-actions" style="display:flex;flex-direction:column;gap:8px;"></div>'
     +   '<div class="lv-card"><p class="lv-h">⏱ Pointage officiel</p>'
     +     '<p class="lv-note" style="margin:0 0 8px;">Saisissez un km et votre temps de course officiel : distance, allure, passages et page de suivi sont mis à jour.</p>'
@@ -57,7 +63,7 @@ async function openLivePanel(){
     +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStart(document.getElementById(\'lv-start\').value)">Régler le chrono</button></div></div>'
     +   '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     +     '<a class="lv-btn lv-ghost" style="flex:1;text-align:center;text-decoration:none;" href="/suivi-guillaume" target="_blank">👀 Page de suivi</a>'
-    +     '<a class="lv-btn lv-ghost" style="flex:1;text-align:center;text-decoration:none;" href="/suivi-admin" target="_blank">⚙️ OwnTracks</a></div>'
+    + '</div>'
     + '</div></div></div>';
   mc.appendChild(ov);
   if(!document.getElementById('lv-style')){
@@ -137,6 +143,23 @@ async function liveFinish(){
 async function liveCancel(){
   if(!confirm('Annuler ? Le chrono, la trace et les pointages sont effacés ; la page de suivi revient à « Pas encore parti ».')) return;
   await _liveRef.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, splits: null });
+}
+// OwnTracks : configuration générée par la fonction owntracksToken (clé secrète, réservée à l'admin)
+async function liveOwnTracks(){
+  try {
+    const tok = await firebase.auth().currentUser.getIdToken();
+    const r = await fetch(FUNCTIONS_BASE + '/owntracksToken', { headers: { Authorization: 'Bearer ' + tok } });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    document.getElementById('lv-ot-url').value = j.url;
+    document.getElementById('lv-ot-man').hidden = false;
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(j.config))));
+    window.location.href = 'owntracks:///config?inline=' + encodeURIComponent(b64);
+  } catch(e) { alert('Impossible d\'obtenir la configuration OwnTracks (' + e.message + ').'); }
+}
+function liveCopyOt(){
+  const i = document.getElementById('lv-ot-url'); i.select();
+  if(navigator.clipboard) navigator.clipboard.writeText(i.value).then(function(){ alert('URL copiée.'); }, function(){}); else document.execCommand('copy');
 }
 async function liveDelSplit(k){ if(confirm('Supprimer ce pointage ?')) await _liveRef.child('splits/' + k).remove(); }
 
