@@ -1,4 +1,4 @@
-name: Récupération A13 Flins → Gaillon (temporaire)
+name: Récupération A13 Flins → Gaillon v2 (temporaire)
 
 on:
   push:
@@ -19,11 +19,16 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p fetch/a13
-          Q='[out:json][timeout:180];(way["highway"~"^motorway(_link)?$"](48.88,1.38,49.10,1.98);node["highway"="motorway_junction"](48.88,1.38,49.10,1.98););out geom tags;'
-          for srv in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
-            curl -sS -A "marathon-prepa/1.0" --data-urlencode "data=$Q" "$srv" -o fetch/a13/a13.json && python3 -c "import json;d=json.load(open('fetch/a13/a13.json'));print(len(d['elements']))" && break
-            sleep 5
+          Q='[out:json][timeout:240];(way["highway"="motorway"]["ref"~"A ?13"](48.90,1.38,49.09,1.97);node["highway"="motorway_junction"](48.90,1.38,49.09,1.97););out geom tags;'
+          ok=0
+          for k in 1 2 3; do
+            for srv in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass.private.coffee/api/interpreter; do
+              curl -sS -m 300 -A "marathon-prepa/1.0" --data-urlencode "data=$Q" "$srv" -o fetch/a13/a13.json || true
+              if python3 -c "import json;d=json.load(open('fetch/a13/a13.json'));print(len(d['elements']));assert len(d['elements'])>10"; then ok=1; break 2; fi
+              sleep 20
+            done
           done
+          echo ok=$ok
           ls -la fetch/a13
       - name: Commit
         if: always()
