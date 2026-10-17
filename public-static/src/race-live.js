@@ -45,9 +45,9 @@ async function openLivePanel(){
     +   '</div>'
     +   '<p id="lv-src" class="lv-note"></p>'
     +   '<div class="lv-card" id="lv-ot"><p class="lv-h">📲 OwnTracks (position écran verrouillé)</p>'
-    +     '<ol class="lv-note" style="padding-left:18px;margin:0 0 8px;"><li>Installez <b>OwnTracks</b> (App Store) et ouvrez-la une fois.</li><li>Touchez le bouton ci-dessous et acceptez l\'ouverture puis l\'import dans OwnTracks.</li><li>Réglages iPhone › OwnTracks › Position : <b>Toujours</b> + <b>Position exacte</b>.</li><li>Dans OwnTracks : mode <b>Move</b>, puis touchez la flèche d\'envoi : « OwnTracks » ci-dessus doit passer au vert.</li></ol>'
-    +     '<button type="button" class="lv-btn lv-go" onclick="liveOwnTracks()">📲 Connecter OwnTracks</button>'
-    +     '<div id="lv-ot-man" hidden style="margin-top:8px;"><p class="lv-note" style="margin:0 0 4px;">Si l\'import ne s\'ouvre pas : OwnTracks › Réglages › Mode <b>HTTP</b>, collez cette URL, authentification désactivée.</p>'
+    +     '<ol class="lv-note" style="padding-left:18px;margin:0 0 8px;"><li>Installez <b>OwnTracks</b> (App Store) et ouvrez-la une fois.</li><li>Touchez le bouton ci-dessous : l\'URL est copiée. Dans OwnTracks › <b>i</b> › Settings : Mode <b>HTTP</b>, collez l\'URL dans <b>URL</b>, <b>Authentification désactivée</b>.</li><li>Réglages iPhone › OwnTracks › Position : <b>Toujours</b> + <b>Position exacte</b>.</li><li>Dans OwnTracks : mode <b>Move</b>, puis touchez la flèche d\'envoi : « OwnTracks » ci-dessus doit passer au vert.</li></ol>'
+    +     '<button type="button" class="lv-btn lv-go" onclick="liveOwnTracks()">📲 Copier l\'URL OwnTracks</button>'
+    +     '<div id="lv-ot-man" hidden style="margin-top:8px;"><p class="lv-note" style="margin:0 0 4px;">URL à coller dans OwnTracks (contient votre clé secrète, ne la partagez pas) :</p>'
     +     '<input id="lv-ot-url" readonly onclick="this.select()" style="width:100%;box-sizing:border-box;font-size:12px;padding:9px;border:1px solid #cbd5e1;border-radius:10px;">'
     +     '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveCopyOt()">Copier l\'URL</button></div></div>'
     +   '<div id="lv-actions" style="display:flex;flex-direction:column;gap:8px;"></div>'
@@ -153,8 +153,8 @@ async function liveOwnTracks(){
     const j = await r.json();
     document.getElementById('lv-ot-url').value = j.url;
     document.getElementById('lv-ot-man').hidden = false;
-    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(j.config))));
-    window.location.href = 'owntracks:///config?inline=' + encodeURIComponent(b64);
+    // OwnTracks refuse l'import par lien (« URI or file configuration not allowed ») : on copie l'URL
+    if(navigator.clipboard) navigator.clipboard.writeText(j.url).then(function(){ alert('URL copiée. Collez-la dans OwnTracks › Settings › URL (mode HTTP, authentification désactivée).'); }, function(){});
   } catch(e) { alert('Impossible d\'obtenir la configuration OwnTracks (' + e.message + ').'); }
 }
 function liveCopyOt(){
