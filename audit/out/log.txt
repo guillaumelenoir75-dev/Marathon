@@ -1,5 +1,0 @@
-owntracks sans clé : 403
-owntracks mauvaise clé : [] 403
-owntracks GET : 405
-owntracksToken sans compte : {"error":"Accès réservé"} 403
-live inchangé : null
