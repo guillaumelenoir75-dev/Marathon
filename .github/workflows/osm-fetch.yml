@@ -1,0 +1,37 @@
+name: Vérification fonctions (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lecture
+        continue-on-error: true
+        run: |
+          mkdir -p audit/out
+          {
+          echo "owntracks POST clé invalide (attendu 403) :"; curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" -d '{"_type":"location","lat":49,"lon":1}' https://us-central1-prepa-marathon.cloudfunctions.net/owntracks/test-invalide
+          echo "owntracksToken sans auth (attendu 403) :"; curl -s -o /dev/null -w "%{http_code}\n" https://us-central1-prepa-marathon.cloudfunctions.net/owntracksToken
+          echo "parcours :"; curl -s https://prepa-marathon.web.app/parcours | grep -o 'race-map.js?v=[0-9]*\|suivi-view.js?v=[0-9]*\|Suivre Guillaume en direct\|Fiches à imprimer' | sort -u
+          echo "suivi-guillaume :"; curl -s https://prepa-marathon.web.app/suivi-guillaume | grep -o 'Km parcourus\|suivi-view.js?v=[0-9]*' | sort -u
+          echo "RTDB /live/ota :"; curl -s https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app/live/ota.json; echo
+          date -u
+          } > audit/out/fn.txt 2>&1
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/out
+          git commit -m "data: vérification fonctions (temporaire)" || true
+          git push
