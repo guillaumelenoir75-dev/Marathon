@@ -14,6 +14,7 @@ const SuiviView = (function(){
     firebase.database().ref('.info/connected').on('value', function(s){ $('net').hidden = !!s.val(); });
     ref.on('value', function(s){ live = s.val() || {}; render(true); });
     setInterval(function(){ render(false); }, 1000);
+    setInterval(glide, 200);
   }
 
   // ─── Carte ────────────────────────────────────────────────────────────────
@@ -73,21 +74,48 @@ const SuiviView = (function(){
     if($('v-done')) $('v-done').textContent = o.st === 'finished' ? '42,2' : suiviFmt.km(dist || 0).replace(/,00$/, '');
     $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, 42195 - (dist || 0))).replace(/,00$/, '');
     // carte
-    if(!map) return;
-    if(o.s !== undefined && o.st !== 'idle'){
-      const cut = []; const R = SUIVI_DATA.route; let acc = 0;
-      cut.push(R[0]);
-      for(let i = 1; i < R.length; i++){ const d = SuiviGeo.dist(R[i-1], R[i]); if(acc + d >= o.s){ cut.push(SuiviGeo.pointAt(o.s)); break; } acc += d; cut.push(R[i]); }
-      passedL.setLatLngs(cut);
-    } else passedL.setLatLngs([]);
-    if(o.ll && o.st !== 'idle'){
-      meLL = o.ll;
-      const ic = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' });
-      if(!me){ me = L.marker(o.ll, { icon: ic, zIndexOffset: 3000, keyboard: false }).addTo(map); me.bindPopup('Guillaume'); if(follow) map.setView(o.ll, 14); $('b-follow').hidden = true; }
-      else { me.setLatLng(o.ll); if(data) me.setIcon(ic); if(follow && data) map.panTo(o.ll, { animate: true }); }
-    } else if(me){ me.remove(); me = null; meLL = null; }
+    last = o;
+    drawMap(o, visS(o, t), data);
   }
 
-  return { init: init, center: center, whole: whole };
+  // ─── Carte : le point glisse le long du tracé à l'allure moyenne entre deux positions GPS ─────────
+  // Purement visuel (les chiffres ne bougent qu'aux vraies mesures) ; la position affichée ne recule jamais.
+  const CUM = (function(){ const R = SUIVI_DATA.route, c = [0]; for(let i = 1; i < R.length; i++) c.push(c[i-1] + SuiviGeo.dist(R[i-1], R[i])); return c; })();
+  let last = null, vis = { key: null, s: 0 };
+  function visS(o, t){
+    if(o.st === 'finished') return SuiviGeo.len;
+    if(o.st !== 'running' || o.s === undefined) return o.s;
+    let s = o.s;
+    if(o.ref && o.speed > 0) s = Math.max(s, o.ref.s + o.speed * Math.max(0, t - o.ref.ts) / 1000 / SuiviGeo.scale);
+    s = Math.min(SuiviGeo.len, s);
+    const key = live.startedAt + '|' + (live.s0 || 0);
+    if(vis.key === key && vis.s > s) s = vis.s; else vis = { key: key, s: s };
+    return s;
+  }
+  function drawMap(o, s, data){
+    if(!map) return;
+    if(s === undefined || o.st === 'idle' || (!o.ll && o.st !== 'finished')){
+      passedL.setLatLngs([]);
+      if(me){ me.remove(); me = null; meLL = null; }
+      return;
+    }
+    const R = SUIVI_DATA.route, ll = o.st === 'finished' ? R[R.length - 1] : SuiviGeo.pointAt(s);
+    let i = 1; while(i < R.length - 1 && CUM[i] < s) i++;
+    passedL.setLatLngs(R.slice(0, i).concat([ll]));
+    meLL = ll;
+    if(!me){
+      const ic = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' });
+      me = L.marker(ll, { icon: ic, zIndexOffset: 3000, keyboard: false }).addTo(map); me.bindPopup('Guillaume');
+      if(follow) map.setView(ll, 14); $('b-follow').hidden = true;
+      return;
+    }
+    me.setLatLng(ll);
+    if(data) me.setIcon(L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' }));
+    // suivi : recentrer quand le point s'approche du bord (pas à chaque pas, pour rester lisible)
+    if(follow && (data || !map.getBounds().pad(-0.3).contains(ll))) map.panTo(ll, { animate: true, duration: 0.8 });
+  }
+  function glide(){ if(last && last.st === 'running') drawMap(last, visS(last, now()), false); }
+
+  return { init: init, center: center, whole: whole, _ll: function(){ return meLL; } };
 })();
 document.addEventListener('DOMContentLoaded', function(){ SuiviView.init(); });
