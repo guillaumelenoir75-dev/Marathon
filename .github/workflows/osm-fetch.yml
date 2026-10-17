@@ -1,0 +1,33 @@
+name: Vérification URL OwnTracks (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Appels
+        continue-on-error: true
+        run: |
+          mkdir -p audit/out; B=https://us-central1-prepa-marathon.cloudfunctions.net
+          {
+          echo "chemin, fausse clé : $(curl -s -o /tmp/b -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"_type":"location","lat":49,"lon":1}' $B/owntracks/fauxfauxfauxfauxfauxfaux) $(head -c 80 /tmp/b)"
+          echo "chemin inexistant de contrôle : $(curl -s -o /dev/null -w '%{http_code}' -X POST $B/fonctionquinexistepas/abc)"
+          } > audit/out/log.txt
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/out
+          git commit -m "data: vérification URL OwnTracks (temporaire)" || true
+          git push
