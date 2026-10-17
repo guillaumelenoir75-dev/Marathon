@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=3'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=4'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -124,7 +124,7 @@ function _liveRender(){
   document.getElementById('lv-pace').textContent = c.known ? suiviFmt.pace(1000 / c.speed) : '–';
   document.getElementById('lv-eta').textContent = st === 'finished' ? suiviFmt.hhmm(L.finishedAt) : c.known ? suiviFmt.hhmm(c.ts + (42195 - c.d) / c.speed * 1000) : '–';
   const ot = L.ota;
-  document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + ' · ' : '')
+  document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + (c.adj ? ' · GPS recalé sur le plan' : '') + ' · ' : '')
     + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
   // actions selon l'état (reconstruites seulement si l'état change)
   const key = st + (L.test ? 't' : '');
@@ -230,6 +230,16 @@ async function liveSaveSplit(){
     await _liveRef.update({ status: 'running', test: null, startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, splits: null });
     L.startedAt = _liveNow() - el; L.status = 'running'; L.passages = null; L.pos = null;
   }
+  // cohérence avec le plan PacePro : allure du tronçon depuis le pointage précédent (ou le départ) et jusqu'au suivant
+  let lo = { km: 0, el: 0 }, hi = null;
+  if(L.splits) Object.keys(L.splits).forEach(function(k){ const x = L.splits[k]; if(x.km < km - 0.01 && x.km > lo.km) lo = x; if(x.km > km + 0.01 && (!hi || x.km < hi.km)) hi = x; });
+  const warn = [], kmTxt = function(k){ return k ? 'km ' + String(+k.toFixed(3)).replace('.', ',') : 'départ'; };
+  const chk = function(a, b){
+    const pc = (b.el - a.el) / 1000 / (b.km - a.km), B = SuiviPlan.bounds(a.km * 1000, b.km * 1000);
+    if(!(pc >= B.min && pc <= B.max)) warn.push(kmTxt(a.km) + ' → ' + kmTxt(b.km) + ' : ' + (pc > 0 ? suiviFmt.pace(pc) : 'temps incohérent') + ' (plan ' + suiviFmt.pace(B.plan) + ')');
+  };
+  chk(lo, { km: km, el: el }); if(hi) chk({ km: km, el: el }, hi);
+  if(warn.length && !confirm('⚠️ Allure très éloignée de votre plan :\n' + warn.join('\n') + '\n\nErreur de saisie ? Annuler pour corriger, OK pour enregistrer quand même.')) return;
   const ts = L.startedAt + el;
   const up = {};
   up['splits/k' + String(Math.round(km * 1000)).padStart(5, '0')] = { km: km, el: el, ts: ts };

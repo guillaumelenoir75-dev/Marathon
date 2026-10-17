@@ -59,41 +59,67 @@ const SuiviGeo = (function(){
   return { dist: dist, project: project, pointAt: pointAt, len: len, scale: scale, km: function(s){ return s * scale / 1000; } };
 })();
 
+// ─── Plan de course (PacePro) : temps cumulés prévus en secondes à chaque km (dernier = arrivée 42,195) ──
+// Sert uniquement à repérer les valeurs aberrantes (erreur de saisie, GPS figé ou qui saute) ; jamais affiché aux amis.
+const SUIVI_PLAN = [320, 636, 952, 1264, 1585, 1895, 2206, 2519, 2832, 3147, 3461, 3772, 4084, 4393, 4705, 5017, 5329, 5640, 5956, 6265,
+  6572, 6881, 7187, 7492, 7799, 8107, 8416, 8724, 9044, 9352, 9660, 9968, 10276, 10584, 10892, 11200, 11508, 11816, 12124, 12432, 12740, 13108];
+const SuiviPlan = (function(){
+  const T = SUIVI_PLAN, D = T.map(function(x, i){ return i < T.length - 1 ? (i + 1) * 1000 : 42195; }), n = T.length - 1;
+  function t(d){                                         // secondes prévues à d mètres
+    if(d <= 0) return 0;
+    for(let i = 0; i <= n; i++) if(d <= D[i]){ const d0 = i ? D[i-1] : 0, t0 = i ? T[i-1] : 0; return t0 + (T[i] - t0) * (d - d0) / (D[i] - d0); }
+    return T[n] + (d - D[n]) * (T[n] - T[n-1]) / (D[n] - D[n-1]);
+  }
+  function pace(d1, d2){ if(!(d2 > d1 + 50)) d2 = d1 + 1000; return (t(d2) - t(d1)) / (d2 - d1) * 1000; }   // s/km prévus
+  // allures plausibles (s/km) sur un tronçon : au plus 50 s plus rapide que le plan ; au plus 1 min plus lent
+  // jusqu'au km 30 (une allure en 6 ou 7 y est forcément une erreur), 3 min au-delà (coup de moins bien possible)
+  function bounds(d1, d2){ const p = pace(d1, d2); return { plan: p, min: p - 50, max: p + (d2 > 30500 ? 180 : 60) }; }
+  return { t: t, pace: pace, bounds: bounds };
+})();
+
 // ─── Distance et allure (pages /suivi-guillaume, /suivi-admin et panneau « Course en direct ») ──
 // Le dernier pointage officiel (km + temps) est acquis définitivement : seul le tronçon parcouru depuis
-// ce pointage est mesuré au GPS (ou estimé), puis ajouté aux km et au temps validés.
+// ce pointage (ou depuis le départ) est mesuré au GPS (ou estimé), puis ajouté aux km et au temps validés.
+// Hors essai, le tronçon GPS est ramené dans les allures plausibles du plan (GPS figé ou qui saute).
 // d : mètres officiels parcourus · el : temps de course (ms) à cette distance · ts : instant de cette distance
-// s / ll : position sur le tracé (carte) · speed : m/s moyens · known : allure mesurée (sinon allure du plan)
-const SUIVI_PLAN_SPEED = 42195 / (3.55 * 3600);
+// s / ll : position sur le tracé (carte) · speed : m/s moyens · known : allure mesurée · adj : GPS recalé
 function suiviCalc(live, t){
   const o = { st: live.status || 'idle', t: t };
   if(!live.startedAt) return o;
   const t0 = live.startedAt, R = SUIVI_DATA.route;
+  const planSpeed = function(d){ return 1000 / SuiviPlan.pace(d); };
   if(o.st === 'finished'){
     const el = (live.finishedAt || t) - t0;
     return Object.assign(o, { d: 42195, el: el, ts: live.finishedAt || t, s: SuiviGeo.len, ll: R[R.length - 1], speed: 42195 / (el / 1000), known: true });
   }
-  // ancrage : pointage officiel le plus loin
+  // ancrage : pointage officiel le plus loin, sinon le départ
   let A = null;
   if(live.splits) Object.keys(live.splits).forEach(function(k){ const x = live.splits[k]; if(x && x.km > 0 && x.el > 0 && (!A || x.km > A.km)) A = x; });
   const P = live.pos && typeof live.pos.s === 'number' && live.pos.src !== 'officiel' ? live.pos : null;
-  let ref;
-  if(A){
-    const At = t0 + A.el, Ad = Math.min(42195, A.km * 1000), As = Math.min(SuiviGeo.len, Ad / SuiviGeo.scale);
-    // position GPS au moment du pointage (trace interpolée) : le tronçon GPS est mesuré à partir de là
+  if(!A && !P) return Object.assign(o, { d: 0, el: t - t0, ts: t, s: 0, ll: null, speed: planSpeed(0), known: false });
+  if(!A) A = { km: 0, el: 0 };
+  const At = t0 + A.el, Ad = Math.min(42195, A.km * 1000), As = Math.min(SuiviGeo.len, Ad / SuiviGeo.scale);
+  // position GPS au moment du pointage (trace interpolée) : le tronçon GPS est mesuré à partir de là
+  let gA = A.km ? null : 0;
+  if(gA === null){
     const g = live.track ? Object.keys(live.track).map(function(k){ const x = live.track[k]; return [x[2], x[3]]; }) : [];
     if(P) g.push([P.ts, P.s]);
     g.sort(function(a, b){ return a[0] - b[0]; });
-    let gA = null;
     for(let i = 1; i < g.length; i++) if(g[i-1][0] <= At && g[i][0] >= At){ const f = (At - g[i-1][0]) / ((g[i][0] - g[i-1][0]) || 1); gA = g[i-1][1] + (g[i][1] - g[i-1][1]) * f; break; }
     if(gA === null) gA = As;
-    if(P && P.ts > At && P.s > gA) ref = { d: Math.min(42195, Ad + (P.s - gA) * SuiviGeo.scale), el: A.el + (P.ts - At), ts: P.ts, s: P.s, ll: [P.lat, P.lon] };
-    else ref = { d: Ad, el: A.el, ts: At, s: As, ll: SuiviGeo.pointAt(As) };
-  } else if(P) ref = { d: Math.min(42195, P.s * SuiviGeo.scale), el: P.ts - t0, ts: P.ts, s: P.s, ll: [P.lat, P.lon] };
-  else return Object.assign(o, { d: 0, el: t - t0, ts: t, s: 0, ll: null, speed: SUIVI_PLAN_SPEED, known: false });
+  }
+  let ref;
+  if(P && P.ts > At){
+    const e = (P.ts - At) / 1000, raw = Math.max(0, (P.s - gA) * SuiviGeo.scale);
+    let dd = raw;
+    if(!live.test && e >= 20){ const B = SuiviPlan.bounds(Ad, Ad + raw); dd = Math.max(e / B.max * 1000, Math.min(e / B.min * 1000, raw)); }
+    dd = Math.min(42195 - Ad, dd);
+    const adj = Math.abs(dd - raw) > 1, s = adj ? Math.max(0, Math.min(SuiviGeo.len, gA + dd / SuiviGeo.scale)) : P.s;
+    ref = { d: Ad + dd, el: A.el + (P.ts - At), ts: P.ts, s: s, ll: adj ? SuiviGeo.pointAt(s) : [P.lat, P.lon], adj: adj };
+  } else ref = { d: Ad, el: A.el, ts: At, s: As, ll: SuiviGeo.pointAt(As) };
   o.known = ref.d > 300 && ref.el > 60000;
-  o.speed = o.known ? ref.d / (ref.el / 1000) : SUIVI_PLAN_SPEED;
-  o.ref = ref; o.d = ref.d; o.el = ref.el; o.ts = ref.ts; o.s = ref.s; o.ll = ref.ll;
+  o.speed = o.known ? ref.d / (ref.el / 1000) : planSpeed(ref.d);
+  o.ref = ref; o.adj = !!ref.adj; o.d = ref.d; o.el = ref.el; o.ts = ref.ts; o.s = ref.s; o.ll = ref.ll;
   o.age = t - ref.ts;
   // sans nouvelle position depuis 2 min : avancée estimée à l'allure moyenne
   if(o.age > 120000 && o.st === 'running'){
