@@ -45,7 +45,7 @@ exports.owntracksToken = onRequest({ cors: true }, async (req, res) => {
   const db = admin.database();
   if (req.query.renew === '1') await db.ref(KEY_PATH).remove();
   const key = await getKey(db, true);
-  const url = `${URL_BASE}?key=${key}`;
+  const url = `${URL_BASE}/${key}`;              // clé dans le chemin : pas de « ?key= » qu'OwnTracks risque de tronquer
   const config = { _type: 'configuration', mode: 3, url, tid: 'GL', deviceId: 'guillaume', auth: false,
     monitoring: 2, locatorInterval: 15, locatorDisplacement: 25, ignoreInaccurateLocations: 100, downgrade: 0,
     allowRemoteLocation: false, cmd: false, extendedData: true };
@@ -57,7 +57,13 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   const db = admin.database();
   if (req.method !== 'POST') { res.status(405).json([]); return; }
   const key = await getKey(db, false);
-  const given = String(req.query.key || '');
+  // clé : chemin (/owntracks/<clé>), paramètre ?key= ou mot de passe de l'authentification de base d'OwnTracks
+  const seg = String(req.path || '').split('/').filter(Boolean).pop() || '';
+  let basic = '';
+  const ah = req.headers.authorization || '';
+  if (ah.startsWith('Basic ')) { try { basic = Buffer.from(ah.slice(6), 'base64').toString().split(':').slice(1).join(':'); } catch (e) {} }
+  const given = String(req.query.key || (seg !== 'owntracks' ? seg : '') || basic || '');
+  if (given !== key) console.warn('owntracks : clé refusée', { query: String(req.query.key || '').length, path: seg.length, basic: basic.length });
   if (!key || given.length !== key.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(key))) { res.status(403).json([]); return; }
   const m = typeof req.body === 'object' && req.body ? req.body : {};
   if (m._type !== 'location' || typeof m.lat !== 'number' || typeof m.lon !== 'number') { res.json([]); return; }
