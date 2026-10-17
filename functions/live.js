@@ -16,15 +16,18 @@ const dist = (a, b) => { const dx = (b[1] - a[1]) * kx((a[0] + b[0]) / 2), dy = 
 const PTS = COURSE.route, CUM = [0];
 for (let i = 1; i < PTS.length; i++) CUM.push(CUM[i - 1] + dist(PTS[i - 1], PTS[i]));
 const LEN = CUM[CUM.length - 1], SCALE = COURSE.official / LEN;
-function project(p, sMin, sMax) {
-  const K = kx(p[0]); let best = { d: Infinity, s: 0 };
+// sExp (facultatif) : position attendue ; là où le tracé repasse près de lui-même (boucle du km 14),
+// on préfère la branche cohérente avec la progression (100 m d'écart le long du tracé ≈ 15 m de côté, 30 m au plus)
+function project(p, sMin, sMax, sExp) {
+  const K = kx(p[0]); let best = { d: Infinity, s: 0, c: Infinity };
   for (let i = 1; i < PTS.length; i++) {
     if (sMax !== undefined && (CUM[i] < sMin || CUM[i - 1] > sMax)) continue;
     const a = PTS[i - 1], b = PTS[i];
     const ax = (a[1] - p[1]) * K, ay = (a[0] - p[0]) * 110540, bx = (b[1] - p[1]) * K, by = (b[0] - p[0]) * 110540;
     const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, u = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
-    const d = Math.hypot(ax + u * dx, ay + u * dy);
-    if (d < best.d) best = { d, s: CUM[i - 1] + u * Math.sqrt(L2) };
+    const d = Math.hypot(ax + u * dx, ay + u * dy), sp = CUM[i - 1] + u * Math.sqrt(L2);
+    const c = sExp === undefined ? d : d + 0.15 * Math.min(200, Math.abs(sp - sExp));   // départage plafonné à 30 m
+    if (c < best.c) best = { d, s: sp, c };
   }
   return best;
 }
@@ -92,7 +95,7 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   const el = (t - live.startedAt) / 1000;
   const pr = free ? project([m.lat, m.lon])
            : lastS === null ? project([m.lat, m.lon], el * PLAN_SPEED / SCALE - 6000, el * PLAN_SPEED / SCALE + 6000)
-                            : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - (prev.ts || t)) / 1000 * 6));
+                            : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - (prev.ts || t)) / 1000 * 6), lastS + Math.max(0, (t - (prev.sts || prev.ts || t)) / 1000) * PLAN_SPEED / SCALE);
   let s = lastS === null ? 0 : lastS;
   const dt = prev && prev.ts ? Math.max(1, (t - prev.ts) / 1000) : 1e6;
   const ok = pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150);
