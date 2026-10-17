@@ -68,7 +68,7 @@ const SuiviView = (function(){
     const o = state(), t = o.t;
     const pill = $('pill');
     pill.className = 'pill ' + o.st;
-    pill.textContent = o.st === 'running' ? 'En course' : o.st === 'finished' ? 'Arrivé ✔' : 'Pas encore parti';
+    pill.textContent = o.st === 'running' ? (live.test ? 'Essai en cours' : 'En course') : o.st === 'finished' ? (live.test ? 'Essai terminé' : 'Arrivé ✔') : 'Pas encore parti';
     const start = live.startedAt || suiviFmt.planned(SUIVI_DATA.start);
     if(o.st === 'idle'){
       $('status-line').textContent = 'Départ prévu à 9h15 d\'Amfreville-sur-Iton' + (t < start ? ' · dans ' + suiviFmt.dur(start - t).replace(/^0:/, '') : '');
@@ -77,6 +77,7 @@ const SuiviView = (function(){
     } else {
       $('status-line').textContent = live.pos ? (o.est ? '⚠ Signal perdu depuis ' + suiviFmt.ago(o.age).replace('il y a ', '') + ' : position estimée' : 'Position mise à jour ' + suiviFmt.ago(o.age)) : 'Départ donné à ' + suiviFmt.hhmm(live.startedAt) + ' · en attente de la première position GPS';
     }
+    if(live.test && o.st !== 'idle') $('status-line').textContent = '🧪 Essai du suivi : ce n\'est pas la course. ' + $('status-line').textContent;
     $('status-line').className = 'status' + (o.est ? ' warn' : '');
     const dist = o.s !== undefined ? o.s * SuiviGeo.scale : null;
     $('v-dist').textContent = dist !== null ? suiviFmt.km(dist) : '0';

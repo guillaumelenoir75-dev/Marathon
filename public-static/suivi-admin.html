@@ -78,6 +78,8 @@
       <button id="b-resume" class="ghost" onclick="SuiviAdmin.resume()" hidden>Secours : envoyer aussi depuis Safari (écran allumé obligatoire)</button>
       <button id="b-black" class="dark" onclick="SuiviAdmin.black(true)" hidden>⬛ Écran noir anti-touches (poche)</button>
       <button id="b-finish" class="fin" onclick="SuiviAdmin.finish()" hidden>🏁 Je suis arrivé</button>
+      <button id="b-test" class="ghost" onclick="SuiviAdmin.test()">🧪 Lancer un essai (annulable)</button>
+      <button id="b-cancel" class="danger" onclick="SuiviAdmin.reset()" hidden>✖ Annuler le suivi (tout effacer)</button>
     </section>
 
     <section class="card">
@@ -121,7 +123,6 @@
         <li>À l'arrivée : <b>Je suis arrivé</b>.</li>
       </ol>
       <p class="tips" style="padding:0">Lien à partager : <a href="/suivi-guillaume" target="_blank">prepa-marathon.web.app/suivi-guillaume</a></p>
-      <button class="danger" onclick="SuiviAdmin.reset()">Réinitialiser (essai terminé, avant la course)</button>
       <button class="ghost" onclick="SuiviAdmin.logout()">Se déconnecter</button>
     </section>
   </div>
@@ -129,6 +130,6 @@
 <div id="black" hidden>Suivi en cours · appui long pour revenir</div>
 <script defer src="/src/suivi-data.js?v=1"></script>
 <script defer src="/src/suivi-core.js?v=2"></script>
-<script defer src="/src/suivi-admin.js?v=3"></script>
+<script defer src="/src/suivi-admin.js?v=4"></script>
 </body>
 </html>

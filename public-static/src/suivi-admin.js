@@ -38,14 +38,14 @@ const SuiviAdmin = (function(){
   }
 
   // ─── Commandes ────────────────────────────────────────────────────────────
-  async function start(at){
-    const label = at ? 'à ' + suiviFmt.hhmm(at) : 'maintenant';
-    if(live.status === 'running' && !confirm('Une course est déjà en cours. Redémarrer le chrono ' + label + ' et effacer la trace ?')) return;
-    if(live.status !== 'running' && !confirm('Démarrer la course ' + label + ' ? Le suivi devient visible par tous.')) return;
+  async function start(at, test){
+    const label = at ? 'à ' + suiviFmt.hhmm(at) : 'maintenant', what = test ? 'l\'essai' : 'la course';
+    if(live.status === 'running' && !confirm('Un suivi est déjà en cours. Redémarrer ' + what + ' ' + label + ' et effacer la trace ?')) return;
+    if(live.status !== 'running' && !confirm(test ? 'Lancer un essai ? La page de suivi affichera « Essai », et vous pourrez tout annuler ensuite.' : 'Démarrer la course ' + label + ' ? Le suivi devient visible par tous.')) return;
     lastS = at ? null : 0; lastAccT = 0; lastTrackS = -1;
-    await ref.update({ status: 'running', startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null });
+    await ref.update({ status: 'running', test: test ? true : null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null });
     // par défaut, la position vient d'OwnTracks (écran verrouillé) : le GPS de Safari n'est lancé qu'à la demande
-    msg('Course démarrée. OwnTracks envoie votre position : vous pouvez verrouiller l\'iPhone.');
+    msg((test ? 'Essai lancé' : 'Course démarrée') + '. OwnTracks envoie votre position : vous pouvez verrouiller l\'iPhone.' + (test ? ' Touchez « Annuler » pour tout effacer.' : ''));
   }
   async function finish(){
     if(!confirm('Déclarer l\'arrivée maintenant ? Le chrono s\'arrête pour tout le monde.')) return;
@@ -55,9 +55,10 @@ const SuiviAdmin = (function(){
     await ref.update(up); stopGps();
   }
   async function reset(){
-    if(!confirm('Réinitialiser le suivi (statut « pas encore parti », trace effacée) ?')) return;
+    if(!confirm(live.test ? 'Annuler l\'essai ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».' : 'Annuler le suivi ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».')) return;
     stopGps(); lastS = null;
-    await ref.update({ status: 'idle', startedAt: null, finishedAt: null, passages: null, track: null, pos: null });
+    await ref.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null });
+    msg('Suivi annulé : tout est revenu à zéro.');
   }
   // OwnTracks : clé + configuration générées côté serveur (fonction owntracksToken, réservée à l'admin)
   async function owntracks(renew){
@@ -147,6 +148,10 @@ const SuiviAdmin = (function(){
     $('src').textContent = watch !== null ? 'OwnTracks + Safari (écran allumé)' : 'OwnTracks (écran verrouillé possible)';
     $('src-warn').hidden = otOk || watch !== null;
     $('b-finish').hidden = st !== 'running';
+    $('b-test').hidden = st === 'running';
+    $('b-cancel').hidden = st === 'idle';
+    $('b-cancel').textContent = live.test ? '✖ Annuler l\'essai (tout effacer)' : '✖ Annuler le suivi (tout effacer)';
+    if(st === 'running' && live.test) $('st').textContent = 'Essai en cours';
     $('b-black').hidden = watch === null;
     const ot = live.ota;
     $('ot-last').textContent = ot && ot.ts ? suiviFmt.ago(Date.now() + offset - ot.ts) + (ot.acc ? ' · précision ' + ot.acc + ' m' : '') : 'jamais';
@@ -165,7 +170,7 @@ const SuiviAdmin = (function(){
   }
 
   return {
-    init: init, start: function(){ start(null); }, startAt: function(){ const v = $('t-start').value || '09:15'; start(suiviFmt.planned(v)); },
+    init: init, start: function(){ start(null); }, test: function(){ start(null, true); }, startAt: function(){ const v = $('t-start').value || '09:15'; start(suiviFmt.planned(v)); },
     resume: startGps, finish: finish, reset: reset, saveGarmin: saveGarmin, black: black, owntracks: owntracks,
     logout: function(){ stopGps(); firebase.auth().signOut(); },
   };
