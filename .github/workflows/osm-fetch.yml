@@ -1,0 +1,36 @@
+name: Vérification fonctions OwnTracks (temporaire)
+
+on:
+  push:
+    branches:
+      - claude/sweet-allen-ZGlVv
+    paths:
+      - .github/workflows/osm-fetch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Appels
+        continue-on-error: true
+        run: |
+          mkdir -p audit/out; B=https://us-central1-prepa-marathon.cloudfunctions.net
+          {
+          echo "owntracks sans clé : $(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"_type":"location","lat":49,"lon":1}' $B/owntracks)"
+          echo "owntracks mauvaise clé : $(curl -s -w ' %{http_code}' -X POST -H 'Content-Type: application/json' -d '{"_type":"location","lat":49,"lon":1}' "$B/owntracks?key=abcdefghijklmnopqrstuvwx")"
+          echo "owntracks GET : $(curl -s -o /dev/null -w '%{http_code}' $B/owntracks)"
+          echo "owntracksToken sans compte : $(curl -s -w ' %{http_code}' $B/owntracksToken)"
+          echo "live inchangé : $(curl -s https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app/live.json | head -c 200)"
+          } > audit/out/log.txt
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/out
+          git commit -m "data: vérification OwnTracks (temporaire)" || true
+          git push
