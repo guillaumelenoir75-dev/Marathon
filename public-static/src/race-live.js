@@ -3,10 +3,13 @@
 
 let _liveRef = null, _liveVal = {}, _liveTimer = null, _liveOffset = 0;
 
+let _liveCoreP = null;
 function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
+  if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  return load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=2'); });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=3'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
 // (secondes, minutes, heures) : 1458 → 14:58 · 14823 → 1:48:23. Formats « 1h42 » / « 1h42m10 » acceptés aussi.
@@ -116,12 +119,10 @@ function _liveRender(){
   const t = _liveNow(), st = L.status || 'idle';
   document.getElementById('lv-pill').textContent = st === 'running' ? (L.test ? '🧪 Essai en cours' : '🟢 En course') : st === 'finished' ? '✔ Arrivé' : 'Pas encore parti';
   el.textContent = L.startedAt ? suiviFmt.dur((L.finishedAt || t) - L.startedAt) : '–';
-  const p = L.pos, dKm = p && typeof p.s === 'number' ? p.s * SuiviGeo.scale : null;
-  document.getElementById('lv-dist').textContent = st === 'finished' ? '42,2 km' : dKm !== null ? suiviFmt.km(dKm) + ' km' : '–';
-  const elAt = p && L.startedAt ? (p.ts - L.startedAt) / 1000 : 0;
-  const speed = st === 'finished' ? 42195 / ((L.finishedAt - L.startedAt) / 1000) : dKm > 300 && elAt > 60 ? dKm / elAt : null;
-  document.getElementById('lv-pace').textContent = speed ? suiviFmt.pace(1000 / speed) : '–';
-  document.getElementById('lv-eta').textContent = st === 'finished' ? suiviFmt.hhmm(L.finishedAt) : speed && p ? suiviFmt.hhmm(p.ts + (42195 - dKm) / speed * 1000) : '–';
+  const p = L.pos, c = suiviCalc(L, t);
+  document.getElementById('lv-dist').textContent = c.d !== undefined ? suiviFmt.km(c.d) + ' km' : '–';
+  document.getElementById('lv-pace').textContent = c.known ? suiviFmt.pace(1000 / c.speed) : '–';
+  document.getElementById('lv-eta').textContent = st === 'finished' ? suiviFmt.hhmm(L.finishedAt) : c.known ? suiviFmt.hhmm(c.ts + (42195 - c.d) / c.speed * 1000) : '–';
   const ot = L.ota;
   document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + ' · ' : '')
     + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
@@ -229,7 +230,7 @@ async function liveSaveSplit(){
     await _liveRef.update({ status: 'running', test: null, startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, splits: null });
     L.startedAt = _liveNow() - el; L.status = 'running'; L.passages = null; L.pos = null;
   }
-  const ts = L.startedAt + el, s = Math.min(SuiviGeo.len, km * 1000 / SuiviGeo.scale);
+  const ts = L.startedAt + el;
   const up = {};
   up['splits/k' + String(Math.round(km * 1000)).padStart(5, '0')] = { km: km, el: el, ts: ts };
   // points de passage correspondants (le km 30 est devant la maison, ≈ km 29,4)
@@ -238,11 +239,7 @@ async function liveSaveSplit(){
     if(Math.abs(km - pt.km) < 0.35 || Math.abs(km - ptKm) < 0.35) up['passages/' + pt.id] = ts;
   });
   if(km >= 42.1){ up.status = 'finished'; up.finishedAt = ts; up['passages/finish'] = ts; }
-  // position officielle si le GPS n'est pas déjà plus loin
-  if(!L.pos || typeof L.pos.s !== 'number' || L.pos.s <= s + 50){
-    const ll = SuiviGeo.pointAt(s);
-    up.pos = { lat: +ll[0].toFixed(6), lon: +ll[1].toFixed(6), acc: 0, ts: ts, s: Math.round(s), src: 'officiel' };
-  }
+  // le pointage reste l'ancrage du calcul (suiviCalc) : la position GPS n'est pas écrasée
   await _liveRef.update(up);
   document.getElementById('lv-km').value = ''; document.getElementById('lv-t').value = '';
 }
@@ -252,7 +249,7 @@ function _liveRenderHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
   const L = _liveVal, st = L.status || 'idle';
   const sub = document.getElementById('home-live-sub');
-  if(sub) sub.textContent = st === 'running' ? (L.test ? 'Essai en cours' : 'En course · ' + (L.pos && typeof SuiviGeo !== 'undefined' ? suiviFmt.km(L.pos.s * SuiviGeo.scale) + ' km' : 'chrono lancé'))
+  if(sub) sub.textContent = st === 'running' ? (L.test ? 'Essai en cours' : 'En course · ' + (typeof suiviCalc !== 'undefined' && (L.pos || L.splits) ? suiviFmt.km(suiviCalc(L, _liveNow()).d) + ' km' : 'chrono lancé'))
     : st === 'finished' ? 'Arrivé ✔' : 'Démarrer, pointages officiels, suivi des amis';
 }
 function initLiveHomeBtn(){

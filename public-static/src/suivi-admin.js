@@ -136,7 +136,7 @@ const SuiviAdmin = (function(){
     $('st').textContent = st === 'running' ? 'En course' : st === 'finished' ? 'Arrivé' : 'Pas encore parti';
     $('st').className = 'pill ' + st;
     $('chrono').textContent = live.startedAt ? suiviFmt.dur((live.finishedAt || t) - live.startedAt) : '–';
-    $('dist').textContent = live.pos ? suiviFmt.km(live.pos.s * SuiviGeo.scale) + ' km' : '–';
+    $('dist').textContent = live.startedAt && (live.pos || live.splits) ? suiviFmt.km(suiviCalc(live, t).d) + ' km' : '–';
     $('gps').textContent = watch === null ? 'arrêté sur ce téléphone' : lastFix ? 'actif · précision ' + lastFix.acc + ' m' + (lastFix.off > 120 ? ' · hors parcours (' + lastFix.off + ' m)' : '') : 'recherche du signal…';
     $('gps').className = watch === null ? 'bad' : 'ok';
     $('last').textContent = live.pos ? suiviFmt.ago(t - live.pos.ts) + ' · ' + sent + ' envois' : '–';

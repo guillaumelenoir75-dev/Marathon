@@ -4,8 +4,6 @@ const SuiviView = (function(){
   let live = {}, offset = 0, map = null, me = null, meLL = null, trail = null, follow = true, passedL = null;
   const $ = function(id){ return document.getElementById(id); };
   const now = function(){ return Date.now() + offset; };
-  const STALE = 120000;                                   // au-delà, la position est estimée
-  const PLAN_SPEED = 42195 / (3.55 * 3600);
 
   async function init(){
     await suiviLeaflet().catch(function(){});
@@ -48,18 +46,8 @@ const SuiviView = (function(){
 
   // ─── Calculs ──────────────────────────────────────────────────────────────
   function state(){
-    const t = now(), st = live.status || 'idle', p = live.pos;
-    const o = { st: st, t: t };
-    if(!live.startedAt) return o;
-    o.el = (live.finishedAt || t) - live.startedAt;
-    if(st === 'finished'){ o.s = SuiviGeo.len; o.ll = SUIVI_DATA.route[SUIVI_DATA.route.length - 1]; return o; }
-    if(!p || typeof p.s !== 'number'){ o.s = 0; return o; }
-    const elAtPos = (p.ts - live.startedAt) / 1000, dOff = p.s * SuiviGeo.scale;
-    o.speed = elAtPos > 120 && dOff > 300 ? dOff / elAtPos : PLAN_SPEED;          // m/s officiels
-    o.age = t - p.ts;
-    if(o.age > STALE && st === 'running'){
-      o.est = true; o.s = Math.min(SuiviGeo.len, p.s + o.speed / SuiviGeo.scale * o.age / 1000); o.ll = SuiviGeo.pointAt(o.s);
-    } else { o.s = p.s; o.ll = [p.lat, p.lon]; }
+    const o = suiviCalc(live, now());
+    if(live.startedAt) o.chrono = (live.finishedAt || o.t) - live.startedAt;
     return o;
   }
 
@@ -74,10 +62,10 @@ const SuiviView = (function(){
     else if(o.st === 'finished') $('status-line').textContent = 'Arrivé en ' + suiviFmt.dur(live.finishedAt - live.startedAt) + ' 🎉';
     else $('status-line').textContent = 'Départ donné à ' + suiviFmt.hhmm(live.startedAt);
     if(live.test && o.st !== 'idle') $('status-line').textContent = '🧪 Essai : ce n\'est pas la course. ' + $('status-line').textContent;
-    const dist = o.s !== undefined ? o.s * SuiviGeo.scale : null;
-    $('v-time').textContent = o.el !== undefined ? suiviFmt.dur(o.el) : '–';
+    const dist = o.d !== undefined ? o.d : null;
+    $('v-time').textContent = o.chrono !== undefined ? suiviFmt.dur(o.chrono) : '–';
     $('v-time-sub').textContent = o.st === 'finished' ? 'temps final' : live.startedAt ? 'depuis ' + suiviFmt.hhmm(live.startedAt) : 'départ prévu 9h15';
-    const pace = o.st === 'finished' ? (live.finishedAt - live.startedAt) / 1000 / 42.195 : o.speed && dist > 300 ? 1000 / o.speed : NaN;
+    const pace = o.known ? 1000 / o.speed : NaN;
     $('v-pace').textContent = suiviFmt.pace(pace);
     $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, 42195 - (dist || 0))).replace(/,00$/, '');
     // carte
