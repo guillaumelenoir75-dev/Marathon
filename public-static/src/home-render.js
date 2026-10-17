@@ -17,6 +17,7 @@ function sendGoalChip(){
 }
 
 function renderHome(){
+  if(typeof initLiveHomeBtn === 'function') initLiveHomeBtn();
   const w = homeViewWeek; // semaine affichée (peut ≠ CW si navigation)
   const eCW = getEffectiveCW(); // semaine courante effective (admin=CW, athlete=getAthleteCW)
   const isPast   = w < eCW;

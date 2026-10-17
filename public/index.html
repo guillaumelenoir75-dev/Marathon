@@ -99,6 +99,12 @@
         </button>
       </div>
     </div>
+    <!-- Course en direct (admin) : suivi /live, pointages officiels -->
+    <button id="home-live-btn" type="button" onclick="openLivePanel()" style="display:none;width:100%;align-items:center;gap:10px;background:linear-gradient(135deg,#15803D,#16A34A);border:none;border-radius:14px;padding:11px 14px;margin-bottom:12px;cursor:pointer;color:#fff;text-align:left;box-shadow:0 4px 12px rgba(21,128,61,.35);">
+      <span style="font-size:22px;line-height:1;">🏁</span>
+      <span style="flex:1;min-width:0;"><span style="display:block;font-size:14px;font-weight:900;">Course en direct</span><span id="home-live-sub" style="display:block;font-size:11px;opacity:.85;">Démarrer, pointages officiels, suivi des amis</span></span>
+      <span style="font-size:18px;opacity:.8;">›</span>
+    </button>
     <!-- Ligne principale : temps marathon + KPIs -->
     <div id="home-header-main-row" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
       <!-- GAUCHE : temps prédit + semaine + BPM repos + VO2max -->
@@ -1051,6 +1057,7 @@
 <script defer src="/src/plan-admin.js?v=4"></script>
 <script defer src="/src/race-map.js?v=14"></script>
 <script defer src="/src/race-nav-data.js?v=8"></script>
+<script defer src="/src/race-live.js?v=1"></script>
 <script defer src="/src/race-nav.js?v=16"></script>
 <script defer src="/src/plan-state.js?v=3"></script>
 <script defer src="/src/plan-predict.js?v=8"></script>

@@ -104,6 +104,11 @@ const SuiviView = (function(){
       else { val = 'Prévu <b>' + pt.prevu.replace(':', 'h') + '</b>'; cls = ''; }
       return '<li class="' + cls + '"><span class="pk">' + (pt.id === 'finish' ? '🏁' : pt.km) + '</span><span class="pl"><b>' + pt.label + '</b><span>' + pt.lieu + '</span></span><span class="pv">' + val + '</span></li>';
     }).join('');
+    const sp = live.splits ? Object.keys(live.splits).map(function(k){ return live.splits[k]; }).sort(function(a, b){ return a.km - b.km; }) : [];
+    $('splits-card').hidden = !sp.length;
+    $('splits').innerHTML = sp.map(function(x){
+      return '<li class="done"><span class="pk">' + (x.km >= 42.1 ? '🏁' : Math.round(x.km)) + '</span><span class="pl"><b>km ' + String(+x.km.toFixed(3)).replace('.', ',') + '</b><span>allure ' + suiviFmt.pace(x.el / 1000 / x.km) + '</span></span><span class="pv"><b>' + suiviFmt.dur(x.el) + '</b><br>à ' + suiviFmt.hhmm(x.ts) + '</span></li>';
+    }).join('');
     $('garmin').hidden = !live.garmin; if(live.garmin) $('garmin').href = live.garmin;
     // carte
     if(!map) return;
