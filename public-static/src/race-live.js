@@ -180,6 +180,7 @@ function _liveRenderHomeBtn(){
 }
 function initLiveHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
+  if(typeof firebase === 'undefined'){ b.style.display = 'none'; return; }      // mode aperçu hors ligne
   b.style.display = isAdmin() ? 'flex' : 'none';
   if(!isAdmin() || window._liveHomeListen || typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
   window._liveHomeListen = true;
