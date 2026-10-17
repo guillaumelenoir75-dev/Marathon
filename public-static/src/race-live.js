@@ -109,7 +109,7 @@ function _liveRender(){
   document.getElementById('lv-eta').textContent = st === 'finished' ? suiviFmt.hhmm(L.finishedAt) : speed && p ? suiviFmt.hhmm(p.ts + (42195 - dKm) / speed * 1000) : '–';
   const ot = L.ota;
   document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + ' · ' : '')
-    + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 180000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
+    + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
   // actions selon l'état (reconstruites seulement si l'état change)
   const key = st + (L.test ? 't' : '');
   const box = document.getElementById('lv-actions');
@@ -178,20 +178,24 @@ function _liveTestRender(){
   box.hidden = false;
   const o = _liveVal.ota || {}, t = _liveNow(), T = _liveTest;
   if(!T.got && o.ts && o.ts > T.ts0) T.got = o.ts;
-  const waited = Math.round((t - T.start) / 1000), WAIT = 90;
+  const waited = Math.round((t - T.start) / 1000), WAIT = 120;
   const row = function(ok, label, txt){ return '<div class="lv-row"><b style="min-width:22px;">' + (ok === null ? '⏳' : ok ? '✅' : '❌') + '</b><span><b style="color:#1f2d3d;">' + label + '</b> · ' + txt + '</span></div>'; };
   const age = o.ts ? t - o.ts : null, gap = o.ts && o.prev ? Math.round((o.ts - o.prev) / 1000) : null;
   let h = '';
-  h += row(age !== null && age < 180000, 'Liaison', age === null ? 'aucune position jamais reçue : vérifiez l\'URL dans OwnTracks' : 'dernière position reçue ' + suiviFmt.ago(age));
+  h += row(age !== null && age < 300000, 'Liaison', age === null ? 'aucune position jamais reçue : vérifiez l\'URL dans OwnTracks' : 'dernière position reçue ' + suiviFmt.ago(age));
   const mode = o.m === undefined || o.m === null ? null : _OT_MODES[String(o.m)] || ('mode ' + o.m);
-  h += row(mode === null ? null : o.m === 2, 'Mode', mode === null ? 'inconnu (attendez la prochaine position)' : mode + (o.m === 2 ? '' : ' : passez en « Move » en haut de la carte OwnTracks'));
-  if(gap !== null) h += row(gap <= 240, 'Fréquence', gap + ' s entre les deux dernières positions' + (gap > 60 && gap <= 240 ? ' (normal à l\'arrêt ; en course : environ 1 position par minute)' : ''));
+  // le mode n'est connu qu'au moment d'un envoi : il n'est validé que par une position reçue pendant le test
+  const lastMode = mode === null ? 'inconnu' : mode;
+  if(T.got) h += row(o.m === 2, 'Mode', mode + (o.m === 2 ? ' (confirmé)' : ' : passez en « Move » en haut de la carte OwnTracks'));
+  else if(waited < WAIT) h += row(null, 'Mode', 'confirmation en attente (dernier mode connu : ' + lastMode + ')');
+  else h += row(false, 'Mode', 'non confirmé : OwnTracks est peut-être en « Quiet » ou « Manual », ou fermée (dernier mode connu : ' + lastMode + ')');
+  if(gap !== null) h += '<div class="lv-row"><b style="min-width:22px;">ℹ️</b><span><b style="color:#1f2d3d;">Fréquence</b> · ' + gap + ' s entre les deux dernières positions (à l\'arrêt, OwnTracks espace les envois ; en course : environ 1 par minute)</span></div>';
   h += row(typeof o.acc === 'number' ? o.acc <= 50 : null, 'Précision GPS', typeof o.acc === 'number' ? o.acc + ' m' : '–');
   h += row(typeof o.batt === 'number' ? o.batt >= 50 : null, 'Batterie', typeof o.batt === 'number' ? o.batt + ' %' + (o.batt < 50 ? ' : rechargez avant la course' : '') : '–');
   if(T.got) h += row(true, 'En direct', 'nouvelle position reçue pendant le test (' + Math.round((T.got - T.start) / 1000) + ' s après le lancement) 🎉');
   else if(waited < WAIT) h += row(null, 'En direct', 'en attente d\'une nouvelle position… ' + (WAIT - waited) + ' s. Pour accélérer : dans OwnTracks, touchez l\'icône d\'envoi (carré avec flèche, en haut à droite) ou marchez un peu.');
-  else h += row(false, 'En direct', 'aucune nouvelle position en ' + WAIT + ' s. Ouvrez OwnTracks : mode « Move », Réglages iPhone › OwnTracks › Position « Toujours ».');
-  const allOk = T.got && o.m === 2 && age !== null && age < 180000;
+  else h += row(false, 'En direct', 'aucune nouvelle position en ' + WAIT + ' s. Ouvrez OwnTracks : mode « Move » (pas Quiet ni Manual), application non fermée, Réglages iPhone › OwnTracks › Position « Toujours ». Puis relancez le test.');
+  const allOk = T.got && o.m === 2 && age !== null && age < 300000;
   h += '<p class="lv-note" style="margin-top:8px;font-weight:700;color:' + (allOk ? '#15803D' : '#5b6675') + '">' + (allOk ? '✅ Tout fonctionne : vous pouvez verrouiller l\'iPhone.' : T.got || waited >= WAIT ? 'Corrigez les points ❌ puis relancez le test.' : '') + '</p>';
   box.innerHTML = h;
   if(T.got || waited >= WAIT){ if(waited >= WAIT || T.got) _liveTest.done = true; }
