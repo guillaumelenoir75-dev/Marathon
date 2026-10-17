@@ -360,7 +360,7 @@ const RaceNav = (function(){
   // AUCUN itinéraire calculé ailleurs : le GPS ne suit que les trajets sûrs construits (NAV_DATA).
   // Hors du tracé, il indique seulement où rejoindre le départ du trajet ; le guidage reprend dès que l'on est dessus.
   const START_LABEL = {
-    A: 'l\'A13 en venant de Paris, avant la sortie 17 (Gaillon)', A2: 'l\'A13 en venant de Paris, avant la sortie 17 (Gaillon)', A3: 'l\'A13 en venant de Paris, avant la sortie 17 (Gaillon)',
+    A: 'l\'A13 direction Rouen, à partir de Flins (après la jonction avec l\'A14)', A2: 'l\'A13 direction Rouen, à partir de Flins (après la jonction avec l\'A14)', A3: 'l\'A13 direction Rouen, à partir de Flins (après la jonction avec l\'A14)',
     B: 'le stationnement du km 10 (rue Dutens, Louviers)', C: 'le stationnement du km 20 (petite route sous l\'A13)',
   };
   function approach(reason){

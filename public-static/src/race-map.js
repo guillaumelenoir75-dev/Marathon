@@ -194,7 +194,7 @@ function initRaceOrgMap(){
         km: '24,7 km', min: '16 min', marche: '430 m', from: 'depuis Gaillon',
         extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', CARS[0].c, 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
         nav: [[49.1999, 1.20515], [49.20672, 1.18507]],
-        steps: ['A13 depuis Paris, sortie 18 <b>Louviers-la-Roquette</b>',
+        steps: ['A13 depuis Paris, direction Rouen : <b>le GPS prend le relais dès Flins</b>, puis sortie 18 <b>Louviers-la-Roquette</b>',
                 'D6155 vers Louviers (route de Paris puis chaussée de Paris)',
                 'Avant la rue de Paris (<b>fermée 8h–13h</b>), à gauche <b>route de Pacy (D164)</b>',
                 'À droite <b>rue Dutens</b> : se garer'],
