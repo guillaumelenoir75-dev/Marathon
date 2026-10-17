@@ -71,7 +71,9 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   const t = m.tst ? Math.min(Date.now(), m.tst * 1000) : Date.now();
   const fix = { lat: m.lat, lon: m.lon, acc: Math.round(m.acc || 0), spd: typeof m.vel === 'number' ? +(m.vel / 3.6).toFixed(2) : null, ts: t, src: 'owntracks' };
   if (typeof m.batt === 'number') fix.batt = m.batt;
-  const up = { ota: { ts: Date.now(), batt: fix.batt === undefined ? null : fix.batt, acc: fix.acc } };   // dernier contact OwnTracks (vu par l'admin)
+  // dernier contact OwnTracks (vu par l'admin) : mode de suivi (m : -1 quiet, 0 manual, 1 significant, 2 move), contact précédent
+  const prevOta = (await db.ref('live/ota').once('value')).val() || {};
+  const up = { ota: { ts: Date.now(), batt: fix.batt === undefined ? null : fix.batt, acc: fix.acc, m: typeof m.m === 'number' ? m.m : null, prev: prevOta.ts || null } };
   if (live.status !== 'running' || !live.startedAt) { await db.ref('live').update(up); res.json([]); return; }
   const prev = live.pos || null;
   if (prev && prev.ts && t <= prev.ts) { await db.ref('live').update(up); res.json([]); return; }   // message en retard (file d'attente)

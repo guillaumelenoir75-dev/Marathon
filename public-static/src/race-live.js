@@ -44,6 +44,10 @@ async function openLivePanel(){
     +     '<div class="lv-stat"><span>Arrivée estimée</span><b id="lv-eta">–</b></div>'
     +   '</div>'
     +   '<p id="lv-src" class="lv-note"></p>'
+    +   '<div class="lv-card"><p class="lv-h">🔍 Tester OwnTracks</p>'
+    +     '<p class="lv-note" style="margin:0 0 8px;">Vérifie la liaison, le mode Move et la réception de votre position en direct.</p>'
+    +     '<button type="button" class="lv-btn lv-go" onclick="liveTestOt()">🔍 Lancer le test</button>'
+    +     '<div id="lv-test" style="margin-top:10px;" hidden></div></div>'
     +   '<div class="lv-card" id="lv-ot"><p class="lv-h">📲 OwnTracks (position écran verrouillé)</p>'
     +     '<ol class="lv-note" style="padding-left:18px;margin:0 0 8px;"><li>Installez <b>OwnTracks</b> (App Store) et ouvrez-la une fois.</li><li>Touchez le bouton ci-dessous : l\'URL est copiée. Dans OwnTracks › <b>i</b> › Settings : Mode <b>HTTP</b>, collez l\'URL dans <b>URL</b>, <b>Authentification désactivée</b>.</li><li>Réglages iPhone › OwnTracks › Position : <b>Toujours</b> + <b>Position exacte</b>.</li><li>Dans OwnTracks : mode <b>Move</b>, puis touchez la flèche d\'envoi : « OwnTracks » ci-dessus doit passer au vert.</li></ol>'
     +     '<button type="button" class="lv-btn lv-go" onclick="liveOwnTracks()">📲 Copier l\'URL OwnTracks</button>'
@@ -82,14 +86,15 @@ async function openLivePanel(){
     firebase.database().ref('.info/serverTimeOffset').on('value', function(s){ _liveOffset = s.val() || 0; });
   }
   _liveRef.on('value', _liveOnValue);
-  clearInterval(_liveTimer); _liveTimer = setInterval(_liveRender, 1000);
+  clearInterval(_liveTimer); _liveTimer = setInterval(function(){ _liveRender(); if(_liveTest && !_liveTest.done) _liveTestRender(); }, 1000);
 }
 function closeLivePanel(){
+  _liveTest = null;
   if(_liveRef) _liveRef.off('value', _liveOnValue);
   clearInterval(_liveTimer); _liveTimer = null;
   const ov = document.getElementById('live-panel'); if(ov) ov.remove();
 }
-function _liveOnValue(s){ _liveVal = s.val() || {}; _liveRender(); _liveRenderHomeBtn(); }
+function _liveOnValue(s){ _liveVal = s.val() || {}; _liveRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
 const _liveNow = function(){ return Date.now() + _liveOffset; };
 
 function _liveRender(){
@@ -160,6 +165,38 @@ async function liveOwnTracks(){
 function liveCopyOt(){
   const i = document.getElementById('lv-ot-url'); i.select();
   if(navigator.clipboard) navigator.clipboard.writeText(i.value).then(function(){ alert('URL copiée.'); }, function(){}); else document.execCommand('copy');
+}
+// Test OwnTracks : dernier contact, mode (m = 2 → Move), fréquence, puis attente d'une nouvelle position en direct
+let _liveTest = null;
+const _OT_MODES = { '-1': 'Quiet', '0': 'Manual', '1': 'Significant', '2': 'Move' };
+function liveTestOt(){
+  const o = _liveVal.ota || {};
+  _liveTest = { start: _liveNow(), ts0: o.ts || 0, got: null };
+  _liveTestRender();
+}
+function _liveTestRender(){
+  const box = document.getElementById('lv-test'); if(!box || !_liveTest) return;
+  box.hidden = false;
+  const o = _liveVal.ota || {}, t = _liveNow(), T = _liveTest;
+  if(!T.got && o.ts && o.ts > T.ts0) T.got = o.ts;
+  const waited = Math.round((t - T.start) / 1000), WAIT = 90;
+  const row = function(ok, label, txt){ return '<div class="lv-row"><b style="min-width:22px;">' + (ok === null ? '⏳' : ok ? '✅' : '❌') + '</b><span><b style="color:#1f2d3d;">' + label + '</b> · ' + txt + '</span></div>'; };
+  const age = o.ts ? t - o.ts : null, gap = o.ts && o.prev ? Math.round((o.ts - o.prev) / 1000) : null;
+  let h = '';
+  h += row(age !== null && age < 180000, 'Liaison', age === null ? 'aucune position jamais reçue : vérifiez l\'URL dans OwnTracks' : 'dernière position reçue ' + suiviFmt.ago(age));
+  const mode = o.m === undefined || o.m === null ? null : _OT_MODES[String(o.m)] || ('mode ' + o.m);
+  h += row(mode === null ? null : o.m === 2, 'Mode', mode === null ? 'inconnu (attendez la prochaine position)' : mode + (o.m === 2 ? '' : ' : passez en « Move » en haut de la carte OwnTracks'));
+  if(gap !== null) h += row(gap <= 90, 'Fréquence', gap + ' s entre les deux dernières positions' + (gap > 90 ? ' : trop espacé (voir conseil ci-dessous)' : ''));
+  h += row(typeof o.acc === 'number' ? o.acc <= 50 : null, 'Précision GPS', typeof o.acc === 'number' ? o.acc + ' m' : '–');
+  h += row(typeof o.batt === 'number' ? o.batt >= 50 : null, 'Batterie', typeof o.batt === 'number' ? o.batt + ' %' + (o.batt < 50 ? ' : rechargez avant la course' : '') : '–');
+  if(T.got) h += row(true, 'En direct', 'nouvelle position reçue pendant le test (' + Math.round((T.got - T.start) / 1000) + ' s après le lancement) 🎉');
+  else if(waited < WAIT) h += row(null, 'En direct', 'en attente d\'une nouvelle position… ' + (WAIT - waited) + ' s. Pour accélérer : dans OwnTracks, touchez l\'icône d\'envoi (carré avec flèche, en haut à droite) ou marchez un peu.');
+  else h += row(false, 'En direct', 'aucune nouvelle position en ' + WAIT + ' s. Ouvrez OwnTracks : mode « Move », Réglages iPhone › OwnTracks › Position « Toujours ».');
+  const allOk = T.got && o.m === 2 && age !== null && age < 180000;
+  h += '<p class="lv-note" style="margin-top:8px;font-weight:700;color:' + (allOk ? '#15803D' : '#5b6675') + '">' + (allOk ? '✅ Tout fonctionne : vous pouvez verrouiller l\'iPhone.' : T.got || waited >= WAIT ? 'Corrigez les points ❌ puis relancez le test.' : '') + '</p>';
+  if(gap !== null && gap > 90) h += '<p class="lv-note">Conseil : dans OwnTracks › i › Settings, réglez <b>locatorInterval</b> sur 15 et <b>locatorDisplacement</b> sur 25 (s\'ils sont affichés), pour une position toutes les 15 s environ.</p>';
+  box.innerHTML = h;
+  if(T.got || waited >= WAIT){ if(waited >= WAIT || T.got) _liveTest.done = true; }
 }
 async function liveDelSplit(k){ if(confirm('Supprimer ce pointage ?')) await _liveRef.child('splits/' + k).remove(); }
 
