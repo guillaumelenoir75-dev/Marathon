@@ -73,7 +73,7 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   // (désactivé si le suivi a été annulé volontairement après 9h15 : noAuto)
   const nowMs = Date.now();
   if (live.status !== 'running' && !live.startedAt && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
-    await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null });
+    await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
     live = (await db.ref('live').once('value')).val() || {};
   }
   const t = m.tst ? Math.min(Date.now(), m.tst * 1000) : Date.now();
@@ -85,15 +85,19 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (live.status !== 'running' || !live.startedAt) { await db.ref('live').update(up); res.json([]); return; }
   const prev = live.pos || null;
   if (prev && prev.ts && t <= prev.ts) { await db.ref('live').update(up); res.json([]); return; }   // message en retard (file d'attente)
+  // essai : départ là où l'on se trouve sur le parcours (n'importe quel km) ; s0 = origine de l'essai
+  const free = !!live.test && typeof live.s0 !== 'number';
   // distance le long du parcours, comme sur /suivi-admin
-  const lastS = prev && typeof prev.s === 'number' ? prev.s : null;
+  const lastS = !free && prev && typeof prev.s === 'number' ? prev.s : null;
   const el = (t - live.startedAt) / 1000;
-  const pr = lastS === null ? project([m.lat, m.lon], el * PLAN_SPEED / SCALE - 6000, el * PLAN_SPEED / SCALE + 6000)
+  const pr = free ? project([m.lat, m.lon])
+           : lastS === null ? project([m.lat, m.lon], el * PLAN_SPEED / SCALE - 6000, el * PLAN_SPEED / SCALE + 6000)
                             : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - (prev.ts || t)) / 1000 * 6));
   let s = lastS === null ? 0 : lastS;
   const dt = prev && prev.ts ? Math.max(1, (t - prev.ts) / 1000) : 1e6;
   if (pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150)) s = lastS === null ? pr.s : Math.max(s, pr.s);
   fix.s = Math.round(s); fix.off = Math.round(pr.d);
+  if (free && pr.d < 120 && fix.acc < 80) { up.s0 = fix.s; up.s0t = t; }
   up.pos = fix;
   // passages : heure interpolée entre les deux positions ; ligne d'arrivée franchie → arrivée automatique (chrono arrêté)
   for (const pt of POINTS) if (lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) {

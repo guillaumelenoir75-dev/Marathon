@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=5'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=6'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -153,7 +153,7 @@ async function liveStart(hm, test){
     await _liveRef.update({ startedAt: at }); return;
   }
   if(L.status !== 'running' && !confirm(test ? 'Lancer un essai ? La page de suivi affichera « Essai ».' : 'Démarrer la course ' + (hm ? 'à ' + hm.replace(':', 'h') : 'maintenant') + ' ? Le suivi devient visible par tous.')) return;
-  await _liveRef.update({ status: 'running', test: test ? true : null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null, splits: null });
+  await _liveRef.update({ status: 'running', test: test ? true : null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
 }
 async function liveFinish(){
   if(!confirm('Déclarer l\'arrivée maintenant ? (Vous pourrez saisir le temps officiel ensuite : km 42,195.)')) return;
@@ -165,7 +165,7 @@ async function liveCancel(){
   if(!confirm('Annuler ? Le chrono, la trace et les pointages sont effacés ; la page de suivi revient à « Pas encore parti ».')) return;
   // annulation volontaire le jour J après 9h15 : pas de redémarrage automatique par le serveur
   const noAuto = _liveNow() >= suiviFmt.planned(SUIVI_DATA.start) && _liveNow() < suiviFmt.planned(SUIVI_DATA.start) + 5 * 3600000 ? true : null;
-  await _liveRef.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, splits: null, noAuto: noAuto });
+  await _liveRef.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null, noAuto: noAuto });
 }
 // OwnTracks : configuration générée par la fonction owntracksToken (clé secrète, réservée à l'admin)
 async function liveOwnTracks(){
@@ -230,7 +230,7 @@ async function liveSaveSplit(){
   if(!el){ alert('Temps invalide. Tapez les chiffres : 1458 = 14:58 · 14823 = 1:48:23'); return; }
   if(!L.startedAt || L.status === 'idle'){
     if(!confirm('La course n\'est pas démarrée. La démarrer avec ce pointage (départ = maintenant − ' + suiviFmt.dur(el) + ') ?')) return;
-    await _liveRef.update({ status: 'running', test: null, startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, splits: null });
+    await _liveRef.update({ status: 'running', test: null, startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
     L.startedAt = _liveNow() - el; L.status = 'running'; L.passages = null; L.pos = null;
   }
   // cohérence avec le plan PacePro : allure du tronçon depuis le pointage précédent (ou le départ) et jusqu'au suivant

@@ -86,7 +86,8 @@ const SuiviPlan = (function(){
 function suiviCalc(live, t){
   const o = { st: live.status || 'idle', t: t };
   if(!live.startedAt) return o;
-  const t0 = live.startedAt, R = SUIVI_DATA.route;
+  // essai : le temps part de la première position sur le parcours (s0t), pas du bouton « Lancer un essai »
+  const t0 = live.test && typeof live.s0t === 'number' ? live.s0t : live.startedAt, R = SUIVI_DATA.route;
   const planSpeed = function(d){ return 1000 / SuiviPlan.pace(d); };
   if(o.st === 'finished'){
     const el = (live.finishedAt || t) - t0;
@@ -100,7 +101,8 @@ function suiviCalc(live, t){
   if(!A) A = { km: 0, el: 0 };
   const At = t0 + A.el, Ad = Math.min(42195, A.km * 1000), As = Math.min(SuiviGeo.len, Ad / SuiviGeo.scale);
   // position GPS au moment du pointage (trace interpolée) : le tronçon GPS est mesuré à partir de là
-  let gA = A.km ? null : 0;
+  // essai démarré ailleurs qu'au départ : la distance part de l'origine de l'essai (s0, posée par le serveur)
+  let gA = A.km ? null : (live.test && typeof live.s0 === 'number' ? live.s0 : 0);
   if(gA === null){
     const g = live.track ? Object.keys(live.track).map(function(k){ const x = live.track[k]; return [x[2], x[3]]; }) : [];
     if(P) g.push([P.ts, P.s]);
