@@ -1,0 +1,13 @@
+owntracks POST sans clé :
+503
+owntracksToken sans auth :
+500
+hosting /suivi-guillaume :
+200
+hosting /parcours version race-map :
+race-map.js?v=14
+RTDB /live/ota :
+{"acc":21,"batt":69,"m":2,"prev":1792250994774,"ts":1792251173987}
+RTDB /live/status :
+"idle"
+Sat Oct 17 15:50:22 UTC 2026
