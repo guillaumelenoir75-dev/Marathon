@@ -1,0 +1,5 @@
+/suivi-guillaume : HTTP/2 200   cache-control: no-cache  
+/parcours : HTTP/2 200   cache-control: no-cache  
+/suivi-admin : HTTP/2 200   cache-control: no-cache  
+/secours : HTTP/2 200   cache-control: no-cache  
+/trajet-amis : HTTP/2 200   cache-control: no-cache  
