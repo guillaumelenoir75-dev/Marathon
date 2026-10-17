@@ -18,15 +18,15 @@ function sample(line, step){ const out = []; let acc = 0, next = 0; for (let i =
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
     let osrm = 0; p.on('request', r => { if (/project-osrm/.test(r.url())) osrm++; });
     const r = await p.goto('https://prepa-marathon.web.app/' + page); await p.waitForTimeout(4500);
-    const S = () => p.evaluate(n => { const s = window[n]._state(); const t = document.getElementById('rn-top'); return s.phase + ' ' + (s.route || '') + ' | ' + (t ? t.innerText.replace(/\n+/g, ' | ') : ''); }, NAVN);
+    const S = () => p.evaluate(n => { const s = eval(n)._state(); const t = document.getElementById('rn-top'); return s.phase + ' ' + (s.route || '') + ' | ' + (t ? t.innerText.replace(/\n+/g, ' | ') : ''); }, NAVN);
     const pos = (q, sp, h) => p.evaluate(a => window.__pos(a), [q[0], q[1], sp, h === undefined ? null : h]);
-    const D = await p.evaluate(n => window[n], DATAN);
+    const D = await p.evaluate(n => eval(n), DATAN);
     await p.evaluate(s => eval(s), start); await p.waitForTimeout(300);
     await pos(origin, 0); await p.waitForTimeout(origin[2] ? 6000 : 1500);
     log('\n== ' + label + ' (HTTP ' + r.status() + ')'); log('  départ :', await S());
     let path = [];
-    const AP = await p.evaluate(n => { const s = window[n]._state(); return s.appr ? s.appr.line.pts : null; }, NAVN);
-    if (AP){ log('  approche libre', Math.round(AP.reduce((a, q, i) => i ? a + dist(AP[i-1], q) : 0, 0)), 'm, contrôle :', await p.evaluate(([n, g]) => window[n]._check(g) || 'OK', [NAVN, AP])); path = sample(AP, 1500); }
+    const AP = await p.evaluate(n => { const s = eval(n)._state(); return s.appr ? s.appr.line.pts : null; }, NAVN);
+    if (AP){ log('  approche libre', Math.round(AP.reduce((a, q, i) => i ? a + dist(AP[i-1], q) : 0, 0)), 'm, contrôle :', await p.evaluate(([n, g]) => eval(n)._check(g) || 'OK', [NAVN, AP])); path = sample(AP, 1500); }
     for (const k of lines) path = path.concat(sample(D.routes[k].line, 150));
     let last = '', phases = new Set(), off = 0;
     for (const q of path){ await pos(q, 30, q[2]); await p.waitForTimeout(25); const s = await S(); phases.add(s.split(' ')[0]); if (/Itinéraire quitté|pas sur un trajet/.test(s)) off++; const sig = s.replace(/[\d,]+ (m|km)/g, ''); if (sig !== last){ last = sig; } }

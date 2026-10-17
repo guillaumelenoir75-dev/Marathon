@@ -1,4 +1,4 @@
-name: Audit global des 3 pages GPS (temporaire)
+name: Audit global des 3 pages GPS v2 (temporaire)
 
 on:
   push:
