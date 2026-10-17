@@ -163,7 +163,9 @@ async function liveFinish(){
 }
 async function liveCancel(){
   if(!confirm('Annuler ? Le chrono, la trace et les pointages sont effacés ; la page de suivi revient à « Pas encore parti ».')) return;
-  await _liveRef.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, splits: null });
+  // annulation volontaire le jour J après 9h15 : pas de redémarrage automatique par le serveur
+  const noAuto = _liveNow() >= suiviFmt.planned(SUIVI_DATA.start) && _liveNow() < suiviFmt.planned(SUIVI_DATA.start) + 5 * 3600000 ? true : null;
+  await _liveRef.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, splits: null, noAuto: noAuto });
 }
 // OwnTracks : configuration générée par la fonction owntracksToken (clé secrète, réservée à l'admin)
 async function liveOwnTracks(){

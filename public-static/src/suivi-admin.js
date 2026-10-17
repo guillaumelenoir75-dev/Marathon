@@ -57,7 +57,8 @@ const SuiviAdmin = (function(){
   async function reset(){
     if(!confirm(live.test ? 'Annuler l\'essai ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».' : 'Annuler le suivi ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».')) return;
     stopGps(); lastS = null;
-    await ref.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null });
+    const p0 = suiviFmt.planned(SUIVI_DATA.start), n0 = now();
+    await ref.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, noAuto: n0 >= p0 && n0 < p0 + 5 * 3600000 ? true : null });
     msg('Suivi annulé : tout est revenu à zéro.');
   }
   // OwnTracks : clé + configuration générées côté serveur (fonction owntracksToken, réservée à l'admin)

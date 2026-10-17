@@ -30,6 +30,7 @@ function project(p, sMin, sMax) {
 }
 const POINTS = COURSE.points.map((pt) => ({ id: pt.id, s: pt.id === 'finish' ? LEN - 60 : project(pt.coord, (pt.km - 3) * 1000 / SCALE, (pt.km + 3) * 1000 / SCALE).s }));
 const PLAN_SPEED = 42195 / (3.55 * 3600);
+const RACE_START = Date.UTC(2026, 9, 18, 7, 15);      // dimanche 18 octobre 2026, 9h15 heure de Paris (UTC+2)
 
 async function getKey(db, create) {
   const ref = db.ref(KEY_PATH);
@@ -67,7 +68,14 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (!key || given.length !== key.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(key))) { res.status(403).json([]); return; }
   const m = typeof req.body === 'object' && req.body ? req.body : {};
   if (m._type !== 'location' || typeof m.lat !== 'number' || typeof m.lon !== 'number') { res.json([]); return; }
-  const live = (await db.ref('live').once('value')).val() || {};
+  let live = (await db.ref('live').once('value')).val() || {};
+  // filet de sécurité du jour J : course non démarrée depuis l'app → départ automatique à 9h15 dès la première position
+  // (désactivé si le suivi a été annulé volontairement après 9h15 : noAuto)
+  const nowMs = Date.now();
+  if (live.status !== 'running' && !live.startedAt && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
+    await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null });
+    live = (await db.ref('live').once('value')).val() || {};
+  }
   const t = m.tst ? Math.min(Date.now(), m.tst * 1000) : Date.now();
   const fix = { lat: m.lat, lon: m.lon, acc: Math.round(m.acc || 0), spd: typeof m.vel === 'number' ? +(m.vel / 3.6).toFixed(2) : null, ts: t, src: 'owntracks' };
   if (typeof m.batt === 'number') fix.batt = m.batt;
@@ -87,7 +95,12 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150)) s = lastS === null ? pr.s : Math.max(s, pr.s);
   fix.s = Math.round(s); fix.off = Math.round(pr.d);
   up.pos = fix;
-  for (const pt of POINTS) if (lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) up['passages/' + pt.id] = t;
+  // passages : heure interpolée entre les deux positions ; ligne d'arrivée franchie → arrivée automatique (chrono arrêté)
+  for (const pt of POINTS) if (lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) {
+    const tp = Math.round(prev.ts + (t - prev.ts) * (pt.s - lastS) / ((s - lastS) || 1));
+    up['passages/' + pt.id] = tp;
+    if (pt.id === 'finish' && !live.test) { up.status = 'finished'; up.finishedAt = tp; }
+  }
   await db.ref('live').update(up);
   const lastTrack = live.track ? Object.values(live.track).reduce((a, x) => (x[2] > a[2] ? x : a), [0, 0, 0, -1]) : null;
   if (!lastTrack || t - lastTrack[2] >= 45000 || Math.abs(s - lastTrack[3]) >= 400) await db.ref('live/track').push([+m.lat.toFixed(5), +m.lon.toFixed(5), t, Math.round(s)]);
