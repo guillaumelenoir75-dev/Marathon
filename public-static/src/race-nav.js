@@ -6,9 +6,9 @@
 const RaceNav = (function(){
   const RAD = Math.PI / 180;
   const DEST = {
-    10: { label: 'RDV km 10 — rond-point de Folleville', short: 'km 10', routes: ['A'], walk: '10' },
-    20: { label: 'Ravito km 20 — D313 sous l\'A13', short: 'km 20', routes: ['B', 'A2'], walk: '20' },
-    30: { label: 'km 30 — 24 route de Portejoie (Tournedos)', short: 'km 30', routes: ['C', 'A3'], walk: '30' },
+    10: { label: 'RDV km 10 — rond-point de Folleville', short: 'km 10', routes: ['A'], walk: '10', to: 'jusqu\'au rond-point de Folleville, le point de rendez-vous' },
+    20: { label: 'Ravito km 20 — D313 sous l\'A13', short: 'km 20', routes: ['B', 'A2'], walk: '20', to: 'jusqu\'au ravito, sous l\'A13' },
+    30: { label: 'km 30 — 24 route de Portejoie (Tournedos)', short: 'km 30', routes: ['C', 'A3'], walk: '30', to: 'jusqu\'au 24 route de Portejoie' },
   };
   let ctx = null, pending = null;
   let st = null;   // état du guidage en cours
@@ -302,7 +302,7 @@ const RaceNav = (function(){
     if(st.phase === 'walk' || st.phase === 'arrived') return;
     st.phase = 'walk'; st.route = null; st.s = null;
     const w = NAV_DATA.walks[DEST[st.dest].walk];
-    say('Vous êtes au stationnement. Garez-vous, puis continuez à pied sur ' + sayD(w.len) + '.');
+    say('Vous êtes au stationnement. Garez-vous, puis continuez à pied sur ' + sayD(w.len) + ' ' + DEST[st.dest].to + '.');
     rmLine('todo'); rmLine('appr');
     drawLine('walk', w.line, { color: '#1D4ED8', weight: 6, opacity: 0.9, dashArray: '2 10', lineCap: 'round', interactive: false });
     ui().bot.querySelector('.rn-parked').hidden = true;
@@ -320,7 +320,7 @@ const RaceNav = (function(){
       const rav = ctx.RAVITOS[{10: 0, 20: 1, 30: 2}[st.dest]];
       road(null);
       message('<b>Vous êtes arrivé ✔</b><br>' + DEST[st.dest].label + ' · passage de Guillaume <b>' + rav.heure.replace('~', 'environ ') + '</b>', 'rn-ok');
-      say('Vous êtes arrivé. Passage de Guillaume vers ' + rav.heure.replace('~', '').replace('h', ' heures ') + '.');
+      say('Vous êtes arrivé ' + DEST[st.dest].to.replace(/^jusqu'/, '') + '. Passage de Guillaume vers ' + rav.heure.replace('~', '').replace('h', ' heures ') + '.');
       ui().bot.querySelector('.rn-eta').innerHTML = '<b>Arrivé</b> · bon encouragement !';
       return;
     }

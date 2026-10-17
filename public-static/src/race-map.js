@@ -53,7 +53,7 @@ function initRaceOrgMap(){
 
     // Points ravitaillement (km exacts depuis GPX)
     const RAVITOS = [
-      { km: 10, coord: [49.20905, 1.18025], heure: '~10h01', lieu: 'Rond-point de Folleville', rdv: true, side: 's' }, // RDV au bord du rond-point, avant le ravito km 10
+      { km: 10, coord: [49.20905, 1.18025], heure: '~10h01', lieu: 'Rond-point de Folleville', addr: 'Rond-point de Folleville', rdv: true, side: 's' }, // RDV au bord du rond-point, avant le ravito km 10
       { km: 20, coord: [49.23748, 1.18973], heure: '~10h55', lieu: 'D313 sous l\'A13', side: 's' },
       { km: 30, coord: [49.27160, 1.25909], heure: '~11h44', lieu: '24 route de Portejoie', addr: '24 route de Portejoie', rdv: true, side: 's' }, // devant la maison de Guillaume (≈ km 29,4, la famille y attend)
     ];
@@ -192,13 +192,14 @@ function initRaceOrgMap(){
     const TRAJETS = [
       { tab: 'Trajet 1', sub: 'A13 → km 10', drive: DRIVE_A, walk: WALK_A, park: PARK_KM10, rav: RAVITOS[0],
         km: '24,7 km', min: '16 min', marche: '430 m', from: 'depuis Gaillon',
+        parkTxt: 'Rue Dutens, à 150 m du 49 rue de Paris (boulangerie Maison Héron) — la rue de Paris elle-même est fermée aux voitures',
         extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', CARS[0].c, 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
         nav: [[49.1999, 1.20515], [49.20672, 1.18507]],
         steps: ['Depuis votre adresse, le GPS mène à l\'<b>A13 direction Rouen</b> ; dès Flins il suit le trajet sûr, puis sortie 18 <b>Louviers-la-Roquette</b>',
                 'D6155 vers Louviers (route de Paris puis chaussée de Paris)',
                 'Avant la rue de Paris (<b>fermée 8h–13h</b>), à gauche <b>route de Pacy (D164)</b>',
-                'À droite <b>rue Dutens</b> : se garer'],
-        walkStep: '~430 m à pied (~6 min) : rue de l\'Adjudant-Chef Mourad, rue de Paris et rond-point du Béquet (fermés aux voitures, ouverts aux piétons), puis la D6155 jusqu\'au <b>rond-point de Folleville</b>. Se placer au bord, là où arrivent les coureurs (chemin du Roy)' },
+                'À droite <b>rue Dutens</b> : se garer (à 150 m du <b>49 rue de Paris</b>, boulangerie Maison Héron ; la rue de Paris est fermée aux voitures)'],
+        walkStep: '~430 m à pied (~6 min) jusqu\'au <b>point de RDV : le rond-point de Folleville</b>. Remonter la rue de l\'Adjudant-Chef Mourad jusqu\'à la rue de Paris (devant le <b>n°49</b>, boulangerie Maison Héron), traverser le rond-point du Béquet (fermés aux voitures, ouverts aux piétons), puis suivre la D6155 jusqu\'au <b>rond-point de Folleville</b>. Se placer au bord, là où arrivent les coureurs (chemin du Roy)' },
       { tab: 'Trajet 2', sub: 'km 10 → km 20', drive: DRIVE_B, walk: WALK_B, park: PARK_KM20, rav: RAVITOS[1],
         km: '8,2 km', min: '11 min', marche: '750 m', extra: [],
         nav: [[49.21107, 1.22249]],
@@ -237,7 +238,7 @@ function initRaceOrgMap(){
       t.detail = L.layerGroup([
         L.circleMarker(t.drive[0], { radius: 6, color: '#fff', weight: 3, fillColor: t.col.c, fillOpacity: 1 }).bindPopup('<b>Départ '+t.tab.toLowerCase()+'</b>'),
         (t.parkLeader = L.polyline([t.park, t.park], { color: '#1B4FD8', weight: 1.5, opacity: 0.9, interactive: false })),
-        (t.parkMarker = L.marker(t.park, { icon: iPark, zIndexOffset: 450 })).bindPopup('<b>Stationnement km '+t.rav.km+'</b><br>~'+t.marche+' à pied jusqu\'au '+(t.rav.rdv ? 'point de RDV' : 'ravito')),
+        (t.parkMarker = L.marker(t.park, { icon: iPark, zIndexOffset: 450 })).bindPopup('<b>Stationnement km '+t.rav.km+'</b>'+(t.parkTxt ? '<br>'+t.parkTxt : '')+'<br>~'+t.marche+' à pied jusqu\'au '+(t.rav.rdv ? 'point de RDV' + (t.rav.km === 10 ? ' : <b>rond-point de Folleville</b>' : '') : 'ravito')),
       ].concat(arrows, t.extra));
 
       const mid = _along(t.drive, L_, L_ * 0.5)[0];
@@ -422,7 +423,7 @@ function initRaceOrgMap(){
         return;
       }
       const t = TRAJETS[i - 1];
-      infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>'+(t.rav.rdv ? 'RDV ' : 'Ravito ')+t.rav.lieu+' · '+t.rav.heure+'</span></div>'
+      infoEl.innerHTML = '<div class="rm-head"><b>'+t.tab+' · '+t.sub+'</b><span>'+(t.rav.rdv ? 'RDV : <b>' : 'Ravito ')+t.rav.lieu+(t.rav.rdv ? '</b>' : '')+' · '+t.rav.heure+'</span></div>'
         + '<div class="rm-stats"><span class="rm-stat">🚗 '+t.km+'</span><span class="rm-stat">⏱ ~'+t.min+(t.from ? ' '+t.from : '')+'</span><span class="rm-stat">🚶 '+t.marche+'</span></div>'
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>'
@@ -433,7 +434,7 @@ function initRaceOrgMap(){
     let current = 0;
     _raceMapRefit = function(){
       const b = current === 0 ? courseBounds : TRAJETS[current - 1].bounds;
-      const pad = _raceMapFullscreen ? { paddingTopLeft: [64, 90], paddingBottomRight: [64, 130] } : { paddingTopLeft: [64, 24], paddingBottomRight: [64, 48] };
+      const pad = _raceMapFullscreen ? { paddingTopLeft: [64, 90], paddingBottomRight: [64, 130] } : { paddingTopLeft: [current === 1 ? 96 : 64, 24], paddingBottomRight: [64, 48] };
       _raceMapInstance.fitBounds(b, pad);
     };
 
