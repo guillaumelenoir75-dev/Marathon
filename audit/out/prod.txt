@@ -1,0 +1,25 @@
+== Fonctions
+owntracks clé invalide (403 attendu) : 403
+owntracks GET (405 attendu) : 405
+owntracksToken sans connexion (403 attendu) : 403
+== Base de données
+clé OwnTracks privée (Permission denied attendu) : {
+  "error" : "Permission denied"
+}
+
+écriture /live sans connexion (Permission denied attendu) : {
+  "error" : "Permission denied"
+}
+
+lecture /live publique : {"ota":true,"status":true}
+/live (hors trace) : status="idle" ; test=null ; startedAt=null ; finishedAt=null ; s0=null ; s0t=null ; noAuto=null ; splits=null ; pos=null ; ota={"acc":20,"batt":60,"m":2,"prev":1792255993915,"ts":1792256173704} ; 
+== Hébergement
+/suivi-guillaume : 200 src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=7" src="/src/suivi-view.js?v=9" 
+/parcours : 200 src="/src/race-map.js?v=15" src="/src/race-nav-data.js?v=8" src="/src/race-nav.js?v=17" src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=7" src="/src/suivi-view.js?v=9" 
+/suivi-admin : 200 src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=7" src="/src/suivi-admin.js?v=6" 
+app index race-live : 
+suivi-core en ligne contient s0t / _suiviMax / SUIVI_PLAN : 7
+suivi-view en ligne contient glide / Arrivée : 2
+en-tête cache /src/suivi-core.js : cache-control: no-cache, no-store, must-revalidate
+en-tête cache /suivi-guillaume : cache-control: max-age=3600
+Sat Oct 17 17:14:17 UTC 2026
