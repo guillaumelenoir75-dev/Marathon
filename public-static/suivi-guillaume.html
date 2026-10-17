@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Suivi Guillaume · Marathon Seine-Eure</title>
+<meta name="description" content="Suivez Guillaume en direct sur le Marathon Seine-Eure : position sur le parcours, distance, temps de course et heures de passage.">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#0C447C">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://prepa-marathon.web.app/suivi-guillaume">
+<meta property="og:title" content="Suivi Guillaume · Marathon Seine-Eure en direct">
+<meta property="og:description" content="Où en est Guillaume ? Position en direct, distance parcourue et heures de passage.">
+<link rel="icon" href="/enpiste-icon-192.png">
+<style>
+  :root{--navy:#0C447C;--ink:#1f2d3d;--muted:#5b6675;--bg:#EEF3FB;--card:#fff;--line:#dfe7f3;--go:#15803D;--red:#DC2626;}
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  .stat.wide{grid-column:1/-1;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
+  .page{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:12px;}
+  .eyebrow{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#4A6A93;}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  h1{margin:0;font-size:clamp(26px,7vw,34px);line-height:1.05;font-weight:850;letter-spacing:-.02em;color:var(--navy);}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;font-size:13px;font-weight:800;background:#E5E7EB;color:#374151;white-space:nowrap;}
+  .pill::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;}
+  .pill.running{background:#DCFCE7;color:#15803D;}
+  .pill.running::before{animation:blink 1.4s infinite;}
+  .pill.finished{background:#DBEAFE;color:#1D4ED8;}
+  @keyframes blink{50%{opacity:.25;}}
+  .status{margin:0;font-size:13.5px;color:var(--muted);}
+  .status.warn{color:#9A3412;font-weight:700;}
+  .net{background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;padding:8px 10px;font-size:12.5px;color:#78350F;}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;}
+  .stat span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .stat b{display:block;margin-top:2px;font-size:26px;font-weight:850;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .stat b small{font-size:14px;font-weight:700;color:var(--muted);margin-left:3px;}
+  .stat i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:1px;}
+  .stat.big{grid-column:1/-1;}
+  .stat.big b{font-size:40px;}
+  @media (min-width:640px){ .stats{grid-template-columns:repeat(4,1fr);} .stat.big,.stat.wide{grid-column:span 1;} }
+  .prog{position:relative;height:12px;background:#E5EAF2;border-radius:6px;margin:14px 4px 22px;}
+  .prog .bar{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#16A34A,#15803D);border-radius:6px;transition:width .6s;}
+  .prog .tick{position:absolute;top:-3px;width:2px;height:18px;background:#94A3B8;}
+  .prog .tick span{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  .prog .me{position:absolute;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#1D4ED8;border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);transition:left .6s;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;}
+  .maphead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 10px;}
+  h2{margin:0;font-size:15px;color:var(--navy);}
+  .btns{display:flex;gap:6px;}
+  .btns button{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:999px;padding:7px 11px;font:800 12px/1 system-ui,sans-serif;cursor:pointer;}
+  .btns button:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+  #map{height:min(60vh,520px);min-height:320px;border-radius:12px;overflow:hidden;background:#e8f0fb;}
+  .nomap{padding:20px;text-align:center;color:#888;}
+  .kmb{width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--red);color:#B91C1C;font:800 9.5px/18px system-ui,sans-serif;text-align:center;box-sizing:border-box;}
+  .flag{display:inline-block;padding:4px 8px;border-radius:12px;border:2px solid #fff;font:800 11px/1 system-ui,sans-serif;color:#fff;background:#1B4FD8;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+  .flag.start{background:#374151;} .flag.finish{background:#B91C1C;} .flag.km30{background:#C2410C;}
+  .me{position:relative;width:46px;height:46px;}
+  .me i{position:absolute;inset:0;border-radius:50%;background:rgba(29,78,216,.25);animation:pulse 1.8s ease-out infinite;}
+  .me b{position:absolute;left:9px;top:9px;width:28px;height:28px;border-radius:50%;background:#1D4ED8;border:3px solid #fff;color:#fff;font:900 13px/22px system-ui,sans-serif;text-align:center;box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+  .me.est b{background:#fff;color:#1D4ED8;border:3px dashed #1D4ED8;}
+  .me.est i,.me.fin i{animation:none;opacity:0;}
+  .me.fin b{background:#15803D;}
+  @keyframes pulse{0%{transform:scale(.5);opacity:1;}100%{transform:scale(1.4);opacity:0;}}
+  @media (prefers-reduced-motion:reduce){ .me i,.pill.running::before{animation:none;} .prog .bar,.prog .me{transition:none;} }
+  .pas{list-style:none;margin:8px 0 0;padding:0;}
+  .pas li{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #EDF1F7;}
+  .pas li:first-child{border-top:none;}
+  .pk{width:32px;height:32px;border-radius:50%;background:#E8F0FB;color:var(--navy);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  .pas li.done .pk{background:#15803D;color:#fff;}
+  .pas li.next .pk{background:#1D4ED8;color:#fff;}
+  .pl{min-width:0;font-size:14px;line-height:1.25;}
+  .pl span{display:block;font-size:12px;color:var(--muted);}
+  .pv{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap;}
+  .pv b{color:var(--ink);font-variant-numeric:tabular-nums;}
+  .garmin{display:block;text-align:center;padding:11px;border-radius:12px;background:#111827;color:#fff;font-weight:800;font-size:14px;text-decoration:none;}
+  .foot{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="eyebrow">Marathon Seine-Eure · dimanche 18 octobre 2026</p>
+    <div class="head"><h1>Suivi Guillaume</h1><span id="pill" class="pill">Chargement…</span></div>
+    <p id="status-line" class="status">Connexion au suivi en direct…</p>
+  </header>
+  <div id="net" class="net" hidden>Connexion perdue : les informations reprendront dès le retour du réseau.</div>
+
+  <div class="stats">
+    <div class="stat big"><span>Distance parcourue</span><b><output id="v-dist">0</output><small>km</small></b><i id="v-rest">42,2 km au total</i></div>
+    <div class="stat"><span>Temps de course</span><b id="v-time">–</b><i id="v-time-sub">départ prévu 9h15</i></div>
+    <div class="stat"><span>Allure moyenne</span><b id="v-pace">–</b><i>depuis le départ</i></div>
+    <div class="stat wide"><span>Arrivée</span><b id="v-eta">12h48</b><i id="v-eta-sub">prévision</i></div>
+  </div>
+
+  <div class="prog" aria-hidden="true">
+    <div id="bar" class="bar" style="width:0"></div>
+    <div class="tick" style="left:0"><span>Départ</span></div>
+    <div class="tick" style="left:23.7%"><span>10</span></div>
+    <div class="tick" style="left:47.4%"><span>20</span></div>
+    <div class="tick" style="left:70.2%"><span>🏠 30</span></div>
+    <div class="tick" style="left:100%"><span>🏁</span></div>
+    <div id="bar-me" class="me" hidden></div>
+  </div>
+
+  <section class="card" aria-labelledby="map-title">
+    <div class="maphead"><h2 id="map-title">Sur le parcours</h2>
+      <div class="btns"><button type="button" id="b-follow" onclick="SuiviView.center()" hidden>◎ Guillaume</button><button type="button" onclick="SuiviView.whole()">Tout le parcours</button></div></div>
+    <div id="map"><p class="nomap">Chargement de la carte…</p></div>
+  </section>
+
+  <section class="card" aria-labelledby="pas-title">
+    <h2 id="pas-title">Points de passage</h2>
+    <ul id="passages" class="pas"></ul>
+  </section>
+
+  <a id="garmin" class="garmin" href="#" target="_blank" rel="noopener" hidden>Suivi Garmin LiveTrack (secours) ↗</a>
+
+  <p class="foot">Position envoyée par le téléphone de Guillaume, mise à jour toutes les quelques secondes. Si le signal se perd, la position est estimée d'après son allure (marqueur en pointillés).</p>
+</main>
+<script defer src="/src/suivi-data.js?v=1"></script>
+<script defer src="/src/suivi-core.js?v=1"></script>
+<script defer src="/src/suivi-view.js?v=1"></script>
+</body>
+</html>

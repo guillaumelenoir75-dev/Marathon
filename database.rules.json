@@ -20,6 +20,10 @@
       ".read": false,
       ".write": false
     },
+    "live": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
+    },
     "$other": {
       ".read": false,
       ".write": false

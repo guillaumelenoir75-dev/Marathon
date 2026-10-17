@@ -27,6 +27,7 @@ Chargés dans cet ordre (dépendances respectées) :
 | `race-nav.js` | Guidage GPS intégré (`RaceNav.start(10|20|30)`) : position, manœuvres, voix. Trajets **bloqués** (aucun recalcul dans la zone de course) ; seule exception : hors zone, guidage OSRM libre jusqu'au début des trajets A13 (Flins), puis bascule silencieuse. Chargé aussi par `/parcours` (keepFiles) |
 | `secours-data.js`, `secours-map.js`, `secours-nav.js`, `secours-map.css` | Page publique **indépendante** `/secours` (`public-static/secours.html`) : plan de secours famille, GPS 24 route de Portejoie → km 10. Copies autonomes de la carte et du guidage (ne pas les fusionner avec `race-*`) ; hors bundle, non listés dans `vite.config.js` |
 | `amis-data.js`, `amis-map.js`, `amis-nav.js`, `amis-map.css` | Page publique **indépendante** `/trajet-amis` (`public-static/trajet-amis.html`) : GPS libre jusqu'à l'A13 à Flins puis itinéraire bloqué jusqu'au 24 route de Portejoie (stationnement route de Tournedos). Copies autonomes (ne pas fusionner) ; hors bundle |
+| `suivi-data.js`, `suivi-core.js`, `suivi-view.js`, `suivi-admin.js` | Suivi en direct de Guillaume : page publique `/suivi-guillaume` (lecture seule) et page `/suivi-admin` (compte admin : démarrer, envoyer la position GPS, arrivée). Données dans `/live` de la RTDB (lecture publique, écriture admin) ; hors bundle |
 | `plan-state.js` | État du plan, migration, helpers allure/pace, `save()` |
 | `plan-predict.js` | Prédiction marathon, modal prédiction |
 | `weather.js` | Météo (WMO), intégration météo dans les séances |

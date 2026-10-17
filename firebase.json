@@ -11,7 +11,9 @@
       { "source": "/legal", "destination": "/legal.html" },
       { "source": "/parcours", "destination": "/parcours.html" },
       { "source": "/secours", "destination": "/secours.html" },
-      { "source": "/trajet-amis", "destination": "/trajet-amis.html" }
+      { "source": "/trajet-amis", "destination": "/trajet-amis.html" },
+      { "source": "/suivi-guillaume", "destination": "/suivi-guillaume.html" },
+      { "source": "/suivi-admin", "destination": "/suivi-admin.html" }
     ],
     "headers": [
       {
@@ -35,6 +37,12 @@
       },
       {
         "source": "/trajet-amis.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/suivi-*.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache" }
         ]

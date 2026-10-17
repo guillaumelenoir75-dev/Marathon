@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Suivi Guillaume · Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#111827">
+<link rel="icon" href="/enpiste-icon-192.png">
+<style>
+  :root{--navy:#0C447C;--ink:#1f2d3d;--muted:#5b6675;--bg:#F1F4F9;--line:#dfe7f3;--go:#15803D;--red:#B91C1C;}
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
+  .page{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:12px;}
+  .eyebrow{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#4A6A93;}
+  h1{margin:0;font-size:26px;font-weight:850;color:var(--navy);}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;}
+  h2{margin:0;font-size:15px;color:var(--navy);}
+  label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:var(--muted);}
+  input{font:inherit;font-size:16px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;color:var(--ink);}
+  input:focus-visible{outline:2px solid #1B4FD8;outline-offset:1px;}
+  button{font:800 16px/1.1 system-ui,sans-serif;border:none;border-radius:12px;padding:15px 14px;cursor:pointer;color:#fff;background:var(--navy);}
+  button:focus-visible{outline:3px solid #FFD54F;outline-offset:2px;}
+  button.go{background:var(--go);font-size:19px;padding:18px;}
+  button.fin{background:#1D4ED8;font-size:18px;padding:17px;}
+  button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line);font-size:14px;padding:11px;}
+  button.danger{background:#fff;color:var(--red);border:1px solid #FECACA;font-size:14px;padding:11px;}
+  button.dark{background:#111827;}
+  .row{display:flex;gap:8px;align-items:flex-end;}
+  .row>*{flex:1;}
+  .pill{display:inline-block;padding:6px 11px;border-radius:999px;font-size:13px;font-weight:800;background:#E5E7EB;color:#374151;}
+  .pill.running{background:#DCFCE7;color:#15803D;} .pill.finished{background:#DBEAFE;color:#1D4ED8;}
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px;}
+  dt{color:var(--muted);font-weight:700;} dd{margin:0;font-variant-numeric:tabular-nums;}
+  .ok{color:#15803D;font-weight:700;} .bad{color:#B91C1C;font-weight:700;}
+  .msg{padding:10px 12px;border-radius:10px;background:#ECFDF5;color:#14532D;font-size:13.5px;}
+  .msg.err{background:#FEF2F2;color:#991B1B;}
+  .tips{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--muted);}
+  .tips b{color:var(--ink);}
+  a{color:#1B4FD8;font-weight:700;}
+  #black{position:fixed;inset:0;z-index:99;background:#000;color:#333;display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;padding:30px;touch-action:none;user-select:none;-webkit-user-select:none;}
+  #black[hidden]{display:none;}
+  #panel{display:contents;} #panel[hidden]{display:none;}
+  #black.hold{color:#9CA3AF;}
+</style>
+</head>
+<body>
+<main class="page">
+  <header><p class="eyebrow">Marathon Seine-Eure · admin</p><h1>Suivi Guillaume</h1></header>
+  <div id="msg" class="msg" hidden></div>
+
+  <section id="login" class="card" hidden>
+    <h2>Connexion administrateur</h2>
+    <form id="login-form" style="display:flex;flex-direction:column;gap:10px">
+      <label>E-mail<input id="email" type="email" autocomplete="username" value="guillaumelenoir75@gmail.com" required></label>
+      <label>Mot de passe<input id="pwd" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Se connecter</button>
+    </form>
+  </section>
+
+  <div id="panel" hidden>
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2>État</h2><span id="st" class="pill">–</span></div>
+      <dl>
+        <dt>Chrono</dt><dd id="chrono">–</dd>
+        <dt>Distance</dt><dd id="dist">–</dd>
+        <dt>GPS</dt><dd id="gps">–</dd>
+        <dt>Dernier envoi</dt><dd id="last">–</dd>
+        <dt>Écran</dt><dd id="wake">–</dd>
+      </dl>
+      <button id="b-start" class="go" onclick="SuiviAdmin.start()">▶ Démarrer la course maintenant</button>
+      <button id="b-resume" class="go" onclick="SuiviAdmin.resume()" hidden>▶ Reprendre l'envoi GPS (sans changer le chrono)</button>
+      <button id="b-black" class="dark" onclick="SuiviAdmin.black(true)" hidden>⬛ Écran noir anti-touches (poche)</button>
+      <button id="b-finish" class="fin" onclick="SuiviAdmin.finish()" hidden>🏁 Je suis arrivé</button>
+    </section>
+
+    <section class="card">
+      <h2>Heure de départ</h2>
+      <div class="row"><label>Départ donné à<input id="t-start" type="time" value="09:15"></label><button class="ghost" onclick="SuiviAdmin.startAt()">Régler le chrono</button></div>
+      <p class="tips" style="padding:0;list-style:none">Si vous lancez le suivi en retard, réglez ici l'heure réelle du coup de pistolet : le chrono et l'allure seront justes.</p>
+    </section>
+
+    <section class="card">
+      <h2>Lien Garmin LiveTrack (secours)</h2>
+      <label>Lien de la session LiveTrack<input id="garmin" type="url" inputmode="url" placeholder="https://livetrack.garmin.com/session/…"></label>
+      <button class="ghost" onclick="SuiviAdmin.saveGarmin()">Enregistrer le lien</button>
+    </section>
+
+    <section class="card">
+      <h2>Le jour J</h2>
+      <ol class="tips">
+        <li><b>Téléphone chargé à 100 %</b>, idéalement avec une petite batterie externe.</li>
+        <li>Réglages › Luminosité › <b>Verrouillage auto : Jamais</b>, mode Économie d'énergie désactivé.</li>
+        <li>Ouvrez cette page, appuyez sur <b>Démarrer</b> au départ, puis sur <b>Écran noir</b> avant de ranger le téléphone. Ne fermez pas Safari et ne changez pas d'application.</li>
+        <li>Pour revenir de l'écran noir : <b>appui long</b> (1,5 s).</li>
+        <li>À l'arrivée : <b>Je suis arrivé</b>.</li>
+      </ol>
+      <p class="tips" style="padding:0">Lien à partager : <a href="/suivi-guillaume" target="_blank">prepa-marathon.web.app/suivi-guillaume</a></p>
+      <button class="danger" onclick="SuiviAdmin.reset()">Réinitialiser (essai terminé, avant la course)</button>
+      <button class="ghost" onclick="SuiviAdmin.logout()">Se déconnecter</button>
+    </section>
+  </div>
+</main>
+<div id="black" hidden>Suivi en cours · appui long pour revenir</div>
+<script defer src="/src/suivi-data.js?v=1"></script>
+<script defer src="/src/suivi-core.js?v=1"></script>
+<script defer src="/src/suivi-admin.js?v=1"></script>
+</body>
+</html>
