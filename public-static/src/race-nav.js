@@ -1,6 +1,7 @@
 // Guidage GPS intégré (carte « Organisation course » et page /parcours).
 // - Sur nos trajets : suit les itinéraires sûrs pré-calculés (NAV_DATA) avec manœuvres et voix.
-// - Aucun itinéraire calculé ailleurs : hors du tracé, indique seulement où rejoindre le départ du trajet.
+// - Trajets bloqués : aucun itinéraire calculé sur la zone de course ; hors du tracé, indique où les rejoindre.
+// - Seule exception : hors de la zone de course, GPS libre jusqu'au début du trajet A13 (Flins), puis bascule silencieuse.
 
 const RaceNav = (function(){
   const RAD = Math.PI / 180;
@@ -384,6 +385,89 @@ const RaceNav = (function(){
     if(reason !== 'off'){ const wl = NAV_DATA.walks[DEST[st.dest].walk].len; eta(remT(k, 0), wl, NAV_DATA.routes[k].len); }
     if(first) say(reason === 'off' ? 'Faites demi-tour dès que possible et rejoignez l\'itinéraire.' : 'Vous n\'êtes pas sur un trajet prévu. Rejoignez ' + lab.replace(/\s*\(.*?\)/g, '') + '.');
   }
+
+  // ─── Avant le trajet bloqué : GPS libre jusqu'à l'A13 à Flins ─────────────
+  // Hors de la zone de la course uniquement (Paris, autre adresse…) : meilleur itinéraire jusqu'au DÉBUT
+  // du trajet bloqué (A13 direction Rouen à Flins), contrôlé contre le parcours et les voies fermées.
+  // Arrivé sur l'A13 à Flins, le guidage bascule sans transition sur le trajet bloqué.
+  const OSRM = 'https://router.project-osrm.org/route/v1/driving/';
+  const inRaceZone = function(p){ return p[0] > 49.10 && p[0] < 49.36 && p[1] > 1.08 && p[1] < 1.36; };
+  const freeRoute = function(){ return DEST[st.dest].routes.filter(function(k){ return k.charAt(0) === 'A'; })[0]; };
+  function osrmMan(route){
+    const out = []; let at = 0;
+    route.legs[0].steps.forEach(function(s, k){
+      const mv = s.maneuver, road = s.ref ? s.ref.replace(/\s/g, '') + (s.name ? ' (' + s.name + ')' : '') : s.name;
+      let m = null;
+      const t = mv.type;
+      if(k === 0) m = { type: 'depart', road: road };
+      else if(t === 'roundabout' || t === 'rotary') m = { type: 'roundabout', exit: mv.exit || 1, road: road };
+      else if(t === 'exit roundabout' || t === 'exit rotary') m = null;
+      else if(t === 'off ramp') m = { type: 'exit', ref: (s.exits || '').split(';')[0], dest: (s.destinations || '').split(':').pop().split(',')[0].trim(), road: road };
+      else if(t === 'on ramp') m = { type: 'ramp', dest: (s.destinations || '').split(':').pop().split(',')[0].trim(), road: road };
+      else if(t === 'merge') m = { type: 'merge', road: road };
+      else if(t === 'fork') m = { type: 'fork', mod: mv.modifier, road: road };
+      else if(t === 'arrive') m = { type: 'join', road: '' };
+      else if(t === 'new name' || t === 'continue' && (mv.modifier === 'straight' || !mv.modifier)) m = { type: 'continue', road: road };
+      else if(t === 'notification') m = null;
+      else m = { type: 'turn', mod: mv.modifier || 'straight', road: road };
+      if(m){ m.at = at; out.push(m); }
+      at += s.distance;
+    });
+    return out;
+  }
+  async function approachFree(reason){
+    if(!st || st.busy || !st.fix) return;
+    const me = st, k = freeRoute(), p = [st.fix.lat, st.fix.lon];
+    if(!k || inRaceZone(p)) return approach(reason === 'off' ? 'start' : reason);
+    st.busy = true; st.lastFree = Date.now();
+    if(reason === 'off') message('<b>Itinéraire quitté</b> · recalcul…', 'rn-msg');
+    else if(st.phase !== 'approach') message('<b>Calcul de l\'itinéraire…</b>', 'rn-msg');
+    const L_ = routeLine(k), tgt = L_.pts[0], brg = Math.round(bearing(tgt, pointAt(L_, 60)));
+    let js = null;
+    try {
+      const url = OSRM + p[1] + ',' + p[0] + ';' + tgt[1] + ',' + tgt[0] + '?overview=full&geometries=geojson&steps=true&bearings=;' + brg + ',30&radiuses=;40';
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = setTimeout(function(){ if(ctl) ctl.abort(); }, 10000);
+      try { const res = await fetch(url, ctl ? { signal: ctl.signal } : {}); js = await res.json(); } finally { clearTimeout(timer); }
+    } catch(e) { js = null; }
+    if(st !== me) return;
+    st.busy = false;
+    const route = js && js.routes && js.routes[0];
+    const pts = route ? route.geometry.coordinates.map(function(c){ return [c[1], c[0]]; }) : null;
+    if(!pts || crossesClosed(pts)) return approach('start');      // pas de réseau ou chemin douteux : on reste en mode bloqué
+    const d0 = dist(p, pts[0]), lead = d0 > 5 ? [p].concat(pts) : pts;
+    const man = osrmMan(route); if(d0 > 5) man.forEach(function(m){ m.at += d0; });
+    // dernière consigne : on continue simplement sur l'A13 (aucune « jonction » visible)
+    man.forEach(function(m){ if(m.type === 'join'){ m.type = 'continue'; m.road = 'A13 (Autoroute de Normandie)'; } });
+    const first = st.phase !== 'approach';
+    st.phase = 'approach'; st.lostReason = null; st.apprN = (st.apprN || 0) + 1; rmLine('appr');
+    st.appr = { line: mkLine(lead), man: man, t: { k: k, s: 0, pt: tgt }, dur: route.duration };
+    const look = { color: '#1A73E8', weight: 7, opacity: 0.9, lineCap: 'round', interactive: false };
+    drawLine('appr', lead, look); drawLine('todo', L_.pts, look);
+    say(reason === 'off' ? 'Nouvel itinéraire.' : (first ? 'Itinéraire calculé. ' + (man[0] ? text(man[0], true) + '.' : '') : ''));
+    step();
+  }
+  function approachStep(){
+    const A = st.appr, pr = project(A.line, [st.fix.lat, st.fix.lon]);
+    if(pr.d > Math.max(60, st.fix.acc * 1.3)){
+      st.offA = (st.offA || 0) + 1; st.offAT = st.offAT || Date.now();
+      if(st.offA >= 3 && Date.now() - st.offAT > 5000 && Date.now() - st.lastFree > 12000){ st.offA = 0; st.offAT = 0; say('Recalcul.'); approachFree('off'); }
+      return;
+    }
+    st.offA = 0; st.offAT = 0;
+    const ahead = A.man.filter(function(m){ return m.at > pr.s + 3 && m.type !== 'depart'; });
+    const r = NAV_DATA.routes[A.t.k];
+    // au-delà de la fin de l'approche, on enchaîne avec les consignes du trajet bloqué
+    const nextLocked = r.man.filter(function(m){ return m.type !== 'depart'; }).map(function(m){ return Object.assign({}, m, { at: m.at + A.line.len }); });
+    const all = ahead.concat(nextLocked.filter(function(m){ return m.at > pr.s + 3; }));
+    const m = all[0] || { type: 'continue', at: A.line.len, road: 'A13 (Autoroute de Normandie)' }, n = all[1];
+    banner(m, m.at - pr.s, n && n.at - m.at < 250 ? n : null);
+    const wl = NAV_DATA.walks[DEST[st.dest].walk].len;
+    eta(A.dur * (1 - pr.s / A.line.len) + remT(A.t.k, 0), wl, A.line.len - pr.s + r.len);
+    road(curRoad(A.man, pr.s));
+    st.route = null;
+    announce(m, m.at - pr.s, 'car');
+  }
   const compass = function(b){ return ['le nord', 'le nord-est', 'l\'est', 'le sud-est', 'le sud', 'le sud-ouest', 'l\'ouest', 'le nord-ouest'][Math.round(b / 45) % 8]; };
   // ─── vue 3D (MapLibre) : caméra derrière la voiture, cap toujours en haut ──
   // Repli automatique sur la carte Leaflet 2D si WebGL ou le chargement échoue.
@@ -487,6 +571,7 @@ const RaceNav = (function(){
     const f = st.fix, p = [f.lat, f.lon];
     const gps = f.heading !== null && f.heading !== undefined && !isNaN(f.heading) && f.speed > 2 ? f.heading : null;
     const along = function(L_, s){ return bearing(pointAt(L_, s - 5), pointAt(L_, s + 35)); };
+    if(st.phase === 'approach' && st.appr){ const pr = project(st.appr.line, p); if(pr.d < 50) return (st.hasB = true, st.lastB = along(st.appr.line, pr.s)); }
     let b = null;
     if(st.phase === 'drive' && st.route && st.s !== null && !(st.back >= 4)) b = along(routeLine(st.route), st.s);
     else if(st.phase === 'walk' || st.phase === 'arrived'){ const WL = walkLine(DEST[st.dest].walk), pr = project(WL, p); if(pr.d < 40 && pr.s < WL.len - 15) b = along(WL, pr.s); }
@@ -549,6 +634,7 @@ const RaceNav = (function(){
       if(ds < -5 && st.fix.speed > 2) st.back = (st.back || 0) + 1;
       else if(ds > 5){ if(st.back >= 4) st.wrongAt = 0; st.back = 0; }
       if(st.phase === 'lost'){ rmLine('appr'); say('Vous êtes sur l\'itinéraire. Le guidage reprend.'); }
+      if(st.phase === 'approach'){ rmLine('appr'); st.appr = null; }      // bascule silencieuse sur le trajet bloqué
       st.phase = 'drive'; st.off = 0; st.offT = 0;
       if(st.back >= 4){
         st.s = on.pr.s;
@@ -566,8 +652,12 @@ const RaceNav = (function(){
       st.off = 0; st.offT = 0; say('Vous avez quitté l\'itinéraire.');
       return approach('off');
     }
-    if(st.phase === 'lost') return approach(st.lostReason);
-    if(st.phase === 'locating') return approach('start');
+    if(st.phase === 'approach' && st.appr) return approachStep();
+    if(st.phase === 'lost'){
+      if(st.lostReason === 'start' && !st.busy && Date.now() - (st.lastFree || 0) > 20000 && !inRaceZone([st.fix.lat, st.fix.lon])) return approachFree('start');
+      return approach(st.lostReason);
+    }
+    if(st.phase === 'locating') return approachFree('start');
   }
   function onPos(pos){
     if(!st) return;

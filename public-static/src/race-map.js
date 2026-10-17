@@ -194,7 +194,7 @@ function initRaceOrgMap(){
         km: '24,7 km', min: '16 min', marche: '430 m', from: 'depuis Gaillon',
         extra: [L.marker([49.1915, 1.2333], { icon: pill('A13 · sortie 18', CARS[0].c, 104) }).bindPopup('<b>A13 — sortie 18</b><br>Louviers-la-Roquette')],
         nav: [[49.1999, 1.20515], [49.20672, 1.18507]],
-        steps: ['A13 depuis Paris, direction Rouen : <b>le GPS prend le relais dès Flins</b>, puis sortie 18 <b>Louviers-la-Roquette</b>',
+        steps: ['Depuis votre adresse, le GPS mène à l\'<b>A13 direction Rouen</b> ; dès Flins il suit le trajet sûr, puis sortie 18 <b>Louviers-la-Roquette</b>',
                 'D6155 vers Louviers (route de Paris puis chaussée de Paris)',
                 'Avant la rue de Paris (<b>fermée 8h–13h</b>), à gauche <b>route de Pacy (D164)</b>',
                 'À droite <b>rue Dutens</b> : se garer'],
@@ -427,7 +427,7 @@ function initRaceOrgMap(){
         + '<ol class="rm-steps" style="--c:'+t.col.c+';--ink:'+t.col.ink+'">'+t.steps.map(function(s){ return '<li>'+s+'</li>'; }).join('')
         + '<li class="walk">'+t.walkStep+'</li></ol>'
         + '<button type="button" class="rm-nav" onclick="RaceNav.start('+t.rav.km+')">▶ Me guider jusqu\'au '+('km '+t.rav.km)+'</button>'
-        + '<p class="rm-nav-note">Guidage vocal intégré, uniquement sur cet itinéraire sécurisé : aucun autre chemin n\'est proposé. Gardez l\'écran allumé.</p>';
+        + '<p class="rm-nav-note">Guidage vocal intégré sur cet itinéraire sécurisé, sans autre chemin possible (depuis votre adresse, guidage jusqu\'à l\'A13 à Flins). Gardez l\'écran allumé.</p>';
     }
 
     let current = 0;
