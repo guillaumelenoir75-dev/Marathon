@@ -49,7 +49,6 @@ async function openLivePanel(){
     +     '<button type="button" class="lv-btn lv-go" onclick="liveTestOt()">🔍 Lancer le test</button>'
     +     '<div id="lv-test" style="margin-top:10px;" hidden></div></div>'
     +   '<div class="lv-card" id="lv-ot"><p class="lv-h">📲 OwnTracks (position écran verrouillé)</p>'
-    +     '<ol class="lv-note" style="padding-left:18px;margin:0 0 8px;"><li>Installez <b>OwnTracks</b> (App Store) et ouvrez-la une fois.</li><li>Touchez le bouton ci-dessous : l\'URL est copiée. Dans OwnTracks › <b>i</b> › Settings : Mode <b>HTTP</b>, collez l\'URL dans <b>URL</b>, <b>Authentification désactivée</b>.</li><li>Réglages iPhone › OwnTracks › Position : <b>Toujours</b> + <b>Position exacte</b>.</li><li>Dans OwnTracks : mode <b>Move</b>, puis touchez la flèche d\'envoi : « OwnTracks » ci-dessus doit passer au vert.</li></ol>'
     +     '<button type="button" class="lv-btn lv-go" onclick="liveOwnTracks()">📲 Copier l\'URL OwnTracks</button>'
     +     '<div id="lv-ot-man" hidden style="margin-top:8px;"><p class="lv-note" style="margin:0 0 4px;">URL à coller dans OwnTracks (contient votre clé secrète, ne la partagez pas) :</p>'
     +     '<input id="lv-ot-url" readonly onclick="this.select()" style="width:100%;box-sizing:border-box;font-size:12px;padding:9px;border:1px solid #cbd5e1;border-radius:10px;">'
@@ -186,7 +185,7 @@ function _liveTestRender(){
   h += row(age !== null && age < 180000, 'Liaison', age === null ? 'aucune position jamais reçue : vérifiez l\'URL dans OwnTracks' : 'dernière position reçue ' + suiviFmt.ago(age));
   const mode = o.m === undefined || o.m === null ? null : _OT_MODES[String(o.m)] || ('mode ' + o.m);
   h += row(mode === null ? null : o.m === 2, 'Mode', mode === null ? 'inconnu (attendez la prochaine position)' : mode + (o.m === 2 ? '' : ' : passez en « Move » en haut de la carte OwnTracks'));
-  if(gap !== null) h += row(gap <= 90, 'Fréquence', gap + ' s entre les deux dernières positions' + (gap > 90 ? ' : trop espacé (voir conseil ci-dessous)' : ''));
+  if(gap !== null) h += row(gap <= 240, 'Fréquence', gap + ' s entre les deux dernières positions' + (gap > 60 && gap <= 240 ? ' (normal à l\'arrêt ; en course : environ 1 position par minute)' : ''));
   h += row(typeof o.acc === 'number' ? o.acc <= 50 : null, 'Précision GPS', typeof o.acc === 'number' ? o.acc + ' m' : '–');
   h += row(typeof o.batt === 'number' ? o.batt >= 50 : null, 'Batterie', typeof o.batt === 'number' ? o.batt + ' %' + (o.batt < 50 ? ' : rechargez avant la course' : '') : '–');
   if(T.got) h += row(true, 'En direct', 'nouvelle position reçue pendant le test (' + Math.round((T.got - T.start) / 1000) + ' s après le lancement) 🎉');
@@ -194,7 +193,6 @@ function _liveTestRender(){
   else h += row(false, 'En direct', 'aucune nouvelle position en ' + WAIT + ' s. Ouvrez OwnTracks : mode « Move », Réglages iPhone › OwnTracks › Position « Toujours ».');
   const allOk = T.got && o.m === 2 && age !== null && age < 180000;
   h += '<p class="lv-note" style="margin-top:8px;font-weight:700;color:' + (allOk ? '#15803D' : '#5b6675') + '">' + (allOk ? '✅ Tout fonctionne : vous pouvez verrouiller l\'iPhone.' : T.got || waited >= WAIT ? 'Corrigez les points ❌ puis relancez le test.' : '') + '</p>';
-  if(gap !== null && gap > 90) h += '<p class="lv-note">Conseil : dans OwnTracks › i › Settings, réglez <b>locatorInterval</b> sur 15 et <b>locatorDisplacement</b> sur 25 (s\'ils sont affichés), pour une position toutes les 15 s environ.</p>';
   box.innerHTML = h;
   if(T.got || waited >= WAIT){ if(waited >= WAIT || T.got) _liveTest.done = true; }
 }
