@@ -40,6 +40,8 @@
   .tips{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--muted);}
   .tips b{color:var(--ink);}
   a{color:#1B4FD8;font-weight:700;}
+  .otlink{display:block;text-align:center;padding:14px;border-radius:12px;background:#15803D;color:#fff;text-decoration:none;font-size:16px;}
+  #ot-box[hidden]{display:none !important;}
   #black{position:fixed;inset:0;z-index:99;background:#000;color:#333;display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;padding:30px;touch-action:none;user-select:none;-webkit-user-select:none;}
   #black[hidden]{display:none;}
   #panel{display:contents;} #panel[hidden]{display:none;}
@@ -77,6 +79,24 @@
     </section>
 
     <section class="card">
+      <h2>OwnTracks : suivi écran verrouillé</h2>
+      <dl><dt>Dernier contact</dt><dd id="ot-last">jamais</dd><dt>Batterie</dt><dd id="ot-batt">–</dd></dl>
+      <button id="b-ot" class="ghost" onclick="SuiviAdmin.owntracks(false)">Afficher la configuration OwnTracks</button>
+      <div id="ot-box" hidden style="display:flex;flex-direction:column;gap:10px">
+        <a id="ot-link" class="otlink" href="#">📲 Configurer OwnTracks automatiquement</a>
+        <ol class="tips">
+          <li>Installez <b>OwnTracks</b> (App Store, gratuit), ouvrez-la une fois.</li>
+          <li>Revenez ici sur l'iPhone et touchez <b>Configurer OwnTracks automatiquement</b>, puis acceptez l'import.</li>
+          <li>iPhone : Réglages › OwnTracks › Position : <b>Toujours</b> et <b>Position exacte</b> activée.</li>
+          <li>Dans OwnTracks, en haut de la carte : mode <b>Déplacement (Move)</b>.</li>
+          <li>Si l'import ne marche pas, réglez à la main : Réglages › Mode <b>HTTP</b>, URL ci-dessous, Authentification désactivée.</li>
+        </ol>
+        <label>URL à copier dans OwnTracks<input id="ot-url" type="text" readonly onclick="this.select()"></label>
+        <button class="danger" onclick="SuiviAdmin.owntracks(true)">Générer une nouvelle clé (invalide l'ancienne)</button>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Heure de départ</h2>
       <div class="row"><label>Départ donné à<input id="t-start" type="time" value="09:15"></label><button class="ghost" onclick="SuiviAdmin.startAt()">Régler le chrono</button></div>
       <p class="tips" style="padding:0;list-style:none">Si vous lancez le suivi en retard, réglez ici l'heure réelle du coup de pistolet : le chrono et l'allure seront justes.</p>
@@ -93,7 +113,8 @@
       <ol class="tips">
         <li><b>Téléphone chargé à 100 %</b>, idéalement avec une petite batterie externe.</li>
         <li>Réglages › Luminosité › <b>Verrouillage auto : Jamais</b>, mode Économie d'énergie désactivé.</li>
-        <li>Ouvrez cette page, appuyez sur <b>Démarrer</b> au départ, puis sur <b>Écran noir</b> avant de ranger le téléphone. Ne fermez pas Safari et ne changez pas d'application.</li>
+        <li>Avant le départ : OwnTracks en mode <b>Déplacement</b> (vérifiez « Dernier contact » ci-dessus).</li>
+        <li>Au coup de pistolet : <b>Démarrer</b> ici, puis vous pouvez <b>verrouiller l'iPhone</b> : OwnTracks continue d'envoyer votre position.</li>
         <li>Pour revenir de l'écran noir : <b>appui long</b> (1,5 s).</li>
         <li>À l'arrivée : <b>Je suis arrivé</b>.</li>
       </ol>
@@ -105,7 +126,7 @@
 </main>
 <div id="black" hidden>Suivi en cours · appui long pour revenir</div>
 <script defer src="/src/suivi-data.js?v=1"></script>
-<script defer src="/src/suivi-core.js?v=1"></script>
-<script defer src="/src/suivi-admin.js?v=1"></script>
+<script defer src="/src/suivi-core.js?v=2"></script>
+<script defer src="/src/suivi-admin.js?v=2"></script>
 </body>
 </html>

@@ -54,7 +54,7 @@ const SuiviGeo = (function(){
   }
   // position des points de passage sur le tracé (fenêtre autour du km annoncé pour éviter les portions voisines)
   SUIVI_DATA.points.forEach(function(pt){
-    pt.s = pt.id === 'finish' ? len : project(pt.coord, (pt.km - 3) * 1000 / scale, (pt.km + 3) * 1000 / scale).s;
+    pt.s = pt.id === 'finish' ? len - 60 : project(pt.coord, (pt.km - 3) * 1000 / scale, (pt.km + 3) * 1000 / scale).s;
   });
   return { dist: dist, project: project, pointAt: pointAt, len: len, scale: scale, km: function(s){ return s * scale / 1000; } };
 })();

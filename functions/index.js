@@ -7,3 +7,4 @@ Object.assign(exports, require('./coach'));
 Object.assign(exports, require('./admin'));
 Object.assign(exports, require('./notifs'));
 Object.assign(exports, require('./whoop'));
+Object.assign(exports, require('./live'));

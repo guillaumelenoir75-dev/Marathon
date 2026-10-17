@@ -58,6 +58,7 @@ Chargés dans cet ordre (dépendances respectées) :
 | `coach.js` | analyzeSession, coachChat, weeklyBriefing, weeklyReport, quickBrief, morningBrief, addMemo, extractMemos |
 | `admin.js` | initAdminPassword, createUser, listUsers, deleteUser, dbAdmin |
 | `notifs.js` | Toutes les fonctions `onSchedule` (rappels, briefings automatiques) |
+| `live.js` | owntracksToken (clé + config OwnTracks, admin), owntracks (réception des positions OwnTracks → `/live`, tracé dans `live-course.json`) |
 
 ## Déploiement
 - AUTOMATIQUE : tout commit sur `main` déclenche `.github/workflows/deploy.yml` → `firebase deploy` (functions + hosting + database rules).

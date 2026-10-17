@@ -58,6 +58,21 @@ const SuiviAdmin = (function(){
     stopGps(); lastS = null;
     await ref.update({ status: 'idle', startedAt: null, finishedAt: null, passages: null, track: null, pos: null });
   }
+  // OwnTracks : clé + configuration générées côté serveur (fonction owntracksToken, réservée à l'admin)
+  async function owntracks(renew){
+    if(renew && !confirm('Générer une nouvelle clé ? Il faudra reconfigurer OwnTracks.')) return;
+    try {
+      const tok = await firebase.auth().currentUser.getIdToken();
+      const r = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/owntracksToken' + (renew ? '?renew=1' : ''), { headers: { Authorization: 'Bearer ' + tok } });
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      $('ot-url').value = j.url;
+      const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(j.config))));
+      $('ot-link').href = 'owntracks:///config?inline=' + encodeURIComponent(b64);
+      $('ot-box').hidden = false; $('b-ot').hidden = true;
+      if(renew) msg('Nouvelle clé générée : reconfigurez OwnTracks.');
+    } catch(e) { msg('Impossible d\'obtenir la configuration OwnTracks (' + e.message + ').', true); }
+  }
   async function saveGarmin(){
     const v = $('garmin').value.trim();
     if(v && !/^https:\/\/(livetrack\.garmin\.com|share\.garmin\.com)\//.test(v)){ msg('Collez un lien Garmin LiveTrack (https://livetrack.garmin.com/…).', true); return; }
@@ -129,6 +144,10 @@ const SuiviAdmin = (function(){
     $('b-resume').hidden = !(st === 'running' && watch === null);
     $('b-finish').hidden = st !== 'running';
     $('b-black').hidden = watch === null;
+    const ot = live.ota;
+    $('ot-last').textContent = ot && ot.ts ? suiviFmt.ago(Date.now() + offset - ot.ts) + (ot.acc ? ' · précision ' + ot.acc + ' m' : '') : 'jamais';
+    $('ot-last').className = ot && ot.ts && Date.now() + offset - ot.ts < 120000 ? 'ok' : 'bad';
+    $('ot-batt').textContent = ot && typeof ot.batt === 'number' ? ot.batt + ' %' : '–';
   }
 
   // écran noir anti-touches (économise la batterie sur écran OLED) ; appui long pour revenir
@@ -143,7 +162,7 @@ const SuiviAdmin = (function(){
 
   return {
     init: init, start: function(){ start(null); }, startAt: function(){ const v = $('t-start').value || '09:15'; start(suiviFmt.planned(v)); },
-    resume: startGps, finish: finish, reset: reset, saveGarmin: saveGarmin, black: black,
+    resume: startGps, finish: finish, reset: reset, saveGarmin: saveGarmin, black: black, owntracks: owntracks,
     logout: function(){ stopGps(); firebase.auth().signOut(); },
   };
 })();
