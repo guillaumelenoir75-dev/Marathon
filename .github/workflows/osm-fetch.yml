@@ -1,0 +1,26 @@
+name: Vérif bundle (temporaire)
+on:
+  push:
+    branches: [claude/sweet-allen-ZGlVv]
+    paths: [.github/workflows/osm-fetch.yml]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lecture
+        continue-on-error: true
+        run: |
+          mkdir -p audit/out
+          W=https://prepa-marathon.web.app
+          { B=$(curl -s $W/ | grep -o 'src="/src/bundle-[0-9]*\.js"' | head -1 | cut -d'"' -f2); echo "bundle en ligne : $B"; echo -n "contient liveNudge / lv-adj : "; curl -s "$W$B" | grep -o -E "liveNudge|lv-adj" | sort | uniq -c | tr '\n' ' '; echo; echo -n "cache index : "; curl -sI $W/ | grep -i cache-control; echo -n "/live status : "; curl -s https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app/live/status.json; echo -n " test="; curl -s https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app/live/test.json; echo; date -u; } > audit/out/bundle.txt 2>&1
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/out
+          git commit -m "data: vérif bundle (temporaire)" || true
+          git push
