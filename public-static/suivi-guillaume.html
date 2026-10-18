@@ -80,6 +80,24 @@
   #map .me.fin i{animation:none;opacity:0;}
   #map .me.fin b{background:#15803D;}
   @keyframes pulse{0%{transform:scale(.5);opacity:1;}100%{transform:scale(1.4);opacity:0;}}
+  /* Rejeu de la course */
+  .pill.replay{background:#FDE68A;color:#78350F;}
+  .rp-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .rp-head span{font-size:12.5px;font-weight:800;color:#B45309;}
+  .rp-sub{margin:4px 0 10px;font-size:12.5px;color:var(--muted);}
+  .rp-chart{display:flex;align-items:flex-end;gap:2px;height:84px;padding:0 1px;}
+  .rp-bar{flex:1;min-width:0;padding:0;border:0;border-radius:3px 3px 1px 1px;background:#CBD5E1;cursor:pointer;}
+  .rp-bar.done{background:#1D4ED8;}
+  .rp-bar.cur{background:#F59E0B;}
+  .rp-axis{display:flex;justify-content:space-between;margin:4px 1px 6px;font-size:10.5px;font-weight:700;color:var(--muted);}
+  #rp-seek{width:100%;margin:2px 0 10px;accent-color:#1D4ED8;}
+  .rp-ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .rp-play{flex:1 1 170px;min-height:46px;border:0;border-radius:12px;background:var(--navy);color:#fff;font:800 15px/1 system-ui,sans-serif;cursor:pointer;}
+  .rp-speeds{display:flex;gap:4px;}
+  .rp-speeds button{min-width:46px;min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--navy);font:800 12.5px/1 system-ui,sans-serif;cursor:pointer;}
+  .rp-speeds button[aria-pressed="true"]{background:#E8F0FB;border-color:var(--navy);}
+  .rp-exit{margin-top:10px;width:100%;min-height:40px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--muted);font:700 13px/1 system-ui,sans-serif;cursor:pointer;}
+  .rp button:focus-visible,#rp-seek:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
   .foot{margin:2px 0 0;font-size:11.5px;line-height:1.5;color:var(--muted);text-align:center;}
   @media (min-width:640px){ .hero{padding:20px 24px 22px;} .stats{grid-template-columns:repeat(2,1fr);} }
   @media (prefers-reduced-motion:reduce){ #map .me i,.pill.running::before{animation:none;} }
@@ -94,6 +112,7 @@
     <p id="status-line" class="status">Connexion au suivi en direct…</p>
   </header>
   <div id="net" class="net" hidden>Connexion perdue : les informations reprendront dès le retour du réseau.</div>
+  <div id="replay"></div>
 
   <section class="card" aria-label="Progression sur le parcours">
     <div class="prog-head">
@@ -121,6 +140,7 @@
 </main>
 <script defer src="/src/suivi-data.js?v=1"></script>
 <script defer src="/src/suivi-core.js?v=10"></script>
-<script defer src="/src/suivi-view.js?v=13"></script>
+<script defer src="/src/suivi-view.js?v=15"></script>
+<script defer src="/src/suivi-replay.js?v=1"></script>
 </body>
 </html>

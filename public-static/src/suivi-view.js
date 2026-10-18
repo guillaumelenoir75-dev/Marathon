@@ -47,7 +47,9 @@ const SuiviView = (function(){
   function whole(){ follow = false; $('b-follow').hidden = !meLL; map.fitBounds(L.polyline(SUIVI_DATA.route).getBounds(), { padding: [20, 20] }); }
 
   // ─── Calculs ──────────────────────────────────────────────────────────────
+  let ovr = null;                                           // rejeu de la course (suivi-replay.js) : remplace le direct
   function state(){
+    if(ovr) return Object.assign({ t: now() }, ovr);
     const o = suiviCalc(live, now());
     if(live.startedAt) o.chrono = (live.finishedAt || o.t) - live.startedAt;
     return o;
@@ -75,6 +77,12 @@ const SuiviView = (function(){
     $('v-eta').textContent = suiviFmt.hhmm(eta.at);
     $('v-eta').previousElementSibling.textContent = eta.done ? 'Arrivée' : 'Arrivée estimée';
     $('v-eta-sub').textContent = eta.done ? 'en ' + suiviFmt.dur(eta.dur) : o.st === 'idle' ? 'départ 9h15 · ≈ ' + suiviFmt.hm(eta.dur) : 'temps final ≈ ' + suiviFmt.hm(eta.dur);
+    if(o.replay){                                           // rejeu : textes propres, allure du km en cours
+      pill.className = 'pill replay'; pill.textContent = o.pill;
+      $('status-line').hidden = false; $('status-line').textContent = o.status;
+      $('v-time-sub').hidden = false; $('v-time-sub').textContent = o.sub;
+      $('v-eta').previousElementSibling.textContent = o.kmLabel; $('v-eta').textContent = o.kmPace; $('v-eta-sub').textContent = o.kmSub;
+    }
     if($('v-done')) $('v-done').textContent = o.st === 'finished' ? '42,2' : suiviFmt.km(dist || 0).replace(/,00$/, '');
     $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, 42195 - (dist || 0))).replace(/,00$/, '');
     // carte
@@ -87,6 +95,7 @@ const SuiviView = (function(){
   const CUM = (function(){ const R = SUIVI_DATA.route, c = [0]; for(let i = 1; i < R.length; i++) c.push(c[i-1] + SuiviGeo.dist(R[i-1], R[i])); return c; })();
   let last = null, vis = { key: null, s: 0 };
   function visS(o, t){
+    if(o.replay) return o.s;
     if(o.st === 'finished') return SuiviGeo.len;
     if(o.st !== 'running' || o.s === undefined) return o.s;
     let s = o.s;
@@ -128,17 +137,19 @@ const SuiviView = (function(){
     meLL = ll;
     if(!me){
       const ic = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' });
-      me = L.marker(ll, { icon: ic, zIndexOffset: 3000, keyboard: false }).addTo(map); me.bindPopup('Guillaume');
+      me = L.marker(ll, { icon: ic, zIndexOffset: 3000, keyboard: false }).addTo(map); me.bindPopup('Guillaume'); me._fin = o.st === 'finished';
       if(follow) map.setView(ll, 14); $('b-follow').hidden = true;
       return;
     }
     me.setLatLng(ll);
-    if(data) me.setIcon(L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (o.st === 'finished' ? ' fin' : '') + '"><i></i><b>G</b></div>' }));
+    const fin = o.st === 'finished';
+    if(data || me._fin !== fin){ me._fin = fin; me.setIcon(L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23], html: '<div class="me' + (fin ? ' fin' : '') + '"><i></i><b>G</b></div>' })); }
     // suivi : recentrer quand le point s'approche du bord (pas à chaque pas, pour rester lisible)
     if(follow && (data || !map.getBounds().pad(-0.3).contains(ll))) map.panTo(ll, { animate: true, duration: 0.8 });
   }
   function glide(){ if(last && last.st === 'running') drawMap(last, visS(last, now()), false); }
 
-  return { init: init, center: center, whole: whole, _ll: function(){ return meLL; } };
+  function replay(o){ ovr = o; render(false); }
+  return { init: init, center: center, whole: whole, replay: replay, _ll: function(){ return meLL; } };
 })();
 document.addEventListener('DOMContentLoaded', function(){ SuiviView.init(); });
