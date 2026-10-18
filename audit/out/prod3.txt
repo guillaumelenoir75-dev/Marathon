@@ -1,0 +1,6 @@
+owntracks (403 attendu) : 403
+clé privée : {"error":"Permissiondenied"}
+/live : status="idle" ; test=null ; startedAt=null ; rid=null ; splits=null ; pos=null ; 
+ota : {"acc":10,"batt":100,"m":2,"prev":1792256173704,"ts":1792294814687}
+/suivi-guillaume : 200 src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=10" src="/src/suivi-view.js?v=13" 1
+/parcours : 200 src="/src/suivi-data.js?v=1" src="/src/suivi-core.js?v=10" src="/src/suivi-view.js?v=13" 0
