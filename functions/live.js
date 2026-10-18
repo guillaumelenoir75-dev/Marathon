@@ -112,6 +112,10 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
     up['passages/' + pt.id] = tp;
     if (pt.id === 'finish' && !live.test) { up.status = 'finished'; up.finishedAt = tp; }
   }
+  // la course a-t-elle été (re)démarrée pendant ce calcul ? alors on n'écrit pas une position de l'ancienne
+  const again = (await db.ref('live/startedAt').once('value')).val();
+  const againTest = (await db.ref('live/test').once('value')).val();
+  if (again !== live.startedAt || !!againTest !== !!live.test) { await db.ref('live').update({ ota: up.ota }); res.json([]); return; }
   await db.ref('live').update(up);
   const lastTrack = live.track ? Object.values(live.track).reduce((a, x) => (x[2] > a[2] ? x : a), [0, 0, 0, -1]) : null;
   if (typeof fix.s === 'number' && (!lastTrack || t - lastTrack[2] >= 45000 || Math.abs(s - lastTrack[3]) >= 400)) await db.ref('live/track').push([+m.lat.toFixed(5), +m.lon.toFixed(5), t, Math.round(s)]);

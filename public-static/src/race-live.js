@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=9'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=10'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -83,7 +83,7 @@ async function openLivePanel(){
     +     '<div id="lv-splits" style="margin-top:10px;"></div></div>'
     +   '<div class="lv-card"><p class="lv-h">Heure de départ</p>'
     +     '<div style="display:flex;gap:8px;align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" step="1" value="09:15:00"></label>'
-    +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStart(document.getElementById(\'lv-start\').value)">Régler le chrono</button></div></div>'
+    +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStartAt()">Régler le chrono</button></div></div>'
     +   '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     +     '<a class="lv-btn lv-ghost" style="flex:1;text-align:center;text-decoration:none;" href="/suivi-guillaume" target="_blank">👀 Page de suivi</a>'
     + '</div>'
@@ -133,7 +133,8 @@ function _liveRender(){
   const otAge = ot && ot.ts ? t - ot.ts : Infinity, otOff = otAge > 180000 || (ot && typeof ot.m === 'number' && ot.m !== 2);
   const auto = document.getElementById('lv-auto');
   auto.hidden = !(st === 'running' && (otOff || c.est));
-  if(!auto.hidden) auto.innerHTML = '<b>📡 ' + (otOff ? 'OwnTracks déconnecté' + (otAge < Infinity ? ' (dernier contact ' + suiviFmt.ago(otAge) + ')' : '') + (ot && ot.m === -1 ? ' · mode Quiet' : '') : 'Pas de position GPS fiable depuis ' + suiviFmt.ago(c.age).replace('il y a ', '')) + '</b><br>'
+  const otMode = ot && typeof ot.m === 'number' && ot.m !== 2 ? ({ '-1': 'Quiet', '0': 'Manual', '1': 'Significant' })[String(ot.m)] || 'autre' : null;
+  if(!auto.hidden) auto.innerHTML = '<b>📡 ' + (otOff ? (otAge <= 180000 && otMode ? 'OwnTracks n\'est plus en mode Move (mode ' + otMode + ')' : 'OwnTracks déconnecté' + (otAge < Infinity ? ' (dernier contact ' + suiviFmt.ago(otAge) + ')' : '') + (otMode ? ' · mode ' + otMode : '')) : 'Pas de position GPS fiable depuis ' + suiviFmt.ago(c.age).replace('il y a ', '')) + '</b><br>'
     + 'Suivi en autonome sans le GPS : la position avance selon votre plan de course et vos temps officiels. Saisissez vos pointages pour la recaler.';
   document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + (c.adj ? ' · allure bornée sur le plan' : '') + ' · ' : '')
     + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
@@ -158,8 +159,8 @@ function _liveRender(){
 async function liveStart(hm, test){
   const tap = _liveNow();                                 // heure de l'appui (comme la montre), avant toute confirmation
   const L = _liveVal, at = hm ? suiviFmt.planned(hm) : null;
-  // course en cours : l'heure saisie règle seulement le chrono (départ retardé, alignement sur la montre)
-  if(L.status === 'running' && !L.test && hm){
+  // course en cours ou terminée : l'heure saisie règle seulement le départ (retard, alignement sur la montre)
+  if((L.status === 'running' || L.status === 'finished') && L.startedAt && !L.test && hm){
     if(!confirm('Régler le départ à ' + suiviFmt.hhmmss(at) + ' (le chrono et les allures sont recalculés) ?')) return;
     await _liveRef.update({ startedAt: at }); return;
   }
@@ -168,7 +169,13 @@ async function liveStart(hm, test){
     : real ? 'Une course est déjà enregistrée. La redémarrer à ' + suiviFmt.hhmmss(at || tap) + ' et effacer la trace ?'
     : 'Démarrer la course à ' + suiviFmt.hhmmss(at || tap) + (at ? '' : ' (heure de votre appui)') + ' ?' + (L.test ? ' L\'essai en cours est effacé.' : '') + ' Le suivi devient visible par tous.';
   if(!confirm(msg)) return;
-  await _liveRef.update({ status: 'running', test: test ? true : null, noAuto: null, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
+  await _liveRef.update({ status: 'running', test: test ? true : null, noAuto: null, rid: tap, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
+}
+// « Régler le chrono » : une heure doit être saisie (sinon on n'efface rien)
+function liveStartAt(){
+  const v = document.getElementById('lv-start').value;
+  if(!v){ alert('Saisissez l\'heure du départ (ex. 9:16).'); return; }
+  liveStart(v);
 }
 // − / + sous le chrono : cale le temps de course sur la montre, seconde par seconde (déplace l'heure de départ)
 async function liveNudge(sec){
@@ -188,7 +195,7 @@ async function liveCancel(){
   if(!confirm('Annuler ? Le chrono, la trace et les pointages sont effacés ; la page de suivi revient à « Pas encore parti ».')) return;
   // annulation volontaire le jour J après 9h15 : pas de redémarrage automatique par le serveur
   const noAuto = !_liveVal.test && _liveNow() >= suiviFmt.planned(SUIVI_DATA.start) && _liveNow() < suiviFmt.planned(SUIVI_DATA.start) + 5 * 3600000 ? true : null;
-  await _liveRef.update({ status: 'idle', test: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null, noAuto: noAuto });
+  await _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null, noAuto: noAuto });
 }
 // OwnTracks : configuration générée par la fonction owntracksToken (clé secrète, réservée à l'admin)
 async function liveOwnTracks(){
@@ -253,7 +260,7 @@ async function liveSaveSplit(){
   if(!el){ alert('Temps invalide. Tapez les chiffres : 1458 = 14:58 · 14823 = 1:48:23'); return; }
   if(!L.startedAt || L.status === 'idle'){
     if(!confirm('La course n\'est pas démarrée. La démarrer avec ce pointage (départ = maintenant − ' + suiviFmt.dur(el) + ') ?')) return;
-    await _liveRef.update({ status: 'running', test: null, noAuto: null, startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
+    await _liveRef.update({ status: 'running', test: null, noAuto: null, rid: _liveNow(), startedAt: _liveNow() - el, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
     L.startedAt = _liveNow() - el; L.status = 'running'; L.passages = null; L.pos = null;
   }
   // cohérence avec le plan PacePro : allure du tronçon depuis le pointage précédent (ou le départ) et jusqu'au suivant

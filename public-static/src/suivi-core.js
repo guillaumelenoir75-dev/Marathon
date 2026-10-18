@@ -100,8 +100,9 @@ function suiviCalc(live, t){
   let A = null;                                          // pointage officiel le plus loin
   if(live.splits) Object.keys(live.splits).forEach(function(k){ const x = live.splits[k]; if(x && x.km > 0 && x.el > 0 && (!A || x.km > A.km)) A = x; });
   const P = live.pos && typeof live.pos.s === 'number' && live.pos.src !== 'officiel' ? live.pos : null;
-  if(!A && !P) return Object.assign(o, { d: 0, el: t - t0, ts: t, s: s0, ll: null, speed: planSpeed(0), known: false });
-  let ref = null;
+  if(!A && !P && test) return Object.assign(o, { d: 0, el: t - t0, ts: t, s: s0, ll: null, speed: planSpeed(0), known: false });
+  // course sans aucune position ni pointage (OwnTracks coupé dès le départ) : on part de la ligne de départ
+  let ref = !A && !P ? { d: 0, el: 0, ts: t0, s: 0, ll: SuiviGeo.pointAt(0) } : null;
   if(P){
     const Pt = P.sts || P.ts;                            // instant où la distance GPS a été mesurée
     ref = { d: Math.max(0, Math.min(42195, (P.s - s0) * K)), el: Pt - t0, ts: Pt, s: P.s, ll: [P.lat, P.lon] };
@@ -136,7 +137,7 @@ function suiviCalc(live, t){
     o.s = Math.min(SuiviGeo.len, ref.s + add / K); o.ll = SuiviGeo.pointAt(o.s);
   }
   // la distance affichée ne recule jamais pendant une même course (sur cet écran)
-  const key = live.startedAt + '|' + s0;
+  const key = (live.rid || live.startedAt) + '|' + s0;                 // rid : identifiant de course (inchangé par − / + 1 s)
   if(_suiviMax.key === key && _suiviMax.d > o.d){ o.d = _suiviMax.d; o.s = _suiviMax.s; if(o.est || !P) o.ll = SuiviGeo.pointAt(o.s); }
   else _suiviMax = { key: key, d: o.d, s: o.s };
   return o;

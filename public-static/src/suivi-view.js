@@ -92,7 +92,7 @@ const SuiviView = (function(){
     let s = o.s;
     if(o.ref) s = Math.max(s, o.ref.s + suiviPlanAdvance(o.ref.d, t - o.ref.ts, o.ratio) / SuiviGeo.scale);
     s = Math.min(SuiviGeo.len, s);
-    const key = live.startedAt + '|' + (live.s0 || 0);
+    const key = (live.rid || live.startedAt) + '|' + (live.s0 || 0);
     if(vis.key === key && vis.s > s) s = vis.s; else vis = { key: key, s: s };
     return s;
   }
