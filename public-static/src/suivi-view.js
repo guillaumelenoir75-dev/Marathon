@@ -6,6 +6,7 @@ const SuiviView = (function(){
   const now = function(){ return Date.now() + offset; };
 
   async function init(){
+    buildTrack();
     await suiviLeaflet().catch(function(){});
     buildMap();
     let ref;
@@ -63,6 +64,8 @@ const SuiviView = (function(){
     else if(o.st === 'finished') $('status-line').textContent = 'Arrivé en ' + suiviFmt.dur(live.finishedAt - live.startedAt) + ' 🎉';
     else $('status-line').textContent = 'Départ donné à ' + suiviFmt.hhmm(live.startedAt);
     if(live.test && o.st !== 'idle') $('status-line').textContent = '🧪 Essai : ce n\'est pas la course. ' + $('status-line').textContent;
+    $('status-line').hidden = o.st === 'running' && !live.test;               // « depuis 9h16 » sous le chrono suffit
+    $('v-time-sub').hidden = o.st === 'idle';                                    // la ligne d'état donne déjà le départ prévu
     const dist = o.d !== undefined ? o.d : null;
     $('v-time').textContent = o.chrono !== undefined ? suiviFmt.dur(o.chrono) : '–';
     $('v-time-sub').textContent = o.st === 'finished' ? 'temps final' : live.startedAt ? 'depuis ' + suiviFmt.hhmm(live.startedAt) : 'départ prévu 9h15';
@@ -93,7 +96,26 @@ const SuiviView = (function(){
     if(vis.key === key && vis.s > s) s = vis.s; else vis = { key: key, s: s };
     return s;
   }
+  // barre de progression (page /suivi-guillaume) : repères des points de RDV, avance comme le point de la carte
+  function buildTrack(){
+    const box = $('v-ticks'); if(!box) return;
+    box.innerHTML = SUIVI_DATA.points.map(function(pt){
+      const f = pt.id === 'finish' ? 100 : Math.min(100, pt.s * SuiviGeo.scale / 42195 * 100);
+      return '<div class="tick' + (pt.id === 'finish' ? ' end' : '') + '" style="left:' + f.toFixed(2) + '%"><em>' + (pt.id === 'finish' ? '🏁' : pt.id === 'km30' ? '30 🏠' : pt.km) + '</em></div>';
+    }).join('');
+  }
+  function drawBar(o, s){
+    const bar = $('v-bar'); if(!bar) return;
+    const me = $('v-me');
+    if(o.st === 'idle' || s === undefined || (!o.ll && o.st !== 'finished')){ bar.style.width = '0%'; me.hidden = true; return; }
+    const d = o.st === 'finished' ? 42195 : Math.max(0, (s - (live.test && typeof live.s0 === 'number' ? live.s0 : 0)) * SuiviGeo.scale);
+    const f = Math.min(100, d / 42195 * 100).toFixed(2) + '%';
+    bar.style.width = f; me.style.left = f; me.hidden = false;
+    me.className = 'me' + (o.st === 'finished' ? ' fin' : '');
+    $('v-track').setAttribute('aria-valuenow', (Math.min(42195, d) / 1000).toFixed(1));
+  }
   function drawMap(o, s, data){
+    drawBar(o, s);
     if(!map) return;
     if(s === undefined || o.st === 'idle' || (!o.ll && o.st !== 'finished')){
       passedL.setLatLngs([]);
