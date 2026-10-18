@@ -127,9 +127,11 @@ function suiviCalc(live, t){
   o.speed = 1 / pace;
   o.ref = ref; o.d = ref.d; o.el = ref.el; o.ts = ref.ts; o.s = ref.s; o.ll = ref.ll;
   o.age = t - ref.ts;
-  // sans nouvelle distance depuis 2 min : avancée estimée à l'allure moyenne
+  o.ratio = suiviRatio(ref.d, ref.el);
+  // sans nouvelle distance depuis 2 min (GPS coupé, OwnTracks en Quiet, batterie…) : suivi autonome,
+  // la position avance selon le plan PacePro au rythme réel, et se recale à chaque temps officiel saisi
   if(o.age > 120000 && o.st === 'running'){
-    const add = Math.min(42195 - ref.d, o.speed * o.age / 1000);
+    const add = Math.min(42195 - ref.d, suiviPlanAdvance(ref.d, o.age, o.ratio));
     o.est = true; o.d = ref.d + add; o.el = ref.el + o.age; o.ts = t;
     o.s = Math.min(SuiviGeo.len, ref.s + add / K); o.ll = SuiviGeo.pointAt(o.s);
   }
@@ -138,6 +140,22 @@ function suiviCalc(live, t){
   if(_suiviMax.key === key && _suiviMax.d > o.d){ o.d = _suiviMax.d; o.s = _suiviMax.s; if(o.est || !P) o.ll = SuiviGeo.pointAt(o.s); }
   else _suiviMax = { key: key, d: o.d, s: o.s };
   return o;
+}
+
+// Rythme réel par rapport au plan (temps réalisé ÷ temps prévu à cette distance), pris en compte
+// progressivement sur les 10 premiers km ; 1 = pile sur le plan
+function suiviRatio(d, el){
+  if(!(d > 300 && el > 60000)) return 1;
+  const r = Math.max(0.85, Math.min(1.5, el / 1000 / SuiviPlan.t(d))), w = Math.min(1, d / 10000);
+  return 1 + (r - 1) * w;
+}
+// Mètres parcourus en ageMs depuis la distance d, en suivant les allures du plan au rythme réel (ratio)
+function suiviPlanAdvance(d, ageMs, ratio){
+  const target = SuiviPlan.t(d) + Math.max(0, ageMs) / 1000 / (ratio || 1);
+  if(SuiviPlan.t(42195) <= target) return Math.max(0, 42195 - d);
+  let lo = d, hi = 42195;
+  for(let k = 0; k < 32; k++){ const m = (lo + hi) / 2; if(SuiviPlan.t(m) < target) lo = m; else hi = m; }
+  return lo - d;
 }
 
 // Arrivée estimée : temps restant du plan PacePro depuis la distance atteinte, ajusté au rythme réel

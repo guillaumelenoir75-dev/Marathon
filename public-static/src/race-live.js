@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=7'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=8'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -60,6 +60,7 @@ async function openLivePanel(){
     +     '<div class="lv-stat"><span>Allure moyenne</span><b id="lv-pace">–</b></div>'
     +     '<div class="lv-stat"><span>Arrivée estimée</span><b id="lv-eta">–</b></div>'
     +   '</div>'
+    +   '<div id="lv-auto" role="status" hidden style="background:#FFF4E5;border:1.5px solid #F59E0B;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;color:#7C2D12;"></div>'
     +   '<p id="lv-src" class="lv-note"></p>'
     +   '<div class="lv-card"><p class="lv-h">🔍 Tester OwnTracks</p>'
     +     '<p class="lv-note" style="margin:0 0 8px;">Vérifie la liaison, le mode Move et la réception de votre position en direct.</p>'
@@ -125,6 +126,12 @@ function _liveRender(){
   const eta = suiviEta(c, L);
   document.getElementById('lv-eta').textContent = suiviFmt.hhmm(eta.at) + ' · ' + suiviFmt.hm(eta.dur);
   const ot = L.ota;
+  // bandeau : OwnTracks muet ou plus en « Move » (batterie, Quiet…) → suivi autonome sans GPS
+  const otAge = ot && ot.ts ? t - ot.ts : Infinity, otOff = otAge > 180000 || (ot && typeof ot.m === 'number' && ot.m !== 2);
+  const auto = document.getElementById('lv-auto');
+  auto.hidden = !(st === 'running' && (otOff || c.est));
+  if(!auto.hidden) auto.innerHTML = '<b>📡 ' + (otOff ? 'OwnTracks déconnecté' + (otAge < Infinity ? ' (dernier contact ' + suiviFmt.ago(otAge) + ')' : '') + (ot && ot.m === -1 ? ' · mode Quiet' : '') : 'Pas de position GPS fiable depuis ' + suiviFmt.ago(c.age).replace('il y a ', '')) + '</b><br>'
+    + 'Suivi en autonome sans le GPS : la position avance selon votre plan de course et vos temps officiels. Saisissez vos pointages pour la recaler.';
   document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + (c.adj ? ' · allure bornée sur le plan' : '') + ' · ' : '')
     + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
   // actions selon l'état (reconstruites seulement si l'état change)

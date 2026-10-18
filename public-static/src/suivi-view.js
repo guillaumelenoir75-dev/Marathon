@@ -87,7 +87,7 @@ const SuiviView = (function(){
     if(o.st === 'finished') return SuiviGeo.len;
     if(o.st !== 'running' || o.s === undefined) return o.s;
     let s = o.s;
-    if(o.ref && o.speed > 0) s = Math.max(s, o.ref.s + o.speed * Math.max(0, t - o.ref.ts) / 1000 / SuiviGeo.scale);
+    if(o.ref) s = Math.max(s, o.ref.s + suiviPlanAdvance(o.ref.d, t - o.ref.ts, o.ratio) / SuiviGeo.scale);
     s = Math.min(SuiviGeo.len, s);
     const key = live.startedAt + '|' + (live.s0 || 0);
     if(vis.key === key && vis.s > s) s = vis.s; else vis = { key: key, s: s };
