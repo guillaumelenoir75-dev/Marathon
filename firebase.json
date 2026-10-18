@@ -48,6 +48,12 @@
         ]
       },
       {
+        "source": "/",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
         "source": "/@(parcours|secours|trajet-amis|suivi-guillaume|suivi-admin)",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache" }
