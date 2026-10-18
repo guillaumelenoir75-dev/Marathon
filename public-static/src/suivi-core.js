@@ -180,5 +180,6 @@ const suiviFmt = {
   km: function(m){ return (m / 1000).toFixed(m >= 9950 ? 1 : 2).replace('.', ','); },
   pace: function(secPerKm){ if(!isFinite(secPerKm) || secPerKm <= 0) return '–'; const m = Math.floor(secPerKm / 60), s = Math.round(secPerKm % 60); return m + "'" + String(s === 60 ? 59 : s).padStart(2, '0') + '"/km'; },
   ago: function(ms){ const s = Math.round(ms / 1000); return s < 60 ? 'il y a ' + Math.max(1, s) + ' s' : s < 3600 ? 'il y a ' + Math.round(s / 60) + ' min' : 'il y a ' + Math.floor(s / 3600) + ' h'; },
-  planned: function(hm){ const p = hm.split(':'); const d = new Date(SUIVI_DATA.date + 'T00:00:00'); d.setHours(+p[0], +p[1], 0, 0); return d.getTime(); },
+  planned: function(hm){ const p = hm.split(':'); const d = new Date(SUIVI_DATA.date + 'T00:00:00'); d.setHours(+p[0], +p[1], +(p[2] || 0), 0); return d.getTime(); },
+  hhmmss: function(t){ const d = new Date(t); return d.getHours() + 'h' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0'); },
 };

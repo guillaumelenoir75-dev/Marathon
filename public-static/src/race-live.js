@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=8'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=9'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -81,7 +81,7 @@ async function openLivePanel(){
     +     '<button type="button" class="lv-btn lv-go" onclick="liveSaveSplit()">Enregistrer le pointage</button>'
     +     '<div id="lv-splits" style="margin-top:10px;"></div></div>'
     +   '<div class="lv-card"><p class="lv-h">Heure de départ</p>'
-    +     '<div style="display:flex;gap:8px;align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" value="09:15"></label>'
+    +     '<div style="display:flex;gap:8px;align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" step="1" value="09:15:00"></label>'
     +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStart(document.getElementById(\'lv-start\').value)">Régler le chrono</button></div></div>'
     +   '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     +     '<a class="lv-btn lv-ghost" style="flex:1;text-align:center;text-decoration:none;" href="/suivi-guillaume" target="_blank">👀 Page de suivi</a>'
@@ -140,9 +140,10 @@ function _liveRender(){
   if(box.dataset.k !== key){
     box.dataset.k = key;
     box.innerHTML = st === 'running'
-      ? '<button class="lv-btn lv-fin" onclick="liveFinish()">🏁 Je suis arrivé</button><button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler ' + (L.test ? 'l\'essai' : 'le suivi') + ' (tout effacer)</button>'
+      ? (L.test ? '<button class="lv-btn lv-go" style="font-size:17px;padding:16px;" onclick="liveStart()">▶ Démarrer la course maintenant</button>' : '')
+      + '<button class="lv-btn lv-fin" onclick="liveFinish()">🏁 Je suis arrivé</button><button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler ' + (L.test ? 'l\'essai' : 'le suivi') + ' (tout effacer)</button>'
       : st === 'finished'
-        ? '<button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler (tout effacer)</button>'
+        ? (L.test ? '<button class="lv-btn lv-go" style="font-size:17px;padding:16px;" onclick="liveStart()">▶ Démarrer la course maintenant</button>' : '') + '<button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler (tout effacer)</button>'
         : '<button class="lv-btn lv-go" style="font-size:17px;padding:16px;" onclick="liveStart()">▶ Démarrer la course maintenant</button><button class="lv-btn lv-ghost" onclick="liveStart(null,true)">🧪 Lancer un essai (annulable)</button>';
   }
   const sp = L.splits ? Object.keys(L.splits).map(function(k){ return Object.assign({ k: k }, L.splits[k]); }).sort(function(a, b){ return a.km - b.km; }) : [];
@@ -152,15 +153,19 @@ function _liveRender(){
 }
 
 async function liveStart(hm, test){
+  const tap = _liveNow();                                 // heure de l'appui (comme la montre), avant toute confirmation
   const L = _liveVal, at = hm ? suiviFmt.planned(hm) : null;
-  const what = test ? 'un essai' : 'la course';
-  if(L.status === 'running' && !hm && !confirm('Un suivi est déjà en cours. Redémarrer ' + what + ' maintenant et effacer la trace ?')) return;
-  if(L.status === 'running' && hm){
-    if(!confirm('Régler le départ à ' + hm.replace(':', 'h') + ' (le chrono et les allures sont recalculés) ?')) return;
+  // course en cours : l'heure saisie règle seulement le chrono (départ retardé, alignement sur la montre)
+  if(L.status === 'running' && !L.test && hm){
+    if(!confirm('Régler le départ à ' + suiviFmt.hhmmss(at) + ' (le chrono et les allures sont recalculés) ?')) return;
     await _liveRef.update({ startedAt: at }); return;
   }
-  if(L.status !== 'running' && !confirm(test ? 'Lancer un essai ? La page de suivi affichera « Essai ».' : 'Démarrer la course ' + (hm ? 'à ' + hm.replace(':', 'h') : 'maintenant') + ' ? Le suivi devient visible par tous.')) return;
-  await _liveRef.update({ status: 'running', test: test ? true : null, noAuto: null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
+  const real = L.startedAt && !L.test && L.status !== 'idle';           // une vraie course est déjà enregistrée
+  const msg = test ? 'Lancer un essai ? La page de suivi affichera « Essai ».'
+    : real ? 'Une course est déjà enregistrée. La redémarrer à ' + suiviFmt.hhmmss(at || tap) + ' et effacer la trace ?'
+    : 'Démarrer la course à ' + suiviFmt.hhmmss(at || tap) + (at ? '' : ' (heure de votre appui)') + ' ?' + (L.test ? ' L\'essai en cours est effacé.' : '') + ' Le suivi devient visible par tous.';
+  if(!confirm(msg)) return;
+  await _liveRef.update({ status: 'running', test: test ? true : null, noAuto: null, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
 }
 async function liveFinish(){
   if(!confirm('Déclarer l\'arrivée maintenant ? (Vous pourrez saisir le temps officiel ensuite : km 42,195.)')) return;

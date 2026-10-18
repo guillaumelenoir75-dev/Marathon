@@ -39,11 +39,12 @@ const SuiviAdmin = (function(){
 
   // ─── Commandes ────────────────────────────────────────────────────────────
   async function start(at, test){
+    const tap = now();                                   // heure de l'appui, avant les confirmations
     const label = at ? 'à ' + suiviFmt.hhmm(at) : 'maintenant', what = test ? 'l\'essai' : 'la course';
     if(live.status === 'running' && !confirm('Un suivi est déjà en cours. Redémarrer ' + what + ' ' + label + ' et effacer la trace ?')) return;
     if(live.status !== 'running' && !confirm(test ? 'Lancer un essai ? La page de suivi affichera « Essai », et vous pourrez tout annuler ensuite.' : 'Démarrer la course ' + label + ' ? Le suivi devient visible par tous.')) return;
     lastS = at ? null : 0; lastAccT = 0; lastTrackS = -1;
-    await ref.update({ status: 'running', test: test ? true : null, noAuto: null, startedAt: at || firebase.database.ServerValue.TIMESTAMP, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
+    await ref.update({ status: 'running', test: test ? true : null, noAuto: null, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
     // par défaut, la position vient d'OwnTracks (écran verrouillé) : le GPS de Safari n'est lancé qu'à la demande
     msg((test ? 'Essai lancé' : 'Course démarrée') + '. OwnTracks envoie votre position : vous pouvez verrouiller l\'iPhone.' + (test ? ' Touchez « Annuler » pour tout effacer.' : ''));
   }

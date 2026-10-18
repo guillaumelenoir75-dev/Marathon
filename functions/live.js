@@ -33,7 +33,6 @@ function project(p, sMin, sMax, sExp) {
 }
 const POINTS = COURSE.points.map((pt) => ({ id: pt.id, s: pt.id === 'finish' ? LEN - 60 : project(pt.coord, (pt.km - 3) * 1000 / SCALE, (pt.km + 3) * 1000 / SCALE).s }));
 const PLAN_SPEED = 42195 / (3.55 * 3600);
-const RACE_START = Date.UTC(2026, 9, 18, 7, 15);      // dimanche 18 octobre 2026, 9h15 heure de Paris (UTC+2)
 
 async function getKey(db, create) {
   const ref = db.ref(KEY_PATH);
@@ -71,15 +70,8 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (!key || given.length !== key.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(key))) { res.status(403).json([]); return; }
   const m = typeof req.body === 'object' && req.body ? req.body : {};
   if (m._type !== 'location' || typeof m.lat !== 'number' || typeof m.lon !== 'number') { res.json([]); return; }
-  let live = (await db.ref('live').once('value')).val() || {};
-  // filet de sécurité du jour J : course non démarrée depuis l'app (ou essai oublié) → départ automatique à 9h15
-  // dès la première position (désactivé si le suivi a été annulé volontairement après 9h15 : noAuto)
-  const nowMs = Date.now();
-  // (un essai, ou une course d'un autre jour, restés en mémoire sont remplacés)
-  if ((!live.startedAt || live.test || live.startedAt < RACE_START - 3 * 3600000) && !live.noAuto && nowMs >= RACE_START && nowMs < RACE_START + 5 * 3600000) {
-    await db.ref('live').update({ status: 'running', test: null, startedAt: RACE_START, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null, noAuto: null });
-    live = (await db.ref('live').once('value')).val() || {};
-  }
+  // pas de départ automatique : c'est Guillaume qui lance la course depuis l'app, en même temps que sa montre
+  const live = (await db.ref('live').once('value')).val() || {};
   const t = m.tst ? Math.min(Date.now(), m.tst * 1000) : Date.now();
   const fix = { lat: m.lat, lon: m.lon, acc: Math.round(m.acc || 0), spd: typeof m.vel === 'number' ? +(m.vel / 3.6).toFixed(2) : null, ts: t, src: 'owntracks' };
   if (typeof m.batt === 'number') fix.batt = m.batt;
