@@ -1,0 +1,26 @@
+name: Lecture fin de course (temporaire)
+on:
+  push:
+    branches: [claude/sweet-allen-ZGlVv]
+    paths: [.github/workflows/osm-fetch.yml]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lecture
+        continue-on-error: true
+        run: |
+          mkdir -p audit/out
+          D=https://prepa-marathon-default-rtdb.europe-west1.firebasedatabase.app/live
+          { for k in status test startedAt finishedAt splits passages; do echo -n "$k="; curl -s $D/$k.json; echo; done; echo -n "trace="; curl -s "$D/track.json?shallow=true" | tr "," "\n" | wc -l; echo -n "page="; curl -s https://prepa-marathon.web.app/suivi-guillaume | grep -c suivi-replay; } > audit/out/fin.txt 2>&1
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/out
+          git commit -m "data: lecture fin de course (temporaire)" || true
+          git push
