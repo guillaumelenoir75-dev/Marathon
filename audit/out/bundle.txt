@@ -1,0 +1,5 @@
+bundle en ligne : /src/bundle-1792296028934.js
+contient liveNudge / lv-adj :       3 liveNudge       6 lv-adj 
+cache index : cache-control: max-age=3600
+/live status : "idle" test=null
+Sun Oct 18 04:07:57 UTC 2026
