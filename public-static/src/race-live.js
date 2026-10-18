@@ -55,7 +55,8 @@ async function openLivePanel(){
     + '</div>'
     + '<div class="modal-scroll-body"><div style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;">'
     +   '<div class="lv-grid">'
-    +     '<div class="lv-stat"><span>Temps de course</span><b id="lv-chrono">–</b></div>'
+    +     '<div class="lv-stat"><span>Temps de course</span><b id="lv-chrono">–</b>'
+    +       '<div id="lv-adj" class="lv-adj" hidden><button type="button" aria-label="Reculer le chrono d\'une seconde" onclick="liveNudge(-1)">− 1 s</button><button type="button" aria-label="Avancer le chrono d\'une seconde" onclick="liveNudge(1)">+ 1 s</button></div></div>'
     +     '<div class="lv-stat"><span>Distance</span><b id="lv-dist">–</b></div>'
     +     '<div class="lv-stat"><span>Allure moyenne</span><b id="lv-pace">–</b></div>'
     +     '<div class="lv-stat"><span>Arrivée estimée</span><b id="lv-eta">–</b></div>'
@@ -92,6 +93,7 @@ async function openLivePanel(){
     const st = document.createElement('style'); st.id = 'lv-style';
     st.textContent = '.lv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}'
       + '.lv-stat{background:#F3F6FA;border-radius:12px;padding:9px 11px;}.lv-stat span{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#5b6675;}.lv-stat b{display:block;font-size:20px;font-weight:900;color:#0C447C;font-variant-numeric:tabular-nums;}'
+      + '.lv-adj{display:flex;gap:6px;margin-top:6px;}.lv-adj button{flex:1;min-height:40px;border:1.5px solid #0C447C;background:#fff;color:#0C447C;border-radius:10px;font:800 15px/1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;}.lv-adj button:active{background:#E8F0FB;}'
       + '.lv-note{font-size:12px;color:#5b6675;margin:0;line-height:1.4;}.lv-card{border:1px solid #E3EAF4;border-radius:14px;padding:12px;}.lv-h{font-size:14px;font-weight:800;color:#0C447C;margin:0 0 4px;}'
       + '.lv-lab{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;color:#5b6675;}.lv-lab input{width:100%;min-width:0;box-sizing:border-box;font-size:17px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-variant-numeric:tabular-nums;}'
       + '.lv-chip{border:1px solid #D6E2F5;background:#fff;color:#0C447C;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;}'
@@ -120,6 +122,7 @@ function _liveRender(){
   const t = _liveNow(), st = L.status || 'idle';
   document.getElementById('lv-pill').textContent = st === 'running' ? (L.test ? '🧪 Essai en cours' : '🟢 En course') : st === 'finished' ? '✔ Arrivé' : 'Pas encore parti';
   el.textContent = L.startedAt ? suiviFmt.dur((L.finishedAt || t) - L.startedAt) : '–';
+  document.getElementById('lv-adj').hidden = st !== 'running';
   const p = L.pos, c = suiviCalc(L, t);
   document.getElementById('lv-dist').textContent = c.d !== undefined ? suiviFmt.km(c.d) + ' km' : '–';
   document.getElementById('lv-pace').textContent = c.known ? suiviFmt.pace(1000 / c.speed) : '–';
@@ -166,6 +169,14 @@ async function liveStart(hm, test){
     : 'Démarrer la course à ' + suiviFmt.hhmmss(at || tap) + (at ? '' : ' (heure de votre appui)') + ' ?' + (L.test ? ' L\'essai en cours est effacé.' : '') + ' Le suivi devient visible par tous.';
   if(!confirm(msg)) return;
   await _liveRef.update({ status: 'running', test: test ? true : null, noAuto: null, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
+}
+// − / + sous le chrono : cale le temps de course sur la montre, seconde par seconde (déplace l'heure de départ)
+async function liveNudge(sec){
+  const L = _liveVal;
+  if(L.status !== 'running' || !L.startedAt) return;
+  L.startedAt = Math.min(_liveNow(), L.startedAt - sec * 1000);       // + 1 s → départ 1 s plus tôt
+  _liveRender();
+  await _liveRef.update({ startedAt: L.startedAt });
 }
 async function liveFinish(){
   if(!confirm('Déclarer l\'arrivée maintenant ? (Vous pourrez saisir le temps officiel ensuite : km 42,195.)')) return;
