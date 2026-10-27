@@ -420,7 +420,7 @@ async function _fetchWeatherCoachAdvice(meteo, impactColor) {
   getOrderedWeekSessions(CW).forEach(({s, ei}) => {
     if(!!state[`extra_w${CW}_s${ei}_done`]) return;
     if(s.sched_day === todayDayNum)
-      seancesAujourdhui.push({type: s.type, titre: s.d.split('|')[0], km: s.km, heure: s.sched_time||null});
+      seancesAujourdhui.push({type: s.type, titre: sessionTitle(s), km: s.km, heure: s.sched_time||null});
   });
 
   // Mémos coach
@@ -439,7 +439,7 @@ async function _fetchWeatherCoachAdvice(meteo, impactColor) {
     if(!!state[`extra_w${CW}_s${ei}_done`]) return;
     const jourC = s.sched_day ? joursC[s.sched_day] : '';
     const heure = s.sched_time || '';
-    seancesAVenir.push({type: s.type, titre: s.d.split('|')[0], km: s.km, quand: jourC + (heure ? ' à ' + heure : '')});
+    seancesAVenir.push({type: s.type, titre: sessionTitle(s), km: s.km, quand: jourC + (heure ? ' à ' + heure : '')});
   });
 
   const elevFC = meteo.impact_performance?.elevation_fc_bpm || 0;

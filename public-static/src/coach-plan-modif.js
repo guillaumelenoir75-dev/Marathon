@@ -121,7 +121,7 @@ function openPlanModifModal(){
     // (ex: changer l'heure d'une séance déjà faite cette semaine)
     if(done && !userAskedModifGlobal) return;
     if(targetTypeDisplay && s.type !== targetTypeDisplay) return;
-    const titre = s.d.split('|')[0];
+    const titre = sessionTitle(s);
     let ed=_cmEd(ws,si);
     const jourActuelSess = ed&&ed.sched_day?joursAbr[ed.sched_day]:'';
     const heureActuelSess = ed&&ed.sched_time?ed.sched_time:'';
@@ -156,7 +156,7 @@ function openPlanModifModal(){
   // Si aucune séance dans la liste (toutes done + pas de type match), fallback sur toutes les séances
   if(!sessionsHtml) {
     sessionsForWS.forEach(({s,si,ws})=>{
-      const titre = s.d.split('|')[0];
+      const titre = sessionTitle(s);
       let ed2=_cmEd(ws,si);
       const jour2 = ed2&&ed2.sched_day?joursAbr[ed2.sched_day]:'';
       const heure2 = ed2&&ed2.sched_time?ed2.sched_time:'';
@@ -609,7 +609,7 @@ async function applyPlanModif(){
   }, 50);
   // Mémoriser la raison si fournie
   if(reason && dbRef){
-    const memoNote = 'Modification plan S'+modifWS+' séance '+s.d.split('|')[0]+' : '+km+'km ('+type+')'+( reason?' — '+reason:'');
+    const memoNote = 'Modification plan S'+modifWS+' séance '+sessionTitle(s)+' : '+km+'km ('+type+')'+( reason?' — '+reason:'');
     const ms = await dbRef.child('_coach_memos').once('value');
     const existing = ms.val()||'';
     const today = new Date().toLocaleDateString('fr-FR');

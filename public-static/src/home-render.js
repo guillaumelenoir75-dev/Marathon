@@ -162,7 +162,7 @@ function renderHome(){
       if(!sched||!sched.day) return;
       if(sched.day<todayDay) return; // passé
       if(!nextSched||sched.day<nextSched.day||(sched.day===nextSched.day&&(sched.time||'')<(nextSched.time||'')))
-        nextSched={day:sched.day,time:sched.time,title:s.title||String(s.d||'Séance').split('|')[0]};
+        nextSched={day:sched.day,time:sched.time,title:sessionTitle(s)||'Séance'};
     });
     if(nextSched){
       nextSchedTextEl.textContent=nextSched.title+' · '+rfDaysFull[nextSched.day]+(nextSched.time?' '+nextSched.time:'');
@@ -788,7 +788,7 @@ function renderHome(){
     const typeBgC=typeBg[s2.type]||'#f5f5f5';
     const lbl=typeLabel[s2.type]||'EF';
     const parts=s2.d.split('|');
-    const title=normalizeSessionTitle(parts[0], s2.type);
+    const title=normalizeSessionTitle(parts[0], s2.type, parts[1]);
     const detail=filterDetailDisplay(title,parts[1]||null);
     // Horaire planifié
     const _schedDays=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
@@ -1009,7 +1009,7 @@ function openValidationModalExtra(w,ei){
   window._whoopChargeData = null;
   let s={};try{s=JSON.parse(state[`extra_w${w}_s${ei}`]||'{}');}catch(e){}
   const parts=(s.d||'').split('|');
-  const title=normalizeSessionTitle(parts[0], s.type);
+  const title=normalizeSessionTitle(parts[0], s.type, parts[1]);
   const detail=filterDetailDisplay(title, parts[1]||null);
   const _headerColor={ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7',race:'#0C447C'}[s.type]||'#0C447C';
   const kmVal=state[`extra_w${w}_s${ei}_km`]!=null?state[`extra_w${w}_s${ei}_km`]:s.km||0;

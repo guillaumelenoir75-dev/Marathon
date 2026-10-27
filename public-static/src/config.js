@@ -98,18 +98,30 @@ const typeBg={ef:'#EAF3DE',tempo:'#FDF0EB',frac:'#FEF0F0',long:'#EEEDFE',rest:'#
 const typeLabel={ef:'EF',tempo:'Tempo',frac:'Frac',long:'Long',rest:'Repos',race:'Course'};
 const typeEmoji={ef:'🏃',tempo:'⚡',frac:'🔄',long:'🛣️',rest:'😴',race:'🏆'};
 
-function normalizeSessionTitle(title, type){
+// Titre affiché d'une séance : le même dans tous les plans (Seine-Eure, programmes générés, programmes importés)
+// et partout (Accueil, Plan, Stats, chaussures, Coach, notifications). Le titre enregistré n'est pas modifié.
+//   sortie longue → « Sortie longue » (les variantes du générateur gardent leur précision : « Sortie longue progressive »…)
+//   EF → « Footing EF », « Footing EF + accélérations » ou « Footing EF + allure marathon »
+//   tempo / fractionné → « Tempo 3×6 min », « Fractionné 4×1000 m » (type devant, écriture compacte)
+function normalizeSessionTitle(title, type, detail){
   if(!title) return title;
-  if(type === 'ef') return 'Footing EF';
-  if(type === 'long') {
-    // Séances longues : ne jamais afficher "Footing EF" — normaliser vers "EF Long"
-    if(/^(Séance EF|EF longue|Footing EF|Endurance fondamentale|Sortie longue)/i.test(title)) return 'EF Long';
-    return title;
+  const t = String(title).trim();
+  const compact = function(x){ return x.replace(/(\d)[\s\u202f\u00a0]+(\d{3})\b/g, '$1$2').replace(/(\d)\s*[×x]\s*(\d)/g, '$1×$2')
+    .replace(/\s+à\s+AS21\b/i, ' allure semi').replace(/\s+tempo$/i, '').trim(); };
+  if(type === 'long') return /^sortie longue\b/i.test(t) ? 'Sortie longue' + t.slice(13) : 'Sortie longue';
+  if(type === 'ef'){
+    if(/^(Marche-Course|Course progressive)/.test(t)) return t;                       // débutants : formats particuliers
+    const all = t + ' ' + (detail || '');
+    if(/accél|strides|éducatifs|lignes droites|progressives/i.test(all)) return 'Footing EF + accélérations';
+    if(/\bAM\b/.test(t)) return 'Footing EF + allure marathon';
+    return 'Footing EF';
   }
-  if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(title)) return 'Footing EF';
-  if(/^Fartlek/.test(title)) return title.replace(/^Fartlek [a-zéèàû]+/, 'Footing avec accélérations');
-  return title;
+  if(type === 'tempo') return /^tempo\b/i.test(t) ? compact(t) : 'Tempo ' + compact(t);
+  if(type === 'frac') return /^(Fractionné|Séance côtes|Côtes|Fartlek|Course en progression|VMA)/i.test(t) ? compact(t).replace(/^Fartlek [a-zéèàû]+/, 'Footing avec accélérations') : 'Fractionné ' + compact(t);
+  if(/^(Séance EF|Endurance fondamentale|Footing aérobie)(\b|$)/.test(t)) return 'Footing EF';
+  return t;
 }
+function sessionTitle(s){ if(!s) return ''; const p = String(s.d || '').split('|'); return normalizeSessionTitle(p[0], s.type, p[1]) || p[0]; }
 
 const weeks=[
   {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},

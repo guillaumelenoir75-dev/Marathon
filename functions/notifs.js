@@ -21,6 +21,7 @@ const {
   totalWeeksFor,
   loadPrepState,
   buildNotifContext,
+  sessionTitleOf,
   callAnthropic,
   generateWeeklyBilanContent,
 } = require('./helpers');
@@ -72,7 +73,7 @@ exports.sessionReminder = onSchedule(
             if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
             const rk=`_rappel_sent_w${cw}_s${si}`;
             if(state[rk]===ts)continue;
-            const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+            const titre=sessionTitleOf(ed);
             const isRunSession=['ef','tempo','frac','long','race'].includes((ed.type||'').toLowerCase());
             let meteoStr='';
             if(isRunSession){
@@ -116,7 +117,7 @@ exports.sessionReminder = onSchedule(
             if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
               const rk=`_rappel_extra_sent_w${cw}_s${extraRi}`;
               if(state[rk]!==ts){
-                const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+                const titre=sessionTitleOf(es);
                 const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
                 await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder','/');
                 await db.ref(`${ADMIN_STATE}/${rk}`).set(ts);
@@ -176,7 +177,7 @@ exports.sessionReminder = onSchedule(
           if(sm<nowMinutes+45||sm>nowMinutes+75)continue;
           const rk=`_rappel_sent_w${ucw}_s${si}`;
           if(uState[rk]===ts)continue;
-          const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+          const titre=sessionTitleOf(ed);
           const body=`🏃 ${titre}${ed.km?' — '+ed.km+'km':''} à ${ed.sched_time}. Prépare ton équipement ! 💪`;
           await sendPushToUser(db,uid,sub,VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder');
           await db.ref(`users/${uid}/state/${rk}`).set(ts);
@@ -194,7 +195,7 @@ exports.sessionReminder = onSchedule(
               if(sm>=nowMinutes+45&&sm<=nowMinutes+75){
                 const rk=`_rappel_extra_sent_w${ucw}_s${extraRi}`;
                 if(uState[rk]!==ts){
-                  const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+                  const titre=sessionTitleOf(es);
                   const body=`🏃 ${titre}${es.km?' — '+es.km+'km':''} à ${es.sched_time}. Prépare ton équipement ! 💪`;
                   await sendPushToUser(db,uid,sub,VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏱️ Séance dans 1h',body,'session-reminder');
                   await db.ref(`users/${uid}/state/${rk}`).set(ts);
@@ -530,7 +531,7 @@ ${memosLine}`;
       // Séance run du jour (uniquement run, pas renfo)
       let seancePart='';
       if(seanceRunAujourdhui){
-        const typeLabel={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'EF Long',repos:'Repos'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
+        const typeLabel={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'Sortie longue',repos:'Repos'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
         const km=seanceRunAujourdhui.km>0?` ${seanceRunAujourdhui.km}km`:'';
         const heure=seanceHeure?` à ${seanceHeure}`:'';
         seancePart=`Séance ${typeLabel}${km} 🏃${heure}`;
@@ -588,7 +589,7 @@ exports.unvalidatedSessionReminder = onSchedule(
             const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
             let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
             if(Number(ed.sched_day)!==dayOfWeek)continue;
-            const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+            const titre=sessionTitleOf(ed);
             manquees.push(`🏃 ${titre} ${ed.km||''}km`);
           }
         }
@@ -610,7 +611,7 @@ exports.unvalidatedSessionReminder = onSchedule(
             ?!!(state[`extra_w${cw}_s${extraI}_done`]||state[`s${cw}i${_planSiUnv}done`])
             :!!state[`extra_w${cw}_s${extraI}_done`];
           if(!done&&Number(es.sched_day)===dayOfWeek){
-            const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+            const titre=sessionTitleOf(es);
             manquees.push(`🏃 ${titre} ${es.km||''}km`);
           }
           extraI++;
@@ -633,7 +634,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           const edRaw=uState[`edit_w${cw}_s${si}`];if(!edRaw)continue;
           let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
           if(Number(ed.sched_day)!==dayOfWeek)continue;
-          const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+          const titre=sessionTitleOf(ed);
           manquees.push(`🏃 ${titre} ${ed.km||''}km`);
         }
         // Séances extra
@@ -643,7 +644,7 @@ exports.unvalidatedSessionReminder = onSchedule(
           if(!done){
             let es;try{es=JSON.parse(uState[`extra_w${cw}_s${extraI}`]);}catch(e){extraI++;continue;}
             if(Number(es.sched_day)===dayOfWeek){
-              const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+              const titre=sessionTitleOf(es);
               manquees.push(`🏃 ${titre} ${es.km||''}km`);
             }
           }
@@ -693,7 +694,7 @@ exports.weekCompleteCongrats = onSchedule(
               const perfRaw=state[`s${cw}i${si}perf`];if(!perfRaw)continue;
               const edRaw=state[`edit_w${cw}_s${si}`];if(!edRaw)continue;
               let perf,ed;try{perf=JSON.parse(perfRaw);ed=JSON.parse(edRaw);}catch(e){continue;}
-              const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+              const titre=sessionTitleOf(ed);
               const km=state[`s${cw}i${si}km`]||ed.km||'';
               perfsDetail.push(`${titre} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
             }
@@ -702,7 +703,7 @@ exports.weekCompleteCongrats = onSchedule(
               let es,perf={};try{es=JSON.parse(state[`extra_w${cw}_s${ei}`]);perf=JSON.parse(state[`extra_w${cw}_s${ei}_perf`]||'{}')||{};}catch(e){continue;}
               if(!es||es.type==='rest')continue;
               const km=state[`extra_w${cw}_s${ei}_km`]||es.km||'';
-              perfsDetail.push(`${es.d?es.d.split('|')[0]:(es.type||'').toUpperCase()} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
+              perfsDetail.push(`${sessionTitleOf(es)} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
             }
             const perfsStr=perfsDetail.length>0?perfsDetail.join(', '):`${doneRun} séances`;
             const prompt=`Félicitations à Guillaume pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant ${state._plan_engine?'la course « '+getPrepInfo(state).name+' »':'le marathon'}.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;

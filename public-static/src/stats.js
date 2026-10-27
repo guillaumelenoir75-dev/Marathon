@@ -191,7 +191,7 @@ function renderStats(){
         const kmReal=state[k+'_km']!=null?state[k+'_km']:s.km;
         let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
         const c=typeColor[s.type]||'#888';
-        const title=s.d.split('|')[0];
+        const title=sessionTitle(s);
         perfRows.push({ws,si:ei,title,km:kmReal,perf,c,type:s.type,extra:true});
       });
     }
@@ -1560,7 +1560,7 @@ function renderSessionsHistory() {
     getOrderedWeekSessions(ws).forEach(({s:es,ei}) => {
       if (!state[`extra_w${ws}_s${ei}_done`]) return;
       let perf = {}; try { perf = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {}; } catch(e) {}
-      sessions.push({ ws, type: es.type, title: (es.d||'').split('|')[0] || 'Séance',
+      sessions.push({ ws, type: es.type, title: sessionTitle(es) || 'Séance',
         km: parseFloat(state[`extra_w${ws}_s${ei}_km`] || es.km) || null,
         date: perf.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null });
     });

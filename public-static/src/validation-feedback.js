@@ -264,7 +264,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
     ]));
 
   } else if(type==='long'){
-    icon='🏔️'; title='Sortie Longue';
+    icon='🏔️'; title='Sortie longue';
     if(fcMax&&hrNum){
       if(hrNum<=efMax) lines.push(_pick([
         '✅ FC parfaitement maîtrisée ('+hrNum+' bpm) sur la durée — c\'est exactement ce qu\'on cherche en sortie longue ! Excellent travail 🌟',
@@ -440,7 +440,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
 
   // Données de base
   analysisContext.type = s.type;
-  analysisContext.titre = s.d.split('|')[0];
+  analysisContext.titre = sessionTitle(s);
   analysisContext.kmPlan = s.km;
   analysisContext.chaussure = s.shoe || 'non renseigné';
   analysisContext.kmRealise = km;
@@ -545,8 +545,8 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Allure attendue pour cette séance
   (()=>{
     const efActuelle = getBestEfPace() || "6'40";
-    const sessionTitle = (s.d||'').split('|')[0]||'';
-    const isMarcheCourse = sessionTitle.toLowerCase().includes('marche');
+    const rawTitle = (s.d||'').split('|')[0]||'';
+    const isMarcheCourse = rawTitle.toLowerCase().includes('marche');
     if(s.type==='ef' || s.type==='long') {
       if(isMarcheCourse){
         // Séance marche-course : allure globale inclut les phases marche → forcément lente
@@ -581,15 +581,15 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   if((s.type==='tempo'||s.type==='frac')&&pace&&km){
     const detail=s.d.split('|')[1]||'';
     const title=s.d.split('|')[0]||'';
-    const repMatch=title.match(/(\d+)×(\d+)/);
+    const repMatch=title.match(/(\d+)\s*[×x]\s*(\d[\d\s\u202f]*?)\s*(min|m)\b/);
     const paceMatch=detail.match(/(\d+)['':](\d+)[^0-9]+(\d+)['':](\d+)/);
     if(repMatch&&paceMatch){
       const reps=parseInt(repMatch[1]);
-      const durMin=parseInt(repMatch[2]);
+      const repVal=parseInt(repMatch[2].replace(/\s/g,'')), repInM=repMatch[3]==='m';
       const pMin=parseInt(paceMatch[1])*60+parseInt(paceMatch[2]);
       const pMax=parseInt(paceMatch[3])*60+parseInt(paceMatch[4]);
       const pMoy=(pMin+pMax)/2;
-      const kmRapide=reps*(durMin*60/pMoy);
+      const kmRapide=repInM?reps*repVal/1000:reps*(repVal*60/pMoy);
       const kmTotal=parseFloat(km);
       const kmEF=Math.max(0,kmTotal-kmRapide);
       const efPaceStr=getBestEfPace()||"6'40";
@@ -603,7 +603,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         let blocsAllureSaisis=[];try{if(idx!=null&&state[`extra_w${CW}_s${idx}_perf`])blocsAllureSaisis=JSON.parse(state[`extra_w${CW}_s${idx}_perf`]).blocsAllure||[];}catch(e){}
 
         analysisContext.tempoDetail = {
-          reps, dureeMin: durMin,
+          reps, dureeMin: repInM?null:repVal, distanceM: repInM?repVal:null,
           allureCibleBlocs: detail.match(/[\d:'']+\s*[—-]\s*[\d:'']+/)?.[0]||'',
           kmRapide: Math.round(kmRapide*10)/10,
           kmEF: Math.round(kmEF*10)/10,
@@ -751,7 +751,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
     if(seancesAVenir.length >= 3) return;
     if(!!state[`extra_w${CW}_s${ei}_done`]) return;
-    const titre = s2.d.split('|')[0];
+    const titre = sessionTitle(s2);
     const detail = s2.d.split('|')[1]||'';
     const type = s2.type;
     const km = s2.km;
@@ -781,14 +781,14 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Séances semaine suivante si pas assez
   if(seancesAVenir.length < 3 && CW < planTotalWeeks() && !usesHardPlan()){
     getOrderedWeekSessions(CW+1).slice(0, 3-seancesAVenir.length).forEach(({s:sess})=>{
-      seancesAVenir.push({semaine:CW+1, type:sess.type, titre:String(sess.d||'').split('|')[0], km:sess.km, quand:'semaine prochaine', note:'chaussures non déterminées — ne pas mentionner de chaussures spécifiques pour les séances futures'});
+      seancesAVenir.push({semaine:CW+1, type:sess.type, titre:sessionTitle(sess), km:sess.km, quand:'semaine prochaine', note:'chaussures non déterminées — ne pas mentionner de chaussures spécifiques pour les séances futures'});
     });
   } else if(seancesAVenir.length < 3 && CW < planTotalWeeks()){
     weeks[CW].sessions.slice(0, 3-seancesAVenir.length).forEach((sess,si)=>{
       // Lire les éditions de la semaine suivante aussi
       const edRawNext = state['edit_w'+(CW+1)+'_s'+si];
       let edNext=null;try{edNext=edRawNext?JSON.parse(edRawNext):null;}catch(e){}
-      const titreNext = edNext ? edNext.d.split('|')[0] : sess.d.split('|')[0];
+      const titreNext = sessionTitle(edNext || sess);
       const typeNext = edNext ? edNext.type : sess.type;
       const kmNext = edNext ? edNext.km : sess.km;
       seancesAVenir.push({semaine:CW+1, type:typeNext, titre:titreNext, km:kmNext, quand:'semaine prochaine', note:'chaussures non déterminées — ne pas mentionner de chaussures spécifiques pour les séances futures'});
@@ -799,7 +799,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Stocker la séance validée pour le contexte du chat
   window._lastValidatedSession = {
     type: s.type,
-    titre: s.d.split('|')[0],
+    titre: sessionTitle(s),
     km: km,
     pace: pace,
     hr: hr,

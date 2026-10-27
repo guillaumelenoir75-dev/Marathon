@@ -201,7 +201,7 @@ function openShoeHistory(shoeName){
     getOrderedWeekSessions(ws).forEach(({s,ei})=>{
       if(s.shoe!==shoeName||s.km===0||!state[`extra_w${ws}_s${ei}_done`]) return;
       const kmReal=state[`extra_w${ws}_s${ei}_km`]!=null?state[`extra_w${ws}_s${ei}_km`]:s.km;
-      sessions.push({title:s.d.split('|')[0],km:kmReal,ws});
+      sessions.push({title:sessionTitle(s),km:kmReal,ws});
     });
   }
   // Semaine en cours : séances déjà cochées
@@ -210,7 +210,7 @@ function openShoeHistory(shoeName){
     const done=state[`extra_w${_cw}_s${ei}_done`]||state[`extra_w${_cw}_s${ei}_km`]!=null;
     if(!done) return;
     const kmReal=state[`extra_w${_cw}_s${ei}_km`]!=null?state[`extra_w${_cw}_s${ei}_km`]:s.km;
-    sessions.push({title:s.d.split('|')[0],km:kmReal,ws:_cw});
+    sessions.push({title:sessionTitle(s),km:kmReal,ws:_cw});
   });
 
   const mc=document.getElementById('modal-container');

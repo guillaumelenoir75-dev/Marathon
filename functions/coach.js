@@ -690,7 +690,7 @@ exports.quickBrief = onRequest(
 
       const seancesLine = (seances_today||[]).length > 0
         ? (seances_today||[]).map(s => {
-            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', race:'Course'}[s.type] || s.type;
+            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'Sortie longue', race:'Course'}[s.type] || s.type;
             return `${t} ${s.km}km${s.heure ? ' à '+s.heure : ''}`;
           }).join(' + ')
         : `Pas de séance prévue ce ${jour||'aujourd\'hui'}`;
@@ -789,7 +789,7 @@ RÈGLES ABSOLUES :
 - Si heure_lecture est fournie et >= 10 : adapter le ton ("dans X heures" / "cet après-midi").`;
 
       const seancesStr = (context.seances_du_jour||[]).map(s => {
-        const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Longue', renfo:'Renforcement', race:'Course'}[s.type] || s.type;
+        const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'Sortie longue', renfo:'Renforcement', race:'Course'}[s.type] || s.type;
         return `${t}${s.km ? ' '+s.km+'km' : ''}${s.heure ? ' à '+s.heure : ''}${s.allure_cible ? ' — allure : '+s.allure_cible : ''}`;
       }).join(' + ') || 'Aucune séance planifiée';
 

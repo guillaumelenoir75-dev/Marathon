@@ -96,7 +96,7 @@ function openEditModal(ws, si){
   })();
   const _hcls  = {ef:'modal-header-ef',tempo:'modal-header-tempo',frac:'modal-header-frac',long:'modal-header-long'}[s.type]||'modal-header-default';
   const _hacc  = {ef:'#3B6D11',tempo:'#E8530A',frac:'#C4141B',long:'#534AB7'}[s.type]||'#1B4FD8';
-  const _hlbl  = {ef:'Endurance Fondamentale',tempo:'Intervalles Tempo',frac:'Fractionné',long:'Sortie Longue'}[s.type]||title;
+  const _hlbl  = {ef:'Endurance Fondamentale',tempo:'Intervalles Tempo',frac:'Fractionné',long:'Sortie longue'}[s.type]||title;
   const _hemj  = {ef:'🟢',tempo:'🔥',frac:'⚡',long:'💜'}[s.type]||'📅';
   overlay.style.setProperty('--_overlay-bg','rgba(0,0,0,0.4)');
   // Couleur gradient de transition header→body
@@ -306,7 +306,7 @@ function saveEdit(ws, si){
   } else if(type==='long'){
     const existing=getSession(ws,si);
     const nameElLong=document.getElementById('edit-name');
-    name=(nameElLong&&nameElLong.value.trim())||existing.d.split('|')[0]||'EF Long';
+    name=(nameElLong&&nameElLong.value.trim())||existing.d.split('|')[0]||'Sortie longue';
     const blocks=getLongBlocksData();
     if(blocks.length>0){
       const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;
@@ -553,7 +553,7 @@ function onAddTypePill(type, ws) {
   const hdr = document.getElementById('add-modal-header');
   const hdrTitle = document.getElementById('add-header-title');
   const submitBtn = document.getElementById('add-submit-btn');
-  const titles = {ef:'Endurance Fondamentale', tempo:'Tempo — Intervalles', frac:'Fractionné', long:'Sortie Longue'};
+  const titles = {ef:'Endurance Fondamentale', tempo:'Tempo — Intervalles', frac:'Fractionné', long:'Sortie longue'};
   const headerClasses = {ef:'modal-header-ef', tempo:'modal-header-tempo', frac:'modal-header-frac', long:'modal-header-long'};
   const btnColors = {ef:'#3B6D11', tempo:'#E8530A', frac:'#C4141B', long:'#534AB7'};
   if(hdr) {
@@ -657,7 +657,7 @@ function saveAdd(ws){
   let name = '', detail = '';
   if(type === 'long'){
     const blocks = getLongBlocksData();
-    name = 'EF Long';
+    name = 'Sortie longue';
     if(blocks.length > 0){
       const total = Math.round(blocks.reduce((a,b) => a+b.km, 0) * 10) / 10;
       if(Math.abs(total - km) >= 0.1){ showAddError('Total des blocs (' + total + ' km) ≠ distance (' + km + ' km). Ajuste les blocs.'); return; }
@@ -921,7 +921,7 @@ function saveExtraEdit(ws, ei){
   let name='', detail='';
   if(type==='long'){
     let existing={};try{existing=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
-    name=(existing.d||'').split('|')[0]||'EF Long';
+    name=(existing.d||'').split('|')[0]||'Sortie longue';
     const blocks=getLongBlocksData();
     if(blocks.length>0){
       const bTotal=Math.round(blocks.reduce((a,b)=>a+b.km,0)*10)/10;

@@ -134,7 +134,7 @@ function sendNextRun(){
       nextSession = {
         ws, si: ei,
         type: sess.type,
-        titre: sess.d.split('|')[0],
+        titre: sessionTitle(sess),
         detail: sess.d.split('|')[1]||'',
         km: sess.km,
         jour: schedDay ? jours[schedDay] : null,
@@ -252,7 +252,7 @@ async function sendCoachMessage(retryMsg){
         let perf=null;try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):null;}catch(e){}
         weekSessions.push({
           type:sess.type,
-          titre:sess.d.split('|')[0],
+          titre:sessionTitle(sess),
           detail:sess.d.split('|')[1]||'',
           kmPlan:sess.km,
           chaussures:sess.shoe||null,
@@ -281,7 +281,7 @@ async function sendCoachMessage(retryMsg){
           const km = parseFloat(sessionData.km) || 0;
           return {
             type,
-            titre: parts[0],
+            titre: normalizeSessionTitle(parts[0], type, parts[1]) || parts[0],
             detail_allure: parts[1] || null,
             kmPlan: km,
             chaussures: ed ? ed.shoe : null,
@@ -301,7 +301,7 @@ async function sendCoachMessage(retryMsg){
           const parts = (es.d||'').split('|');
           weekSessions.push({
             type: es.type,
-            titre: parts[0],
+            titre: sessionTitle(es),
             detail_allure: parts[1] || null,
             kmPlan: km,
             chaussures: es.shoe || null,
@@ -375,7 +375,7 @@ async function sendCoachMessage(retryMsg){
       const schedDay=s.sched_day;
       if(!schedDay) return;
       if(schedDay===todayDayNum)
-        seancesAujourdhui.push({type:s.type,titre:s.d.split('|')[0],km:s.km,heure:s.sched_time||null});
+        seancesAujourdhui.push({type:s.type,titre:sessionTitle(s),km:s.km,heure:s.sched_time||null});
     });
     [{r:1,name:'Ischio-fessiers'},{r:2,name:'Bas du dos'}].forEach(rd=>{
       let sched=null;try{sched=state[rfk(CW,rd.r)+'sched']?JSON.parse(state[rfk(CW,rd.r)+'sched']):null;}catch(e){}
@@ -399,7 +399,7 @@ async function sendCoachMessage(retryMsg){
         if(_seancesAvChat.length>=3)return;
         const done=!!state[`extra_w${CW}_s${ei}_done`];
         if(done)return;
-        const titre=s2.d.split('|')[0];
+        const titre=sessionTitle(s2);
         const type=s2.type; const km=s2.km;
         const jourC=s2.sched_day?joursC[s2.sched_day]:'';
         const heure=s2.sched_time||'';
@@ -775,7 +775,7 @@ async function generateFullBriefFromNotif(memos) {
       const done=!!state[`extra_w${CW}_s${ei}_done`];
       if(done) return;
       const schedDay=sess.sched_day||null;
-      const entry={type:sess.type,titre:sess.d.split('|')[0],km:sess.km,heure:sess.sched_time||'',allure:sess.d.split('|')[1]||''};
+      const entry={type:sess.type,titre:sessionTitle(sess),km:sess.km,heure:sess.sched_time||'',allure:sess.d.split('|')[1]||''};
       if(schedDay===todaySched) seancesAujourdHui.push(entry);
       else if(schedDay>todaySched) seancesJoursSuivants.push({...entry,jour:joursNoms[schedDay%7]||''});
     });
@@ -882,7 +882,7 @@ async function generateFullBriefFromNotif(memos) {
       // Fallback si le serveur ne répond pas
       const fallbackSeances = seancesAujourdHui.length > 0
         ? seancesAujourdHui.map(s => {
-            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'EF Long', race:'Course'}[s.type] || s.type;
+            const t = {ef:'EF', tempo:'Tempo', frac:'Fractionné', long:'Sortie longue', race:'Course'}[s.type] || s.type;
             return t + ' ' + s.km + 'km' + (s.heure ? ' à ' + s.heure : '');
           }).join(' + ')
         : 'Pas de séance prévue ce matin';
@@ -1056,7 +1056,7 @@ async function checkMorningBrief(memos, force) {
         const matchDate = s.sched_date && s.sched_date===todayStr;
         const matchDay = !s.sched_date && s.sched_day===todaySched;
         if(matchDate||matchDay){
-          todaySessions.push({type:s.type,titre:s.d.split('|')[0],km:s.km,heure:s.sched_time||'',allure:s.d.split('|')[1]||''});
+          todaySessions.push({type:s.type,titre:sessionTitle(s),km:s.km,heure:s.sched_time||'',allure:s.d.split('|')[1]||''});
         }
       }catch(e){}
       ei++;
@@ -1101,7 +1101,7 @@ async function checkMorningBrief(memos, force) {
         if(afterToday){
           const d=s.sched_date?new Date(s.sched_date+'T00:00:00'):null;
           const jourNom=d?joursNoms[d.getDay()===0?7:d.getDay()]:(joursNoms[s.sched_day]||('jour '+s.sched_day));
-          seancesJoursSuivants.push({type:s.type,titre:s.d.split('|')[0],km:s.km,jour:jourNom,heure:s.sched_time||''});
+          seancesJoursSuivants.push({type:s.type,titre:sessionTitle(s),km:s.km,jour:jourNom,heure:s.sched_time||''});
         }
       }catch(e){}
       ei++;
@@ -1119,7 +1119,7 @@ async function checkMorningBrief(memos, force) {
       let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
       derniereSeanceInfo={
         type:sess.type,
-        titre:sess.d.split('|')[0],
+        titre:sessionTitle(sess),
         km:state[k+'_km']||sess.km,
         allure:perf.pace||null,
         fc:perf.hr||null,

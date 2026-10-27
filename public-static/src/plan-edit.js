@@ -38,11 +38,6 @@ function getOrderedWeekSessions(ws){
     for(const eiV of ordEis){
       let s;try{s=JSON.parse(state[`extra_w${ws}_s${eiV}`]);}catch(e){continue;}
       if(!s) continue;
-      if(s.type==='frac'&&s.d&&!s.d.startsWith('Fractionné')){
-        const parts=s.d.split('|');const m=parts[0].match(/(\d+)[×x](\d+)/);
-        const ft=m?`Fractionné ${m[1]}×${m[2]} min`:'Fractionné 6×2 min';
-        s=Object.assign({},s,{d:parts.length>1?`${ft}|${parts[1]}`:ft});
-      }
       res.push({s,si:'x'+eiV,extra:true,ei:eiV});
     }
     return res;
@@ -476,7 +471,7 @@ function openPerfEditExtraModal(ws, ei){
   let s={};try{s=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
   const ek = `extra_w${ws}_s${ei}`;
   let prev={};try{prev=state[ek+'_perf']?JSON.parse(state[ek+'_perf']):{}}catch(e){}
-  const title = (s.d||'').split('|')[0];
+  const title = sessionTitle(s);
   const c = typeColor[s.type]||'#888';
   const bg = typeBg[s.type]||'#f5f5f5';
   const lbl = typeLabel[s.type]||'EF';

@@ -34,7 +34,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           }).join(' | '),
           date_marathon: prepRace().label,
           km_semaine_en_cours: {planifie: getWeekTotalKm(CW), realise: calcWeekDoneKm()},
-          seances_recentes_detail: (()=>{try{const det=[];for(let ws=CW;ws>=Math.max(1,CW-8);ws--){getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{const k=`extra_w${ws}_s${ei}`;if(!state[k+'_done'])return;let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'_km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,strava:perf.strava||null});});}return det.slice(0,15);}catch(e){return[];}})(),
+          seances_recentes_detail: (()=>{try{const det=[];for(let ws=CW;ws>=Math.max(1,CW-8);ws--){getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{const k=`extra_w${ws}_s${ei}`;if(!state[k+'_done'])return;let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}det.push({semaine:ws,type:sess.type,titre:sessionTitle(sess),km:state[k+'_km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,strava:perf.strava||null});});}return det.slice(0,15);}catch(e){return[];}})(),
           derniere_seance: _cc.derniere_seance || null,
           seances_a_venir: (()=>{
             const av=[]; const joursC=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -42,7 +42,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
             getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
               if(av.length>=3)return;
               if(!!state[`extra_w${CW}_s${ei}_done`])return;
-              const titre=s2.d.split('|')[0];
+              const titre=sessionTitle(s2);
               const type=s2.type; const km=s2.km;
               const jourC=s2.sched_day?joursC[s2.sched_day]:'';
               const heure=s2.sched_time||'';

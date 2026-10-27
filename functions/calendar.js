@@ -16,12 +16,12 @@ async function getOrCreateCalToken(db) {
 
 const typeToTitle = {
   ef: "Run - EF",
-  ef_long: "Run - EF Long",
+  ef_long: "Run - Sortie longue",
   tempo: "Run - Tempo",
   seuil: "Run - Seuil",
   vma: "Run - VMA",
   frac: "Run - Fractionné",
-  long: "Run - Sortie Longue",
+  long: "Run - Sortie longue",
   race: "Run - Course",
   rest: "Récupération"
 };

@@ -289,7 +289,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   getOrderedWeekSessions(CW).forEach(({s,ei})=>{
     const done = !!state[`extra_w${CW}_s${ei}_done`];
     if(!done){
-      const titre = s.d.split('|')[0];
+      const titre = sessionTitle(s);
       const detail = s.d.split('|')[1]||'';
       let planifie = '';
       if(s.sched_day && s.sched_time) planifie = ` → ${jours[s.sched_day]} ${s.sched_time}`;
@@ -406,7 +406,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     chaussures: shoesSummary,
     seances_supprimees_semaine: (()=>{
       const del=[];
-      weeks[CW-1].sessions.forEach((sess,si)=>{ if(state['del_w'+CW+'_s'+si]) del.push(sess.d.split('|')[0]); });
+      weeks[CW-1].sessions.forEach((sess,si)=>{ if(state['del_w'+CW+'_s'+si]) del.push(sessionTitle(sess)); });
       return del.length > 0 ? del : null;
     })(),
     seances_restantes_semaine: prochaineSeance,
@@ -515,7 +515,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
           if(!perf||!perf.blocsAllure||!perf.blocsAllure.some(b=>b)) return;
           const blocs=perf.blocsAllure.filter(Boolean).map(a=>paceStrToSec(a.replace("'",":")));
-          if(blocs.length>=2&&blocs.every(b=>b>0)) tempoAvecBlocs.push({ws,blocs,titre:sess.d.split('|')[0]});
+          if(blocs.length>=2&&blocs.every(b=>b>0)) tempoAvecBlocs.push({ws,blocs,titre:sessionTitle(sess)});
         });
       }
       if(tempoAvecBlocs.length===0) return null;
@@ -636,7 +636,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
           const k=`extra_w${ws}_s${ei}`; if(!state[k+'_done']) return;
           let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};} catch(e){}
-          det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'_km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null});
+          det.push({semaine:ws,type:sess.type,titre:sessionTitle(sess),km:state[k+'_km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null});
         });
       }
       return det.slice(0,15);
@@ -650,13 +650,13 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         // prépa générée : séances réelles de la semaine (ordre, jour et horaire planifiés)
         const sl = !usesHardPlan() ? getOrderedWeekSessions(ws).map(({s:sess})=>{
           const d = String(sess.d||'').split("|");
-          return {type:sess.type, titre:d[0], detail:d[1]||'', km:sess.km,
+          return {type:sess.type, titre:sessionTitle(sess), detail:d[1]||'', km:sess.km,
             planifie: sess.sched_day?(joursAbr[sess.sched_day]||'')+(sess.sched_time?' '+sess.sched_time:''):null};
         }) : weeks[ws-1].sessions.map((sess,si)=>{
           const edRaw = state["edit_w"+ws+"_s"+si];
           let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
           const d = (ed?ed.d:sess.d).split("|");
-          return {type:ed?ed.type:sess.type, titre:d[0], detail:d[1]||'', km:ed?ed.km:sess.km,
+          return {type:ed?ed.type:sess.type, titre:normalizeSessionTitle(d[0], ed?ed.type:sess.type, d[1])||d[0], detail:d[1]||'', km:ed?ed.km:sess.km,
             planifie: ed&&ed.sched_day?(joursAbr[ed.sched_day]||'')+(ed.sched_time?' '+ed.sched_time:''):null};
         });
         r.push({semaine:ws, km_total:weeks[ws-1].km, sessions:sl, note_chaussures:'chaussures non communiquées pour éviter erreurs — ne pas mentionner de modèles spécifiques'});
@@ -680,7 +680,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
         let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{};} catch(e){}
         const st = perf.strava || null;
         detail.push({
-          semaine: ws, type: sess.type, titre: sess.d.split('|')[0],
+          semaine: ws, type: sess.type, titre: sessionTitle(sess),
           date: perf.date||null, km: state[k+'_km']||sess.km,
           allure: perf.pace||null, fc_moy: perf.hr||null, duree: perf.dur||null,
           blocs_tempo: perf.blocsAllure||null,
@@ -709,7 +709,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
     extra.plan_futur = futurPlan;
     extra.seances_supprimees = (()=>{
       const deleted=[];
-      for(let ws=1;ws<=planTotalWeeks();ws++) weeks[ws-1].sessions.forEach((sess,si)=>{ if(state['del_w'+ws+'_s'+si]) deleted.push({semaine:ws,titre:sess.d.split('|')[0],type:sess.type,km:sess.km}); });
+      for(let ws=1;ws<=planTotalWeeks();ws++) weeks[ws-1].sessions.forEach((sess,si)=>{ if(state['del_w'+ws+'_s'+si]) deleted.push({semaine:ws,titre:sessionTitle(sess),type:sess.type,km:sess.km}); });
       return deleted;
     })();
   }

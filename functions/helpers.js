@@ -201,6 +201,25 @@ async function loadPrepState(db) {
 }
 async function adminCurrentWeek(db) { return getCurrentWeek(await loadPrepState(db)); }
 
+// Titre d'une séance, identique à l'app (config.js › normalizeSessionTitle) : « Sortie longue », « Footing EF »,
+// « Tempo 3×6 min », « Fractionné 4×1000 m »…
+function sessionTitleOf(s) {
+  if (!s) return '';
+  const p = String(s.d || '').split('|'), t = (p[0] || '').trim(), type = s.type;
+  if (!t) return (type || '').toUpperCase();
+  const compact = x => x.replace(/(\d)[\s\u202f\u00a0]+(\d{3})\b/g, '$1$2').replace(/(\d)\s*[×x]\s*(\d)/g, '$1×$2')
+    .replace(/\s+à\s+AS21\b/i, ' allure semi').replace(/\s+tempo$/i, '').trim();
+  if (type === 'long') return /^sortie longue\b/i.test(t) ? 'Sortie longue' + t.slice(13) : 'Sortie longue';
+  if (type === 'ef') {
+    if (/^(Marche-Course|Course progressive)/.test(t)) return t;
+    if (/accél|strides|éducatifs|lignes droites|progressives/i.test(t + ' ' + (p[1] || ''))) return 'Footing EF + accélérations';
+    if (/\bAM\b/.test(t)) return 'Footing EF + allure marathon';
+    return 'Footing EF';
+  }
+  if (type === 'tempo') return /^tempo\b/i.test(t) ? compact(t) : 'Tempo ' + compact(t);
+  if (type === 'frac') return /^(Fractionné|Séance côtes|Côtes|Fartlek|Course en progression|VMA)/i.test(t) ? compact(t) : 'Fractionné ' + compact(t);
+  return t;
+}
 async function buildNotifContext(state, cw) {
   const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const joursLong=['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
@@ -221,7 +240,7 @@ async function buildNotifContext(state, cw) {
       if(deleted||!edRaw)continue;
       let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
       if(ed.type==='rest')continue;
-      const titre=ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase();
+      const titre=sessionTitleOf(ed);
       const km=ed.km||'';
       const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
       if(done){let perf=null;try{perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;}catch(e){}seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
@@ -254,7 +273,7 @@ async function buildNotifContext(state, cw) {
     const done=_planSiCtx!==undefined
       ?!!(state[`extra_w${cw}_s${extraIdx}_done`]||state[`s${cw}i${_planSiCtx}done`])
       :!!state[`extra_w${cw}_s${extraIdx}_done`];
-    const titre=es.d?es.d.split('|')[0]:(es.type||'').toUpperCase();
+    const titre=sessionTitleOf(es);
     const km=es.km||'';
     if(done){
       let perf=null;try{perf=state[`extra_w${cw}_s${extraIdx}_perf`]?JSON.parse(state[`extra_w${cw}_s${extraIdx}_perf`]):null;}catch(e){}
@@ -278,8 +297,8 @@ async function buildNotifContext(state, cw) {
   let kmSemaine=0;if(!state._plan_migrated){for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}}let _exi=0;while(_exi<=50&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
   const cwNext=Math.min(cw+1,totalWeeksFor(state));
   const typeSemNext=_gen?weekTypeFor(state,cwNext):(cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge');
-  if(!state._plan_migrated)for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
-  if(cwNext>cw)for(let ei=0;ei<=50&&state[`extra_w${cwNext}_s${ei}`];ei++){let es;try{es=JSON.parse(state[`extra_w${cwNext}_s${ei}`]);}catch(e){continue;}if(!es||es.type==='rest')continue;seancesNext.push(`${es.d?es.d.split('|')[0]:(es.type||'').toUpperCase()} ${es.km||''}km`);}
+  if(!state._plan_migrated)for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${sessionTitleOf(ed)} ${ed.km||''}km`);}
+  if(cwNext>cw)for(let ei=0;ei<=50&&state[`extra_w${cwNext}_s${ei}`];ei++){let es;try{es=JSON.parse(state[`extra_w${cwNext}_s${ei}`]);}catch(e){continue;}if(!es||es.type==='rest')continue;seancesNext.push(`${sessionTitleOf(es)} ${es.km||''}km`);}
   return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:Math.max(0,totalWeeksFor(state)-cw),seanceRunAujourdhui};
 }
 
@@ -531,7 +550,7 @@ ${memosLine}`;
   const fcPart = fcToday ? `FC ${fcToday} bpm` : '';
   let seancePart = '';
   if (seanceRunAujourdhui) {
-    const tl={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'EF Long'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
+    const tl={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'Sortie longue'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
     seancePart=`Séance ${tl}${seanceRunAujourdhui.km>0?' '+seanceRunAujourdhui.km+'km':''} 🏃${seanceHeure?' à '+seanceHeure:''}`;
   } else { seancePart = 'Pas de séance run'; }
   let pushBody = `${recovPart}${recovPart&&(fcPart||seancePart)?' · ':''}${fcPart}${fcPart&&seancePart?' · ':''}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
@@ -663,6 +682,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
+  sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,
   ADMIN_UID,
