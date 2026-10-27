@@ -291,6 +291,7 @@ async function liveSaveSplit(){
 function _liveRenderHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
   const L = _liveVal, st = L.status || 'idle';
+  b.style.display = isAdmin() && st === 'running' ? 'flex' : 'none';
   const sub = document.getElementById('home-live-sub');
   if(sub) sub.textContent = st === 'running' ? (L.test ? 'Essai en cours' : 'En course · ' + (typeof suiviCalc !== 'undefined' && (L.pos || L.splits) ? suiviFmt.km(suiviCalc(L, _liveNow()).d) + ' km' : 'chrono lancé'))
     : st === 'finished' ? 'Arrivé ✔' : 'Démarrer, pointages officiels, suivi des amis';
@@ -298,7 +299,7 @@ function _liveRenderHomeBtn(){
 function initLiveHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
   if(typeof firebase === 'undefined'){ b.style.display = 'none'; return; }      // mode aperçu hors ligne
-  b.style.display = isAdmin() ? 'flex' : 'none';
+  b.style.display = 'none';                     // visible sur l'accueil seulement pendant une course lancée (sinon : Compte)
   if(!isAdmin() || window._liveHomeListen || typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
   window._liveHomeListen = true;
   _liveLoadCore().then(function(){

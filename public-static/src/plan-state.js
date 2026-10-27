@@ -346,10 +346,11 @@ async function tryAutoCalculateEF(){
   state.ef_pace=efStr;
   state.ef_pace_auto='true';
   const dbUpdates={ef_pace:efStr,ef_pace_auto:'true'};
-  // Regénérer le plan avec la nouvelle allure EF (descriptions S2+ mises à jour)
+  // Regénérer le plan avec la nouvelle allure EF (descriptions S2+ mises à jour) — jamais pour un programme
+  // fourni et installé tel quel (Mes prépas › prépa prête : plan_version « import-… »)
   try{
     const cfg=state.plan_config?JSON.parse(state.plan_config):null;
-    if(cfg){
+    if(cfg&&!String(state.plan_version||'').startsWith('import-')){
       const runDays=typeof state.run_days==='string'?JSON.parse(state.run_days||'[]'):(state.run_days||[]);
       const runTimes=typeof state.run_times==='string'?JSON.parse(state.run_times||'{}'):(state.run_times||{});
       const ob={

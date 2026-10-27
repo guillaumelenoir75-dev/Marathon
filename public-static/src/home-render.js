@@ -1167,6 +1167,7 @@ function dismissPlanAdapted(){
 
 async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
   if(usesHardPlan()) return;
+  if(String(state.plan_version||'').startsWith('import-')) return;   // programme fourni : pas d'adaptation automatique
   if(!kmPlanned||kmPlanned<=0) return;
   const ratio=kmActual/kmPlanned;
   if(ratio>=0.80) return;

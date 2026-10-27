@@ -45,6 +45,7 @@ function _prepStats(st){
 
 // ─── Ligne « Mes prépas » de l'écran Compte ────────────────────────────────
 async function renderPrepsRow(){
+  const lr = document.getElementById('live-row'); if(lr) lr.style.display = isAdmin() ? 'flex' : 'none';
   const sub = document.getElementById('preps-subtitle'); if(!sub || !_prepUid()) return;
   try {
     _prepIndex = (await _prepRef('prep_index').once('value')).val() || {};
@@ -97,6 +98,13 @@ function _renderPrepsBody(){
     +   '<button onclick="prepSaveCurrent()" id="pf-save" style="background:#15803D;color:#fff;border:none;' + btn + '">Enregistrer dans Mes prépas</button>'
     +   '<p style="font-size:11.5px;color:#888;margin:0;line-height:1.4;">Une copie complète et figée du programme, des séances réalisées et de leurs données est conservée. Ta prépa en cours n\'est pas modifiée.</p>'
     + '</div></div>';
+  if(!_prepView) prepReadyFor(state).forEach(function(R){
+    const n = R.weeks.reduce(function(a, W){ return a + W.sessions.length; }, 0);
+    h += '<div style="' + card + 'border:2px solid #15803D;background:#F0FDF4;"><p style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#15803D;margin:0 0 4px;">📥 Prépa prête à installer</p>'
+      + '<p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(R.title) + '</p>'
+      + '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 10px;">Course le ' + _prepDate(R.date) + ' · ' + R.weeks.length + ' semaines · ' + n + ' séances · objectif ' + R.target.replace(/^00:/, '') + '</p>'
+      + '<button onclick="prepInstallReady(\'' + R.id + '\')" style="width:100%;background:#15803D;color:#fff;border:none;' + btn + 'padding:13px;font-size:15px;">Installer cette prépa</button></div>';
+  });
   if(!_prepView) h += '<button onclick="prepNew()" style="width:100%;background:#15803D;color:#fff;border:none;' + btn + 'padding:14px;font-size:15px;">＋ Nouvelle prépa</button>'
     + '<p style="font-size:11.5px;color:#888;margin:-4px 2px 0;line-height:1.4;">Choisis ta prochaine course objectif et crée ton programme.</p>';
   // prépas enregistrées
@@ -183,6 +191,109 @@ async function prepApplyNew(){
   up._plan_engine = 'generated'; state._plan_engine = 'generated';
   up._plan_migrated = true; state._plan_migrated = true;                          // l'ancien plan Seine-Eure ne doit jamais être régénéré
   await dbRef.update(up);
+}
+
+// ─── Prépas prêtes à installer (programme fourni, installé en un appui depuis Mes prépas) ────────────
+const _EF_TXT = 'Endurance facile, repère 5’45–6’10/km. Pouvoir parler aisément.';
+const PREPS_READY = [{
+  id: 'novembrun-2026', title: "10km Novemb'Run", course: '10 km', date: '2026-11-22', start: '2026-10-26', target: '00:42:00', km: 10, raceTime: '09:00',
+  weeks: [
+    { phase: 'Reprise', sessions: [
+      { date: '2026-10-27', type: 'ef', km: 5, t: 'Footing de reprise', x: 'Reprise en douceur. ' + _EF_TXT,
+        done: { km: 5.02, dur: '28:36', pace: "5'42", hr: 143, note: 'Très bonnes sensations, aucune douleur.' } },
+      { date: '2026-10-29', type: 'ef', km: 7, t: 'Footing facile', x: _EF_TXT },
+      { date: '2026-11-01', type: 'long', km: 9, t: 'Endurance prolongée', x: _EF_TXT + ' Sans accélération finale.' } ] },
+    { phase: 'Consolidation', sessions: [
+      { date: '2026-11-03', type: 'ef', km: 8, t: 'Footing facile', x: _EF_TXT },
+      { date: '2026-11-05', type: 'ef', km: 9, t: 'Footing facile', x: _EF_TXT },
+      { date: '2026-11-08', type: 'long', km: 11, t: 'Sortie longue', x: _EF_TXT + ' Sans bloc rapide.' } ] },
+    { phase: 'Reprise du fractionné', peak: true, sessions: [
+      { date: '2026-11-10', type: 'ef', km: 8, t: 'Footing + accélérations', x: _EF_TXT + ' Inclure 4 × 15 s progressives, sans sprint ; récupération 1 min.' },
+      { date: '2026-11-12', type: 'frac', km: 10, t: '4×1000 m', x: '3 km faciles, puis 4 × 1 000 m en 4’18–4’22. Récupération 2 min au trot entre les répétitions. Retour au calme jusqu’à 10 km au total.' },
+      { date: '2026-11-14', type: 'ef', km: 6, t: 'Footing de récupération', x: _EF_TXT + ' Très facile.' },
+      { date: '2026-11-15', type: 'long', km: 12, t: 'Sortie longue', x: _EF_TXT + ' Sans bloc rapide ni finish accéléré.' } ] },
+    { phase: 'Allègement et course', taper: true, sessions: [
+      { date: '2026-11-17', type: 'frac', km: 8, t: '3×1000 m', x: '2–3 km faciles, puis 3 × 1 000 m en 4’12–4’15. Récupération 2 min au trot entre les répétitions. Retour au calme jusqu’à 8 km au total.' },
+      { date: '2026-11-19', type: 'ef', km: 6, t: 'Footing facile', x: _EF_TXT },
+      { date: '2026-11-21', type: 'ef', km: 3, t: 'Mise en jambes', x: '3 km très faciles au total, avec 3 × 15 s progressives, sans sprint ; récupération complète.' },
+      { date: '2026-11-22', type: 'race', km: 12.5, t: "NOVEMB'RUN – 10 km", x: 'Objectif : moins de 42 min, à confirmer selon les sensations. Avant : 12–15 min faciles et 3 accélérations. Distance du jour estimée : 10 km + 2,5 km d’échauffement.' } ] },
+  ],
+  memo: "Prépa 10km Novemb'Run (22/11/2026) : objectif moins de 42 min ; record 10 km 44'23 ; marathon Seine-Eure 3:37:05. Jours sans séance : repos course, marche et mobilité douce. Si fatigue inhabituelle le lendemain, réduire la séance suivante. Si la douleur de cheville revient, interrompre la sortie.",
+}];
+// clés d'état de la prépa (programme au format du moteur de plan : extra_w*, meta_w*, onboarding…)
+// horaire habituel de chaque jour (1 = lundi … 7 = dimanche), d'après les séances de la prépa en cours
+function _prepUsualTimes(){
+  const cnt = {};
+  for(let w = 1; w <= 60; w++){
+    let ei = 0;
+    while(ei <= 50 && state['extra_w' + w + '_s' + ei] !== undefined){
+      try {
+        const x = JSON.parse(state['extra_w' + w + '_s' + ei]);
+        if(x.sched_time && x.type !== 'race'){                // jour connu → par jour ; toujours → horaire global ('*')
+          [x.sched_day, '*'].forEach(function(d){ if(!d) return; const c = cnt[d] = cnt[d] || {}; c[x.sched_time] = (c[x.sched_time] || 0) + 1; });
+        }
+      } catch(e) {}
+      ei++;
+    }
+  }
+  const out = {};
+  Object.keys(cnt).forEach(function(d){ out[d] = Object.keys(cnt[d]).sort(function(a, b){ return cnt[d][b] - cnt[d][a]; })[0]; });
+  return out;
+}
+function _prepReadyUpdates(R, usual){
+  const ob0 = state.onboarding || {}, up = {}, days = new Set();
+  const time = function(day){ if(usual && (usual[day] || usual['*'])) return usual[day] || usual['*']; const rt = state.run_times; let t = null; try { t = (typeof rt === 'string' ? JSON.parse(rt) : rt || {})[day - 1]; } catch(e) {} return t || state.run_time || '12:00'; };
+  R.weeks.forEach(function(W, wi){
+    const w = wi + 1;
+    up['meta_w' + w] = JSON.stringify({ phase: W.phase, isRecov: false, isPeak: !!W.peak, isTaper: !!W.taper });
+    W.sessions.forEach(function(S, i){
+      const d = new Date(S.date + 'T12:00:00'), day = d.getDay() === 0 ? 7 : d.getDay();
+      if(S.type !== 'race') days.add(day - 1);
+      const k = 'extra_w' + w + '_s' + i;
+      up[k] = JSON.stringify({ d: S.t + '|' + S.x, km: S.km, type: S.type, shoe: null, sched_date: S.date, sched_day: day, sched_time: S.type === 'race' ? R.raceTime : time(day) });
+      if(S.done){
+        up[k + '_done'] = true; up[k + '_km'] = S.done.km;
+        up[k + '_perf'] = JSON.stringify({ dur: S.done.dur, pace: S.done.pace, hr: S.done.hr, date: S.date });
+      }
+    });
+  });
+  const runDays = Array.from(days).sort(), runTimes = {}; runDays.forEach(function(d){ runTimes[d] = time(d + 1); });
+  const nbSess = Math.max.apply(null, R.weeks.map(function(W){ return W.sessions.length; }));
+  up.onboarding = { course: R.course, date: R.date, race_name: R.title, sessions: String(nbSess), niveau: ob0.niveau || 'Confirmé', km_semaine: '30', generate_plan: 'oui',
+    target_time: R.target, race_distance_km: R.km, fc_max: state.fc_max || ob0.fc_max || null, ef_pace: state.ef_pace || ob0.ef_pace || null,
+    run_days: runDays, run_times: runTimes, run_time: state.run_time || '12:00', plan_start_date: R.start, _import: R.id };
+  up.plan_config = JSON.stringify({ course: R.course, niveau: up.onboarding.niveau, nbSess: nbSess, numWeeks: R.weeks.length, baseKm: 21, date: R.date });
+  up.plan_version = 'import-' + R.id; up.plan_peak_week = R.weeks.findIndex(function(W){ return W.peak; }) + 1 || R.weeks.length;
+  up.plan_start_date = R.start; up.goal_type = 'race'; up.target_time = R.target; up.race_distance_km = R.km;
+  return up;
+}
+function prepReadyFor(st){ return PREPS_READY.filter(function(R){ return !((st.onboarding || {})._import === R.id) && R.date >= new Date().toISOString().slice(0, 10); }); }
+function prepInstallReady(id){
+  const R = PREPS_READY.find(function(x){ return x.id === id; }); if(!R || _prepView) return;
+  const cur = _prepCurrentInfo(state), cs = _prepStats(state);
+  const saved = Object.keys(_prepIndex || {}).some(function(k){ return _prepIndex[k].title === cur.title; });
+  if(cs.planned > 0 && !saved){
+    _showConfirmModal({ icon: '📦', title: 'Enregistre d\'abord ta prépa en cours', message: '« ' + cur.title + ' » n\'est pas encore dans Mes prépas. Enregistre-la, puis installe ' + R.title + '.', confirmLabel: 'Enregistrer maintenant', confirmStyle: 'background:#0C447C;color:#fff;', onConfirm: function(){ const f = document.getElementById('prep-form'); if(f) f.style.display = 'flex'; } });
+    return;
+  }
+  const n = R.weeks.reduce(function(a, W){ return a + W.sessions.length; }, 0);
+  _showConfirmModal({ icon: '🏁', title: 'Installer « ' + R.title + ' » ?', message: n + ' séances sur ' + R.weeks.length + ' semaines jusqu\'au ' + _prepDate(R.date) + '. '
+      + (cs.planned > 0 ? '« ' + cur.title + ' » est enregistrée dans Mes prépas et sera retirée de l\'app. ' : '') + 'Tes réglages sont conservés.',
+    confirmLabel: 'Installer la prépa', confirmStyle: 'background:#15803D;color:#fff;', onConfirm: async function(){
+      try {
+        const usual = _prepUsualTimes();                // à lire avant de retirer l'ancienne prépa
+        await prepApplyNew();
+        const up = _prepReadyUpdates(R, usual);
+        if(R.memo && String(state._coach_memos || '').indexOf(R.memo) < 0) up._coach_memos = (state._coach_memos ? state._coach_memos + '\n' : '') + R.memo;
+        Object.assign(state, up);
+        await dbRef.update(up);
+        syncPlanCompat();
+        closePrepsPanel();
+        if(typeof rendered !== 'undefined') rendered.plan = false;
+        showScreen('home'); try { renderPlan(); } catch(e) {}
+        if(typeof showToast === 'function') showToast(R.title + ' installée 🏁');
+      } catch(e) { alert('Installation impossible (' + e.message + '). Vérifie ta connexion et réessaie.'); }
+    } });
 }
 
 // ─── Consultation en lecture seule ─────────────────────────────────────────
