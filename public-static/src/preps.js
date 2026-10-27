@@ -326,6 +326,9 @@ function _renderPrepsBody(){
     });
     h += '<button class="pp-new" onclick="prepNew()">' + PP_ICON.plus + 'Nouvelle prépa</button>';
   }
+  // ── Comparer (dès 2 prépas)
+  if(!_prepView && saved.length + (cs.planned ? 1 : 0) + (_prepNext ? 1 : 0) >= 2)
+    h += '<button class="pp-btn sec" style="flex:none;width:100%;padding:13px;margin-top:2px;" onclick="openProgress()">📈 Comparer mes prépas</button>';
   // ── Terminées
   h += '<p class="pp-sec"><span>Terminées</span>' + (saved.length ? '<span>' + saved.length + '</span>' : '') + '</p>';
   if(!saved.length) h += '<p class="pp-empty">Aucune pour l\'instant : ta prépa en cours y sera enregistrée automatiquement.</p>';
