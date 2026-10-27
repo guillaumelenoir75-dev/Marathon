@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=10'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=11'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -44,16 +44,19 @@ async function openLivePanel(){
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'live-panel';
   ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
-  const chips = [5, 10, 15, 20, 21.1, 25, 30, 35, 40, 42.195].map(function(k){ return '<button type="button" class="lv-chip" onclick="document.getElementById(\'lv-km\').value=\'' + k + '\'">' + String(k).replace('.', ',') + '</button>'; }).join('');
+  _liveSyncRace(_liveVal.race);
+  const _offKm = suiviOff() / 1000;
+  const chips = (_offKm > 30 ? [5, 10, 15, 20, 21.1, 25, 30, 35, 40, _offKm] : _offKm > 15 ? [5, 10, 15, 20, _offKm] : [1, 2, 3, 4, 5, 6, 7, 8, 9, _offKm]).map(function(k){ return '<button type="button" class="lv-chip" onclick="document.getElementById(\'lv-km\').value=\'' + k + '\'">' + String(k).replace('.', ',') + '</button>'; }).join('');
   ov.innerHTML = '<div class="modal-box" style="max-height:92vh;">'
     + '<div style="background:linear-gradient(135deg,#0C447C,#15803D);padding:16px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;">'
     +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;"><div>'
-    +     '<p style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">Marathon Seine-Eure · suivi en direct</p>'
+    +     '<p id="lv-race-name" style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">' + _prepEsc(SuiviRace.name) + ' · suivi en direct</p>'
     +     '<p style="font-size:21px;font-weight:900;margin:0;">🏁 Course en direct</p></div>'
     +     '<button onclick="closeLivePanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;">×</button></div>'
     +   '<div id="lv-pill" style="display:inline-block;margin-top:8px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.18);font-size:12px;font-weight:800;">…</div>'
     + '</div>'
     + '<div class="modal-scroll-body"><div style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;">'
+    +   '<div class="lv-card" id="lv-race"></div>'
     +   '<div class="lv-grid">'
     +     '<div class="lv-stat"><span>Temps de course</span><b id="lv-chrono">–</b>'
     +       '<div id="lv-adj" class="lv-adj" hidden><button type="button" aria-label="Reculer le chrono d\'une seconde" onclick="liveNudge(-1)">− 1 s</button><button type="button" aria-label="Avancer le chrono d\'une seconde" onclick="liveNudge(1)">+ 1 s</button></div></div>'
@@ -82,7 +85,7 @@ async function openLivePanel(){
     +     '<button type="button" class="lv-btn lv-go" onclick="liveSaveSplit()">Enregistrer le pointage</button>'
     +     '<div id="lv-splits" style="margin-top:10px;"></div></div>'
     +   '<div class="lv-card"><p class="lv-h">Heure de départ</p>'
-    +     '<div style="display:flex;gap:8px;align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" step="1" value="09:15:00"></label>'
+    +     '<div style="display:flex;gap:8px;align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" step="1" value="' + SuiviRace.start + ':00"></label>'
     +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStartAt()">Régler le chrono</button></div></div>'
     +   '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     +     '<a class="lv-btn lv-ghost" style="flex:1;text-align:center;text-decoration:none;" href="/suivi-guillaume" target="_blank">👀 Page de suivi</a>'
@@ -114,7 +117,7 @@ function closeLivePanel(){
   clearInterval(_liveTimer); _liveTimer = null;
   const ov = document.getElementById('live-panel'); if(ov) ov.remove();
 }
-function _liveOnValue(s){ _liveVal = s.val() || {}; _liveRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
+function _liveOnValue(s){ _liveVal = s.val() || {}; _liveSyncRace(_liveVal.race); _liveRender(); _liveRaceRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
 const _liveNow = function(){ return Date.now() + _liveOffset; };
 
 function _liveRender(){
@@ -186,7 +189,7 @@ async function liveNudge(sec){
   await _liveRef.update({ startedAt: L.startedAt });
 }
 async function liveFinish(){
-  if(!confirm('Déclarer l\'arrivée maintenant ? (Vous pourrez saisir le temps officiel ensuite : km 42,195.)')) return;
+  if(!confirm('Déclarer l\'arrivée maintenant ? (Vous pourrez saisir le temps officiel ensuite : km ' + suiviKmLabel(suiviOff()) + '.)')) return;
   const t = _liveNow(), up = { status: 'finished', finishedAt: t };
   if(!(_liveVal.passages && _liveVal.passages.finish)) up['passages/finish'] = t;
   await _liveRef.update(up);
@@ -194,7 +197,7 @@ async function liveFinish(){
 async function liveCancel(){
   if(!confirm('Annuler ? Le chrono, la trace et les pointages sont effacés ; la page de suivi revient à « Pas encore parti ».')) return;
   // annulation volontaire le jour J après 9h15 : pas de redémarrage automatique par le serveur
-  const noAuto = !_liveVal.test && _liveNow() >= suiviFmt.planned(SUIVI_DATA.start) && _liveNow() < suiviFmt.planned(SUIVI_DATA.start) + 5 * 3600000 ? true : null;
+  const noAuto = !_liveVal.test && _liveNow() >= suiviFmt.planned(SuiviRace.start) && _liveNow() < suiviFmt.planned(SuiviRace.start) + 5 * 3600000 ? true : null;
   await _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null, noAuto: noAuto });
 }
 // OwnTracks : configuration générée par la fonction owntracksToken (clé secrète, réservée à l'admin)
@@ -256,7 +259,8 @@ async function liveSaveSplit(){
   const L = _liveVal;
   const km = parseFloat(String(document.getElementById('lv-km').value).replace(',', '.'));
   const el = _liveParseTime(document.getElementById('lv-t').value);
-  if(!(km > 0 && km <= 42.3)){ alert('Km invalide (entre 0 et 42,195).'); return; }
+  const offKm = suiviOff() / 1000;
+  if(!(km > 0 && km <= offKm + 0.15)){ alert('Km invalide (entre 0 et ' + suiviKmLabel(suiviOff()) + ').'); return; }
   if(!el){ alert('Temps invalide. Tapez les chiffres : 1458 = 14:58 · 14823 = 1:48:23'); return; }
   if(!L.startedAt || L.status === 'idle'){
     if(!confirm('La course n\'est pas démarrée. La démarrer avec ce pointage (départ = maintenant − ' + suiviFmt.dur(el) + ') ?')) return;
@@ -277,11 +281,11 @@ async function liveSaveSplit(){
   const up = {};
   up['splits/k' + String(Math.round(km * 1000)).padStart(5, '0')] = { km: km, el: el, ts: ts };
   // points de passage correspondants (le km 30 est devant la maison, ≈ km 29,4)
-  SUIVI_DATA.points.forEach(function(pt){
+  SuiviRace.points.forEach(function(pt){
     const ptKm = pt.s * SuiviGeo.scale / 1000;
     if(Math.abs(km - pt.km) < 0.35 || Math.abs(km - ptKm) < 0.35) up['passages/' + pt.id] = ts;
   });
-  if(km >= 42.1){ up.status = 'finished'; up.finishedAt = ts; up['passages/finish'] = ts; }
+  if(km >= offKm - 0.1){ up.status = 'finished'; up.finishedAt = ts; up['passages/finish'] = ts; }
   // le pointage reste l'ancrage du calcul (suiviCalc) : la position GPS n'est pas écrasée
   await _liveRef.update(up);
   document.getElementById('lv-km').value = ''; document.getElementById('lv-t').value = '';
@@ -304,6 +308,164 @@ function initLiveHomeBtn(){
   window._liveHomeListen = true;
   _liveLoadCore().then(function(){
     if(!_liveRef) _liveRef = firebase.database().ref('live');
-    _liveRef.on('value', function(s){ _liveVal = s.val() || {}; _liveRenderHomeBtn(); });
+    _liveRef.on('value', function(s){ _liveVal = s.val() || {}; _liveSyncRace(_liveVal.race); _liveRenderHomeBtn(); });
   }).catch(function(){});
+}
+
+// ─── Course suivie : fiche /live/race (nom, date, départ, distance, tracé GPX, points de passage, rejeu) ───
+// Sans fiche : Marathon Seine-Eure (suivi-data.js). Préparer une autre course archive le suivi précédent
+// dans /live_archive/<id> (page /suivi-guillaume?course=<id>, bouton « Revoir » de Mes prépas).
+const LIVE_PAGE = 'https://prepa-marathon.web.app/suivi-guillaume';
+let _liveRaceSig = null;
+function _liveSyncRace(r){
+  if(typeof suiviUseRace !== 'function') return;
+  const sig = r ? [r.id, r.official, r.start, r.date, r.target, r.place, (r.route || []).length, JSON.stringify(r.points || []), r.replay ? 1 : 0].join('|') : 'se';
+  if(sig === _liveRaceSig) return;
+  _liveRaceSig = sig; suiviUseRace(r || null);
+  const n = document.getElementById('lv-race-name'); if(n) n.textContent = SuiviRace.name + ' · suivi en direct';
+}
+// distance officielle d'après la prépa : 10 km, semi 21,0975 km, marathon 42,195 km
+function _liveOfficialFor(R){
+  const c = String(R.course || '').toLowerCase();
+  if(/semi/.test(c)) return 21097; if(/marathon/.test(c)) return 42195;
+  const km = parseFloat(R.km) || 10; return Math.round(km * 1000);
+}
+// course de la prépa en cours : nom, date, heure de départ (séance « course »), objectif
+function _livePrepRace(){
+  if(typeof prepRace !== 'function' || usesHardPlan()) return null;
+  const R = prepRace(); if(!R || !R.date) return null;
+  let sess = null;
+  Object.keys(state).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k)){ try { const x = JSON.parse(state[k]); if(x.type === 'race' && (!sess || x.sched_date === R.date)) sess = x; } catch(e) {} } });
+  const ob = state.onboarding || {};
+  const id = ob._import || (String(R.name || 'course').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + R.date.slice(0, 4));
+  return { id: id, name: R.name, date: R.date, start: (sess && sess.sched_time) || '09:00', official: _liveOfficialFor(R),
+    target: typeof prepTimeSec === 'function' ? prepTimeSec(R.objectif) : null, prepId: state._prep_id || null };
+}
+function _liveRaceRender(){
+  const box = document.getElementById('lv-race'); if(!box) return;
+  const r = _liveVal.race || null, P = _livePrepRace(), st = _liveVal.status || 'idle';
+  const day = function(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : ''; };
+  let h = '<p class="lv-h">🏁 Course suivie</p>'
+    + '<p class="lv-note" style="margin:0 0 8px;"><b style="color:#0C447C;">' + _prepEsc(SuiviRace.name) + '</b> · ' + day(SuiviRace.date) + ' · départ ' + suiviFmt.hhmmTxt(SuiviRace.start)
+    + ' · ' + suiviKmLabel(suiviOff()) + ' km' + (SuiviGeo.has ? ' · tracé ✓' : ' · sans tracé (distance GPS)') + '</p>';
+  // une autre course est au programme : proposer de préparer son suivi
+  if(P && P.id !== SuiviRace.id && st !== 'running')
+    h += '<button type="button" class="lv-btn lv-go" onclick="livePrepareRace()">Préparer le suivi de « ' + _prepEsc(P.name) + ' » (' + day(P.date) + ')</button>'
+      + '<p class="lv-note" style="margin:6px 0 0;">Le suivi actuel est archivé : il reste visible avec son rejeu (Mes prépas › Revoir).</p>';
+  if(r && st !== 'running'){
+    const pts = SuiviRace.points.filter(function(p){ return p.id !== 'finish'; });
+    h += '<div style="display:flex;gap:8px;margin-top:8px;"><label class="lv-lab">Départ<input id="lv-r-start" type="time" value="' + SuiviRace.start + '"></label>'
+      + '<label class="lv-lab" style="flex:2;">Lieu de départ<input id="lv-r-place" type="text" placeholder="ex. Bois de Vincennes" value="' + _prepEsc(SuiviRace.place || '') + '"></label></div>'
+      + '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveSaveRaceInfo()">Enregistrer départ et lieu</button>'
+      + '<label class="lv-btn lv-ghost" style="margin-top:8px;text-align:center;cursor:pointer;">🗺 ' + (SuiviGeo.has ? 'Remplacer le tracé (GPX)' : 'Importer le tracé (fichier GPX)')
+      +   '<input type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" style="display:none;" onchange="liveImportGpx(this)"></label>'
+      + '<p class="lv-note" style="margin:6px 0 0;">' + (SuiviGeo.has ? 'Tracé de ' + (SuiviGeo.len / 1000).toFixed(2).replace('.', ',') + ' km : position projetée sur le parcours, arrivée détectée automatiquement.'
+        : 'Sans tracé, la distance vient du GPS et c\'est toi qui déclares l\'arrivée. Le GPX se télécharge en général sur le site de la course.') + '</p>'
+      + '<p class="lv-h" style="margin-top:12px;font-size:13px;">Points de passage (amis, ravitos)</p>'
+      + (pts.length ? pts.map(function(p){ return '<div class="lv-row"><b>km ' + String(p.km).replace('.', ',') + '</b><span>' + _prepEsc(p.label || '') + (p.lieu ? ' · ' + _prepEsc(p.lieu) : '') + '</span><button aria-label="Supprimer" onclick="liveDelPoint(\'' + p.id + '\')">✕</button></div>'; }).join('') : '<p class="lv-note">Aucun point pour l\'instant.</p>')
+      + '<div style="display:flex;gap:6px;margin-top:6px;"><label class="lv-lab" style="flex:0 0 72px;">Km<input id="lv-p-km" type="text" inputmode="decimal" placeholder="10"></label>'
+      + '<label class="lv-lab" style="flex:2;">Nom<input id="lv-p-label" type="text" placeholder="RDV famille"></label></div>'
+      + '<label class="lv-lab" style="margin-top:6px;">Lieu<input id="lv-p-lieu" type="text" placeholder="Place de la Bastille"></label>'
+      + '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveAddPoint()">＋ Ajouter le point</button>';
+  }
+  h += '<button type="button" class="lv-btn lv-ghost" style="margin-top:8px;" onclick="liveShareLink()">🔗 Copier le lien de suivi pour les amis</button>';
+  if(box.dataset.h !== h){ const keep = document.activeElement && box.contains(document.activeElement); if(!keep){ box.innerHTML = h; box.dataset.h = h; } }
+}
+function liveShareLink(){
+  const url = LIVE_PAGE;
+  if(navigator.share) navigator.share({ title: 'Suivi Guillaume · ' + SuiviRace.name, url: url }).catch(function(){});
+  else if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){ alert('Lien copié : ' + url); }, function(){ prompt('Lien de suivi :', url); });
+  else prompt('Lien de suivi :', url);
+}
+// fiche Seine-Eure pour l'archive (le tracé et les points viennent de suivi-data.js)
+function _liveSeRace(){
+  return { id: SUIVI_SE_ID, name: 'Marathon Seine-Eure', place: 'Amfreville-sur-Iton', date: SUIVI_DATA.date, start: SUIVI_DATA.start, official: SUIVI_DATA.official,
+    route: SUIVI_DATA.route, points: SUIVI_DATA.points.map(function(p){ const q = Object.assign({}, p); delete q.s; return q; }), target: 13108 };
+}
+async function livePrepareRace(){
+  const P = _livePrepRace(); if(!P) return;
+  const cur = _liveVal || {}, oldId = (cur.race && cur.race.id) || SUIVI_SE_ID;
+  if(!confirm('Préparer le suivi en direct de « ' + P.name + ' » ?\n\nLe suivi actuel (' + SuiviRace.name + ') est archivé avec son rejeu et reste consultable.')) return;
+  try {
+    const db = firebase.database(), up = {};
+    if(cur.startedAt || cur.race){
+      const arch = Object.assign({}, cur); delete arch.ota; delete arch.garmin;
+      if(!arch.race) arch.race = _liveSeRace();
+      await db.ref('live_archive/' + oldId).set(arch);
+      // lien « Revoir » de la prépa archivée
+      const idx = (await db.ref('users/' + firebase.auth().currentUser.uid + '/prep_index').once('value')).val() || {};
+      Object.keys(idx).forEach(function(k){
+        const it = idx[k];
+        if((cur.race && cur.race.prepId === k) || (oldId === SUIVI_SE_ID && it.replay && /\/suivi-guillaume$/.test(it.replay)))
+          up['users/' + firebase.auth().currentUser.uid + '/prep_index/' + k + '/replay'] = LIVE_PAGE + '?course=' + oldId;
+      });
+    }
+    up['live'] = { status: 'idle', race: Object.assign({ place: '', points: [], createdAt: Date.now() }, P), ota: cur.ota || null };
+    await db.ref().update(up);
+    if(typeof _prepIndex !== 'undefined' && _prepIndex) Object.keys(up).forEach(function(k){ const m = k.match(/prep_index\/([^/]+)\/replay$/); if(m && _prepIndex[m[1]]) _prepIndex[m[1]].replay = up[k]; });
+    if(typeof showToast === 'function') showToast('Suivi prêt pour ' + P.name);
+    _liveVal = (await db.ref('live').once('value')).val() || {};          // panneau rouvert sur la nouvelle course
+    closeLivePanel(); openLivePanel();
+  } catch(e) { alert('Préparation impossible (' + e.message + ').'); }
+}
+async function liveSaveRaceInfo(){
+  const st = document.getElementById('lv-r-start').value, pl = document.getElementById('lv-r-place').value.trim();
+  if(!/^\d{1,2}:\d{2}$/.test(st)){ alert('Heure de départ invalide.'); return; }
+  await _liveRef.child('race').update({ start: st, place: pl });
+  if(typeof showToast === 'function') showToast('Départ enregistré');
+}
+// GPX → tracé (≈ 1 point tous les 15 m au plus, 2 500 points maximum)
+function liveImportGpx(input){
+  const f = input.files && input.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = async function(){
+    try {
+      const xml = new DOMParser().parseFromString(String(rd.result), 'application/xml');
+      let nodes = Array.from(xml.getElementsByTagName('trkpt')); if(!nodes.length) nodes = Array.from(xml.getElementsByTagName('rtept'));
+      let pts = nodes.map(function(n){ return [+(+n.getAttribute('lat')).toFixed(5), +(+n.getAttribute('lon')).toFixed(5)]; }).filter(function(p){ return isFinite(p[0]) && isFinite(p[1]) && (p[0] || p[1]); });
+      if(pts.length < 2){ alert('Aucun tracé trouvé dans ce fichier.'); return; }
+      const out = [pts[0]]; let len = 0;
+      for(let i = 1; i < pts.length; i++){ const d = SuiviGeo.dist(out[out.length - 1], pts[i]); if(d >= 15 || i === pts.length - 1){ out.push(pts[i]); len += d; } }
+      while(out.length > 2500){ for(let i = out.length - 2; i > 0; i -= 2) out.splice(i, 1); }
+      const off = suiviOff(), gap = Math.abs(len - off) / off;
+      if(!confirm('Tracé de ' + (len / 1000).toFixed(2).replace('.', ',') + ' km (distance officielle ' + suiviKmLabel(off) + ' km)' + (gap > 0.05 ? '\n⚠️ Écart de ' + Math.round(gap * 100) + ' % : vérifie que c\'est bien le bon parcours.' : '') + '\n\nL\'enregistrer pour le suivi ?')) return;
+      await _liveRef.child('race/route').set(out);
+      if(typeof showToast === 'function') showToast('Tracé enregistré');
+    } catch(e) { alert('Fichier GPX illisible (' + e.message + ').'); }
+    input.value = '';
+  };
+  rd.readAsText(f);
+}
+async function liveAddPoint(){
+  const km = parseFloat(String(document.getElementById('lv-p-km').value).replace(',', '.')), label = document.getElementById('lv-p-label').value.trim(), lieu = document.getElementById('lv-p-lieu').value.trim();
+  if(!(km > 0 && km < suiviOff() / 1000)){ alert('Km invalide.'); return; }
+  const pts = ((_liveVal.race && _liveVal.race.points) || []).slice();
+  const plan = SuiviPlan.t(km * 1000), at = suiviFmt.planned(SuiviRace.start) + plan * 1000, d = new Date(at);
+  pts.push({ id: 'p' + Math.round(km * 1000), km: km, label: label || 'km ' + String(km).replace('.', ','), lieu: lieu, prevu: d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0') });
+  pts.sort(function(a, b){ return a.km - b.km; });
+  await _liveRef.child('race/points').set(pts);
+}
+async function liveDelPoint(id){
+  if(!confirm('Supprimer ce point de passage ?')) return;
+  const pts = ((_liveVal.race && _liveVal.race.points) || []).filter(function(p){ return p.id !== id; });
+  await _liveRef.child('race/points').set(pts);
+}
+// Après la course (temps officiel saisi à la validation) : données du rejeu d'après les temps au km Strava
+async function liveStoreReplay(officialSec, perf, note){
+  try {
+    if(!isAdmin() || typeof firebase === 'undefined') return false;
+    const db = firebase.database(), race = (await db.ref('live/race').once('value')).val();
+    const P = _livePrepRace();
+    if(!race || !P || race.id !== P.id) return false;
+    const sp = (perf && perf.strava && perf.strava.splits || []).filter(function(x){ return x && x.allure && x.distanceKm > 0; });
+    const toSec = function(a){ const m = String(a).match(/^(\d+):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
+    const full = sp.filter(function(x){ return x.distanceKm >= 0.95; }), part = sp.filter(function(x){ return x.distanceKm < 0.95; }).pop();
+    const watchKm = full.reduce(function(a, x){ return a + x.distanceKm; }, 0) + (part ? part.distanceKm : 0);
+    const off = race.official / 1000;
+    if(!full.length || watchKm < off * 0.97 || watchKm > off * 1.08) return false;   // activité avec échauffement, ou incomplète
+    const rp = { official: officialSec, gun: race.start, watchKm: Math.round(watchKm * 100) / 100, splits: full.map(function(x){ return toSec(x.allure); }).filter(Boolean),
+      last: part ? { km: part.distanceKm, pace: toSec(part.allure) } : null, note: note || '' };
+    await db.ref('live/race/replay').set(rp);
+    return true;
+  } catch(e) { console.warn('[course] rejeu', e); return false; }
 }

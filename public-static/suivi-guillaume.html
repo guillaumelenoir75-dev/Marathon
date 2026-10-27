@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Suivi Guillaume · Marathon Seine-Eure</title>
-<meta name="description" content="Suivez Guillaume en direct sur le Marathon Seine-Eure : position sur le parcours, distance, temps de course et heures de passage.">
+<title>Suivi Guillaume en direct</title>
+<meta name="description" content="Suivez Guillaume en direct : position sur le parcours, distance, temps de course et heures de passage.">
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#0C447C">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://prepa-marathon.web.app/suivi-guillaume">
-<meta property="og:title" content="Suivi Guillaume · Marathon Seine-Eure en direct">
+<meta property="og:title" content="Suivi Guillaume en direct">
 <meta property="og:description" content="Où en est Guillaume ? Position en direct, distance parcourue et heures de passage.">
 <link rel="icon" href="/enpiste-icon-192.png">
 <style>
@@ -106,9 +106,9 @@
 <body>
 <main class="page">
   <header class="hero">
-    <p class="eyebrow">Marathon Seine-Eure · dimanche 18 octobre</p>
+    <p class="eyebrow">Suivi en direct</p>
     <div class="head"><h1>Suivi Guillaume</h1><span id="pill" class="pill">Chargement…</span></div>
-    <div class="chrono"><span>Chrono</span><b id="v-time">–</b><i id="v-time-sub">départ prévu 9h15</i></div>
+    <div class="chrono"><span>Chrono</span><b id="v-time">–</b><i id="v-time-sub">&nbsp;</i></div>
     <p id="status-line" class="status">Connexion au suivi en direct…</p>
   </header>
   <div id="net" class="net" hidden>Connexion perdue : les informations reprendront dès le retour du réseau.</div>
@@ -117,7 +117,7 @@
   <section class="card" aria-label="Progression sur le parcours">
     <div class="prog-head">
       <div class="km"><span>Km parcourus</span><b><output id="v-done">0</output><small>km</small></b></div>
-      <div class="km right"><span>Km restants</span><b><output id="v-rest">42,2</output><small>km</small></b></div>
+      <div class="km right"><span>Km restants</span><b><output id="v-rest">–</output><small>km</small></b></div>
     </div>
     <div class="track" id="v-track" role="progressbar" aria-label="Distance parcourue" aria-valuemin="0" aria-valuemax="42.2" aria-valuenow="0">
       <div class="fill" id="v-bar"></div>
@@ -139,8 +139,8 @@
   <p class="foot">Mise à jour en direct, sans recharger la page.</p>
 </main>
 <script defer src="/src/suivi-data.js?v=1"></script>
-<script defer src="/src/suivi-core.js?v=10"></script>
-<script defer src="/src/suivi-view.js?v=15"></script>
-<script defer src="/src/suivi-replay.js?v=1"></script>
+<script defer src="/src/suivi-core.js?v=11"></script>
+<script defer src="/src/suivi-view.js?v=16"></script>
+<script defer src="/src/suivi-replay.js?v=2"></script>
 </body>
 </html>

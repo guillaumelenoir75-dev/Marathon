@@ -10,29 +10,46 @@ const URL_BASE = 'https://us-central1-prepa-marathon.cloudfunctions.net/owntrack
 const KEY_PATH = 'live_config/owntracksKey';
 
 // ─── Géométrie du parcours (copie de public-static/src/suivi-core.js) ───────
+// Course suivie : fiche /live/race (tracé facultatif) ; sans fiche → Marathon Seine-Eure (live-course.json).
+// Sans tracé : distance = GPS cumulé (pas d'arrivée automatique, c'est Guillaume qui la déclare).
 const RAD = Math.PI / 180;
 const kx = (lat) => 111320 * Math.cos(lat * RAD);
 const dist = (a, b) => { const dx = (b[1] - a[1]) * kx((a[0] + b[0]) / 2), dy = (b[0] - a[0]) * 110540; return Math.sqrt(dx * dx + dy * dy); };
-const PTS = COURSE.route, CUM = [0];
-for (let i = 1; i < PTS.length; i++) CUM.push(CUM[i - 1] + dist(PTS[i - 1], PTS[i]));
-const LEN = CUM[CUM.length - 1], SCALE = COURSE.official / LEN;
-// sExp (facultatif) : position attendue ; là où le tracé repasse près de lui-même (boucle du km 14),
-// on préfère la branche cohérente avec la progression (100 m d'écart le long du tracé ≈ 15 m de côté, 30 m au plus)
-function project(p, sMin, sMax, sExp) {
-  const K = kx(p[0]); let best = { d: Infinity, s: 0, c: Infinity };
-  for (let i = 1; i < PTS.length; i++) {
-    if (sMax !== undefined && (CUM[i] < sMin || CUM[i - 1] > sMax)) continue;
-    const a = PTS[i - 1], b = PTS[i];
-    const ax = (a[1] - p[1]) * K, ay = (a[0] - p[0]) * 110540, bx = (b[1] - p[1]) * K, by = (b[0] - p[0]) * 110540;
-    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, u = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
-    const d = Math.hypot(ax + u * dx, ay + u * dy), sp = CUM[i - 1] + u * Math.sqrt(L2);
-    const c = sExp === undefined ? d : d + 0.15 * Math.min(200, Math.abs(sp - sExp));   // départage plafonné à 30 m
-    if (c < best.c) best = { d, s: sp, c };
+const _geoCache = new Map();
+function geometry(race) {
+  const r = race && race.official ? race : null;
+  const official = r ? +r.official : COURSE.official;
+  const route = r ? (Array.isArray(r.route) && r.route.length > 1 ? r.route : null) : COURSE.route;
+  const key = (r ? r.id || 'course' : 'seine-eure-2026') + '|' + official + '|' + (route ? route.length + ':' + route[0] + ':' + route[route.length - 1] : 'gps');
+  if (_geoCache.has(key)) return _geoCache.get(key);
+  const PTS = route || [], CUM = [0];
+  for (let i = 1; i < PTS.length; i++) CUM.push(CUM[i - 1] + dist(PTS[i - 1], PTS[i]));
+  const has = PTS.length > 1, LEN = has ? CUM[CUM.length - 1] : official, SCALE = has ? official / LEN : 1;
+  // sExp (facultatif) : position attendue ; là où le tracé repasse près de lui-même (boucle du km 14),
+  // on préfère la branche cohérente avec la progression (100 m d'écart le long du tracé ≈ 15 m de côté, 30 m au plus)
+  function project(p, sMin, sMax, sExp) {
+    const K = kx(p[0]); let best = { d: Infinity, s: 0, c: Infinity };
+    for (let i = 1; i < PTS.length; i++) {
+      if (sMax !== undefined && (CUM[i] < sMin || CUM[i - 1] > sMax)) continue;
+      const a = PTS[i - 1], b = PTS[i];
+      const ax = (a[1] - p[1]) * K, ay = (a[0] - p[0]) * 110540, bx = (b[1] - p[1]) * K, by = (b[0] - p[0]) * 110540;
+      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, u = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+      const d = Math.hypot(ax + u * dx, ay + u * dy), sp = CUM[i - 1] + u * Math.sqrt(L2);
+      const c = sExp === undefined ? d : d + 0.15 * Math.min(200, Math.abs(sp - sExp));   // départage plafonné à 30 m
+      if (c < best.c) best = { d, s: sp, c };
+    }
+    return best;
   }
-  return best;
+  const rawPts = r ? (Array.isArray(r.points) ? r.points : Object.values(r.points || {})) : COURSE.points;
+  const POINTS = rawPts.filter((pt) => pt && pt.km > 0).map((pt) => ({ id: pt.id,
+    s: pt.id === 'finish' ? LEN - (has ? 60 : 0) : has && pt.coord ? project(pt.coord, (pt.km - 3) * 1000 / SCALE, (pt.km + 3) * 1000 / SCALE).s : pt.km * 1000 / SCALE }));
+  if (has && !POINTS.some((pt) => pt.id === 'finish')) POINTS.push({ id: 'finish', s: LEN - 60 });
+  // vitesse prévue (fenêtre de recherche de la première position) : objectif de la fiche, Seine-Eure 3 h 33
+  const target = r && +r.target > 0 ? +r.target : r ? official / 1000 * 330 : 3.55 * 3600;
+  const g = { has, LEN, SCALE, project, POINTS, PLAN_SPEED: official / target };
+  _geoCache.set(key, g);
+  return g;
 }
-const POINTS = COURSE.points.map((pt) => ({ id: pt.id, s: pt.id === 'finish' ? LEN - 60 : project(pt.coord, (pt.km - 3) * 1000 / SCALE, (pt.km + 3) * 1000 / SCALE).s }));
-const PLAN_SPEED = 42195 / (3.55 * 3600);
 
 async function getKey(db, create) {
   const ref = db.ref(KEY_PATH);
@@ -72,6 +89,7 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (m._type !== 'location' || typeof m.lat !== 'number' || typeof m.lon !== 'number') { res.json([]); return; }
   // pas de départ automatique : c'est Guillaume qui lance la course depuis l'app, en même temps que sa montre
   const live = (await db.ref('live').once('value')).val() || {};
+  const { has, LEN, SCALE, project, POINTS, PLAN_SPEED } = geometry(live.race);
   const t = m.tst ? Math.min(Date.now(), m.tst * 1000) : Date.now();
   const fix = { lat: m.lat, lon: m.lon, acc: Math.round(m.acc || 0), spd: typeof m.vel === 'number' ? +(m.vel / 3.6).toFixed(2) : null, ts: t, src: 'owntracks' };
   if (typeof m.batt === 'number') fix.batt = m.batt;
@@ -90,13 +108,24 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   // rejetées figerait la distance pour le reste de la course)
   const tAcc = prev ? (prev.sts || prev.ts || t) : t;
   const el = (t - live.startedAt) / 1000;
-  const pr = free ? project([m.lat, m.lon])
-           : lastS === null ? project([m.lat, m.lon], el * PLAN_SPEED / SCALE - 6000, el * PLAN_SPEED / SCALE + 6000)
-                            : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - tAcc) / 1000 * 6), lastS + Math.max(0, (t - tAcc) / 1000) * PLAN_SPEED / SCALE);
-  let s = lastS === null ? 0 : lastS;
+  let s = lastS === null ? 0 : lastS, pr, ok;
   const dt = prev ? Math.max(1, (t - tAcc) / 1000) : 1e6;
-  const ok = pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150);
-  if (ok) s = lastS === null ? pr.s : Math.max(s, pr.s);
+  if (!has) {
+    // sans tracé : distance GPS cumulée depuis la dernière position acceptée (précise, vitesse plausible)
+    const from = prev && typeof prev.s === 'number' ? [prev.alat !== undefined ? prev.alat : prev.lat, prev.alon !== undefined ? prev.alon : prev.lon] : null;
+    const step = from ? dist(from, [m.lat, m.lon]) : 0;
+    ok = fix.acc < 50 && step / dt < 8;
+    pr = { d: 0, s: s + (ok ? step : 0) };
+    if (ok) s = pr.s;
+    // dernière position acceptée : point de départ du prochain tronçon (une position rejetée ne compte pas)
+    fix.alat = ok || !from ? m.lat : from[0]; fix.alon = ok || !from ? m.lon : from[1];
+  } else {
+    pr = free ? project([m.lat, m.lon])
+       : lastS === null ? project([m.lat, m.lon], el * PLAN_SPEED / SCALE - 6000, el * PLAN_SPEED / SCALE + 6000)
+                        : project([m.lat, m.lon], lastS - 300, lastS + Math.max(2500, (t - tAcc) / 1000 * 6), lastS + Math.max(0, (t - tAcc) / 1000) * PLAN_SPEED / SCALE);
+    ok = pr.d < 120 && fix.acc < 80 && (lastS === null || pr.s - s < dt * 8 + 150);
+    if (ok) s = lastS === null ? pr.s : Math.max(s, pr.s);
+  }
   fix.off = Math.round(pr.d);
   // aucune position encore acceptée : pas de distance écrite (la suivante sera recherchée autour de l'allure prévue)
   // sts : dernière mesure qui confirme la progression (une position rattachée en arrière ne compte pas)
@@ -105,7 +134,7 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (free && pr.d < 120 && fix.acc < 80) { up.s0 = fix.s; up.s0t = t; }
   up.pos = fix;
   // passages : heure interpolée entre les deux positions ; ligne d'arrivée franchie → arrivée automatique (chrono arrêté)
-  for (const pt of POINTS) if (lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) {
+  for (const pt of POINTS) if ((has || pt.id !== 'finish') && lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) {
     let tp = Math.round(tAcc + (t - tAcc) * (pt.s - lastS) / ((s - lastS) || 1));
     // l'arrivée est détectée 60 m avant le bout du tracé : on prolonge jusqu'à la ligne à la vitesse du dernier tronçon
     if (pt.id === 'finish') tp += Math.round(Math.min(60000, (LEN - pt.s) / Math.max(1, (s - lastS) / Math.max(1, (t - tAcc) / 1000)) * 1000));

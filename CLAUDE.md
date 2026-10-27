@@ -27,8 +27,8 @@ Chargés dans cet ordre (dépendances respectées) :
 | `race-nav.js` | Guidage GPS intégré (`RaceNav.start(10|20|30)`) : position, manœuvres, voix. Trajets **bloqués** (aucun recalcul dans la zone de course) ; seule exception : hors zone, guidage OSRM libre jusqu'au début des trajets A13 (Flins), puis bascule silencieuse. Chargé aussi par `/parcours` (keepFiles) |
 | `secours-data.js`, `secours-map.js`, `secours-nav.js`, `secours-map.css` | Page publique **indépendante** `/secours` (`public-static/secours.html`) : plan de secours famille, GPS 24 route de Portejoie → km 10. Copies autonomes de la carte et du guidage (ne pas les fusionner avec `race-*`) ; hors bundle, non listés dans `vite.config.js` |
 | `amis-data.js`, `amis-map.js`, `amis-nav.js`, `amis-map.css` | Page publique **indépendante** `/trajet-amis` (`public-static/trajet-amis.html`) : GPS libre jusqu'à l'A13 à Flins puis itinéraire bloqué jusqu'au 24 route de Portejoie (stationnement route de Tournedos). Copies autonomes (ne pas fusionner) ; hors bundle |
-| `suivi-data.js`, `suivi-core.js`, `suivi-view.js`, `suivi-admin.js`, `suivi-replay.js` | Suivi en direct de Guillaume : page publique `/suivi-guillaume` (lecture seule, aussi intégrée en bas de `/parcours` via `suivi-view.js` ; `suivi-replay.js` = rejeu accéléré de la course d'après les temps au km, sur `/suivi-guillaume` seulement) et page `/suivi-admin` (compte admin : démarrer, envoyer la position GPS, arrivée). Données dans `/live` de la RTDB (lecture publique, écriture admin) ; hors bundle |
-| `race-live.js` | Bouton accueil admin « Course en direct » : pilote `/live` depuis l'app (départ, essai, arrivée, annulation, pointages officiels km + temps) ; dans le bundle, charge `suivi-data.js`/`suivi-core.js` à la demande |
+| `suivi-data.js`, `suivi-core.js`, `suivi-view.js`, `suivi-admin.js`, `suivi-replay.js` | Suivi en direct de Guillaume : page publique `/suivi-guillaume` (lecture seule, aussi intégrée en bas de `/parcours` via `suivi-view.js` ; `suivi-replay.js` = rejeu accéléré de la course d'après les temps au km, sur `/suivi-guillaume` seulement) et page `/suivi-admin` (compte admin : démarrer, envoyer la position GPS, arrivée). Données dans `/live` de la RTDB (lecture publique, écriture admin) ; hors bundle. **Course suivie générique** : fiche `/live/race` {id, name, date, start, place, official (m), target (s), route GPX facultatif, points, replay} lue par `suiviOpenRace`/`suiviUseRace` (suivi-core.js) — sans fiche = Marathon Seine-Eure (suivi-data.js). Sans tracé : distance = GPS cumulé, arrivée déclarée à la main. Courses passées : `/live_archive/<id>` (lecture publique), page `/suivi-guillaume?course=<id>` ; `/parcours` reste sur Seine-Eure (`SUIVI_COURSE`) |
+| `race-live.js` | Bouton accueil admin « Course en direct » : pilote `/live` depuis l'app (départ, essai, arrivée, annulation, pointages officiels km + temps) ; carte « Course suivie » : prépare le suivi de la course de la prépa en cours (`livePrepareRace` : fiche `/live/race`, archive le suivi précédent dans `/live_archive/<id>`), import GPX, départ/lieu, points de passage ; `liveStoreReplay` crée le rejeu après le temps officiel. Dans le bundle, charge `suivi-data.js`/`suivi-core.js` à la demande |
 | `plan-state.js` | État du plan, migration, helpers allure/pace, `save()` |
 | `plan-predict.js` | Prédiction marathon, modal prédiction |
 | `weather.js` | Météo (WMO), intégration météo dans les séances |
@@ -57,13 +57,13 @@ Chargés dans cet ordre (dépendances respectées) :
 |---|---|
 | `index.js` | Re-exporte tous les modules (9 lignes) |
 | `helpers.js` | ADMIN_UID, corsHeaders, verifyAdmin, callAnthropic, sendPush, sendPushToAll, getWeekFromDB… |
-| `strava.js` | stravaAuth, stravaCallback, stravaFetch, stravaFetchDetail |
+| `strava.js` | stravaAuth, stravaCallback, stravaFetch, stravaFetchDetail, stravaGear (chaussures Strava, scope profile:read_all) |
 | `garmin.js` | garminFetch, garminProxy, garminSync |
 | `calendar.js` | calendar (export ICS) |
 | `coach.js` | analyzeSession, coachChat, weeklyBriefing, weeklyReport, quickBrief, morningBrief, addMemo, extractMemos |
 | `admin.js` | initAdminPassword, createUser, listUsers, deleteUser, dbAdmin |
 | `notifs.js` | Toutes les fonctions `onSchedule` (rappels, briefings automatiques) |
-| `live.js` | owntracksToken (clé + config OwnTracks, admin), owntracks (réception des positions OwnTracks → `/live`, tracé dans `live-course.json`) |
+| `live.js` | owntracksToken (clé + config OwnTracks, admin), owntracks (réception des positions OwnTracks → `/live` ; géométrie d'après la fiche `/live/race`, Seine-Eure `live-course.json` par défaut, mode sans tracé = GPS cumulé) |
 
 ## Déploiement
 - AUTOMATIQUE : tout commit sur `main` déclenche `.github/workflows/deploy.yml` → `firebase deploy` (functions + hosting + database rules).

@@ -865,5 +865,12 @@ async function prepSaveRaceResult(time, date){
       if(_prepIndex && _prepIndex[id]) Object.assign(_prepIndex[id], f);
     }
   } catch(e) { console.warn('[prépa] résultat', e); }
-  return { time: txt, cat: cat, pr: pr, prev: prev };
+  // suivi en direct de cette course : rejeu d'après les temps au km Strava de la séance « course »
+  let replay = false;
+  if(typeof liveStoreReplay === 'function'){
+    let perf = null;
+    Object.keys(state).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k) && state[k + '_done']){ try { if(JSON.parse(state[k]).type === 'race') perf = JSON.parse(state[k + '_perf'] || '{}'); } catch(e) {} } });
+    replay = await liveStoreReplay(sec, perf, pr ? 'record personnel' : '');
+  }
+  return { time: txt, cat: cat, pr: pr, prev: prev, replay: replay };
 }

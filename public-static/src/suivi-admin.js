@@ -3,16 +3,18 @@
 
 const SuiviAdmin = (function(){
   let ref = null, live = {}, offset = 0, watch = null, wakeLock = null;
-  let lastS = null, lastAccT = 0, lastWrite = 0, lastTrack = 0, lastTrackS = -1, sent = 0, lastFix = null;
+  let lastS = null, lastAccT = 0, lastWrite = 0, lastTrack = 0, lastTrackS = -1, sent = 0, lastFix = null, lastAcc = null;
   const $ = function(id){ return document.getElementById(id); };
   const now = function(){ return Date.now() + offset; };
-  const PLAN_SPEED = 42195 / (3.55 * 3600);        // ≈ 3,3 m/s (9h15 → 12h48)
+  const planSpeed = function(){ return suiviOff() / SuiviPlan.total(); };   // m/s prévus (Seine-Eure ≈ 3,2 m/s)
 
   function show(id){ ['login', 'panel'].forEach(function(x){ $(x).hidden = x !== id; }); }
   function msg(t, err){ const m = $('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); m.hidden = !t; }
 
   async function init(){
     try { ref = await suiviFirebase(true); } catch(e) { msg('Impossible de charger Firebase. Vérifiez la connexion.', true); return; }
+    const eb = document.querySelector('header .eyebrow'); if(eb) eb.textContent = SuiviRace.name + ' · admin';
+    if($('t-start')) $('t-start').value = SuiviRace.start;
     firebase.database().ref('.info/serverTimeOffset').on('value', function(s){ offset = s.val() || 0; });
     firebase.auth().onAuthStateChanged(function(u){
       if(!u){ show('login'); return; }
@@ -43,7 +45,7 @@ const SuiviAdmin = (function(){
     const label = at ? 'à ' + suiviFmt.hhmm(at) : 'maintenant', what = test ? 'l\'essai' : 'la course';
     if(live.status === 'running' && !confirm('Un suivi est déjà en cours. Redémarrer ' + what + ' ' + label + ' et effacer la trace ?')) return;
     if(live.status !== 'running' && !confirm(test ? 'Lancer un essai ? La page de suivi affichera « Essai », et vous pourrez tout annuler ensuite.' : 'Démarrer la course ' + label + ' ? Le suivi devient visible par tous.')) return;
-    lastS = at ? null : 0; lastAccT = 0; lastTrackS = -1;
+    lastS = at ? null : 0; lastAccT = 0; lastTrackS = -1; lastAcc = null;
     await ref.update({ status: 'running', test: test ? true : null, noAuto: null, rid: tap, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null });
     // par défaut, la position vient d'OwnTracks (écran verrouillé) : le GPS de Safari n'est lancé qu'à la demande
     msg((test ? 'Essai lancé' : 'Course démarrée') + '. OwnTracks envoie votre position : vous pouvez verrouiller l\'iPhone.' + (test ? ' Touchez « Annuler » pour tout effacer.' : ''));
@@ -58,7 +60,7 @@ const SuiviAdmin = (function(){
   async function reset(){
     if(!confirm(live.test ? 'Annuler l\'essai ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».' : 'Annuler le suivi ? Le chrono et la trace sont effacés, la page revient à « Pas encore parti ».')) return;
     stopGps(); lastS = null;
-    const p0 = suiviFmt.planned(SUIVI_DATA.start), n0 = now();
+    const p0 = suiviFmt.planned(SuiviRace.start), n0 = now();
     await ref.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null, passages: null, track: null, pos: null, splits: null, s0: null, s0t: null, noAuto: !live.test && n0 >= p0 && n0 < p0 + 5 * 3600000 ? true : null });
     msg('Suivi annulé : tout est revenu à zéro.');
   }
@@ -108,17 +110,24 @@ const SuiviAdmin = (function(){
     if(live.status !== 'running'){ render(); return; }
     // distance le long du parcours : projection dans une fenêtre autour de la dernière position connue
     const el = live.startedAt ? (t - live.startedAt) / 1000 : 0;
-    let pr;
-    if(lastS === null){ const exp = el * PLAN_SPEED; pr = SuiviGeo.project([c.latitude, c.longitude], exp - 6000, exp + 6000); }
-    else pr = SuiviGeo.project([c.latitude, c.longitude], lastS - 300, lastS + Math.max(2500, (t - lastAccT) / 1000 * 6));
-    let s = lastS === null ? 0 : lastS;
+    let pr, s = lastS === null ? 0 : lastS;
     const dt = lastAccT ? Math.max(1, (t - lastAccT) / 1000) : 1e6;
-    if(pr.d < 120 && (c.accuracy || 0) < 80 && (lastS === null || pr.s - s < dt * 8 + 150)){ s = lastS === null ? pr.s : Math.max(s, pr.s); lastAccT = t; }
-    else if(lastS === null){ render(); return; }        // pas encore sur le parcours : on attend une position fiable
+    if(!SuiviGeo.has){
+      // course sans tracé : distance GPS cumulée (positions précises, vitesse plausible)
+      pr = { d: 0, s: s };
+      const step = lastAcc ? SuiviGeo.dist(lastAcc, [c.latitude, c.longitude]) : 0;
+      if((c.accuracy || 0) < 50 && (!lastAcc || step / dt < 8)){ s += step; lastAcc = [c.latitude, c.longitude]; lastAccT = t; if(lastS === null) lastS = 0; }
+      else if(lastS === null){ render(); return; }
+    } else {
+      if(lastS === null){ const exp = el * planSpeed(); pr = SuiviGeo.project([c.latitude, c.longitude], exp - 6000, exp + 6000); }
+      else pr = SuiviGeo.project([c.latitude, c.longitude], lastS - 300, lastS + Math.max(2500, (t - lastAccT) / 1000 * 6));
+      if(pr.d < 120 && (c.accuracy || 0) < 80 && (lastS === null || pr.s - s < dt * 8 + 150)){ s = lastS === null ? pr.s : Math.max(s, pr.s); lastAccT = t; }
+      else if(lastS === null){ render(); return; }        // pas encore sur le parcours : on attend une position fiable
+    }
     lastFix.s = Math.round(s); lastFix.off = Math.round(pr.d);
     // passages
     const up = {};
-    SUIVI_DATA.points.forEach(function(pt){ if(lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) up['passages/' + pt.id] = t; });
+    SuiviRace.points.forEach(function(pt){ if(pt.id === 'finish' && !SuiviGeo.has) return; if(lastS !== null && lastS < pt.s && s >= pt.s && !(live.passages && live.passages[pt.id])) up['passages/' + pt.id] = t; });
     lastS = s;
     if(t - lastWrite >= 5000 || Object.keys(up).length){
       lastWrite = t; up.pos = lastFix;
@@ -172,7 +181,7 @@ const SuiviAdmin = (function(){
   }
 
   return {
-    init: init, start: function(){ start(null); }, test: function(){ start(null, true); }, startAt: function(){ const v = $('t-start').value || '09:15'; start(suiviFmt.planned(v)); },
+    init: init, start: function(){ start(null); }, test: function(){ start(null, true); }, startAt: function(){ const v = $('t-start').value || SuiviRace.start; start(suiviFmt.planned(v)); },
     resume: startGps, finish: finish, reset: reset, saveGarmin: saveGarmin, black: black, owntracks: owntracks,
     logout: function(){ stopGps(); firebase.auth().signOut(); },
   };

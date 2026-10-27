@@ -36,6 +36,10 @@
       ".read": true,
       ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
     },
+    "live_archive": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
+    },
     "$other": {
       ".read": false,
       ".write": false
