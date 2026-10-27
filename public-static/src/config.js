@@ -34,7 +34,7 @@ function getAthleteMaxWeek(){
 }
 
 function getEffectiveCW(){
-  return isAdmin()?CW:getAthleteCW();
+  return usesHardPlan()?CW:getAthleteCW();
 }
 
 // Km total planifié pour une semaine athlète (extra_w*)
@@ -49,7 +49,7 @@ function getAthleteWeekKm(ws){
 
 function homeNavWeek(dir){
   const newW = homeViewWeek + dir;
-  const maxW = isAdmin()?32:getAthleteMaxWeek();
+  const maxW = usesHardPlan()?32:getAthleteMaxWeek();
   if(newW < 1 || newW > maxW) return;
   const savedScroll = window.scrollY || document.documentElement.scrollTop || 0;
   homeViewWeek = newW;
@@ -69,7 +69,7 @@ const KM_AVANT_S7=219;
 // Mis à jour manuellement à chaque début de semaine si nécessaire
 const KM_HISTORIQUE_BASE = 243; // km faits S1-S8 inclus (193 plan + ~50 hors plan)
 function getGrandTotal(){
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     // Pour les athlètes : total des km de leurs séances extra uniquement
     let t=0;
     for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
@@ -230,7 +230,7 @@ const renfoAffutageUnique=[
   {nom:"Extension de jambe",img:RENFO_IMG7,desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement. Charge très légère.",series:"2 × 8 rép. par côté"},
   {nom:"Montées sur banc / marche",img:RENFO_IMG6,desc:"Montez puis descendez lentement d'une marche basse en contrôlant l'appui.",series:"2 × 8 rép. par côté"},
 ];
-function isAffutageWeek(){return isAdmin()&&CW>=30&&CW<=32;}
+function isAffutageWeek(){return usesHardPlan()&&CW>=30&&CW<=32;}
 
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"},{km:'Marathon',nb:8,t:"6, 12, 17, 22, 26, 30, 34 & 38 km"}];
 const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];

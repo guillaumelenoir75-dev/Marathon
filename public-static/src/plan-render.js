@@ -1011,7 +1011,7 @@ function renderPlan(){
   const ptEl=document.getElementById('plan-total-km');
   const el=document.getElementById('plan-list'); el.innerHTML='';
   // Plan vide pour les athlètes — seulement les séances qu'ils ajoutent eux-mêmes
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     if(ptEl) ptEl.textContent='Ton plan personnalisé';
     openWeeks.add(getAthleteCW());
     renderAthletePlan(el);

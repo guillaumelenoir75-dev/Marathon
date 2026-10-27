@@ -1,5 +1,5 @@
 function getWeekTotalKm(ws){
-  if(!isAdmin()||state._plan_migrated){
+  if(!usesHardPlan()||state._plan_migrated){
     // Post-migration ou athlète : toutes les séances sont dans extra_w
     let total=0,ei=0;
     while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){

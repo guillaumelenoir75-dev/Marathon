@@ -6,6 +6,12 @@ let currentUserId=null;
 let _visibilityListenerAdded=false;
 let _wasInBackground=false; // true dès que l'app passe en arrière-plan
 function isAdmin(){return currentUserRole==='admin'||firebase.auth().currentUser?.email===ADMIN_EMAIL;}
+// Plan « écrit en dur » (Seine-Eure, config.js) : suivi par l'admin tant qu'il n'a pas démarré une prépa générée
+// (Compte › Mes prépas › Nouvelle prépa → state._plan_engine). Pendant l'aperçu d'un athlète, on lit l'état de l'admin.
+function usesHardPlan(){
+  const st=(typeof _adminSavedState!=='undefined'&&_adminSavedState)||state;
+  return isAdmin()&&!(st&&st._plan_engine);
+}
 
 const ADMIN_EMAIL='guillaumelenoir75@gmail.com';
 const FUNCTIONS_BASE='https://us-central1-prepa-marathon.cloudfunctions.net';

@@ -8,7 +8,7 @@ function renderStats(){
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
 
-  if(isAdmin()){
+  if(usesHardPlan()){
     const _cwSess=getOrderedWeekSessions(CW);const cwDoneCount=_cwSess.filter(({ei})=>state[`extra_w${CW}_s${ei}_done`]||state[`extra_w${CW}_s${ei}_km`]!=null).length;
     const cwTotal=weeks[CW-1].sessions.length;
     eCW=CW;
@@ -132,7 +132,7 @@ function renderStats(){
   });
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
-  if(badge) badge.textContent = (isAdmin() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
+  if(badge) badge.textContent = (usesHardPlan() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
   const sb=document.getElementById('shoes-bars');if(!sb) return;sb.innerHTML='';
   const dynamicShoes=getShoes();
   if(dynamicShoes.length===0){
@@ -1027,7 +1027,7 @@ function renderRenfoExercises(){
 
   // Bouton skip (admin only) — affiché sous les onglets
   let skipBtn=document.getElementById('renfo-skip-btn');
-  if(!skipBtn && isAdmin()){
+  if(!skipBtn && usesHardPlan()){
     skipBtn=document.createElement('button');
     skipBtn.id='renfo-skip-btn';
     skipBtn.style.cssText='width:100%;padding:10px;background:transparent;border:1px dashed #aaa;border-radius:var(--radius);font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:16px;';
@@ -1564,7 +1564,7 @@ function renderSessionsHistory() {
   if (!container) return;
 
   const sessions = [];
-  const maxW = isAdmin() ? weeks.length : getAthleteMaxWeek();
+  const maxW = usesHardPlan() ? weeks.length : getAthleteMaxWeek();
 
   for (let ws = 1; ws <= maxW; ws++) {
     getOrderedWeekSessions(ws).forEach(({s:es,ei}) => {

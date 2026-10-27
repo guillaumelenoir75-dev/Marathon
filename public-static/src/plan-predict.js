@@ -1,6 +1,6 @@
 function buildMarathonPrediction() {
   // Pour les athlètes sans données : retourner vide
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     // Vérifier s'ils ont des séances validées avec perf
     let hasData=false;
     for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){if(state[`extra_w${ws}_s${ei}_perf`]){hasData=true;break;}ei++;}if(hasData)break;}

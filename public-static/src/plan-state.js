@@ -2,7 +2,7 @@ function migrateState(){
   const rfDefaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
   // Injection météo séance S11 EF longue 23/05 — Villiers-Saint-Georges 11h canicule
   // Admin seulement — données personnelles de Guillaume
-  if(isAdmin()) (function(){
+  if(usesHardPlan()) (function(){
     const k = gk(11,2)+'perf';
     let p = {};
     try{ p = typeof state[k]==='string' ? JSON.parse(state[k]) : (state[k]||{}); }catch(e){}
@@ -34,7 +34,7 @@ function migrateState(){
   //    par autoFetchMissingMeteo() après le chargement Firebase ──
 
   // Horaires renfo par défaut — admin seulement
-  if(isAdmin()){
+  if(usesHardPlan()){
     [CW, Math.min(CW+1,32)].forEach(w => {
       [1,2].forEach(r => {
         const k = rfk(w,r)+'sched';
@@ -44,7 +44,7 @@ function migrateState(){
   }
   // Inject historical sessions S1-S6 if not already done — admin seulement
   const historyKey='_history_injected_v6';
-  if(isAdmin()&&!state[historyKey]){
+  if(usesHardPlan()&&!state[historyKey]){
     const history=[
       {ws:1,si:1,shoe:'Pegasus',km:8},{ws:1,si:2,shoe:'Pegasus',km:8},
       {ws:2,si:0,shoe:'Pegasus',km:9},{ws:2,si:1,shoe:'Pegasus',km:10},{ws:2,si:2,shoe:'Pegasus',km:11},
@@ -138,7 +138,7 @@ function migrateState(){
   if(changed) save();
 
   // Migration plan sessions → extra_w (one-time, admin only)
-  if(isAdmin() && !state._plan_migrated && typeof weeks !== 'undefined') {
+  if(usesHardPlan() && !state._plan_migrated && typeof weeks !== 'undefined') {
     _migratePlanToExtraW();
   }
 }
@@ -254,7 +254,7 @@ function getBestEfPace(){
   }
   for(let ws=1;ws<=CW;ws++){
     // Séances base (plan Guillaume) — admin seulement
-    if(isAdmin()){
+    if(usesHardPlan()){
       weeks[ws-1].sessions.forEach((s,si)=>{
         if(s.type!=='ef') return;
         const k=gk(ws,si);
@@ -318,7 +318,7 @@ function getBestEfPace(){
 // Regénère ensuite le plan entier pour injecter les allures dans les descriptions S2+.
 async function tryAutoCalculateEF(){
   if(state.ef_pace) return null;
-  if(isAdmin()) return null;
+  if(usesHardPlan()) return null;
   // Plan Découverte : allure inclut la marche → ne pas auto-calculer l'EF
   let cfg=null;try{cfg=state.plan_config?JSON.parse(state.plan_config):null;}catch(e){}
   if(cfg&&cfg.niveau==='Découverte') return null;
@@ -477,7 +477,7 @@ function updateMarathonPace(){
 // Source de vérité unique pour distinguer un coureur "plaisir" d'un coureur avec objectif de course.
 // À utiliser partout à la place de `course === 'Plaisir'` inline.
 function isPlaisirMode(st) {
-  if (isAdmin()) return false;
+  if (usesHardPlan()) return false;
   const course = ((st || state).onboarding || {}).course;
   return !course || course === 'Plaisir';
 }

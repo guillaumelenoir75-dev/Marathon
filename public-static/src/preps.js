@@ -4,7 +4,9 @@
 
 // clés non archivées : historique du coach, jetons et données d'appareils (volumineux ou personnels)
 const _PREP_SKIP = /^(_coach_history|_coach_unread|_brief|whoop_|strava_token|_push_sub|_ratelimit|_open_coach|_last_location|_wakeup_|_geo_granted|_shaker_run_ts)/;
-let _prepIndex = null, _prepView = null;
+let _prepIndex = null, _prepView = null, _prepPendingNew = false;
+// clés propres à une prépa (retirées au démarrage d'une nouvelle) ; profil, chaussures, FC, VO2max, Strava… sont conservés
+const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+r\d+|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$)/;
 
 function _prepUid(){ const u = firebase.auth().currentUser; return u ? u.uid : null; }
 function _prepRef(path){ return firebase.database().ref('users/' + _prepUid() + '/' + path); }
@@ -78,6 +80,9 @@ function _renderPrepsBody(){
   const card = 'background:#fff;border:1px solid #e0e8f5;border-radius:14px;padding:14px;';
   const btn = 'border-radius:10px;padding:10px 12px;font-size:13px;font-weight:800;cursor:pointer;';
   let h = '';
+  if(_prepView){
+    h += '<div style="' + card + 'background:#FFF7ED;border-color:#fed7aa;"><p style="font-size:13px;color:#92400E;margin:0;line-height:1.45;"><b>📖 Consultation en cours</b> : « ' + _prepEsc(_prepView.meta.title || 'prépa archivée') + ' ».<br>Touche <b>Quitter</b> dans le bandeau pour revenir à ta prépa en cours et gérer tes prépas.</p></div>';
+  } else
   // prépa en cours
   h += '<div style="' + card + '"><p style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#15803D;margin:0 0 4px;">● Prépa en cours</p>'
     + '<p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(cur.title) + '</p>'
@@ -92,6 +97,8 @@ function _renderPrepsBody(){
     +   '<button onclick="prepSaveCurrent()" id="pf-save" style="background:#15803D;color:#fff;border:none;' + btn + '">Enregistrer dans Mes prépas</button>'
     +   '<p style="font-size:11.5px;color:#888;margin:0;line-height:1.4;">Une copie complète et figée du programme, des séances réalisées et de leurs données est conservée. Ta prépa en cours n\'est pas modifiée.</p>'
     + '</div></div>';
+  if(!_prepView) h += '<button onclick="prepNew()" style="width:100%;background:#15803D;color:#fff;border:none;' + btn + 'padding:14px;font-size:15px;">＋ Nouvelle prépa</button>'
+    + '<p style="font-size:11.5px;color:#888;margin:-4px 2px 0;line-height:1.4;">Choisis ta prochaine course objectif et crée ton programme.</p>';
   // prépas enregistrées
   h += '<p style="font-size:13px;font-weight:800;color:#0C447C;margin:4px 2px 0;">Prépas enregistrées</p>';
   if(!saved.length) h += '<p style="font-size:13px;color:#888;margin:0 2px;">Aucune pour l\'instant : enregistre ta prépa en cours pour la retrouver ici.</p>';
@@ -103,10 +110,10 @@ function _renderPrepsBody(){
       +   '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 0;">' + (p.date ? _prepDate(p.date) : '') + (s.weeks ? ' · ' + s.weeks + ' sem. · ' + s.done + ' séances · ' + s.km + ' km' : '') + '</p></div>'
       +   (p.result ? '<span style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;">⏱ ' + _prepEsc(p.result) + '</span>' : '') + '</div>'
       + (p.note ? '<p style="font-size:12.5px;color:#B45309;font-weight:700;margin:6px 0 0;">🏅 ' + _prepEsc(p.note) + '</p>' : '')
-      + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
-      +   '<button onclick="prepView(\'' + p.id + '\')" style="flex:1 1 140px;background:#EBF0FF;color:#1B4FD8;border:1px solid #c7d7f8;' + btn + '">📖 Consulter</button>'
-      +   (p.replay ? '<a href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener" style="flex:1 1 140px;text-align:center;text-decoration:none;background:#FFF7ED;color:#C2410C;border:1px solid #fed7aa;' + btn + '">🎬 Revoir la course</a>' : '')
-      +   '<button onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer" style="background:#fff0f0;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑</button>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;">'
+      +   '<button onclick="prepView(\'' + p.id + '\')" style="flex:1 1 0;min-width:0;background:#EBF0FF;color:#1B4FD8;border:1px solid #c7d7f8;' + btn + '">📖 Consulter</button>'
+      +   (p.replay ? '<a href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener" style="flex:1 1 0;min-width:0;text-align:center;text-decoration:none;background:#FFF7ED;color:#C2410C;border:1px solid #fed7aa;' + btn + '">🎬 Revoir la course</a>' : '')
+      +   (_prepView ? '' : '<button onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer" style="flex-shrink:0;background:#fff0f0;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑</button>')
       + '</div></div>';
   });
   box.innerHTML = h;
@@ -144,6 +151,38 @@ function prepDelete(id){
       await _prepRef('preps/' + id).remove(); await _prepRef('prep_index/' + id).remove();
       delete _prepIndex[id]; _renderPrepsBody(); renderPrepsRow();
     } });
+}
+
+// ─── Nouvelle prépa ────────────────────────────────────────────────────────
+// L'assistant de création s'ouvre ; l'ancienne prépa n'est retirée qu'à la validation (prepApplyNew, appelé par saveOnboarding)
+function prepNew(){
+  if(_prepView) return;
+  const cur = _prepCurrentInfo(state), cs = _prepStats(state);
+  const saved = Object.keys(_prepIndex || {}).some(function(k){ return _prepIndex[k].title === cur.title; });
+  if(cs.planned > 0 && !saved){
+    _showConfirmModal({ icon: '📦', title: 'Enregistre d\'abord ta prépa en cours', message: '« ' + cur.title + ' » n\'est pas encore dans Mes prépas. Enregistre-la pour pouvoir la revoir ensuite, puis crée ta nouvelle prépa.',
+      confirmLabel: 'Enregistrer maintenant', confirmStyle: 'background:#0C447C;color:#fff;', onConfirm: function(){ const f = document.getElementById('prep-form'); if(f) f.style.display = 'flex'; } });
+    return;
+  }
+  _showConfirmModal({ icon: '🏁', title: 'Créer une nouvelle prépa ?', message: (cs.planned > 0 ? '« ' + cur.title + ' » est enregistrée dans Mes prépas : à la validation du nouveau programme, elle sera retirée de l\'app (tu pourras toujours la consulter). ' : '')
+      + 'Tes réglages sont conservés : FC, VO2max, allure EF, chaussures, Strava, notifications.', confirmLabel: 'Choisir ma course', confirmStyle: 'background:#15803D;color:#fff;', onConfirm: prepOpenWizard });
+}
+function prepOpenWizard(){
+  closePrepsPanel();
+  // assistant pré-rempli avec le profil (pas la course ni le programme précédents)
+  const prev = state.onboarding, p = prev || {};
+  state.onboarding = { sessions: p.sessions || null, niveau: p.niveau || null, km_semaine: p.km_semaine || null, fc_max: state.fc_max || p.fc_max || null,
+    ef_pace: state.ef_pace || p.ef_pace || null, run_days: p.run_days || null, run_times: p.run_times || null, run_time: p.run_time || null };
+  _prepPendingNew = true;
+  showOnboarding(true);
+  if(prev === undefined) delete state.onboarding; else state.onboarding = prev;      // rien n'est modifié tant que l'assistant n'est pas validé
+}
+async function prepApplyNew(){
+  const up = {};
+  Object.keys(state).forEach(function(k){ if(_PREP_RESET.test(k)){ up[k] = null; delete state[k]; } });
+  up._plan_engine = 'generated'; state._plan_engine = 'generated';
+  up._plan_migrated = true; state._plan_migrated = true;                          // l'ancien plan Seine-Eure ne doit jamais être régénéré
+  await dbRef.update(up);
 }
 
 // ─── Consultation en lecture seule ─────────────────────────────────────────

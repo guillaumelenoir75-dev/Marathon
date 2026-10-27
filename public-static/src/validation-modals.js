@@ -288,7 +288,7 @@ function saveRecord10km() {
 }
 
 function openTargetTimeModal(){
-  if(isAdmin()) return;
+  if(usesHardPlan()) return;
   const ob=state.onboarding||{};
   const course=ob.course||state.race_distance||'Marathon';
   const current=ob.target_time||state.target_time||'';

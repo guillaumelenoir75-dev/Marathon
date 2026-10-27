@@ -246,6 +246,7 @@ function obDateChanged(){
 }
 
 function hideOnboarding(){
+  if(typeof _prepPendingNew!=='undefined') _prepPendingNew=false;   // assistant fermé sans valider : la nouvelle prépa est abandonnée
   const el=document.getElementById('onboarding-overlay');
   if(el) el.style.display='none';
 }
@@ -1207,6 +1208,9 @@ function _obShowRecap(){
 async function saveOnboarding(){
   if(_obSaving) return; // évite le double-save (chip click + bouton Terminer en <220ms)
   _obSaving=true;
+  // Nouvelle prépa (Compte › Mes prépas) : l'ancienne prépa est retirée seulement maintenant, à la validation
+  const _newPrep=typeof _prepPendingNew!=='undefined'&&_prepPendingNew&&!_adminPreviewUid;
+  if(_newPrep){ _prepPendingNew=false; _obEditMode=false; try{ await prepApplyNew(); }catch(e){ console.error('[prépa] remise à zéro', e); } }
   const generatePlan=_obData.generate_plan==='oui';
 
   // Écran de chargement
@@ -1338,5 +1342,6 @@ async function saveOnboarding(){
   else renderHome();
   renderPlan();
   if(_adminPreviewUid) _refreshAthleteCoachView();
+  if(_newPrep){ showScreen('home'); if(typeof showToast==='function') showToast('Nouvelle prépa créée 🏁'); }
 }
 

@@ -855,7 +855,7 @@ function calcWeekDoneKm(){
 
 function calcTotalDone(){
   // Pour les athlètes : seulement les km de leurs séances extra validées
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     let t=0;
     for(let ws=1;ws<=52;ws++){
       let ei=0;

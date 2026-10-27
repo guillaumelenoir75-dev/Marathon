@@ -35,7 +35,7 @@ function renderHome(){
   const navDates = document.getElementById('home-week-dates');
   if(navDates){
     let d0;
-    if(isAdmin() && weekDates[w-1]){
+    if(usesHardPlan() && weekDates[w-1]){
       d0 = new Date(weekDates[w-1]);
     } else if(state.plan_start_date){
       d0 = new Date(state.plan_start_date);
@@ -53,7 +53,7 @@ function renderHome(){
     }
   }
   // Flèches : grisées aux extrêmes
-  const maxW = isAdmin()?32:getAthleteMaxWeek();
+  const maxW = usesHardPlan()?32:getAthleteMaxWeek();
   const prevBtn = document.getElementById('home-week-prev');
   const nextBtn = document.getElementById('home-week-next');
   if(prevBtn){ prevBtn.style.opacity = w<=1?'0.3':'1'; prevBtn.style.pointerEvents = w<=1?'none':'auto'; }
@@ -114,7 +114,7 @@ function renderHome(){
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=gt>0?Math.max(0,gt-td).toLocaleString('fr-FR')+' km':'—';
   const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl){
     let wVal;
-    if(isAdmin()){
+    if(usesHardPlan()){
       wVal=Math.max(0,32-CW);
     } else {
       let maxW=0;
@@ -177,13 +177,13 @@ function renderHome(){
   // EF pace
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
-  if(efEl) efEl.textContent=efPace?efPace:(isAdmin()?"6'40":'—');
+  if(efEl) efEl.textContent=efPace?efPace:(usesHardPlan()?"6'40":'—');
 
   // ── Bloc course / KPIs selon rôle ──────────────────────────────────────────
   const ob=state.onboarding||{};
   const userCourse=ob.course||null; // '5 km','10 km','Semi-marathon','Marathon','Plaisir','Autre'
   const isPlaisir=isPlaisirMode();
-  const raceDateStr=isAdmin()?null:(ob.date||null);
+  const raceDateStr=usesHardPlan()?null:(ob.date||null);
   // Date de course
   const raceDateEl=document.getElementById('home-race-date');
   if(raceDateEl){
@@ -193,7 +193,7 @@ function renderHome(){
       const courseName=courseLabels[ob.course]||'Course';
       raceDateEl.textContent='🏁 '+courseName+' · '+rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
       raceDateEl.style.display='block';
-    } else if(isAdmin()){
+    } else if(usesHardPlan()){
       raceDateEl.textContent='🏁 Marathon · 18/10/2026';
       raceDateEl.style.display='block';
     } else {
@@ -286,7 +286,7 @@ function renderHome(){
     if(marathonTimeBlock){
       marathonTimeBlock.style.display='block';
       // Restaurer onclick (peut avoir été nullifié par un render Plaisir précédent)
-      marathonTimeBlock.onclick=()=>{ isAdmin()?openMarathonPredModal():openTargetTimeModal(); };
+      marathonTimeBlock.onclick=()=>{ usesHardPlan()?openMarathonPredModal():openTargetTimeModal(); };
     }
     const mainRowEl=document.getElementById('home-header-main-row');
     if(mainRowEl) mainRowEl.style.display='flex';
@@ -308,7 +308,7 @@ function renderHome(){
     // today-date : sous-label du grand chiffre
     const todayDateElR=document.getElementById('today-date');
     if(todayDateElR){
-      if(!isAdmin()&&raceDateStr){
+      if(!usesHardPlan()&&raceDateStr){
         const rd=new Date(raceDateStr);
         todayDateElR.textContent=rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
       } else {
@@ -322,7 +322,7 @@ function renderHome(){
       predBtn.style.cursor='pointer';
       predBtn.style.background=''; predBtn.style.border='';
       // Toujours réassigner onclick (peut avoir été nullifié par le bloc Plaisir)
-      if(isAdmin()) predBtn.onclick=()=>openMarathonPredModal();
+      if(usesHardPlan()) predBtn.onclick=()=>openMarathonPredModal();
       else predBtn.onclick=()=>{ if(typeof openDistancePredModal==='function') openDistancePredModal(userCourse||'Marathon'); };
     }
     // AM entraînement : visible pour admin et athlète avec plan
@@ -338,7 +338,7 @@ function renderHome(){
   // Label objectif dynamique selon la course (isPlaisir déjà géré dans son bloc)
   const goalLabelEl=document.getElementById('home-goal-label');
   if(goalLabelEl && !isPlaisir){
-    if(isAdmin()) goalLabelEl.textContent='🎯 Objectif marathon';
+    if(usesHardPlan()) goalLabelEl.textContent='🎯 Objectif marathon';
     else{
       const lbl={'5 km':'🎯 Objectif 5 km','10 km':'🎯 Objectif 10 km','Semi-marathon':'🎯 Objectif semi','Marathon':'🎯 Objectif marathon','Autre':'🎯 Mon objectif'}[userCourse]||'🎯 Mon objectif';
       goalLabelEl.textContent=lbl;
@@ -348,7 +348,7 @@ function renderHome(){
   const predLabelEl=document.getElementById('h-pred-label');
   const amTrainLabelEl=document.getElementById('h-am-train-label');
   if(!isPlaisir){
-    if(!isAdmin()&&userCourse&&userCourse!=='Plaisir'){
+    if(!usesHardPlan()&&userCourse&&userCourse!=='Plaisir'){
       const trainLabel=(userCourse==='5 km'||userCourse==='10 km')?'/km fractionné':'/km entraînement';
       if(amTrainLabelEl) amTrainLabelEl.textContent=trainLabel;
       const mtEl=document.getElementById('kpi-marathon-time');
@@ -441,7 +441,7 @@ function renderHome(){
         }
         if(_htb) _htb.style.cursor='pointer';
       }
-    } else if(!isAdmin() && !userCourse){
+    } else if(!usesHardPlan() && !userCourse){
       // Pas d'onboarding / pas de plan : incitation à créer
       const goalLblNP=document.getElementById('home-goal-label');
       if(goalLblNP) goalLblNP.textContent='🏁 Aucun plan actif';
@@ -470,14 +470,14 @@ function renderHome(){
       // Temps marathon projeté (admin)
       const pred = buildMarathonPrediction();
       const mtEl=document.getElementById('kpi-marathon-time');
-      if(mtEl) mtEl.textContent = pred.tempsStr || (isAdmin()?(calcMarathonTime(am)||'—'):'—');
+      if(mtEl) mtEl.textContent = pred.tempsStr || (usesHardPlan()?(calcMarathonTime(am)||'—'):'—');
       const amPredEl = document.getElementById('h-am-pred');
       if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
-      const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor=isAdmin()?'pointer':'default';
+      const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor=usesHardPlan()?'pointer':'default';
     }
     const amTrainEl = document.getElementById('kpi-am-training');
     if(amTrainEl){
-      if(isAdmin()){
+      if(usesHardPlan()){
         amTrainEl.textContent = state._am_training_pace || "5'20";
       } else {
         // Base : allure EF (la vraie référence physiologique)
@@ -566,7 +566,7 @@ function renderHome(){
       renfoEl.appendChild(skipCard);
       const renfoProgressEl=document.getElementById('renfo-progress');
       if(renfoProgressEl){renfoProgressEl.style.color='var(--muted)';renfoProgressEl.textContent='—';}
-    } else if(isAdmin()&&w>=30&&w<=32){
+    } else if(usesHardPlan()&&w>=30&&w<=32){
     // ── Mode Affûtage (S30-S32) ─────────────────────────────────────────────
     const _n=new Date();const _today=_n.getFullYear()*10000+(_n.getMonth()+1)*100+_n.getDate();
     const affData=[
@@ -721,7 +721,7 @@ function renderHome(){
         const defaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
         renfoData.forEach(rd => {
           const schedKey = rfk(cwNext, rd.r)+'sched';
-          if(!state[schedKey] && isAdmin()) state[schedKey] = JSON.stringify(defaults[rd.r]);
+          if(!state[schedKey] && usesHardPlan()) state[schedKey] = JSON.stringify(defaults[rd.r]);
           let sched={};try{sched=state[schedKey]?JSON.parse(state[schedKey]):{};}catch(e){}
           const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ')||'À planifier';
           const isPlanned=schedTxt!=='À planifier';
@@ -741,7 +741,7 @@ function renderHome(){
   }
 
   // ── Bannière EF auto-calculée (S1) ──────────────────────────────────────────
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     const efAutoEl=document.getElementById('home-ef-auto-banner');
     if(efAutoEl){
       if(state.ef_pace_auto==='true'&&!state.ef_pace_auto_seen){
@@ -762,7 +762,7 @@ function renderHome(){
   }
 
   // ── Bannière adaptation plan ─────────────────────────────────────────────────
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     let adapted=null;try{adapted=state._plan_adapted?JSON.parse(state._plan_adapted):null;}catch(e){}
     const adaptedEl=document.getElementById('home-adapted-banner');
     if(adapted&&!adapted.seen&&adaptedEl){
@@ -1166,7 +1166,7 @@ function dismissPlanAdapted(){
 }
 
 async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
-  if(isAdmin()) return;
+  if(usesHardPlan()) return;
   if(!kmPlanned||kmPlanned<=0) return;
   const ratio=kmActual/kmPlanned;
   if(ratio>=0.80) return;
@@ -1283,7 +1283,7 @@ async function saveValidationExtra(w,ei){
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   save();
   // Adaptation automatique du plan si km réels < 80% du prévu (ou champ vide = 0 km)
-  if(!isAdmin()){
+  if(!usesHardPlan()){
     const kmPlanned=sExtra.km||0;
     const kmActual=(!isNaN(km)&&km>=0)?km:0;
     await adaptPlanAfterSession(w, ei, kmActual, kmPlanned);
@@ -1308,7 +1308,7 @@ async function saveValidationExtra(w,ei){
   if(document.getElementById('sc-stats').style.display!=='none') renderStats();
   const amImproved=updateMarathonPace();
   // Auto-calcul EF depuis S1 si jamais renseigné
-  if(w===1&&!state.ef_pace&&!isAdmin()){
+  if(w===1&&!state.ef_pace&&!usesHardPlan()){
     window._autoEFChecked=true; // éviter doublon dans renderHome
     tryAutoCalculateEF().then(newEF=>{
       if(newEF){ rendered.plan=false; renderHome(); }

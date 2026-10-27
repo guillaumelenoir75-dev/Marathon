@@ -46,7 +46,9 @@ Chargés dans cet ordre (dépendances respectées) :
 | `validation-import.js` | Validation : import Strava/Garmin, météo |
 | `validation-modals.js` | Validation : modals VO2max, FC repos, objectifs |
 | `notifs.js` | Notifications push côté client |
-| `preps.js` | Compte › « Mes prépas » : enregistrer la prépa en cours (copie figée), liste des prépas, consultation en lecture seule de toute l'app sur une copie (écritures bloquées), suppression |
+| `preps.js` | Compte › « Mes prépas » : enregistrer la prépa en cours (copie figée), liste des prépas, consultation en lecture seule de toute l'app sur une copie (écritures bloquées), suppression ; « Nouvelle prépa » (assistant de création ; l'ancienne prépa n'est retirée qu'à la validation, `state._plan_engine='generated'`) |
+
+**Plan de l'admin** : `usesHardPlan()` (firebase.js) = admin qui suit encore le plan Seine-Eure écrit en dur (config.js : `weeks`, `CW`…). Après « Nouvelle prépa », `state._plan_engine='generated'` : l'admin suit le moteur de plan généré (comme les athlètes) en gardant ses droits (`isAdmin()`). Les tests liés au plan utilisent `usesHardPlan()`, les droits admin `isAdmin()`. Les migrations admin (régénération du plan Seine-Eure) ne tournent que si `usesHardPlan()`.
 
 ## Modules backend (`functions/`)
 
