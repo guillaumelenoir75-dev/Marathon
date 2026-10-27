@@ -90,6 +90,7 @@ function _renderPrepsBody(){
     + '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 10px;">' + (cur.date ? 'Course le ' + _prepDate(cur.date) : 'Sans date de course') + ' · ' + cs.weeks + ' semaines · ' + cs.done + ' séances réalisées · ' + cs.km + ' km</p>'
     + (already ? '<p style="font-size:12.5px;color:#15803D;font-weight:700;margin:0 0 8px;">✓ Enregistrée le ' + _prepDate(already.savedAt) + '</p>' : '')
     + '<button onclick="prepShowForm()" style="width:100%;background:#0C447C;color:#fff;border:none;' + btn + '">' + (already ? '🔄 Mettre à jour l\'enregistrement' : '📦 Enregistrer cette prépa') + '</button>'
+    + (!usesHardPlan() && cs.planned > 0 ? '<button onclick="prepDiscardCurrent()" style="width:100%;margin-top:8px;background:#fff;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑 Supprimer cette prépa (sans l\'enregistrer)</button>' : '')
     + '<div id="prep-form" style="margin-top:12px;display:none;flex-direction:column;gap:8px;">'
     +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Nom<input id="pf-title" value="' + _prepEsc(already ? already.title : cur.title) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
     +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Date de la course<input id="pf-date" type="date" value="' + _prepEsc(cur.date) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
@@ -163,6 +164,22 @@ function prepDelete(id){
 
 // ─── Nouvelle prépa ────────────────────────────────────────────────────────
 // L'assistant de création s'ouvre ; l'ancienne prépa n'est retirée qu'à la validation (prepApplyNew, appelé par saveOnboarding)
+// Prépa en cours abandonnée (ex. un essai) : programme retiré sans copie ; tes réglages sont conservés
+function prepDiscardCurrent(){
+  if(_prepView || usesHardPlan()) return;
+  const cur = _prepCurrentInfo(state);
+  _showConfirmModal({ icon: '🗑', title: 'Supprimer « ' + cur.title + ' » ?', message: 'Le programme et ses séances sont supprimés définitivement, sans être enregistrés dans Mes prépas. Tes réglages (FC, VO2max, chaussures, Strava…) et tes prépas enregistrées sont conservés.',
+    confirmLabel: 'Supprimer', confirmStyle: 'background:#e53e3e;color:#fff;', onConfirm: async function(){
+      try {
+        await prepApplyNew();
+        syncPlanCompat();
+        if(typeof rendered !== 'undefined') rendered.plan = false;
+        try { renderHome(); renderPlan(); } catch(e) {}
+        _renderPrepsBody();
+        if(typeof showToast === 'function') showToast('Prépa supprimée');
+      } catch(e) { alert('Suppression impossible (' + e.message + ').'); }
+    } });
+}
 function prepNew(){
   if(_prepView) return;
   const cur = _prepCurrentInfo(state), cs = _prepStats(state);
