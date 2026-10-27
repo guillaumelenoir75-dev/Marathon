@@ -6,7 +6,7 @@
 const _PREP_SKIP = /^(_coach_history|_coach_unread|_brief|whoop_|strava_token|_push_sub|_ratelimit|_open_coach|_last_location|_wakeup_|_geo_granted|_shaker_run_ts)/;
 let _prepIndex = null, _prepView = null, _prepPendingNew = false, _prepNext = null;
 // clés propres à une prépa (retirées au démarrage d'une nouvelle) ; profil, chaussures, FC, VO2max, Strava… sont conservés
-const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+(r\d+|skip)|_congrats_sent_w|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$|_prep_id$|_prep_autosave$)/;
+const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+(r\d+|skip)|_congrats_sent_w|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$|_prep_id$|_prep_autosave$|_race_result$)/;
 
 function _prepUid(){ const u = firebase.auth().currentUser; return u ? u.uid : null; }
 function _prepRef(path){ return firebase.database().ref('users/' + _prepUid() + '/' + path); }
@@ -21,7 +21,7 @@ function _prepCurrentInfo(st){
   }
   const ob = st.onboarding || {}, date = ob.date || '', nm = ob.race_name || ob.course || 'Ma prépa', yr = String(date).slice(0, 4);
   return { title: nm + (date && nm.indexOf(yr) < 0 ? ' ' + yr : ''), race: ob.race_name || ob.course || '',
-           date: date, start: st.plan_start_date || ob.plan_start_date || '', dist: ob.course || '', replay: '', result: '', note: '' };
+           date: date, start: st.plan_start_date || ob.plan_start_date || '', dist: ob.course || '', replay: '', result: (st._race_result || {}).time || '', note: '' };
 }
 // Bilan : semaines, séances réalisées / prévues, km réalisés
 function _prepStats(st){
@@ -275,7 +275,8 @@ function _renderPrepsBody(){
       +   '<span class="pp-pill now"><span class="pp-dot"></span>En cours' + (cs.planned ? ' · semaine ' + cw + '/' + tot : '') + '</span>'
       +   '<p class="pp-title">' + _ppTitle(cur.title) + '</p>'
       +   '<p class="pp-sub">' + [cur.dist, cur.date ? _prepDate(cur.date, { weekday: 'long', day: 'numeric', month: 'long' }) : 'sans date de course', R && R.objectif && R.objectif !== 'non défini' ? 'objectif ' + _prepEsc(R.objectif) : ''].filter(Boolean).join(' · ') + '</p></div>'
-      +   (j != null && j >= 0 ? '<div class="pp-big"><b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b><span>' + (j === 0 ? 'c\'est aujourd\'hui' : 'avant la course') + '</span></div>' : '') + '</div>';
+      +   (cur.result ? '<div class="pp-big gold"><b>' + _prepEsc(cur.result) + '</b><span>temps officiel</span></div>'
+          : j != null && j >= 0 ? '<div class="pp-big"><b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b><span>' + (j === 0 ? 'c\'est aujourd\'hui' : 'avant la course') + '</span></div>' : '') + '</div>';
     if(cs.planned){
       h += '<div class="pp-chart"><div class="pp-chart-h"><span>Volume par semaine</span><span>' + cs.done + '/' + cs.planned + ' séances</span></div>'
         +   _ppBars(shape, 'now', cw)
@@ -697,7 +698,7 @@ async function prepAutoSave(force){
   state._prep_id = id; state._prep_autosave = today;
   Object.keys(state).forEach(function(k){ if(!_PREP_SKIP.test(k) && state[k] !== undefined) snap[k] = state[k]; });
   const meta = { title: old.title || cur.title, race: cur.race, dist: cur.dist, date: cur.date || old.date || '', start: cur.start || '',
-    result: old.result || '', note: old.note || '', replay: old.replay || '', stats: cs, shape: _prepShape(state), savedAt: today, auto: true, admin: false };
+    result: old.result || cur.result || '', note: old.note || '', replay: old.replay || '', stats: cs, shape: _prepShape(state), savedAt: today, auto: true, admin: false };
   await _prepRef('preps/' + id).set(snap);
   await _prepRef('prep_index/' + id).set(meta);
   delete _prepSnapCache[id];
@@ -801,4 +802,65 @@ function prepNextDelete(){
     confirmLabel: 'Supprimer', confirmStyle: 'background:#e53e3e;color:#fff;', onConfirm: async function(){
       await _prepRef('prep_next').remove(); _prepNext = null; delete _prepSnapCache['#next']; _renderPrepsBody();
     } });
+}
+
+// ─── Résultat de course : temps officiel → fiche de la prépa + records personnels ───
+const PREP_RECORD_KEYS = { '5 km': 'record_5km', '10 km': 'record_10km', 'Semi-marathon': 'record_semi', 'Marathon': 'record_marathon' };
+function prepTimeSec(t){
+  const p = String(t || '').trim().replace(/\s/g, '').replace(/[’'h]/g, ':').replace(/"$/, '').split(':').filter(function(x){ return x !== ''; }).map(Number);
+  if(!p.length || p.some(isNaN)) return null;
+  const s = p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : null;
+  return s > 0 ? s : null;
+}
+function prepTimeFmt(sec){
+  sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(s).padStart(2, '0');
+}
+// catégorie de record d'après la distance de la course
+function prepRaceCategory(km, course){
+  km = parseFloat(km);
+  if(km > 4.5 && km < 5.5) return '5 km'; if(km > 9.5 && km < 10.5) return '10 km';
+  if(km > 20.5 && km < 21.6) return 'Semi-marathon'; if(km > 41.5 && km < 43) return 'Marathon';
+  return PREP_RECORD_KEYS[course] ? course : null;
+}
+// meilleur temps connu sur une distance : records saisis + temps des prépas enregistrées
+function prepBestTime(cat, index){
+  let best = null;
+  const take = function(t, src){ const sec = prepTimeSec(t); if(sec && (!best || sec < best.sec)) best = { sec: sec, time: prepTimeFmt(sec), src: src }; };
+  const key = PREP_RECORD_KEYS[cat]; if(key) take(state[key], 'record');
+  const idx = index || _prepIndex || {};
+  Object.keys(idx).forEach(function(k){ const p = idx[k]; if(p.result && p.dist === cat) take(p.result, p.title); });
+  return best;
+}
+// enregistre le temps officiel de la course de la prépa en cours ; renvoie { time, cat, pr, prev }
+async function prepSaveRaceResult(time, date){
+  const sec = prepTimeSec(time); if(!sec) return null;
+  const R = prepRace(), cat = prepRaceCategory(R.km, R.course);
+  let idx = _prepIndex; try { idx = (await _prepRef('prep_index').once('value')).val() || {}; _prepIndex = idx; } catch(e) {}
+  const mine = state._prep_id && idx[state._prep_id] ? state._prep_id : null;
+  const others = {}; Object.keys(idx || {}).forEach(function(k){ if(k !== mine) others[k] = idx[k]; });
+  const prevRes = state._race_result && prepTimeSec(state._race_result.time);
+  const key = PREP_RECORD_KEYS[cat];
+  // record précédent : sans le temps de cette même course (en cas de correction)
+  const saved = key ? state[key] : null; if(key && prevRes && prepTimeSec(saved) === prevRes && state._race_record_prev !== undefined) state[key] = state._race_record_prev;
+  const prev = cat ? prepBestTime(cat, others) : null;
+  const txt = prepTimeFmt(sec), pr = !!cat && (!prev || sec < prev.sec);
+  const up = { _race_result: { time: txt, date: date || _prepToday(), dist: cat || R.course || '' } };
+  if(key){
+    up._race_record_prev = state[key] || null;
+    if(pr) up[key] = txt; else if(state[key] !== saved) up[key] = state[key] || null;
+  }
+  Object.keys(up).forEach(function(k){ if(up[k] === null) delete state[k]; else state[k] = up[k]; });
+  try { await dbRef.update(up); } catch(e) {}
+  try {
+    await prepAutoSave(true);                                // fiche de la prépa à jour (temps, bilan)
+    const id = state._prep_id;
+    if(id){
+      const f = { result: txt }; const cur = (_prepIndex || {})[id] || {};
+      if(pr && (!cur.note || cur.note === 'Record personnel')) f.note = 'Record personnel';
+      await _prepRef('prep_index/' + id).update(f);
+      if(_prepIndex && _prepIndex[id]) Object.assign(_prepIndex[id], f);
+    }
+  } catch(e) { console.warn('[prépa] résultat', e); }
+  return { time: txt, cat: cat, pr: pr, prev: prev };
 }

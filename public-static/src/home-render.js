@@ -1062,6 +1062,12 @@ function openValidationModalExtra(w,ei){
         <input type="date" id="val-date" value="${(()=>{const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')})()}"
           style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
       </div>
+      ${s.type==='race'?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;">
+        <p style="font-size:12px;font-weight:800;color:#92400E;margin-bottom:6px;">🏁 Temps officiel (puce)</p>
+        <input type="text" inputmode="numeric" id="val-official" value="${(state._race_result||{}).time||''}" placeholder="${(prepRace().km||10)>=20?'1:29:45':'41:30'}" maxlength="8"
+          style="background:#fff;border:2px solid #FDE68A;border-radius:10px;padding:10px;font-size:22px;font-weight:900;color:#92400E;width:100%;outline:none;text-align:center;font-variant-numeric:tabular-nums;">
+        <p style="font-size:11px;color:#92400E;margin-top:5px;line-height:1.35;">Sur ${prepRace().km||''} km, sans l'échauffement : il est enregistré dans ta prépa et compare tes records.</p>
+      </div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
@@ -1323,8 +1329,22 @@ async function saveValidationExtra(w,ei){
     }
     window._stravaActivityData=null;
   }
+  // Course : temps officiel → fiche de la prépa et records
+  const _offEl=document.getElementById('val-official'), _offVal=_offEl?_offEl.value.trim():'';
+  if(sExtra.type==='race'&&_offVal) perf.official=_offVal;
   if(Object.keys(perf).length>0) state[k+'_perf']=JSON.stringify(perf);
   save();
+  if(sExtra.type==='race'&&_offVal&&typeof prepBestTime==='function'){
+    // pour l'analyse du Coach (construite juste après) : temps, record précédent
+    const _cat=prepRaceCategory(prepRace().km, prepRace().course), _b=_cat?prepBestTime(_cat):null, _ts=prepTimeSec(_offVal);
+    window._raceOfficial=_ts?{time:prepTimeFmt(_ts), prev:_b&&_b.sec!==_ts?_b.time:null, pr:!!_cat&&(!_b||_ts<_b.sec)}:null;
+  }
+  if(sExtra.type==='race'&&_offVal&&typeof prepSaveRaceResult==='function'){
+    prepSaveRaceResult(_offVal, dateVal||null).then(r=>{
+      if(!r||typeof showToast!=='function') return;
+      showToast(r.pr?('🏅 Nouveau record '+(r.cat||'')+' : '+r.time+(r.prev?' (ancien '+r.prev.time+')':'')):('Temps officiel enregistré : '+r.time));
+    }).catch(()=>{});
+  }
   // Adaptation automatique du plan si km réels < 80% du prévu (ou champ vide = 0 km)
   if(!usesHardPlan()){
     const kmPlanned=sExtra.km||0;

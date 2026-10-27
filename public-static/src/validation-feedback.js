@@ -441,6 +441,8 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Données de base
   analysisContext.type = s.type;
   analysisContext.titre = sessionTitle(s);
+  if(s.type==='race'&&window._raceOfficial){ const o=window._raceOfficial; window._raceOfficial=null;
+    analysisContext.temps_officiel={ temps:o.time, distance:prepRace().km+' km', objectif:prepRace().objectif, record_precedent:o.prev||null, nouveau_record:!!o.pr }; }
   analysisContext.kmPlan = s.km;
   analysisContext.chaussure = s.shoe || 'non renseigné';
   analysisContext.kmRealise = km;
