@@ -26,8 +26,14 @@ const typeToTitle = {
   rest: "Récupération"
 };
 
-function getWeekStartDate(weekNum) {
-  const baseDate = new Date(2026, 2, 9);
+// Lundi de la semaine weekNum : plan Seine-Eure (9 mars 2026) ou, pour une prépa générée, lundi de plan_start_date
+function getWeekStartDate(weekNum, state) {
+  let baseDate = new Date(2026, 2, 9);
+  if (state && state._plan_engine && state.plan_start_date) {
+    const p = String(state.plan_start_date).slice(0, 10).split('-').map(Number);
+    baseDate = new Date(p[0], p[1] - 1, p[2]);
+    const dw = baseDate.getDay(); baseDate.setDate(baseDate.getDate() + (dw === 0 ? -6 : 1 - dw));
+  }
   const target = new Date(baseDate);
   target.setDate(baseDate.getDate() + (weekNum - 1) * 7);
   return target;
@@ -103,7 +109,7 @@ exports.calendar = onRequest(async (req, res) => {
       if (extraTypesByWeek[match[1]] && extraTypesByWeek[match[1]].has(session.type)) return;
       const ws = parseInt(match[1]);
       const [h, m] = session.sched_time.split(":").map(Number);
-      const weekStart = getWeekStartDate(ws);
+      const weekStart = getWeekStartDate(ws, state);
       const eventDate = new Date(weekStart);
       eventDate.setDate(weekStart.getDate() + (session.sched_day - 1));
       eventDate.setHours(h, m, 0, 0);
@@ -141,7 +147,7 @@ exports.calendar = onRequest(async (req, res) => {
       if (base.sched_date) {
         eventDate = new Date(base.sched_date + 'T' + timeStr + ':00');
       } else {
-        const weekStart = getWeekStartDate(ws);
+        const weekStart = getWeekStartDate(ws, state);
         eventDate = new Date(weekStart);
         eventDate.setDate(weekStart.getDate() + (base.sched_day - 1));
         eventDate.setHours(h, m, 0, 0);
@@ -164,7 +170,7 @@ exports.calendar = onRequest(async (req, res) => {
       const ws = parseInt(match[1]);
       const r = parseInt(match[2]);
       const [h, m] = sched.time.split(":").map(Number);
-      const weekStart = getWeekStartDate(ws);
+      const weekStart = getWeekStartDate(ws, state);
       const eventDate = new Date(weekStart);
       eventDate.setDate(weekStart.getDate() + (sched.day - 1));
       eventDate.setHours(h, m, 0, 0);

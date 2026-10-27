@@ -960,6 +960,47 @@ function toggleDoneExtra(w,ei){
   }
 }
 
+// Allure calculée depuis km + durée dans la fenêtre de validation (appelée par val-km / val-dur)
+function calcPace(){
+  const kmEl=document.getElementById('val-km');
+  const durEl=document.getElementById('val-dur');
+  const paceEl=document.getElementById('val-pace');
+  if(!kmEl||!durEl||!paceEl) return;
+  const km=parseFloat(kmEl.value);
+  const durStr=durEl.value.trim();
+  if(!km||km<=0||!durStr) return;
+  const parts=durStr.split(':');
+  let totalMin;
+  if(parts.length===3){
+    // Format h:mm:ss
+    const h=parseInt(parts[0])||0;
+    const m=parseInt(parts[1])||0;
+    const s=parseInt(parts[2])||0;
+    if(isNaN(m)||m<0||m>59||isNaN(s)||s<0||s>59) return;
+    totalMin=h*60+m+s/60;
+  } else if(parts.length===2){
+    const left=parseInt(parts[0])||0;
+    const right=parseInt(parts[1])||0;
+    if(isNaN(right)||right<0||right>59) return;
+    // Si left >= 10 c'est probablement mm:ss, sinon h:mm
+    if(left>=10){
+      totalMin=left+right/60;
+    } else {
+      totalMin=left*60+right;
+    }
+  } else {
+    return;
+  }
+  if(totalMin<=0) return;
+  const paceMin=totalMin/km;
+  let paceMinInt=Math.floor(paceMin);
+  let paceSec=Math.round((paceMin-paceMinInt)*60);
+  if(paceSec===60){paceMinInt++;paceSec=0;}
+  const paceStr=`${paceMinInt}:${paceSec.toString().padStart(2,'0')}`;
+  paceEl.value=paceStr;
+  paceEl.style.borderColor='#3B6D11';
+}
+
 function openValidationModalExtra(w,ei){
   // Reset Strava, météo et WHOOP comme pour openValidationModal
   window._meteoValidationData = null;

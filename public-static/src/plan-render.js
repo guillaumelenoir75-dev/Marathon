@@ -457,6 +457,9 @@ function closeModal(){
   if(!mc) return;
   const overlay=mc.firstElementChild;
   const box=overlay&&overlay.querySelector('.modal-box');
+  // fenêtres présentes à la fermeture : seules elles sont retirées après l'animation
+  // (une fenêtre ouverte juste après, ex. « Modifier mon objectif », ne doit pas disparaître)
+  const closing=Array.from(mc.children);
   if(overlay && box){
     // Stopper les animations CSS en cours
     overlay.style.animation='none';
@@ -468,7 +471,7 @@ function closeModal(){
     overlay.style.transition='transform 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease';
     overlay.style.transform='translateY(100%)';
     overlay.style.opacity='0';
-    setTimeout(()=>{mc.innerHTML='';_prefilledModif=null;_selectedModifSi=null;},520);
+    setTimeout(()=>{closing.forEach(el=>el.remove());_prefilledModif=null;_selectedModifSi=null;},520);
   } else if(mc){
     mc.innerHTML='';_prefilledModif=null;_selectedModifSi=null;
   }

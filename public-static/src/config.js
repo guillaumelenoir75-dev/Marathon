@@ -34,7 +34,8 @@ function getAthleteMaxWeek(){
 }
 
 function getEffectiveCW(){
-  return usesHardPlan()?CW:getAthleteCW();
+  // programme généré : jamais au-delà de sa dernière semaine (après la course, on reste sur la semaine de course)
+  return usesHardPlan()?CW:Math.min(getAthleteCW(),Math.max(1,getAthleteMaxWeek()));
 }
 
 // Km total planifié pour une semaine athlète (extra_w*)
@@ -311,6 +312,7 @@ function onDurInput(el){
   let v=el.value.replace(/[^\d:]/g,'');
   el.value=v;
   if(typeof calcPerfEditPace==='function') calcPerfEditPace();
+  if(typeof calcPace==='function'&&document.getElementById('val-km')) calcPace();   // fenêtre de validation
 }
 function onPaceInput(el){
   let v=el.value.replace(/[^\d:]/g,'');

@@ -702,6 +702,12 @@ function saveAdd(ws){
   if(ei>20){ alert('Limite de 21 séances extra atteinte pour cette semaine.'); return; }
   const extraData = { d, km, type, shoe, _uid: 'ex_' + Date.now().toString(36), _seq: 0 };
   if(schedDay)  extraData.sched_day  = schedDay;
+  // date de la séance (comme les séances du programme), d'après le lundi de la semaine
+  if(schedDay && state.plan_start_date && (typeof usesHardPlan!=='function' || !usesHardPlan())){
+    const sd=new Date(String(state.plan_start_date).slice(0,10)+'T12:00:00'); const dw=sd.getDay();
+    sd.setDate(sd.getDate()+(dw===0?-6:1-dw)+(ws-1)*7+(schedDay-1));
+    extraData.sched_date=sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');
+  }
   if(schedTime) extraData.sched_time = schedTime;
   state['extra_w' + ws + '_s' + ei] = JSON.stringify(extraData);
   save();
@@ -898,6 +904,14 @@ function openEditExtraModal(ws, ei){
   if(s.type==='long') renderLongBlocks();
   if(s.type!=='long'&&s.type!=='tempo'&&s.type!=='frac') setTimeout(()=>{ renderLongBlocks(); updateExEditEfPreview(); }, 0);
   if(s.type==='tempo'||s.type==='frac') setTimeout(()=>{ calcEfRestantForPrefix('exedit'); selectTempoEfPace('exedit', document.getElementById('exedit-ef-pace')?.value||getBestEfPace()||'6:40'); }, 50);
+  // état initial des champs de consigne : si l'utilisateur n'y touche pas, la description d'origine est conservée
+  _exEditInit=null; setTimeout(()=>{ _exEditInit=_exEditSnapshot(); }, 150);
+}
+let _exEditInit=null;
+function _exEditSnapshot(){
+  const mc=document.getElementById('modal-container'); if(!mc) return null;
+  const skip={'exedit-km':1,'exedit-shoe':1,'exedit-type':1,'sched-day':1,'sched-hour':1,'sched-min':1};
+  return JSON.stringify(Array.from(mc.querySelectorAll('input,select,textarea')).filter(el=>el.id&&!skip[el.id]).map(el=>el.id+'='+(el.type==='checkbox'?el.checked:el.value)));
 }
 
 function saveExtraEdit(ws, ei){
@@ -937,14 +951,22 @@ function saveExtraEdit(ws, ei){
     if(eb.error){ alert(eb.error); return; }
     if(eb.detail) detail=eb.detail;
   }
-  const d=detail?`${name}|${detail}`:name;
   let existing2={};try{existing2=JSON.parse(state[`extra_w${ws}_s${ei}`]||'{}');}catch(e){}
-  const updatedExtra = {d, km, type, shoe, _uid: existing2._uid || ('ex_' + Date.now().toString(36)), _seq: (existing2._seq || 0) + 1};
+  // champs de consigne inchangés → on garde la description d'origine (ex. consignes détaillées d'un programme fourni)
+  const descUnchanged=_exEditInit&&type===existing2.type&&existing2.d&&_exEditSnapshot()===_exEditInit;
+  const d=descUnchanged?existing2.d:(detail?`${name}|${detail}`:name);
+  // on part de la séance existante pour conserver ses autres informations (date, origine…)
+  const updatedExtra = Object.assign({}, existing2, {d, km, type, shoe, _uid: existing2._uid || ('ex_' + Date.now().toString(36)), _seq: (existing2._seq || 0) + 1});
   // Sauvegarder le créneau depuis le formulaire (buildSchedFieldsHtml génère sched-day/sched-hour/sched-min)
   const newSchedDay = parseInt((document.getElementById('sched-day')||{}).value)||undefined;
   const newSchedH   = (document.getElementById('sched-hour')||{}).value;
   const newSchedM   = (document.getElementById('sched-min') ||{}).value;
   if(newSchedDay){
+    // jour changé : la date suit, dans la même semaine
+    if(existing2.sched_date&&existing2.sched_day&&newSchedDay!==Number(existing2.sched_day)){
+      const nd=new Date(existing2.sched_date+'T12:00:00'); nd.setDate(nd.getDate()+(newSchedDay-Number(existing2.sched_day)));
+      updatedExtra.sched_date=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
+    }
     updatedExtra.sched_day  = newSchedDay;
     updatedExtra.sched_time = String(newSchedH||'08').padStart(2,'0')+':'+String(newSchedM||'00').padStart(2,'0');
   } else if(existing2.sched_day) {
