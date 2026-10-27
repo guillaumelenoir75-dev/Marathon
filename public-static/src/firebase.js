@@ -123,6 +123,7 @@ function initFirebase(){
               migrateState();
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
+              if(typeof prepShortDescV1==='function') prepShortDescV1();
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               if(dbRef) dbRef.set(state).catch(()=>{}); // persister les migrations
               firebaseReady=true;
@@ -130,6 +131,7 @@ function initFirebase(){
               applyRoleUI();
               showScreen('home');
               if(currentUserRole==='athlete' && !state.onboarding) showOnboarding(false);
+              if(typeof prepDailyTasks==='function') setTimeout(prepDailyTasks, 2000);   // prépa à venir, enregistrement du jour, bascule
               // Message SW reçu avant init → ouvrir le coach maintenant
               if (window._pendingCoachOpen) { window._pendingCoachOpen = false; openCoachFromNotif(); }
               // Récupérer la météo réelle pour les séances passées (silencieux)
@@ -208,6 +210,7 @@ function initFirebase(){
               migrateState();
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
+              if(typeof prepShortDescV1==='function') prepShortDescV1();
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               firebaseReady=true;
               hideLoginScreen();
