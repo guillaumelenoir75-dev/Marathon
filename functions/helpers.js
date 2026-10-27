@@ -143,7 +143,9 @@ async function sendPushToUser(db, uid, sub, vapidPublic, vapidPrivate, title, bo
   }
 }
 
-function getCurrentWeek() {
+// Semaine en cours : plan Seine-Eure (dates fixes) ou, si st est l'état d'une prépa générée (st._plan_engine), depuis plan_start_date
+function getCurrentWeek(st) {
+  if (st && typeof st === 'object' && st._plan_engine) return weekFromStart(st.plan_start_date, totalWeeksFor(st));
   const weekDates = [
     '2026-03-09','2026-03-16','2026-03-23','2026-03-30',
     '2026-04-06','2026-04-13','2026-04-20','2026-04-27',
@@ -162,6 +164,43 @@ function getCurrentWeek() {
   return Math.min(cw,32);
 }
 
+// ─── Prépa en cours de l'admin (Compte › Mes prépas › Nouvelle prépa → state._plan_engine = 'generated') ───
+function weekFromStart(start, total) {
+  if (!start) return 1;
+  // même calcul que l'app (getAthleteCW) : semaines écoulées depuis plan_start_date (un lundi)
+  const n = Math.floor(Math.floor((Date.now() - new Date(String(start).slice(0, 10)).getTime()) / 86400000) / 7) + 1;
+  return Math.max(1, Math.min(total || 60, n));
+}
+function totalWeeksFor(st) {
+  if (!st || !st._plan_engine) return 32;
+  try { const n = JSON.parse(st.plan_config || '{}').numWeeks; if (n > 0) return n; } catch (e) {}
+  let t = 0; for (let ws = 1; ws <= 60; ws++) { if (st['extra_w' + ws + '_s0'] !== undefined) t = ws; else if (ws > t + 4) break; }
+  return t || 1;
+}
+function getPrepInfo(st) {
+  if (!st || !st._plan_engine) return { generated: false, total: 32, course: 'Marathon', name: 'Marathon Seine-Eure', date: '2026-10-18', label: '18 octobre 2026', objectif: 'Sub 4h' };
+  const ob = st.onboarding || {}, d = ob.date || '';
+  const label = d ? new Date(d + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' }) : 'date non définie';
+  const tt = String(st.target_time || ob.target_time || '').replace(/^00:/, '').replace(/^0(?=\d:)/, '');
+  return { generated: true, total: totalWeeksFor(st), course: ob.course || 'course', name: ob.race_name || ob.course || 'Course objectif', date: d, label, objectif: tt || 'non défini' };
+}
+function prepObjectiveText(st) {
+  const p = getPrepInfo(st);
+  return `Prépare : ${p.course}${p.name && p.name !== p.course ? ' « ' + p.name + ' »' : ''} le ${p.label}, objectif ${p.objectif}. Programme de ${p.total} semaines (prépa précédente : marathon Seine-Eure du 18 octobre 2026, terminé).`;
+}
+// Type de semaine d'une prépa générée (lu dans meta_w*) ; le plan Seine-Eure garde sa table fixe
+function weekTypeFor(st, ws) {
+  try { const m = JSON.parse(st['meta_w' + ws] || '{}'); return m.isRecov ? 'décharge' : m.isTaper ? 'affûtage' : 'charge'; } catch (e) { return 'charge'; }
+}
+// Lecture légère des clés de la prépa de l'admin (sans charger tout l'état)
+async function loadPrepState(db) {
+  const keys = ['_plan_engine', 'plan_start_date', 'plan_config', 'onboarding', 'target_time'];
+  const vals = await Promise.all(keys.map(k => db.ref(`${ADMIN_STATE}/${k}`).once('value').then(s => s.val()).catch(() => null)));
+  const st = {}; keys.forEach((k, i) => { if (vals[i] !== null && vals[i] !== undefined) st[k] = vals[i]; });
+  return st;
+}
+async function adminCurrentWeek(db) { return getCurrentWeek(await loadPrepState(db)); }
+
 async function buildNotifContext(state, cw) {
   const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const joursLong=['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
@@ -169,7 +208,8 @@ async function buildNotifContext(state, cw) {
   const now=new Date();
   const dayOfWeek=now.getDay()===0?7:now.getDay();
   const todayStr=now.toISOString().slice(0,10);
-  const typeSem=cw<=32?(typesSemaine[cw]||'charge'):'charge';
+  const _gen=state&&state._plan_engine;
+  const typeSem=_gen?weekTypeFor(state,cw):(cw<=32?(typesSemaine[cw]||'charge'):'charge');
   const fcToday=state[`fc_repos_${todayStr}`]||null;
   const seancesDone=[],seancesRestantes=[],seancesAujourdHui=[],seancesNext=[];
   let seanceRunAujourdhui=null; // premier run non-supprimé non-fait du jour
@@ -234,8 +274,8 @@ async function buildNotifContext(state, cw) {
   let efPace=null;
   for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`s${ws}i${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;}
   let kmSemaine=0;if(!state._plan_migrated){for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}}let _exi=0;while(_exi<=50&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
-  const cwNext=Math.min(cw+1,32);
-  const typeSemNext=cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge';
+  const cwNext=Math.min(cw+1,totalWeeksFor(state));
+  const typeSemNext=_gen?weekTypeFor(state,cwNext):(cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge');
   for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
   return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw,seanceRunAujourdhui};
 }
@@ -405,7 +445,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   const system = `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
 PROFIL :
-- Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.
+- ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
 - FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
 - Montre Garmin Forerunner 165.
 - Lundi midi : séance bodyhit (électrostimulation).
@@ -558,7 +598,7 @@ async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
   const system = `Tu es le coach running de Guillaume. Ta mission : rédiger un bilan de semaine court, personnalisé et direct. Tu t'adresses DIRECTEMENT à lui en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
 PROFIL :
-- Prépare un marathon (18 octobre 2026), objectif Sub 4h. ${32-cw} semaines restantes.
+- ${state&&state._plan_engine?prepObjectiveText(state)+' '+(totalWeeksFor(state)-cw)+' semaines restantes.':'Prépare un marathon (18 octobre 2026), objectif Sub 4h. '+(32-cw)+' semaines restantes.'}
 - FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
 
 STRUCTURE OBLIGATOIRE — dans cet ordre exact, chaque section séparée par une ligne vide :
@@ -588,7 +628,7 @@ RÈGLES :
 - Jamais "Guillaume" dans le corps du texte.
 - 3 blocs maximum, dans l'ordre exact ci-dessus.`;
 
-  const userMsg = `Semaine S${cw} (${typeSem}) — ${32-cw} semaines avant le marathon.
+  const userMsg = `Semaine S${cw} (${typeSem}) — ${totalWeeksFor(state)-cw} semaines avant ${state&&state._plan_engine?'la course objectif':'le marathon'}.
 Séances validées : ${seancesDone.length}/${seancesDone.length + seancesManquees.length}
 Détail : ${seancesDone.join(', ') || 'aucune'}
 Séances manquées : ${seancesManquees.join(', ') || 'aucune'}
@@ -616,6 +656,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
+  totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,
   ADMIN_UID,
   ADMIN_STATE,

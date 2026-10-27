@@ -121,6 +121,7 @@ function initFirebase(){
               const data=snapshot.val();
               if(data) state=data;
               migrateState();
+              if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               if(dbRef) dbRef.set(state).catch(()=>{}); // persister les migrations
               firebaseReady=true;
               hideLoginScreen();
@@ -203,6 +204,7 @@ function initFirebase(){
 
             },(error)=>{
               migrateState();
+              if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               firebaseReady=true;
               hideLoginScreen();
               showScreen('home');

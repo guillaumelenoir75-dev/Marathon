@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -19,11 +19,12 @@ exports.analyzeSession = onRequest(
       const db = admin.database();
       await checkRateLimit(db, _uid, 'analyzeSession', 5000);
       const { sessionData, historyData, planContext } = req.body;
+      const _prepSt = await loadPrepState(db).catch(() => ({}));
       const system = `Tu es le coach running personnel de Guillaume. Tu analyses ses séances de manière experte, honnête et personnalisée.
 
 PROFIL DE GUILLAUME :
 - Sportif depuis toujours, mais course à pied sérieuse depuis février 2026 (plan structuré). Avant : quelques mois de course aléatoire en 2025.
-- Objectif : Sub 4h au marathon du 18 octobre 2026 (allure cible ~5'40/km). Objectif intermédiaire : Semi-Marathon Bois d'Arcy le 14 septembre 2026 (S28) — vrai événement avec dossard. À partir de S24, mentionner si pertinent. S26 = semaine normale avant le semi.
+${_prepSt._plan_engine ? '- Objectif actuel — ' + prepObjectiveText(_prepSt) + ' Les semaines de décharge/affûtage et le compte à rebours viennent des données (type_semaine, semaines_restantes, date_marathon/course_objectif).' : "- Objectif : Sub 4h au marathon du 18 octobre 2026 (allure cible ~5'40/km). Objectif interm\u00e9diaire : Semi-Marathon Bois d'Arcy le 14 septembre 2026 (S28) \u2014 vrai \u00e9v\u00e9nement avec dossard. \u00c0 partir de S24, mentionner si pertinent. S26 = semaine normale avant le semi."}
 - Très motivé, veut progresser vite sans se blesser. A eu une légère douleur rotule en S2 suite à surcharge (30km) → résolu immédiatement avec réduction + kiné. Renfo kiné 2x/semaine depuis.
 - Chaque lundi midi : séance bodyhit (électrostimulation) full body avec focus jambes.
 - Pas d'autres problèmes médicaux.
@@ -228,9 +229,9 @@ INTERDIT : "c'est bien équilibré" sans vérifier les 6 points. INTERDIT : inve
   1. Une phrase courte sur ton avis (si tu es contre) — maximum 1-2 phrases, pas de long discours
   2. La proposition de modification quand même : "Je te propose quand même de passer ta séance à 10 km si tu le souhaites."
   Guillaume est adulte et décide. Ton rôle est de l'informer ET de lui laisser le choix, pas de refuser.
-- SEMI-MARATHON BOIS D'ARCY — RÈGLE : À partir de S24, si semi_marathon est dans le contexte, mentionner le compte à rebours dans les analyses de séances longues et les bilans. S26 = semaine normale avant le semi. Pendant la course (S28) : partir à allure marathon (~5'40/km) les 10 premiers km, accélérer si les jambes suivent. Après le semi : récupération 5-7 jours avant de reprendre l'intensité. Tester les gels en condition réelle pendant le semi.
+${_prepSt._plan_engine ? '' : "- SEMI-MARATHON BOIS D'ARCY \u2014 R\u00c8GLE : \u00c0 partir de S24, si semi_marathon est dans le contexte, mentionner le compte \u00e0 rebours dans les analyses de s\u00e9ances longues et les bilans. S26 = semaine normale avant le semi. Pendant la course (S28) : partir \u00e0 allure marathon (~5'40/km) les 10 premiers km, acc\u00e9l\u00e9rer si les jambes suivent. Apr\u00e8s le semi : r\u00e9cup\u00e9ration 5-7 jours avant de reprendre l'intensit\u00e9. Tester les gels en condition r\u00e9elle pendant le semi."}
 
-- PÉRIODISATION — SEMAINES DE DÉCHARGE FIXES : Les semaines de décharge sont UNIQUEMENT S8, S12, S16, S20. S30 et S31 sont des semaines d'affûtage (volume réduit, intensité maintenue). RÈGLE DE SORTIE ABSOLUE : si type_semaine dans le contexte contient "NORMALE", tu dois écrire "charge" dans ton titre — JAMAIS "décharge". Si tu écris "décharge" pour une semaine dont type_semaine="NORMALE", c'est une erreur grave. S9, S10, S11 sont des semaines de CHARGE. Phases : S1-S8=base aérobie, S9-S16=montée charge+Tempo, S17-S24=spécifique marathon, S25-S31=affûtage, S32=marathon.
+${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'affûtage sont celles indiquées par type_semaine dans les données (programme généré) ; ne jamais en déduire d\'autres.' : "- P\u00c9RIODISATION \u2014 SEMAINES DE D\u00c9CHARGE FIXES : Les semaines de d\u00e9charge sont UNIQUEMENT S8, S12, S16, S20. S30 et S31 sont des semaines d'aff\u00fbtage (volume r\u00e9duit, intensit\u00e9 maintenue). R\u00c8GLE DE SORTIE ABSOLUE : si type_semaine dans le contexte contient \"NORMALE\", tu dois \u00e9crire \"charge\" dans ton titre \u2014 JAMAIS \"d\u00e9charge\". Si tu \u00e9cris \"d\u00e9charge\" pour une semaine dont type_semaine=\"NORMALE\", c'est une erreur grave. S9, S10, S11 sont des semaines de CHARGE. Phases : S1-S8=base a\u00e9robie, S9-S16=mont\u00e9e charge+Tempo, S17-S24=sp\u00e9cifique marathon, S25-S31=aff\u00fbtage, S32=marathon."}
 - JOURS ET HORAIRES — RÈGLE ABSOLUE : Pour connaître le jour et l'heure d'une séance, tu dois UNIQUEMENT lire le champ seances_restantes_semaine dans les données. Le format est "TYPE - Titre Xkm → Jour HH:MM". Exemple : "LONG - Séance EF longue 9km → Ven 10:00" signifie vendredi à 10h00. Tu dois lire EXACTEMENT ce qui est écrit après "→". Ne JAMAIS déduire, calculer ou inventer un jour toi-même. Si Guillaume demande "c'est quand ma prochaine séance", tu lis seances_restantes_semaine et tu réponds avec le jour et l'heure qui y sont écrits, mot pour mot. Si la séance affiche "⚠️ horaire non planifié", alors et seulement alors tu dis que l'horaire n'est pas encore planifié.
 - Si allureMarathonUpdate présent : mentionner le changement d'allure marathon.
 - RENFO : Si renfoStatus dans planContext contient 'à faire (JourX à HhXX)', mentionner le jour et l'heure planifiés précisément. Si pas d'horaire, dire 'à planifier'. Ne jamais inventer un horaire de renfo. Si séance renfo pas encore faite en milieu de semaine, le signaler avec le créneau exact.
@@ -374,13 +375,14 @@ exports.coachChat = onRequest(
       const { message, history, stateContext, responseMode } = req.body;
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
       const isStreaming = req.headers['accept'] === 'text/event-stream';
+      const _prepSt = await loadPrepState(admin.database()).catch(() => ({}));
 
       const profilGuillaume = `Tu es le coach running personnel de Guillaume. Voici tout ce que tu sais sur lui :
 
 PROFIL DE GUILLAUME :
 - Toujours été très sportif depuis petit, mais la course à pied a commencé entre février et juillet 2025 de manière aléatoire, sans plan structuré.
 - Début février 2026 : premier vrai plan d'entraînement, découverte de l'EF (endurance fondamentale), approche sérieuse et méthodique.
-- Très motivé, veut bien faire, progresser vite, et valider son objectif Sub 4h au marathon du 18 octobre 2026.
+${_prepSt._plan_engine ? '- Très motivé, veut bien faire et progresser. ' + prepObjectiveText(_prepSt) : "- Tr\u00e8s motiv\u00e9, veut bien faire, progresser vite, et valider son objectif Sub 4h au marathon du 18 octobre 2026."}
 - Pas de problème médical chronique. En S2, mauvaise gestion de la charge (30 km) → légère douleur rotule gauche → réduction immédiate en S3 + consultation kiné → programme de renfo prescrit (2x/semaine). Problème résolu rapidement.
 - Chaque lundi à 12h30 : séance de bodyhit (électrostimulation) avec un coach, travail full body avec focus jambes. Cela compte comme récupération active et renforcement complémentaire. Délai minimal avant séance intense après bodyhit = 8h (donc pas de séance dure avant 20h30 le lundi).
 - FC max : 196 bpm. FC repos : voir fc_repos_context dans le contexte. Zone EF standard : 140-148 bpm (72-76% FCmax, calibrée pour 15-20°C). En dessous de 140 = trop facile.
@@ -955,7 +957,7 @@ exports.adminTestNotif = onRequest(
         // Générer le brief immédiatement (sans contrainte horaire)
         const stateSnap = await db.ref(ADMIN_STATE).once('value');
         const st = stateSnap.val() || {};
-        const cw = getCurrentWeek();
+        const cw = getCurrentWeek(st);
 
         const { briefContent, pushBody } = await generateMorningBriefContent(
           ANTHROPIC_API_KEY.value(), db, st, cw, today
@@ -988,7 +990,7 @@ exports.adminTestNotif = onRequest(
         await db.ref(`${ADMIN_STATE}/_bilan_semaine_${today}`).remove();
         const stateSnap = await db.ref(ADMIN_STATE).once('value');
         const st = stateSnap.val() || {};
-        const cw = getCurrentWeek();
+        const cw = getCurrentWeek(st);
         const { bilanContent, pushBody } = await generateWeeklyBilanContent(ANTHROPIC_API_KEY.value(), db, st, cw);
         if (bilanContent) {
           await db.ref(`${ADMIN_STATE}/_brief_pending`).set({ content: bilanContent, date: today, type: 'weekly_bilan' });

@@ -1337,6 +1337,7 @@ async function saveOnboarding(){
 
   _obSaving=false;
   hideOnboarding();
+  if(typeof syncPlanCompat==='function') syncPlanCompat();     // nouveau programme : semaine et plan à jour
   rendered.plan=false; // Force re-render plan tab quel que soit l'état du cache
   if(_obEditMode) renderCompteScreen();
   else renderHome();

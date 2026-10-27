@@ -92,7 +92,7 @@ function updateCoachHeader(){
   const now=new Date(),h=now.getHours();
   const gr=h<12?'Bonjour':h<19?'Bon après-midi':'Bonsoir';
   const ef=getBestEfPace(),am=getMarathonPaceStr();
-  const dj=Math.round((new Date('2026-10-18')-now)/(1000*60*60*24));
+  const dj=prepRace().date?Math.round((new Date(prepRace().date)-now)/(1000*60*60*24)):999;
   const pct=Math.round(calcTotalDone()/getGrandTotal()*100);
   const msgs=[gr+' Guillaume — S'+CW+' · J-'+dj+' avant le marathon',
     'Allure EF : '+(ef||'---')+'/km · Objectif : '+(am||'---')+'/km',

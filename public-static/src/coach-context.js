@@ -244,7 +244,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       semaine: ws,
       km_fait: Math.round(kmFait*10)/10,
       km_plan: Math.round(kmPlan*10)/10,
-      type: [8,12,16,20].includes(ws) ? 'DÉCHARGE' : 'CHARGE',
+      type: isRecoveryWeek(ws) ? 'DÉCHARGE' : 'CHARGE',
       renfo: renfoSkippedSemaine ? 'désactivé (semaine sans renfo)' : renfoFaitSemaine + '/2 renfo faits',
       seances: sessions.map(s=>`${s.type}${s.fait?(' '+s.km+'km'+(s.allure?' @'+s.allure:'')+(s.fc?' FC'+s.fc:'')+(s.blocsAllure?' [blocs:'+s.blocsAllure.filter(Boolean).join('/')+']':'')):' (à faire)'}`).join(' | ')
     });
@@ -319,10 +319,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   // ── Type de semaine et consignes EF ────────────────────────────────────────
   const kmCW = weeks[CW-1].km;
   const kmPrev = CW > 1 ? weeks[CW-2].km : kmCW;
-  const kmNext = CW < 32 ? weeks[CW].km : kmCW;
+  const kmNext = CW < weeks.length ? weeks[CW].km : kmCW;
   const hasLegere = weeks[CW-1].sessions.some(s => s.d.toLowerCase().includes('légère') || s.d.toLowerCase().includes('legere'));
   const ratioDecharge = kmCW / Math.max(kmPrev, kmNext);
-  const isDecharge = [8,12,16,20].includes(CW);
+  const isDecharge = isRecoveryWeek(CW);
   const efActuelle = getBestEfPace() || "6'00";
   // La consigne EF = allure EF actuelle validée (pas de fourchette inventée)
   const efParts = efActuelle.split("'");
@@ -334,9 +334,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
 
   return {
     semaine_actuelle: CW,
-    date_marathon: '18 octobre 2026',
-    semi_marathon: CW >= 24 ? {date:'14/09/2026', semaine:28, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 28-CW} : undefined,
-    semaines_restantes: 32-CW,
+    date_marathon: prepRace().label,
+    course_objectif: usesHardPlan() ? undefined : prepRace().name + ' (' + (prepRace().course || 'course') + ', objectif ' + prepRace().objectif + ')',
+    semi_marathon: usesHardPlan() && CW >= 24 ? {date:'14/09/2026', semaine:28, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 28-CW} : undefined,
+    semaines_restantes: planTotalWeeks()-CW,
     infos_importantes_Guillaume: coachMemos||undefined,
     type_semaine: isDecharge
       ? `DÉCHARGE (${kmCW}km vs ${Math.max(kmPrev,kmNext)}km semaine adjacente) — objectif récupération, pas de performance`
@@ -356,10 +357,12 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     prediction_marathon: buildPredictionForCoach(),
     allure_marathon_cible: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })(),
     temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
+    // nouvelle prépa sur une autre distance : prédiction sur la distance objectif (les champs « marathon » restent des repères)
+    prediction_course_objectif: (!usesHardPlan() && prepRace().course && prepRace().course!=='Marathon') ? (()=>{ const p=buildDistancePrediction(prepRace().course); return p&&p.tempsStr ? {course:prepRace().course, temps_estime:p.tempsStr, allure_estimee:p.paceStr, confiance:p.confiance, objectif:prepRace().objectif} : {course:prepRace().course, objectif:prepRace().objectif, note:'pas encore assez de séances validées pour estimer'}; })() : undefined,
     allure_ef_actuelle: getBestEfPace()||"6'40",
     allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ 148 bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue).",
     note_comparaison_allures: "IMPORTANT — convention allure : une allure s'exprime en min:sec PAR KILOMÈTRE. Plus le nombre est GRAND (plus de secondes/km), plus c'est LENT. Ex: 5'46/km est PLUS LENT que 5'30/km. Ne jamais confondre sens de comparaison : réalisé > cible en sec/km = plus lent, pas plus rapide.",
-    projection_sub4h: (()=>{
+    projection_sub4h: !usesHardPlan() ? undefined : (()=>{
       const objectifSec = 4*3600; // 4h00
       const objectifAllureSec = Math.ceil(objectifSec / 42.195); // ~341 sec = 5'41/km
       // Tendance EF → projection allure marathon
@@ -386,7 +389,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         const sumX2 = last6.reduce((a,_,i)=>a+i*i,0);
         const slope = (n*sumXY-sumX*sumY)/(n*sumX2-sumX*sumX); // sec/séance
         // Projeter : combien de séances EF restantes avant marathon ?
-        const seancesRestantes = (32-CW)*2; // ~2 EF par semaine
+        const seancesRestantes = (planTotalWeeks()-CW)*2; // ~2 EF par semaine
         const projectedEfSec = (efPoints[efPoints.length-1].sec) + slope*seancesRestantes;
         // EF → AM : écart moyen ~20 sec/km
         const projectedAmSec = projectedEfSec - 20;
@@ -400,14 +403,14 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         };
       }
       return {
-        objectif: 'Sub 4h00',
+        objectif: prepRace().objectif,
         objectif_allure_km: secToPace(objectifAllureSec),
         temps_actuel: tempsActuel,
         ecart_avec_objectif_sec: ecartSecondes,
         ecart_avec_objectif_str: ecartSecondes!==null ? (ecartSecondes>0?'+':'') + Math.floor(Math.abs(ecartSecondes)/60)+'min'+(Math.abs(ecartSecondes)%60)+'s '+(ecartSecondes>0?'au-dessus':'en dessous')+" de l'objectif" : null,
         projection_tendance: tendanceProjection,
-        semaines_restantes: 32-CW,
-        jours_restants: Math.round((new Date('2026-10-18') - new Date()) / (1000*60*60*24))
+        semaines_restantes: planTotalWeeks()-CW,
+        jours_restants: prepRace().date ? Math.round((new Date(prepRace().date) - new Date()) / (1000*60*60*24)) : null
       };
     })(),
     km_semaine_en_cours: {planifie: getWeekTotalKm(CW), realise: calcWeekDoneKm()},
@@ -629,7 +632,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     })(),
     logique_allure_marathon: "EF<148bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
     chaussures_plan_verite: `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
-    contexte_semaines_speciales: {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'},
+    contexte_semaines_speciales: usesHardPlan() ? {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'} : {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
     note: "Pour avoir plus de détails, précise ta question.",
     bodyhit_semaine: (()=>{
       const _now=new Date(); const _dow=_now.getDay()===0?7:_now.getDay();
@@ -637,7 +640,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const _fait=_dow>1||(_dow===1&&_h>=12.5);
       return {fait:_fait,statut:_fait?'FAIT (lundi 12h30)':'À VENIR (lundi 12h30)',jour:'lundi',note:'Horaire normal lundi 12h30.'};
     })(),
-    semaine_suivante: CW < 32 ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:[8,12,16,20].includes(CW+1)?'DÉCHARGE':'CHARGE'} : null,
+    semaine_suivante: CW < planTotalWeeks() ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:isRecoveryWeek(CW+1)?'DÉCHARGE':'CHARGE'} : null,
     seances_recentes_detail: (()=>{
       const det=[];
       for(let ws=CW;ws>=Math.max(1,CW-8);ws--){
@@ -654,7 +657,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     prochaines_semaines: (()=>{
       const r = [];
       const joursAbr=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-      for(let ws=CW+1; ws<=Math.min(CW+4, 32); ws++){
+      for(let ws=CW+1; ws<=Math.min(CW+4, planTotalWeeks()); ws++){
         const sl = weeks[ws-1].sessions.map((sess,si)=>{
           const edRaw = state["edit_w"+ws+"_s"+si];
           let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
@@ -712,7 +715,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
     extra.plan_futur = futurPlan;
     extra.seances_supprimees = (()=>{
       const deleted=[];
-      for(let ws=1;ws<=32;ws++) weeks[ws-1].sessions.forEach((sess,si)=>{ if(state['del_w'+ws+'_s'+si]) deleted.push({semaine:ws,titre:sess.d.split('|')[0],type:sess.type,km:sess.km}); });
+      for(let ws=1;ws<=planTotalWeeks();ws++) weeks[ws-1].sessions.forEach((sess,si)=>{ if(state['del_w'+ws+'_s'+si]) deleted.push({semaine:ws,titre:sess.d.split('|')[0],type:sess.type,km:sess.km}); });
       return deleted;
     })();
   }

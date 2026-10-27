@@ -490,7 +490,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
 
   // Allure marathon
   analysisContext.allureMarathon = getMarathonPaceStr();
-  analysisContext.semaines_restantes = 32 - CW;
+  analysisContext.semaines_restantes = planTotalWeeks() - CW;
   // Météo de la séance — avec instruction explicite pour le coach
   if (meteo) {
     analysisContext.meteo = meteo;
@@ -731,7 +731,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     getOrderedWeekSessions(CW).forEach(({ei})=>{ if(state[`extra_w${CW}_s${ei}_done`]) n++; });
     return n;
   })();
-  analysisContext.position_semaine = _nbSeancesDoneThisWeek+'ème séance de la semaine S'+CW+' ('+(([8,12,16,20].includes(CW)?'semaine de DÉCHARGE':'semaine NORMALE'))+')';
+  analysisContext.position_semaine = _nbSeancesDoneThisWeek+'ème séance de la semaine S'+CW+' ('+((isRecoveryWeek(CW)?'semaine de DÉCHARGE':'semaine NORMALE'))+')';
 
   const seancesAVenir = [];
   // Séances restantes semaine courante
@@ -766,7 +766,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     });
   });
   // Séances semaine suivante si pas assez
-  if(seancesAVenir.length < 3 && CW < 32){
+  if(seancesAVenir.length < 3 && CW < planTotalWeeks()){
     weeks[CW].sessions.slice(0, 3-seancesAVenir.length).forEach((sess,si)=>{
       // Lire les éditions de la semaine suivante aussi
       const edRawNext = state['edit_w'+(CW+1)+'_s'+si];

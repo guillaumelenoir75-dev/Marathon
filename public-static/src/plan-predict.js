@@ -252,7 +252,7 @@ function buildMarathonPrediction() {
 
   // Progression (slope négatif = s'améliore) — plafonné à 4 sec/km max
   if(slope < -0.5 && slopePts.length >= 4) {
-    amSecFused -= Math.min(Math.abs(slope)*(32-CW)*0.2, 4);
+    amSecFused -= Math.min(Math.abs(slope)*Math.max(0,planTotalWeeks()-CW)*0.2, 4);
   }
 
   const amSecPred = Math.round(amSecFused);

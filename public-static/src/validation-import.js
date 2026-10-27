@@ -12,10 +12,10 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
         historyData: historyData || [],
         planContext: Object.assign({}, _cc, {
           // Champs spécifiques au débrief de séance
-          semaineActuelle: CW, totalSemaines: 32,
+          semaineActuelle: CW, totalSemaines: planTotalWeeks(),
           allureMarathon: getMarathonPaceStr(),
-          semaines_restantes: 32-CW,
-          type_semaine: [8,12,16,20].includes(CW) ? 'DÉCHARGE' : 'NORMALE',
+          semaines_restantes: planTotalWeeks()-CW,
+          type_semaine: isRecoveryWeek(CW) ? 'DÉCHARGE' : 'NORMALE',
           fc_repos: state['fc_repos'] || 51,
           fc_repos_context: buildFcReposContext(),
           date_reelle: (()=>{
@@ -32,7 +32,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
             const quand=sched&&sched.day?jours[sched.day]+(sched.time?' à '+sched.time:''):'non planifié';
             return `${rd.name}: ${done?'✓ fait':'à faire ('+quand+')'}`;
           }).join(' | '),
-          date_marathon: '18 octobre 2026',
+          date_marathon: prepRace().label,
           km_semaine_en_cours: {planifie: getWeekTotalKm(CW), realise: calcWeekDoneKm()},
           seances_recentes_detail: (()=>{try{const det=[];for(let ws=CW;ws>=Math.max(1,CW-8);ws--){getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{const k=`extra_w${ws}_s${ei}`;if(!state[k+'_done'])return;let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}det.push({semaine:ws,type:sess.type,titre:sess.d.split('|')[0],km:state[k+'_km']||sess.km,allure:perf.pace||null,fc_moy:perf.hr||null,strava:perf.strava||null});});}return det.slice(0,15);}catch(e){return[];}})(),
           derniere_seance: _cc.derniere_seance || null,

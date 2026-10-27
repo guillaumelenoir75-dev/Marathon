@@ -20,7 +20,7 @@ function getCurrentWeek(){
   }
   return Math.min(cw,32);
 }
-const CW=getCurrentWeek();
+let CW=getCurrentWeek();                 // ajusté par syncPlanCompat() pour une prépa générée
 // Flag global pour ne pas afficher le brief du matin plus d'une fois par session
 let _briefShownToday = false;
 // Semaine affichée sur l'accueil (peut différer de CW via navigation)
@@ -144,6 +144,52 @@ const weeks=[
   {s:31,km:29,date:'05/10',month:'Octobre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
   {s:32,km:51,date:'12/10',month:'Octobre',sessions:[{d:"Séance EF",km:5,type:"ef",shoe:P},{d:"Séance EF légère",km:4,type:"ef",shoe:Z},{d:"MARATHON",km:42,type:"race",shoe:Z}]},
 ];
+
+// ─── Prépa en cours de l'admin ────────────────────────────────────────────
+// Tant que usesHardPlan(), CW / weeks / weekDates décrivent le plan Seine-Eure ci-dessus. Après « Nouvelle prépa »,
+// syncPlanCompat() les remplit à partir du programme généré (extra_w*, meta_w*, plan_start_date) : le Coach IA,
+// les stats et la validation, écrits autour de CW et weeks, suivent alors la nouvelle prépa sans réécriture.
+const _HARD_WEEKS = weeks.slice(), _HARD_DATES = weekDates.slice();
+const _MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+function syncPlanCompat(){
+  if(typeof isAdmin !== 'function' || !isAdmin()) return;             // athlètes : inchangé
+  weeks.length = 0; weekDates.length = 0;
+  if(usesHardPlan()){
+    _HARD_WEEKS.forEach(function(w){ weeks.push(w); }); _HARD_DATES.forEach(function(d){ weekDates.push(d); });
+    CW = getCurrentWeek(); homeViewWeek = CW; return;
+  }
+  const max = Math.max(1, getAthleteMaxWeek());
+  const start = state.plan_start_date ? new Date(state.plan_start_date + 'T12:00:00') : new Date();
+  const mon = new Date(start); const dw = mon.getDay(); mon.setDate(mon.getDate() + (dw === 0 ? -6 : 1 - dw));
+  for(let ws = 1; ws <= max; ws++){
+    const d = new Date(mon); d.setDate(mon.getDate() + (ws - 1) * 7);
+    const sessions = []; let ei = 0;
+    while(ei <= 50 && state['extra_w' + ws + '_s' + ei] !== undefined){
+      try { const s = JSON.parse(state['extra_w' + ws + '_s' + ei]); sessions.push({ d: s.d || 'Séance', km: parseFloat(s.km) || 0, type: s.type || 'ef', shoe: s.shoe || null }); } catch(e) {}
+      ei++;
+    }
+    const dd = String(d.getDate()).padStart(2, '0'), mm = String(d.getMonth() + 1).padStart(2, '0');
+    weekDates.push(d.getFullYear() + '-' + mm + '-' + dd);
+    weeks.push({ s: ws, km: Math.round(getAthleteWeekKm(ws)), date: dd + '/' + mm, month: _MONTHS_FR[d.getMonth()], sessions: sessions });
+  }
+  CW = Math.min(Math.max(1, getAthleteCW()), weeks.length); homeViewWeek = CW;
+}
+// Course objectif de la prépa en cours
+function prepRace(){
+  if(usesHardPlan()) return { name: 'Marathon Seine-Eure', course: 'Marathon', date: '2026-10-18', label: '18 octobre 2026', km: 42.195, objectif: 'Sub 4h00' };
+  const ob = state.onboarding || {}, d = ob.date || '';
+  const km = parseFloat(ob.race_distance_km) || ({ 'Marathon': 42.195, 'Semi-marathon': 21.1, '10 km': 10, '5 km': 5 })[ob.course] || null;
+  const tt = state.target_time || ob.target_time || '';
+  return { name: ob.race_name || ob.course || 'Course objectif', course: ob.course || '', date: d,
+    label: d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'date non définie',
+    km: km, objectif: tt ? String(tt).replace(/^00:/, '').replace(/^0/, '') : 'non défini' };
+}
+function planTotalWeeks(){ return usesHardPlan() ? 32 : Math.max(1, weeks.length); }
+// Semaine de décharge (récupération) : S8/12/16/20 pour Seine-Eure, sinon lue dans le programme généré
+function isRecoveryWeek(ws){
+  if(usesHardPlan()) return [8, 12, 16, 20].includes(ws);
+  try { return !!JSON.parse(state['meta_w' + ws] || '{}').isRecov; } catch(e) { return false; }
+}
 
 const renfoTibial={nom:"Tibial Postérieur — Ballon",desc:"Assis ou allongé, ballon entre les bords internes des pieds (voûte plantaire). Comprimer fort 1 min 20 sec en imaginant écraser le ballon, relâcher 40 sec. Talons au sol, chevilles neutres. Répéter sur ~8 min. Fréquence recommandée : 3×/semaine.",series:"5 cycles × 1min20s"};
 const renfo1=[

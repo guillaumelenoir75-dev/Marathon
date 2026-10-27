@@ -202,6 +202,7 @@ async function prepView(id){
   const meta = (_prepIndex || {})[id] || {};
   _prepView = { state: state, dbRef: dbRef, meta: meta };
   state = snap; dbRef = _prepNullRef;
+  syncPlanCompat();                                      // semaines et semaine en cours de la prépa consultée
   closePrepsPanel();
   const bar = document.createElement('div'); bar.id = 'prep-view-bar';
   bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9000;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:#92400E;color:#fff;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-family:inherit;';
@@ -215,6 +216,7 @@ async function prepView(id){
 function prepViewExit(silent){
   if(!_prepView) return;
   state = _prepView.state; dbRef = _prepView.dbRef; _prepView = null;
+  syncPlanCompat();
   const bar = document.getElementById('prep-view-bar'); if(bar) bar.remove();
   document.body.style.paddingTop = '';
   if(silent) return;

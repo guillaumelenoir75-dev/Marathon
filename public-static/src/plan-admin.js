@@ -516,7 +516,7 @@ function openRegenFromDateModal(){
     Object.keys(updates).forEach(k=>{if(updates[k]===null)delete state[k];else state[k]=updates[k];});
     state.plan_start_date=dateVal;
     state.onboarding=ob;
-    if(_adminPreviewUid) _refreshAthleteCoachView(); else{renderHome();renderPlan();}
+    if(_adminPreviewUid) _refreshAthleteCoachView(); else{if(typeof syncPlanCompat==='function') syncPlanCompat();renderHome();renderPlan();}
     // Succès
     const sv=document.createElement('div');
     sv.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';

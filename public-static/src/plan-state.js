@@ -484,6 +484,7 @@ function isPlaisirMode(st) {
 
 function save(){
   if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
+  if(typeof syncPlanCompat==='function'&&isAdmin()&&!usesHardPlan()) syncPlanCompat();   // séances ajoutées/modifiées
   setTimeout(checkCoachAlerts, 100);
 }
 function getAmTrainingPace(){

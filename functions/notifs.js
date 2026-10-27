@@ -15,6 +15,8 @@ const {
   sendPushToAll,
   sendPushToUser,
   getCurrentWeek,
+  adminCurrentWeek,
+  prepObjectiveText,
   buildNotifContext,
   callAnthropic,
   generateWeeklyBilanContent,
@@ -44,7 +46,7 @@ exports.sessionReminder = onSchedule(
   {schedule:'*/30 7-21 * * *',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
   async()=>{
     const db=admin.database();
-    const cw=getCurrentWeek();
+    const cw=await adminCurrentWeek(db);
     const now=new Date();
     const parisStr=now.toLocaleString('en-US',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit',hour12:false});
     const parisH=parseInt(parisStr.split(':')[0]);
@@ -234,7 +236,7 @@ exports.briefAfterFcRepos = onSchedule(
           const existingBody=pending?`Brief du matin prêt — ouvre le Coach 🏃`:'Brief prêt';
           const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
           if(subSnap.val()){
-            await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${getCurrentWeek()}`,existingBody,'brief-matinal','/');
+            await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🏃 Brief du matin — S${getCurrentWeek(state)}`,existingBody,'brief-matinal','/');
           }else{
             console.log('briefAfterFcRepos: pas de subscription — brief disponible dans l\'app');
           }
@@ -246,7 +248,7 @@ exports.briefAfterFcRepos = onSchedule(
       // Le brief est toujours généré et sauvegardé dans _brief_pending.
       // La push n'est tentée qu'après (si subscription dispo).
 
-      const cw=getCurrentWeek();
+      const cw=getCurrentWeek(state);
       const ctx=await buildNotifContext(state,cw);
 
       // ── Récupérer les données WHOOP ───────────────────────────────────────────
@@ -438,7 +440,7 @@ exports.briefAfterFcRepos = onSchedule(
       const system=`Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
 PROFIL :
-- Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.
+- ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
 - FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
 - Montre Garmin Forerunner 165.
 - Lundi midi : séance bodyhit (électrostimulation).
@@ -571,7 +573,7 @@ exports.unvalidatedSessionReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getCurrentWeek();
+      const cw=await adminCurrentWeek(db);
       const now=new Date();
       const dayOfWeek=now.getDay()===0?7:now.getDay();
       if(await getUserPref(db,ADMIN_STATE,'notif_unvalidated')){
@@ -657,7 +659,7 @@ exports.weekCompleteCongrats = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getCurrentWeek();
+      const cw=await adminCurrentWeek(db);
       const now=Date.now();
       if(await getUserPref(db,ADMIN_STATE,'notif_congrats')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
@@ -748,7 +750,7 @@ exports.weeklyPlanifReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getCurrentWeek();
+      const cw=await adminCurrentWeek(db);
       const cwNext=Math.min(cw+1,32);
       if(await getUserPref(db,ADMIN_STATE,'notif_planif')){
         const body=`Vérifie tes horaires de séances et renfos pour la semaine ! 🏃💪`;
@@ -773,7 +775,7 @@ exports.weeklyBilanNotif = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getCurrentWeek();
+      const cw=await adminCurrentWeek(db);
       if(!await getUserPref(db,ADMIN_STATE,'notif_bilan_semaine'))return;
       const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
       const today=new Date().toISOString().slice(0,10);
@@ -824,7 +826,7 @@ exports.shakerNoon = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=getCurrentWeek();
+      const cw=await adminCurrentWeek(db);
       // Jour de la semaine Paris : 1=lundi … 7=dimanche (même convention que sched_day)
       const _parisDate=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));
       const todayDay=_parisDate.getDay()===0?7:_parisDate.getDay();

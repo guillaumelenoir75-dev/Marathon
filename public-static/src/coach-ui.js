@@ -267,7 +267,7 @@ async function sendCoachMessage(retryMsg){
     // ── Plan futur (si nécessaire) ──
     const futurPlan = [];
     if(needs.plan_futur || needs.historique_complet) {
-      for(let ws=CW; ws<=32; ws++){
+      for(let ws=CW; ws<=planTotalWeeks(); ws++){
         // Séances du plan de base
         const weekSessions = weeks[ws-1].sessions.map((sess, si) => {
           if(state['del_w'+ws+'_s'+si]) return null;
@@ -319,7 +319,7 @@ async function sendCoachMessage(retryMsg){
         const kmFrac    = Math.round(weekSessions.filter(s=>s.type==='frac').reduce((a,s)=>a+s.kmPlan,0)*10)/10;
         const kmLong    = Math.round(weekSessions.filter(s=>s.type==='long').reduce((a,s)=>a+s.kmPlan,0)*10)/10;
         const nbSeances = weekSessions.filter(s=>s.type!=='rest').length;
-        const typeSemaine = [8,12,16,20].includes(ws) ? 'DÉCHARGE' : 'CHARGE';
+        const typeSemaine = isRecoveryWeek(ws) ? 'DÉCHARGE' : 'CHARGE';
 
         // Comparer avec la dernière semaine NON-DÉCHARGE (sauter les semaines de décharge)
         // Ex: S15=38km, S16=décharge 33km, S17=41km → S17 se compare à S15, pas S16
@@ -327,7 +327,7 @@ async function sendCoachMessage(retryMsg){
         let semainePrevRef = null;
         if(ws > 1) {
           for(let prevWs = ws-1; prevWs >= 1; prevWs--) {
-            const isDecharge = [8,12,16,20].includes(prevWs);
+            const isDecharge = isRecoveryWeek(prevWs);
             if(!isDecharge) {
               kmPrevSemaine = getWeekTotalKm(prevWs);
               semainePrevRef = prevWs;
@@ -824,7 +824,7 @@ async function generateFullBriefFromNotif(memos) {
         allure_cible: s.allure || null,
       })),
       memos: memos || null,
-      consignes_ef: [8,12,16,20].includes(CW)
+      consignes_ef: isRecoveryWeek(CW)
         ? 'Semaine DÉCHARGE : allure EF lente, FC < 140 bpm'
         : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
       allure_ef: getBestEfPace() || null,
@@ -1193,7 +1193,7 @@ async function checkMorningBrief(memos, force) {
     })),
     // Consignes allure pour les séances du jour
     memos: memos || null,
-    consignes_ef: [8,12,16,20].includes(CW)
+    consignes_ef: isRecoveryWeek(CW)
       ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`
       : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
     // Allures explicites pour que le coach puisse donner des chiffres précis

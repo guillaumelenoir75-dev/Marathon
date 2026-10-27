@@ -92,7 +92,7 @@ function openPlanModifModal(){
   let targetWS = CW;
   const searchTxt = (_lastCoachProposalText||'')+' '+(_lastUserMessageBeforeProposal||'');
   const wsMatch = searchTxt.match(/[Ss](?:emaine\s*|\s*)(\d{1,2})/);
-  if(wsMatch){ const ws=parseInt(wsMatch[1]); if(ws>=CW&&ws<=32) targetWS=ws; }
+  if(wsMatch){ const ws=parseInt(wsMatch[1]); if(ws>=CW&&ws<=planTotalWeeks()) targetWS=ws; }
 
   // Contexte global : l'utilisateur voulait-il modifier une séance spécifique ?
   const userAskedModifGlobal = /modif|change|décal|déplac|planifi|horaire|heure|à \d{1,2}h/i
