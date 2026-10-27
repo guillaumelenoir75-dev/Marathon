@@ -9,6 +9,14 @@
         "role": {
           ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
           ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
+        },
+        "preps": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')"
+        },
+        "prep_index": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')"
         }
       }
     },

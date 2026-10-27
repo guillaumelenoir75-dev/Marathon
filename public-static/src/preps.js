@@ -1,0 +1,186 @@
+// Mes prépas (Compte) : une prépa terminée est enregistrée comme une copie figée de l'état
+// (users/{uid}/preps/{id}) avec sa fiche (users/{uid}/prep_index/{id}). « Consulter » rouvre toute l'app
+// sur cette copie, en lecture seule : aucune écriture ne peut partir vers la base pendant la consultation.
+
+// clés non archivées : historique du coach, jetons et données d'appareils (volumineux ou personnels)
+const _PREP_SKIP = /^(_coach_history|_coach_unread|_brief|whoop_|strava_token|_push_sub|_ratelimit|_open_coach|_last_location|_wakeup_|_geo_granted|_shaker_run_ts)/;
+let _prepIndex = null, _prepView = null;
+
+function _prepUid(){ const u = firebase.auth().currentUser; return u ? u.uid : null; }
+function _prepRef(path){ return firebase.database().ref('users/' + _prepUid() + '/' + path); }
+const _prepEsc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+const _prepDate = function(d, opt){ if(!d) return ''; const x = new Date(d + (String(d).length === 10 ? 'T12:00:00' : '')); return isNaN(x) ? '' : x.toLocaleDateString('fr-FR', opt || { day: 'numeric', month: 'long', year: 'numeric' }); };
+
+// Prépa en cours : nom, course, dates
+function _prepCurrentInfo(st){
+  if(isAdmin() && !st._plan_engine){                     // plan Seine-Eure (programme écrit dans l'app)
+    return { title: 'Marathon Seine-Eure 2026', race: 'Marathon Seine-Eure', date: '2026-10-18', start: '2026-03-09', dist: 'Marathon',
+             replay: 'https://prepa-marathon.web.app/suivi-guillaume', result: '3:37:05', note: 'Record personnel' };
+  }
+  const ob = st.onboarding || {}, date = ob.date || '';
+  return { title: (ob.race_name || ob.course || 'Ma prépa') + (date ? ' ' + String(date).slice(0, 4) : ''), race: ob.race_name || ob.course || '',
+           date: date, start: st.plan_start_date || ob.plan_start_date || '', dist: ob.course || '', replay: '', result: '', note: '' };
+}
+// Bilan : semaines, séances réalisées / prévues, km réalisés
+function _prepStats(st){
+  let weeks = 0, done = 0, planned = 0, km = 0;
+  for(let w = 1; w <= 80; w++){
+    let ei = 0, any = false;
+    while(ei <= 50 && st['extra_w' + w + '_s' + ei] !== undefined){
+      const k = 'extra_w' + w + '_s' + ei; any = true; planned++;
+      if(st[k + '_done'] || st[k + '_km'] != null){
+        done++;
+        let v = parseFloat(st[k + '_km']);
+        if(!(v > 0)){ try { v = parseFloat(JSON.parse(st[k]).km) || 0; } catch(e){ v = 0; } }
+        km += v;
+      }
+      ei++;
+    }
+    if(any) weeks = w;
+  }
+  return { weeks: weeks, done: done, planned: planned, km: Math.round(km) };
+}
+
+// ─── Ligne « Mes prépas » de l'écran Compte ────────────────────────────────
+async function renderPrepsRow(){
+  const sub = document.getElementById('preps-subtitle'); if(!sub || !_prepUid()) return;
+  try {
+    _prepIndex = (await _prepRef('prep_index').once('value')).val() || {};
+    const n = Object.keys(_prepIndex).length;
+    sub.textContent = 'Prépa en cours' + (n ? ' · ' + n + ' prépa' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '') : ' · aucune archivée');
+  } catch(e) { sub.textContent = 'Prépa en cours et prépas archivées'; }
+}
+
+// ─── Panneau « Mes prépas » ────────────────────────────────────────────────
+async function openPrepsPanel(){
+  closePrepsPanel();
+  const mc = document.getElementById('modal-container'), ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'preps-panel';
+  ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
+  ov.innerHTML = '<div class="modal-box" style="max-height:92vh;">'
+    + '<div style="background:linear-gradient(135deg,#0C447C,#1D4ED8);padding:16px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    +   '<div><p style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">Compte</p><p style="font-size:21px;font-weight:900;margin:0;">🏅 Mes prépas</p></div>'
+    +   '<button onclick="closePrepsPanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;">×</button></div>'
+    + '<div class="modal-scroll-body"><div id="preps-body" style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;"><p style="color:#888;font-size:13px;">Chargement…</p></div></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) closePrepsPanel(); });
+  mc.appendChild(ov);
+  try { _prepIndex = (await _prepRef('prep_index').once('value')).val() || {}; } catch(e) { _prepIndex = {}; }
+  _renderPrepsBody();
+}
+function closePrepsPanel(){ const ov = document.getElementById('preps-panel'); if(ov) ov.remove(); }
+
+function _renderPrepsBody(){
+  const box = document.getElementById('preps-body'); if(!box) return;
+  const cur = _prepCurrentInfo(state), cs = _prepStats(state);
+  const saved = Object.keys(_prepIndex || {}).map(function(k){ return Object.assign({ id: k }, _prepIndex[k]); })
+    .sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); });
+  const already = saved.find(function(p){ return p.title === cur.title; });
+  const card = 'background:#fff;border:1px solid #e0e8f5;border-radius:14px;padding:14px;';
+  const btn = 'border-radius:10px;padding:10px 12px;font-size:13px;font-weight:800;cursor:pointer;';
+  let h = '';
+  // prépa en cours
+  h += '<div style="' + card + '"><p style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#15803D;margin:0 0 4px;">● Prépa en cours</p>'
+    + '<p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(cur.title) + '</p>'
+    + '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 10px;">' + (cur.date ? 'Course le ' + _prepDate(cur.date) : 'Sans date de course') + ' · ' + cs.weeks + ' semaines · ' + cs.done + ' séances réalisées · ' + cs.km + ' km</p>'
+    + (already ? '<p style="font-size:12.5px;color:#15803D;font-weight:700;margin:0 0 8px;">✓ Enregistrée le ' + _prepDate(already.savedAt) + '</p>' : '')
+    + '<button onclick="prepShowForm()" style="width:100%;background:#0C447C;color:#fff;border:none;' + btn + '">' + (already ? '🔄 Mettre à jour l\'enregistrement' : '📦 Enregistrer cette prépa') + '</button>'
+    + '<div id="prep-form" style="margin-top:12px;display:none;flex-direction:column;gap:8px;">'
+    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Nom<input id="pf-title" value="' + _prepEsc(already ? already.title : cur.title) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
+    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Date de la course<input id="pf-date" type="date" value="' + _prepEsc(cur.date) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
+    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Temps officiel<input id="pf-result" inputmode="numeric" placeholder="3:37:05" value="' + _prepEsc(already ? already.result : cur.result) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
+    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Note<input id="pf-note" placeholder="Record personnel, sensations…" value="' + _prepEsc(already ? already.note : cur.note) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
+    +   '<button onclick="prepSaveCurrent()" id="pf-save" style="background:#15803D;color:#fff;border:none;' + btn + '">Enregistrer dans Mes prépas</button>'
+    +   '<p style="font-size:11.5px;color:#888;margin:0;line-height:1.4;">Une copie complète et figée du programme, des séances réalisées et de leurs données est conservée. Ta prépa en cours n\'est pas modifiée.</p>'
+    + '</div></div>';
+  // prépas enregistrées
+  h += '<p style="font-size:13px;font-weight:800;color:#0C447C;margin:4px 2px 0;">Prépas enregistrées</p>';
+  if(!saved.length) h += '<p style="font-size:13px;color:#888;margin:0 2px;">Aucune pour l\'instant : enregistre ta prépa en cours pour la retrouver ici.</p>';
+  saved.forEach(function(p){
+    const s = p.stats || {};
+    h += '<div style="' + card + '">'
+      + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="min-width:0;">'
+      +   '<p style="font-size:15.5px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(p.title) + '</p>'
+      +   '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 0;">' + (p.date ? _prepDate(p.date) : '') + (s.weeks ? ' · ' + s.weeks + ' sem. · ' + s.done + ' séances · ' + s.km + ' km' : '') + '</p></div>'
+      +   (p.result ? '<span style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;">⏱ ' + _prepEsc(p.result) + '</span>' : '') + '</div>'
+      + (p.note ? '<p style="font-size:12.5px;color:#B45309;font-weight:700;margin:6px 0 0;">🏅 ' + _prepEsc(p.note) + '</p>' : '')
+      + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
+      +   '<button onclick="prepView(\'' + p.id + '\')" style="flex:1 1 140px;background:#EBF0FF;color:#1B4FD8;border:1px solid #c7d7f8;' + btn + '">📖 Consulter</button>'
+      +   (p.replay ? '<a href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener" style="flex:1 1 140px;text-align:center;text-decoration:none;background:#FFF7ED;color:#C2410C;border:1px solid #fed7aa;' + btn + '">🎬 Revoir la course</a>' : '')
+      +   '<button onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer" style="background:#fff0f0;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑</button>'
+      + '</div></div>';
+  });
+  box.innerHTML = h;
+}
+function prepShowForm(){ const f = document.getElementById('prep-form'); if(f) f.style.display = f.style.display === 'none' ? 'flex' : 'none'; }
+
+async function prepSaveCurrent(){
+  if(_prepView) return;
+  const title = document.getElementById('pf-title').value.trim();
+  if(!title){ alert('Donne un nom à cette prépa.'); return; }
+  const b = document.getElementById('pf-save'); b.disabled = true; b.textContent = 'Enregistrement…';
+  const cur = _prepCurrentInfo(state);
+  const existing = Object.keys(_prepIndex || {}).find(function(k){ return _prepIndex[k].title === title; });
+  const id = existing || _prepRef('prep_index').push().key;
+  const snap = {};
+  Object.keys(state).forEach(function(k){ if(!_PREP_SKIP.test(k) && state[k] !== undefined) snap[k] = state[k]; });
+  const meta = { title: title, race: cur.race, dist: cur.dist, date: document.getElementById('pf-date').value || cur.date || '', start: cur.start || '',
+    result: document.getElementById('pf-result').value.trim(), note: document.getElementById('pf-note').value.trim(), replay: cur.replay || '',
+    stats: _prepStats(state), savedAt: new Date().toISOString().slice(0, 10), admin: isAdmin() && !state._plan_engine };
+  try {
+    await _prepRef('preps/' + id).set(snap);
+    await _prepRef('prep_index/' + id).set(meta);
+    _prepIndex[id] = meta;
+    _renderPrepsBody(); renderPrepsRow();
+    if(typeof showToast === 'function') showToast('Prépa enregistrée dans Mes prépas ✓');
+  } catch(e) {
+    alert('Enregistrement impossible (' + e.message + '). Vérifie ta connexion.');
+    b.disabled = false; b.textContent = 'Enregistrer dans Mes prépas';
+  }
+}
+function prepDelete(id){
+  const p = (_prepIndex || {})[id]; if(!p) return;
+  _showConfirmModal({ icon: '🗑', title: 'Supprimer « ' + p.title + ' » ?', message: 'La copie enregistrée de cette prépa sera définitivement supprimée. Ta prépa en cours n\'est pas touchée.',
+    confirmLabel: 'Supprimer', confirmStyle: 'background:#e53e3e;color:#fff;', onConfirm: async function(){
+      await _prepRef('preps/' + id).remove(); await _prepRef('prep_index/' + id).remove();
+      delete _prepIndex[id]; _renderPrepsBody(); renderPrepsRow();
+    } });
+}
+
+// ─── Consultation en lecture seule ─────────────────────────────────────────
+// référence factice : toutes les écritures sont ignorées pendant la consultation
+const _prepNullRef = (function(){
+  const ok = function(){ return Promise.resolve(); };
+  const r = { child: function(){ return r; }, set: ok, update: ok, remove: ok, transaction: ok, on: function(){}, off: function(){},
+    push: function(){ const p = Promise.resolve(); p.key = 'lecture-seule'; return p; },
+    once: function(){ return Promise.resolve({ val: function(){ return null; }, exists: function(){ return false; } }); } };
+  return r;
+})();
+async function prepView(id){
+  if(_prepView) prepViewExit(true);
+  let snap;
+  try { snap = (await _prepRef('preps/' + id).once('value')).val(); } catch(e) { snap = null; }
+  if(!snap){ alert('Impossible d\'ouvrir cette prépa (connexion ?).'); return; }
+  const meta = (_prepIndex || {})[id] || {};
+  _prepView = { state: state, dbRef: dbRef, meta: meta };
+  state = snap; dbRef = _prepNullRef;
+  closePrepsPanel();
+  const bar = document.createElement('div'); bar.id = 'prep-view-bar';
+  bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9000;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:#92400E;color:#fff;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-family:inherit;';
+  bar.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.3;"><b>📖 ' + _prepEsc(meta.title || 'Prépa archivée') + '</b><br><span style="opacity:.85;">Consultation · lecture seule</span></span>'
+    + '<button onclick="prepViewExit()" style="flex-shrink:0;background:#fff;color:#92400E;border:none;border-radius:999px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;">Quitter</button>';
+  document.body.appendChild(bar);
+  document.body.style.paddingTop = bar.offsetHeight + 'px';
+  showScreen('home');
+  try { if(typeof renderPlan === 'function') renderPlan(); } catch(e) {}
+}
+function prepViewExit(silent){
+  if(!_prepView) return;
+  state = _prepView.state; dbRef = _prepView.dbRef; _prepView = null;
+  const bar = document.getElementById('prep-view-bar'); if(bar) bar.remove();
+  document.body.style.paddingTop = '';
+  if(silent) return;
+  try { if(typeof renderPlan === 'function') renderPlan(); } catch(e) {}
+  showScreen('compte');
+  try { renderCompteScreen(); } catch(e) {}
+  openPrepsPanel();
+}

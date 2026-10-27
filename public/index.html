@@ -456,6 +456,16 @@
     </div>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
+  <button onclick="openPrepsPanel()" id="preps-row" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:38px;height:38px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:18px;">🏅</div>
+      <div>
+        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Mes prépas</p>
+        <p id="preps-subtitle" style="font-size:12px;color:#888;margin:2px 0 0;">Prépa en cours et prépas archivées</p>
+      </div>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
   <button onclick="openPrefsModal()" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
     <div style="display:flex;align-items:center;gap:12px;">
       <div style="width:38px;height:38px;border-radius:10px;background:#F5F0FF;display:flex;align-items:center;justify-content:center;font-size:18px;">🔔</div>
@@ -1051,7 +1061,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script defer src="/src/config.js?v=3"></script>
 <script defer src="/src/firebase.js?v=18"></script>
-<script defer src="/src/auth.js?v=5"></script>
+<script defer src="/src/auth.js?v=6"></script>
 <script defer src="/src/onboarding.js?v=4"></script>
 <script defer src="/src/plan-generate.js?v=4"></script>
 <script defer src="/src/plan-admin.js?v=4"></script>
@@ -1077,5 +1087,6 @@
 <script defer src="/src/coach-ui.js?v=19"></script>
 <script defer src="/src/notifs.js?v=9"></script>
 <script defer src="/src/whoop.js?v=6"></script>
+<script defer src="/src/preps.js?v=1"></script>
 </body>
 </html>

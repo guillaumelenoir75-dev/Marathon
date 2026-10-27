@@ -221,6 +221,7 @@ function logoutUser(){
 }
 
 function renderCompteScreen(){
+  if(typeof renderPrepsRow==='function') renderPrepsRow();
   const user=firebase.auth().currentUser;
   const greetEl=document.getElementById('compte-greeting');
   const tagEl=document.getElementById('compte-tagline');
