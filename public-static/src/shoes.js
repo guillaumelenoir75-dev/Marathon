@@ -23,6 +23,59 @@ function shoeKmTotal(name){
   }
   return Math.round(t*10)/10;
 }
+
+// Paire attribuée par type de séance (state._shoe_rules, ex. EF → GRVL, séances rapides → Adios) ; null si pas de règle
+function shoeForType(type){
+  let r={}; try{ r=JSON.parse(state._shoe_rules||'{}')||{}; }catch(e){}
+  const name=r[type]||null;
+  return name&&getShoes().some(sh=>sh.name===name&&!sh.retired)?name:null;
+}
+// Applique les règles aux séances de la prépa en cours (toutes, ou seulement celles sans paire) ; renvoie les clés modifiées
+function applyShoeRules(onlyEmpty){
+  const up={};
+  Object.keys(state).forEach(k=>{
+    if(!/^extra_w\d+_s\d+$/.test(k)) return;
+    let x; try{ x=JSON.parse(state[k]); }catch(e){ return; }
+    if(!x||(onlyEmpty&&x.shoe)) return;
+    const sh=shoeForType(x.type);
+    if(sh&&x.shoe!==sh){ x.shoe=sh; up[k]=state[k]=JSON.stringify(x); }
+  });
+  return up;
+}
+// Règles de chaussures pour le Coach (prépa générée)
+function shoeRulesText(){
+  let r={}; try{ r=JSON.parse(state._shoe_rules||'{}')||{}; }catch(e){}
+  const lab={ef:'EF',long:'sorties longues',frac:'fractionné',tempo:'tempo',race:'course'}, by={};
+  Object.keys(r).forEach(t=>{ (by[r[t]]=by[r[t]]||[]).push(lab[t]||t); });
+  const parts=Object.keys(by).map(n=>n+' : '+by[n].join(', '));
+  const ret=getShoes().filter(sh=>sh.retired).map(sh=>sh.name);
+  if(!parts.length&&!ret.length) return undefined;
+  return (parts.length?'Paire attribuée par type de séance — '+parts.join(' · ')+'.':'')+(ret.length?' Paires retirées, à ne plus conseiller : '+ret.join(', ')+'.':'');
+}
+// Chaussures d'octobre 2026 (km Strava au 27/10) : GRVL pour l'endurance, Adios Pro 4 pour le rapide,
+// Pegasus et Kiprun retirées. Appliqué une fois sur la prépa en cours de l'admin.
+const SHOES_OCT_2026=[
+  {name:'Salomon Aero Glide 4 GRVL',short:'GRVL',color:'#3B6D11',max:800,km:183.6},
+  {name:'Adidas Adios Pro 4',short:'Adios',color:'#E8530A',max:500,km:112.9},
+  {name:'Salomon Aero Glide 4',short:'Aero Glide',color:'#D4537E',max:800,km:405.4},
+  {name:'Nike Pegasus 41',short:'Pegasus',color:'#1438A8',max:800,km:427.3,retired:true},
+  {name:'Kiprun TR2',short:'Kiprun',color:'#888780',max:800,km:180.4,retired:true}];
+function shoesUpdateOct2026(){
+  if(!isAdmin()||usesHardPlan()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v2) return;
+  const G=SHOES_OCT_2026[0].name, A=SHOES_OCT_2026[1].name;
+  const up={_shoes_v2:true};
+  up._shoes=state._shoes=JSON.stringify(SHOES_OCT_2026.map(({km,...sh})=>sh));
+  up._shoe_rules=state._shoe_rules=JSON.stringify({ef:G,long:G,frac:A,tempo:A,race:A});
+  Object.assign(up,applyShoeRules(false));
+  // report = km Strava − km déjà comptés dans la prépa en cours : le total affiché est celui de Strava
+  SHOES_OCT_2026.forEach(sh=>{
+    let done=0; for(let ws=1;ws<=getEffectiveCW();ws++) done+=_shoeDoneKm(sh.name,ws);
+    up['shoe_km_'+sh.name]=state['shoe_km_'+sh.name]=Math.round((sh.km-done)*100)/100;
+  });
+  state._shoes_v2=true;
+  try{ if(dbRef) dbRef.update(up).catch(()=>{}); }catch(e){}
+  if(typeof rendered!=='undefined'){ rendered.stats=false; rendered.plan=false; }
+}
 function updateShoeMax(name, val){
   const arr=getShoes();
   const sh=arr.find(s=>s.name===name);
@@ -237,6 +290,8 @@ function saveEditShoe(oldName){
   sh.name=newName; sh.color=color; sh.max=max;
   saveShoes(arr);
   if(oldName !== newName){
+    if(state['shoe_km_'+oldName]!=null) state['shoe_km_'+newName]=state['shoe_km_'+oldName];
+    try{ const r=JSON.parse(state._shoe_rules||'{}')||{}; Object.keys(r).forEach(t=>{ if(r[t]===oldName) r[t]=newName; }); state._shoe_rules=JSON.stringify(r); }catch(e){}
     Object.keys(state).forEach(k=>{
       if(/^edit_w\d+_s\d+$/.test(k)||/^extra_w\d+_s\d+$/.test(k)){
         try{

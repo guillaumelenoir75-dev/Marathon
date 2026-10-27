@@ -272,7 +272,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   const shoesSummary = shoes.map(sh => {
     const kmReel = shoeKmTotal(sh.name);
     const pct = Math.round(kmReel/sh.max*100);
-    return `${sh.name}: ${kmReel}/${sh.max}km (${pct}%${pct>90?' ⚠️':pct>75?' surveiller':''})`;
+    return `${sh.name}: ${kmReel}/${sh.max}km (${pct}%${pct>90?' ⚠️':pct>75?' surveiller':''})${sh.retired?' [retirée]':''}`;
   }).join(' | ');
 
   // Renfo semaine en cours résumé
@@ -620,7 +620,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       };
     })(),
     logique_allure_marathon: "EF<148bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
-    chaussures_plan_verite: !usesHardPlan() ? undefined : `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
+    chaussures_plan_verite: !usesHardPlan() ? shoeRulesText() : `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
     contexte_semaines_speciales: usesHardPlan() ? {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'} : {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
     note: "Pour avoir plus de détails, précise ta question.",
     bodyhit_semaine: (()=>{

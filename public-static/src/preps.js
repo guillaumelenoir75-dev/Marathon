@@ -315,6 +315,7 @@ function prepInstallReady(id){
         const up = _prepReadyUpdates(R, usual);
         if(R.memo && String(state._coach_memos || '').indexOf(R.memo) < 0) up._coach_memos = (state._coach_memos ? state._coach_memos + '\n' : '') + R.memo;
         Object.assign(state, up);
+        if(typeof applyShoeRules === 'function') Object.assign(up, applyShoeRules(true));   // paires selon le type de séance
         await dbRef.update(up);
         syncPlanCompat();
         closePrepsPanel();

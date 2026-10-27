@@ -302,7 +302,8 @@ const shoeKm=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,3
 function shoeBadge(shoe){
   if(!shoe)return '';
   const st=getShoeStyle(shoe);
-  const abbr=shoe.length>6?shoe.substring(0,3):shoe;
+  const _sh=getShoes().find(s=>s.name===shoe);
+  const abbr=_sh&&_sh.short?_sh.short:(shoe.length>6?shoe.substring(0,3):shoe);
   return `<span style="background:${st.bg};color:${st.color};padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><span style="width:6px;height:6px;border-radius:50%;background:${st.dot};display:inline-block;"></span>${abbr}</span>`;
 }
 function shoeFullBadge(shoe){
@@ -311,7 +312,7 @@ function shoeFullBadge(shoe){
   return `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;border:1.5px solid ${st.dot};display:inline-block;"></span>${shoe}</span>`;
 }
 function getShoeOptions(currentShoe){
-  const list=getShoes();
+  const list=getShoes().filter(sh=>!sh.retired||sh.name===currentShoe);   // paires retirées : plus proposées
   return [...list.map(sh=>`<option value="${sh.name}" ${currentShoe===sh.name?'selected':''}>${sh.name}</option>`),
     `<option value="" ${!currentShoe?'selected':''}>— aucune —</option>`].join('');
 }

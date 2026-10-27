@@ -149,7 +149,7 @@ function renderStats(){
     row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
       <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="openShoeHistory('${sh.name}')" title="Voir l'historique des séances">
         <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};display:inline-block;flex-shrink:0;"></span>
-        <span style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px dashed var(--border);">${sh.name}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px dashed var(--border);">${sh.name}</span>${sh.retired?'<span style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:10px;padding:1px 6px;font-weight:600;">retirée</span>':''}
         <span style="font-size:10px;color:var(--muted);font-weight:500;">Historique</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">

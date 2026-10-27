@@ -640,7 +640,7 @@ function saveAdd(ws){
   const shoeEl = document.getElementById('add-shoe');
   const type = typeEl ? typeEl.value : 'ef';
   const km   = parseFloat(kmEl ? kmEl.value : 0) || 0;
-  const shoe = shoeEl && shoeEl.value ? shoeEl.value : null;
+  const shoe = shoeEl && shoeEl.value ? shoeEl.value : (typeof shoeForType==='function' ? shoeForType(type) : null);
 
   if(!type){ showAddError('Choisissez un type.'); return; }
   if(!km || km <= 0){ showAddError('Entrez une distance en km.'); return; }

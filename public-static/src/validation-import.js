@@ -55,7 +55,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           charge_semaine: (()=>{const kmF=calcWeekDoneKm();const kmP=getWeekTotalKm(CW);const kmPrev=CW>1?getWeekTotalKm(CW-1):kmP;return {realise:kmF,planifie:kmP,ratio_vs_precedente:kmPrev>0?Math.round(kmP/kmPrev*100)/100:null,statut:kmF<kmP?'EN_COURS':'TERMINÉE'};})(),
           infos_importantes_Guillaume: coachMemos||undefined,
           absences_semaine: state['absences_cw'+CW]||null,
-          chaussures_plan_verite: !usesHardPlan() ? undefined : "Zoom Fly : première utilisation planifiée S26 (31/08/2026), jamais avant.",
+          chaussures_plan_verite: !usesHardPlan() ? shoeRulesText() : "Zoom Fly : première utilisation planifiée S26 (31/08/2026), jamais avant.",
           allure_ef_reference: getBestEfPace(),
           allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ 148 bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue). Utilise cette allure comme référence EF du moment pour contextualiser les débriefs.",
           note_comparaison_allures: "IMPORTANT — convention allure : une allure s'exprime en min:sec PAR KILOMÈTRE. Plus le nombre est GRAND (plus de secondes/km), plus c'est LENT. Ex: 5'46/km (346 sec/km) est PLUS LENT que 5'30/km (330 sec/km). Ne jamais dire 'plus rapide' si le nombre de secondes réalisé est supérieur à la cible.",

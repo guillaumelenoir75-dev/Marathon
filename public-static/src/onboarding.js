@@ -1343,6 +1343,7 @@ async function saveOnboarding(){
   else renderHome();
   renderPlan();
   if(_adminPreviewUid) _refreshAthleteCoachView();
+  if(_newPrep&&typeof applyShoeRules==='function'){ const _su=applyShoeRules(true); if(Object.keys(_su).length&&dbRef) dbRef.update(_su).catch(()=>{}); }
   if(_newPrep){ showScreen('home'); if(typeof showToast==='function') showToast('Nouvelle prépa créée 🏁'); }
 }
 
