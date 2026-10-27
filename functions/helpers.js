@@ -272,12 +272,15 @@ async function buildNotifContext(state, cw) {
     extraIdx++;
   }
   let efPace=null;
-  for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`s${ws}i${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;}
+  for(let ws=cw;ws>=Math.max(1,cw-4);ws--){for(let si=0;si<5;si++){const pr=state[`s${ws}i${si}perf`];if(!pr)continue;try{const p=JSON.parse(pr);if(p.type==='ef'&&p.pace){efPace=p.pace;break;}}catch(e){}}if(efPace)break;
+    // séances extra (plan migré / prépa générée) : dernière EF faite
+    for(let ei=50;ei>=0&&!efPace;ei--){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr||!state[`extra_w${ws}_s${ei}`])continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if(es.type==='ef'&&p.pace)efPace=p.pace;}catch(e){}}if(efPace)break;}
   let kmSemaine=0;if(!state._plan_migrated){for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}}let _exi=0;while(_exi<=50&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
   const cwNext=Math.min(cw+1,totalWeeksFor(state));
   const typeSemNext=_gen?weekTypeFor(state,cwNext):(cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge');
-  for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
-  return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:32-cw,seanceRunAujourdhui};
+  if(!state._plan_migrated)for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${ed.d?ed.d.split('|')[0]:(ed.type||'').toUpperCase()} ${ed.km||''}km`);}
+  if(cwNext>cw)for(let ei=0;ei<=50&&state[`extra_w${cwNext}_s${ei}`];ei++){let es;try{es=JSON.parse(state[`extra_w${cwNext}_s${ei}`]);}catch(e){continue;}if(!es||es.type==='rest')continue;seancesNext.push(`${es.d?es.d.split('|')[0]:(es.type||'').toUpperCase()} ${es.km||''}km`);}
+  return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:Math.max(0,totalWeeksFor(state)-cw),seanceRunAujourdhui};
 }
 
 // Génère le brief du matin complet (appel Anthropic + météo + gels + eau)
@@ -371,6 +374,10 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
       if (!pr) continue;
       try { const p=JSON.parse(pr); if ((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
     }
+    if (state._plan_engine) for (let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++) {   // prépa générée : séances extra
+      const pr=state[`extra_w${ws}_s${ei}_perf`]; if (!pr) continue;
+      try { const es=JSON.parse(state[`extra_w${ws}_s${ei}`]), p=JSON.parse(pr); if (es.type==='ef'&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
+    }
   }
   let efPace = null;
   if (efPaces.length > 0) {
@@ -381,7 +388,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   }
   efPace = efPace || "6'40";
 
-  const isDecharge = [8,12,16,20].includes(cw);
+  const isDecharge = state._plan_engine ? weekTypeFor(state, cw) === 'décharge' : [8,12,16,20].includes(cw);
   const consignesEf = isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm` : `Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
   const memos = state['_coach_memos'] || '';
   const seancesStr = ctx.seancesAujourdHui.length > 0 ? ctx.seancesAujourdHui.join(' + ') : 'Récupération';

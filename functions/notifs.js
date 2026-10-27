@@ -17,6 +17,9 @@ const {
   getCurrentWeek,
   adminCurrentWeek,
   prepObjectiveText,
+  getPrepInfo,
+  totalWeeksFor,
+  loadPrepState,
   buildNotifContext,
   callAnthropic,
   generateWeeklyBilanContent,
@@ -694,8 +697,15 @@ exports.weekCompleteCongrats = onSchedule(
               const km=state[`s${cw}i${si}km`]||ed.km||'';
               perfsDetail.push(`${titre} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
             }
+            for(let ei=0;ei<=50&&state[`extra_w${cw}_s${ei}`];ei++){   // séances extra (plan migré / prépa générée)
+              if(!state[`extra_w${cw}_s${ei}_done`])continue;
+              let es,perf={};try{es=JSON.parse(state[`extra_w${cw}_s${ei}`]);perf=JSON.parse(state[`extra_w${cw}_s${ei}_perf`]||'{}')||{};}catch(e){continue;}
+              if(!es||es.type==='rest')continue;
+              const km=state[`extra_w${cw}_s${ei}_km`]||es.km||'';
+              perfsDetail.push(`${es.d?es.d.split('|')[0]:(es.type||'').toUpperCase()} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
+            }
             const perfsStr=perfsDetail.length>0?perfsDetail.join(', '):`${doneRun} séances`;
-            const prompt=`Félicitations à Guillaume pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant le marathon.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;
+            const prompt=`Félicitations à Guillaume pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant ${state._plan_engine?'la course « '+getPrepInfo(state).name+' »':'le marathon'}.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;
             const msg=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running enthousiaste. Réponds en 2 phrases courtes, maximum 180 caractères, jamais de phrase coupée.',[{role:'user',content:prompt}],180,'claude-haiku-4-5-20251001');
             let body = msg || `S${cw} 100% complète ! Run + renfo : tout validé. Belle semaine Guillaume 💪`;
             const lastPunct = Math.max(body.lastIndexOf('.'), body.lastIndexOf('!'), body.lastIndexOf('?'));
@@ -750,8 +760,9 @@ exports.weeklyPlanifReminder = onSchedule(
   async()=>{
     try{
       const db=admin.database();
-      const cw=await adminCurrentWeek(db);
-      const cwNext=Math.min(cw+1,32);
+      const _ps=await loadPrepState(db);
+      const cw=getCurrentWeek(_ps);
+      const cwNext=Math.min(cw+1,totalWeeksFor(_ps));
       if(await getUserPref(db,ADMIN_STATE,'notif_planif')){
         const body=`Vérifie tes horaires de séances et renfos pour la semaine ! 🏃💪`;
         await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'📅 Plan S'+cwNext,body,'planif-reminder','/');

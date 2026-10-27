@@ -80,6 +80,12 @@ function checkForPlanProposal(text, bubble){
 }
 
 
+// Séances : depuis la migration (et pour toute prépa générée), la vérité est extra_w{ws}_s{ei} ;
+// l'ancien format edit_w n'est lu qu'en secours
+function _cmExtra(ws, si){ try{ const r=state['extra_w'+ws+'_s'+si]; return r?JSON.parse(r):null; }catch(e){ return null; } }
+function _cmSession(ws, si){ return _cmExtra(ws, si) || getSession(ws, si); }
+function _cmEd(ws, si){ const x=_cmExtra(ws, si); if(x) return x; try{ const r=state['edit_w'+ws+'_s'+si]; return r?JSON.parse(r):null; }catch(e){ return null; } }
+
 function openPlanModifModal(){
   _selectedModifSi = null;
   _prefilledModif = null;
@@ -101,7 +107,7 @@ function openPlanModifModal(){
   let sessionsHtml = '';
   const sessionsForWS = targetWS===CW
     ? getOrderedWeekSessions(CW).map(({s,ei})=>({s,si:ei,ws:CW}))
-    : weeks[targetWS-1].sessions.map((s,si)=>({s,si,ws:targetWS}));
+    : (state['extra_w'+targetWS+'_s0']!==undefined ? getOrderedWeekSessions(targetWS).map(({s,ei})=>({s,si:ei,ws:targetWS})) : weeks[targetWS-1].sessions.map((s,si)=>({s,si,ws:targetWS})));
 
   // Si un type est ciblé, ne montrer que les séances de ce type
   const searchForDisplay = ((_lastUserMessageBeforeProposal||'').toLowerCase()+' '+(_lastCoachProposalText||'').toLowerCase());
@@ -116,7 +122,7 @@ function openPlanModifModal(){
     if(done && !userAskedModifGlobal) return;
     if(targetTypeDisplay && s.type !== targetTypeDisplay) return;
     const titre = s.d.split('|')[0];
-    let ed=null;try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
+    let ed=_cmEd(ws,si);
     const jourActuelSess = ed&&ed.sched_day?joursAbr[ed.sched_day]:'';
     const heureActuelSess = ed&&ed.sched_time?ed.sched_time:'';
     const schedStr = [jourActuelSess, heureActuelSess].filter(Boolean).join(' ');
@@ -151,7 +157,7 @@ function openPlanModifModal(){
   if(!sessionsHtml) {
     sessionsForWS.forEach(({s,si,ws})=>{
       const titre = s.d.split('|')[0];
-      let ed2=null;try{ed2=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
+      let ed2=_cmEd(ws,si);
       const jour2 = ed2&&ed2.sched_day?joursAbr[ed2.sched_day]:'';
       const heure2 = ed2&&ed2.sched_time?ed2.sched_time:'';
       const sched2 = [jour2,heure2].filter(Boolean).join(' ');
@@ -214,9 +220,8 @@ function openPlanModifModal(){
       // Les valeurs sont extraites et stockées pour Appliquer
       const autoItem = autoSess[0];
       const autoWS = autoItem.ws || targetWS;
-      const s = getSession(autoWS, autoItem.si);
-      const edRaw = state['edit_w'+autoWS+'_s'+autoItem.si];
-      const ed = edRaw ? JSON.parse(edRaw) : null;
+      const s = _cmSession(autoWS, autoItem.si);
+      const ed = _cmEd(autoWS, autoItem.si);
       _prefilledModif = extractSuggestionsFromCoach(autoItem.si, s, ed);
     }, 50);
   }
@@ -332,8 +337,8 @@ function selectSessionToModif(si, el, ws){
   _selectedModifSi = si;
   document.querySelectorAll('[id^="modif-sess-"]').forEach(e=>e.style.background='');
   el.style.background='var(--bg2)';
-  const s = getSession(resolvedWS, si);
-  let ed=null;try{ed=state['edit_w'+resolvedWS+'_s'+si]?JSON.parse(state['edit_w'+resolvedWS+'_s'+si]):null;}catch(e){}
+  const s = _cmSession(resolvedWS, si);
+  let ed=_cmEd(resolvedWS, si);
   const form = document.getElementById('modif-form');
   form.style.display='block';
   const jours = ['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
@@ -471,7 +476,7 @@ function selectSessionToModif(si, el, ws){
   const showTempoExtra = suggestedType==='tempo' && (suggestedReps||suggestedPaceMin||suggestedRecup);
   let tempoExtraHtml = '';
   if(showTempoExtra){
-    let curEd=null;try{curEd=state['edit_w'+resolvedWS+'_s'+si]?JSON.parse(state['edit_w'+resolvedWS+'_s'+si]):null;}catch(e){}
+    let curEd=_cmEd(resolvedWS, si);
     const curTitle = (curEd?curEd.d:s.d).split('|')[0];
     const curRepsM = curTitle.match(/(\d+)[×x](\d+)/i);
     const repsVal = suggestedReps || (curRepsM?parseInt(curRepsM[1]):2);
@@ -521,9 +526,8 @@ async function applyPlanModif(){
 
   const formOpen = !!document.getElementById('modif-km');
   const modifWS = _targetModifWS || CW;
-  const s0 = getSession(modifWS, _selectedModifSi);
-  const ed0Raw = state['edit_w'+modifWS+'_s'+_selectedModifSi];
-  let ed0;try{ed0=ed0Raw?JSON.parse(ed0Raw):{...s0};}catch(e){ed0={...s0};}
+  const s0 = _cmSession(modifWS, _selectedModifSi);
+  let ed0 = _cmEd(modifWS, _selectedModifSi) || {...s0};
 
   let km, type, day, time, reason;
   if(formOpen){
@@ -543,12 +547,17 @@ async function applyPlanModif(){
     time = extracted.time || ed0.sched_time || '';
     reason = '';
   }
-  const s = getSession(modifWS, _selectedModifSi);
-  const edRaw = state['edit_w'+modifWS+'_s'+_selectedModifSi];
-  let ed;try{ed=edRaw?JSON.parse(edRaw):{...s};}catch(e){ed={...s};}
+  const s = _cmSession(modifWS, _selectedModifSi);
+  let ed = Object.assign({}, _cmEd(modifWS, _selectedModifSi) || s);
+  const _prevDay = Number(ed.sched_day)||null;
   ed.km = km;
   ed.type = type;
   if(day) ed.sched_day = day;
+  // jour changé : la date de la séance suit, dans la même semaine
+  if(day && _prevDay && day!==_prevDay && ed.sched_date){
+    const nd=new Date(ed.sched_date+'T12:00:00'); nd.setDate(nd.getDate()+(day-_prevDay));
+    ed.sched_date=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
+  }
   if(time) ed.sched_time = time;
 
   // Appliquer les champs tempo
@@ -586,10 +595,11 @@ async function applyPlanModif(){
   }
 
   const savedSi = _selectedModifSi;
-  console.log('[ModifDebug] SAVING key=edit_w'+modifWS+'_s'+savedSi+' time='+ed.sched_time+' day='+ed.sched_day);
-  state['edit_w'+modifWS+'_s'+savedSi] = JSON.stringify(ed);
+  // séance du programme (extra_w) : modifiée directement ; sinon ancien format edit_w
+  const _key = _cmExtra(modifWS, savedSi) ? 'extra_w'+modifWS+'_s'+savedSi : 'edit_w'+modifWS+'_s'+savedSi;
+  if(_key.startsWith('extra_w')){ ed._modified = true; ed._seq = (ed._seq||0) + 1; }
+  state[_key] = JSON.stringify(ed);
   save();
-  console.log('[ModifDebug] SAVED:', state['edit_w'+modifWS+'_s'+savedSi]);
   rendered.plan=false;
   rendered.stats=false;
   closeModal();

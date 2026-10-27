@@ -269,19 +269,8 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
 
   // Chaussures résumé
   const shoes = getShoes();
-  const defaultNames = [P, S, Z];
-  const shoeKmTable = [[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
   const shoesSummary = shoes.map(sh => {
-    const defaultIdx = defaultNames.indexOf(sh.name);
-    const baseKm = defaultIdx >= 0 ? (shoeKmTable[defaultIdx][CW-2]||0) : (state['shoe_km_'+sh.name]||0);
-    let thisWeekKm = 0;
-    getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
-      if(s2.shoe===sh.name){
-        const done=!!state[`extra_w${CW}_s${ei}_done`];
-        if(done) thisWeekKm+=(state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s2.km);
-      }
-    });
-    const kmReel = baseKm + thisWeekKm;
+    const kmReel = shoeKmTotal(sh.name);
     const pct = Math.round(kmReel/sh.max*100);
     return `${sh.name}: ${kmReel}/${sh.max}km (${pct}%${pct>90?' ⚠️':pct>75?' surveiller':''})`;
   }).join(' | ');
@@ -631,7 +620,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       };
     })(),
     logique_allure_marathon: "EF<148bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
-    chaussures_plan_verite: `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
+    chaussures_plan_verite: !usesHardPlan() ? undefined : `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
     contexte_semaines_speciales: usesHardPlan() ? {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'} : {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
     note: "Pour avoir plus de détails, précise ta question.",
     bodyhit_semaine: (()=>{
@@ -658,7 +647,12 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const r = [];
       const joursAbr=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
       for(let ws=CW+1; ws<=Math.min(CW+4, planTotalWeeks()); ws++){
-        const sl = weeks[ws-1].sessions.map((sess,si)=>{
+        // prépa générée : séances réelles de la semaine (ordre, jour et horaire planifiés)
+        const sl = !usesHardPlan() ? getOrderedWeekSessions(ws).map(({s:sess})=>{
+          const d = String(sess.d||'').split("|");
+          return {type:sess.type, titre:d[0], detail:d[1]||'', km:sess.km,
+            planifie: sess.sched_day?(joursAbr[sess.sched_day]||'')+(sess.sched_time?' '+sess.sched_time:''):null};
+        }) : weeks[ws-1].sessions.map((sess,si)=>{
           const edRaw = state["edit_w"+ws+"_s"+si];
           let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
           const d = (ed?ed.d:sess.d).split("|");
@@ -721,16 +715,9 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
   }
 
   if(needs.chaussures_detail) {
-    const shoes=getShoes(); const defaultNames=[P,S,Z];
-    const shoeKmTable=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
+    const shoes=getShoes();
     extra.chaussures_detail = shoes.map(sh=>{
-      const defaultIdx=defaultNames.indexOf(sh.name);
-      const baseKm=defaultIdx>=0?(shoeKmTable[defaultIdx][CW-2]||0):(state['shoe_km_'+sh.name]||0);
-      let thisWeekKm=0;
-      getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
-        if(s2.shoe===sh.name){ const d=!!state[`extra_w${CW}_s${ei}_done`]; if(d) thisWeekKm+=(state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s2.km); }
-      });
-      const kmReel=baseKm+thisWeekKm;
+      const kmReel=shoeKmTotal(sh.name);
       return {nom:sh.name, km_parcourus:kmReel, km_max:sh.max, km_restants:Math.max(0,sh.max-kmReel), usure:Math.round(kmReel/sh.max*100)+'%', alerte:kmReel>sh.max*0.9?'Proche limite!':kmReel>sh.max*0.75?'A surveiller':'OK'};
     });
   }

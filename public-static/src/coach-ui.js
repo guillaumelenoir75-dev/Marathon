@@ -268,8 +268,10 @@ async function sendCoachMessage(retryMsg){
     const futurPlan = [];
     if(needs.plan_futur || needs.historique_complet) {
       for(let ws=CW; ws<=planTotalWeeks(); ws++){
-        // Séances du plan de base
-        const weekSessions = weeks[ws-1].sessions.map((sess, si) => {
+        // Séances du plan de base — seulement pour l'ancien format : depuis la migration (et pour une prépa
+        // générée), toutes les séances sont dans extra_w, lues juste après (sinon elles seraient comptées deux fois)
+        const _onlyExtra = state._plan_migrated || !usesHardPlan();
+        const weekSessions = (_onlyExtra ? [] : weeks[ws-1].sessions).map((sess, si) => {
           if(state['del_w'+ws+'_s'+si]) return null;
           let ed=null;try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
           const d = ed ? ed.d : sess.d;
@@ -747,7 +749,7 @@ async function generateFullBriefFromNotif(memos) {
   if (dbRef && (!state || Object.keys(state).length === 0)) {
     try {
       const stateSnap = await dbRef.once('value');
-      if (stateSnap.val()) state = stateSnap.val();
+      if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncPlanCompat==='function') syncPlanCompat(); }
     } catch(e) {}
   }
 
@@ -1526,11 +1528,11 @@ async function loadCoachHistory(){
     } else {
       // Pas d'historique
       if (!_fromPushNotif) {
-        addCoachMessage('coach', "Bonjour Guillaume ! Je suis ton coach IA. J'ai accès à tout ton plan et ton historique de séances. Pose-moi toutes tes questions sur ta prépa marathon !");
+        addCoachMessage('coach', "Bonjour Guillaume ! Je suis ton coach IA. J'ai accès à tout ton plan et ton historique de séances. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
       }
     }
   } catch(e) {
-    addCoachMessage('coach', "Bonjour Guillaume ! Je suis ton coach IA. Pose-moi toutes tes questions sur ta prépa marathon !");
+    addCoachMessage('coach', "Bonjour Guillaume ! Je suis ton coach IA. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
   }
   // ── TOUJOURS vérifier le brief du matin en fin de loadCoachHistory ──
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)

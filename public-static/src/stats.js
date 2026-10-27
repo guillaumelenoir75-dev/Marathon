@@ -141,21 +141,8 @@ function renderStats(){
     if(sm) sm.innerHTML='';
     return;
   }
-  const shoeKm=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
-  const defaultNames=[P,S,Z];
   dynamicShoes.forEach((sh)=>{
-    const defaultIdx=defaultNames.indexOf(sh.name);
-    // Base = km cumulés FIN de la semaine précédente (CW-2)
-    const baseKm=defaultIdx>=0?(shoeKm[defaultIdx][CW-2]||0):(state[`shoe_km_${sh.name}`]||0);
-    // Ajouter les km réels des séances cochées cette semaine avec cette chaussure
-    let thisWeekKm=0;
-    getOrderedWeekSessions(CW).forEach(({s:s2,ei})=>{
-      if(s2.shoe===sh.name){
-        const done=!!state[`extra_w${CW}_s${ei}_done`];
-        if(done){const _ekm=parseFloat(state[`extra_w${CW}_s${ei}_km`]);thisWeekKm+=(!isNaN(_ekm)&&state[`extra_w${CW}_s${ei}_km`]!=null)?_ekm:s2.km;}
-      }
-    });
-    const km=baseKm+thisWeekKm;
+    const km=shoeKmTotal(sh.name);
     const pct=Math.min(100,Math.round(km/sh.max*100));
     const row=document.createElement('div');
     row.style.cssText='margin-bottom:14px;';
@@ -332,6 +319,9 @@ function renderStats(){
     }
   }
 
+  // stratégie gels : inutile pour une course objectif de moins de 21 km (ex. 10 km)
+  const _gelSec=document.getElementById('stats-gels-section');
+  if(_gelSec&&isAdmin()) _gelSec.style.display=(prepRace().km&&prepRace().km<21)?'none':'';
   const gr=document.getElementById('gels-rows');gr.innerHTML='';
   if(!gels.length){
     const empty=document.createElement('div');
@@ -1027,7 +1017,7 @@ function renderRenfoExercises(){
 
   // Bouton skip (admin only) — affiché sous les onglets
   let skipBtn=document.getElementById('renfo-skip-btn');
-  if(!skipBtn && usesHardPlan()){
+  if(!skipBtn && isAdmin()){                 // « pas de renfo cette semaine » : fonction admin, toutes prépas
     skipBtn=document.createElement('button');
     skipBtn.id='renfo-skip-btn';
     skipBtn.style.cssText='width:100%;padding:10px;background:transparent;border:1px dashed #aaa;border-radius:var(--radius);font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:16px;';

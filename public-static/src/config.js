@@ -173,7 +173,11 @@ function syncPlanCompat(){
     weekDates.push(d.getFullYear() + '-' + mm + '-' + dd);
     weeks.push({ s: ws, km: Math.round(getAthleteWeekKm(ws)), date: dd + '/' + mm, month: _MONTHS_FR[d.getMonth()], sessions: sessions });
   }
-  CW = Math.min(Math.max(1, getAthleteCW()), weeks.length); homeViewWeek = CW;
+  CW = Math.min(Math.max(1, getAthleteCW()), weeks.length);
+  if(!(homeViewWeek >= 1 && homeViewWeek <= weeks.length)) homeViewWeek = CW;   // garde la semaine consultée à l'accueil (save() rappelle cette fonction)
+  // créneaux renfo habituels de l'admin (mercredi 19:00, vendredi 18:30) pour la semaine en cours et la suivante
+  const rfDef = { 1: { day: 3, time: '19:00' }, 2: { day: 5, time: '18:30' } };
+  [CW, Math.min(CW + 1, weeks.length)].forEach(function(w){ [1, 2].forEach(function(r){ const k = 'rf' + w + 'r' + r + 'sched'; if(!state[k]) state[k] = JSON.stringify(rfDef[r]); }); });
 }
 // Course objectif de la prépa en cours
 function prepRace(){
@@ -277,7 +281,12 @@ const renfoAffutageUnique=[
   {nom:"Extension de jambe",img:RENFO_IMG7,desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement. Charge très légère.",series:"2 × 8 rép. par côté"},
   {nom:"Montées sur banc / marche",img:RENFO_IMG6,desc:"Montez puis descendez lentement d'une marche basse en contrôlant l'appui.",series:"2 × 8 rép. par côté"},
 ];
-function isAffutageWeek(){return usesHardPlan()&&CW>=30&&CW<=32;}
+// Semaine d'affûtage : S30-S32 pour Seine-Eure ; pour une prépa générée de l'admin, lue dans le programme (meta_w.isTaper)
+function isAffutageWeek(){
+  if(usesHardPlan()) return CW>=30&&CW<=32;
+  if(!isAdmin()) return false;
+  try{ return !!JSON.parse(state['meta_w'+CW]||'{}').isTaper; }catch(e){ return false; }
+}
 
 const gels=[{km:12,nb:1,t:"À 6 km"},{km:16,nb:2,t:"6 & 12 km"},{km:20,nb:3,t:"6, 12 & 17 km"},{km:24,nb:4,t:"6, 12, 17 & 22 km"},{km:28,nb:5,t:"6, 12, 17, 22 & 26 km"},{km:'Marathon',nb:8,t:"6, 12, 17, 22, 26, 30, 34 & 38 km"}];
 const shoes=[{name:P,color:'#1438A8',max:600},{name:S,color:'#D4537E',max:500},{name:Z,color:'#EAB308',max:600}];

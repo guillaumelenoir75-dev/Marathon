@@ -6,7 +6,7 @@
 const _PREP_SKIP = /^(_coach_history|_coach_unread|_brief|whoop_|strava_token|_push_sub|_ratelimit|_open_coach|_last_location|_wakeup_|_geo_granted|_shaker_run_ts)/;
 let _prepIndex = null, _prepView = null, _prepPendingNew = false;
 // clés propres à une prépa (retirées au démarrage d'une nouvelle) ; profil, chaussures, FC, VO2max, Strava… sont conservés
-const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+r\d+|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$)/;
+const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+(r\d+|skip)|_congrats_sent_w|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$)/;
 
 function _prepUid(){ const u = firebase.auth().currentUser; return u ? u.uid : null; }
 function _prepRef(path){ return firebase.database().ref('users/' + _prepUid() + '/' + path); }
@@ -202,11 +202,23 @@ function prepOpenWizard(){
   showOnboarding(true);
   if(prev === undefined) delete state.onboarding; else state.onboarding = prev;      // rien n'est modifié tant que l'assistant n'est pas validé
 }
+// Prépa installée avant la remise à zéro complète : retire les « renfo sauté » et « félicitations envoyées » hérités de Seine-Eure
+function prepLegacyCleanup(){
+  if(!isAdmin() || usesHardPlan() || _prepView || state._prep_clean_v1) return;
+  const up = { _prep_clean_v1: true };
+  Object.keys(state).forEach(function(k){ if(/^(rf\d+skip|_congrats_sent_w\d+)$/.test(k)){ up[k] = null; delete state[k]; } });
+  state._prep_clean_v1 = true;
+  try { if(dbRef) dbRef.update(up).catch(function(){}); } catch(e) {}
+}
 async function prepApplyNew(){
   const up = {};
+  // km des chaussures figés avant la remise à zéro : la nouvelle prépa repart de leur total réel
+  try { getShoes().forEach(function(sh){ if(!/[.#$\/\[\]]/.test(sh.name)) up['shoe_km_' + sh.name] = shoeKmTotal(sh.name); }); } catch(e) {}
   Object.keys(state).forEach(function(k){ if(_PREP_RESET.test(k)){ up[k] = null; delete state[k]; } });
+  Object.keys(up).forEach(function(k){ if(up[k] !== null) state[k] = up[k]; });
   up._plan_engine = 'generated'; state._plan_engine = 'generated';
-  up._plan_migrated = true; state._plan_migrated = true;                          // l'ancien plan Seine-Eure ne doit jamais être régénéré
+  up._plan_migrated = true; state._plan_migrated = true;
+  up._prep_clean_v1 = true; state._prep_clean_v1 = true;                          // l'ancien plan Seine-Eure ne doit jamais être régénéré
   await dbRef.update(up);
 }
 

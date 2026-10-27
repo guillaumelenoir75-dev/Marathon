@@ -1,3 +1,28 @@
+// Km cumulés d'une paire. Plan Seine-Eure écrit en dur : tableau de référence + séances cochées de la semaine.
+// Prépa générée : km reportés des prépas précédentes (shoe_km_*, figés par prepApplyNew) + séances faites de la prépa en cours.
+const SHOE_KM_HARD=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
+function _shoeDoneKm(name, ws){
+  let t=0;
+  getOrderedWeekSessions(ws).forEach(({s,ei})=>{
+    if(s.shoe!==name||!state[`extra_w${ws}_s${ei}_done`]) return;
+    const v=parseFloat(state[`extra_w${ws}_s${ei}_km`]);
+    t+=isNaN(v)?(parseFloat(s.km)||0):v;
+  });
+  return t;
+}
+function shoeKmTotal(name){
+  const idx=[P,S,Z].indexOf(name);
+  let base=parseFloat(state['shoe_km_'+name]), t;
+  if(usesHardPlan()){
+    t=(idx>=0?(SHOE_KM_HARD[idx][CW-2]||0):(isNaN(base)?0:base))+_shoeDoneKm(name,CW);
+  } else {
+    // admin passé à une prépa générée sans report figé : km de fin de Seine-Eure
+    if(isNaN(base)) base=(isAdmin()&&idx>=0)?SHOE_KM_HARD[idx][SHOE_KM_HARD[idx].length-1]:0;
+    t=base;
+    for(let ws=1;ws<=getEffectiveCW();ws++) t+=_shoeDoneKm(name,ws);
+  }
+  return Math.round(t*10)/10;
+}
 function updateShoeMax(name, val){
   const arr=getShoes();
   const sh=arr.find(s=>s.name===name);
@@ -118,7 +143,8 @@ function openShoeHistory(shoeName){
   const sh=getShoes().find(s=>s.name===shoeName);
   if(!sh) return;
   const sessions=[];
-  for(let ws=1;ws<CW;ws++){
+  const _cw=getEffectiveCW();
+  for(let ws=1;ws<_cw;ws++){
     getOrderedWeekSessions(ws).forEach(({s,ei})=>{
       if(s.shoe!==shoeName||s.km===0||!state[`extra_w${ws}_s${ei}_done`]) return;
       const kmReal=state[`extra_w${ws}_s${ei}_km`]!=null?state[`extra_w${ws}_s${ei}_km`]:s.km;
@@ -126,12 +152,12 @@ function openShoeHistory(shoeName){
     });
   }
   // Semaine en cours : séances déjà cochées
-  getOrderedWeekSessions(CW).forEach(({s,ei})=>{
+  getOrderedWeekSessions(_cw).forEach(({s,ei})=>{
     if(s.shoe!==shoeName||s.km===0) return;
-    const done=state[`extra_w${CW}_s${ei}_done`]||state[`extra_w${CW}_s${ei}_km`]!=null;
+    const done=state[`extra_w${_cw}_s${ei}_done`]||state[`extra_w${_cw}_s${ei}_km`]!=null;
     if(!done) return;
-    const kmReal=state[`extra_w${CW}_s${ei}_km`]!=null?state[`extra_w${CW}_s${ei}_km`]:s.km;
-    sessions.push({title:s.d.split('|')[0],km:kmReal,ws:CW});
+    const kmReal=state[`extra_w${_cw}_s${ei}_km`]!=null?state[`extra_w${_cw}_s${ei}_km`]:s.km;
+    sessions.push({title:s.d.split('|')[0],km:kmReal,ws:_cw});
   });
 
   const mc=document.getElementById('modal-container');

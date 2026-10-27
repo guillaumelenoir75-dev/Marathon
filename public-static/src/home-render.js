@@ -158,10 +158,11 @@ function renderHome(){
       const done=!!state[`extra_w${w}_s${ei}_done`];
       if(done) return;
       let sched=null;try{const sk=`extra_w${w}_s${ei}_sched`;sched=state[sk]?JSON.parse(state[sk]):null;}catch(e){}
+      if(!sched&&s.sched_day) sched={day:Number(s.sched_day),time:s.sched_time||null};   // créneau enregistré dans la séance
       if(!sched||!sched.day) return;
       if(sched.day<todayDay) return; // passé
-      if(!nextSched||sched.day<nextSched.day||(sched.day===nextSched.day&&(sched.time||'')>(nextSched.time||'')))
-        nextSched={day:sched.day,time:sched.time,title:s.title||'Séance'};
+      if(!nextSched||sched.day<nextSched.day||(sched.day===nextSched.day&&(sched.time||'')<(nextSched.time||'')))
+        nextSched={day:sched.day,time:sched.time,title:s.title||String(s.d||'Séance').split('|')[0]};
     });
     if(nextSched){
       nextSchedTextEl.textContent=nextSched.title+' · '+rfDaysFull[nextSched.day]+(nextSched.time?' '+nextSched.time:'');
@@ -566,7 +567,7 @@ function renderHome(){
       renfoEl.appendChild(skipCard);
       const renfoProgressEl=document.getElementById('renfo-progress');
       if(renfoProgressEl){renfoProgressEl.style.color='var(--muted)';renfoProgressEl.textContent='—';}
-    } else if(usesHardPlan()&&w>=30&&w<=32){
+    } else if(usesHardPlan()?(w>=30&&w<=32):(isAdmin()&&(()=>{try{return !!JSON.parse(state['meta_w'+w]||'{}').isTaper;}catch(e){return false;}})())){   // affûtage : S30-32 Seine-Eure ou semaine d'affûtage du programme
     // ── Mode Affûtage (S30-S32) ─────────────────────────────────────────────
     const _n=new Date();const _today=_n.getFullYear()*10000+(_n.getMonth()+1)*100+_n.getDate();
     const affData=[
@@ -708,11 +709,11 @@ function renderHome(){
       renfoProgressEl.textContent=`${doneCount}/${total}`;
     }
     // Planification renfo S+1 (visible seulement sur semaine en cours)
-    const cwNext = Math.min(w+1, 32);
+    const cwNext = Math.min(w+1, planTotalWeeks());
     const renfoNextLabel = document.getElementById('renfo-next-label');
     if(renfoNextLabel) renfoNextLabel.textContent = cwNext;
     const renfoNextSection = renfoNextLabel ? renfoNextLabel.closest('div') : null;
-    if(renfoNextSection) renfoNextSection.style.display = (isCurrent||isFuture) ? '' : 'none';
+    if(renfoNextSection) renfoNextSection.style.display = (isCurrent||isFuture) && cwNext!==w ? '' : 'none';   // pas de semaine suivante après la dernière
     const renfoNextEl = document.getElementById('renfo-next-week');
     if(renfoNextEl) {
       renfoNextEl.innerHTML = '';
@@ -721,7 +722,7 @@ function renderHome(){
         const defaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
         renfoData.forEach(rd => {
           const schedKey = rfk(cwNext, rd.r)+'sched';
-          if(!state[schedKey] && usesHardPlan()) state[schedKey] = JSON.stringify(defaults[rd.r]);
+          if(!state[schedKey] && isAdmin()) state[schedKey] = JSON.stringify(defaults[rd.r]);   // créneaux renfo habituels de l'admin
           let sched={};try{sched=state[schedKey]?JSON.parse(state[schedKey]):{};}catch(e){}
           const schedTxt = [sched.day?rfDays[sched.day]:'', sched.time||''].filter(Boolean).join(' ')||'À planifier';
           const isPlanned=schedTxt!=='À planifier';

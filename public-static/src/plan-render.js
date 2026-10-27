@@ -681,7 +681,8 @@ function renderAthletePlan(el){
   // Boutons de gestion du plan
   const actionBanner=document.createElement('div');
   actionBanner.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;';
-  const regenBtn=_adminPreviewUid?'':`<button onclick="confirmModifyPlan()" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
+  // programme importé (prépa prête à installer) : pas de régénération par le moteur, il remplacerait le programme fourni
+  const regenBtn=(_adminPreviewUid||String(state.plan_version||'').startsWith('import-'))?'':`<button onclick="confirmModifyPlan()" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
   const updateBtn=_adminPreviewUid?`<button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>`:'';
   const regenDateBtn=_adminPreviewUid?`<button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Regen. date</button>`:'';
   const delBtn=_adminPreviewUid?`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>`:'';
@@ -744,7 +745,8 @@ function renderAthletePlan(el){
     let metaW={};
     try{if(state['meta_w'+ws]) metaW=JSON.parse(state['meta_w'+ws]);}catch(e){}
     const phaseLabels={1:{l:'Base',bg:'#F3F4F6',c:'#4B5563'},2:{l:'Construction',bg:'#FEF3EE',c:'#C2410C'},3:{l:'Spécifique',bg:'#EEF2FD',c:'#1B4FD8'},4:{l:'Affûtage',bg:'#EDF7EF',c:'#2F6E44'}};
-    const phaseInfo=metaW.phase?phaseLabels[metaW.phase]:null;
+    const _phTxt=typeof metaW.phase==='string'&&!phaseLabels[metaW.phase]?metaW.phase:null;   // programme importé : phase en toutes lettres
+    const phaseInfo=_phTxt?{l:_phTxt,bg:'#EEF2FD',c:'#1B4FD8'}:metaW.phase?phaseLabels[metaW.phase]:null;
     const isPeakWeek=metaW.isPeak&&!isRaceWeekCard&&!metaW.isTaper;
     const planPeakWeek=parseInt(state['plan_peak_week'])||0;
 

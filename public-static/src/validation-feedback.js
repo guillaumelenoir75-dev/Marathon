@@ -514,8 +514,21 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   if(amImproved==='improved') analysisContext.allureMarathonUpdate = 'amelioree';
   if(amImproved==='regressed') analysisContext.allureMarathonUpdate = 'revisee_a_la_baisse';
 
-  // Écart avec objectif Sub4h
-  (()=>{
+  // Écart avec objectif Sub4h (plan Seine-Eure) ; prépa générée : écart à l'allure objectif de la course en cours
+  if(!usesHardPlan()) (()=>{
+    const R=prepRace(), tt=String(state.target_time||(state.onboarding||{}).target_time||'');
+    const p=tt.split(':').map(Number), tSec=p.length===3?p[0]*3600+p[1]*60+p[2]:p.length===2?p[0]*60+p[1]:NaN;
+    if(!R.km||!(tSec>0)) return;
+    const objSec=Math.round(tSec/R.km), fmt=x=>`${Math.floor(x/60)}'${String(x%60).padStart(2,'0')}`;
+    let cur=null;
+    if(R.course==='Marathon'){ cur=paceStrToSec(getMarathonPaceStr()); }
+    else { try{ const d=buildDistancePrediction(R.course); cur=d&&d.paceSec?Math.round(d.paceSec):null; }catch(e){} }
+    if(!cur) return;
+    const ecart=cur-objSec;
+    analysisContext.ecart_objectif={ course:R.name, objectif:R.objectif, allure_objectif:fmt(objSec), allure_estimee:fmt(cur), ecart_sec:ecart,
+      statut: ecart<=0?'objectif_atteint':ecart<=5?'tres_proche':ecart<=15?'dans_la_cible':'encore_du_travail' };
+  })();
+  else (()=>{
     const objectifSec = Math.floor(4*3600/42.195); // 341 sec/km = 5'41/km
     const amSec = paceStrToSec(getMarathonPaceStr());
     if(amSec) {
@@ -766,7 +779,11 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     });
   });
   // Séances semaine suivante si pas assez
-  if(seancesAVenir.length < 3 && CW < planTotalWeeks()){
+  if(seancesAVenir.length < 3 && CW < planTotalWeeks() && !usesHardPlan()){
+    getOrderedWeekSessions(CW+1).slice(0, 3-seancesAVenir.length).forEach(({s:sess})=>{
+      seancesAVenir.push({semaine:CW+1, type:sess.type, titre:String(sess.d||'').split('|')[0], km:sess.km, quand:'semaine prochaine', note:'chaussures non déterminées — ne pas mentionner de chaussures spécifiques pour les séances futures'});
+    });
+  } else if(seancesAVenir.length < 3 && CW < planTotalWeeks()){
     weeks[CW].sessions.slice(0, 3-seancesAVenir.length).forEach((sess,si)=>{
       // Lire les éditions de la semaine suivante aussi
       const edRawNext = state['edit_w'+(CW+1)+'_s'+si];

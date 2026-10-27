@@ -121,6 +121,7 @@ function initFirebase(){
               const data=snapshot.val();
               if(data) state=data;
               migrateState();
+              if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               if(dbRef) dbRef.set(state).catch(()=>{}); // persister les migrations
               firebaseReady=true;
@@ -204,6 +205,7 @@ function initFirebase(){
 
             },(error)=>{
               migrateState();
+              if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               firebaseReady=true;
               hideLoginScreen();
@@ -275,7 +277,7 @@ async function openCoachFromNotif() {
   try { await dbRef.child('_open_coach').remove(); } catch(e) {}
   try {
     const stateSnap = await dbRef.once('value');
-    if (stateSnap.val()) state = stateSnap.val();
+    if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncPlanCompat==='function') syncPlanCompat(); }
   } catch(e) {}
 
   try { await loadCoachHistory(); } catch(e) {}
