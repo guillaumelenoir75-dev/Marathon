@@ -446,97 +446,21 @@
       </div>
     </div>
   </div>
-  <button onclick="openProfileModal()" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#EBF0FF;display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Mes informations</p>
-        <p id="info-subtitle" style="font-size:12px;color:#888;margin:2px 0 0;">Prénom, email, genre, mot de passe</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button onclick="openPrepsPanel()" id="preps-row" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#FEF3C7;display:flex;align-items:center;justify-content:center;font-size:18px;">🏅</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Mes prépas</p>
-        <p id="preps-subtitle" style="font-size:12px;color:#888;margin:2px 0 0;">Prépa en cours et prépas archivées</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button onclick="openLivePanel()" id="live-row" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#DCFCE7;display:flex;align-items:center;justify-content:center;font-size:18px;">🏁</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Course en direct</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">Démarrer le suivi, pointages officiels, suivi des amis</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button onclick="openPrefsModal()" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#F5F0FF;display:flex;align-items:center;justify-content:center;font-size:18px;">🔔</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Préférences</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">Affichage & notifications</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button onclick="openGlossary()" style="width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#EEF2FD;display:flex;align-items:center;justify-content:center;font-size:18px;">📖</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Glossaire</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">EF, FC, VO₂max, affûtage… tout comprendre</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button id="export-plan-btn" onclick="exportPlanDocument()" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#FFF7ED;display:flex;align-items:center;justify-content:center;font-size:18px;">📋</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Exporter le plan complet</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">Document HTML — toutes les séances</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button id="cal-url-btn" onclick="showCalendarUrl()" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:10px;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#F0FFF4;display:flex;align-items:center;justify-content:center;font-size:18px;">📅</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Abonnement calendrier</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">Copier l'URL pour Outlook / Google</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button id="notif-test-btn" onclick="openNotifTestModal()" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:16px;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#F0F0FF;display:flex;align-items:center;justify-content:center;font-size:18px;">🧪</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Notifications</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">Tester les pushs par catégorie</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button id="wakeup-test-btn" onclick="checkWakeupBanner(true)" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:16px;margin-bottom:16px;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#FFF7ED,#FEE2BF);display:flex;align-items:center;justify-content:center;font-size:18px;">🌅</div>
-      <div>
-        <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Bannière réveil</p>
-        <p style="font-size:12px;color:#888;margin:2px 0 0;">Tester l'écran de réveil matinal</p>
-      </div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <div id="athlete-panel" style="display:none;margin-bottom:16px;">
+  <!-- Compte : sections rangées (lignes groupées), identifiants conservés pour le code -->
+  <p class="cp-sec">Mon compte</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" onclick="openProfileModal()"><span class="cp-ic" style="background:#EBF0FF;">👤</span><span class="cp-txt"><b>Mes informations</b><span id="info-subtitle">Prénom, email, genre, mot de passe</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openPrefsModal()"><span class="cp-ic" style="background:#F5F0FF;">🔔</span><span class="cp-txt"><b>Préférences</b><span>Affichage et notifications</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+
+  <p class="cp-sec">Entraînement</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" id="preps-row" onclick="openPrepsPanel()"><span class="cp-ic" style="background:#FEF3C7;">🏅</span><span class="cp-txt"><b>Mes prépas</b><span id="preps-subtitle">Prépa en cours et prépas archivées</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="export-plan-btn" onclick="exportPlanDocument()" style="display:none;"><span class="cp-ic" style="background:#FFF7ED;">📋</span><span class="cp-txt"><b>Exporter le plan complet</b><span>Document HTML, toutes les séances</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="cal-url-btn" onclick="showCalendarUrl()" style="display:none;"><span class="cp-ic" style="background:#F0FFF4;">📅</span><span class="cp-txt"><b>Abonnement calendrier</b><span>URL pour Outlook ou Google</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openGlossary()"><span class="cp-ic" style="background:#EEF2FD;">📖</span><span class="cp-txt"><b>Glossaire</b><span>EF, FC, VO₂max, affûtage… tout comprendre</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+  <div id="athlete-panel" style="display:none;margin:-4px 0 18px;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">Mon profil</p>
@@ -550,9 +474,40 @@
       <div id="athlete-profile-content" style="font-size:13px;color:#555;display:flex;flex-direction:column;gap:8px;"></div>
     </div>
   </div>
-  <div id="admin-panel" style="display:none;">
-    <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
-      <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0 0 14px;">Gestion des utilisateurs</p>
+
+  <div class="cp-admin" style="display:none;">
+  <p class="cp-sec">Suivi de course</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" id="live-row" onclick="openLivePanel()" style="display:none;"><span class="cp-ic" style="background:#DCFCE7;">🏁</span><span class="cp-txt"><b>Course en direct</b><span>Démarrer le suivi, pointages, page des amis</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="se-org-row" onclick="openRaceOrgSheet()"><span class="cp-ic" style="background:#E0F2E9;">🗺️</span><span class="cp-txt"><b>Marathon Seine-Eure</b><span>18 octobre 2026 · parcours, trajets et RDV</span></span><span class="cp-chip">3:37:05</span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+  </div>
+
+  <p class="cp-sec">Intégrations</p>
+  <div class="cp-group" id="user-integrations" style="display:none;">
+    <div class="cp-row cp-static"><span class="cp-ic" style="background:#FFF0EB;">🟠</span><span class="cp-txt"><b>Strava</b><span id="strava-status-label">Vérification…</span></span>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button id="strava-disconnect-btn" onclick="disconnectStrava()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
+          <button id="strava-connect-btn" onclick="adminConnectStrava()" style="background:#FC4C02;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+            Connecter avec Strava
+          </button>
+        </div></div>
+    <div id="whoop-panel" style="display:none;"><div class="cp-row cp-static"><span class="cp-ic" style="background:#EBF0FF;">⚡</span><span class="cp-txt"><b>WHOOP</b><span id="whoop-status">Non connecté</span></span>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <button id="whoop-disconnect-btn" onclick="disconnectWhoop()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
+        <button id="whoop-connect-btn" onclick="connectWhoop()" style="background:#1B4FD8;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+          Synchroniser
+        </button>
+      </div></div></div>
+  </div>
+
+  <div class="cp-admin" id="admin-panel" style="display:none;">
+  <p class="cp-sec">Administration</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" id="admin-create-row" onclick="const f=document.getElementById('admin-create');f.hidden=!f.hidden;this.classList.toggle('open',!f.hidden);if(!f.hidden)document.getElementById('admin-new-email').focus();"><span class="cp-ic" style="background:#EBF0FF;">➕</span><span class="cp-txt"><b>Créer un compte</b><span>Email, prénom et genre du nouvel athlète</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <div id="admin-create" class="cp-form" hidden>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
         <input id="admin-new-email" type="email" placeholder="Email du nouvel utilisateur"
           style="padding:11px 13px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;font-family:sans-serif;">
@@ -571,24 +526,15 @@
         </button>
         <p id="admin-create-msg" style="font-size:12px;margin:0;display:none;"></p>
       </div>
-      <button onclick="openUsersListModal()" style="width:100%;padding:11px 14px;background:#EDF2FB;border:1.5px solid #b3c5f5;border-radius:10px;font-size:13px;font-weight:700;color:#1B4FD8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;">
-        👥 Voir les comptes existants
-      </button>
     </div>
+    <button type="button" class="cp-row" onclick="openUsersListModal()"><span class="cp-ic" style="background:#EDF2FB;">👥</span><span class="cp-txt"><b>Comptes existants</b><span>Athlètes, plans, vue Coach</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="notif-test-btn" onclick="openNotifTestModal()" style="display:none;"><span class="cp-ic" style="background:#F0F0FF;">🧪</span><span class="cp-txt"><b>Tester les notifications</b><span>Envoi par catégorie</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="wakeup-test-btn" onclick="checkWakeupBanner(true)" style="display:none;"><span class="cp-ic" style="background:#FFF7ED;">🌅</span><span class="cp-txt"><b>Tester la bannière réveil</b><span>Écran de réveil matinal</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
-  <!-- Organisation course — admin uniquement -->
-  <div id="race-org-panel" style="display:none;margin-bottom:16px;">
-    <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-        <div style="width:36px;height:36px;background:linear-gradient(135deg,#0F7B3B,#1DA054);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <span style="font-size:18px;line-height:1;">🗺️</span>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;">Organisation course</p>
-          <p style="font-size:12px;color:#888;margin:2px 0 0;">Marathon Seine-Eure · 18 octobre 2026</p>
-        </div>
-        <button type="button" id="race-share-btn" class="rm-share" onclick="shareRaceMap()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span>Partager</span></button>
-      </div>
+  </div>
+
+  <!-- Organisation du marathon Seine-Eure : ouverte en plein écran depuis « Suivi de course » (openRaceOrgSheet) -->
+  <div id="race-org-holder" hidden><div id="race-org-panel">
       <div id="race-map-wrap" class="rmw">
         <div id="race-tabs" class="rm-tabs" role="tablist" aria-label="Trajets"></div>
         <button type="button" id="race-map-close" class="rm-close" aria-label="Fermer le plein écran" title="Fermer le plein écran" onclick="_toggleRaceMapFS(false)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -606,51 +552,8 @@
         </div>
         <div id="race-info" class="rm-info" aria-live="polite"></div>
       </div>
-      <p style="font-size:11px;color:#aaa;margin:8px 0 0;text-align:center;">Source : OpenStreetMap · GPX OpenRunner #22022506</p>
-    </div>
-  </div>
-
-  <div id="user-integrations" style="display:none;margin-bottom:16px;">
-    <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
-      <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0 0 14px;">Intégrations</p>
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:38px;height:38px;border-radius:10px;background:#FFF0EB;display:flex;align-items:center;justify-content:center;font-size:20px;">🟠</div>
-          <div>
-            <p style="font-size:14px;font-weight:700;color:#1a1a1a;margin:0;">Strava</p>
-            <p id="strava-status-label" style="font-size:12px;color:#888;margin:2px 0 0;">Vérification…</p>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <button id="strava-disconnect-btn" onclick="disconnectStrava()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
-          <button id="strava-connect-btn" onclick="adminConnectStrava()" style="background:#FC4C02;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-            Connecter avec Strava
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- WHOOP Integration (admin uniquement) -->
-  <div id="whoop-panel" style="display:none;background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;margin-top:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div style="width:36px;height:36px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <span style="font-size:18px;line-height:1;">⚡</span>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <p style="font-size:14px;font-weight:700;color:#0C447C;margin:0;line-height:1.2;">WHOOP</p>
-        <span id="whoop-status" style="font-size:11px;color:#f59e0b;">Non connecté</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <button id="whoop-disconnect-btn" onclick="disconnectWhoop()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
-        <button id="whoop-connect-btn" onclick="connectWhoop()" style="background:#1B4FD8;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
-          Synchroniser
-        </button>
-      </div>
-    </div>
-  </div>
-
+      <p style="font-size:11px;color:#94A3B8;margin:10px 0 0;text-align:center;">Source : OpenStreetMap · GPX OpenRunner #22022506</p>
+  </div></div>
 
   <!-- Déconnexion (tous les users) -->
   <div style="padding:16px 0 4px;">

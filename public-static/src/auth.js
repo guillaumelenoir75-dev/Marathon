@@ -247,11 +247,8 @@ function renderCompteScreen(){
   // Mettre à jour le sous-titre du bouton infos
   const sub=document.getElementById('info-subtitle');
   if(sub&&user){const prenom=user.displayName||user.email?.split('@')[0]||'';sub.textContent=prenom?prenom+' · '+user.email:user.email;}
-  const adminPanel=document.getElementById('admin-panel');
-  if(adminPanel) adminPanel.style.display=isAdmin()?'block':'none';
-  const raceOrgPanel=document.getElementById('race-org-panel');
-  if(raceOrgPanel) raceOrgPanel.style.display=isAdmin()?'block':'none';
-  if(isAdmin()&&typeof initRaceOrgMap==='function') initRaceOrgMap();
+  // sections réservées à l'admin (Suivi de course, Administration) ; la carte Seine-Eure s'ouvre à la demande (openRaceOrgSheet)
+  document.querySelectorAll('#sc-compte .cp-admin').forEach(el=>{ el.style.display=isAdmin()?'block':'none'; });
   const adminIntegrations=document.getElementById('user-integrations');
   if(adminIntegrations) adminIntegrations.style.display='block';
   // La liste des comptes se charge à la demande via openUsersListModal()

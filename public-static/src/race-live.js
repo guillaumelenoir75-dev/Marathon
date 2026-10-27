@@ -469,3 +469,33 @@ async function liveStoreReplay(officialSec, perf, note){
     return true;
   } catch(e) { console.warn('[course] rejeu', e); return false; }
 }
+
+// ─── Compte › Suivi de course › Marathon Seine-Eure : organisation (carte, trajets, RDV) en page plein écran ───
+// Le bloc #race-org-panel (race-map.js) est déplacé dans la page à l'ouverture puis remis en place à la fermeture :
+// la carte n'est créée qu'une fois, quand elle est visible.
+function openRaceOrgSheet(){
+  const panel = document.getElementById('race-org-panel'); if(!panel || document.getElementById('race-org-sheet')) return;
+  const ov = document.createElement('div'); ov.id = 'race-org-sheet'; ov.className = 'ros';
+  ov.innerHTML = '<div class="ros-box" role="dialog" aria-modal="true" aria-labelledby="ros-title">'
+    + '<div class="ros-head"><div class="ros-top"><button type="button" class="ros-x" onclick="closeRaceOrgSheet()" aria-label="Fermer">×</button>'
+    +   '<div style="min-width:0;"><p class="ros-eb">Suivi de course · terminé</p><p class="ros-title" id="ros-title">Marathon Seine-Eure</p>'
+    +   '<p class="ros-sub">Dimanche 18 octobre 2026 · 3:37:05 · record personnel</p></div></div>'
+    + '<div class="ros-acts"><button type="button" id="race-share-btn" onclick="shareRaceMap()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span>Partager</span></button>'
+    +   '<a href="/suivi-guillaume?course=seine-eure-2026" target="_blank" rel="noopener">🎬 Revoir la course</a></div></div>'
+    + '<div class="ros-body"></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) closeRaceOrgSheet(); });
+  document.body.appendChild(ov);
+  ov.querySelector('.ros-body').appendChild(panel);
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(function(){
+    if(typeof initRaceOrgMap === 'function') initRaceOrgMap();
+    if(typeof _raceMapInstance !== 'undefined' && _raceMapInstance) setTimeout(function(){ _raceMapInstance.invalidateSize(); if(_raceMapRefit) _raceMapRefit(); }, 300);
+  });
+}
+function closeRaceOrgSheet(){
+  const ov = document.getElementById('race-org-sheet'); if(!ov) return;
+  if(typeof _raceMapFullscreen !== 'undefined' && _raceMapFullscreen) _toggleRaceMapFS(false);
+  const done = function(){ const panel = document.getElementById('race-org-panel'), hold = document.getElementById('race-org-holder'); if(panel && hold) hold.appendChild(panel); ov.remove(); document.body.style.overflow = ''; };
+  ov.classList.add('out'); setTimeout(done, 190);
+}
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && document.getElementById('race-org-sheet') && !(typeof _raceMapFullscreen !== 'undefined' && _raceMapFullscreen)) closeRaceOrgSheet(); });
