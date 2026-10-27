@@ -64,7 +64,7 @@ async function openPrepsPanel(){
     + '<div style="background:linear-gradient(135deg,#0C447C,#1D4ED8);padding:16px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
     +   '<div><p style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">Compte</p><p style="font-size:21px;font-weight:900;margin:0;">🏅 Mes prépas</p></div>'
     +   '<button onclick="closePrepsPanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;">×</button></div>'
-    + '<div class="modal-scroll-body"><div id="preps-body" style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;"><p style="color:#888;font-size:13px;">Chargement…</p></div></div></div>';
+    + '<div class="modal-scroll-body" style="background:#F3F6FC;"><div id="preps-body" style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px;"><p style="color:#888;font-size:13px;">Chargement…</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) closePrepsPanel(); });
   mc.appendChild(ov);
   try { _prepIndex = (await _prepRef('prep_index').once('value')).val() || {}; } catch(e) { _prepIndex = {}; }
@@ -73,74 +73,133 @@ async function openPrepsPanel(){
 }
 function closePrepsPanel(){ const ov = document.getElementById('preps-panel'); if(ov) ov.remove(); }
 
+// Styles du panneau (injectés une fois) : palette de l'app, cartes blanches sur fond bleuté
+const _PREP_CSS = '#preps-body{background:#F3F6FC;}'
+  + '.pp-sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748B;margin:6px 2px -4px;}'
+  + '.pp-card{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;}'
+  + '.pp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}'
+  + '.pp-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;}'
+  + '.pp-pill.now{background:#DCFCE7;color:#15803D;}.pp-pill.next{background:#E0E9FF;color:#1B4FD8;}.pp-pill.ready{background:#FEF3C7;color:#92400E;}'
+  + '.pp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}'
+  + '.pp-title{font-size:18px;font-weight:850;color:#0C447C;line-height:1.2;margin:6px 0 2px;text-wrap:balance;}'
+  + '.pp-sub{font-size:13px;color:#5B6675;line-height:1.4;margin:0;}'
+  + '.pp-count{text-align:right;flex-shrink:0;}.pp-count b{display:block;font-size:26px;font-weight:900;color:#0C447C;line-height:1;font-variant-numeric:tabular-nums;}'
+  + '.pp-count span{font-size:10.5px;color:#64748B;font-weight:700;}'
+  + '.pp-prog{display:flex;flex-direction:column;gap:5px;}.pp-prog-l{display:flex;justify-content:space-between;font-size:12px;color:#5B6675;font-weight:700;font-variant-numeric:tabular-nums;}'
+  + '.pp-bar{height:7px;border-radius:99px;background:#E6ECF5;overflow:hidden;}.pp-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#1B4FD8,#0C447C);}'
+  + '.pp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}'
+  + '.pp-stat{background:#F5F8FD;border-radius:11px;padding:8px 6px;text-align:center;}.pp-stat b{display:block;font-size:16px;font-weight:850;color:#0F172A;font-variant-numeric:tabular-nums;}'
+  + '.pp-stat span{font-size:10.5px;color:#64748B;font-weight:700;}'
+  + '.pp-chips{display:flex;flex-wrap:wrap;gap:6px;}.pp-chip{background:#F1F5FB;color:#334155;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;}'
+  + '.pp-note{font-size:12.5px;color:#15803D;font-weight:700;margin:0;display:flex;gap:6px;align-items:flex-start;line-height:1.4;}'
+  + '.pp-note.info{color:#1E40AF;}.pp-note.muted{color:#5B6675;font-weight:600;font-size:12px;}'
+  + '.pp-acts{display:flex;gap:8px;align-items:center;}'
+  + '.pp-btn{flex:1 1 0;min-width:0;border-radius:11px;padding:11px 12px;font-size:13.5px;font-weight:800;cursor:pointer;border:1px solid transparent;text-align:center;text-decoration:none;font-family:inherit;}'
+  + '.pp-btn:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}'
+  + '.pp-btn.pri{background:#1B4FD8;color:#fff;}.pp-btn.ok{background:#15803D;color:#fff;}.pp-btn.sec{background:#EEF3FC;color:#1B4FD8;border-color:#D3DFF5;}'
+  + '.pp-btn.warm{background:#FFF7ED;color:#C2410C;border-color:#FED7AA;}'
+  + '.pp-btn.ghost{flex:0 0 auto;background:none;color:#64748B;padding:8px 6px;font-weight:700;}.pp-btn.danger{flex:0 0 auto;background:none;color:#B91C1C;padding:8px 6px;font-weight:700;}'
+  + '.pp-btn.icon{flex:0 0 44px;padding:10px 0;background:#fff;color:#B91C1C;border-color:#FAD4D4;}'
+  + '.pp-new{width:100%;background:transparent;border:1.5px dashed #9DB4E0;color:#1B4FD8;border-radius:14px;padding:13px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;}'
+  + '.pp-res{flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;}'
+  + '.pp-form{display:none;flex-direction:column;gap:8px;border-top:1px solid #E6ECF5;padding-top:12px;}'
+  + '.pp-form label{font-size:12px;font-weight:700;color:#5B6675;}.pp-form input{display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #D6DFEC;border-radius:9px;font-size:14px;box-sizing:border-box;font-family:inherit;}'
+  + '.pp-empty{font-size:13px;color:#64748B;margin:0 2px;}';
+const _ppS = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };                        // 1 séance, 2 séances
+const _ppDays = function(d){ if(!d) return null; const a = new Date(_prepToday() + 'T12:00:00'), b = new Date(String(d).slice(0, 10) + 'T12:00:00'); return Math.round((b - a) / 86400000); };
+const _ppNum = function(n){ return Number(n || 0).toLocaleString('fr-FR'); };
+const _ppTime = function(t){ return String(t || '').replace(/^00:/, '').replace(/^0(?=\d:)/, ''); };
+
 function _renderPrepsBody(){
   const box = document.getElementById('preps-body'); if(!box) return;
+  if(!document.getElementById('prep-css')){ const st = document.createElement('style'); st.id = 'prep-css'; st.textContent = _PREP_CSS; document.head.appendChild(st); }
   const cur = _prepCurrentInfo(state), cs = _prepStats(state);
-  const saved = Object.keys(_prepIndex || {}).map(function(k){ return Object.assign({ id: k }, _prepIndex[k]); })
+  const isCur = function(p){ return !usesHardPlan() && (p.id === state._prep_id || p.title === cur.title); };
+  const all = Object.keys(_prepIndex || {}).map(function(k){ return Object.assign({ id: k }, _prepIndex[k]); });
+  const already = all.find(function(p){ return p.id === state._prep_id || p.title === cur.title; });
+  const saved = all.filter(function(p){ return !(_prepView ? false : isCur(p)); })                  // la prépa en cours n'est pas listée deux fois
     .sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); });
-  const already = saved.find(function(p){ return p.title === cur.title; });
-  const card = 'background:#fff;border:1px solid #e0e8f5;border-radius:14px;padding:14px;';
-  const btn = 'border-radius:10px;padding:10px 12px;font-size:13px;font-weight:800;cursor:pointer;';
   let h = '';
-  if(_prepView && _prepView.next){
-    h += '<div style="' + card + 'background:#EEF2FD;border-color:#c7d7f8;"><p style="font-size:13px;color:#1B4FD8;margin:0;line-height:1.45;"><b>✏️ Prépa à venir ouverte</b> : « ' + _prepEsc(_prepView.meta.title || '') + ' ».<br>Touche <b>Quitter</b> dans le bandeau pour revenir à ta prépa en cours.</p></div>';
-  } else if(_prepView){
-    h += '<div style="' + card + 'background:#FFF7ED;border-color:#fed7aa;"><p style="font-size:13px;color:#92400E;margin:0;line-height:1.45;"><b>📖 Consultation en cours</b> : « ' + _prepEsc(_prepView.meta.title || 'prépa archivée') + ' ».<br>Touche <b>Quitter</b> dans le bandeau pour revenir à ta prépa en cours et gérer tes prépas.</p></div>';
-  } else
-  // prépa en cours
-  h += '<div style="' + card + '"><p style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#15803D;margin:0 0 4px;">● Prépa en cours</p>'
-    + '<p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(cur.title) + '</p>'
-    + '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 10px;">' + (cur.date ? 'Course le ' + _prepDate(cur.date) : 'Sans date de course') + ' · ' + cs.weeks + ' semaines · ' + cs.done + ' séances réalisées · ' + cs.km + ' km</p>'
-    + (already ? '<p style="font-size:12.5px;color:#15803D;font-weight:700;margin:0 0 8px;">✓ Enregistrée le ' + _prepDate(already.savedAt) + (already.auto && !usesHardPlan() ? ' · mise à jour automatique chaque jour' : '') + '</p>' : '')
-    + '<button onclick="prepShowForm()" style="width:100%;background:#0C447C;color:#fff;border:none;' + btn + '">' + (already ? '🔄 Mettre à jour l\'enregistrement' : '📦 Enregistrer cette prépa') + '</button>'
-    + (!usesHardPlan() && cs.planned > 0 ? '<button onclick="prepDiscardCurrent()" style="width:100%;margin-top:8px;background:#fff;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑 Supprimer cette prépa (sans l\'enregistrer)</button>' : '')
-    + '<div id="prep-form" style="margin-top:12px;display:none;flex-direction:column;gap:8px;">'
-    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Nom<input id="pf-title" value="' + _prepEsc(already ? already.title : cur.title) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
-    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Date de la course<input id="pf-date" type="date" value="' + _prepEsc(cur.date) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
-    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Temps officiel<input id="pf-result" inputmode="numeric" placeholder="3:37:05" value="' + _prepEsc(already ? already.result : cur.result) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
-    +   '<label style="font-size:12px;font-weight:700;color:#5b6675;">Note<input id="pf-note" placeholder="Record personnel, sensations…" value="' + _prepEsc(already ? already.note : cur.note) + '" style="display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #d6dfec;border-radius:9px;font-size:14px;box-sizing:border-box;"></label>'
-    +   '<button onclick="prepSaveCurrent()" id="pf-save" style="background:#15803D;color:#fff;border:none;' + btn + '">Enregistrer dans Mes prépas</button>'
-    +   '<p style="font-size:11.5px;color:#888;margin:0;line-height:1.4;">Une copie complète et figée du programme, des séances réalisées et de leurs données est conservée. Ta prépa en cours n\'est pas modifiée.</p>'
-    + '</div></div>';
-  // prépa à venir (modifiable avant son début, activée automatiquement)
-  if(!_prepView && _prepNext){
-    const N = _prepNext;
-    h += '<div style="' + card + 'border:2px solid #1B4FD8;background:#F5F8FF;"><p style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#1B4FD8;margin:0 0 4px;">⏭ Prépa à venir</p>'
-      + '<p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(N.title) + '</p>'
-      + '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 4px;">Course le ' + _prepDate(N.date) + ' · ' + N.weeks + ' semaines · ' + N.sessions + ' séances · objectif ' + _prepEsc(String(N.target || '').replace(/^00:/, '').replace(/^0(?=\d:)/, '')) + '</p>'
-      + '<p style="font-size:12.5px;color:#15803D;font-weight:700;margin:0 0 10px;">Démarre automatiquement le ' + _prepDate(N.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ', après ' + _prepEsc(_prepCurrentInfo(state).race || 'ta prépa en cours') + ' (enregistrée automatiquement).</p>'
-      + '<div style="display:flex;gap:8px;"><button onclick="prepNextOpen()" style="flex:1 1 0;min-width:0;background:#1B4FD8;color:#fff;border:none;' + btn + '">✏️ Voir et modifier</button>'
-      + '<button onclick="prepNextDelete()" aria-label="Supprimer la prépa à venir" style="flex-shrink:0;background:#fff0f0;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑</button></div></div>';
+  if(_prepView){
+    const nx = _prepView.next;
+    h += '<div class="pp-card" style="background:' + (nx ? '#EEF3FC;border-color:#C7D7F8' : '#FFF7ED;border-color:#FED7AA') + ';"><p class="pp-sub" style="color:' + (nx ? '#1B4FD8' : '#92400E') + ';">'
+      + (nx ? '<b>✏️ Prépa à venir ouverte</b> : « ' : '<b>📖 Consultation en cours</b> : « ') + _prepEsc(_prepView.meta.title || 'prépa archivée') + ' ».<br>Touche <b>Quitter</b> dans le bandeau pour revenir à ta prépa en cours'
+      + (nx ? '.' : ' et gérer tes prépas.') + '</p></div>';
+  } else {
+    // ── Maintenant
+    h += '<p class="pp-sec">Maintenant</p>';
+    const R = usesHardPlan() ? null : prepRace(), j = _ppDays(cur.date), tot = Math.max(1, cs.weeks);
+    const cw = Math.min(tot, Math.max(1, typeof getEffectiveCW === 'function' ? getEffectiveCW() : 1));
+    const kmPlan = _prepPlannedKm(state);
+    h += '<section class="pp-card" aria-label="Prépa en cours"><div class="pp-top"><div style="min-width:0;">'
+      +   '<span class="pp-pill now"><span class="pp-dot"></span>En cours' + (cs.planned ? ' · S' + cw + '/' + tot : '') + '</span>'
+      +   '<p class="pp-title">' + _prepEsc(cur.title) + '</p>'
+      +   '<p class="pp-sub">' + [cur.dist, cur.date ? _prepDate(cur.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'sans date de course', R && R.objectif && R.objectif !== 'non défini' ? 'objectif ' + _prepEsc(R.objectif) : ''].filter(Boolean).join(' · ') + '</p></div>'
+      +   (j != null && j >= 0 ? '<div class="pp-count"><b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b><span>' + (j === 0 ? 'c\'est aujourd\'hui' : 'avant la course') + '</span></div>' : '') + '</div>';
+    if(cs.planned){
+      h += '<div class="pp-prog"><div class="pp-prog-l"><span>Semaine ' + cw + ' sur ' + tot + '</span><span>' + cs.done + '/' + cs.planned + ' séances</span></div>'
+        +   '<div class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + cs.planned + '" aria-valuenow="' + cs.done + '" aria-label="Séances réalisées"><i style="width:' + Math.round(cs.done / cs.planned * 100) + '%"></i></div></div>'
+        + '<div class="pp-stats"><div class="pp-stat"><b>' + cs.done + '</b><span>' + (cs.done > 1 ? 'séances faites' : 'séance faite') + '</span></div>'
+        +   '<div class="pp-stat"><b>' + _ppNum(cs.km) + '</b><span>km réalisés</span></div>'
+        +   '<div class="pp-stat"><b>' + _ppNum(kmPlan) + '</b><span>km prévus</span></div></div>';
+    }
+    h += (already ? '<p class="pp-note muted"><span style="color:#15803D;">✓</span> <span>Enregistrée ' + (already.savedAt === _prepToday() ? 'aujourd\'hui' : 'le ' + _prepDate(already.savedAt, { day: 'numeric', month: 'long' })) + (already.auto && !usesHardPlan() ? ' · mise à jour chaque jour' : '') + '</span></p>' : '')
+      + '<div class="pp-acts">'
+      +   '<button class="pp-btn ' + (already ? 'sec' : 'pri') + '" onclick="prepShowForm()">' + (already ? '✎ Nom, temps, note' : '📦 Enregistrer cette prépa') + '</button>'
+      +   (!usesHardPlan() && cs.planned > 0 ? '<button class="pp-btn danger" onclick="prepDiscardCurrent()">Supprimer</button>' : '') + '</div>'
+      + '<div id="prep-form" class="pp-form">'
+      +   '<label>Nom<input id="pf-title" value="' + _prepEsc(already ? already.title : cur.title) + '"></label>'
+      +   '<label>Date de la course<input id="pf-date" type="date" value="' + _prepEsc(cur.date) + '"></label>'
+      +   '<label>Temps officiel<input id="pf-result" inputmode="numeric" placeholder="ex. 41:30" value="' + _prepEsc(already ? already.result : cur.result) + '"></label>'
+      +   '<label>Note<input id="pf-note" placeholder="Record personnel, sensations…" value="' + _prepEsc(already ? already.note : cur.note) + '"></label>'
+      +   '<button class="pp-btn ok" onclick="prepSaveCurrent()" id="pf-save">Enregistrer dans Mes prépas</button>'
+      +   '<p class="pp-sub" style="font-size:11.5px;color:#7A8597;">Une copie figée du programme et de tes séances est conservée. Ta prépa en cours n\'est pas modifiée.</p>'
+      + '</div></section>';
+    // ── Ensuite : prépa à venir, prépas prêtes à installer, nouvelle prépa
+    const ready = prepReadyFor(state);
+    h += '<p class="pp-sec">Ensuite</p>';
+    if(_prepNext){
+      const N = _prepNext, js = _ppDays(N.start);
+      h += '<section class="pp-card" aria-label="Prépa à venir"><div class="pp-top"><div style="min-width:0;">'
+        +   '<span class="pp-pill next">⏭ À venir' + (js > 0 ? ' · dans ' + _ppS(js, 'jour') : '') + '</span>'
+        +   '<p class="pp-title">' + _prepEsc(N.title) + '</p>'
+        +   '<p class="pp-sub">' + [N.dist, _prepDate(N.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), N.target ? 'objectif ' + _prepEsc(_ppTime(N.target)) : ''].filter(Boolean).join(' · ') + '</p></div></div>'
+        + '<div class="pp-chips"><span class="pp-chip">' + _ppS(N.weeks, 'semaine') + '</span><span class="pp-chip">' + _ppS(N.sessions, 'séance') + '</span></div>'
+        + '<p class="pp-note info">↪ <span>Démarre seule le ' + _prepDate(N.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ', dès ta course validée.</span></p>'
+        + '<div class="pp-acts"><button class="pp-btn pri" onclick="prepNextOpen()">✏️ Voir et modifier</button>'
+        +   '<button class="pp-btn icon" onclick="prepNextDelete()" aria-label="Supprimer la prépa à venir">🗑</button></div></section>';
+    }
+    ready.forEach(function(R){
+      const n = R.weeks.reduce(function(a, W){ return a + W.sessions.length; }, 0);
+      h += '<section class="pp-card"><div><span class="pp-pill ready">📥 Prête à installer</span><p class="pp-title">' + _prepEsc(R.title) + '</p>'
+        + '<p class="pp-sub">Course le ' + _prepDate(R.date) + ' · ' + _ppS(R.weeks.length, 'semaine') + ' · ' + _ppS(n, 'séance') + ' · objectif ' + _ppTime(R.target) + '</p></div>'
+        + '<div class="pp-acts"><button class="pp-btn ok" onclick="prepInstallReady(\'' + R.id + '\')">Installer cette prépa</button></div></section>';
+    });
+    h += '<button class="pp-new" onclick="prepNew()">＋ Nouvelle prépa</button>';
   }
-  if(!_prepView) prepReadyFor(state).forEach(function(R){
-    const n = R.weeks.reduce(function(a, W){ return a + W.sessions.length; }, 0);
-    h += '<div style="' + card + 'border:2px solid #15803D;background:#F0FDF4;"><p style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#15803D;margin:0 0 4px;">📥 Prépa prête à installer</p>'
-      + '<p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(R.title) + '</p>'
-      + '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 10px;">Course le ' + _prepDate(R.date) + ' · ' + R.weeks.length + ' semaines · ' + n + ' séances · objectif ' + R.target.replace(/^00:/, '') + '</p>'
-      + '<button onclick="prepInstallReady(\'' + R.id + '\')" style="width:100%;background:#15803D;color:#fff;border:none;' + btn + 'padding:13px;font-size:15px;">Installer cette prépa</button></div>';
-  });
-  if(!_prepView) h += '<button onclick="prepNew()" style="width:100%;background:#15803D;color:#fff;border:none;' + btn + 'padding:14px;font-size:15px;">＋ Nouvelle prépa</button>'
-    + '<p style="font-size:11.5px;color:#888;margin:-4px 2px 0;line-height:1.4;">Choisis ta prochaine course objectif et crée ton programme.</p>';
-  // prépas enregistrées
-  h += '<p style="font-size:13px;font-weight:800;color:#0C447C;margin:4px 2px 0;">Prépas enregistrées</p>';
-  if(!saved.length) h += '<p style="font-size:13px;color:#888;margin:0 2px;">Aucune pour l\'instant : enregistre ta prépa en cours pour la retrouver ici.</p>';
+  // ── Terminées
+  h += '<p class="pp-sec">Terminées</p>';
+  if(!saved.length) h += '<p class="pp-empty">Aucune pour l\'instant : ta prépa en cours y sera enregistrée automatiquement.</p>';
   saved.forEach(function(p){
     const s = p.stats || {};
-    h += '<div style="' + card + '">'
-      + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="min-width:0;">'
-      +   '<p style="font-size:15.5px;font-weight:800;color:#0C447C;margin:0;">' + _prepEsc(p.title) + '</p>'
-      +   '<p style="font-size:12.5px;color:#5b6675;margin:3px 0 0;">' + (p.date ? _prepDate(p.date) : '') + (s.weeks ? ' · ' + s.weeks + ' sem. · ' + s.done + ' séances · ' + s.km + ' km' : '') + '</p></div>'
-      +   (p.result ? '<span style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;">⏱ ' + _prepEsc(p.result) + '</span>' : '') + '</div>'
-      + (p.note ? '<p style="font-size:12.5px;color:#B45309;font-weight:700;margin:6px 0 0;">🏅 ' + _prepEsc(p.note) + '</p>' : '')
-      + '<div style="display:flex;gap:8px;margin-top:10px;">'
-      +   '<button onclick="prepView(\'' + p.id + '\')" style="flex:1 1 0;min-width:0;background:#EBF0FF;color:#1B4FD8;border:1px solid #c7d7f8;' + btn + '">📖 Consulter</button>'
-      +   (p.replay ? '<a href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener" style="flex:1 1 0;min-width:0;text-align:center;text-decoration:none;background:#FFF7ED;color:#C2410C;border:1px solid #fed7aa;' + btn + '">🎬 Revoir la course</a>' : '')
-      +   (_prepView ? '' : '<button onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer" style="flex-shrink:0;background:#fff0f0;color:#c0392b;border:1px solid #ffcdd2;' + btn + '">🗑</button>')
-      + '</div></div>';
+    h += '<section class="pp-card"><div class="pp-top"><div style="min-width:0;">'
+      +   '<p class="pp-title" style="margin-top:0;font-size:16.5px;">' + _prepEsc(p.title) + '</p>'
+      +   '<p class="pp-sub">' + [p.date ? _prepDate(p.date) : '', s.weeks ? _ppS(s.weeks, 'semaine') : '', s.weeks ? _ppS(s.done, 'séance') : '', s.weeks ? _ppNum(s.km) + ' km' : ''].filter(Boolean).join(' · ') + '</p></div>'
+      +   (p.result ? '<span class="pp-res">⏱ ' + _prepEsc(p.result) + '</span>' : '') + '</div>'
+      + (p.note ? '<p class="pp-note" style="color:#B45309;">🏅 <span>' + _prepEsc(p.note) + '</span></p>' : '')
+      + '<div class="pp-acts"><button class="pp-btn sec" onclick="prepView(\'' + p.id + '\')">📖 Consulter</button>'
+      +   (p.replay ? '<a class="pp-btn warm" href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener">🎬 Revoir</a>' : '')
+      +   (_prepView ? '' : '<button class="pp-btn icon" onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer ' + _prepEsc(p.title) + '">🗑</button>') + '</div></section>';
   });
   box.innerHTML = h;
 }
-function prepShowForm(){ const f = document.getElementById('prep-form'); if(f) f.style.display = f.style.display === 'none' ? 'flex' : 'none'; }
+// km prévus de la prépa (somme des séances)
+function _prepPlannedKm(st){
+  let t = 0;
+  Object.keys(st).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k)){ try { t += parseFloat(JSON.parse(st[k]).km) || 0; } catch(e) {} } });
+  return Math.round(t);
+}
+function prepShowForm(){ const f = document.getElementById('prep-form'); if(!f) return; const open = getComputedStyle(f).display !== 'none'; f.style.display = open ? 'none' : 'flex'; if(!open){ const i = document.getElementById('pf-title'); if(i) i.focus({ preventScroll: true }); f.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } }
 
 async function prepSaveCurrent(){
   if(_prepView) return;
