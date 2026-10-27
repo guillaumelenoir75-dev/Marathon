@@ -43,6 +43,27 @@ function _prepStats(st){
   return { weeks: weeks, done: done, planned: planned, km: Math.round(km) };
 }
 
+// Profil d'une prépa, semaine par semaine : [km prévus, km faits, type] (type : r récup, p pic, t affûtage, c course)
+function _prepShape(st){
+  const out = []; let empty = 0;
+  for(let w = 1; w <= 80 && empty < 5; w++){
+    let ei = 0, pk = 0, dk = 0, race = false, any = false;
+    while(ei <= 50 && st['extra_w' + w + '_s' + ei] !== undefined){
+      const k = 'extra_w' + w + '_s' + ei; let x = {}; any = true;
+      try { x = JSON.parse(st[k]) || {}; } catch(e) {}
+      const km = parseFloat(x.km) || 0; pk += km; if(x.type === 'race') race = true;
+      if(st[k + '_done'] || st[k + '_km'] != null){ const v = parseFloat(st[k + '_km']); dk += v > 0 ? v : km; }
+      ei++;
+    }
+    if(!any){ empty++; out.push([0, 0, '']); continue; }
+    empty = 0;
+    let m = {}; try { m = JSON.parse(st['meta_w' + w] || '{}') || {}; } catch(e) {}
+    out.push([Math.round(pk * 10) / 10, Math.round(dk * 10) / 10, race ? 'c' : m.isRecov ? 'r' : m.isPeak ? 'p' : m.isTaper ? 't' : '']);
+  }
+  while(out.length && !out[out.length - 1][0]) out.pop();
+  return out;
+}
+
 // ─── Ligne « Mes prépas » de l'écran Compte ────────────────────────────────
 async function renderPrepsRow(){
   const lr = document.getElementById('live-row'); if(lr) lr.style.display = isAdmin() ? 'flex' : 'none';
@@ -62,7 +83,7 @@ async function openPrepsPanel(){
   ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
   ov.innerHTML = '<div class="modal-box" style="max-height:92vh;">'
     + '<div style="background:linear-gradient(135deg,#0C447C,#1D4ED8);padding:16px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
-    +   '<div><p style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">Compte</p><p style="font-size:21px;font-weight:900;margin:0;">🏅 Mes prépas</p></div>'
+    +   '<div><p style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">Compte</p><p style="font-size:21px;font-weight:900;margin:0;">🏅 Mes prépas</p><p id="preps-head-sub" style="font-size:12.5px;font-weight:600;opacity:.85;margin:3px 0 0;"></p></div>'
     +   '<button onclick="closePrepsPanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;">×</button></div>'
     + '<div class="modal-scroll-body" style="background:#F3F6FC;"><div id="preps-body" style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px;"><p style="color:#888;font-size:13px;">Chargement…</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) closePrepsPanel(); });
@@ -70,45 +91,95 @@ async function openPrepsPanel(){
   try { _prepIndex = (await _prepRef('prep_index').once('value')).val() || {}; } catch(e) { _prepIndex = {}; }
   try { _prepNext = (await _prepRef('prep_next/meta').once('value')).val(); } catch(e) {}
   _renderPrepsBody();
+  _prepFillShapes();
+}
+async function _prepFillShapes(){
+  let changed = false;
+  try {
+    if(_prepNext && !_prepNext.shape){
+      const st = (await _prepRef('prep_next/state').once('value')).val();
+      if(st){ _prepNext.shape = _prepShape(st); await _prepRef('prep_next/meta/shape').set(_prepNext.shape); changed = true; }
+    }
+    for(const id of Object.keys(_prepIndex || {})){
+      if(_prepIndex[id].shape || id === state._prep_id) continue;
+      const st = (await _prepRef('preps/' + id).once('value')).val();
+      if(st){ _prepIndex[id].shape = _prepShape(st); await _prepRef('prep_index/' + id + '/shape').set(_prepIndex[id].shape); changed = true; }
+    }
+  } catch(e) { console.warn('[prépa] profils', e); }
+  if(changed) _renderPrepsBody();
 }
 function closePrepsPanel(){ const ov = document.getElementById('preps-panel'); if(ov) ov.remove(); }
 
 // Styles du panneau (injectés une fois) : palette de l'app, cartes blanches sur fond bleuté
 const _PREP_CSS = '#preps-body{background:#F3F6FC;}'
-  + '.pp-sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748B;margin:6px 2px -4px;}'
-  + '.pp-card{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;}'
-  + '.pp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}'
+  + '.pp-sec{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748B;margin:6px 2px -4px;}'
+  + '.pp-card{background:#fff;border:1px solid #DCE5F3;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 2px rgba(12,68,124,.04);}'
+  + '.pp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}.pp-top>div:first-child{min-width:0;flex:1;}'
   + '.pp-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;}'
   + '.pp-pill.now{background:#DCFCE7;color:#15803D;}.pp-pill.next{background:#E0E9FF;color:#1B4FD8;}.pp-pill.ready{background:#FEF3C7;color:#92400E;}'
-  + '.pp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}'
-  + '.pp-title{font-size:18px;font-weight:850;color:#0C447C;line-height:1.2;margin:6px 0 2px;text-wrap:balance;}'
-  + '.pp-sub{font-size:13px;color:#5B6675;line-height:1.4;margin:0;}'
-  + '.pp-count{text-align:right;flex-shrink:0;}.pp-count b{display:block;font-size:26px;font-weight:900;color:#0C447C;line-height:1;font-variant-numeric:tabular-nums;}'
-  + '.pp-count span{font-size:10.5px;color:#64748B;font-weight:700;}'
-  + '.pp-prog{display:flex;flex-direction:column;gap:5px;}.pp-prog-l{display:flex;justify-content:space-between;font-size:12px;color:#5B6675;font-weight:700;font-variant-numeric:tabular-nums;}'
-  + '.pp-bar{height:7px;border-radius:99px;background:#E6ECF5;overflow:hidden;}.pp-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#1B4FD8,#0C447C);}'
+  + '.pp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(21,128,61,.18);}'
+  + '.pp-title{font-size:19px;font-weight:850;color:#0C447C;line-height:1.2;margin:7px 0 3px;text-wrap:balance;}'
+  + '.pp-sub{font-size:13px;color:#5B6675;line-height:1.45;margin:0;}'
+  + '.pp-big{text-align:right;flex-shrink:0;}.pp-big b{display:block;font-size:27px;font-weight:900;color:#0C447C;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}'
+  + '.pp-big span{display:block;font-size:11px;color:#64748B;font-weight:700;margin-top:4px;}.pp-big.gold b{color:#B45309;}.pp-big.gold span{color:#B45309;}'
+  + '.pp-chart{display:flex;flex-direction:column;gap:5px;}'
+  + '.pp-chart-h{display:flex;justify-content:space-between;font-size:12px;color:#5B6675;font-weight:700;font-variant-numeric:tabular-nums;}'
+  + '.pp-bars{display:flex;align-items:flex-end;gap:3px;height:46px;}'
+  + '.pp-b{flex:1 1 0;min-width:3px;border-radius:4px 4px 2px 2px;background:#E3EAF5;position:relative;overflow:hidden;}'
+  + '.pp-b i{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,#2F63E6,#0C447C);border-radius:inherit;}'
+  + '.pp-b.cur{box-shadow:inset 0 0 0 1.5px #1B4FD8;}.pp-b.n.k-c{background:#FCE7BC;}.pp-b.n.k-c i{background:#F59E0B;}'
+  + '.pp-b.k-{background:#A9BEE6;}.pp-b.k-r{background:#D5DEEC;}.pp-b.k-p{background:#1B4FD8;}.pp-b.k-t{background:#7FA2EE;}.pp-b.k-c{background:#F59E0B;}'
+  + '.pp-b.d{background:#7B98CF;}.pp-b.d.k-c{background:#F59E0B;}'
+  + '.pp-axis{display:flex;justify-content:space-between;font-size:11px;color:#7A8597;font-weight:600;}'
+  + '.pp-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#64748B;font-weight:600;}.pp-leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0;}'
   + '.pp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}'
-  + '.pp-stat{background:#F5F8FD;border-radius:11px;padding:8px 6px;text-align:center;}.pp-stat b{display:block;font-size:16px;font-weight:850;color:#0F172A;font-variant-numeric:tabular-nums;}'
+  + '.pp-stat{background:#F5F8FD;border-radius:12px;padding:9px 6px;text-align:center;}.pp-stat b{display:block;font-size:17px;font-weight:850;color:#0F172A;font-variant-numeric:tabular-nums;}'
   + '.pp-stat span{font-size:10.5px;color:#64748B;font-weight:700;}'
-  + '.pp-chips{display:flex;flex-wrap:wrap;gap:6px;}.pp-chip{background:#F1F5FB;color:#334155;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;}'
-  + '.pp-note{font-size:12.5px;color:#15803D;font-weight:700;margin:0;display:flex;gap:6px;align-items:flex-start;line-height:1.4;}'
-  + '.pp-note.info{color:#1E40AF;}.pp-note.muted{color:#5B6675;font-weight:600;font-size:12px;}'
-  + '.pp-acts{display:flex;gap:8px;align-items:center;}'
-  + '.pp-btn{flex:1 1 0;min-width:0;border-radius:11px;padding:11px 12px;font-size:13.5px;font-weight:800;cursor:pointer;border:1px solid transparent;text-align:center;text-decoration:none;font-family:inherit;}'
-  + '.pp-btn:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}'
+  + '.pp-chips{display:flex;flex-wrap:wrap;gap:6px;}.pp-chip{display:inline-flex;align-items:center;gap:5px;background:#F1F5FB;color:#334155;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;}'
+  + '.pp-note{font-size:12.5px;color:#1E40AF;font-weight:700;margin:0;display:flex;gap:7px;align-items:flex-start;line-height:1.4;}.pp-note svg{flex-shrink:0;margin-top:1px;}'
+  + '.pp-note.muted{color:#5B6675;font-weight:600;font-size:12px;}'
+  + '.pp-acts{display:flex;gap:8px;align-items:stretch;}'
+  + '.pp-btn{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:800;cursor:pointer;border:1px solid transparent;text-decoration:none;font-family:inherit;line-height:1.1;}'
+  + '.pp-btn:focus-visible,.pp-new:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}'
   + '.pp-btn.pri{background:#1B4FD8;color:#fff;}.pp-btn.ok{background:#15803D;color:#fff;}.pp-btn.sec{background:#EEF3FC;color:#1B4FD8;border-color:#D3DFF5;}'
   + '.pp-btn.warm{background:#FFF7ED;color:#C2410C;border-color:#FED7AA;}'
-  + '.pp-btn.ghost{flex:0 0 auto;background:none;color:#64748B;padding:8px 6px;font-weight:700;}.pp-btn.danger{flex:0 0 auto;background:none;color:#B91C1C;padding:8px 6px;font-weight:700;}'
-  + '.pp-btn.icon{flex:0 0 44px;padding:10px 0;background:#fff;color:#B91C1C;border-color:#FAD4D4;}'
-  + '.pp-new{width:100%;background:transparent;border:1.5px dashed #9DB4E0;color:#1B4FD8;border-radius:14px;padding:13px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;}'
-  + '.pp-res{flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;}'
+  + '.pp-btn.icon{flex:0 0 46px;padding:0;background:#fff;color:#94A3B8;border-color:#E2E8F0;}.pp-btn.icon:active{color:#B91C1C;border-color:#FAD4D4;}'
+  + '.pp-new{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;border:1.5px dashed #9DB4E0;color:#1B4FD8;border-radius:16px;padding:13px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;}'
   + '.pp-form{display:none;flex-direction:column;gap:8px;border-top:1px solid #E6ECF5;padding-top:12px;}'
   + '.pp-form label{font-size:12px;font-weight:700;color:#5B6675;}.pp-form input{display:block;width:100%;margin-top:3px;padding:9px 10px;border:1px solid #D6DFEC;border-radius:9px;font-size:14px;box-sizing:border-box;font-family:inherit;}'
   + '.pp-empty{font-size:13px;color:#64748B;margin:0 2px;}';
+// Icônes (traits, couleur du texte) : plus nettes que les emojis sur iPhone
+const _ppI = function(d, sz){ return '<svg width="' + (sz || 16) + '" height="' + (sz || 16) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; };
+const PP_ICON = {
+  trash: _ppI('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>', 17),
+  edit: _ppI('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>'),
+  book: _ppI('<path d="M2 4h7a3 3 0 013 3v13a2 2 0 00-2-2H2zM22 4h-7a3 3 0 00-3 3v13a2 2 0 012-2h8z"/>'),
+  play: _ppI('<path d="M7 4l13 8-13 8z" fill="currentColor"/>', 14),
+  next: _ppI('<circle cx="12" cy="12" r="9"/><path d="M10 8l4 4-4 4"/>', 15),
+  plus: _ppI('<path d="M12 5v14M5 12h14"/>', 17),
+  cal: _ppI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', 13),
+  check: _ppI('<path d="M5 12l5 5L20 7"/>', 14),
+};
 const _ppS = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };                        // 1 séance, 2 séances
 const _ppDays = function(d){ if(!d) return null; const a = new Date(_prepToday() + 'T12:00:00'), b = new Date(String(d).slice(0, 10) + 'T12:00:00'); return Math.round((b - a) / 86400000); };
 const _ppNum = function(n){ return Number(n || 0).toLocaleString('fr-FR'); };
 const _ppTime = function(t){ return String(t || '').replace(/^00:/, '').replace(/^0(?=\d:)/, ''); };
+const _ppTitle = function(t){ return _prepEsc(t).replace(/-/g, '‑'); };                     // pas de coupure au tiret (Seine‑Eure)
+const _ppShort = function(d){ return _prepDate(d, { day: 'numeric', month: 'short' }); };
+// Mini-graphique du volume par semaine. mode : now (fait / prévu, semaine en cours), next (prévu, par type), done (réalisé)
+function _ppBars(shape, mode, cw){
+  if(!shape || !shape.length) return '';
+  const val = function(w){ return mode === 'done' ? (w[1] || w[0]) : w[0]; };
+  const max = Math.max.apply(null, shape.map(val).concat([1]));
+  const kind = { r: 'récupération', p: 'pic', t: 'affûtage', c: 'course' };
+  return '<div class="pp-bars" role="img" aria-label="Volume par semaine : ' + shape.map(function(w, i){ return 'S' + (i + 1) + ' ' + Math.round(val(w)) + ' km'; }).join(', ') + '">'
+    + shape.map(function(w, i){
+      const h = Math.max(6, Math.round(val(w) / max * 100));
+      const tip = 'S' + (i + 1) + ' · ' + Math.round(val(w)) + ' km' + (kind[w[2]] ? ' · ' + kind[w[2]] : '') + (mode === 'now' && w[1] ? ' (' + Math.round(w[1]) + ' faits)' : '');
+      if(mode === 'now') return '<span class="pp-b n' + (i + 1 === cw ? ' cur' : '') + (w[2] === 'c' ? ' k-c' : '') + '" style="height:' + h + '%" title="' + tip + '"><i style="height:' + Math.min(100, Math.round((w[1] || 0) / (w[0] || 1) * 100)) + '%"></i></span>';
+      return '<span class="pp-b ' + (mode === 'done' ? 'd ' : '') + 'k-' + w[2] + '" style="height:' + h + '%" title="' + tip + '"></span>';
+    }).join('') + '</div>';
+}
 
 function _renderPrepsBody(){
   const box = document.getElementById('preps-body'); if(!box) return;
@@ -117,36 +188,38 @@ function _renderPrepsBody(){
   const isCur = function(p){ return !usesHardPlan() && (p.id === state._prep_id || p.title === cur.title); };
   const all = Object.keys(_prepIndex || {}).map(function(k){ return Object.assign({ id: k }, _prepIndex[k]); });
   const already = all.find(function(p){ return p.id === state._prep_id || p.title === cur.title; });
-  const saved = all.filter(function(p){ return !(_prepView ? false : isCur(p)); })                  // la prépa en cours n'est pas listée deux fois
+  const saved = all.filter(function(p){ return _prepView || !isCur(p); })                       // la prépa en cours n'est pas listée deux fois
     .sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); });
+  const ready = _prepView ? [] : prepReadyFor(state);
   let h = '';
   if(_prepView){
     const nx = _prepView.next;
     h += '<div class="pp-card" style="background:' + (nx ? '#EEF3FC;border-color:#C7D7F8' : '#FFF7ED;border-color:#FED7AA') + ';"><p class="pp-sub" style="color:' + (nx ? '#1B4FD8' : '#92400E') + ';">'
-      + (nx ? '<b>✏️ Prépa à venir ouverte</b> : « ' : '<b>📖 Consultation en cours</b> : « ') + _prepEsc(_prepView.meta.title || 'prépa archivée') + ' ».<br>Touche <b>Quitter</b> dans le bandeau pour revenir à ta prépa en cours'
+      + (nx ? '<b>Prépa à venir ouverte</b> : « ' : '<b>Consultation en cours</b> : « ') + _prepEsc(_prepView.meta.title || 'prépa archivée') + ' ».<br>Touche <b>Quitter</b> dans le bandeau pour revenir à ta prépa en cours'
       + (nx ? '.' : ' et gérer tes prépas.') + '</p></div>';
   } else {
     // ── Maintenant
-    h += '<p class="pp-sec">Maintenant</p>';
+    h += '<p class="pp-sec"><span>Maintenant</span></p>';
     const R = usesHardPlan() ? null : prepRace(), j = _ppDays(cur.date), tot = Math.max(1, cs.weeks);
     const cw = Math.min(tot, Math.max(1, typeof getEffectiveCW === 'function' ? getEffectiveCW() : 1));
-    const kmPlan = _prepPlannedKm(state);
-    h += '<section class="pp-card" aria-label="Prépa en cours"><div class="pp-top"><div style="min-width:0;">'
-      +   '<span class="pp-pill now"><span class="pp-dot"></span>En cours' + (cs.planned ? ' · S' + cw + '/' + tot : '') + '</span>'
-      +   '<p class="pp-title">' + _prepEsc(cur.title) + '</p>'
-      +   '<p class="pp-sub">' + [cur.dist, cur.date ? _prepDate(cur.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'sans date de course', R && R.objectif && R.objectif !== 'non défini' ? 'objectif ' + _prepEsc(R.objectif) : ''].filter(Boolean).join(' · ') + '</p></div>'
-      +   (j != null && j >= 0 ? '<div class="pp-count"><b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b><span>' + (j === 0 ? 'c\'est aujourd\'hui' : 'avant la course') + '</span></div>' : '') + '</div>';
+    const shape = _prepShape(state), kmPlan = Math.round(shape.reduce(function(a, w){ return a + w[0]; }, 0));
+    h += '<section class="pp-card" aria-label="Prépa en cours"><div class="pp-top"><div>'
+      +   '<span class="pp-pill now"><span class="pp-dot"></span>En cours' + (cs.planned ? ' · semaine ' + cw + '/' + tot : '') + '</span>'
+      +   '<p class="pp-title">' + _ppTitle(cur.title) + '</p>'
+      +   '<p class="pp-sub">' + [cur.dist, cur.date ? _prepDate(cur.date, { weekday: 'long', day: 'numeric', month: 'long' }) : 'sans date de course', R && R.objectif && R.objectif !== 'non défini' ? 'objectif ' + _prepEsc(R.objectif) : ''].filter(Boolean).join(' · ') + '</p></div>'
+      +   (j != null && j >= 0 ? '<div class="pp-big"><b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b><span>' + (j === 0 ? 'c\'est aujourd\'hui' : 'avant la course') + '</span></div>' : '') + '</div>';
     if(cs.planned){
-      h += '<div class="pp-prog"><div class="pp-prog-l"><span>Semaine ' + cw + ' sur ' + tot + '</span><span>' + cs.done + '/' + cs.planned + ' séances</span></div>'
-        +   '<div class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + cs.planned + '" aria-valuenow="' + cs.done + '" aria-label="Séances réalisées"><i style="width:' + Math.round(cs.done / cs.planned * 100) + '%"></i></div></div>'
+      h += '<div class="pp-chart"><div class="pp-chart-h"><span>Volume par semaine</span><span>' + cs.done + '/' + cs.planned + ' séances</span></div>'
+        +   _ppBars(shape, 'now', cw)
+        +   '<div class="pp-axis"><span>' + _ppShort(cur.start) + '</span><span>' + _ppShort(cur.date) + '</span></div></div>'
         + '<div class="pp-stats"><div class="pp-stat"><b>' + cs.done + '</b><span>' + (cs.done > 1 ? 'séances faites' : 'séance faite') + '</span></div>'
         +   '<div class="pp-stat"><b>' + _ppNum(cs.km) + '</b><span>km réalisés</span></div>'
         +   '<div class="pp-stat"><b>' + _ppNum(kmPlan) + '</b><span>km prévus</span></div></div>';
     }
-    h += (already ? '<p class="pp-note muted"><span style="color:#15803D;">✓</span> <span>Enregistrée ' + (already.savedAt === _prepToday() ? 'aujourd\'hui' : 'le ' + _prepDate(already.savedAt, { day: 'numeric', month: 'long' })) + (already.auto && !usesHardPlan() ? ' · mise à jour chaque jour' : '') + '</span></p>' : '')
+    h += (already ? '<p class="pp-note muted"><span style="color:#15803D;">' + PP_ICON.check + '</span><span>Enregistrée ' + (already.savedAt === _prepToday() ? 'aujourd\'hui' : 'le ' + _prepDate(already.savedAt, { day: 'numeric', month: 'long' })) + (already.auto && !usesHardPlan() ? ' · mise à jour chaque jour' : '') + '</span></p>' : '')
       + '<div class="pp-acts">'
-      +   '<button class="pp-btn ' + (already ? 'sec' : 'pri') + '" onclick="prepShowForm()">' + (already ? '✎ Nom, temps, note' : '📦 Enregistrer cette prépa') + '</button>'
-      +   (!usesHardPlan() && cs.planned > 0 ? '<button class="pp-btn danger" onclick="prepDiscardCurrent()">Supprimer</button>' : '') + '</div>'
+      +   '<button class="pp-btn ' + (already ? 'sec' : 'pri') + '" onclick="prepShowForm()">' + (already ? PP_ICON.edit + 'Modifier la fiche' : '📦 Enregistrer cette prépa') + '</button>'
+      +   (!usesHardPlan() && cs.planned > 0 ? '<button class="pp-btn icon" onclick="prepDiscardCurrent()" aria-label="Supprimer cette prépa" title="Supprimer cette prépa">' + PP_ICON.trash + '</button>' : '') + '</div>'
       + '<div id="prep-form" class="pp-form">'
       +   '<label>Nom<input id="pf-title" value="' + _prepEsc(already ? already.title : cur.title) + '"></label>'
       +   '<label>Date de la course<input id="pf-date" type="date" value="' + _prepEsc(cur.date) + '"></label>'
@@ -156,42 +229,54 @@ function _renderPrepsBody(){
       +   '<p class="pp-sub" style="font-size:11.5px;color:#7A8597;">Une copie figée du programme et de tes séances est conservée. Ta prépa en cours n\'est pas modifiée.</p>'
       + '</div></section>';
     // ── Ensuite : prépa à venir, prépas prêtes à installer, nouvelle prépa
-    const ready = prepReadyFor(state);
-    h += '<p class="pp-sec">Ensuite</p>';
+    h += '<p class="pp-sec"><span>Ensuite</span></p>';
     if(_prepNext){
-      const N = _prepNext, js = _ppDays(N.start);
-      h += '<section class="pp-card" aria-label="Prépa à venir"><div class="pp-top"><div style="min-width:0;">'
-        +   '<span class="pp-pill next">⏭ À venir' + (js > 0 ? ' · dans ' + _ppS(js, 'jour') : '') + '</span>'
-        +   '<p class="pp-title">' + _prepEsc(N.title) + '</p>'
-        +   '<p class="pp-sub">' + [N.dist, _prepDate(N.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), N.target ? 'objectif ' + _prepEsc(_ppTime(N.target)) : ''].filter(Boolean).join(' · ') + '</p></div></div>'
-        + '<div class="pp-chips"><span class="pp-chip">' + _ppS(N.weeks, 'semaine') + '</span><span class="pp-chip">' + _ppS(N.sessions, 'séance') + '</span></div>'
-        + '<p class="pp-note info">↪ <span>Démarre seule le ' + _prepDate(N.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ', dès ta course validée.</span></p>'
-        + '<div class="pp-acts"><button class="pp-btn pri" onclick="prepNextOpen()">✏️ Voir et modifier</button>'
-        +   '<button class="pp-btn icon" onclick="prepNextDelete()" aria-label="Supprimer la prépa à venir">🗑</button></div></section>';
+      const N = _prepNext, js = _ppDays(N.start), sh = N.shape || [];
+      const peak = sh.reduce(function(a, w){ return Math.max(a, w[0]); }, 0), kinds = {};
+      sh.forEach(function(w){ kinds[w[2]] = 1; });
+      h += '<section class="pp-card" aria-label="Prépa à venir"><div class="pp-top"><div>'
+        +   '<span class="pp-pill next">À venir' + (js > 0 ? ' · dans ' + _ppS(js, 'jour') : '') + '</span>'
+        +   '<p class="pp-title">' + _ppTitle(N.title) + '</p>'
+        +   '<p class="pp-sub">' + [N.dist, _prepDate(N.date)].filter(Boolean).join(' · ') + '</p></div>'
+        +   (N.target ? '<div class="pp-big"><b>' + _prepEsc(_ppTime(N.target)) + '</b><span>objectif</span></div>' : '') + '</div>';
+      if(sh.length) h += '<div class="pp-chart"><div class="pp-chart-h"><span>' + _ppS(N.weeks || sh.length, 'semaine') + ' · ' + _ppS(N.sessions, 'séance') + '</span><span>pic ' + _ppNum(Math.round(peak)) + ' km</span></div>'
+        +   _ppBars(sh, 'next')
+        +   '<div class="pp-axis"><span>' + _ppShort(N.start) + '</span><span>' + _ppShort(N.date) + '</span></div>'
+        +   '<div class="pp-leg">' + [['', 'charge', '#A9BEE6'], ['r', 'récup', '#D5DEEC'], ['p', 'pic', '#1B4FD8'], ['t', 'affûtage', '#7FA2EE'], ['c', 'course', '#F59E0B']]
+              .filter(function(k){ return kinds[k[0]]; }).map(function(k){ return '<span><i style="background:' + k[2] + '"></i>' + k[1] + '</span>'; }).join('') + '</div></div>';
+      else h += '<div class="pp-chips"><span class="pp-chip">' + _ppS(N.weeks, 'semaine') + '</span><span class="pp-chip">' + _ppS(N.sessions, 'séance') + '</span></div>';
+      h += '<p class="pp-note">' + PP_ICON.next + '<span>Démarre seule le ' + _prepDate(N.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ', dès ta course validée.</span></p>'
+        + '<div class="pp-acts"><button class="pp-btn pri" onclick="prepNextOpen()">' + PP_ICON.edit + 'Voir et modifier</button>'
+        +   '<button class="pp-btn icon" onclick="prepNextDelete()" aria-label="Supprimer la prépa à venir" title="Supprimer la prépa à venir">' + PP_ICON.trash + '</button></div></section>';
     }
     ready.forEach(function(R){
       const n = R.weeks.reduce(function(a, W){ return a + W.sessions.length; }, 0);
-      h += '<section class="pp-card"><div><span class="pp-pill ready">📥 Prête à installer</span><p class="pp-title">' + _prepEsc(R.title) + '</p>'
+      h += '<section class="pp-card"><div><span class="pp-pill ready">Prête à installer</span><p class="pp-title">' + _ppTitle(R.title) + '</p>'
         + '<p class="pp-sub">Course le ' + _prepDate(R.date) + ' · ' + _ppS(R.weeks.length, 'semaine') + ' · ' + _ppS(n, 'séance') + ' · objectif ' + _ppTime(R.target) + '</p></div>'
         + '<div class="pp-acts"><button class="pp-btn ok" onclick="prepInstallReady(\'' + R.id + '\')">Installer cette prépa</button></div></section>';
     });
-    h += '<button class="pp-new" onclick="prepNew()">＋ Nouvelle prépa</button>';
+    h += '<button class="pp-new" onclick="prepNew()">' + PP_ICON.plus + 'Nouvelle prépa</button>';
   }
   // ── Terminées
-  h += '<p class="pp-sec">Terminées</p>';
+  h += '<p class="pp-sec"><span>Terminées</span>' + (saved.length ? '<span>' + saved.length + '</span>' : '') + '</p>';
   if(!saved.length) h += '<p class="pp-empty">Aucune pour l\'instant : ta prépa en cours y sera enregistrée automatiquement.</p>';
   saved.forEach(function(p){
-    const s = p.stats || {};
-    h += '<section class="pp-card"><div class="pp-top"><div style="min-width:0;">'
-      +   '<p class="pp-title" style="margin-top:0;font-size:16.5px;">' + _prepEsc(p.title) + '</p>'
+    const s = p.stats || {}, shortNote = p.note && p.note.length <= 22;
+    h += '<section class="pp-card"><div class="pp-top"><div>'
+      +   '<p class="pp-title" style="margin-top:0;font-size:17px;">' + _ppTitle(p.title) + '</p>'
       +   '<p class="pp-sub">' + [p.date ? _prepDate(p.date) : '', s.weeks ? _ppS(s.weeks, 'semaine') : '', s.weeks ? _ppS(s.done, 'séance') : '', s.weeks ? _ppNum(s.km) + ' km' : ''].filter(Boolean).join(' · ') + '</p></div>'
-      +   (p.result ? '<span class="pp-res">⏱ ' + _prepEsc(p.result) + '</span>' : '') + '</div>'
-      + (p.note ? '<p class="pp-note" style="color:#B45309;">🏅 <span>' + _prepEsc(p.note) + '</span></p>' : '')
-      + '<div class="pp-acts"><button class="pp-btn sec" onclick="prepView(\'' + p.id + '\')">📖 Consulter</button>'
-      +   (p.replay ? '<a class="pp-btn warm" href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener">🎬 Revoir</a>' : '')
-      +   (_prepView ? '' : '<button class="pp-btn icon" onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer ' + _prepEsc(p.title) + '">🗑</button>') + '</div></section>';
+      +   (p.result ? '<div class="pp-big gold"><b>' + _prepEsc(p.result) + '</b>' + (shortNote ? '<span>' + _prepEsc(p.note) + '</span>' : '') + '</div>' : '') + '</div>'
+      + (p.note && !(p.result && shortNote) ? '<p class="pp-note" style="color:#B45309;">🏅 <span>' + _prepEsc(p.note) + '</span></p>' : '')
+      + (p.shape && p.shape.length ? '<div class="pp-chart">' + _ppBars(p.shape, 'done') + '</div>' : '')
+      + '<div class="pp-acts"><button class="pp-btn sec" onclick="prepView(\'' + p.id + '\')">' + PP_ICON.book + 'Consulter</button>'
+      +   (p.replay ? '<a class="pp-btn warm" href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener">' + PP_ICON.play + 'Revoir</a>' : '')
+      +   (_prepView ? '' : '<button class="pp-btn icon" onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer ' + _prepEsc(p.title) + '" title="Supprimer">' + PP_ICON.trash + '</button>') + '</div></section>';
   });
   box.innerHTML = h;
+  // en-tête : résumé
+  const hs = document.getElementById('preps-head-sub');
+  if(hs) hs.textContent = _prepView ? (_prepView.next ? 'Prépa à venir ouverte' : 'Consultation en cours')
+    : ['1 en cours', _prepNext ? '1 à venir' : '', saved.length ? saved.length + ' terminée' + (saved.length > 1 ? 's' : '') : ''].filter(Boolean).join(' · ');
 }
 // km prévus de la prépa (somme des séances)
 function _prepPlannedKm(st){
@@ -213,7 +298,7 @@ async function prepSaveCurrent(){
   Object.keys(state).forEach(function(k){ if(!_PREP_SKIP.test(k) && state[k] !== undefined) snap[k] = state[k]; });
   const meta = { title: title, race: cur.race, dist: cur.dist, date: document.getElementById('pf-date').value || cur.date || '', start: cur.start || '',
     result: document.getElementById('pf-result').value.trim(), note: document.getElementById('pf-note').value.trim(), replay: cur.replay || '',
-    stats: _prepStats(state), savedAt: new Date().toISOString().slice(0, 10), admin: isAdmin() && !state._plan_engine };
+    stats: _prepStats(state), shape: _prepShape(state), savedAt: new Date().toISOString().slice(0, 10), admin: isAdmin() && !state._plan_engine };
   try {
     await _prepRef('preps/' + id).set(snap);
     await _prepRef('prep_index/' + id).set(meta);
@@ -429,6 +514,11 @@ async function prepView(id){
 }
 function prepViewExit(silent){
   if(!_prepView) return;
+  if(_prepView.next){
+    const sh = _prepShape(state), n = _prepStats(state).planned, up = { shape: sh, sessions: n, weeks: sh.length };
+    _prepNext = Object.assign({}, _prepView.meta, up);
+    _prepRef('prep_next/meta').update(up).catch(function(){});
+  }
   state = _prepView.state; dbRef = _prepView.dbRef; _prepView = null;
   syncPlanCompat();
   const bar = document.getElementById('prep-view-bar'); if(bar) bar.remove();
@@ -503,9 +593,10 @@ async function _prepSeedNext(){
       if(!/^extra_w\d+_s\d+$/.test(k) || typeof shoeForType !== 'function') return;
       const x = JSON.parse(keys[k]); x.shoe = shoeForType(x.type); keys[k] = JSON.stringify(x);
     });
-    await _prepRef('prep_next').set({ meta: _prepNextMeta(R), state: keys });
+    const meta = Object.assign(_prepNextMeta(R), { shape: _prepShape(keys) });
+    await _prepRef('prep_next').set({ meta: meta, state: keys });
     state._next_seed = R.id; await dbRef.update({ _next_seed: R.id });
-    _prepNext = _prepNextMeta(R);
+    _prepNext = meta;
   }
 }
 // Enregistrement automatique quotidien de la prépa en cours dans Mes prépas (copie figée mise à jour)
@@ -525,7 +616,7 @@ async function prepAutoSave(force){
   state._prep_id = id; state._prep_autosave = today;
   Object.keys(state).forEach(function(k){ if(!_PREP_SKIP.test(k) && state[k] !== undefined) snap[k] = state[k]; });
   const meta = { title: old.title || cur.title, race: cur.race, dist: cur.dist, date: cur.date || old.date || '', start: cur.start || '',
-    result: old.result || '', note: old.note || '', replay: old.replay || '', stats: cs, savedAt: today, auto: true, admin: false };
+    result: old.result || '', note: old.note || '', replay: old.replay || '', stats: cs, shape: _prepShape(state), savedAt: today, auto: true, admin: false };
   await _prepRef('preps/' + id).set(snap);
   await _prepRef('prep_index/' + id).set(meta);
   if(_prepIndex) _prepIndex[id] = meta;
