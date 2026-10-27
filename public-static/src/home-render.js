@@ -1312,6 +1312,8 @@ async function saveValidationExtra(w,ei){
   // Strava — même logique que saveValidation
   if(window._stravaActivityData){
     const g=window._stravaActivityData;
+    const _gShoe=g.gearId&&typeof shoeByStravaId==='function'?shoeByStravaId(g.gearId):null;   // paire portée sur l'activité Strava
+    if(_gShoe&&sExtra.shoe!==_gShoe){ sExtra.shoe=_gShoe; state[k]=JSON.stringify(sExtra); }
     const stravaData={};
     if(g.cadence) stravaData.cadence=g.cadence;
     if(g.fcMax) stravaData.fcMax=g.fcMax;

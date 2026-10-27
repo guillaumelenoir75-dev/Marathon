@@ -146,25 +146,27 @@ function renderStats(){
     const pct=Math.min(100,Math.round(km/sh.max*100));
     const row=document.createElement('div');
     row.style.cssText='margin-bottom:14px;';
-    row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="openShoeHistory('${sh.name}')" title="Voir l'historique des séances">
-        <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};display:inline-block;flex-shrink:0;"></span>
-        <span style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px dashed var(--border);">${sh.name}</span>${sh.retired?'<span style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:10px;padding:1px 6px;font-weight:600;">retirée</span>':''}
-        <span style="font-size:10px;color:var(--muted);font-weight:500;">Historique</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:13px;color:var(--text);">${km} <span style="color:var(--muted);">/ ${sh.max} km</span></span>
-        <div style="display:flex;gap:6px;">
-          <button onclick="openEditShoeModal('${sh.name}')" aria-label="Modifier ${sh.name}" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);padding:4px 8px;display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Modifier
-          </button>
-          <button onclick="deleteShoe('${sh.name}')" aria-label="Supprimer ${sh.name}" style="background:#FEF2F2;border:1px solid #fecaca;border-radius:8px;cursor:pointer;color:#DC2626;padding:4px 8px;display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-            Supprimer
-          </button>
-        </div>
-      </div>
+    // ligne : nom complet (touche → historique) · km à droite · actions en icônes
+    const _icoBtn='width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;cursor:pointer;';
+    row.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:7px;">
+      <button type="button" onclick="openShoeHistory('${sh.name}')" title="Voir l'historique des séances" style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;background:none;border:none;padding:0;text-align:left;cursor:pointer;font-family:inherit;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};flex-shrink:0;margin-top:4px;"></span>
+        <span style="min-width:0;">
+          <span style="display:block;font-size:13.5px;font-weight:700;color:var(--text);line-height:1.3;">${sh.name}</span>
+          <span style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:3px;font-size:10.5px;color:var(--muted);font-weight:600;">
+            <span style="text-decoration:underline dotted;">Historique</span>
+            ${sh.retired?'<span style="color:#92400E;background:#FEF3C7;border-radius:10px;padding:1px 6px;">retirée</span>':''}
+            ${shoeStravaFor(sh.name)?'<span title="Kilométrage Strava" style="font-weight:800;color:#FC4C02;background:#FFF1EA;border-radius:6px;padding:1px 5px;">STRAVA</span>':''}
+          </span>
+        </span>
+      </button>
+      <span style="flex-shrink:0;font-size:14px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:1px;">${km}<span style="color:var(--muted);font-weight:600;font-size:12px;"> / ${sh.max} km</span></span>
+      <button onclick="openEditShoeModal('${sh.name}')" aria-label="Modifier ${sh.name}" title="Modifier" style="${_icoBtn}background:var(--bg2);border:1px solid var(--border);color:var(--muted);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+      <button onclick="deleteShoe('${sh.name}')" aria-label="Supprimer ${sh.name}" title="Supprimer" style="${_icoBtn}background:#fff;border:1px solid #F1D4D4;color:#C0392B;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+      </button>
     </div>
     <div style="background:var(--bg2);border-radius:4px;height:8px;">
       <div style="background:${sh.color};border-radius:4px;height:8px;width:${pct}%;transition:width 0.5s;"></div>
@@ -177,7 +179,8 @@ function renderStats(){
   if(sm) sm.innerHTML=`<button onclick="openAddShoeModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(27,79,216,0.35);">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     👟 Ajouter une paire de chaussures
-  </button>`;
+  </button>${state.strava_token?`<button onclick="openShoesStravaModal()" style="width:100%;margin-top:8px;padding:12px;background:#fff;border:1.5px solid #FDBA9A;border-radius:14px;font-size:13.5px;font-weight:800;color:#C2410C;cursor:pointer;">🔗 Relier mes chaussures à Strava</button>`:''}`;
+  if(typeof shoesStravaSync==='function') shoesStravaSync();
   // Tableau performances
   const pr=document.getElementById('perf-rows');
   if(pr){

@@ -11,6 +11,8 @@ function _shoeDoneKm(name, ws){
   return t;
 }
 function shoeKmTotal(name){
+  const sg=!usesHardPlan()&&shoeStravaFor(name);          // paire reliée à Strava : son compteur fait foi
+  if(sg&&sg.km!=null) return sg.km;
   const idx=[P,S,Z].indexOf(name);
   let base=parseFloat(state['shoe_km_'+name]), t;
   if(usesHardPlan()){
@@ -360,4 +362,86 @@ function togglePerfMonth(id){
   const open=el.style.display==='none';
   el.style.display=open?'block':'none';
   if(arr) arr.style.transform=open?'rotate(180deg)':'rotate(0)';
+}
+
+// ─── Chaussures Strava ───────────────────────────────────────────────────────
+// state._strava_gear = { at, shoes: [{ id, name, km, retired }], needsReauth } ; chaque paire de l'app peut porter strava_id
+function shoeStravaFor(name){
+  const sh=getShoes().find(x=>x.name===name), g=state._strava_gear;
+  if(!sh||!sh.strava_id||!g||!Array.isArray(g.shoes)) return null;
+  return g.shoes.find(x=>x.id===sh.strava_id)||null;
+}
+function shoeByStravaId(id){ const sh=id&&getShoes().find(x=>x.strava_id===id); return sh?sh.name:null; }
+const _shoeNorm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+async function shoesStravaFetch(force){
+  if(!state.strava_token||(typeof _prepView!=='undefined'&&_prepView)) return state._strava_gear||null;
+  const c=state._strava_gear;
+  if(!force&&c&&Date.now()-(c.at||0)<3600*1000) return c;
+  try{
+    const token=await getAuthToken();
+    const r=await fetch(FUNCTIONS_BASE+'/stravaGear',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'}).then(x=>x.json());
+    if(!r||!r.success) return c||null;
+    state._strava_gear={at:Date.now(),shoes:r.shoes||[],needsReauth:!!r.needsReauth};
+    if(dbRef) dbRef.child('_strava_gear').set(state._strava_gear).catch(()=>{});
+  }catch(e){ console.warn('[chaussures] Strava',e); }
+  return state._strava_gear||null;
+}
+// relie automatiquement les paires de même nom (une seule fois par paire)
+function shoesStravaAutoLink(){
+  const g=state._strava_gear; if(!g||!Array.isArray(g.shoes)) return false;
+  const arr=getShoes(); let changed=false;
+  arr.forEach(sh=>{
+    if(sh.strava_id||sh.strava_off) return;                      // déjà reliée, ou déliée volontairement
+    const m=g.shoes.find(x=>x.name&&_shoeNorm(x.name)===_shoeNorm(sh.name)&&!arr.some(o=>o.strava_id===x.id));
+    if(m){ sh.strava_id=m.id; changed=true; }
+  });
+  if(changed) saveShoes(arr);
+  return changed;
+}
+// à l'ouverture des Stats : compteurs Strava à jour (au plus une fois par heure), écran redessiné si besoin
+let _shoesStravaBusy=false;
+async function shoesStravaSync(){
+  if(_shoesStravaBusy||!state.strava_token) return;
+  _shoesStravaBusy=true;
+  const before=JSON.stringify([state._strava_gear&&state._strava_gear.shoes,getShoes()]);
+  await shoesStravaFetch(false);
+  shoesStravaAutoLink();
+  _shoesStravaBusy=false;
+  if(JSON.stringify([state._strava_gear&&state._strava_gear.shoes,getShoes()])!==before&&typeof renderStats==='function'){ rendered.stats=false; renderStats(); }
+}
+// fenêtre « Relier à Strava » : une paire Strava par paire de l'app
+async function openShoesStravaModal(){
+  const mc=document.getElementById('modal-container'), ov=document.createElement('div');
+  ov.className='modal-overlay'; ov.style.setProperty('--_overlay-bg','rgba(0,0,0,0.45)');
+  ov.innerHTML='<div class="modal-box"><div style="padding:18px 18px 8px;display:flex;justify-content:space-between;align-items:center;"><p style="font-size:17px;font-weight:850;color:#0C447C;margin:0;">Chaussures Strava</p>'
+    +'<button onclick="closeModal()" aria-label="Fermer" style="background:var(--bg2);border:none;border-radius:50%;width:32px;height:32px;font-size:17px;cursor:pointer;">×</button></div>'
+    +'<div class="modal-scroll-body"><div id="shoes-strava-body" style="padding:4px 18px 22px;"><p style="color:#888;font-size:13px;">Lecture de tes chaussures Strava…</p></div></div></div>';
+  ov.onclick=e=>{ if(e.target===ov) closeModal(); };
+  mc.appendChild(ov);
+  const box=()=>document.getElementById('shoes-strava-body');
+  if(!state.strava_token){ box().innerHTML='<p style="font-size:13.5px;color:#5B6675;line-height:1.5;">Strava n\'est pas connecté. Connecte-le depuis Compte › Strava.</p>'; return; }
+  const g=await shoesStravaFetch(true); shoesStravaAutoLink();
+  const list=(g&&g.shoes||[]).filter(x=>x.name);
+  let h='';
+  if(!g||g.needsReauth||!list.length){
+    h+='<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px;margin-bottom:12px;"><p style="font-size:13px;color:#92400E;margin:0 0 8px;line-height:1.45;"><b>Autorisation à renouveler.</b> Pour lire tes chaussures, Strava doit autoriser l\'accès à ton profil. Reconnecte Strava une fois, puis rouvre cette fenêtre.</p>'
+      +'<button onclick="_stravaOpenAuth()" style="width:100%;padding:11px;background:#FC4C02;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;">Reconnecter Strava</button></div>';
+  }
+  if(list.length){
+    const opts=sel=>'<option value="">— non reliée —</option>'+list.map(x=>'<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+x.name.replace(/</g,'&lt;')+(x.km!=null?' · '+x.km.toLocaleString('fr-FR')+' km':'')+(x.retired?' (retirée)':'')+'</option>').join('');
+    h+='<p style="font-size:12.5px;color:#5B6675;margin:0 0 10px;line-height:1.45;">Une paire reliée prend le kilométrage de Strava, et la paire d\'une séance importée depuis Strava est remplie toute seule.</p>';
+    getShoes().forEach((sh,i)=>{
+      h+='<label style="display:block;margin-bottom:10px;"><span style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#0F172A;margin-bottom:4px;"><span style="width:9px;height:9px;border-radius:50%;background:'+sh.color+';"></span>'+sh.name.replace(/</g,'&lt;')+'</span>'
+        +'<select data-shoe="'+i+'" style="width:100%;padding:10px;border:1px solid #D6DFEC;border-radius:10px;font-size:13.5px;background:#fff;">'+opts(sh.strava_id)+'</select></label>';
+    });
+    h+='<button onclick="saveShoesStravaLinks()" style="width:100%;margin-top:6px;padding:13px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-weight:800;font-size:14.5px;cursor:pointer;">Enregistrer</button>'
+      +'<p style="font-size:11px;color:#94A3B8;margin:8px 0 0;">Compteurs Strava lus le '+new Date(g.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</p>';
+  }
+  box().innerHTML=h;
+}
+function saveShoesStravaLinks(){
+  const arr=getShoes();
+  document.querySelectorAll('#shoes-strava-body select[data-shoe]').forEach(el=>{ const sh=arr[+el.dataset.shoe]; if(sh){ if(el.value){ sh.strava_id=el.value; delete sh.strava_off; } else { delete sh.strava_id; sh.strava_off=true; } } });
+  saveShoes(arr); closeModal(); rendered.stats=false; renderStats();
+  if(typeof showToast==='function') showToast('Chaussures reliées à Strava');
 }

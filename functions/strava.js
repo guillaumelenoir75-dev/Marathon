@@ -53,7 +53,7 @@ exports.stravaAuth = onRequest(
 
     const clientId = STRAVA_CLIENT_ID.value();
     const redirectUri = 'https://us-central1-prepa-marathon.cloudfunctions.net/stravaCallback';
-    const scope = 'read,activity:read';
+    const scope = 'read,activity:read,profile:read_all';   // profile:read_all : liste des chaussures (gear)
     const state = encodeURIComponent(uid);
     const url = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
     res.json({ url });
@@ -92,6 +92,7 @@ exports.stravaCallback = onRequest(
         refresh_token: tokenData.refresh_token,
         expires_at: tokenData.expires_at,
         athlete_id: tokenData.athlete?.id,
+        scope: req.query.scope || null,                 // autorisations accordées (ex. profile:read_all pour les chaussures)
         updatedAt: new Date().toISOString()
       });
 
@@ -170,6 +171,7 @@ exports.stravaFetch = onRequest(
           cadence: a.average_cadence ? Math.round(a.average_cadence * 2) : null,
           denivele_pos: a.total_elevation_gain ? Math.round(a.total_elevation_gain) : null,
           calories: a.calories ? Math.round(a.calories) : (a.kilojoules ? Math.round(a.kilojoules * 0.239) : null),
+          gearId: a.gear_id || null,
         };
       });
 
@@ -260,6 +262,47 @@ exports.stravaFetchDetail = onRequest(
 
     } catch(e) {
       console.error('stravaFetchDetail error:', e.message);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);
+
+// Chaussures Strava (nom, km au compteur) : profil détaillé si autorisé (profile:read_all),
+// sinon identifiants vus dans les activités récentes + /gear/{id}
+exports.stravaGear = onRequest(
+  { secrets: [STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET], timeoutSeconds: 30, memory: '256MiB', cors: true },
+  async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    let uid;
+    try { uid = await verifyUser(req); } catch(e) { res.status(401).json({ success: false, error: 'Non authentifié' }); return; }
+    try {
+      const db = admin.database();
+      const accessToken = await getValidAccessToken(db, uid, STRAVA_CLIENT_ID.value(), STRAVA_CLIENT_SECRET.value());
+      if (!accessToken) { res.json({ success: false, needsAuth: true, message: 'Strava non connecté' }); return; }
+      const H = { headers: { 'Authorization': `Bearer ${accessToken}` } };
+      const fmt = g => ({ id: g.id, name: g.name || g.nickname || [g.brand_name, g.model_name].filter(Boolean).join(' ') || g.id,
+        km: Math.round((g.distance || g.converted_distance * 1000 || 0) / 100) / 10, retired: !!g.retired, primary: !!g.primary });
+      let shoes = null;
+      const ath = await fetchWithTimeout('https://www.strava.com/api/v3/athlete', H, 15000);
+      if (ath.ok) { const a = await ath.json(); if (Array.isArray(a.shoes)) shoes = a.shoes.map(fmt); }
+      let needsReauth = false;
+      if (!shoes || !shoes.length) {
+        // profil résumé : paires vues dans les activités récentes
+        const actRes = await fetchWithTimeout('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=1', H, 20000);
+        const acts = actRes.ok ? await actRes.json() : [];
+        const ids = Array.from(new Set((Array.isArray(acts) ? acts : []).map(a => a.gear_id).filter(Boolean)));
+        shoes = [];
+        for (const id of ids.slice(0, 12)) {
+          const g = await fetchWithTimeout(`https://www.strava.com/api/v3/gear/${id}`, H, 10000).catch(() => null);
+          if (g && g.ok) shoes.push(fmt(await g.json())); else { needsReauth = true; shoes.push({ id, name: null, km: null }); }
+        }
+      }
+      res.json({ success: true, shoes, needsReauth, at: Date.now() });
+    } catch(e) {
+      console.error('stravaGear error:', e.message);
       res.status(500).json({ success: false, error: e.message });
     }
   }
