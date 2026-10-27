@@ -445,6 +445,7 @@
         <p id="compte-tagline" style="font-size:12px;opacity:0.7;margin:3px 0 0;font-weight:500;">—</p>
       </div>
     </div>
+    <div id="compte-hero-meta" class="cp-hero-meta" hidden></div>
   </div>
   <!-- Compte : sections rangées (lignes groupées), identifiants conservés pour le code -->
   <p class="cp-sec">Mon compte</p>
@@ -478,23 +479,23 @@
   <div class="cp-admin" style="display:none;">
   <p class="cp-sec">Suivi de course</p>
   <div class="cp-group">
-    <button type="button" class="cp-row" id="live-row" onclick="openLivePanel()" style="display:none;"><span class="cp-ic" style="background:#DCFCE7;">🏁</span><span class="cp-txt"><b>Course en direct</b><span>Démarrer le suivi, pointages, page des amis</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="se-org-row" onclick="openRaceOrgSheet()"><span class="cp-ic" style="background:#E0F2E9;">🗺️</span><span class="cp-txt"><b>Marathon Seine-Eure</b><span>18 octobre 2026 · parcours, trajets et RDV</span></span><span class="cp-chip">3:37:05</span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="live-row" onclick="openLivePanel()" style="display:none;"><span class="cp-ic" style="background:#DCFCE7;">🏁</span><span class="cp-txt"><b>Course en direct</b><span id="live-row-sub">Démarrer le suivi, pointages, page des amis</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="se-org-row" onclick="openRaceOrgSheet()"><span class="cp-ic" style="background:#E0F2E9;">🗺️</span><span class="cp-txt"><b>Marathon Seine-Eure</b><span>18 oct. 2026 · parcours et trajets</span></span><span class="cp-chip">3:37:05</span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
   </div>
 
   <p class="cp-sec">Intégrations</p>
   <div class="cp-group" id="user-integrations" style="display:none;">
-    <div class="cp-row cp-static"><span class="cp-ic" style="background:#FFF0EB;">🟠</span><span class="cp-txt"><b>Strava</b><span id="strava-status-label">Vérification…</span></span>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <div class="cp-row cp-static cp-int"><span class="cp-ic" style="background:#FFF0EB;">🟠</span><span class="cp-txt"><b>Strava</b><span id="strava-status-label">Vérification…</span></span>
+      <div class="cp-act">
           <button id="strava-disconnect-btn" onclick="disconnectStrava()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
           <button id="strava-connect-btn" onclick="adminConnectStrava()" style="background:#FC4C02;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
             Connecter avec Strava
           </button>
         </div></div>
-    <div id="whoop-panel" style="display:none;"><div class="cp-row cp-static"><span class="cp-ic" style="background:#EBF0FF;">⚡</span><span class="cp-txt"><b>WHOOP</b><span id="whoop-status">Non connecté</span></span>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <div id="whoop-panel" style="display:none;"><div class="cp-row cp-static cp-int"><span class="cp-ic" style="background:#EBF0FF;">⚡</span><span class="cp-txt"><b>WHOOP</b><span id="whoop-status">Non connecté</span></span>
+      <div class="cp-act">
         <button id="whoop-disconnect-btn" onclick="disconnectWhoop()" style="display:none;background:none;border:1px solid #e0e0e0;color:#9ca3af;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">Déconnecter</button>
         <button id="whoop-connect-btn" onclick="connectWhoop()" style="background:#1B4FD8;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
@@ -556,11 +557,8 @@
   </div></div>
 
   <!-- Déconnexion (tous les users) -->
-  <div style="padding:16px 0 4px;">
-    <button onclick="logoutUser()" style="width:100%;background:#fff;border:1.5px solid #e0e0e0;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;">
-      <div style="width:38px;height:38px;border-radius:10px;background:#FEF2F2;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🚪</div>
-      <span style="font-size:14px;font-weight:700;color:#DC2626;">Se déconnecter</span>
-    </button>
+  <div class="cp-group" style="margin-top:20px;">
+    <button type="button" class="cp-row" onclick="logoutUser()"><span class="cp-ic" style="background:#FEF2F2;">🚪</span><span class="cp-txt"><b style="color:#DC2626;">Se déconnecter</b></span></button>
   </div>
 
   <!-- Suppression de compte (athlètes uniquement) -->

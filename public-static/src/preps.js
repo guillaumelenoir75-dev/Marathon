@@ -67,6 +67,7 @@ function _prepShape(st){
 // ─── Ligne « Mes prépas » de l'écran Compte ────────────────────────────────
 async function renderPrepsRow(){
   const lr = document.getElementById('live-row'); if(lr) lr.style.display = isAdmin() ? 'flex' : 'none';
+  if(_prepUid() && !_prepView) _prepRef('prep_next/meta').once('value').then(function(x){ _prepNext = x.val(); renderCompteHero(); }).catch(function(){});
   const sub = document.getElementById('preps-subtitle'); if(!sub || !_prepUid()) return;
   try {
     _prepIndex = (await _prepRef('prep_index').once('value')).val() || {};
@@ -873,4 +874,17 @@ async function prepSaveRaceResult(time, date){
     replay = await liveStoreReplay(sec, perf, pr ? 'record personnel' : '');
   }
   return { time: txt, cat: cat, pr: pr, prev: prev, replay: replay };
+}
+
+// Compte › en-tête : prépa en cours (J-x) et prochaine prépa ; ligne « Course en direct » : prochaine course
+function renderCompteHero(){
+  const box = document.getElementById('compte-hero-meta'); if(!box) return;
+  const cur = _prepCurrentInfo(state), cs = _prepStats(state), j = _ppDays(cur.date), chips = [];
+  if(!usesHardPlan() && cs.planned){
+    chips.push('<span>🏁 ' + _prepEsc(cur.race || cur.title) + (cur.result ? ' · <b>' + _prepEsc(cur.result) + '</b>' : j != null && j >= 0 ? ' · <b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b>' : '') + '</span>');
+  }
+  if(_prepNext && !_prepView) chips.push('<span>⏭ ' + _prepEsc(_prepNext.title) + ' · ' + _prepDate(_prepNext.date, { day: 'numeric', month: 'short' }) + '</span>');
+  box.innerHTML = chips.join(''); box.hidden = !chips.length;
+  const ls = document.getElementById('live-row-sub');
+  if(ls && isAdmin() && !usesHardPlan() && cur.date && j != null && j >= 0) ls.textContent = 'Prochaine : ' + (cur.race || cur.title) + ' · ' + _prepDate(cur.date, { weekday: 'short', day: 'numeric', month: 'short' });
 }

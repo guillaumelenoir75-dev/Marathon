@@ -174,3 +174,14 @@ select {
 .ros-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(env(safe-area-inset-bottom) + 24px);}
 .ros-body #race-org-panel{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px;}
 @media (prefers-reduced-motion:reduce){.ros,.ros-box,.ros.out{animation:none;}}
+/* intégrations : statut lisible, actions compactes (passent sous le texte si la place manque) */
+.cp-int{flex-wrap:wrap;row-gap:10px;}
+.cp-int .cp-txt{flex:1 1 130px;}
+.cp-act{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.cp-act button{font-size:12.5px !important;padding:8px 12px !important;border-radius:10px !important;white-space:nowrap;}
+#strava-disconnect-btn,#whoop-disconnect-btn{background:#fff !important;border:1px solid #E2E8F0 !important;color:#64748B !important;font-weight:700 !important;}
+.cp-txt span{overflow-wrap:anywhere;}
+/* en-tête Compte : prépa en cours, prochaine course */
+.cp-hero-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;}
+.cp-hero-meta span{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;color:#fff;}
+.cp-hero-meta b{font-weight:900;font-variant-numeric:tabular-nums;}

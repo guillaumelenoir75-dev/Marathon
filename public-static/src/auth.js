@@ -246,9 +246,10 @@ function renderCompteScreen(){
   }
   // Mettre à jour le sous-titre du bouton infos
   const sub=document.getElementById('info-subtitle');
-  if(sub&&user){const prenom=user.displayName||user.email?.split('@')[0]||'';sub.textContent=prenom?prenom+' · '+user.email:user.email;}
+  if(sub&&user) sub.textContent=user.email||user.displayName||'';
   // sections réservées à l'admin (Suivi de course, Administration) ; la carte Seine-Eure s'ouvre à la demande (openRaceOrgSheet)
   document.querySelectorAll('#sc-compte .cp-admin').forEach(el=>{ el.style.display=isAdmin()?'block':'none'; });
+  if(typeof renderCompteHero==='function') renderCompteHero();
   const adminIntegrations=document.getElementById('user-integrations');
   if(adminIntegrations) adminIntegrations.style.display='block';
   // La liste des comptes se charge à la demande via openUsersListModal()
