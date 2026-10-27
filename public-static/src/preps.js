@@ -76,8 +76,9 @@ async function renderPrepsRow(){
 }
 
 // ─── Panneau « Mes prépas » ────────────────────────────────────────────────
-async function openPrepsPanel(){
-  closePrepsPanel();
+async function openPrepsPanel(opts){
+  opts = opts || {};
+  closePrepsPanel(true);
   const mc = document.getElementById('modal-container'), ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'preps-panel';
   ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
@@ -87,28 +88,95 @@ async function openPrepsPanel(){
     +   '<button onclick="closePrepsPanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;">×</button></div>'
     + '<div class="modal-scroll-body" style="background:#F3F6FC;"><div id="preps-body" style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px;"><p style="color:#888;font-size:13px;">Chargement…</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) closePrepsPanel(); });
+  if(opts.instant){                                         // retour d'une prépa : le panneau est déjà là, sans glissement
+    ov.style.animation = 'none'; ov.style.background = 'rgba(0,0,0,0.45)';
+    ov.querySelector('.modal-box').style.animation = 'none';
+  }
   mc.appendChild(ov);
-  try { _prepIndex = (await _prepRef('prep_index').once('value')).val() || {}; } catch(e) { _prepIndex = {}; }
-  try { _prepNext = (await _prepRef('prep_next/meta').once('value')).val(); } catch(e) {}
-  _renderPrepsBody();
+  if(_prepIndex) _renderPrepsBody();                        // dernières données connues : affichage immédiat
+  if(opts.scroll){ const sb = ov.querySelector('.modal-scroll-body'); if(sb) sb.scrollTop = opts.scroll; }
+  const r = await Promise.all([
+    _prepRef('prep_index').once('value').then(function(x){ return x.val() || {}; }).catch(function(){ return _prepIndex || {}; }),
+    _prepRef('prep_next/meta').once('value').then(function(x){ return x.val(); }).catch(function(){ return _prepNext; })]);
+  const shown = !!document.querySelector('#preps-body .pp-card');
+  const changed = JSON.stringify([r[0], r[1]]) !== JSON.stringify([_prepIndex, _prepNext]);
+  _prepIndex = r[0]; _prepNext = r[1];
+  if(changed || !shown) _renderPrepsBody();
   _prepFillShapes();
 }
+// ─── Copies des prépas : gardées en mémoire, préchargées dès que le doigt se pose sur « Consulter » ───
+const _prepSnapCache = {};
+function _prepGetSnap(id){
+  if(!_prepSnapCache[id]) _prepSnapCache[id] = _prepRef(id === '#next' ? 'prep_next' : 'preps/' + id).once('value').then(function(x){ return x.val(); })
+    .catch(function(e){ delete _prepSnapCache[id]; throw e; });
+  return _prepSnapCache[id];
+}
+document.addEventListener('pointerdown', function(e){
+  const b = e.target && e.target.closest && e.target.closest('[data-prep-open]'); if(!b) return;
+  try { _prepGetSnap(b.getAttribute('data-prep-open')).catch(function(){}); } catch(err) {}
+}, { passive: true });
+
+// ─── Transitions d'ouverture / fermeture d'une prépa ───────────────────────
+const _PREP_FX_CSS = '#prep-veil{position:fixed;inset:0;z-index:9500;background:#EDF2FB;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .16s ease-out;}'
+  + '#prep-veil.on{opacity:1;}#prep-veil.out{transition:opacity .24s ease-in;opacity:0;}'
+  + '#prep-veil .pv{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #DCE5F3;border-radius:999px;padding:10px 16px;font:700 13.5px -apple-system,BlinkMacSystemFont,sans-serif;color:#0C447C;box-shadow:0 6px 24px rgba(12,68,124,.12);opacity:0;animation:_pvIn .2s ease-out .28s forwards;max-width:84vw;}'
+  + '#prep-veil .pv span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+  + '#prep-veil .sp{width:16px;height:16px;border-radius:50%;border:2.5px solid #C7D7F8;border-top-color:#1B4FD8;animation:_pvSpin .7s linear infinite;flex-shrink:0;}'
+  + '@keyframes _pvIn{to{opacity:1;}}@keyframes _pvSpin{to{transform:rotate(360deg);}}'
+  + '#prep-view-bar{transform:translateY(-100%);transition:transform .28s cubic-bezier(.32,.72,0,1);}#prep-view-bar.on{transform:none;}'
+  + '.modal-box.pp-closing{animation:_sheetSlideDown .22s ease-in forwards !important;}'
+  + '@media (prefers-reduced-motion:reduce){#prep-veil,#prep-veil.out,#prep-view-bar{transition:none;}#prep-veil .pv{animation-delay:.4s;}.modal-box.pp-closing{animation:none !important;}}';
+function _prepFxCss(){ if(!document.getElementById('prep-fx-css')){ const st = document.createElement('style'); st.id = 'prep-fx-css'; st.textContent = _PREP_FX_CSS; document.head.appendChild(st); } }
+const _prepWait = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+const _prepFrame = function(){ return new Promise(function(r){ requestAnimationFrame(function(){ requestAnimationFrame(r); }); }); };
+// voile : couvre l'écran pendant l'échange (le message n'apparaît que si l'attente dure)
+async function _prepVeilIn(label){
+  _prepFxCss();
+  let v = document.getElementById('prep-veil');
+  if(!v){ v = document.createElement('div'); v.id = 'prep-veil'; v.setAttribute('role', 'status'); document.body.appendChild(v); }
+  v.innerHTML = '<div class="pv"><span class="sp" aria-hidden="true"></span><span>' + _prepEsc(label) + '</span></div>';
+  v.className = ''; void v.offsetWidth; v.className = 'on';
+  await _prepWait(170);
+}
+async function _prepVeilOut(){
+  const v = document.getElementById('prep-veil'); if(!v) return;
+  await _prepFrame();                                       // laisser le nouvel écran se peindre sous le voile
+  v.className = 'out';
+  setTimeout(function(){ if(v.parentNode && v.className === 'out') v.remove(); }, 260);
+}
+function _prepBarIn(bar){
+  _prepFxCss();
+  document.body.appendChild(bar);
+  document.body.style.paddingTop = bar.offsetHeight + 'px';
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ bar.classList.add('on'); }); });
+}
+// écrans à redessiner à la demande (le contenu vient de changer)
+function _prepInvalidate(){ if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; rendered.renfo = false; rendered.home = false; } }
+let _prepPanelScroll = 0;
+function _prepRememberScroll(){ const sb = document.querySelector('#preps-panel .modal-scroll-body'); _prepPanelScroll = sb ? sb.scrollTop : 0; }
 async function _prepFillShapes(){
   let changed = false;
   try {
     if(_prepNext && !_prepNext.shape){
-      const st = (await _prepRef('prep_next/state').once('value')).val();
+      const st = ((await _prepGetSnap('#next')) || {}).state;
       if(st){ _prepNext.shape = _prepShape(st); await _prepRef('prep_next/meta/shape').set(_prepNext.shape); changed = true; }
     }
     for(const id of Object.keys(_prepIndex || {})){
       if(_prepIndex[id].shape || id === state._prep_id) continue;
-      const st = (await _prepRef('preps/' + id).once('value')).val();
+      const st = await _prepGetSnap(id);
       if(st){ _prepIndex[id].shape = _prepShape(st); await _prepRef('prep_index/' + id + '/shape').set(_prepIndex[id].shape); changed = true; }
     }
   } catch(e) { console.warn('[prépa] profils', e); }
   if(changed) _renderPrepsBody();
 }
-function closePrepsPanel(){ const ov = document.getElementById('preps-panel'); if(ov) ov.remove(); }
+function closePrepsPanel(immediate){
+  const ov = document.getElementById('preps-panel'); if(!ov) return;
+  if(immediate){ ov.remove(); return; }
+  _prepFxCss(); ov.id = ''; ov.style.pointerEvents = 'none';
+  const box = ov.querySelector('.modal-box'); if(box) box.classList.add('pp-closing');
+  ov.style.animation = 'none'; ov.style.transition = 'background .22s'; ov.style.background = 'transparent';
+  setTimeout(function(){ ov.remove(); }, 230);
+}
 
 // Styles du panneau (injectés une fois) : palette de l'app, cartes blanches sur fond bleuté
 const _PREP_CSS = '#preps-body{background:#F3F6FC;}'
@@ -246,7 +314,7 @@ function _renderPrepsBody(){
               .filter(function(k){ return kinds[k[0]]; }).map(function(k){ return '<span><i style="background:' + k[2] + '"></i>' + k[1] + '</span>'; }).join('') + '</div></div>';
       else h += '<div class="pp-chips"><span class="pp-chip">' + _ppS(N.weeks, 'semaine') + '</span><span class="pp-chip">' + _ppS(N.sessions, 'séance') + '</span></div>';
       h += '<p class="pp-note">' + PP_ICON.next + '<span>Démarre seule le ' + _prepDate(N.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ', dès ta course validée.</span></p>'
-        + '<div class="pp-acts"><button class="pp-btn pri" onclick="prepNextOpen()">' + PP_ICON.edit + 'Voir et modifier</button>'
+        + '<div class="pp-acts"><button class="pp-btn pri" data-prep-open="#next" onclick="prepNextOpen()">' + PP_ICON.edit + 'Voir et modifier</button>'
         +   '<button class="pp-btn icon" onclick="prepNextDelete()" aria-label="Supprimer la prépa à venir" title="Supprimer la prépa à venir">' + PP_ICON.trash + '</button></div></section>';
     }
     ready.forEach(function(R){
@@ -268,7 +336,7 @@ function _renderPrepsBody(){
       +   (p.result ? '<div class="pp-big gold"><b>' + _prepEsc(p.result) + '</b>' + (shortNote ? '<span>' + _prepEsc(p.note) + '</span>' : '') + '</div>' : '') + '</div>'
       + (p.note && !(p.result && shortNote) ? '<p class="pp-note" style="color:#B45309;">🏅 <span>' + _prepEsc(p.note) + '</span></p>' : '')
       + (p.shape && p.shape.length ? '<div class="pp-chart">' + _ppBars(p.shape, 'done') + '</div>' : '')
-      + '<div class="pp-acts"><button class="pp-btn sec" onclick="prepView(\'' + p.id + '\')">' + PP_ICON.book + 'Consulter</button>'
+      + '<div class="pp-acts"><button class="pp-btn sec" data-prep-open="' + p.id + '" onclick="prepView(\'' + p.id + '\')">' + PP_ICON.book + 'Consulter</button>'
       +   (p.replay ? '<a class="pp-btn warm" href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener">' + PP_ICON.play + 'Revoir</a>' : '')
       +   (_prepView ? '' : '<button class="pp-btn icon" onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer ' + _prepEsc(p.title) + '" title="Supprimer">' + PP_ICON.trash + '</button>') + '</div></section>';
   });
@@ -302,6 +370,7 @@ async function prepSaveCurrent(){
   try {
     await _prepRef('preps/' + id).set(snap);
     await _prepRef('prep_index/' + id).set(meta);
+    delete _prepSnapCache[id];
     _prepIndex[id] = meta;
     if(!usesHardPlan()){ state._prep_id = id; dbRef.update({ _prep_id: id }).catch(function(){}); }
     _renderPrepsBody(); renderPrepsRow();
@@ -315,7 +384,7 @@ function prepDelete(id){
   const p = (_prepIndex || {})[id]; if(!p) return;
   _showConfirmModal({ icon: '🗑', title: 'Supprimer « ' + p.title + ' » ?', message: 'La copie enregistrée de cette prépa sera définitivement supprimée. Ta prépa en cours n\'est pas touchée.',
     confirmLabel: 'Supprimer', confirmStyle: 'background:#e53e3e;color:#fff;', onConfirm: async function(){
-      await _prepRef('preps/' + id).remove(); await _prepRef('prep_index/' + id).remove();
+      await _prepRef('preps/' + id).remove(); await _prepRef('prep_index/' + id).remove(); delete _prepSnapCache[id];
       delete _prepIndex[id]; _renderPrepsBody(); renderPrepsRow();
     } });
 }
@@ -495,39 +564,51 @@ const _prepNullRef = (function(){
 })();
 async function prepView(id){
   if(_prepView) prepViewExit(true);
-  let snap;
-  try { snap = (await _prepRef('preps/' + id).once('value')).val(); } catch(e) { snap = null; }
-  if(!snap){ alert('Impossible d\'ouvrir cette prépa (connexion ?).'); return; }
   const meta = (_prepIndex || {})[id] || {};
-  _prepView = { state: state, dbRef: dbRef, meta: meta };
-  state = snap; dbRef = _prepNullRef;
-  syncPlanCompat();                                      // semaines et semaine en cours de la prépa consultée
+  _prepRememberScroll();
+  const load = _prepGetSnap(id);
   closePrepsPanel();
+  await _prepVeilIn('Ouverture de « ' + (meta.title || 'la prépa') + ' »');
+  let snap; try { snap = await load; } catch(e) { snap = null; }
+  if(!snap){ await _prepVeilOut(); alert('Impossible d\'ouvrir cette prépa (connexion ?).'); openPrepsPanel({ instant: true, scroll: _prepPanelScroll }); return; }
+  _prepView = { state: state, dbRef: dbRef, meta: meta, scroll: _prepPanelScroll };
+  state = JSON.parse(JSON.stringify(snap)); dbRef = _prepNullRef;     // copie : la version gardée en mémoire reste intacte
+  syncPlanCompat();                                      // semaines et semaine en cours de la prépa consultée
+  _prepInvalidate();
   const bar = document.createElement('div'); bar.id = 'prep-view-bar';
   bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9000;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:#92400E;color:#fff;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-family:inherit;';
   bar.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.3;"><b>📖 ' + _prepEsc(meta.title || 'Prépa archivée') + '</b><br><span style="opacity:.85;">Consultation · lecture seule</span></span>'
     + '<button onclick="prepViewExit()" style="flex-shrink:0;background:#fff;color:#92400E;border:none;border-radius:999px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;">Quitter</button>';
-  document.body.appendChild(bar);
-  document.body.style.paddingTop = bar.offsetHeight + 'px';
+  _prepBarIn(bar);
   showScreen('home');
-  try { if(typeof renderPlan === 'function') renderPlan(); } catch(e) {}
+  await _prepVeilOut();
 }
 function prepViewExit(silent){
   if(!_prepView) return;
-  if(_prepView.next){
+  const V = _prepView;
+  if(V.next){
     const sh = _prepShape(state), n = _prepStats(state).planned, up = { shape: sh, sessions: n, weeks: sh.length };
-    _prepNext = Object.assign({}, _prepView.meta, up);
+    _prepNext = Object.assign({}, V.meta, up);
     _prepRef('prep_next/meta').update(up).catch(function(){});
+    _prepSnapCache['#next'] = Promise.resolve({ meta: _prepNext, state: _prepKeysOf(state) });   // réouverture instantanée
   }
-  state = _prepView.state; dbRef = _prepView.dbRef; _prepView = null;
-  syncPlanCompat();
-  const bar = document.getElementById('prep-view-bar'); if(bar) bar.remove();
-  document.body.style.paddingTop = '';
-  if(silent) return;
-  try { if(typeof renderPlan === 'function') renderPlan(); } catch(e) {}
-  showScreen('compte');
-  try { renderCompteScreen(); } catch(e) {}
-  openPrepsPanel();
+  const restore = function(){
+    state = V.state; dbRef = V.dbRef; _prepView = null;
+    syncPlanCompat();
+    _prepInvalidate();
+    const bar = document.getElementById('prep-view-bar'); if(bar) bar.remove();
+    document.body.style.paddingTop = '';
+  };
+  if(silent){ restore(); return; }
+  (async function(){
+    const bar = document.getElementById('prep-view-bar'); if(bar) bar.classList.remove('on');
+    await _prepVeilIn('Retour à ta prépa en cours');
+    restore();
+    showScreen('compte');
+    try { renderCompteScreen(); } catch(e) {}
+    openPrepsPanel({ instant: true, scroll: V.scroll || 0 });
+    await _prepVeilOut();
+  })();
 }
 
 // ─── Prépa à venir : programme fourni, modifiable avant son début, activé automatiquement après la course en cours ───
@@ -594,7 +675,7 @@ async function _prepSeedNext(){
       const x = JSON.parse(keys[k]); x.shoe = shoeForType(x.type); keys[k] = JSON.stringify(x);
     });
     const meta = Object.assign(_prepNextMeta(R), { shape: _prepShape(keys) });
-    await _prepRef('prep_next').set({ meta: meta, state: keys });
+    await _prepRef('prep_next').set({ meta: meta, state: keys }); delete _prepSnapCache['#next'];
     state._next_seed = R.id; await dbRef.update({ _next_seed: R.id });
     _prepNext = meta;
   }
@@ -619,6 +700,7 @@ async function prepAutoSave(force){
     result: old.result || '', note: old.note || '', replay: old.replay || '', stats: cs, shape: _prepShape(state), savedAt: today, auto: true, admin: false };
   await _prepRef('preps/' + id).set(snap);
   await _prepRef('prep_index/' + id).set(meta);
+  delete _prepSnapCache[id];
   if(_prepIndex) _prepIndex[id] = meta;
   await dbRef.update({ _prep_id: id, _prep_autosave: today });
 }
@@ -650,7 +732,7 @@ async function prepActivateNext(){
   Object.assign(state, up);
   if(typeof applyShoeRules === 'function') Object.assign(up, applyShoeRules(true));
   await dbRef.update(up);
-  await _prepRef('prep_next').remove(); _prepNext = null;
+  await _prepRef('prep_next').remove(); _prepNext = null; delete _prepSnapCache['#next'];
   syncPlanCompat();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
   try { renderHome(); renderPlan(); } catch(e) {}
@@ -692,30 +774,31 @@ function prepShortDescV1(){
 // ─── Voir et modifier la prépa à venir : toute l'app s'ouvre sur son programme, les modifications y sont enregistrées ───
 async function prepNextOpen(){
   if(_prepView) prepViewExit(true);
-  let snap;
-  try { snap = (await _prepRef('prep_next').once('value')).val(); } catch(e) { snap = null; }
-  if(!snap || !snap.state){ alert('Impossible d\'ouvrir la prépa à venir (connexion ?).'); return; }
+  _prepRememberScroll();
+  const load = _prepGetSnap('#next');
+  closePrepsPanel();
+  await _prepVeilIn('Ouverture de « ' + ((_prepNext || {}).title || 'la prépa à venir') + ' »');
+  let snap; try { snap = await load; } catch(e) { snap = null; }
+  if(!snap || !snap.state){ delete _prepSnapCache['#next']; await _prepVeilOut(); alert('Impossible d\'ouvrir la prépa à venir (connexion ?).'); openPrepsPanel({ instant: true, scroll: _prepPanelScroll }); return; }
   const base = {};
   Object.keys(state).forEach(function(k){ if(!_PREP_RESET.test(k)) base[k] = state[k]; });   // réglages actuels + programme à venir
   const meta = snap.meta || {};
-  _prepView = { state: state, dbRef: dbRef, meta: meta, next: true };
-  state = Object.assign(base, _prepKeysOf(snap.state)); dbRef = _prepRef('prep_next/state');
+  _prepView = { state: state, dbRef: dbRef, meta: meta, next: true, scroll: _prepPanelScroll };
+  state = Object.assign(base, JSON.parse(JSON.stringify(_prepKeysOf(snap.state)))); dbRef = _prepRef('prep_next/state');
   syncPlanCompat();
-  closePrepsPanel();
+  _prepInvalidate();
   const bar = document.createElement('div'); bar.id = 'prep-view-bar';
   bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9000;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:#1B4FD8;color:#fff;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-family:inherit;';
   bar.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.3;"><b>✏️ ' + _prepEsc(meta.title || 'Prépa à venir') + '</b><br><span style="opacity:.85;">Prépa à venir · démarre le ' + _prepDate(meta.start, { day: 'numeric', month: 'long' }) + ' · modifications enregistrées</span></span>'
     + '<button onclick="prepViewExit()" style="flex-shrink:0;background:#fff;color:#1B4FD8;border:none;border-radius:999px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;">Quitter</button>';
-  document.body.appendChild(bar);
-  document.body.style.paddingTop = bar.offsetHeight + 'px';
-  if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
+  _prepBarIn(bar);
   showScreen('plan');
-  try { if(typeof renderPlan === 'function') renderPlan(); } catch(e) {}
+  await _prepVeilOut();
 }
 function prepNextDelete(){
   const m = _prepNext || {};
   _showConfirmModal({ icon: '🗑', title: 'Supprimer « ' + (m.title || 'la prépa à venir') + ' » ?', message: 'Le programme à venir et tes modifications sont supprimés. Ta prépa en cours n\'est pas touchée.',
     confirmLabel: 'Supprimer', confirmStyle: 'background:#e53e3e;color:#fff;', onConfirm: async function(){
-      await _prepRef('prep_next').remove(); _prepNext = null; _renderPrepsBody();
+      await _prepRef('prep_next').remove(); _prepNext = null; delete _prepSnapCache['#next']; _renderPrepsBody();
     } });
 }
