@@ -6,7 +6,7 @@
 const _PREP_SKIP = /^(_coach_history|_coach_unread|_brief|whoop_|strava_token|_push_sub|_ratelimit|_open_coach|_last_location|_wakeup_|_geo_granted|_shaker_run_ts)/;
 let _prepIndex = null, _prepView = null, _prepPendingNew = false, _prepNext = null;
 // clés propres à une prépa (retirées au démarrage d'une nouvelle) ; profil, chaussures, FC, VO2max, Strava… sont conservés
-const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+(r\d+|skip)|_congrats_sent_w|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$|_prep_id$|_prep_autosave$|_race_result$)/;
+const _PREP_RESET = /^(extra_w\d+_s\d+|_last_validation_w|meta_w|edit_w|del_w|order_w|s\d+i\d+|rf\d+(r\d+|skip)|_congrats_sent_w|absences_cw|plan_config$|plan_version$|plan_peak_week$|plan_start_date$|_plan_adapted|onboarding$|goal_type$|target_time$|race_distance_km$|_am_pace$|_am_training_pace$|_prep_id$|_prep_autosave$|_race_result$|_plan_reviews$|_review_seen$)/;
 
 function _prepUid(){ const u = firebase.auth().currentUser; return u ? u.uid : null; }
 function _prepRef(path){ return firebase.database().ref('users/' + _prepUid() + '/' + path); }
@@ -853,6 +853,7 @@ async function prepSaveRaceResult(time, date){
   if(key){
     up._race_record_prev = state[key] || null;
     if(pr) up[key] = txt; else if(state[key] !== saved) up[key] = state[key] || null;
+    if(pr){ const rm = Object.assign({}, state._records || {}); rm[cat] = { date: date || _prepToday(), race: R.name || null }; up._records = rm; }   // record daté (niveau, Mes records)
   }
   Object.keys(up).forEach(function(k){ if(up[k] === null) delete state[k]; else state[k] = up[k]; });
   try { await dbRef.update(up); } catch(e) {}

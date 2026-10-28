@@ -1040,3 +1040,72 @@ exports.adminTriggerBrief = onRequest(
     }
   }
 );
+
+
+// ─── Plan › « MAJ le plan » : relecture du plan par le Coach ─────────────────
+// Reçoit le plan (séances faites avec leurs résultats, séances à venir), le niveau calculé dans l'app, les contrôles
+// et propositions automatiques ; renvoie un avis et des modifications JSON (séances à venir uniquement), validées ici.
+exports.planReview = onRequest(
+  { secrets: [ANTHROPIC_API_KEY], cors: true, timeoutSeconds: 120, memory: '512MiB' },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    try {
+      const b = req.body || {};
+      if (!Array.isArray(b.plan) || !b.plan.length) { res.status(400).json({ success: false, error: 'plan requis' }); return; }
+      const db = admin.database();
+      let situation = '';
+      try { situation = (await buildTrainingSituation(db, (await db.ref(ADMIN_STATE).once('value')).val() || {}, b.today)).text; } catch(e) {}
+      // séances modifiables : à venir et non réalisées
+      const editable = {};
+      b.plan.forEach((w) => (w.sessions || []).forEach((s) => { if (!s.done && (!s.date || !b.today || s.date >= b.today)) editable[s.ref] = s; }));
+      const compact = b.plan.map((w) => ({ semaine: w.w, phase: w.meta && w.meta.phase, recup: !!(w.meta && w.meta.isRecov), pic: !!(w.meta && w.meta.isPeak), affutage: !!(w.meta && w.meta.isTaper),
+        seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km },
+          s.done ? { fait: true, resultat: s.result } : { modifiable: !!editable[s.ref] })) }));
+      const system = `Tu es un entraîneur de course à pied expert (méthodes Daniels, Pfitzinger, Canova), coach personnel de Guillaume. On te demande de relire son plan d'entraînement et de l'optimiser à partir de ses résultats réels, de son niveau actuel et de sa situation.
+
+PRINCIPES :
+- Les allures suivent le niveau ACTUEL (équivalent VDOT fourni, calculé d'après ses records datés et ses séances), pas l'objectif : une séance doit être réalisable et productive. L'allure course (ex. AS21) peut viser l'objectif s'il est proche du niveau actuel, sinon s'en rapprocher progressivement.
+- Respecter l'intention de chaque séance (seuil, fractionné, sortie longue, récupération) et la structure de la semaine (jours, nombre de séances) sauf erreur manifeste.
+- Progression du volume ≤ 10-15 %/semaine, une semaine allégée toutes les 3-4 semaines, sortie longue ≤ 35-40 % du volume, jamais deux séances exigeantes d'affilée, affûtage de 2 semaines (60-75 % puis ~40-50 % du pic), période post-course : reprise douce sans intensité.
+- Corriger les incohérences (allure absente, distance totale incohérente avec la structure, temps par répétition faux, intitulé trompeur).
+- Tenir compte des résultats : séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → ajuster.
+- Les « propositions automatiques » fournies sont un calcul d'allures : garde-les, ajuste-les ou écarte-les selon ton analyse.
+
+FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
+
+RÉPONSE : uniquement un objet JSON valide, sans texte autour :
+{"assessment":"ton avis global en 3 à 6 phrases, en français, tutoiement, concret (ce qui va bien, ce que tu changes et pourquoi)",
+ "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"pourquoi, une phrase"}]}
+Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 30 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne ; pas de changement cosmétique.`;
+      const userMsg = `Aujourd'hui : ${b.today || ''}
+Course objectif : ${JSON.stringify(b.race || {})}
+Niveau calculé dans l'app : ${JSON.stringify(b.fitness || 'non disponible (aucun record ni séance exploitable)')}
+Période post-course jusqu'au : ${b.postRaceUntil || 'aucune'}
+Contrôles automatiques : ${JSON.stringify(b.warnings || [])}
+Propositions automatiques (allures) : ${JSON.stringify(b.proposals || [])}
+${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(0, 1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
+PLAN COMPLET :
+${JSON.stringify(compact)}`;
+      const raw = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{ role: 'user', content: userMsg }], 4000);
+      if (!raw) { res.status(502).json({ success: false, error: 'réponse vide' }); return; }
+      let j = null;
+      try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
+      if (!j) { res.status(502).json({ success: false, error: 'réponse illisible' }); return; }
+      const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
+      const changes = (Array.isArray(j.changes) ? j.changes : []).filter((c) => c && editable[c.ref]).slice(0, 30).map((c) => {
+        const s = editable[c.ref], o = { ref: c.ref, reason: str(c.reason, 300) || '' };
+        const d = str(c.detail, 300); if (d) o.detail = d.replace(/\|/g, '·');
+        const t = str(c.title, 80); if (t && s.type !== 'race') o.title = t.replace(/\|/g, '·');
+        const km = parseFloat(c.km); if (isFinite(km) && km > 0 && km <= 60 && s.type !== 'race') o.km = Math.round(km * 10) / 10;
+        if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && s.type !== 'race') o.type = c.type;
+        return o;
+      }).filter((o) => o.detail || o.title || o.km || o.type);
+      res.json({ success: true, assessment: str(j.assessment, 1500) || '', changes });
+    } catch(e) {
+      console.error('planReview error:', e.message);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);

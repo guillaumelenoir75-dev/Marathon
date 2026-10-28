@@ -457,6 +457,7 @@
   <p class="cp-sec">Entraînement</p>
   <div class="cp-group">
     <button type="button" class="cp-row" id="preps-row" onclick="openPrepsPanel()"><span class="cp-ic" style="background:#FEF3C7;">🏅</span><span class="cp-txt"><b>Mes prépas</b><span id="preps-subtitle">Prépa en cours et prépas archivées</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="records-row" onclick="openRecordsModal()"><span class="cp-ic" style="background:#FEF3C7;">🏆</span><span class="cp-txt"><b>Mes records</b><span id="records-sub">5 km, 10 km, semi, marathon</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" id="export-plan-btn" onclick="exportPlanDocument()" style="display:none;"><span class="cp-ic" style="background:#FFF7ED;">📋</span><span class="cp-txt"><b>Exporter le plan complet</b><span>Document HTML, toutes les séances</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" id="cal-url-btn" onclick="showCalendarUrl()" style="display:none;"><span class="cp-ic" style="background:#F0FFF4;">📅</span><span class="cp-txt"><b>Abonnement calendrier</b><span>URL pour Outlook ou Google</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" onclick="openGlossary()"><span class="cp-ic" style="background:#EEF2FD;">📖</span><span class="cp-txt"><b>Glossaire</b><span>EF, FC, VO₂max, affûtage… tout comprendre</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
@@ -1000,5 +1001,6 @@
 <script defer src="/src/whoop.js?v=6"></script>
 <script defer src="/src/preps.js?v=1"></script>
 <script defer src="/src/prep-progress.js?v=1"></script>
+<script defer src="/src/plan-review.js?v=1"></script>
 </body>
 </html>

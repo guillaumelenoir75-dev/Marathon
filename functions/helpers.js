@@ -298,7 +298,7 @@ async function buildTrainingSituation(db, state, todayStr) {
     take(state[key]); list.forEach((r) => { if (raceCategory(r.dist) === cat) take(r.result); });
     if (best) rec.push(`${cat === 'Semi-marathon' ? 'semi' : cat.toLowerCase()} ${best.t}`);
   };
-  recFrom('10 km', 'record_10km'); recFrom('Semi-marathon', 'record_semi'); recFrom('Marathon', 'record_marathon');
+  recFrom('5 km', 'record_5km'); recFrom('10 km', 'record_10km'); recFrom('Semi-marathon', 'record_semi'); recFrom('Marathon', 'record_marathon');
   if (rec.length) lines.push('Records : ' + rec.join(' · ') + '.');
 
   // charge récente (séances réalisées et datées)

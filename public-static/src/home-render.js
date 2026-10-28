@@ -1372,6 +1372,11 @@ async function saveValidationExtra(w,ei){
   if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
   if(document.getElementById('sc-stats').style.display!=='none') renderStats();
   const amImproved=updateMarathonPace();
+  // séance de qualité validée : si ton niveau a bougé, « MAJ le plan » a des propositions
+  if((sExtra.type==='tempo'||sExtra.type==='frac')&&typeof planReviewPending==='function'&&!usesHardPlan()){
+    const _prN=planReviewPending();
+    if(_prN&&typeof showToast==='function') setTimeout(()=>showToast('🔄 Tes allures évoluent : « MAJ le plan » a '+_prN+' proposition'+(_prN>1?'s':'')),2500);
+  }
   // Auto-calcul EF depuis S1 si jamais renseigné
   if(w===1&&!state.ef_pace&&!usesHardPlan()){
     window._autoEFChecked=true; // éviter doublon dans renderHome

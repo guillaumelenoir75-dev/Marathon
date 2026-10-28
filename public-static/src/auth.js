@@ -250,6 +250,7 @@ function renderCompteScreen(){
   // sections réservées à l'admin (Suivi de course, Administration) ; la carte Seine-Eure s'ouvre à la demande (openRaceOrgSheet)
   document.querySelectorAll('#sc-compte .cp-admin').forEach(el=>{ el.style.display=isAdmin()?'block':'none'; });
   if(typeof renderCompteHero==='function') renderCompteHero();
+  if(typeof renderRecordsRow==='function') renderRecordsRow();
   const adminIntegrations=document.getElementById('user-integrations');
   if(adminIntegrations) adminIntegrations.style.display='block';
   // La liste des comptes se charge à la demande via openUsersListModal()

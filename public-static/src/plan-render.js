@@ -691,7 +691,10 @@ function renderAthletePlan(el){
     Légende
   </button>`;
   actionBanner.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-bottom:12px;';
-  actionBanner.innerHTML=legendBtn+regenBtn+updateBtn+regenDateBtn+delBtn;
+  // « MAJ le plan » : allures et séances ajustées à ton niveau, avis du Coach (plan-review.js)
+  const _prN=(!_adminPreviewUid&&!usesHardPlan()&&typeof planReviewPending==='function')?planReviewPending():0;
+  const reviewBtn=(!_adminPreviewUid&&!usesHardPlan()&&typeof openPlanReview==='function')?`<button onclick="openPlanReview()" style="position:relative;background:#1B4FD8;border:1px solid #1B4FD8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">🔄 MAJ le plan${_prN?`<span title="${_prN} proposition${_prN>1?'s':''}" style="position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#E8530A;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff;">${_prN}</span>`:''}</button>`:'';
+  actionBanner.innerHTML=legendBtn+reviewBtn+regenBtn+updateBtn+regenDateBtn+delBtn;
   el.appendChild(actionBanner);
 
   let currentRenderMonth=-1; // pour séparateurs de mois
