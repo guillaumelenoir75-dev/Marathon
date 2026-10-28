@@ -396,6 +396,28 @@ async function _ptrSyncWhoop(spinner) {
 let _whoopChart = null;
 let _whoopChartMode = 'fc';
 
+// Score de forme du jour (récupération WHOOP, sommeil, FC repos, VFC) : même valeur dans Statistiques et sur l'accueil
+function wellnessScore(rRec, sSleep, fcV){
+  const sc = [];
+  if (rRec && rRec.score != null) sc.push(rRec.score);
+  if (sSleep && sSleep.performance_pct != null) sc.push(sSleep.performance_pct);
+  if (fcV != null) sc.push(fcV <= 44 ? 100 : fcV <= 50 ? Math.round(100 - (fcV - 44) * 3) : fcV <= 60 ? Math.round(82 - (fcV - 50) * 3.7) : fcV <= 70 ? Math.round(45 - (fcV - 60) * 4.5) : 0);
+  if (rRec && rRec.hrv != null) sc.push(Math.max(0, Math.min(100, Math.round((rRec.hrv - 40) / 50 * 100))));
+  return sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null;
+}
+function wellnessScoreToday(){
+  const wd = state.whoop_data || null, r0 = wd && wd.recoveries ? wd.recoveries[0] || null : null, s0 = wd && wd.sleeps ? wd.sleeps[0] || null : null;
+  const fc = Object.keys(state).filter(k => /^fc_repos_\d{4}-\d{2}-\d{2}$/.test(k)).map(k => ({ date: k.slice(9), val: parseInt(state[k]) })).filter(e => e.val >= 30 && e.val <= 100).sort((a, b) => a.date.localeCompare(b.date));
+  const fcToday = fc.length ? fc[fc.length - 1].val : null, score = wellnessScore(r0, s0, fcToday);
+  if (score == null) return null;
+  const parts = [];
+  if (r0 && r0.score != null) parts.push('récup ' + r0.score + ' %');
+  if (s0 && s0.performance_pct != null) parts.push('sommeil ' + s0.performance_pct + ' %');
+  if (fcToday != null) parts.push('FC repos ' + fcToday);
+  if (r0 && r0.hrv != null) parts.push('VFC ' + Math.round(r0.hrv) + ' ms');
+  return { score: score, parts: parts };
+}
+
 function renderWhoopStats() {
   const wd = state.whoop_data;
   const section = document.getElementById('whoop-stats-section');
@@ -516,25 +538,8 @@ function renderWhoopStats() {
     }
   ];
 
-  // ── Score synthétique du jour ──────────────────────────────────────────────
-  const _calcSyntheticScore = (rRec, sSleep, fcV, fcArr) => {
-    const sc = [];
-    if (rRec?.score != null) sc.push(rRec.score);
-    if (sSleep?.performance_pct != null) sc.push(sSleep.performance_pct);
-    if (fcV != null) {
-      const fcScore = fcV <= 44 ? 100
-        : fcV <= 50 ? Math.round(100 - (fcV - 44) * 3)
-        : fcV <= 60 ? Math.round(82 - (fcV - 50) * 3.7)
-        : fcV <= 70 ? Math.round(45 - (fcV - 60) * 4.5)
-        : 0;
-      sc.push(fcScore);
-    }
-    if (rRec?.hrv != null) {
-      const hrvScore = Math.max(0, Math.min(100, Math.round((rRec.hrv - 40) / 50 * 100)));
-      sc.push(hrvScore);
-    }
-    return sc.length ? Math.round(sc.reduce((a,b)=>a+b,0)/sc.length) : null;
-  };
+  // ── Score synthétique du jour (commun avec « Forme du jour » de l'accueil : wellnessScore) ──
+  const _calcSyntheticScore = (rRec, sSleep, fcV) => wellnessScore(rRec, sSleep, fcV);
 
   const syntheticEl = document.getElementById('whoop-synthetic-score');
   if (syntheticEl) {

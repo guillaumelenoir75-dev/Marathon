@@ -379,22 +379,28 @@ function saveRacePlan(live){
 // ─── 9. Forme du jour, série, badges ────────────────────────────────────────
 // score 0-100 : récupération WHOOP, FC repos vs 14 j, charge (ratio 7 j / 28 j), effort ressenti récent, douleur
 function prFormScore(){
-  const today = prTodayIso(), parts = [], why = [];
-  const wh = typeof prWhoop === 'function' ? prWhoop(today) : null;
-  if(wh){ parts.push([wh.avg3, 0.35]); why.push('récup WHOOP ' + wh.avg3 + ' %'); }
-  const fcT = parseFloat(state['fc_repos_' + today]), fcs = [];
-  for(let i = 1; i <= 14; i++){ const v = parseFloat(state['fc_repos_' + prAddDays(today, -i)]); if(v) fcs.push(v); }
-  if(fcT && fcs.length >= 5){ const m = prMean(fcs), d = fcT - m; parts.push([Math.max(0, Math.min(100, 80 - d * 10)), 0.2]); why.push('FC repos ' + Math.round(fcT) + (d >= 1 ? ' (+' + Math.round(d) + ')' : d <= -1 ? ' (' + Math.round(d) + ')' : '')); }
+  // base : le score du jour des Statistiques (récupération WHOOP, sommeil, FC repos, VFC), pour une seule et même valeur ;
+  // l'entraînement ne fait qu'ajuster, de façon affichée : charge élevée, footings ressentis durs, douleur
+  const today = prTodayIso(), why = [];
+  const W = typeof wellnessScoreToday === 'function' ? wellnessScoreToday() : null;
+  let score;
+  if(W){ score = W.score; why.push.apply(why, W.parts); }
+  else {
+    const parts = [];
+    const fcT = parseFloat(state['fc_repos_' + today]), fcs = [];
+    for(let i = 1; i <= 14; i++){ const v = parseFloat(state['fc_repos_' + prAddDays(today, -i)]); if(v) fcs.push(v); }
+    if(fcT && fcs.length >= 5){ const d = fcT - prMean(fcs); parts.push(Math.max(0, Math.min(100, 80 - d * 10))); why.push('FC repos ' + Math.round(fcT)); }
+    if(!parts.length) return null;
+    score = prMean(parts);
+  }
   const L = typeof prLoad === 'function' ? prLoad(today) : null;
-  if(L && L.acwr != null){ const r = L.acwr; parts.push([r >= 0.8 && r <= 1.3 ? 90 : r < 0.8 ? 75 : Math.max(20, 90 - (r - 1.3) * 120), 0.25]); why.push('charge ' + prV(r)); }
-  const I = prInternal(today), rp = I.rpes.slice(-3);
-  if(rp.length){ const hardEasy = rp.filter(function(x){ return (x.type === 'ef' || x.type === 'long') && x.rpe >= 7; }).length; parts.push([Math.max(20, 85 - hardEasy * 25), 0.2]); if(hardEasy) why.push('footings ressentis durs'); }
-  if(!parts.length) return null;
-  let score = parts.reduce(function(a, p){ return a + p[0] * p[1]; }, 0) / parts.reduce(function(a, p){ return a + p[1]; }, 0);
+  if(L && L.acwr != null && L.acwr > 1.5){ score -= 10; why.push('charge 7 j élevée (' + prV(L.acwr) + '×) −10'); }
+  const I = prInternal(today), hardEasy = I.rpes.slice(-3).filter(function(x){ return (x.type === 'ef' || x.type === 'long') && x.rpe >= 7; }).length;
+  if(hardEasy){ score -= 5 * hardEasy; why.push('footings ressentis durs −' + 5 * hardEasy); }
   const pain = I.pains[0];
-  if(pain && pain.level >= 2){ score = Math.min(score, pain.level >= 3 ? 25 : 45); why.push('douleur ' + pain.zone.toLowerCase()); }
-  score = Math.round(score);
-  return { score: score, why: why, label: score >= 75 ? 'En forme : feu vert' : score >= 50 ? 'Correct : écoute tes sensations' : 'Fatigue : privilégie la récup', tone: score >= 75 ? 'ok' : score >= 50 ? 'mid' : 'low' };
+  if(pain && pain.level >= 2){ const cap = pain.level >= 3 ? 25 : 45; if(score > cap){ score = cap; why.push('douleur ' + pain.zone.toLowerCase() + ' : plafonné à ' + cap); } }
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  return { score: score, why: why, label: score >= 67 ? 'Bonne forme : feu vert' : score >= 34 ? 'Forme moyenne : écoute tes sensations' : 'Récupération insuffisante : privilégie la récup', tone: score >= 67 ? 'ok' : score >= 34 ? 'mid' : 'low' };
 }
 // séances d'affilée réalisées (une séance passée ni faite ni retirée casse la série ; une séance retirée pour imprévu non)
 function prStreak(){
