@@ -49,7 +49,7 @@ async function checkRateLimit(db, uid, endpoint, minIntervalMs) {
   await db.ref(key).set(Date.now());
 }
 
-async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-6') {
+async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-6', opts = {}) {
   const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -63,9 +63,10 @@ async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claud
       system,
       messages
     })
-  }, 55000);
+  }, opts.timeout || 55000);
   const data = await response.json();
   console.log('Anthropic status:', response.status, 'data:', JSON.stringify(data).substring(0, 300));
+  if (opts.full) return { text: data.content?.[0]?.text || null, stop: data.stop_reason || null };
   return data.content?.[0]?.text || null;
 }
 

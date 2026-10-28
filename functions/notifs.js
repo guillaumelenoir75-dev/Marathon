@@ -779,7 +779,9 @@ exports.weeklyPlanifReminder = onSchedule(
       const _ps=await loadPrepState(db);
       const cw=getCurrentWeek(_ps);
       const cwNext=Math.min(cw+1,totalWeeksFor(_ps));
-      if(await getUserPref(db,ADMIN_STATE,'notif_planif')){
+      const _rv=(await db.ref(`${ADMIN_STATE}/_plan_review_push`).once('value')).val();
+      const _today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Paris'});
+      if(_rv!==_today&&await getUserPref(db,ADMIN_STATE,'notif_planif')){   // relecture envoyée à 18h30 : elle couvre la planification
         const body=`Vérifie tes horaires de séances et renfos pour la semaine ! 🏃💪`;
         await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'📅 Plan S'+cwNext,body,'planif-reminder','/');
       }
@@ -806,14 +808,19 @@ exports.planReviewSunday = onSchedule(
       if(!await getUserPref(db,ADMIN_STATE,'notif_plan_review'))return;
       const st=(await db.ref(ADMIN_STATE).once('value')).val()||{};
       if(!st._plan_engine)return;
-      const since=(st._coach_review&&st._coach_review.date)||'';
+      // séances validées depuis la dernière relecture du Coach (heure de validation, comme l'app) ; sans relecture : 7 derniers jours
+      const cr=st._coach_review||{}, since=cr.date||'', at=cr.at||'';
+      const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Paris'});
+      const d7=new Date(Date.now()-7*86400000).toLocaleDateString('sv-SE',{timeZone:'Europe/Paris'});
       let n=0;
       Object.keys(st).forEach((k)=>{
-        const m=k.match(/^(extra_w\d+_s\d+)_done$/); if(!m||!st[k])return;
-        let d=''; try{ d=String(JSON.parse(st[m[1]+'_perf']||'{}').date||JSON.parse(st[m[1]]||'{}').sched_date||''); }catch(e){}
-        if(!since||d.slice(0,10)>since)n++;
+        const m=k.match(/^(extra_w\d+_s\d+)$/); if(!m||!(st[k+'_done']||st[k+'_km']!=null))return;
+        let pf={},x={}; try{ pf=JSON.parse(st[k+'_perf']||'{}')||{}; x=JSON.parse(st[k]||'{}')||{}; }catch(e){}
+        const d=String(pf.date||x.sched_date||'').slice(0,10);
+        if(at&&pf.validatedAt?pf.validatedAt>at:since?d>=since:d>=d7)n++;
       });
       if(!n)return;
+      await db.ref(`${ADMIN_STATE}/_plan_review_push`).set(today);
       await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'🔄 Relecture de ta semaine',
         `${n} séance${n>1?'s':''} depuis la dernière relecture : touche pour que le Coach ajuste ton plan.`,'plan-review','/?action=review');
     }catch(e){console.error('planReviewSunday:',e.message);}

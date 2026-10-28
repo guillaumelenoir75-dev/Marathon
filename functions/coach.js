@@ -1097,26 +1097,28 @@ Course objectif : ${JSON.stringify(b.race || {})}
 Niveau calculé dans l'app : ${JSON.stringify(b.fitness || 'non disponible (aucun record ni séance exploitable)')}
 Volume habituel (charge chronique, dernière prépa) : ${b.habitualKm ? b.habitualKm + ' km/semaine' : 'inconnu'}
 Charge réelle (séances validées) : ${b.charge ? JSON.stringify(b.charge) : 'inconnue'}
-Volume par semaine (prévu / fait / conseillé par le calcul) : ${b.volume ? JSON.stringify(b.volume).slice(0, 3000) : 'non calculé'}
+Volume par semaine (prévu / fait / conseillé par le calcul) : ${b.volume ? JSON.stringify(Object.assign({}, b.volume, { semaines: (b.volume.semaines || []).slice(0, 40) })) : 'non calculé'}
 Dérive cardiaque des footings et sorties longues (splits Strava, < 5 % = endurance solide) : ${b.derive_cardiaque ? JSON.stringify(b.derive_cardiaque) : 'non mesurée'}
 Récupération WHOOP (3 derniers jours) : ${b.whoop ? JSON.stringify(b.whoop) : 'pas de données'}
-Effort ressenti (RPE 1-10) des séances récentes et charge ressentie 7 j / 28 j : ${b.effort_ressenti ? JSON.stringify(b.effort_ressenti).slice(0, 1500) : 'non renseigné'}
-Douleurs signalées (5 derniers jours ; niveau 1 légère, 2 gênante, 3 forte) : ${b.douleurs ? JSON.stringify(b.douleurs) : 'aucune'}
-Allures proposées lors des mises à jour précédentes : tenues ou non : ${b.allures_tenues ? JSON.stringify(b.allures_tenues).slice(0, 1500) : 'pas encore de recul'}
+Effort ressenti (RPE 1-10) des séances récentes et charge ressentie 7 j / 28 j : ${b.effort_ressenti ? JSON.stringify(Object.assign({}, b.effort_ressenti, { seances_14j: (b.effort_ressenti.seances_14j || []).slice(-12) })) : 'non renseigné'}
+Douleurs signalées (5 derniers jours ; niveau 1 légère, 2 gênante, 3 forte) : ${Array.isArray(b.douleurs) && b.douleurs.length ? JSON.stringify(b.douleurs.slice(0, 10)) : 'aucune'}
+Allures proposées lors des mises à jour précédentes : tenues ou non : ${b.allures_tenues ? JSON.stringify(Object.assign({}, b.allures_tenues, { detail: (b.allures_tenues.detail || []).slice(-10) })) : 'pas encore de recul'}
 Trajectoire (niveau, tendance, projection au jour J) : ${b.trajectoire ? JSON.stringify(b.trajectoire) : 'non calculée'}
 Période post-course jusqu'au : ${b.postRaceUntil || 'aucune'}
-HISTORIQUE (prépas précédentes, la plus récente d'abord) : ${hist.length ? JSON.stringify(hist).slice(0, 9000) : 'aucun'}
+HISTORIQUE (prépas précédentes, la plus récente d'abord) : ${hist.length ? JSON.stringify(hist.map((h) => Object.assign({}, h, { seances_qualite: (h.seances_qualite || []).slice(-8), km_realises_par_semaine: (h.km_realises_par_semaine || []).slice(-40) }))) : 'aucun'}
 Ta dernière relecture : ${b.lastCoachReview ? JSON.stringify(b.lastCoachReview) : 'aucune'}
-Données nouvelles depuis ta dernière relecture (séances réalisées) : ${b.lastCoachReview ? (Array.isArray(b.newSince) && b.newSince.length ? JSON.stringify(b.newSince.slice(0, 15)) : 'AUCUNE') : 'première relecture'}
-Historique des modifications déjà appliquées (la plus récente en dernier) : ${Array.isArray(b.reviewHistory) && b.reviewHistory.length ? JSON.stringify(b.reviewHistory.slice(-4)).slice(0, 6000) : 'aucune'}
-Contrôles automatiques : ${JSON.stringify(b.warnings || [])}
+Données nouvelles depuis ta dernière relecture (séances réalisées) : ${b.lastCoachReview ? (Array.isArray(b.newSince) && b.newSince.length ? JSON.stringify(b.newSince.slice(-15)) : 'AUCUNE') : 'première relecture'}
+Historique des modifications déjà appliquées (la plus récente en dernier) : ${Array.isArray(b.reviewHistory) && b.reviewHistory.length ? JSON.stringify(b.reviewHistory.slice(-4).map((h) => Object.assign({}, h, { changements: (h.changements || []).slice(0, 25) }))) : 'aucune'}
+Contrôles automatiques : ${JSON.stringify((Array.isArray(b.warnings) ? b.warnings : []).slice(0, 20))}
 ${b.force ? 'Relecture REDEMANDÉE PAR L\'ATHLÈTE (mêmes données que ta dernière relecture) : il attend un regard neuf.\n' : ''}${b.next ? 'PRÉPA À VENIR, pas encore commencée (début ' + String(b.startDate || '').slice(0, 10) + ') : la situation actuelle (semaine en cours, récupération, charge) ne s\'applique pas à ses premières semaines ; raisonne depuis son démarrage.\n' : ''}Propositions automatiques : ${JSON.stringify((Array.isArray(b.proposals) ? b.proposals : []).slice(0, 40))}
 Séances mises en attente (non accélérées automatiquement car tôt dans la récupération ; à toi de juger, change leur "detail" si l'accélération est justifiée) : ${JSON.stringify(Array.isArray(b.held) ? b.held.slice(0, 20) : [])}
-${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(0, 1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
+${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(-1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
 PLAN COMPLET :
 ${JSON.stringify(compact)}`;
-      const raw = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{ role: 'user', content: userMsg }], 4000);
+      const out = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{ role: 'user', content: userMsg }], 6000, undefined, { timeout: 100000, full: true });
+      const raw = out && out.text;
       if (!raw) { res.status(502).json({ success: false, error: 'réponse vide' }); return; }
+      if (out.stop === 'max_tokens') { res.status(502).json({ success: false, error: 'réponse du Coach trop longue, coupée : réessaie' }); return; }
       let j = null;
       try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
       if (!j) { res.status(502).json({ success: false, error: 'réponse illisible' }); return; }

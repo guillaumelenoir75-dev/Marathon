@@ -119,7 +119,7 @@ function generateDecouvertePlan(ob){
         weekMonday.setDate(monday.getDate()+(w-1)*7);
         const sessionDate=new Date(weekMonday);
         sessionDate.setDate(weekMonday.getDate()+dayOfWeek);
-        s.sched_date=sessionDate.toISOString().split('T')[0];
+        s.sched_date=sessionDate.getFullYear()+'-'+String(sessionDate.getMonth()+1).padStart(2,'0')+'-'+String(sessionDate.getDate()).padStart(2,'0');   // date locale (toISOString = veille en France)
       }
       updates[`extra_w${w}_s${si}`]=JSON.stringify(s);
     }
@@ -855,7 +855,7 @@ function generateAthletePlan(ob){
         weekMonday.setDate(startMonday.getDate()+(w-1)*7);
         const sessionDate=new Date(weekMonday);
         sessionDate.setDate(weekMonday.getDate()+dayOfWeek);
-        s.sched_date=sessionDate.toISOString().split('T')[0];
+        s.sched_date=sessionDate.getFullYear()+'-'+String(sessionDate.getMonth()+1).padStart(2,'0')+'-'+String(sessionDate.getDate()).padStart(2,'0');   // date locale (toISOString = veille en France)
       }
       updates[`extra_w${w}_s${i}`]=JSON.stringify(s);
     });

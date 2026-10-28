@@ -197,8 +197,11 @@ function prPaceProposals(st, fit, opt){
   const goalPace = raceM && opt.goalSec ? opt.goalSec / (raceM / 1000) : null;
   const racePace = curRace ? (goalPace ? Math.max(goalPace, curRace * 0.98) : curRace) : null;
   const vPlan = prPlanVdot(st), efObs = opt.efPace || null, orig = prOrigPaces(st);
+  // consigne fixée par le Coach (dernier changement non annulé) : le calcul ne la retouche pas, le Coach la gère
+  const byCoach = {};
+  (st._plan_reviews || []).forEach(function(h){ if(h.undone) return; (h.changes || []).forEach(function(c){ if(c.field === 'detail') byCoach[c.ref] = c.src === 'coach' ? c.after : null; }); });
   prSessions(st).forEach(function(s){
-    if(s.done || s.skip || !s.pace || (s.date && s.date < today)) return;
+    if(s.done || s.skip || !s.pace || (s.date && s.date < today) || (byCoach[s.key] != null && byCoach[s.key] === s.detail)) return;
     const it = prIntent(s); if(!it) return;
     const mid = (s.pace.lo + s.pace.hi) / 2, half = Math.max(2, (s.pace.hi - s.pace.lo) / 2);
     let nmid, why, short;
@@ -412,8 +415,8 @@ function prDataSig(st){
   return String(h >>> 0);
 }
 // séances réalisées depuis une date (envoyées au Coach comme « données nouvelles »)
-function prDoneSince(date){
-  return prSessions(state).filter(function(x){ return x.done && (!date || (x.date && x.date >= date)); })
+function prDoneSince(date, at){
+  return prSessions(state).filter(function(x){ return x.done && (at && x.perf.validatedAt ? x.perf.validatedAt > at : (!date || (x.date && x.date >= date))); })
     .map(function(x){ return { date: x.date, titre: x.title, km: x.km, allure: x.perf.pace || null, fc: x.perf.hr || null, blocs: x.perf.blocsAllure || null, ressenti: x.perf.note || null }; });
 }
 // proposition qui annule une modification appliquée lors des dernières mises à jour
@@ -425,7 +428,10 @@ function prRevertOf(p){
 const prSig = function(list){ return list.map(function(p){ return p.key + '>' + (typeof p.after === 'object' ? JSON.stringify(p.after) : p.after); }).join('|'); };
 // pastille sur le bouton « MAJ le plan » : propositions pas encore vues
 function planReviewPending(){
-  if(typeof prPrefetch === 'function' && !_prPrevSnapId && !window._prPrefetchedOnce){ window._prPrefetchedOnce = true; prPrefetch().then(function(){ if(_prPrevSnapId && typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); } catch(e) {} } }); }
+  if(typeof prPrefetch === 'function' && !window._prPrefetchDone){
+    if(!window._prPrefetchedOnce){ window._prPrefetchedOnce = true; prPrefetch().then(function(){ if(typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); } catch(e) {} } }); }
+    return 0;                                                                    // pastille calculée une fois la prépa précédente chargée
+  }
   try { if(typeof usesHardPlan === 'function' && usesHardPlan()) return 0; const a = prAnalyze(); return a.proposals.length && prSig(a.proposals) !== state._review_seen ? a.proposals.length : 0; } catch(e) { return 0; }
 }
 
@@ -614,6 +620,7 @@ function openPlanReview(opts){
     if(ov !== document.getElementById('plan-review')) return;
     const an = prAnalyze();
     _prReview = { a: an, items: an.proposals.map(function(p){ return Object.assign({ on: true }, p); }), held: an.held.slice(), coach: null, autoCoach: !!opts.autoCoach };
+    _prReview.items.forEach(function(x){ const d = prRevertOf(x); if(d){ x.revert = d; x.on = false; } });
     _prReview.auto = _prReview.items.slice();
     _prRestoreCoach(_prReview);
     state._review_seen = prSig(an.proposals);
@@ -741,7 +748,8 @@ function _prItem(p, i){
 
 // volume par semaine : prévu (gris), conseillé (trait bleu), fait (vert) ; après les changements proposés (bleu)
 function _prVolChart(V){
-  const ws = V.weeks.filter(function(x){ return x.past ? x.done > 0 : true; }).slice(-16); if(ws.length < 2) return '';
+  const allW = V.weeks.filter(function(x){ return x.past ? x.done > 0 : true; }), i0 = allW.findIndex(function(x){ return !x.past; });
+  const from = Math.max(0, Math.min((i0 < 0 ? allW.length : i0) - 4, allW.length - 16)), ws = allW.slice(from, from + 16); if(ws.length < 2) return '';
   const W = 320, H = 116, B = 18, T = 14, n = ws.length, bw = Math.min(22, (W - 16) / n * 0.62), gap = (W - 16) / n;
   const max = Math.max.apply(null, ws.map(function(x){ return Math.max(x.plan, x.target || 0, x.done || 0, x.after || 0); }).concat([10]));
   const Y = function(v){ return T + (1 - v / max) * (H - T - B); };
@@ -917,12 +925,12 @@ async function askCoachPlanReview(force){
   prSessions(state).forEach(function(s){
     const w = weeks[s.w] = weeks[s.w] || { w: s.w, meta: (function(){ try { return JSON.parse(state['meta_w' + s.w] || '{}'); } catch(e) { return {}; } })(), sessions: [] };
     w.sessions.push({ ref: s.key, date: s.date, type: s.type, title: s.title, detail: s.detail, km: s.kmPlan, done: s.done,
-      result: s.done ? { km: s.km, pace: s.perf.pace || null, hr: s.perf.hr || null, blocs: s.perf.blocsAllure || null, note: s.perf.note || null } : undefined });
+      result: s.done ? (s.date && prDays(s.date, today) <= 56 ? { km: s.km, pace: s.perf.pace || null, hr: s.perf.hr || null, blocs: s.perf.blocsAllure || null, note: s.perf.note || null, rpe: s.perf.rpe || null } : { km: s.km }) : undefined });
   });
   const body = { today: today, race: { name: a.race.name, course: a.race.course, date: a.race.date, objectif: a.race.objectif },
     fitness: a.fit.vdot ? { vdot: a.fit.vdot, basis: a.fit.basis, planVdot: a.planVdot, paces: { seuil: prPace(a.fit.paces.T), fractionne: prPace(a.fit.paces.I), ef_reelle: a.opt.efPace ? prPace(a.opt.efPace) : null },
-      predictions: Object.keys(a.fit.preds).reduce(function(o, c){ o[c] = prTime(a.fit.preds[c]); return o; }, {}), sources: a.fit.sources.map(function(x){ return { label: x.label, time: x.time || x.pace, date: x.date, vdot: Math.round(x.vdot * 10) / 10 }; }) } : null,
-    postRaceUntil: a.opt.postRaceUntil, habitualKm: a.opt.habitual, history: await prHistory(today).catch(function(){ return []; }), warnings: a.warnings.map(function(w){ return w.text; }),
+      predictions: Object.keys(a.fit.preds).reduce(function(o, c){ o[c] = prTime(a.fit.preds[c]); return o; }, {}), sources: a.fit.sources.slice(-12).map(function(x){ return { label: x.label, time: x.time || x.pace, date: x.date, vdot: Math.round(x.vdot * 10) / 10 }; }) } : null,
+    postRaceUntil: a.opt.postRaceUntil, habitualKm: a.opt.habitual, history: await prHistory(today).catch(function(){ return []; }), warnings: a.warnings.slice(0, 20).map(function(w){ return w.text; }),
     proposals: R.items.filter(function(p){ return p.src !== 'coach'; }).map(function(p){ return { ref: p.key, champ: p.field, nature: p.kind || 'allure', title: p.title, before: p.before, after: p.after, reason: p.short || p.reason, retenue: !!p.on }; }),
     force: force, next: !!(typeof _prepView !== 'undefined' && _prepView && _prepView.next), startDate: state.plan_start_date || null,
     held: (_prReview.held || []).map(function(p){ return { ref: p.key, title: p.title, date: p.date, before: p.before, allure_a_ton_niveau: p.after }; }),
@@ -937,7 +945,7 @@ async function askCoachPlanReview(force){
     allures_tenues: a.calib && a.calib.n ? { tenues: a.calib.k, total: a.calib.n, detail: a.calib.list.map(function(r){ return { seance: r.title, date: r.date, cible: r.target, realise: prPace(r.real), tenue: r.ok }; }) } : null,
     trajectoire: a.trajectory && a.trajectory.race ? { niveau: a.fit.vdot, tendance_par_semaine: Math.round(a.trajectory.slope * 70) / 10, projection_jour_j: Math.round(a.trajectory.race.v * 10) / 10, fourchette: prTime(a.trajectory.race.lo) + ' – ' + prTime(a.trajectory.race.hi), niveau_objectif: a.trajectory.need ? Math.round(a.trajectory.need * 10) / 10 : null, verdict: a.trajectory.verdict || null } : null,
     lastCoachReview: state._coach_review ? { date: state._coach_review.date, avis: state._coach_review.assessment } : null,
-    newSince: state._coach_review ? prDoneSince(state._coach_review.date) : null };
+    newSince: state._coach_review ? prDoneSince(state._coach_review.date, state._coach_review.at) : null };
   try {
     const token = await getAuthToken();
     const r = await fetch(FUNCTIONS_BASE + '/planReview', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
@@ -953,7 +961,7 @@ async function askCoachPlanReview(force){
     clearInterval(R.clTimer); if(_prReview !== R) return;
     _prMergeCoach(R, items, j.rejected || [], j.assessment || '');
     // avis mémorisé avec ses changements : réaffiché tant qu'ils ne sont pas appliqués
-    state._coach_review = { date: today, sig: prDataSig(), assessment: R.coach, rejected: (j.rejected || []).slice(0, 30),
+    state._coach_review = { date: today, at: new Date().toISOString(), sig: prDataSig(), assessment: R.coach, rejected: (j.rejected || []).slice(0, 30),
       changes: items.map(function(x){ return { key: x.key, w: x.w, date: x.date, field: x.field, title: x.title, type: x.type, before: x.before, after: x.after, reason: x.reason }; }), applied: !items.length };
     if(dbRef) dbRef.child('_coach_review').set(state._coach_review).catch(function(){});
     _prRender();

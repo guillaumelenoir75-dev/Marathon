@@ -124,6 +124,7 @@ function initFirebase(){
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
               if(typeof prepShortDescV1==='function') prepShortDescV1();
+              if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               if(dbRef) dbRef.set(state).catch(()=>{}); // persister les migrations
               firebaseReady=true;
@@ -217,6 +218,7 @@ function initFirebase(){
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
               if(typeof prepShortDescV1==='function') prepShortDescV1();
+              if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               firebaseReady=true;
               hideLoginScreen();
@@ -301,6 +303,7 @@ async function openCoachFromNotif() {
 // SW → client postMessage (notification tap quand app déjà ouverte en arrière-plan)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', function(ev) {
+    if (ev.data && ev.data.action === 'open_review') { if (typeof prOpenFromNotif === 'function' && typeof firebaseReady !== 'undefined' && firebaseReady) prOpenFromNotif(); return; }
     if (!ev.data || ev.data.action !== 'open_coach') return;
     window._pendingNotifTag = ev.data.tag || '';
     if (dbRef && firebaseReady) {

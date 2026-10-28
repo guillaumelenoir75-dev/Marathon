@@ -38,6 +38,22 @@ function prFillBlocsFromStrava(activity){
   box.appendChild(msg);
 }
 
+// ─── Migration unique : dates des plans générés décalées d'un jour (toISOString en France) ───
+// une séance dont la date tombe exactement la veille de son jour prévu (sched_day, 1 = lundi) est recalée
+function prFixSchedDatesV1(){
+  if(!state || state._sched_fix_v1 || (typeof _prepView !== 'undefined' && _prepView)) return;
+  let n = 0;
+  Object.keys(state).forEach(function(k){
+    if(!/^extra_w\d+_s\d+$/.test(k)) return;
+    let x; try { x = JSON.parse(state[k]); } catch(e) { return; }
+    if(!x || !x.sched_date || !x.sched_day) return;
+    const wd = prWeekday(x.sched_date);
+    if(wd !== +x.sched_day && wd % 7 + 1 === +x.sched_day){ x.sched_date = prAddDays(x.sched_date, 1); state[k] = JSON.stringify(x); n++; }
+  });
+  state._sched_fix_v1 = true;
+  if(n) console.log('[plan] ' + n + ' dates de séances recalées');
+}
+
 // ─── 2. Météo : prévision 7 jours et allure cible corrigée ──────────────────
 let _prWx = null, _prWxTs = 0, _prWxBusy = false;
 function prWxLoad(){
@@ -47,15 +63,23 @@ function prWxLoad(){
   try { const l = typeof state._last_location === 'string' ? JSON.parse(state._last_location) : state._last_location; if(l && l.lat) pos = { lat: l.lat, lng: l.lng }; } catch(e) {}
   const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pos.lat + '&longitude=' + pos.lng + '&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_days=8&timezone=auto';
   return fetch(url, { credentials: 'omit' }).then(function(r){ return r.json(); }).then(function(d){
-    if(d && d.hourly && d.hourly.time){ _prWx = { time: d.hourly.time, t: d.hourly.temperature_2m, h: d.hourly.relative_humidity_2m, w: d.hourly.wind_speed_10m }; _prWxTs = Date.now(); }
+    _prWxTs = Date.now();
+    if(d && d.hourly && d.hourly.time) _prWx = { time: d.hourly.time, t: d.hourly.temperature_2m, h: d.hourly.relative_humidity_2m, w: d.hourly.wind_speed_10m };
     return _prWx;
   }).catch(function(){ _prWxTs = Date.now(); return null; }).finally(function(){ _prWxBusy = false; });
 }
-function prWxAt(date, time){
-  if(!_prWx || !date) return null;
-  const h = String(time || '12:00').slice(0, 2).padStart(2, '0'), i = _prWx.time.indexOf(date + 'T' + h + ':00');
-  return i < 0 ? null : { t: _prWx.t[i], h: _prWx.h[i], w: _prWx.w[i] };
+function prWxAt(date, time, src){
+  const W = src || _prWx; if(!W || !date) return null;
+  const h = String(time || '12:00').slice(0, 2).padStart(2, '0'), i = W.time.indexOf(date + 'T' + h + ':00');
+  return i < 0 ? null : { t: W.t[i], h: W.h[i], w: W.w[i] };
 }
+// prévision à un endroit précis (départ de la course)
+function prWxLoadAt(lat, lng){
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_days=8&timezone=auto';
+  return fetch(url, { credentials: 'omit' }).then(function(r){ return r.json(); })
+    .then(function(d){ return d && d.hourly && d.hourly.time ? { time: d.hourly.time, t: d.hourly.temperature_2m, h: d.hourly.relative_humidity_2m, w: d.hourly.wind_speed_10m } : null; }).catch(function(){ return null; });
+}
+function _prWxRerender(w){ if(w && typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); else if(document.getElementById('sc-home').style.display !== 'none') renderHome(); } catch(e) {} } }
 // ralentissement (%) : chaleur au-delà de 15 °C (+0,3 %/°C, +0,5 %/°C de plus au-delà de 25 °C), lourdeur, vent, grand froid
 function prWxAdj(m){
   if(!m || m.t == null) return { pct: 0, why: '' };
@@ -73,7 +97,8 @@ function prWeatherLine(x){
   try {
     if(!x || x.type === 'rest' || !x.sched_date) return '';
     const today = prTodayIso(); if(x.sched_date < today || prDays(today, x.sched_date) > 7) return '';
-    if(!_prWx){ if(!_prWxBusy && Date.now() - _prWxTs > 3600000) prWxLoad().then(function(w){ if(w && typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); else if(document.getElementById('sc-home').style.display !== 'none') renderHome(); } catch(e) {} } }); return ''; }
+    if(!_prWxBusy && Date.now() - _prWxTs > 3600000){ const had = !!_prWx; prWxLoad().then(function(w){ if(!had) _prWxRerender(w); }); }   // 1re prévision, puis toutes les heures
+    if(!_prWx) return '';
     const m = prWxAt(x.sched_date, x.sched_time), adj = prWxAdj(m); if(adj.pct < 1) return '';
     const det = String(x.d || '').split('|').slice(1).join('|'), pm = det.match(PR_PACE_RE);
     let txt;
@@ -252,7 +277,8 @@ function prRaceSplits(totalSec, distKm){
   const n = Math.ceil(distKm - 1e-6), lens = [];
   for(let i = 0; i < n; i++) lens.push(Math.min(1, Math.round((distKm - i) * 1000) / 1000));
   const half = distKm / 2;
-  const w = lens.map(function(L, i){ const mid = i + L / 2; return i === n - 1 && distKm > 3 ? 0.99 : mid < 1 ? 1.012 : mid < half ? 1.003 : 0.997; });
+  const lastFull = lens[n - 1] < 1 ? n - 2 : n - 1;                          // semi / marathon : relance sur le dernier km entier + les derniers mètres
+  const w = lens.map(function(L, i){ const mid = i + L / 2; return i >= lastFull && distKm > 3 ? 0.99 : mid < 1 ? 1.012 : mid < half ? 1.003 : 0.997; });
   const base = totalSec / lens.reduce(function(a, L, i){ return a + L * w[i]; }, 0);
   let cum = 0;
   return lens.map(function(L, i){ const p = base * w[i]; cum += p * L; return { km: Math.round((i + L) * 100) / 100, len: L, pace: p, cum: cum }; });
@@ -280,7 +306,14 @@ function openRacePlan(){
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
   _pdRaceRender();
-  if(I.days >= 0 && I.days <= 7 && !_prWx) prWxLoad().then(function(){ if(document.getElementById('pd-race')) _pdRaceRender(); });
+  if(I.days >= 0 && I.days <= 7){
+    const P = _pdRace;
+    (typeof firebase !== 'undefined' ? firebase.database().ref('live/race').once('value').then(function(s){ return s.val(); }).catch(function(){ return null; }) : Promise.resolve(null)).then(function(r){
+      const p0 = r && r.date === I.R.date && Array.isArray(r.route) && r.route[0];
+      if(p0) return prWxLoadAt(p0[0], p0[1]).then(function(w){ if(w){ P.wx = w; P.wxWhere = r.place || 'au départ'; } });
+      return prWxLoad().then(function(w){ if(w){ P.wx = w; P.wxWhere = 'chez toi (lieu de la course non renseigné)'; } });
+    }).then(function(){ if(_pdRace === P && document.getElementById('pd-race')) _pdRaceRender(); });
+  }
 }
 function _pdRaceTarget(){
   const P = _pdRace, I = P.I;
@@ -289,17 +322,17 @@ function _pdRaceTarget(){
 function _pdRaceRender(){
   const box = document.getElementById('pd-race-c'); if(!box || !_pdRace) return;
   const P = _pdRace, I = P.I, cat = I.cat, long = cat === 'Marathon' || cat === 'Semi-marathon';
-  const wx = I.days >= 0 && I.days <= 7 ? prWxAt(I.R.date, I.time) : null, adj = prWxAdj(wx);
+  const wx = I.days >= 0 && I.days <= 7 && P.wx ? prWxAt(I.R.date, I.time, P.wx) : null, adj = prWxAdj(wx);
   let target = _pdRaceTarget(); if(!target){ box.innerHTML = '<p class="pd-note">Ajoute un objectif ou des records pour calculer ton plan de course.</p>'; return; }
   const tgtWx = adj.pct >= 1 ? target * (1 + adj.pct / 100) : target;
   const sp = prRaceSplits(tgtWx, I.dist); P.splits = sp; P.target = tgtWx;
   const mk = function(m, l, t){ return '<button type="button" class="pd-seg' + (P.mode === m ? ' on' : '') + '" onclick="_pdRace.mode=\'' + m + '\';_pdRaceRender()"><b>' + l + '</b><small>' + t + '</small></button>'; };
   let h = '<div class="pd-segs">' + (I.goal ? mk('goal', 'Objectif', prTime(I.goal)) : '') + (I.real ? mk('real', 'Réaliste', prTime(I.real)) : '')
     + '<button type="button" class="pd-seg' + (P.mode === 'custom' ? ' on' : '') + '" onclick="_pdRace.mode=\'custom\';_pdRaceRender();setTimeout(function(){const e=document.getElementById(\'pd-custom\');if(e)e.focus();},50)"><b>Mon temps</b><small>' + (P.custom ? prTime(P.custom) : 'à saisir') + '</small></button></div>';
-  if(P.mode === 'custom') h += '<div class="pd-card"><label class="pd-lab">Temps visé<input id="pd-custom" inputmode="numeric" placeholder="' + (long ? 'h:mm:ss' : 'mm:ss') + '" value="' + (P.custom ? prTime(P.custom) : '') + '" oninput="if(typeof prFmtTimeInput===\'function\')prFmtTimeInput(this)" onchange="const s=prTimeSec(this.value);if(s){_pdRace.custom=s;_pdRaceRender();}"></label></div>';
+  if(P.mode === 'custom') h += '<div class="pd-card"><label class="pd-lab">Temps visé<input id="pd-custom" inputmode="numeric" placeholder="' + (long ? 'h:mm:ss' : 'mm:ss') + '" value="' + (P.custom ? prTime(P.custom) : '') + '" oninput="if(typeof prFmtTimeInput===\'function\')prFmtTimeInput(this)" onchange="_pdCustom(this.value)"></label></div>';
   h += '<div class="pd-card pd-hero"><div><small>Temps visé</small><b>' + prTime(tgtWx) + '</b></div><div><small>Allure moyenne</small><b>' + prPace(tgtWx / I.dist) + '<i>/km</i></b></div>'
     + (I.real && P.mode !== 'real' ? '<p class="pd-note">' + (target < I.real * 0.985 ? '⚠️ Plus rapide que ton niveau actuel (' + prTime(I.real) + ') : départ très prudent, accélère seulement après la mi-course si tout va bien.' : '✓ Cohérent avec ton niveau actuel (' + prTime(I.real) + ').') + '</p>' : '')
-    + (adj.pct >= 1 ? '<p class="pd-note pd-warm">🌡️ Prévision ' + prEsc(adj.why) + ' : allures +' + prV(adj.pct) + ' % (' + prTime(target) + ' → ' + prTime(tgtWx) + ').</p>' : wx ? '<p class="pd-note">🌤️ Prévision ' + Math.round(wx.t) + ' °C, vent ' + Math.round(wx.w) + ' km/h : conditions favorables.</p>' : '') + '</div>';
+    + (adj.pct >= 1 ? '<p class="pd-note pd-warm">🌡️ Prévision ' + prEsc(P.wxWhere || '') + ' : ' + prEsc(adj.why) + ' : allures +' + prV(adj.pct) + ' % (' + prTime(target) + ' → ' + prTime(tgtWx) + ').</p>' : wx ? '<p class="pd-note">🌤️ Prévision ' + prEsc(P.wxWhere || '') + ' : ' + Math.round(wx.t) + ' °C, vent ' + Math.round(wx.w) + ' km/h, conditions favorables.</p>' : '') + '</div>';
   // passages
   const marks = sp.filter(function(x, i){ return i === sp.length - 1 || (I.dist <= 10 ? true : I.dist <= 22 ? (i + 1) % 2 === 1 || i === 0 : (i + 1) % 5 === 0); });
   h += '<p class="pd-sec">Allure km par km</p><div class="pd-card pd-splits"><table><thead><tr><th>Km</th><th>Allure</th><th>Passage</th></tr></thead><tbody>'
@@ -322,8 +355,15 @@ function _pdRaceRender(){
   if(typeof isAdmin === 'function' && isAdmin()) h += '<button type="button" class="pd-btn sec" onclick="saveRacePlan(true)">📡 Utiliser ce plan pour le suivi en direct</button>';
   box.innerHTML = h;
 }
+function _pdCustom(v){
+  const s = prTimeSec(v), d = _pdRace && _pdRace.I.dist; if(!s || !d) return;
+  const pace = s / d;
+  if(pace < 150 || pace > 600){ alert('Temps peu probable sur ' + String(d).replace('.', ',') + ' km (' + prPace(pace) + '/km) : saisis un temps entre ' + prTime(d * 150) + ' et ' + prTime(d * 600) + '.'); return; }
+  _pdRace.custom = s; _pdRaceRender();
+}
 function saveRacePlan(live){
   if(!_pdRace || !_pdRace.splits) return;
+  if(_pdRace.mode === 'custom' && !_pdRace.custom){ alert('Saisis d\'abord ton temps visé, ou choisis « Objectif » / « Réaliste ».'); return; }
   const P = _pdRace, I = P.I;
   state._race_plan = { date: I.R.date, mode: P.mode, target: P.mode === 'custom' ? P.custom : Math.round(_pdRaceTarget()), withWx: Math.round(P.target), cum: P.splits.map(function(x){ return Math.round(x.cum); }), savedAt: prTodayIso() };
   save();
@@ -363,7 +403,7 @@ function prStreak(){
   for(const s of list){
     if(s.done){ n++; continue; }
     if(s.date === today) continue;
-    if(state[s.key + '_skip'] && /Indisponible|Semaine chargée|Malade/.test(state[s.key + '_skip_reason'] || '')) continue;
+    if(state[s.key + '_skip'] && /Indisponible|Semaine chargée|Malade|Blessé/.test(state[s.key + '_skip_reason'] || '')) continue;
     break;
   }
   return n;
@@ -390,7 +430,8 @@ function prBadges(){
     km: done.reduce(function(a, s){ return a + s.km; }, 0), paces: typeof prCalib === 'function' ? prCalib(state).k : 0,
     tests: done.filter(function(s){ return /^Test\b/i.test(s.title); }).length, longest: Math.max.apply(null, done.filter(function(s){ return s.type === 'long'; }).map(function(s){ return s.km; }).concat([0])),
     prs: Object.keys(state._records || {}).filter(function(k){ const d = (state._records[k] || {}).date; return d && d >= prepStart && d <= today; }).length, race: done.some(function(s){ return s.type === 'race'; }) };
-  return { c: c, list: PD_BADGES.map(function(b){ return Object.assign({ on: b.test(c) }, b); }) };
+  const got = state._badges || {};
+  return { c: c, list: PD_BADGES.map(function(b){ return Object.assign({ on: b.test(c) || !!got[b.id] }, b); }) };
 }
 // carte de l'accueil : forme du jour, série, badges ; nouveau badge → toast
 function prRenderHomeCard(){
@@ -400,8 +441,12 @@ function prRenderHomeCard(){
     _pdCss();
     const F = prFormScore(), B = prBadges(), on = B.list.filter(function(b){ return b.on; });
     const got = Object.assign({}, state._badges || {}), fresh = on.filter(function(b){ return !got[b.id]; });
-    if(fresh.length){ fresh.forEach(function(b){ got[b.id] = prTodayIso(); }); state._badges = got; if(dbRef) dbRef.child('_badges').set(got).catch(function(){});
-      if(Object.keys(state._badges).length > fresh.length && typeof showToast === 'function') setTimeout(function(){ showToast('Nouveau badge : ' + fresh[fresh.length - 1].t, fresh[fresh.length - 1].ico); }, 800); }
+    if(fresh.length){
+      const silent = !state._badges_init;                                       // 1er affichage d'une prépa : badges déjà acquis, sans notification
+      fresh.forEach(function(b){ got[b.id] = prTodayIso(); }); state._badges = got; state._badges_init = true;
+      if(dbRef) dbRef.update({ _badges: got, _badges_init: true }).catch(function(){});
+      if(!silent && typeof showToast === 'function') setTimeout(function(){ showToast('Nouveau badge : ' + fresh[fresh.length - 1].t, fresh[fresh.length - 1].ico); }, 800);
+    } else if(!state._badges_init){ state._badges_init = true; if(dbRef) dbRef.child('_badges_init').set(true).catch(function(){}); }
     const R = typeof prepRace === 'function' ? prepRace() : null, dRace = R && R.date ? prDays(prTodayIso(), R.date) : null;
     let h = '<div class="pd-home">';
     if(F){ const C = 2 * Math.PI * 26;
@@ -431,7 +476,7 @@ function _pdCss(){
     + '.pd-rpe{margin-top:14px;background:#F8FAFD;border:1px solid #E2E8F0;border-radius:14px;padding:12px;}.pd-h{font-size:12px;font-weight:800;color:#334155;margin:0 0 8px;display:flex;justify-content:space-between;}.pd-h span{font-weight:700;color:#64748B;}'
     + '.pd-scale{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;}.pd-n{height:34px;border-radius:9px;border:1.5px solid #E2E8F0;background:#fff;font-weight:800;font-size:13px;color:#334155;cursor:pointer;font-family:inherit;padding:0;}'
     + '.pd-n.r1.on{background:#22C55E;border-color:#22C55E;color:#fff;}.pd-n.r2.on{background:#84CC16;border-color:#84CC16;color:#fff;}.pd-n.r3.on{background:#EAB308;border-color:#EAB308;color:#fff;}.pd-n.r4.on{background:#F97316;border-color:#F97316;color:#fff;}.pd-n.r5.on{background:#DC2626;border-color:#DC2626;color:#fff;}'
-    + '.pd-chips{display:flex;flex-wrap:wrap;gap:6px;}.pd-zones{margin-top:8px;}.pd-c{border:1.5px solid #E2E8F0;background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;color:#334155;cursor:pointer;font-family:inherit;}.pd-c.sm{padding:5px 10px;font-size:11.5px;}.pd-c.on{background:#FEE2E2;border-color:#F87171;color:#991B1B;}'
+    + '.pd-chips{display:flex;flex-wrap:wrap;gap:6px;}.pd-zones[hidden]{display:none !important;}.pd-zones{margin-top:8px;}.pd-c{border:1.5px solid #E2E8F0;background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;color:#334155;cursor:pointer;font-family:inherit;}.pd-c.sm{padding:5px 10px;font-size:11.5px;}.pd-c.on{background:#FEE2E2;border-color:#F87171;color:#991B1B;}'
     + '.pd-head{flex-shrink:0;color:#fff;padding:16px;border-radius:24px 24px 0 0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:linear-gradient(135deg,#0C447C,#1D4ED8);}.pd-head.imp{background:linear-gradient(135deg,#7C2D12,#C2410C);}.pd-head.race{background:linear-gradient(135deg,#78350F,#B45309);}.pd-head.bdg{background:linear-gradient(135deg,#4C1D95,#7C3AED);}'
     + '.pd-eb{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8;margin:0 0 2px;}.pd-title{font-size:21px;font-weight:900;margin:0;}.pd-sub{font-size:12.5px;opacity:.85;margin:3px 0 0;font-weight:600;}.pd-x{flex-shrink:0;width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:18px;cursor:pointer;}'
     + '.pd-card{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;}.pd-sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748B;margin:6px 2px -2px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}.pd-sec span{text-transform:none;letter-spacing:0;font-weight:700;}'

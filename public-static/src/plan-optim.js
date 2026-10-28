@@ -17,7 +17,7 @@ function prPrefetch(){
       const st = await Promise.race([_prepGetSnap(id), new Promise(function(r){ setTimeout(function(){ r(null); }, 2500); })]);
       if(st){ _prPrevSnap = (!st._plan_engine && !st.plan_start_date) ? Object.assign({}, st, { plan_start_date: '2026-03-09' }) : st; _prPrevSnapId = id; }
     } catch(e) {}
-  })().finally(function(){ setTimeout(function(){ _prPrefetching = null; }, 0); });
+  })().finally(function(){ window._prPrefetchDone = true; setTimeout(function(){ _prPrefetching = null; }, 0); });
   return _prPrefetching;
 }
 const prAddDays = function(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return prIso(d); };
@@ -197,11 +197,15 @@ function prTestProposal(st, a){
 }
 // temps d'un test 5 km réalisé : bloc saisi, tour Strava de ~5 km, sinon allure moyenne si la séance fait ~5 km
 function prTestTime(s){
-  const bl = (s.perf.blocsAllure || []).map(prPaceSec).filter(Boolean);
-  if(bl.length === 1) return bl[0] * 5;
+  const ok = function(t){ return t >= 750 && t <= 3000 ? t : null; };          // 5 km entre 12'30 et 50'
+  const bl = (s.perf.blocsAllure || []).filter(Boolean).map(prPaceSec).filter(Boolean);
+  if(bl.length === 1){ const v = bl[0]; return ok(v * 5) || ok(v); }          // allure « 4:10 » ou temps « 20:50 » saisi à la place
+  return _prTestTimeLaps(s, ok);
+}
+function _prTestTimeLaps(s, ok){
   const laps = (((s.perf || {}).strava || {}).laps || []).filter(function(l){ return l.distanceKm >= 4.8 && l.distanceKm <= 5.3 && l.duree_sec; });
-  if(laps.length) return laps[0].duree_sec / laps[0].distanceKm * 5;
-  const p = prPaceSec(s.perf.pace); if(p && s.km >= 4.8 && s.km <= 5.3) return p * 5;
+  if(laps.length) return ok(laps[0].duree_sec / laps[0].distanceKm * 5);
+  const p = prPaceSec(s.perf.pace); if(p && s.km >= 4.8 && s.km <= 5.3) return ok(p * 5);
   return null;
 }
 
@@ -252,7 +256,7 @@ function prTrajectory(a){
   (f.sources || []).forEach(function(x){ if(x.kind === 'course' && x.date && prDays(x.date, today) <= 180 && prDays(x.date, today) >= 0) pts.push({ date: x.date, v: x.vdot, kind: 'course', label: x.label }); });
   prDoneLog(today).forEach(function(x){
     if(prDays(x.date, today) > 180) return;
-    if(/^Test\b/i.test(x.s.title)){ const t = prTestTime(x.s); if(t) pts.push({ date: x.date, v: vdotFromRace(5000, t), kind: 'course', label: 'Test 5 km' }); return; }
+    if(/^Test\b/i.test(x.s.title)) return;                                          // déjà compté via les sources du niveau
     const v = prSessionVdot(x.s, f.hrMax || 196); if(v) pts.push({ date: x.date, v: v, kind: 'séance', label: x.s.title });
   });
   pts.sort(function(p, q){ return p.date.localeCompare(q.date); });
@@ -281,7 +285,7 @@ function prTrajectory(a){
 function prTrajectorySvg(T){
   if(!T || !T.race) return '';
   const W = 320, H = 150, L = 30, Rt = 8, Tp = 12, B = 22;
-  const first = T.pts.length ? T.pts[0].date : prAddDays(T.race.date, -60), t0 = Date.parse(first + 'T12:00:00Z'), t1 = Date.parse(T.race.date + 'T12:00:00Z'), now = Date.parse(prTodayIso() + 'T12:00:00Z');
+  const today = prTodayIso(), first = T.pts.length && T.pts[0].date < prAddDays(today, -14) ? T.pts[0].date : prAddDays(today, -28), t0 = Date.parse(first + 'T12:00:00Z'), t1 = Date.parse(T.race.date + 'T12:00:00Z'), now = Date.parse(prTodayIso() + 'T12:00:00Z');
   const vs = T.pts.map(function(p){ return p.v; }).concat([T.now, T.race.v + 0.6, T.race.v - 0.6]).concat(T.need ? [T.need] : []);
   const v0 = Math.floor(Math.min.apply(null, vs) - 0.5), v1 = Math.ceil(Math.max.apply(null, vs) + 0.5);
   const X = function(t){ return L + (t - t0) / Math.max(1, t1 - t0) * (W - L - Rt); }, Y = function(v){ return Tp + (v1 - v) / Math.max(0.5, v1 - v0) * (H - Tp - B); };

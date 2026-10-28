@@ -1098,7 +1098,7 @@ function openValidationModalExtra(w,ei){
       </div>
       ${(()=>{
         if(s.type!=='tempo' && s.type!=='frac') return '';
-        const titleMatch=(s.d||'').split('|')[0].match(/(\d+)[x\u00d7]/i);
+        const titleMatch=(s.d||'').split('|')[0].match(/(\d+)\s*[x\u00d7]/i)||(s.d||'').split('|').slice(1).join('|').match(/(\d+)\s*[x\u00d7]/i);   // titre, sinon consigne
         const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
         const prevBlocs=prev.blocsAllure||[];
         const nbRows=Math.ceil(nbBlocs/3);
@@ -1302,13 +1302,14 @@ async function saveValidationExtra(w,ei){
   if(pace) perf.pace=pace;
   if(hr) perf.hr=hr;
   if(dateVal) perf.date=dateVal;
+  perf.validatedAt=new Date().toISOString();   // relecture du Coach : séances validées depuis
   // Effort ressenti (1-10) et douleur (plan-daily.js)
   const _rpe=typeof prRpeRead==='function'?prRpeRead():null;
   if(_rpe){ if(_rpe.rpe) perf.rpe=_rpe.rpe; if(_rpe.pain) perf.pain=_rpe.pain; }
   // Blocs Tempo/Frac
   let sExtra={};try{sExtra=JSON.parse(state[k]||'{}');}catch(e){}
   if(sExtra.type==='tempo'||sExtra.type==='frac'){
-    const tmatch=(sExtra.d||'').split('|')[0].match(/(\d+)[x\u00d7]/i);
+    const tmatch=(sExtra.d||'').split('|')[0].match(/(\d+)\s*[x\u00d7]/i)||(sExtra.d||'').split('|').slice(1).join('|').match(/(\d+)\s*[x\u00d7]/i);
     const nbB=tmatch?parseInt(tmatch[1]):2;
     const blocsAllure=[];
     for(let i=0;i<nbB;i++){const el=document.getElementById('val-bloc-'+i);blocsAllure.push(el&&el.value.trim()?el.value.trim():'');}

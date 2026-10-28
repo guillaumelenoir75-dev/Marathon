@@ -1,4 +1,4 @@
-// sw.js — Service Worker Plan Marathon v6
+// sw.js — Service Worker Plan Marathon v7
 // Gère les push notifications et le tap sur une notification
 
 self.addEventListener('install', event => { self.skipWaiting(); });
@@ -40,6 +40,8 @@ self.addEventListener('notificationclick', event => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async function(list) {
       for (const c of list) {
         if (c.url.startsWith(self.location.origin)) {
+          // relecture du plan, app déjà ouverte : message à la page (pas de rechargement ni de saisie perdue)
+          if (/plan[-_]review/.test(tag)) { try { c.postMessage({ action: 'open_review' }); return c.focus(); } catch(e) {} }
           try { await c.navigate(targetUrl); } catch(e) {}
           return c.focus();
         }
