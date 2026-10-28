@@ -220,6 +220,103 @@ function sessionTitleOf(s) {
   if (type === 'frac') return /^(Fractionné|Séance côtes|Côtes|Fartlek|Course en progression|VMA)/i.test(t) ? compact(t) : 'Fractionné ' + compact(t);
   return t;
 }
+// ─── Situation d'entraînement (briefs du matin, Coach) ───────────────────────
+// Vision complète au jour J : prépa en cours (semaine, phase, J-x), dernière course et période de récupération
+// qui suit, prépa suivante, historique des courses, records, charge des 7 / 14 derniers jours, séance du jour.
+const RECOVERY_DAYS = { 'Marathon': 26, 'Semi-marathon': 13, '10 km': 6, '5 km': 3 };   // ≈ 1 jour par mile couru
+function raceCategory(dist, km) {
+  const d = String(dist || '').toLowerCase(), k = parseFloat(km) || 0;
+  if (/semi/.test(d) || (k > 20 && k < 22)) return 'Semi-marathon';
+  if (/marathon/.test(d) || k > 41) return 'Marathon';
+  if (/10/.test(d) || (k > 9 && k < 11)) return '10 km';
+  if (/^5|5 km/.test(d) || (k > 4.5 && k < 5.5)) return '5 km';
+  return null;
+}
+function parisToday() { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); }
+async function buildTrainingSituation(db, state, todayStr) {
+  state = state || {};
+  const today = todayStr || parisToday();
+  const base = ADMIN_STATE.replace(/\/state$/, '');
+  let idx = {}, next = null;
+  try { idx = (await db.ref(base + '/prep_index').once('value')).val() || {}; } catch (e) {}
+  try { next = (await db.ref(base + '/prep_next/meta').once('value')).val(); } catch (e) {}
+  const days = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000);
+  const fmtD = (d) => d ? new Date(String(d).slice(0, 10) + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
+  const fmtT = (t) => String(t || '').replace(/^00:/, '').replace(/^0(?=\d:)/, '');
+  const lines = [];
+  const gen = !!state._plan_engine, P = getPrepInfo(state), cw = getCurrentWeek(state), tot = totalWeeksFor(state);
+
+  // séances de la prépa en cours : date, type, km, réalisé
+  const sess = [];
+  for (let w = 1; w <= 60; w++) {
+    for (let ei = 0; ei <= 50 && state[`extra_w${w}_s${ei}`] !== undefined; ei++) {
+      let x = {}, perf = {}; try { x = JSON.parse(state[`extra_w${w}_s${ei}`]) || {}; } catch (e) {}
+      try { perf = JSON.parse(state[`extra_w${w}_s${ei}_perf`] || '{}') || {}; } catch (e) {}
+      const done = !!(state[`extra_w${w}_s${ei}_done`] || state[`extra_w${w}_s${ei}_km`] != null);
+      const km = done && parseFloat(state[`extra_w${w}_s${ei}_km`]) > 0 ? parseFloat(state[`extra_w${w}_s${ei}_km`]) : parseFloat(x.km) || 0;
+      sess.push({ w, x, perf, done, km, date: String(perf.date || x.sched_date || '').slice(0, 10) });
+    }
+  }
+
+  // prépa en cours
+  if (gen) {
+    let meta = {}; try { meta = JSON.parse(state['meta_w' + cw] || '{}') || {}; } catch (e) {}
+    const j = P.date ? days(today, P.date) : null;
+    const phase = meta.phase ? (typeof meta.phase === 'string' ? meta.phase : ['', 'base', 'construction', 'spécifique', 'affûtage'][meta.phase] || '') : '';
+    const typ = meta.isRecov ? 'semaine allégée' : meta.isTaper ? 'affûtage' : meta.isPeak ? 'pic de volume' : '';
+    lines.push(`Prépa en cours : ${P.name} (${P.course}) le ${P.label}, objectif ${P.objectif} — semaine ${cw}/${tot}`
+      + (phase ? ` « ${phase} »` : '') + (typ ? ` (${typ})` : '') + (j !== null ? (j > 0 ? ` — J-${j}` : j === 0 ? ' — JOUR DE COURSE' : ` — course passée (J+${-j})`) : '') + '.');
+    const wk = sess.filter((s) => s.w === cw && s.x.type !== 'rest');
+    if (wk.length) lines.push(`Cette semaine : ${wk.filter((s) => s.done).length}/${wk.length} séances faites, ${Math.round(wk.filter((s) => s.done).reduce((a, s) => a + s.km, 0))}/${Math.round(wk.reduce((a, s) => a + (parseFloat(s.x.km) || 0), 0))} km.`);
+  } else {
+    lines.push(`Prépa en cours : marathon Seine-Eure (18 octobre 2026), semaine ${cw}/32.`);
+  }
+
+  // courses passées : fiches « Mes prépas » + course de la prépa en cours si elle est courue
+  const races = [];
+  // fiches : course passée (ou courue aujourd'hui, temps saisi) ; la prépa en cours ne compte que par sa séance « course » validée
+  Object.keys(idx).forEach((id) => { const p = idx[id]; if (p && p.date && id !== state._prep_id && (p.date < today || (p.date === today && p.result))) races.push({ name: p.race || p.title, date: p.date, dist: p.dist || '', result: p.result || '', note: p.note || '', km: p.stats && p.stats.km, weeks: p.stats && p.stats.weeks }); });
+  sess.filter((s) => s.x.type === 'race' && s.done && s.date && s.date <= today).forEach((s) => {
+    const off = state._race_result && state._race_result.time;
+    races.push({ name: P.name || sessionTitleOf(s.x), date: s.date, dist: gen ? P.course : '', result: off || s.perf.official || '', note: '' });
+  });
+  const seen = new Set();
+  const list = races.sort((a, b) => b.date.localeCompare(a.date)).filter((r) => { const k = r.date + '|' + r.name; if (seen.has(k)) return false; seen.add(k); return true; });
+  const last = list[0];
+  if (last) {
+    const ago = days(last.date, today), cat = raceCategory(last.dist), rec = RECOVERY_DAYS[cat];
+    lines.push(`Dernière course : ${last.name}${last.dist ? ' (' + last.dist + ')' : ''} le ${fmtD(last.date)}${last.result ? ' en ' + last.result : ''}${last.note ? ' — ' + last.note : ''} — il y a ${ago} jour${ago > 1 ? 's' : ''}.`);
+    if (rec && ago >= 0 && ago < rec) lines.push(`→ PÉRIODE POST-COURSE : J+${ago} sur ~${rec} jours de récupération après un ${cat === 'Marathon' ? 'marathon' : cat === 'Semi-marathon' ? 'semi-marathon' : cat}. Reprise progressive : footings faciles et courts, aucune intensité tant que la récupération n'est pas complète ; se fier aux sensations, à la FC repos, à la VFC et à la récupération WHOOP plutôt qu'à l'allure ; FC repos ou VFC dégradées = alléger ou repos.`);
+  }
+  if (next && next.date) lines.push(`Prépa suivante : ${next.title}${next.dist ? ' (' + next.dist + ')' : ''} le ${fmtD(next.date)}${next.target ? ', objectif ' + fmtT(next.target) : ''} — démarre le ${fmtD(next.start)}.`);
+  if (list.length) lines.push('Courses réalisées : ' + list.slice(0, 5).map((r) => `${r.name} (${r.date.split('-').reverse().join('/')}${r.result ? ', ' + r.result : ''}${r.weeks ? ', prépa de ' + r.weeks + ' sem. / ' + r.km + ' km' : ''})`).join(' · ') + '.');
+
+  // records
+  const rec = [];
+  const recFrom = (cat, key) => {
+    let best = null; const take = (t) => { const p = String(t || '').replace(/['’h]/g, ':').split(':').map(Number); const s = p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : null; if (s > 0 && (!best || s < best.s)) best = { s, t: String(t) }; };
+    take(state[key]); list.forEach((r) => { if (raceCategory(r.dist) === cat) take(r.result); });
+    if (best) rec.push(`${cat === 'Semi-marathon' ? 'semi' : cat.toLowerCase()} ${best.t}`);
+  };
+  recFrom('10 km', 'record_10km'); recFrom('Semi-marathon', 'record_semi'); recFrom('Marathon', 'record_marathon');
+  if (rec.length) lines.push('Records : ' + rec.join(' · ') + '.');
+
+  // charge récente (séances réalisées et datées)
+  const doneD = sess.filter((s) => s.done && s.date && s.date <= today && s.x.type !== 'rest');
+  const inLast = (n) => doneD.filter((s) => days(s.date, today) < n);
+  const k7 = inLast(7), k14 = inLast(14);
+  lines.push(`Charge récente : ${Math.round(k7.reduce((a, s) => a + s.km, 0))} km sur les 7 derniers jours (${k7.length} séance${k7.length > 1 ? 's' : ''}) · ${Math.round(k14.reduce((a, s) => a + s.km, 0))} km sur 14 jours.`);
+  const lastS = doneD.sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (lastS) lines.push(`Dernière séance : ${fmtD(lastS.date)} — ${sessionTitleOf(lastS.x)} ${String(Math.round(lastS.km * 100) / 100).replace('.', ',')} km${lastS.perf.pace ? ' à ' + lastS.perf.pace + '/km' : ''}${lastS.perf.hr ? ', FC ' + lastS.perf.hr : ''}${lastS.perf.note ? ' — ressenti : « ' + lastS.perf.note + ' »' : ''}.`);
+
+  // séance du jour (avec sa consigne)
+  const td = sess.filter((s) => s.date === today && !s.done && s.x.type !== 'rest');
+  const todaySessions = td.map((s) => ({ title: sessionTitleOf(s.x), km: parseFloat(s.x.km) || 0, time: s.x.sched_time || null, type: s.x.type, consigne: String(s.x.d || '').split('|')[1] || '' }));
+  const nextS = sess.filter((s) => s.date > today && !s.done && s.x.type !== 'rest').sort((a, b) => a.date.localeCompare(b.date))[0];
+  if (!todaySessions.length && nextS) lines.push(`Prochaine séance : ${fmtD(nextS.date)} — ${sessionTitleOf(nextS.x)} ${nextS.x.km} km.`);
+  return { text: `SITUATION D'ENTRAÎNEMENT (au ${fmtD(today)}) :\n- ` + lines.join('\n- '), todaySessions, postRace: !!(last && RECOVERY_DAYS[raceCategory(last.dist)] && days(last.date, today) < RECOVERY_DAYS[raceCategory(last.dist)]) };
+}
+
 async function buildNotifContext(state, cw) {
   const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const joursLong=['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
@@ -395,7 +492,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     }
     if (state._plan_engine) for (let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++) {   // prépa générée : séances extra
       const pr=state[`extra_w${ws}_s${ei}_perf`]; if (!pr) continue;
-      try { const es=JSON.parse(state[`extra_w${ws}_s${ei}`]), p=JSON.parse(pr); if (es.type==='ef'&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
+      try { const es=JSON.parse(state[`extra_w${ws}_s${ei}`]), p=JSON.parse(pr); if ((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
     }
   }
   let efPace = null;
@@ -407,8 +504,11 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   }
   efPace = efPace || "6'40";
 
+  // vision complète : prépas, courses passées et à venir, période post-course, charge récente, séance du jour
+  const sit = await buildTrainingSituation(db, state, todayStr);
+  const consigneJour = sit.todaySessions.map(x => `${x.title} ${x.km} km${x.consigne ? ' : ' + x.consigne : ''}`).join(' + ');
   const isDecharge = state._plan_engine ? weekTypeFor(state, cw) === 'décharge' : [8,12,16,20].includes(cw);
-  const consignesEf = isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm` : `Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
+  const consignesEf = sit.postRace ? `Période post-course : footing très facile, FC < 140 bpm, sensations avant l'allure` : isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm` : `Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
   const memos = state['_coach_memos'] || '';
   const seancesStr = ctx.seancesAujourdHui.length > 0 ? ctx.seancesAujourdHui.join(' + ') : 'Récupération';
   const fcSource = fcWhoopRhr ? 'WHOOP RHR' : 'saisie manuelle';
@@ -476,6 +576,11 @@ PROFIL :
 - Montre Garmin Forerunner 165.
 - Lundi midi : séance bodyhit (électrostimulation).
 
+CONTEXTE À PRENDRE EN COMPTE — la SITUATION D'ENTRAÎNEMENT fournie à la fin du message (prépa en cours et phase de la semaine, dernière course et jours écoulés, prépa suivante, charge récente) te donne la vision complète :
+- PÉRIODE POST-COURSE (si indiquée) = priorité absolue : la rappeler en une phrase dans le bloc 2 (ex. « J+10 après ton marathon : on reprend en douceur ») et calibrer tout le brief dessus (footing facile et court, aucune intensité, sensations avant l'allure). La croiser avec la récupération WHOOP, la FC repos et la VFC : récup basse, FC repos haute ou VFC en baisse en période post-course = raccourcir, marcher ou repos.
+- Semaine allégée, affûtage ou course dans moins de 7 jours : le dire en une phrase et adapter les consignes.
+- Allure cible : celle de la « Consigne de la séance » (plan) si elle est fournie.
+
 STRUCTURE OBLIGATOIRE — dans cet ordre exact :
 
 1. 😴 NUIT & RÉCUPÉRATION — bloc unique fusion sommeil + FC repos. Format OBLIGATOIRE : commencer par le Score du jour en **gras** sur sa propre ligne, puis chaque valeur détaillée sur sa propre ligne, puis UNE phrase d'analyse. Exemple de format attendu :
@@ -494,7 +599,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
 
 4. ⚡ CONSIGNES & MÉTÉO — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
-   Ligne 1 : allure cible en **gras** + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
+   Ligne 1 : allure cible en **gras** (celle de la « Consigne de la séance » si fournie) + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
    Ligne 2 : météo à l'heure de la séance en 1 phrase courte.
    Ligne 3 (optionnel) : 1 consigne technique seulement. Rien d'autre.
    INTERDIT dans ce bloc : toute mention de gel, d'eau ou d'hydratation.
@@ -509,7 +614,7 @@ RÈGLES :
 - Jamais de tirets en début de paragraphe — texte fluide.
 - Jamais "Guillaume" dans le corps du texte — toujours "tu/ton/ta".
 - Si pas de séance run aujourd'hui : sauter blocs 4 et 5.
-- INTERDIT : parler du reste de la semaine, des séances passées, des objectifs à long terme.`;
+- INTERDIT : récapituler la semaine ou lister les séances passées. La situation (course passée, prépa, prochaine course) sert à calibrer le brief : y faire référence en une phrase au plus, dans le bloc 2.`;
 
   const globalScoreLine = globalScore !== null
     ? `Score du jour (synthétique) : ${globalScore}% ${globalScoreEmoji} ${globalScoreLabel} [moyenne récup+sommeil+FC${r0?.hrv!=null?'+VFC':''}]`
@@ -518,6 +623,7 @@ RÈGLES :
   const userMsg = `${dateComplet}
 ${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
+Consigne de la séance (plan) : ${consigneJour||'—'}
 Heure de la séance : ${seanceHeure||'non définie'}
 ${meteoStr||'Météo : non disponible'}
 ${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}
@@ -525,7 +631,9 @@ Allure EF de référence (conditions normales) : ${efPace}/km
 Consignes générales : ${consignesEf}
 Gels : ${gelInfo}
 Eau : ${eauInfo}
-${memosLine}`;
+${memosLine}
+
+${sit.text}`;
 
   let briefContent = '';
   try {
@@ -682,6 +790,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
+  buildTrainingSituation, parisToday,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,

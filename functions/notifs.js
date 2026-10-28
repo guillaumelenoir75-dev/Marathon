@@ -22,6 +22,8 @@ const {
   loadPrepState,
   buildNotifContext,
   sessionTitleOf,
+  buildTrainingSituation,
+  weekTypeFor,
   callAnthropic,
   generateWeeklyBilanContent,
 } = require('./helpers');
@@ -254,6 +256,8 @@ exports.briefAfterFcRepos = onSchedule(
 
       const cw=getCurrentWeek(state);
       const ctx=await buildNotifContext(state,cw);
+      // vision complète : prépas, courses passées et à venir, période post-course, charge récente, séance du jour
+      const sit=await buildTrainingSituation(db,state,todayStr);
 
       // ── Récupérer les données WHOOP ───────────────────────────────────────────
       const wd=state['whoop_data']||(state.whoop_data)||null;
@@ -356,6 +360,8 @@ exports.briefAfterFcRepos = onSchedule(
           if(!pr)continue;
           try{const p=JSON.parse(pr);if((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}
         }
+        // prépa générée : séances extra (EF à FC ≤ 148)
+        if(state._plan_engine)for(let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr)continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}}
       }
       if(efPaces.length>0){
         let refSec;
@@ -365,8 +371,9 @@ exports.briefAfterFcRepos = onSchedule(
       }
       efPace=efPace||"6'40";
 
-      const isDecharge=[8,12,16,20].includes(cw);
-      const consignesEf=isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
+      const isDecharge=state._plan_engine?weekTypeFor(state,cw)==='décharge':[8,12,16,20].includes(cw);
+      const consignesEf=sit.postRace?`Période post-course : footing très facile, FC < 140 bpm, sensations avant l'allure`:isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
+      const consigneJour=sit.todaySessions.map(x=>`${x.title} ${x.km} km${x.consigne?' : '+x.consigne:''}`).join(' + ');
       const memos=state['_coach_memos']||'';
       const seancesStr=ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'Récupération';
       const fcSource=fcWhoopRhr?'WHOOP RHR':'saisie manuelle';
@@ -449,6 +456,11 @@ PROFIL :
 - Montre Garmin Forerunner 165.
 - Lundi midi : séance bodyhit (électrostimulation).
 
+CONTEXTE À PRENDRE EN COMPTE — la SITUATION D'ENTRAÎNEMENT fournie à la fin du message (prépa en cours et phase de la semaine, dernière course et jours écoulés, prépa suivante, charge récente) te donne la vision complète :
+- PÉRIODE POST-COURSE (si indiquée) = priorité absolue : la rappeler en une phrase dans le bloc 2 (ex. « J+10 après ton marathon : on reprend en douceur ») et calibrer tout le brief dessus (footing facile et court, aucune intensité, sensations avant l'allure). La croiser avec la récupération WHOOP, la FC repos et la VFC : récup basse, FC repos haute ou VFC en baisse en période post-course = raccourcir, marcher ou repos.
+- Semaine allégée, affûtage ou course dans moins de 7 jours : le dire en une phrase et adapter les consignes.
+- Allure cible : celle de la « Consigne de la séance » (plan) si elle est fournie.
+
 STRUCTURE OBLIGATOIRE — dans cet ordre exact :
 
 1. 😴 NUIT & RÉCUPÉRATION — bloc unique fusion sommeil + FC repos. Format OBLIGATOIRE : commencer par le Score du jour en **gras** sur sa propre ligne, puis chaque valeur détaillée sur sa propre ligne, puis UNE phrase d'analyse. Exemple de format attendu :
@@ -467,7 +479,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
 
 4. ⚡ CONSIGNES & MÉTÉO — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
-   Ligne 1 : allure cible en **gras** + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
+   Ligne 1 : allure cible en **gras** (celle de la « Consigne de la séance » si fournie) + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
    Ligne 2 : météo à l'heure de la séance en 1 phrase courte.
    Ligne 3 (optionnel) : 1 consigne technique seulement (si décharge : allure +30sec ; si récup rouge : réduire l'intensité). Rien d'autre.
    NE PAS dire que la temp est sous 25°C si les données météo indiquent ≥25°C.
@@ -483,11 +495,12 @@ RÈGLES :
 - Jamais de tirets en début de paragraphe — texte fluide.
 - Jamais "Guillaume" dans le corps du texte — toujours "tu/ton/ta".
 - Si pas de séance run aujourd'hui (repos ou renfo seul) : sauter blocs 4 et 5.
-- INTERDIT : parler du reste de la semaine, des séances passées, des objectifs à long terme.`;
+- INTERDIT : récapituler la semaine ou lister les séances passées. La situation (course passée, prépa, prochaine course) sert à calibrer le brief : y faire référence en une phrase au plus, dans le bloc 2.`;
 
       const userMsg=`${dateComplet}
 ${globalScoreLine?globalScoreLine+'\n':''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
+Consigne de la séance (plan) : ${consigneJour||'—'}
 Heure de la séance : ${seanceHeure||'non définie'}
 ${meteoStr||'Météo : non disponible'}
 ${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}
@@ -495,7 +508,9 @@ Allure EF de référence (conditions normales) : ${efPace}/km
 Consignes générales : ${consignesEf}
 Gels : ${gelInfo}
 Eau : ${eauInfo}
-${memosLine}`;
+${memosLine}
+
+${sit.text}`;
 
       let briefContent='';
       try{

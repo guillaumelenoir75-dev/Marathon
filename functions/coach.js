@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -376,6 +376,9 @@ exports.coachChat = onRequest(
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
       const isStreaming = req.headers['accept'] === 'text/event-stream';
       const _prepSt = await loadPrepState(admin.database()).catch(() => ({}));
+      // vision complète (prépas, courses passées et à venir, période post-course, charge récente)
+      let _situation = '';
+      try { const _st = (await admin.database().ref(ADMIN_STATE).once('value')).val() || {}; _situation = (await buildTrainingSituation(admin.database(), _st)).text; } catch(e) { console.warn('coachChat situation:', e.message); }
 
       const profilGuillaume = `Tu es le coach running personnel de Guillaume. Voici tout ce que tu sais sur lui :
 
@@ -568,7 +571,7 @@ RÈGLES DE COHÉRENCE — NE JAMAIS VIOLER :
       const rappelTemporel = dr ? `\nContexte temporel : Nous sommes ${dr.complet}. Jours encore disponibles cette semaine : ${joursRestants || 'aucun'}. Ne propose JAMAIS une séance un jour déjà passé.` : '';
 
       const system = `${profilGuillaume}
-
+${_situation ? '\n' + _situation + '\nCette situation est à jour : elle prime sur les dates ou phases plus anciennes évoquées dans l\'historique. En période post-course, conseils de reprise progressive.\n' : ''}
 ${reglesCommunes}
 
 ${modeInstructions}${rappelPlanification}${rappelTemporel}`;
@@ -683,6 +686,8 @@ exports.quickBrief = onRequest(
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const {fc_repos_today, seances_today, jour, bodyhit, renfo_today} = req.body || {};
+      let sit = null;
+      try { const _db = admin.database(); sit = await buildTrainingSituation(_db, (await _db.ref(ADMIN_STATE).once('value')).val() || {}); } catch(e) {}
 
       const fcLine = fc_repos_today
         ? `FC repos ce matin : ${fc_repos_today} bpm.`
@@ -706,7 +711,8 @@ exports.quickBrief = onRequest(
         'Parle UNIQUEMENT de ce qui est fourni ci-dessus.',
         fcLine ? 'Commente brièvement la FC repos.' : 'Ne mentionne PAS la FC repos.',
         'Ton direct, 1 emoji, pas de tirets ni de listes.',
-        'Termine par une phrase courte d\'encouragement.'
+        'Termine par une phrase courte d\'encouragement.',
+        sit ? 'Situation (pour calibrer le ton ; en période post-course, rappeler la reprise douce en quelques mots) :\n' + sit.text : null
       ].filter(Boolean).join('\n');
 
       const system = `Tu es le coach running de Guillaume. Brief matinal court et personnel. Maximum 4 phrases. Pas de blocs, pas de tirets, pas de recap semaine. Mentionne le renfo si present. Juste l'essentiel du jour.`;
@@ -756,6 +762,8 @@ exports.morningBrief = onRequest(
     try {
       const context = req.body?.context;
       if(!context){ res.status(400).json({error:'context requis'}); return; }
+      let sit = null;
+      try { const _db = admin.database(); sit = await buildTrainingSituation(_db, (await _db.ref(ADMIN_STATE).once('value')).val() || {}); } catch(e) { console.warn('morningBrief situation:', e.message); }
 
       const system = `Tu es le coach running de Guillaume. Ta mission : rédiger le brief du matin, UNIQUEMENT sur la journée d'aujourd'hui.
 
@@ -785,7 +793,8 @@ Eau : <14km→aucune sauf chaleur >28°C(**500ml**) | ≥14km→**1L**.
 RÈGLES ABSOLUES :
 - ULTRA-CONCIS : 1 phrase par section. 5-6 lignes de texte MAXIMUM au total.
 - Pas de tirets, pas de listes. Données chiffrées en **gras**.
-- INTERDIT : semaine passée, marathon général, séances absentes de seances_du_jour.
+- INTERDIT : récapituler la semaine passée ou parler de séances absentes de seances_du_jour.
+- SITUATION D'ENTRAÎNEMENT (fournie en fin de message) : elle sert à calibrer. En PÉRIODE POST-COURSE, le dire en une phrase dans FC REPOS & RÉCUPÉRATION (ex. « J+10 après ton marathon : reprise en douceur ») et adapter les consignes (footing facile, aucune intensité), en la croisant avec la récupération WHOOP, la FC repos et la VFC. Semaine allégée ou course proche : le signaler en quelques mots.
 - Si heure_lecture est fournie et >= 10 : adapter le ton ("dans X heures" / "cet après-midi").`;
 
       const seancesStr = (context.seances_du_jour||[]).map(s => {
@@ -814,7 +823,7 @@ Séances du jour : ${seancesStr}
 Allure EF cible : ${context.allure_ef||'non renseignée'}
 Allure marathon cible : ${context.allure_marathon||'non renseignée'}
 ${context.allure_tempo ? 'Allure tempo : '+context.allure_tempo : ''}
-Consignes : ${context.consignes_ef||''}${memosLine}`;
+Consignes : ${context.consignes_ef||''}${memosLine}${sit ? '\n\n' + sit.text : ''}`;
 
       res.writeHead(200, {'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});
 
