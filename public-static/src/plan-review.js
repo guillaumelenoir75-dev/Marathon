@@ -614,6 +614,7 @@ function openPlanReview(opts){
     if(ov !== document.getElementById('plan-review')) return;
     const an = prAnalyze();
     _prReview = { a: an, items: an.proposals.map(function(p){ return Object.assign({ on: true }, p); }), held: an.held.slice(), coach: null, autoCoach: !!opts.autoCoach };
+    _prReview.auto = _prReview.items.slice();
     _prRestoreCoach(_prReview);
     state._review_seen = prSig(an.proposals);
     if(dbRef) dbRef.child('_review_seen').set(state._review_seen).catch(function(){});
@@ -685,14 +686,14 @@ function prWeeks(st, today){
 }
 const PR_KIND = { race: ['Course', '🏁'], taper: ['Affûtage', '🪶'], recov: ['Allègement', '🌿'], peak: ['Pic', '⛰️'], load: ['Charge', '🧱'] };
 const prV = function(x){ return x.toFixed(1).replace('.', ','); };
-const prReload = 'openRecordsModal(function(){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prReview.held = _prReview.a.held.slice(); _prRender(); })';
+const prReload = 'openRecordsModal(function(){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prReview.auto = _prReview.items.slice(); _prReview.held = _prReview.a.held.slice(); _prRender(); })';
 function _prGo(w){ const el = document.getElementById('pr-wk-' + w); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 // séance mise en attente (début de récupération) : l'athlète choisit de l'accélérer quand même
 function _prUnhold(i){
   const R = _prReview; if(!R || !R.held || !R.held[i]) return;
   const p = Object.assign({}, R.held.splice(i, 1)[0], { on: true, held: false });
   p.short = 'Accélérée à ta demande malgré la récupération : écoute tes sensations.';
-  R.items.push(p); R.items.sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
+  R.items.push(p); if(R.auto) R.auto.push(p); R.items.sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
   _prRender();
   const k = R.items.indexOf(p), el = document.getElementById('pr-it-' + k); if(el){ el.classList.add('pr-pop'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 }
@@ -970,14 +971,17 @@ async function askCoachPlanReview(force){
 function _prMergeCoach(R, items, rejected, assessment){
   const rej = {}; (rejected || []).forEach(function(r){ rej[String(r)] = 1; });
   const isRej = function(p){ return rej[p.key] || rej[p.key + ':' + p.field]; };
-  const autoSession = {}; R.items.forEach(function(p){ if(p.src !== 'coach' && p.field === 'session' && !isRej(p)) autoSession[p.key] = p; });
+  // toujours repartir de toutes les propositions calculées (avec les choix faits), pas de la liste déjà filtrée
+  const base = (R.auto || R.items).filter(function(p){ return p.src !== 'coach'; });
+  base.forEach(function(p){ if(p._after0){ p.after = p._after0; p.short = p._short0; } });
+  const autoSession = {}; base.forEach(function(p){ if(p.field === 'session' && !isRej(p)) autoSession[p.key] = p; });
   const coachField = {}, coachAny = {};
   const coach = items.filter(function(x){
     const sp = autoSession[x.key];
-    if(sp && x.field === 'detail'){ sp.after = Object.assign({}, sp.after, { d: x.after }); sp.short = (sp.short || '') + ' Consigne ajustée par le Coach.'; return false; }
+    if(sp && x.field === 'detail'){ sp._after0 = sp._after0 || sp.after; sp._short0 = sp._short0 != null ? sp._short0 : (sp.short || ''); sp.after = Object.assign({}, sp._after0, { d: x.after }); sp.short = sp._short0 + ' Consigne ajustée par le Coach.'; return false; }
     coachField[x.key + '|' + x.field] = 1; coachAny[x.key] = 1; return true;
   });
-  const keep = R.items.filter(function(p){ return p.src !== 'coach' && !isRej(p) && !coachField[p.key + '|' + p.field] && !(p.field === 'session' && coachAny[p.key]); });
+  const keep = base.filter(function(p){ return !isRej(p) && !coachField[p.key + '|' + p.field] && !(p.field === 'session' && coachAny[p.key]); });
   coach.forEach(function(x){ x.on = true; const d = prRevertOf(x); if(d){ x.revert = d; x.on = false; } });
   R.items = keep.concat(coach).sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
   R.held = (R.held || []).filter(function(p){ return !coachAny[p.key]; });

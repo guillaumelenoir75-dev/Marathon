@@ -346,7 +346,7 @@ function prUndoReview(i){
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
   if(typeof showToast === 'function') showToast(ok + ' séance' + (ok > 1 ? 's' : '') + ' restaurée' + (ok > 1 ? 's' : '') + (skip ? ' · ' + skip + ' déjà faite' + (skip > 1 ? 's' : '') + ' ou retouchée' + (skip > 1 ? 's' : '') : ''), '↩');
-  if(_prReview){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prReview.held = _prReview.a.held.slice(); _prRender(); }
+  if(_prReview){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prReview.auto = _prReview.items.slice(); _prReview.held = _prReview.a.held.slice(); _prRender(); }
 }
 
 // ─── 8. Après la validation d'une séance : ajustements proposés ─────────────
