@@ -810,5 +810,5 @@ function applyPlanReview(){
   const k = Object.keys(touched).length;
   closePlanReview();
   try { renderHome(); } catch(e) {}
-  if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour ✓');
+  if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour');
 }
