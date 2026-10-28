@@ -807,6 +807,7 @@ function renderAthletePlan(el){
     const badges=[];
     if(isCur) badges.push(`<span class="plan-badge" style="background:rgba(255,255,255,0.22);color:#fff;font-weight:800;backdrop-filter:blur(4px);">En cours</span>`);
     if(isRaceWeekCard) badges.push(`<span class="plan-badge" style="background:#FEF9E7;color:#B7791F;">🏆 Course</span>`);
+    else if(metaW.isRecov&&!metaW.isTaper) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,255,255,0.15)':'#FEF3EE'};color:${isCur?'#fff':'#E8530A'};" title="Semaine de décharge : récupération active pour assimiler les charges précédentes">Décharge (récup.)</span>`);   // le plan fait foi
     else if(isAffutage||metaW.isTaper) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,255,255,0.15)':'#EDF7EF'};color:${isCur?'#fff':'#2F6E44'};" title="Semaine d'affûtage : charge réduite pour arriver frais en course">Affûtage (↘️ charge)</span>`);
     else if(isDecharge||metaW.isRecov) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,255,255,0.15)':'#FEF3EE'};color:${isCur?'#fff':'#E8530A'};" title="Semaine de décharge : récupération active pour assimiler les charges précédentes">Décharge (récup.)</span>`);
     if(isPeakWeek) badges.push(`<span class="plan-badge" style="background:${isCur?'rgba(255,100,100,0.3)':'#FEF2F2'};color:${isCur?'#fca5a5':'#DC2626'};" title="Semaine de pic : volume maximum du plan">Pic (volume max)</span>`);
