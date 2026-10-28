@@ -1078,6 +1078,7 @@ PRINCIPES :
 - Respecte l'intention de chaque séance et la structure de la semaine (jours, nombre de séances).
 - Séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → durcir.
 - Les « propositions automatiques » (allures) sont CONSERVÉES par défaut et s'ajoutent à tes changements : ne les recopie pas. Pour en modifier une, renvoie un changement "detail" sur la même ref ; pour l'écarter, mets sa ref dans "rejected". Les « contrôles automatiques » sont indicatifs : dis-le si une alerte n'est pas pertinente vu son historique.
+- CONTINUITÉ : l'« historique des modifications » liste ce qui a déjà été changé et appliqué lors des relectures précédentes (souvent par toi). Ces décisions sont acquises : ne les annule pas et ne les retouche pas, sauf fait nouveau (séance réalisée depuis, record, ressenti, résultat qui contredit le choix) — et dans ce cas dis-le dans la raison. Si aucune donnée nouvelle depuis ta dernière relecture, renvoie "changes": [] (sauf erreur manifeste) et dis simplement que le plan est à jour.
 - Ne change que ce qui a un vrai effet sur la performance ou le risque : pas de retouche de 1 km, pas de changement cosmétique. Mieux vaut 0 à 5 changements forts que 10 petits. Tu peux AUGMENTER (volume, intensité) autant que réduire.
 
 FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
@@ -1095,6 +1096,9 @@ Niveau calculé dans l'app : ${JSON.stringify(b.fitness || 'non disponible (aucu
 Volume habituel (charge chronique, dernière prépa) : ${b.habitualKm ? b.habitualKm + ' km/semaine' : 'inconnu'}
 Période post-course jusqu'au : ${b.postRaceUntil || 'aucune'}
 HISTORIQUE (prépas précédentes, la plus récente d'abord) : ${hist.length ? JSON.stringify(hist).slice(0, 9000) : 'aucun'}
+Ta dernière relecture : ${b.lastCoachReview ? JSON.stringify(b.lastCoachReview) : 'aucune'}
+Données nouvelles depuis ta dernière relecture (séances réalisées) : ${b.lastCoachReview ? (Array.isArray(b.newSince) && b.newSince.length ? JSON.stringify(b.newSince.slice(0, 15)) : 'AUCUNE') : 'première relecture'}
+Historique des modifications déjà appliquées (la plus récente en dernier) : ${Array.isArray(b.reviewHistory) && b.reviewHistory.length ? JSON.stringify(b.reviewHistory.slice(-4)).slice(0, 6000) : 'aucune'}
 Contrôles automatiques : ${JSON.stringify(b.warnings || [])}
 Propositions automatiques (allures) : ${JSON.stringify(b.proposals || [])}
 Séances mises en attente (non accélérées automatiquement car tôt dans la récupération ; à toi de juger, change leur "detail" si l'accélération est justifiée) : ${JSON.stringify(Array.isArray(b.held) ? b.held.slice(0, 20) : [])}

@@ -339,6 +339,27 @@ function prAnalyze(){
   const all = prPaceProposals(state, fit, opt);
   return { fit: fit, opt: opt, race: R, proposals: all.filter(function(p){ return !p.held; }), held: all.filter(function(p){ return p.held; }), warnings: prChecks(state, fit, opt), planVdot: prPlanVdot(state) };
 }
+// « données nouvelles » pour le Coach : séances réalisées (km, allure, FC, blocs), records, résultat de course.
+// Les changements de plan appliqués n'en font pas partie : redemander l'avis juste après n'apporte rien de neuf.
+function prDataSig(st){
+  st = st || state;
+  const parts = prSessions(st).filter(function(x){ return x.done; }).map(function(x){ return x.key + ':' + x.km + ':' + (x.perf.pace || '') + ':' + (x.perf.hr || '') + ':' + (x.perf.blocsAllure || []).join(','); });
+  Object.keys(PR_RECORD_KEY).forEach(function(c){ parts.push(c + '=' + (st[PR_RECORD_KEY[c]] || '')); });
+  parts.push(JSON.stringify(st._records || {}), JSON.stringify(st._race_result || null));
+  let h = 5381; const t = parts.join('|'); for(let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+// séances réalisées depuis une date (envoyées au Coach comme « données nouvelles »)
+function prDoneSince(date){
+  return prSessions(state).filter(function(x){ return x.done && (!date || (x.date && x.date >= date)); })
+    .map(function(x){ return { date: x.date, titre: x.title, km: x.km, allure: x.perf.pace || null, fc: x.perf.hr || null, blocs: x.perf.blocsAllure || null, ressenti: x.perf.note || null }; });
+}
+// proposition qui annule une modification appliquée lors des dernières mises à jour
+function prRevertOf(p){
+  const hist = (state._plan_reviews || []).slice(-4).reverse();
+  for(const h of hist) for(const c of (h.changes || [])) if(c.ref === p.key && c.field === p.field && String(c.before) === String(p.after) && String(c.after) === String(p.before)) return h.date;
+  return null;
+}
 const prSig = function(list){ return list.map(function(p){ return p.key + '>' + p.after; }).join('|'); };
 // pastille sur le bouton « MAJ le plan » : propositions pas encore vues
 function planReviewPending(){
@@ -458,7 +479,7 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-mk.plan i{background:#94A3B8;}.pr-mk.you i{background:#1B4FD8;width:20px;height:20px;left:-10px;top:-10px;}'
   + '.pr-mk em{position:absolute;left:0;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:700;color:#64748B;text-align:center;line-height:1.2;white-space:nowrap;}.pr-mk.plan em{top:14px;}.pr-mk.you em{bottom:16px;color:#1B4FD8;}.pr-mk em b{font-size:13px;font-weight:900;}'
   + '.pr-pills{display:flex;flex-wrap:wrap;gap:6px;}.pr-pill{font-size:12px;font-weight:700;border-radius:999px;padding:5px 10px;line-height:1.3;}.pr-pill.goal{background:#EEF3FC;color:#1E3A8A;}.pr-pill.rest{background:#FEF3C7;color:#92400E;}.pr-pill.base{background:#F1F5F9;color:#334155;}'
-  + '.pr-coach-h{font-weight:900 !important;font-size:13.5px !important;}'
+  + '.pr-coach-h{font-weight:900 !important;font-size:13.5px !important;}.pr-coach-n{font-size:12px !important;color:#166534 !important;opacity:.85;margin-top:2px !important;}.pr-tag.rev{background:#FEF3C7;color:#92400E;}.pr-hist summary{cursor:pointer;}.pr-hist ul{margin:6px 0 2px;padding-left:18px;font-size:12px;color:#475569;line-height:1.5;}'
   + '.pr-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 4px;margin:0 -2px;scrollbar-width:none;}.pr-strip::-webkit-scrollbar{display:none;}'
   + '.pr-wk{flex:0 0 auto;min-width:62px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px 7px;border-radius:12px;border:1.5px solid #DCE5F3;background:#fff;font-family:inherit;cursor:pointer;}.pr-wk:disabled{cursor:default;}'
   + '.pr-wk-s{font-size:13px;font-weight:900;color:#0F172A;}.pr-wk-d{font-size:10px;font-weight:700;color:#64748B;white-space:nowrap;}.pr-wk-i{margin-top:2px;min-width:26px;height:20px;border-radius:10px;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 6px;box-sizing:border-box;}'
@@ -617,7 +638,7 @@ function _prItem(p, i){
   }
   return '<div class="pr-chg' + (p.on ? '' : ' off') + '" id="pr-it-' + i + '">'
     + '<div class="pr-chg-h"><span class="pr-dot" style="background:' + bg + ';color:' + col + ';">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[ty]) || '•') + '</span>'
-    + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) : 'S' + p.w) + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + '</small></div>'
+    + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) : 'S' + p.w) + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + (p.revert ? ' · <span class="pr-tag rev">↩ annule la modif du ' + prFmtDate(p.revert) + '</span>' : '') + '</small></div>'
     + '<button type="button" class="pr-tick" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="Retenir ce changement" onclick="_prToggle(' + i + ')"></button></div>'
     + swap + '<p class="pr-why">' + delta + prEsc(p.short || p.reason) + '</p>' + full + '</div>';
 }
@@ -691,7 +712,11 @@ function _prRender(){
   }
 
   // ── Coach IA (admin)
-  if(typeof isAdmin === 'function' && isAdmin()) h += '<div class="pr-ask"><button type="button" id="pr-coach-btn" class="pr-btn pri" onclick="askCoachPlanReview()">' + (R.coach ? '🤖 Redemander l\'avis du Coach' : '🤖 Demander l\'avis du Coach') + '</button>'
+  const lastC = state._coach_review, same = !R.coach && lastC && lastC.sig === prDataSig();
+  if(typeof isAdmin === 'function' && isAdmin() && same) h += '<div class="pr-ask"><div class="pr-card pr-coach"><p class="pr-coach-h">🤖 Le Coach a déjà relu ton plan ' + (lastC.date === a.opt.today ? 'aujourd\'hui' : 'le ' + prFmtDate(lastC.date, { day: 'numeric', month: 'long' })) + '</p>'
+    + '<p>' + prEsc(lastC.assessment || '') + '</p><p class="pr-coach-n">Rien de nouveau depuis : ni séance réalisée, ni record. Il pourra proposer de nouveaux ajustements après ta prochaine séance.</p></div>'
+    + '<button type="button" id="pr-coach-btn" class="pr-link" style="align-self:center;padding:6px;" onclick="askCoachPlanReview(true)">Relancer quand même</button></div>';
+  else if(typeof isAdmin === 'function' && isAdmin()) h += '<div class="pr-ask"><button type="button" id="pr-coach-btn" class="pr-btn pri" onclick="askCoachPlanReview()">' + (R.coach ? '🤖 Redemander l\'avis du Coach' : '🤖 Demander l\'avis du Coach') + '</button>'
     + '<p class="pr-note">Il relit tout le plan, tes séances faites et ta forme, et peut proposer d\'autres changements (volumes, enchaînements, allures)' + (nW ? ', notamment pour corriger les points de vigilance' : '') + '.</p></div>';
 
   // ── Ton niveau (détail)
@@ -711,7 +736,12 @@ function _prRender(){
 
   // ── Historique
   const hist = (state._plan_reviews || []).slice(-3).reverse();
-  if(hist.length) h += '<p class="pr-sec"><span>Dernières mises à jour</span></p><div class="pr-card">' + hist.map(function(x){ return '<p class="pr-note">✓ ' + prFmtDate(x.date, { day: 'numeric', month: 'long' }) + ' — ' + x.n + ' séance' + (x.n > 1 ? 's' : '') + ' modifiée' + (x.n > 1 ? 's' : '') + (x.coach ? ' (avec le Coach)' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '') + '</p>'; }).join('') + '</div>';
+  const short = function(c, v){ if(c.field === 'km') return v + ' km'; const m = String(v).match(PR_PACE_RE); return c.field === 'detail' && m ? m[0].replace(/\s*\/\s*km$/, '') : String(v); };
+  if(hist.length) h += '<p class="pr-sec"><span>Dernières mises à jour</span></p><div class="pr-card">' + hist.map(function(x){
+      const line = '✓ ' + prFmtDate(x.date, { day: 'numeric', month: 'long' }) + ' — ' + x.n + ' séance' + (x.n > 1 ? 's' : '') + ' modifiée' + (x.n > 1 ? 's' : '') + (x.coach ? ' (avec le Coach)' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
+      if(!(x.changes || []).length) return '<p class="pr-note">' + line + '</p>';
+      return '<details class="pr-hist"><summary class="pr-note">' + line + '</summary><ul>' + x.changes.map(function(c){ return '<li><b>' + prEsc(c.title) + '</b>' + (c.date ? ' · ' + prFmtDate(c.date) : '') + ' : ' + prEsc(short(c, c.before)) + ' → <b>' + prEsc(short(c, c.after)) + '</b></li>'; }).join('') + '</ul></details>';
+    }).join('') + '</div>';
   box.innerHTML = h;
   _prFoot();
 }
@@ -722,7 +752,7 @@ function _prFoot(){
 }
 
 // Coach IA : relecture complète du plan (fonction planReview)
-async function askCoachPlanReview(){
+async function askCoachPlanReview(force){
   if(!_prReview) return;
   const a = _prReview.a, today = a.opt.today, R = _prReview;
   const ask = document.querySelector('#pr-content .pr-ask');
@@ -755,7 +785,10 @@ async function askCoachPlanReview(){
     postRaceUntil: a.opt.postRaceUntil, habitualKm: a.opt.habitual, history: await prHistory(today).catch(function(){ return []; }), warnings: a.warnings.map(function(w){ return w.text; }),
     proposals: a.proposals.map(function(p){ return { ref: p.key, title: p.title, before: p.before, after: p.after, reason: p.reason }; }),
     held: (_prReview.held || []).map(function(p){ return { ref: p.key, title: p.title, date: p.date, before: p.before, allure_a_ton_niveau: p.after }; }),
-    plan: Object.keys(weeks).map(function(k){ return weeks[k]; }), memos: state._coach_memos || '' };
+    plan: Object.keys(weeks).map(function(k){ return weeks[k]; }), memos: state._coach_memos || '',
+    reviewHistory: (state._plan_reviews || []).slice(-4).map(function(h){ return { date: h.date, avec_coach: !!h.coach, niveau: h.vdot, changements: (h.changes || []).map(function(c){ return { ref: c.ref, seance: c.title, date: c.date, champ: c.field, avant: c.before, apres: c.after, par: c.src === 'coach' ? 'toi (Coach)' : 'calcul', raison: c.reason }; }) }; }),
+    lastCoachReview: state._coach_review ? { date: state._coach_review.date, avis: state._coach_review.assessment } : null,
+    newSince: state._coach_review ? prDoneSince(state._coach_review.date) : null };
   try {
     const token = await getAuthToken();
     const r = await fetch(FUNCTIONS_BASE + '/planReview', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
@@ -776,6 +809,9 @@ async function askCoachPlanReview(){
     _prReview.rejected = (j.rejected || []).length;
     _prReview.held = (R.held || []).filter(function(p){ return !coachDetail[p.key]; });
     _prReview.coach = j.assessment || '';
+    items.forEach(function(x){ const d = prRevertOf(x); if(d){ x.revert = d; x.on = false; } });
+    state._coach_review = { date: today, sig: prDataSig(), assessment: _prReview.coach };
+    if(dbRef) dbRef.child('_coach_review').set(state._coach_review).catch(function(){});
     _prRender();
     const cc = document.querySelector('#pr-content .pr-coach'); if(cc){ cc.classList.add('pr-pop'); cc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   } catch(e) {
@@ -802,8 +838,9 @@ function applyPlanReview(){
     x._modified = true; x._seq = (x._seq || 0) + 1;
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;
   });
-  const hist = (state._plan_reviews || []).slice(-9);
-  hist.push({ date: prTodayIso(), n: Object.keys(touched).length, coach: sel.some(function(p){ return p.src === 'coach'; }), vdot: _prReview.a.fit.vdot || null });
+  const hist = (state._plan_reviews || []).slice(-5);
+  hist.push({ date: prTodayIso(), n: Object.keys(touched).length, coach: sel.some(function(p){ return p.src === 'coach'; }), vdot: _prReview.a.fit.vdot || null, sig: prDataSig(),
+    changes: sel.filter(function(p){ return touched[p.key]; }).slice(0, 30).map(function(p){ return { ref: p.key, title: p.title, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, reason: String(p.short || p.reason || '').slice(0, 140) }; }) });
   state._plan_reviews = hist;
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
