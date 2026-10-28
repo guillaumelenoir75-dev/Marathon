@@ -1417,6 +1417,7 @@ async function saveValidationExtra(w,ei){
   }
   if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
+  if(typeof prAfterValidation==='function') prAfterValidation();   // ajustements du plan proposés (plan-optim.js)
 }
 
 // ── MODIFICATION MANUELLE DE L'ALLURE EF ─────────────────────────────────────

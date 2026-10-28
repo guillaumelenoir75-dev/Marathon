@@ -158,6 +158,8 @@ function initFirebase(){
                     history.replaceState({}, '', '/');
                     await openCoachFromNotif();
                   }
+                  // ?action=review : relecture du plan du dimanche (notification « plan-review »)
+                  if (window.location.search.includes('action=review') && typeof prOpenFromNotif === 'function') setTimeout(prOpenFromNotif, 1200);
                 } catch(e) {}
               })();
 

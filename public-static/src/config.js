@@ -106,6 +106,7 @@ const typeEmoji={ef:'🏃',tempo:'⚡',frac:'🔄',long:'🛣️',rest:'😴',ra
 function normalizeSessionTitle(title, type, detail){
   if(!title) return title;
   const t = String(title).trim();
+  if(/^Test\b/i.test(t)) return t;                                                  // séance test (MAJ du plan) : titre gardé
   const compact = function(x){ return x.replace(/(\d)[\s\u202f\u00a0]+(\d{3})\b/g, '$1$2').replace(/(\d)\s*[×x]\s*(\d)/g, '$1×$2')
     .replace(/\s+à\s+AS21\b/i, ' allure semi').replace(/\s+tempo$/i, '').trim(); };
   if(type === 'long') return /^sortie longue\b/i.test(t) ? 'Sortie longue' + t.slice(13) : 'Sortie longue';

@@ -47,6 +47,7 @@ async function testLocalNotif(type){
     notif_congrats:    { title: '🏆 Semaine S'+cw+' complète !', body: 'Toutes tes séances sont validées. Beau travail, continue ! 💪' },
     notif_fc_repos:    { title: 'Rappel ☀️', body: 'Rentre ta FC repos avant de te lever ❤️' },
     notif_unvalidated: { title: '⚠️ Séances non validées', body: '2 séances de cette semaine ne sont pas encore cochées.' },
+    notif_plan_review: { title: '🔄 Relecture de ta semaine', body: '3 séances depuis la dernière relecture : touche pour que le Coach ajuste ton plan.', tag: 'plan-review' },
   };
   const n = notifDefs[type];
   if (!n) return;

@@ -1079,6 +1079,7 @@ PRINCIPES :
 - Séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → durcir.
 - Les « propositions automatiques » (allures) sont CONSERVÉES par défaut et s'ajoutent à tes changements : ne les recopie pas. Pour en modifier une, renvoie un changement "detail" sur la même ref ; pour l'écarter, mets sa ref dans "rejected". Les « contrôles automatiques » sont indicatifs : dis-le si une alerte n'est pas pertinente vu son historique.
 - CONTINUITÉ : l'« historique des modifications » liste ce qui a déjà été changé et appliqué lors des relectures précédentes (souvent par toi). Ces décisions sont acquises : ne les annule pas et ne les retouche pas, sauf fait nouveau (séance réalisée depuis, record, ressenti, résultat qui contredit le choix) — et dans ce cas dis-le dans la raison. Si aucune donnée nouvelle depuis ta dernière relecture, renvoie "changes": [] (sauf erreur manifeste) et dis simplement que le plan est à jour.
+- DONNÉES RÉELLES : appuie-toi sur la charge réelle (ratio 7 j / 28 j idéalement 0,8-1,3), le volume conseillé par semaine (il tient compte de ta base, de la reprise après course et de l'affûtage ; les propositions de km correspondantes sont déjà dans les propositions automatiques), la dérive cardiaque (> 5 % : ne pas accélérer l'endurance), WHOOP (fatigue = alléger les 3 prochains jours) et les allures tenues ou non (souvent pas tenues = plus prudent). Si la trajectoire rend l'objectif « ambitieux », dis-le franchement et propose ce qui peut le rapprocher.
 - Ne change que ce qui a un vrai effet sur la performance ou le risque : pas de retouche de 1 km, pas de changement cosmétique. Mieux vaut 0 à 5 changements forts que 10 petits. Tu peux AUGMENTER (volume, intensité) autant que réduire.
 
 FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
@@ -1094,6 +1095,12 @@ Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet 
 Course objectif : ${JSON.stringify(b.race || {})}
 Niveau calculé dans l'app : ${JSON.stringify(b.fitness || 'non disponible (aucun record ni séance exploitable)')}
 Volume habituel (charge chronique, dernière prépa) : ${b.habitualKm ? b.habitualKm + ' km/semaine' : 'inconnu'}
+Charge réelle (séances validées) : ${b.charge ? JSON.stringify(b.charge) : 'inconnue'}
+Volume par semaine (prévu / fait / conseillé par le calcul) : ${b.volume ? JSON.stringify(b.volume).slice(0, 3000) : 'non calculé'}
+Dérive cardiaque des footings et sorties longues (splits Strava, < 5 % = endurance solide) : ${b.derive_cardiaque ? JSON.stringify(b.derive_cardiaque) : 'non mesurée'}
+Récupération WHOOP (3 derniers jours) : ${b.whoop ? JSON.stringify(b.whoop) : 'pas de données'}
+Allures proposées lors des mises à jour précédentes : tenues ou non : ${b.allures_tenues ? JSON.stringify(b.allures_tenues).slice(0, 1500) : 'pas encore de recul'}
+Trajectoire (niveau, tendance, projection au jour J) : ${b.trajectoire ? JSON.stringify(b.trajectoire) : 'non calculée'}
 Période post-course jusqu'au : ${b.postRaceUntil || 'aucune'}
 HISTORIQUE (prépas précédentes, la plus récente d'abord) : ${hist.length ? JSON.stringify(hist).slice(0, 9000) : 'aucun'}
 Ta dernière relecture : ${b.lastCoachReview ? JSON.stringify(b.lastCoachReview) : 'aucune'}

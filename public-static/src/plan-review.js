@@ -55,7 +55,8 @@ function prSessions(st, opt){
       try { x = JSON.parse(st[k]) || {}; } catch(e) { continue; }
       try { perf = JSON.parse(st[k + '_perf'] || '{}') || {}; } catch(e) {}
       let date = x.sched_date || null;
-      if(!date && start && x.sched_day){ const d = new Date(start); d.setDate(d.getDate() + (w - 1) * 7 + (+x.sched_day - 1)); date = prIso(d); }
+      if(!date && perf.date) date = String(perf.date).slice(0, 10);
+      if(!date && start){ const d = new Date(start); d.setDate(d.getDate() + (w - 1) * 7 + (x.sched_day ? +x.sched_day - 1 : Math.min(ei * 2, 6))); date = prIso(d); }   // sans jour prévu : réparti dans la semaine
       const parts = String(x.d || '').split('|'), det = parts.slice(1).join('|');
       const pm = det.match(PR_PACE_RE);
       let pace = null;
@@ -111,6 +112,8 @@ function prFitness(st, opt){
   };
   Object.keys(PR_RECORD_KEY).forEach(function(cat){ if(st[PR_RECORD_KEY[cat]]) addRace(cat, st[PR_RECORD_KEY[cat]], (meta[cat] || {}).date, 'Record ' + (cat === 'Semi-marathon' ? 'semi' : cat.toLowerCase())); });
   (opt.races || []).forEach(function(r){ if(PR_RACE_M[r.cat]) addRace(r.cat, r.time, r.date, r.label); });
+  // séances test (5 km à fond) réalisées : comptent comme une course
+  prSessions(st).forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && typeof prTestTime === 'function'){ const t = prTestTime(s); if(t) addRace('5 km', prTime(t), s.date, 'Test 5 km'); } });
   // blocs de qualité récents
   const sess = prSessions(st), recent = [];
   sess.forEach(function(s){
@@ -170,6 +173,7 @@ function prPaceProposals(st, fit, opt){
       // EF : uniquement si ton allure EF réelle (FC ≤ 148) sort nettement de la plage ; jamais les footings « très facile »
       if(!efObs || opt.postRace || /très facile|récup/i.test(s.title + ' ' + s.detail)) return;
       if(efObs >= s.pace.lo - 10 && efObs <= s.pace.hi + 10) return;
+      if(opt.drift && opt.drift.avg >= 5 && efObs < s.pace.lo) return;                   // dérive cardiaque élevée : on n'accélère pas l'EF
       nmid = efObs + (s.pace.hi - s.pace.lo) / 2 - 5; why = 'ton allure EF réelle (FC ≤ 148) est ' + prPace(efObs) + '/km';
       short = 'Ton endurance réelle (FC ≤ 148) tourne à ' + prPace(efObs) + '/km : la plage est recalée dessus.';
     } else if(it === 'race'){
@@ -184,9 +188,11 @@ function prPaceProposals(st, fit, opt){
       why = 'ton niveau a évolué (équivalent VDOT ' + fit.vdot.toFixed(1).replace('.', ',') + ' contre ' + vPlan.toFixed(1).replace('.', ',') + ' prévu par le plan) : même intensité, allure ajustée';
       short = { T: 'Seuil', I: 'Fractionné', R: 'Vitesse' }[it] + ' : même effort que prévu, à ton niveau actuel.';
     }
+    if(opt.calib === 'prudent' && nmid < mid && it !== 'E') nmid += 3;          // allures proposées souvent pas tenues : un peu plus prudent
     if(Math.abs(mid - nmid) < 4) return;                                       // écart < 4 s/km : on laisse
     let capped = false;
-    if(nmid < mid - 10){ nmid = mid - 10; capped = true; }                     // progression prudente : 10 s/km au plus par mise à jour
+    const capF = opt.calib === 'prudent' ? 5 : opt.calib === 'confiant' ? 12 : 10;
+    if(nmid < mid - capF){ nmid = mid - capF; capped = true; }                 // progression prudente : 10 s/km au plus par mise à jour (5 si prudent, 12 si confiant)
     const lo = nmid - half, hi = nmid + half;
     const txt = s.pace.range ? prPace(lo) + ' — ' + prPace(hi) + ' /km' : prPace(nmid) + '/km';
     let det = s.detail.replace(s.pace.text, txt);
@@ -196,8 +202,8 @@ function prPaceProposals(st, fit, opt){
     const d = Math.round(nmid - mid);
     const held = d < 0 && opt.noFasterUntil && s.date && s.date <= opt.noFasterUntil;   // début de récupération post-course : mise en attente
     out.push({ held: !!held, key: s.key, w: s.w, date: s.date, field: 'detail', title: s.title, type: s.type, before: s.detail, after: det, intent: it, delta: d,
-      reason: (d < 0 ? 'Plus rapide de ' + (-d) : 'Plus lent de ' + d) + ' s/km : ' + why + (capped ? ' (ajustement limité à 10 s/km par mise à jour, la suite viendra aux prochaines)' : '') + '.', src: 'calcul',
-      short: short + (capped ? ' Limité à 10 s/km cette fois, la suite à la prochaine mise à jour.' : ''),
+      reason: (d < 0 ? 'Plus rapide de ' + (-d) : 'Plus lent de ' + d) + ' s/km : ' + why + (capped ? ' (ajustement limité à ' + capF + ' s/km par mise à jour, la suite viendra aux prochaines)' : '') + '.', src: 'calcul',
+      short: short + (capped ? ' Limité à ' + capF + ' s/km cette fois, la suite à la prochaine mise à jour.' : ''),
       pb: s.pace.text.replace(/\s*\/\s*km$/, ''), pa: txt.replace(/\s*\/\s*km$/, '') });
   });
   return out;
@@ -218,18 +224,18 @@ function prChecks(st, fit, opt){
     const prev = W[i - 1] ? vol(W[i - 1]) : 0, prevRecov = W[i - 1] && meta(W[i - 1]).isRecov;
     const prevMax = Math.max.apply(null, [W[i - 2], W[i - 3]].filter(Boolean).map(vol).concat([0]));   // pic avant la semaine allégée
     const underBase = opt.habitual && v <= opt.habitual;                // jusqu'à ton volume habituel : remontée normale
-    if(prev > 0 && !prevRecov && v > prev * 1.15 && v - prev > 4 && !m.isTaper && !underBase)
+    if(prev > 0 && !prevRecov && v > prev * 1.15 && v - prev > 4 && !m.isTaper && !underBase && !opt.volumeManaged)
       warn.push({ w: w, level: v > prev * 1.2 ? 'warn' : 'info', text: 'S' + w + wdate(w) + ' : volume +' + Math.round((v / prev - 1) * 100) + ' % (' + Math.round(prev) + ' → ' + Math.round(v) + ' km), au-delà des +10-15 % conseillés.',
         short: 'Volume en forte hausse : ' + Math.round(prev) + ' → ' + Math.round(v) + ' km (+' + Math.round((v / prev - 1) * 100) + ' %). L\'idéal : +10-15 %.' });
-    if(prevRecov && prevMax > 0 && v > prevMax * 1.12 && v - prevMax > 4 && !underBase)
+    if(prevRecov && prevMax > 0 && v > prevMax * 1.12 && v - prevMax > 4 && !underBase && !opt.volumeManaged)
       warn.push({ w: w, level: 'warn', text: 'S' + w + wdate(w) + ' : après la semaine allégée, ' + Math.round(v) + ' km dépasse de ' + Math.round((v / prevMax - 1) * 100) + ' % le dernier pic (' + Math.round(prevMax) + ' km).',
         short: 'Reprise après l\'allègement trop forte : ' + Math.round(v) + ' km, ' + Math.round((v / prevMax - 1) * 100) + ' % au-dessus du dernier pic (' + Math.round(prevMax) + ' km).' });
     const lr = (weeks[w] || []).filter(function(s){ return s.type === 'long'; }).sort(function(a, b){ return b.kmPlan - a.kmPlan; })[0];
     const lrSmall = lr && opt.habitual && lr.kmPlan <= opt.habitual * 0.4;   // sortie longue modeste pour ton niveau
-    if(lr && v > 0 && lr.kmPlan / v > 0.4 && v >= 20 && !lrSmall) warn.push({ w: w, level: 'info', text: 'S' + w + wdate(w) + ' : la sortie longue fait ' + Math.round(lr.kmPlan / v * 100) + ' % du volume de la semaine (au-delà de 35-40 %).',
+    if(lr && v > 0 && lr.kmPlan / v > 0.4 && v >= 20 && !lrSmall && !opt.volumeManaged) warn.push({ w: w, level: 'info', text: 'S' + w + wdate(w) + ' : la sortie longue fait ' + Math.round(lr.kmPlan / v * 100) + ' % du volume de la semaine (au-delà de 35-40 %).',
       short: 'Sortie longue très dominante : ' + Math.round(lr.kmPlan / v * 100) + ' % des km de la semaine (repère : 35-40 %).' });
     const lrPrev = W[i - 1] ? (weeks[W[i - 1]] || []).filter(function(s){ return s.type === 'long'; }).reduce(function(a, s){ return Math.max(a, s.kmPlan); }, 0) : 0;
-    if(lr && lrPrev && lr.kmPlan - lrPrev > 3 && lr.kmPlan > lrPrev * 1.2 && !lrSmall) warn.push({ w: w, level: 'info', text: 'S' + w + wdate(w) + ' : sortie longue +' + Math.round(lr.kmPlan - lrPrev) + ' km d\'un coup (' + lrPrev + ' → ' + lr.kmPlan + ' km).',
+    if(lr && lrPrev && lr.kmPlan - lrPrev > 3 && lr.kmPlan > lrPrev * 1.2 && !lrSmall && !opt.volumeManaged) warn.push({ w: w, level: 'info', text: 'S' + w + wdate(w) + ' : sortie longue +' + Math.round(lr.kmPlan - lrPrev) + ' km d\'un coup (' + lrPrev + ' → ' + lr.kmPlan + ' km).',
       short: 'Sortie longue qui grimpe vite : ' + lrPrev + ' → ' + lr.kmPlan + ' km.' });
     // séances dures enchaînées (qualité / longue / course sur deux jours consécutifs)
     const hard = (weeks[w] || []).concat(weeks[W[i + 1]] || []).filter(function(s){ return s.date && (s.type === 'tempo' || s.type === 'frac' || s.type === 'long' || s.type === 'race'); }).sort(function(a, b){ return a.date.localeCompare(b.date); });
@@ -335,9 +341,28 @@ function prAnalyze(){
   }
   const lp = prLastPrep(today);
   const opt = { today: today, raceCat: raceCat, goalSec: goalSec, efPace: prObservedEf(state, today), postRace: !!postRaceUntil, postRaceUntil: postRaceUntil, noFasterUntil: noFasterUntil,
-    habitual: lp ? lp.vol.avg : null, habitualFrom: lp ? (lp.race || lp.title) : null, habitualPeak: lp ? lp.vol.peak : null };
+    habitual: lp ? lp.vol.avg : null, habitualFrom: lp ? (lp.race || lp.title) : null, habitualPeak: lp ? lp.vol.peak : null, lastRace: last ? { cat: last.cat, date: last.date } : null };
+  const opt2 = typeof prLoad === 'function';                                     // plan-optim.js chargé
+  const a = { fit: fit, opt: opt, race: R };
+  if(opt2){
+    a.load = prLoad(today); a.drift = prDrift(today); a.whoop = prWhoop(today); a.calib = prCalib(state);
+    opt.drift = a.drift; opt.calib = a.calib.mode;
+    a.volume = prVolumePlan(state, a); opt.volumeManaged = !!a.volume;
+  }
   const all = prPaceProposals(state, fit, opt);
-  return { fit: fit, opt: opt, race: R, proposals: all.filter(function(p){ return !p.held; }), held: all.filter(function(p){ return p.held; }), warnings: prChecks(state, fit, opt), planVdot: prPlanVdot(state) };
+  // une proposition par séance et par champ : WHOOP > séance test > volume / allure
+  const extra = opt2 ? prWhoopProposals(state, a, a.whoop).concat([prTestProposal(state, a)].filter(Boolean)).concat(a.volume ? a.volume.proposals : []) : [];
+  const seen = {}, merged = [];
+  extra.concat(all).forEach(function(p){
+    const k = p.key + '|' + (p.field === 'session' ? 'session' : p.field), ks = p.key + '|session';
+    if(seen[k] || (p.field !== 'session' && seen[ks]) || (p.field === 'session' && Object.keys(seen).some(function(x){ return x.indexOf(p.key + '|') === 0; }))) return;
+    seen[k] = 1; merged.push(p);
+  });
+  merged.sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
+  a.proposals = merged.filter(function(p){ return !p.held; }); a.held = merged.filter(function(p){ return p.held; });
+  a.warnings = prChecks(state, fit, opt); a.planVdot = prPlanVdot(state);
+  if(opt2) a.trajectory = prTrajectory(a);
+  return a;
 }
 // « données nouvelles » pour le Coach : séances réalisées (km, allure, FC, blocs), records, résultat de course.
 // Les changements de plan appliqués n'en font pas partie : redemander l'avis juste après n'apporte rien de neuf.
@@ -360,9 +385,10 @@ function prRevertOf(p){
   for(const h of hist) for(const c of (h.changes || [])) if(c.ref === p.key && c.field === p.field && String(c.before) === String(p.after) && String(c.after) === String(p.before)) return h.date;
   return null;
 }
-const prSig = function(list){ return list.map(function(p){ return p.key + '>' + p.after; }).join('|'); };
+const prSig = function(list){ return list.map(function(p){ return p.key + '>' + (typeof p.after === 'object' ? JSON.stringify(p.after) : p.after); }).join('|'); };
 // pastille sur le bouton « MAJ le plan » : propositions pas encore vues
 function planReviewPending(){
+  if(typeof prPrefetch === 'function' && !_prPrevSnapId && !window._prPrefetchedOnce){ window._prPrefetchedOnce = true; prPrefetch().then(function(){ if(_prPrevSnapId && typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); } catch(e) {} } }); }
   try { if(typeof usesHardPlan === 'function' && usesHardPlan()) return 0; const a = prAnalyze(); return a.proposals.length && prSig(a.proposals) !== state._review_seen ? a.proposals.length : 0; } catch(e) { return 0; }
 }
 
@@ -515,15 +541,27 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-cl-h b{display:block;font-size:15px;font-weight:900;color:#0C447C;}.pr-cl-h small{display:block;font-size:11.5px;font-weight:700;color:#64748B;font-variant-numeric:tabular-nums;}.pr-cl-msg{margin:0;font-size:13px;font-weight:600;color:#334155;min-height:36px;line-height:1.4;}.pr-cl-msg.sw{animation:_prFade .35s ease both;}'
   + '.pr-pop{animation:_prFade .45s ease both;}'
   + '@media (prefers-reduced-motion:reduce){.pr-bar.indet i,.pr-cl-ic,.pr-step.run .pr-step-ic::after{animation:none;}#pr-content.pr-in>*{animation:none;}}'
+  + '.pr-pill.ok{background:#DCFCE7;color:#166534;}.pr-tag.wh{background:#DCFCE7;color:#166534;}.pr-tag.ts{background:#EDE9FE;color:#5B21B6;}.pr-tag.vo{background:#E0F2FE;color:#075985;}.pr-tgt{color:#1B4FD8;font-weight:800;}'
+  + '.pr-tj{gap:10px;}.pr-tj-h{margin:0;font-size:14px;font-weight:700;color:#0F172A;line-height:1.45;}.pr-tj-h b{font-variant-numeric:tabular-nums;color:#0C447C;}'
+  + '.pr-verd{display:inline-block;font-size:11.5px;font-weight:800;border-radius:999px;padding:2px 9px;margin-left:2px;}.pr-verd.ok{background:#DCFCE7;color:#166534;}.pr-verd.mid{background:#FEF3C7;color:#92400E;}.pr-verd.hard{background:#FFE4E6;color:#9F1239;}'
+  + '.tj-svg,.vc-svg{width:100%;height:auto;display:block;overflow:visible;}.tj-grid{stroke:#EEF2F7;stroke-width:1;}.tj-ax,.vc-ax{font-size:9px;fill:#94A3B8;font-weight:700;font-family:inherit;}'
+  + '.tj-goal{stroke:#E8530A;stroke-width:1.2;stroke-dasharray:4 3;}.tj-goal-t{font-size:9px;fill:#E8530A;font-weight:800;}.tj-band{fill:rgba(27,79,216,.10);}.tj-proj{stroke:#1B4FD8;stroke-width:2;stroke-dasharray:5 4;}'
+  + '.tj-race{fill:#E8530A;stroke:#fff;stroke-width:1.5;}.tj-ses{fill:#93B4F5;}.tj-now{fill:#1B4FD8;stroke:#fff;stroke-width:2;}.tj-end{fill:#fff;stroke:#1B4FD8;stroke-width:2.5;}.tj-end-t{font-size:10px;fill:#1B4FD8;font-weight:900;}'
+  + '.pr-tj-leg{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;font-size:11px;font-weight:700;color:#64748B;}.pr-tj-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px;}'
+  + '.lg-race{background:#E8530A;}.lg-ses{background:#93B4F5;}.lg-proj{background:transparent;border:2px dashed #1B4FD8;width:8px !important;height:8px !important;}.lg-plan{background:#E2E8F0;border-radius:2px !important;}.lg-tgt{background:#1B4FD8;height:3px !important;border-radius:2px !important;vertical-align:2px !important;}.lg-after{background:#1B4FD8;border-radius:2px !important;}.lg-done{background:#86EFAC;border-radius:2px !important;}'
+  + '.pr-vol{gap:6px;padding:12px 12px 10px;}.pr-vol-h{margin:0;font-size:13px;font-weight:850;color:#0C447C;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.pr-vol-h span{font-size:11px;font-weight:700;color:#64748B;}'
+  + '.vc-plan{fill:#E2E8F0;}.vc-after{fill:#1B4FD8;}.vc-done{fill:#86EFAC;}.vc-tgt{stroke:#1B4FD8;stroke-width:2.5;stroke-linecap:round;}'
+  + '.pr-undo{display:block;margin:6px 0 2px;font-size:12px;}'
+  + '.pr-snack{position:fixed;left:16px;right:16px;margin:0 auto;width:max-content;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9999;display:flex;align-items:center;gap:12px;background:#0F172A;color:#fff;border-radius:16px;padding:10px 10px 10px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100vw - 32px);animation:_prFade .3s ease both;}'
+  + '.pr-snack button{flex-shrink:0;background:#3B82F6;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:800;font-size:13px;font-family:inherit;cursor:pointer;}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS; document.head.appendChild(st); } }
 
-function openPlanReview(){
-  _prCss();
-  const a = prAnalyze();
-  _prReview = { a: a, items: a.proposals.map(function(p){ return Object.assign({ on: true }, p); }), held: a.held.slice(), coach: null };
-  state._review_seen = prSig(a.proposals);
-  if(dbRef) dbRef.child('_review_seen').set(state._review_seen).catch(function(){});
+function openPlanReview(opts){
+  _prCss(); opts = opts || {};
+  if(document.getElementById('plan-review')) return;
+  const R0 = typeof prepRace === 'function' ? prepRace() : {};
+  const a = { race: R0 };
   const mc = document.getElementById('modal-container'), ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'plan-review'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
   ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="pr-head"><div><p class="pr-eb">Plan</p><p class="pr-title">🔄 Mise à jour du plan</p><p class="pr-sub">' + prEsc(a.race.name || 'Prépa en cours') + (a.race.objectif && a.race.objectif !== 'non défini' ? ' · objectif ' + prEsc(a.race.objectif) : '') + '</p></div>'
@@ -532,7 +570,17 @@ function openPlanReview(){
     + '<div class="pr-foot"><button type="button" id="pr-apply" class="pr-btn ok" onclick="applyPlanReview()"></button></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) closePlanReview(); });
   mc.appendChild(ov);
-  _prLoading(a);
+  const box = document.getElementById('pr-content'); if(box) box.innerHTML = '<div class="pr-load"><div class="pr-load-h"><b>Analyse de ton plan…</b><span>0 %</span></div><div class="pr-bar indet"><i></i></div></div>';
+  const b = document.getElementById('pr-apply'); if(b){ b.disabled = true; b.textContent = 'Analyse en cours…'; }
+  (async function(){
+    if(typeof prPrefetch === 'function'){ try { await prPrefetch(); } catch(e) {} }
+    if(ov !== document.getElementById('plan-review')) return;
+    const an = prAnalyze();
+    _prReview = { a: an, items: an.proposals.map(function(p){ return Object.assign({ on: true }, p); }), held: an.held.slice(), coach: null, autoCoach: !!opts.autoCoach };
+    state._review_seen = prSig(an.proposals);
+    if(dbRef) dbRef.child('_review_seen').set(state._review_seen).catch(function(){});
+    _prLoading(an);
+  })();
   try { if(typeof renderPlan === 'function'){ rendered.plan = false; } } catch(e) {}
 }
 function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); if(_prReview && _prReview.clTimer) clearInterval(_prReview.clTimer); _prReview = null; try { renderPlan(); } catch(e) {} }
@@ -549,13 +597,15 @@ function _prLoading(a){
     ['🏆', 'Tes records et tes courses', races ? pl(races, 'résultat') + ' → niveau ' + prV(f.vdot) : f.vdot ? 'niveau ' + prV(f.vdot) + ' d\'après tes ' + prEsc(f.basis) : 'aucun record daté'],
     ['✅', 'Tes séances réalisées', pl(done, 'séance') + ' validée' + (done > 1 ? 's' : '') + (qual ? ' · ' + pl(qual, 'séance') + ' de qualité mesurée' + (qual > 1 ? 's' : '') : '')],
     ['🏋️', 'Ta base d\'entraînement', a.opt.habitual ? '~' + a.opt.habitual + ' km/sem (' + prEsc(a.opt.habitualFrom) + ')' : 'pas de prépa précédente enregistrée'],
+    ['📈', 'Ta charge réelle', a.load ? a.load.k7 + ' km sur 7 jours · ~' + a.load.chronic + ' km/sem sur 28 jours' + (a.drift ? ' · dérive cardiaque ' + prV(a.drift.avg) + ' %' : '') : 'non disponible'],
+    ['💚', 'Ta récupération', a.whoop ? 'WHOOP : ' + a.whoop.avg3 + ' % en moyenne sur 3 jours' + (a.whoop.hrvDrop != null ? ' · VFC ' + (a.whoop.hrvDrop > 0 ? '+' : '') + a.whoop.hrvDrop + ' %' : '') : 'pas de données WHOOP récentes'],
     ['📅', 'Ton plan, semaine par semaine', pl(nW, 'semaine') + ' · ' + pl(next, 'séance') + ' à venir contrôlée' + (next > 1 ? 's' : '')],
     ['🎯', 'Propositions', (n ? pl(n, 'ajustement') + ' proposé' + (n > 1 ? 's' : '') : 'rien à ajuster') + (nv ? ' · ' + pl(nv, 'point') + ' de vigilance' : '')]
   ];
   box.innerHTML = '<div class="pr-load"><div class="pr-load-h"><b>Analyse de ton plan…</b><span id="pr-load-pct">0 %</span></div><div class="pr-bar"><i id="pr-load-bar"></i></div>'
     + steps.map(function(st, i){ return '<div class="pr-step" id="pr-step-' + i + '"><span class="pr-step-ic">' + st[0] + '</span><span class="pr-step-t"><b>' + st[1] + '</b><small>' + st[2] + '</small></span><span class="pr-step-ok">✓</span></div>'; }).join('') + '</div>';
   const b = document.getElementById('pr-apply'); if(b){ b.disabled = true; b.textContent = 'Analyse en cours…'; }
-  const fast = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches, T = fast ? 90 : 380, R = _prReview;
+  const fast = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches, T = fast ? 90 : 300, R = _prReview;
   steps.forEach(function(st, i){
     setTimeout(function(){
       if(_prReview !== R) return;
@@ -572,6 +622,8 @@ function _prLoading(a){
     if(_prReview !== R) return;
     const c = document.getElementById('pr-content'); if(c){ c.classList.add('pr-in'); }
     _prRender();
+    // ouverture depuis la notification du dimanche : avis du Coach s'il y a du nouveau
+    if(R.autoCoach && typeof isAdmin === 'function' && isAdmin() && !(state._coach_review && state._coach_review.sig === prDataSig())) setTimeout(function(){ if(_prReview === R) askCoachPlanReview(); }, 400);
   }, steps.length * T + (fast ? 100 : 450));
 }
 
@@ -628,6 +680,9 @@ function _prItem(p, i){
     swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span></div>';
     if(d) delta = '<span class="pr-d ' + (d < 0 ? 'fast' : 'slow') + '">' + (d < 0 ? '⚡ ' + (-d) + ' s/km plus vite' : '🐢 ' + d + ' s/km plus lent') + '</span>';
     full = '<details class="pr-full"><summary>Consigne complète</summary><p class="pr-old">' + prEsc(p.before) + '</p><p class="pr-new">' + prEsc(p.after) + '</p></details>';
+  } else if(p.field === 'session'){
+    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.before.t) + ' · ' + prEsc(p.before.km) + ' km</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.after.t) + ' · ' + prEsc(p.after.km) + ' km</span></div>';
+    full = '<details class="pr-full"><summary>Consigne</summary><p class="pr-old">' + prEsc(p.before.d) + '</p><p class="pr-new">' + prEsc(p.after.d) + '</p></details>';
   } else if(p.field === 'km'){
     swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.before) + ' km</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.after) + ' km</span></div>';
   } else if(p.field === 'type'){
@@ -636,13 +691,35 @@ function _prItem(p, i){
   } else {
     swap = '<div class="pr-txt"><p class="pr-old">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.before) + '</p><p class="pr-new">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.after) + '</p></div>';
   }
+  const kindTag = p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : '';
   return '<div class="pr-chg' + (p.on ? '' : ' off') + '" id="pr-it-' + i + '">'
     + '<div class="pr-chg-h"><span class="pr-dot" style="background:' + bg + ';color:' + col + ';">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[ty]) || '•') + '</span>'
-    + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) : 'S' + p.w) + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + (p.revert ? ' · <span class="pr-tag rev">↩ annule la modif du ' + prFmtDate(p.revert) + '</span>' : '') + '</small></div>'
+    + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) : 'S' + p.w) + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + kindTag + (p.revert ? ' · <span class="pr-tag rev">↩ annule la modif du ' + prFmtDate(p.revert) + '</span>' : '') + '</small></div>'
     + '<button type="button" class="pr-tick" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="Retenir ce changement" onclick="_prToggle(' + i + ')"></button></div>'
     + swap + '<p class="pr-why">' + delta + prEsc(p.short || p.reason) + '</p>' + full + '</div>';
 }
 
+// volume par semaine : prévu (gris), conseillé (trait bleu), fait (vert) ; après les changements proposés (bleu)
+function _prVolChart(V){
+  const ws = V.weeks.filter(function(x){ return x.past ? x.done > 0 : true; }).slice(-16); if(ws.length < 2) return '';
+  const W = 320, H = 116, B = 18, T = 14, n = ws.length, bw = Math.min(22, (W - 16) / n * 0.62), gap = (W - 16) / n;
+  const max = Math.max.apply(null, ws.map(function(x){ return Math.max(x.plan, x.target || 0, x.done || 0, x.after || 0); }).concat([10]));
+  const Y = function(v){ return T + (1 - v / max) * (H - T - B); };
+  let g = '';
+  ws.forEach(function(x, i){
+    const cx = 8 + gap * i + gap / 2, l = cx - bw / 2;
+    if(x.past) g += '<rect x="' + l + '" y="' + Y(x.done) + '" width="' + bw + '" height="' + (H - B - Y(x.done)) + '" rx="3" class="vc-done"><title>S' + x.w + ' : ' + x.done + ' km faits</title></rect>';
+    else {
+      g += '<rect x="' + l + '" y="' + Y(x.plan) + '" width="' + bw + '" height="' + (H - B - Y(x.plan)) + '" rx="3" class="vc-plan"><title>S' + x.w + ' : ' + x.plan + ' km prévus</title></rect>';
+      if(x.changed && x.after !== x.plan) g += '<rect x="' + (l + bw * 0.22) + '" y="' + Y(x.after) + '" width="' + bw * 0.56 + '" height="' + (H - B - Y(x.after)) + '" rx="2" class="vc-after"><title>S' + x.w + ' : ' + x.after + ' km après changements</title></rect>';
+      if(x.target) g += '<line x1="' + (l - 3) + '" x2="' + (l + bw + 3) + '" y1="' + Y(x.target) + '" y2="' + Y(x.target) + '" class="vc-tgt"><title>S' + x.w + ' : ' + x.target + ' km conseillés</title></line>';
+    }
+    g += '<text x="' + cx + '" y="' + (H - 5) + '" class="vc-ax" text-anchor="middle">S' + x.w + '</text>';
+  });
+  return '<div class="pr-card pr-vol"><p class="pr-vol-h">Volume par semaine <span>base ~' + V.base + ' km · pic visé ~' + V.peak + ' km</span></p>'
+    + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="vc-svg" role="img" aria-label="Volume prévu, conseillé et réalisé par semaine">' + g + '</svg>'
+    + '<p class="pr-tj-leg"><span><i class="lg-plan"></i>prévu</span><span><i class="lg-tgt"></i>conseillé</span><span><i class="lg-after"></i>avec les changements</span><span><i class="lg-done"></i>fait</span></p></div>';
+}
 function _prRender(){
   const box = document.getElementById('pr-content'); if(!box || !_prReview) return;
   const a = _prReview.a, f = a.fit, R = _prReview, today = a.opt.today;
@@ -673,9 +750,25 @@ function _prRender(){
   if(goal && f.vdot && a.opt.raceCat) pills.push('<span class="pr-pill goal">🎯 Objectif <b>' + prTime(a.opt.goalSec) + '</b> · aujourd\'hui ' + prTime(f.preds[a.opt.raceCat]) + '</span>');
   if(a.opt.habitual) pills.push('<span class="pr-pill base">🏋️ Ta base : ~' + a.opt.habitual + ' km/sem (' + prEsc(a.opt.habitualFrom) + ')</span>');
   if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) pills.push('<span class="pr-pill rest">🛌 Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées jusqu\'au ' + prFmtDate(a.opt.noFasterUntil, { day: 'numeric', month: 'short' }) : '') + '</span>');
+  if(a.load && a.load.chronic) pills.push('<span class="pr-pill base">📈 Charge : ' + a.load.k7 + ' km / 7 j · ~' + a.load.chronic + ' km/sem sur 28 j' + (a.load.acwr ? ' · ratio ' + prV(a.load.acwr) : '') + '</span>');
+  if(a.whoop) pills.push('<span class="pr-pill ' + (a.whoop.tired ? 'rest' : 'ok') + '">' + (a.whoop.tired ? '😮‍💨 WHOOP : récupération basse (' + a.whoop.avg3 + ' %)' : a.whoop.fresh ? '💚 WHOOP : bien récupéré (' + a.whoop.avg3 + ' %)' : '💛 WHOOP : récupération moyenne (' + a.whoop.avg3 + ' %)') + (a.whoop.hrvDrop != null ? ' · VFC ' + (a.whoop.hrvDrop > 0 ? '+' : '') + a.whoop.hrvDrop + ' %' : '') + '</span>');
+  if(a.drift) pills.push('<span class="pr-pill base">❤️ Dérive cardiaque ' + prV(a.drift.avg) + ' % : endurance ' + a.drift.label + '</span>');
+  if(a.calib && a.calib.n) pills.push('<span class="pr-pill ' + (a.calib.mode === 'prudent' ? 'rest' : 'base') + '">🎯 Allures proposées tenues : ' + a.calib.k + '/' + a.calib.n + (a.calib.mode === 'prudent' ? ' → calcul plus prudent' : a.calib.mode === 'confiant' ? ' → progression plus franche' : '') + '</span>');
   if(pills.length) h += '<div class="pr-pills">' + pills.join('') + '</div>';
   if(!f.vdot) h += '<p class="pr-note">Pour calculer ton niveau, ajoute au moins un record daté ou valide des séances de seuil / fractionné avec l\'allure de chaque bloc.</p><button class="pr-btn sec" onclick="' + prReload + '">🏆 Saisir mes records</button>';
   h += '</div>';
+
+  // ── Trajectoire vers l'objectif
+  const TJ = a.trajectory;
+  if(TJ && TJ.race){
+    const col = TJ.verdict === 'atteignable' ? 'ok' : TJ.verdict === 'à portée' ? 'mid' : 'hard';
+    h += '<p class="pr-sec"><span>Trajectoire vers l\'objectif</span></p><div class="pr-card pr-tj">'
+      + '<p class="pr-tj-h">À ce rythme, le ' + prFmtDate(TJ.race.date, { day: 'numeric', month: 'long' }) + ' : <b>' + prTime(TJ.race.lo) + ' – ' + prTime(TJ.race.hi) + '</b>'
+      + (TJ.verdict ? ' <span class="pr-verd ' + col + '">objectif ' + prEsc(a.race.objectif || prTime(a.opt.goalSec)) + ' : ' + TJ.verdict + '</span>' : '') + '</p>'
+      + prTrajectorySvg(TJ)
+      + '<p class="pr-tj-leg"><span><i class="lg-race"></i>courses et tests</span><span><i class="lg-ses"></i>séances de qualité</span><span><i class="lg-proj"></i>projection</span></p>'
+      + '<p class="pr-note">' + (TJ.assumed ? 'Pas encore assez de séances mesurées pour une tendance : projection sur une progression type (+0,1 de niveau par semaine).' : 'Tendance de tes 4 derniers mois : ' + (TJ.slope >= 0 ? '+' : '') + prV(TJ.slope * 7) + ' de niveau par semaine.') + ' Fourchette = ± 0,6 de niveau.</p></div>';
+  }
 
   // ── Avis du Coach
   if(R.coach) h += '<div class="pr-card pr-coach"><p class="pr-coach-h">🤖 L\'avis du Coach</p><p>' + prEsc(R.coach) + '</p></div>';
@@ -683,6 +776,7 @@ function _prRender(){
   // ── Semaine par semaine
   if(wk.length){
     h += '<p class="pr-sec"><span>Semaine par semaine</span></p>';
+    if(a.volume) h += _prVolChart(a.volume);
     h += '<div class="pr-strip">' + wk.map(function(o){
         const ni = (byW[o.w] || []).length, nv = (warnW[o.w] || []).length + (heldW[o.w] || []).length, st = ni ? 'chg' : nv ? 'vig' : 'ok';
         return '<button type="button" class="pr-wk ' + st + (o.now ? ' now' : '') + '"' + (ni || nv ? ' onclick="_prGo(' + o.w + ')"' : ' disabled') + '>'
@@ -694,7 +788,7 @@ function _prRender(){
       const its = byW[o.w] || [], ws = warnW[o.w] || [], hs = heldW[o.w] || []; if(!its.length && !ws.length && !hs.length) return;
       const K = PR_KIND[o.kind];
       h += '<section class="pr-week" id="pr-wk-' + o.w + '"><header><div><b>Semaine ' + o.w + (o.now ? ' <span class="pr-now">en cours</span>' : '') + '</b><span>'
-        + (o.from ? prFmtDate(o.from) + ' → ' + prFmtDate(o.to) + ' · ' : '') + Math.round(o.km) + ' km</span></div><span class="pr-kind k-' + o.kind + '">' + K[1] + ' ' + K[0] + '</span></header>';
+        + (o.from ? prFmtDate(o.from) + ' → ' + prFmtDate(o.to) + ' · ' : '') + Math.round(o.km) + ' km' + (function(){ const vw = a.volume && a.volume.weeks.find(function(x){ return x.w === o.w; }); return vw && vw.target && Math.abs(vw.target - o.km) >= 3 ? ' · <b class="pr-tgt">' + vw.target + ' km conseillés</b>' : ''; })() + '</span></div><span class="pr-kind k-' + o.kind + '">' + K[1] + ' ' + K[0] + '</span></header>';
       its.forEach(function(i){ h += _prItem(R.items[i], i); });
       hs.forEach(function(i){
         const p = R.held[i], title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, p.before) || p.title : p.title;
@@ -735,12 +829,14 @@ function _prRender(){
   } else h += '<div class="pr-card"><p class="pr-note">Aucun niveau calculé pour l\'instant.</p></div>';
 
   // ── Historique
-  const hist = (state._plan_reviews || []).slice(-3).reverse();
-  const short = function(c, v){ if(c.field === 'km') return v + ' km'; const m = String(v).match(PR_PACE_RE); return c.field === 'detail' && m ? m[0].replace(/\s*\/\s*km$/, '') : String(v); };
+  const allH = state._plan_reviews || [], hist = allH.slice(-3).reverse();
+  const short = function(c, v){ if(c.field === 'km') return v + ' km'; if(c.field === 'session') return v && v.t ? v.t + ' · ' + v.km + ' km' : ''; const m = String(v).match(PR_PACE_RE); return c.field === 'detail' && m ? m[0].replace(/\s*\/\s*km$/, '') : String(v); };
   if(hist.length) h += '<p class="pr-sec"><span>Dernières mises à jour</span></p><div class="pr-card">' + hist.map(function(x){
-      const line = '✓ ' + prFmtDate(x.date, { day: 'numeric', month: 'long' }) + ' — ' + x.n + ' séance' + (x.n > 1 ? 's' : '') + ' modifiée' + (x.n > 1 ? 's' : '') + (x.coach ? ' (avec le Coach)' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
+      const idx = allH.indexOf(x);
+      const line = (x.undone ? '↩ ' : '✓ ') + prFmtDate(x.date, { day: 'numeric', month: 'long' }) + ' — ' + x.n + ' séance' + (x.n > 1 ? 's' : '') + ' modifiée' + (x.n > 1 ? 's' : '') + (x.coach ? ' (avec le Coach)' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
       if(!(x.changes || []).length) return '<p class="pr-note">' + line + '</p>';
-      return '<details class="pr-hist"><summary class="pr-note">' + line + '</summary><ul>' + x.changes.map(function(c){ return '<li><b>' + prEsc(c.title) + '</b>' + (c.date ? ' · ' + prFmtDate(c.date) : '') + ' : ' + prEsc(short(c, c.before)) + ' → <b>' + prEsc(short(c, c.after)) + '</b></li>'; }).join('') + '</ul></details>';
+      return '<details class="pr-hist"><summary class="pr-note">' + line + '</summary><ul>' + x.changes.map(function(c){ return '<li><b>' + prEsc(typeof normalizeSessionTitle === 'function' && c.type ? normalizeSessionTitle(c.title, c.type, typeof c.before === 'string' ? c.before : '') || c.title : c.title) + '</b>' + (c.date ? ' · ' + prFmtDate(c.date) : '') + ' : ' + prEsc(short(c, c.before)) + ' → <b>' + prEsc(short(c, c.after)) + '</b></li>'; }).join('') + '</ul>'
+        + (x.undone ? '<p class="pr-note">Annulée le ' + prFmtDate(x.undone, { day: 'numeric', month: 'long' }) + '.</p>' : '<button type="button" class="pr-link pr-undo" onclick="if(confirm(\'Annuler cette mise à jour ? Les séances pas encore faites retrouvent leur ancienne version.\')) prUndoReview(' + idx + ')">↩ Annuler cette mise à jour</button>') + '</details>';
     }).join('') + '</div>';
   box.innerHTML = h;
   _prFoot();
@@ -787,6 +883,12 @@ async function askCoachPlanReview(force){
     held: (_prReview.held || []).map(function(p){ return { ref: p.key, title: p.title, date: p.date, before: p.before, allure_a_ton_niveau: p.after }; }),
     plan: Object.keys(weeks).map(function(k){ return weeks[k]; }), memos: state._coach_memos || '',
     reviewHistory: (state._plan_reviews || []).slice(-4).map(function(h){ return { date: h.date, avec_coach: !!h.coach, niveau: h.vdot, changements: (h.changes || []).map(function(c){ return { ref: c.ref, seance: c.title, date: c.date, champ: c.field, avant: c.before, apres: c.after, par: c.src === 'coach' ? 'toi (Coach)' : 'calcul', raison: c.reason }; }) }; }),
+    volume: a.volume ? { base_km_sem: a.volume.base, pic_vise_km: a.volume.peak, semaines: a.volume.weeks.map(function(w){ return { semaine: w.w, prevu: w.plan, fait: w.past ? w.done : undefined, conseille: w.target || undefined, raison: w.why || undefined }; }) } : null,
+    charge: a.load ? { km_7j: a.load.k7, moyenne_28j_km_sem: a.load.chronic, ratio: a.load.acwr ? Math.round(a.load.acwr * 100) / 100 : null } : null,
+    derive_cardiaque: a.drift ? { moyenne_pct: Math.round(a.drift.avg * 10) / 10, sorties: a.drift.n, endurance: a.drift.label } : null,
+    whoop: a.whoop ? { recup_3j: a.whoop.scores, moyenne: a.whoop.avg3, vfc_vs_moyenne_pct: a.whoop.hrvDrop, fatigue: a.whoop.tired } : null,
+    allures_tenues: a.calib && a.calib.n ? { tenues: a.calib.k, total: a.calib.n, detail: a.calib.list.map(function(r){ return { seance: r.title, date: r.date, cible: r.target, realise: prPace(r.real), tenue: r.ok }; }) } : null,
+    trajectoire: a.trajectory && a.trajectory.race ? { niveau: a.fit.vdot, tendance_par_semaine: Math.round(a.trajectory.slope * 70) / 10, projection_jour_j: Math.round(a.trajectory.race.v * 10) / 10, fourchette: prTime(a.trajectory.race.lo) + ' – ' + prTime(a.trajectory.race.hi), niveau_objectif: a.trajectory.need ? Math.round(a.trajectory.need * 10) / 10 : null, verdict: a.trajectory.verdict || null } : null,
     lastCoachReview: state._coach_review ? { date: state._coach_review.date, avis: state._coach_review.assessment } : null,
     newSince: state._coach_review ? prDoneSince(state._coach_review.date) : null };
   try {
@@ -803,8 +905,8 @@ async function askCoachPlanReview(force){
     });
     clearInterval(R.clTimer); if(_prReview !== R) return;
     const rej = {}; (j.rejected || []).forEach(function(r){ rej[r] = 1; });
-    const coachDetail = {}; items.forEach(function(x){ if(x.field === 'detail') coachDetail[x.key] = 1; });
-    const keep = a.proposals.filter(function(p){ return !rej[p.key] && !coachDetail[p.key]; }).map(function(p){ return Object.assign({ on: true }, p); });
+    const coachDetail = {}, coachField = {}; items.forEach(function(x){ if(x.field === 'detail') coachDetail[x.key] = 1; coachField[x.key + '|' + x.field] = 1; });
+    const keep = a.proposals.filter(function(p){ return !rej[p.key] && !coachField[p.key + '|' + p.field] && !(p.field === 'session' && (coachDetail[p.key] || coachField[p.key + '|km'])); }).map(function(p){ return Object.assign({ on: true }, p); });
     _prReview.items = keep.concat(items).sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
     _prReview.rejected = (j.rejected || []).length;
     _prReview.held = (R.held || []).filter(function(p){ return !coachDetail[p.key]; });
@@ -834,13 +936,14 @@ function applyPlanReview(){
     else if(p.field === 'title') x.d = p.after + (det ? '|' + det : '');
     else if(p.field === 'km') x.km = +p.after;
     else if(p.field === 'type' && ['ef', 'long', 'tempo', 'frac'].indexOf(p.after) >= 0) x.type = p.after;
+    else if(p.field === 'session' && p.after && p.after.t){ x.d = p.after.t + '|' + p.after.d; x.km = +p.after.km; if(['ef', 'long', 'tempo', 'frac'].indexOf(p.after.type) >= 0) x.type = p.after.type; }
     else return;
     x._modified = true; x._seq = (x._seq || 0) + 1;
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;
   });
   const hist = (state._plan_reviews || []).slice(-5);
   hist.push({ date: prTodayIso(), n: Object.keys(touched).length, coach: sel.some(function(p){ return p.src === 'coach'; }), vdot: _prReview.a.fit.vdot || null, sig: prDataSig(),
-    changes: sel.filter(function(p){ return touched[p.key]; }).slice(0, 30).map(function(p){ return { ref: p.key, title: p.title, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, reason: String(p.short || p.reason || '').slice(0, 140) }; }) });
+    changes: sel.filter(function(p){ return touched[p.key]; }).slice(0, 30).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, reason: String(p.short || p.reason || '').slice(0, 140) }; }) });
   state._plan_reviews = hist;
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }

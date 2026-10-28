@@ -174,6 +174,7 @@ function openPrefsModal(){
             + rowN('Brief du matin','Résumé chaque matin avant de courir','notif_brief_matin')
             + rowN('Rappel 1h avant séance','Notification avant chaque entraînement','notif_seance')
             + (isAdmin()?rowN('Bilan de semaine','Résumé dimanche 17h — récup + séances + ressenti','notif_bilan_semaine'):'')
+            + (isAdmin()&&!usesHardPlan()?rowN('Relecture du plan','Dimanche 18h30 — le Coach ajuste la semaine suivante','notif_plan_review'):'')
             + rowN('Planification semaine','Rappel de planification le dimanche','notif_planif')
             + rowN('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')
             + (isAdmin()?rowN('Rappel FC de repos','Mesure FC repos le matin','notif_fc_repos'):'')

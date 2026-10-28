@@ -20,7 +20,7 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const d = event.notification.data || {};
   const isBrief = (d.tag || '').includes('brief');
-  const targetUrl = isBrief ? '/?action=brief' : (d.url || '/');
+  const targetUrl = isBrief ? '/?action=brief' : /plan[-_]review/.test(d.tag || '') ? '/?action=review' : (d.url || '/');
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async list => {

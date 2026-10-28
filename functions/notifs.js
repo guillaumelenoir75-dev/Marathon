@@ -796,6 +796,30 @@ exports.weeklyPlanifReminder = onSchedule(
 );
 
 
+// Relecture du plan — dimanche 18h30, admin (prépa générée) : s'il y a eu des séances validées depuis la dernière
+// relecture du Coach, notification qui ouvre « Mettre à jour le plan » et lance son avis (?action=review)
+exports.planReviewSunday = onSchedule(
+  {schedule:'30 18 * * 0',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
+  async()=>{
+    try{
+      const db=admin.database();
+      if(!await getUserPref(db,ADMIN_STATE,'notif_plan_review'))return;
+      const st=(await db.ref(ADMIN_STATE).once('value')).val()||{};
+      if(!st._plan_engine)return;
+      const since=(st._coach_review&&st._coach_review.date)||'';
+      let n=0;
+      Object.keys(st).forEach((k)=>{
+        const m=k.match(/^(extra_w\d+_s\d+)_done$/); if(!m||!st[k])return;
+        let d=''; try{ d=String(JSON.parse(st[m[1]+'_perf']||'{}').date||JSON.parse(st[m[1]]||'{}').sched_date||''); }catch(e){}
+        if(!since||d.slice(0,10)>since)n++;
+      });
+      if(!n)return;
+      await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'🔄 Relecture de ta semaine',
+        `${n} séance${n>1?'s':''} depuis la dernière relecture : touche pour que le Coach ajuste ton plan.`,'plan-review','/?action=review');
+    }catch(e){console.error('planReviewSunday:',e.message);}
+  }
+);
+
 // Bilan de semaine — dimanche 17h, admin uniquement, contenu IA pré-généré
 exports.weeklyBilanNotif = onSchedule(
   {schedule:'0 17 * * 0',timeZone:'Europe/Paris',timeoutSeconds:120,secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,ANTHROPIC_API_KEY]},
