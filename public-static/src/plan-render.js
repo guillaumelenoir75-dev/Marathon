@@ -686,16 +686,33 @@ function renderAthletePlan(el){
   const updateBtn=_adminPreviewUid?`<button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>`:'';
   const regenDateBtn=_adminPreviewUid?`<button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Regen. date</button>`:'';
   const delBtn=_adminPreviewUid?`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>`:'';
-  const legendBtn=`<button onclick="openGlossary()" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Comprendre les types de séances et les phases">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-    Légende
-  </button>`;
-  actionBanner.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-bottom:12px;';
-  // « MAJ le plan » : allures et séances ajustées à ton niveau, avis du Coach (plan-review.js)
-  const _prN=(!_adminPreviewUid&&!usesHardPlan()&&typeof planReviewPending==='function')?planReviewPending():0;
-  const reviewBtn=(!_adminPreviewUid&&!usesHardPlan()&&typeof openPlanReview==='function')?`<button onclick="openPlanReview()" style="position:relative;background:#1B4FD8;border:1px solid #1B4FD8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">🔄 MAJ le plan${_prN?`<span title="${_prN} proposition${_prN>1?'s':''}" style="position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#E8530A;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff;">${_prN}</span>`:''}</button>`:'';
-  actionBanner.innerHTML=legendBtn+reviewBtn+regenBtn+updateBtn+regenDateBtn+delBtn;
+  // Outils du plan : « Mettre à jour le plan » (plan-review.js) + « Légende » ; gestion (modifier, admin) en dessous
+  _planToolsCss();
+  const _canReview=!_adminPreviewUid&&!usesHardPlan()&&typeof openPlanReview==='function';
+  const _prN=_canReview&&typeof planReviewPending==='function'?planReviewPending():0;
+  const _lastRev=(state._plan_reviews||[]).slice(-1)[0];
+  const _revSub=_prN?`${_prN} ajustement${_prN>1?'s':''} à voir`
+    :_lastRev?`Mis à jour le ${new Date(_lastRev.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`:'Selon ton niveau actuel';
+  const reviewBtn=_canReview?`<button type="button" class="pt-card pt-maj${_prN?' has':''}" onclick="openPlanReview()">
+      <span class="pt-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>${_prN?`<i class="pt-dot">${_prN}</i>`:''}</span>
+      <span class="pt-txt"><b>Mettre à jour le plan</b><small>${_revSub}</small></span>
+      <svg class="pt-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>`:'';
+  const legendBtn=`<button type="button" class="pt-card pt-leg${_canReview?'':' wide'}" onclick="openGlossary()" title="Comprendre les types de séances et les phases">
+      <span class="pt-ic sm"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><path d="M12 17.2h.01"/></svg></span>
+      ${_canReview?'<b>Légende</b>':'<span class="pt-txt"><b>Légende</b><small>Types de séances et phases</small></span>'}
+    </button>`;
+  actionBanner.className='pt-row';
+  actionBanner.style.cssText='';
+  actionBanner.innerHTML=reviewBtn+legendBtn;
   el.appendChild(actionBanner);
+  if(regenBtn||updateBtn||regenDateBtn||delBtn){
+    const mgmt=document.createElement('div');
+    mgmt.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin:-2px 0 4px;';
+    mgmt.innerHTML=regenBtn+updateBtn+regenDateBtn+delBtn;
+    el.appendChild(mgmt);
+  }
+
 
   let currentRenderMonth=-1; // pour séparateurs de mois
   const maxWeekKm=Math.max(...sortedWeeks.map(w=>weekKmMap[w]||0),1);
@@ -1015,12 +1032,30 @@ function moveExtraSession(ws,rowIdx,dir){
   if(_adminPreviewUid) _refreshAthleteCoachView(); else renderPlan();
 }
 
+// styles de la barre d'outils du plan (Mettre à jour / Légende)
+function _planToolsCss(){
+  if(document.getElementById('pt-css')) return;
+  const st=document.createElement('style'); st.id='pt-css';
+  st.textContent='.pt-row{display:flex;gap:10px;margin-bottom:6px;align-items:stretch;}'
+    +'.pt-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(27,79,216,.10);border-radius:18px;padding:12px 14px;box-shadow:0 8px 22px -12px rgba(12,52,122,.45),0 1px 2px rgba(12,52,122,.06);cursor:pointer;font-family:inherit;text-align:left;color:#0F172A;transition:transform .15s ease,box-shadow .15s ease;-webkit-tap-highlight-color:transparent;}'
+    +'.pt-card:active{transform:scale(.97);box-shadow:0 4px 12px -8px rgba(12,52,122,.45);}'
+    +'.pt-maj{flex:1;min-width:0;}.pt-ic{position:relative;flex-shrink:0;width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(140deg,#1B4FD8,#3B82F6);box-shadow:0 6px 14px -6px rgba(27,79,216,.7);}'
+    +'.pt-ic.sm{width:38px;height:38px;border-radius:12px;color:#1B4FD8;background:#EEF3FC;box-shadow:none;}'
+    +'.pt-dot{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#E8530A;color:#fff;font-size:11px;font-weight:900;font-style:normal;display:flex;align-items:center;justify-content:center;border:2px solid #fff;}'
+    +'.pt-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}.pt-txt b{font-size:15px;font-weight:850;letter-spacing:-.2px;line-height:1.2;}.pt-txt small{font-size:12px;font-weight:600;color:#64748B;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    +'.pt-maj.has .pt-txt small{color:#C2410C;font-weight:800;}.pt-chev{flex-shrink:0;color:#94A3B8;}'
+    +'.pt-leg{flex:0 0 auto;flex-direction:column;justify-content:center;gap:5px;padding:10px 14px;}.pt-leg>b{font-size:12px;font-weight:800;color:#334155;}'
+    +'.pt-leg.wide{flex:1;flex-direction:row;gap:12px;padding:12px 14px;}';
+  document.head.appendChild(st);
+}
 function renderPlan(){
   const ptEl=document.getElementById('plan-total-km');
   const el=document.getElementById('plan-list'); el.innerHTML='';
   // Plan vide pour les athlètes — seulement les séances qu'ils ajoutent eux-mêmes
   if(!usesHardPlan()){
-    if(ptEl) ptEl.textContent='Ton plan personnalisé';
+    const _R=typeof prepRace==='function'?prepRace():null, _ttl=document.getElementById('plan-title');
+    if(_ttl) _ttl.textContent=_R&&_R.name&&_R.name!=='Course objectif'?_R.name:'Mon plan';
+    if(ptEl) ptEl.textContent=_R&&_R.date?(_R.objectif&&_R.objectif!=='non défini'?'Objectif '+_R.objectif+' · ':'')+new Date(_R.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}):'Ton plan personnalisé';
     openWeeks.add(getAthleteCW());
     renderAthletePlan(el);
     return;
