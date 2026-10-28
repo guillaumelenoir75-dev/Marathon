@@ -194,8 +194,8 @@ function prPaceProposals(st, fit, opt){
     const rep = (s.title + ' ' + s.detail).match(/(\d+)\s*[×x]\s*(\d[\d\s]*?)\s*m\b/), repM = rep ? parseInt(rep[2].replace(/\s/g, '')) : null;
     if(repM) det = det.replace(/\((\d{1,2})['’](\d{2})\s*[—–-]\s*(\d{1,2})['’](\d{2})\)/, '(' + prPace(lo * repM / 1000) + ' — ' + prPace(hi * repM / 1000) + ')');
     const d = Math.round(nmid - mid);
-    if(d < 0 && opt.postRaceUntil && s.date && s.date <= opt.postRaceUntil) return;   // période post-course : on n'accélère pas
-    out.push({ key: s.key, w: s.w, date: s.date, field: 'detail', title: s.title, type: s.type, before: s.detail, after: det, intent: it, delta: d,
+    const held = d < 0 && opt.noFasterUntil && s.date && s.date <= opt.noFasterUntil;   // début de récupération post-course : mise en attente
+    out.push({ held: !!held, key: s.key, w: s.w, date: s.date, field: 'detail', title: s.title, type: s.type, before: s.detail, after: det, intent: it, delta: d,
       reason: (d < 0 ? 'Plus rapide de ' + (-d) : 'Plus lent de ' + d) + ' s/km : ' + why + (capped ? ' (ajustement limité à 10 s/km par mise à jour, la suite viendra aux prochaines)' : '') + '.', src: 'calcul',
       short: short + (capped ? ' Limité à 10 s/km cette fois, la suite à la prochaine mise à jour.' : ''),
       pb: s.pace.text.replace(/\s*\/\s*km$/, ''), pa: txt.replace(/\s*\/\s*km$/, '') });
@@ -327,11 +327,17 @@ function prAnalyze(){
   const last = races.concat(Object.keys(PR_RECORD_KEY).map(function(c){ const m = (state._records || {})[c]; return m && m.date ? { cat: c, date: m.date } : null; }).filter(Boolean))
     .filter(function(r){ return r.date && r.date <= today; }).sort(function(a, b){ return b.date.localeCompare(a.date); })[0];
   let postRaceUntil = null;
-  if(last && REC[last.cat]){ const d = new Date(last.date + 'T12:00:00'); d.setDate(d.getDate() + REC[last.cat]); postRaceUntil = prIso(d); if(postRaceUntil < today) postRaceUntil = null; }
+  let noFasterUntil = null;
+  if(last && REC[last.cat]){
+    const d = new Date(last.date + 'T12:00:00'); d.setDate(d.getDate() + REC[last.cat]); postRaceUntil = prIso(d); if(postRaceUntil < today) postRaceUntil = null;
+    // allures protégées pendant les 3/4 de la récupération (marathon : J+20) ; l'intensité revient ensuite
+    const n = new Date(last.date + 'T12:00:00'); n.setDate(n.getDate() + Math.round(REC[last.cat] * 0.75)); noFasterUntil = prIso(n); if(noFasterUntil < today) noFasterUntil = null;
+  }
   const lp = prLastPrep(today);
-  const opt = { today: today, raceCat: raceCat, goalSec: goalSec, efPace: prObservedEf(state, today), postRace: !!postRaceUntil, postRaceUntil: postRaceUntil,
+  const opt = { today: today, raceCat: raceCat, goalSec: goalSec, efPace: prObservedEf(state, today), postRace: !!postRaceUntil, postRaceUntil: postRaceUntil, noFasterUntil: noFasterUntil,
     habitual: lp ? lp.vol.avg : null, habitualFrom: lp ? (lp.race || lp.title) : null, habitualPeak: lp ? lp.vol.peak : null };
-  return { fit: fit, opt: opt, race: R, proposals: prPaceProposals(state, fit, opt), warnings: prChecks(state, fit, opt), planVdot: prPlanVdot(state) };
+  const all = prPaceProposals(state, fit, opt);
+  return { fit: fit, opt: opt, race: R, proposals: all.filter(function(p){ return !p.held; }), held: all.filter(function(p){ return p.held; }), warnings: prChecks(state, fit, opt), planVdot: prPlanVdot(state) };
 }
 const prSig = function(list){ return list.map(function(p){ return p.key + '>' + p.after; }).join('|'); };
 // pastille sur le bouton « MAJ le plan » : propositions pas encore vues
@@ -473,7 +479,7 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-chg .pr-why{font-size:12.5px;color:#334155;font-weight:600;margin:0;line-height:1.4;}.pr-txt{display:flex;flex-direction:column;gap:4px;}.pr-txt p,.pr-full p{margin:0;}'
   + '.pr-full summary{font-size:11.5px;font-weight:800;color:#1B4FD8;cursor:pointer;}.pr-full[open]{display:flex;flex-direction:column;gap:4px;}'
   + '.pr-vig{display:flex;flex-direction:column;gap:6px;background:#FFFBEB;border-radius:12px;padding:9px 11px;}.pr-vig p{margin:0;display:flex;gap:8px;font-size:12.5px;line-height:1.4;color:#713F12;}.pr-vig i{font-style:normal;flex-shrink:0;}.pr-vig .pr-vig-n{font-size:11.5px;color:#A16207;font-weight:700;}'
-  + '.pr-ask{display:flex;flex-direction:column;gap:6px;}'
+  + '.pr-ask{display:flex;flex-direction:column;gap:6px;}.pr-held{border:1.5px dashed #F5C46B;background:#FFFBEB;border-radius:14px;padding:11px 12px;display:flex;flex-direction:column;gap:8px;}.pr-held-t b{display:block;font-size:14px;font-weight:850;color:#0F172A;}.pr-held-t small{display:block;font-size:11.5px;font-weight:700;color:#A16207;margin-top:1px;}.pr-p.cur{background:#fff;color:#334155;font-size:13px;border:1px solid #E2E8F0;}.pr-p.sug{background:#FEF3C7;color:#92400E;}.pr-held-b{padding:9px;font-size:13px;}'
   + '.pr-fold{display:block;}.pr-fold[open]>*:not(summary){margin-top:10px;}.pr-fold summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}.pr-fold summary::-webkit-details-marker{display:none;}.pr-fold summary::after{content:"Détail ▾";font-size:12px;font-weight:800;color:#1B4FD8;}.pr-fold[open] summary::after{content:"Masquer ▴";}'
   + '.pr-load{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;}.pr-load-h{display:flex;justify-content:space-between;align-items:baseline;}.pr-load-h b{font-size:16px;font-weight:900;color:#0C447C;}.pr-load-h span{font-size:12px;font-weight:800;color:#1B4FD8;font-variant-numeric:tabular-nums;}'
   + '.pr-bar{height:6px;border-radius:3px;background:#E2E8F3;overflow:hidden;position:relative;}.pr-bar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#60A5FA,#1B4FD8);transition:width .35s ease;}'
@@ -494,7 +500,7 @@ function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.c
 function openPlanReview(){
   _prCss();
   const a = prAnalyze();
-  _prReview = { a: a, items: a.proposals.map(function(p){ return Object.assign({ on: true }, p); }), coach: null };
+  _prReview = { a: a, items: a.proposals.map(function(p){ return Object.assign({ on: true }, p); }), held: a.held.slice(), coach: null };
   state._review_seen = prSig(a.proposals);
   if(dbRef) dbRef.child('_review_seen').set(state._review_seen).catch(function(){});
   const mc = document.getElementById('modal-container'), ov = document.createElement('div');
@@ -567,8 +573,17 @@ function prWeeks(st, today){
 }
 const PR_KIND = { race: ['Course', '🏁'], taper: ['Affûtage', '🪶'], recov: ['Allègement', '🌿'], peak: ['Pic', '⛰️'], load: ['Charge', '🧱'] };
 const prV = function(x){ return x.toFixed(1).replace('.', ','); };
-const prReload = 'openRecordsModal(function(){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prRender(); })';
+const prReload = 'openRecordsModal(function(){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prReview.held = _prReview.a.held.slice(); _prRender(); })';
 function _prGo(w){ const el = document.getElementById('pr-wk-' + w); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+// séance mise en attente (début de récupération) : l'athlète choisit de l'accélérer quand même
+function _prUnhold(i){
+  const R = _prReview; if(!R || !R.held || !R.held[i]) return;
+  const p = Object.assign({}, R.held.splice(i, 1)[0], { on: true, held: false });
+  p.short = 'Accélérée à ta demande malgré la récupération : écoute tes sensations.';
+  R.items.push(p); R.items.sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
+  _prRender();
+  const k = R.items.indexOf(p), el = document.getElementById('pr-it-' + k); if(el){ el.classList.add('pr-pop'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
 function _prToggle(i){
   const it = _prReview && _prReview.items[i]; if(!it) return;
   it.on = !it.on;
@@ -614,6 +629,7 @@ function _prRender(){
   const byW = {}, warnW = {};
   R.items.forEach(function(p, i){ (byW[p.w] = byW[p.w] || []).push(i); });
   a.warnings.forEach(function(x){ if(x.w != null && W[x.w] && !W[x.w].past) (warnW[x.w] = warnW[x.w] || []).push(x); });
+  const heldW = {}; (R.held || []).forEach(function(p, i){ (heldW[p.w] = heldW[p.w] || []).push(i); });
   const nW = Object.keys(warnW).reduce(function(n, k){ return n + warnW[k].length; }, 0), nI = R.items.length;
   const goal = a.warnings.filter(function(x){ return x.goal; })[0];
   let h = '';
@@ -635,7 +651,7 @@ function _prRender(){
   const pills = [];
   if(goal && f.vdot && a.opt.raceCat) pills.push('<span class="pr-pill goal">🎯 Objectif <b>' + prTime(a.opt.goalSec) + '</b> · aujourd\'hui ' + prTime(f.preds[a.opt.raceCat]) + '</span>');
   if(a.opt.habitual) pills.push('<span class="pr-pill base">🏋️ Ta base : ~' + a.opt.habitual + ' km/sem (' + prEsc(a.opt.habitualFrom) + ')</span>');
-  if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) pills.push('<span class="pr-pill rest">🛌 Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + ' : rien n\'est accéléré</span>');
+  if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) pills.push('<span class="pr-pill rest">🛌 Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées jusqu\'au ' + prFmtDate(a.opt.noFasterUntil, { day: 'numeric', month: 'short' }) : '') + '</span>');
   if(pills.length) h += '<div class="pr-pills">' + pills.join('') + '</div>';
   if(!f.vdot) h += '<p class="pr-note">Pour calculer ton niveau, ajoute au moins un record daté ou valide des séances de seuil / fractionné avec l\'allure de chaque bloc.</p><button class="pr-btn sec" onclick="' + prReload + '">🏆 Saisir mes records</button>';
   h += '</div>';
@@ -647,18 +663,24 @@ function _prRender(){
   if(wk.length){
     h += '<p class="pr-sec"><span>Semaine par semaine</span></p>';
     h += '<div class="pr-strip">' + wk.map(function(o){
-        const ni = (byW[o.w] || []).length, nv = (warnW[o.w] || []).length, st = ni ? 'chg' : nv ? 'vig' : 'ok';
+        const ni = (byW[o.w] || []).length, nv = (warnW[o.w] || []).length + (heldW[o.w] || []).length, st = ni ? 'chg' : nv ? 'vig' : 'ok';
         return '<button type="button" class="pr-wk ' + st + (o.now ? ' now' : '') + '"' + (ni || nv ? ' onclick="_prGo(' + o.w + ')"' : ' disabled') + '>'
           + '<span class="pr-wk-s">S' + o.w + '</span><span class="pr-wk-d">' + (o.now ? 'cette sem.' : o.from ? prFmtDate(o.from) : '') + '</span>'
           + '<span class="pr-wk-i">' + (ni ? ni + ' ✎' : nv ? '!' : (o.race ? '🏁' : '✓')) + '</span></button>';
       }).join('') + '</div>'
       + '<p class="pr-legend"><span class="chg">✎ à ajuster</span><span class="vig">! vigilance</span><span class="ok">✓ rien à changer</span></p>';
     wk.forEach(function(o){
-      const its = byW[o.w] || [], ws = warnW[o.w] || []; if(!its.length && !ws.length) return;
+      const its = byW[o.w] || [], ws = warnW[o.w] || [], hs = heldW[o.w] || []; if(!its.length && !ws.length && !hs.length) return;
       const K = PR_KIND[o.kind];
       h += '<section class="pr-week" id="pr-wk-' + o.w + '"><header><div><b>Semaine ' + o.w + (o.now ? ' <span class="pr-now">en cours</span>' : '') + '</b><span>'
         + (o.from ? prFmtDate(o.from) + ' → ' + prFmtDate(o.to) + ' · ' : '') + Math.round(o.km) + ' km</span></div><span class="pr-kind k-' + o.kind + '">' + K[1] + ' ' + K[0] + '</span></header>';
       its.forEach(function(i){ h += _prItem(R.items[i], i); });
+      hs.forEach(function(i){
+        const p = R.held[i], title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, p.before) || p.title : p.title;
+        h += '<div class="pr-held"><div class="pr-held-t"><b>⏳ ' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' : '') + 'en attente : début de récupération</small></div>'
+          + '<div class="pr-swap"><span class="pr-p cur">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p sug">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span></div><p class="pr-why">À ton niveau, tu pourrais la courir à ' + prEsc(p.pa) + ' /km.</p>'
+          + '<button type="button" class="pr-btn sec pr-held-b" onclick="_prUnhold(' + i + ')">⚡ Accélérer quand même</button></div>';
+      });
       if(ws.length) h += '<div class="pr-vig">' + ws.map(function(x){ return '<p><i>' + (x.level === 'warn' ? '⚠️' : '💡') + '</i><span>' + prEsc(x.short || x.text) + '</span></p>'; }).join('')
         + '</div>';
       h += '</section>';
@@ -732,6 +754,7 @@ async function askCoachPlanReview(){
       predictions: Object.keys(a.fit.preds).reduce(function(o, c){ o[c] = prTime(a.fit.preds[c]); return o; }, {}), sources: a.fit.sources.map(function(x){ return { label: x.label, time: x.time || x.pace, date: x.date, vdot: Math.round(x.vdot * 10) / 10 }; }) } : null,
     postRaceUntil: a.opt.postRaceUntil, habitualKm: a.opt.habitual, history: await prHistory(today).catch(function(){ return []; }), warnings: a.warnings.map(function(w){ return w.text; }),
     proposals: a.proposals.map(function(p){ return { ref: p.key, title: p.title, before: p.before, after: p.after, reason: p.reason }; }),
+    held: (_prReview.held || []).map(function(p){ return { ref: p.key, title: p.title, date: p.date, before: p.before, allure_a_ton_niveau: p.after }; }),
     plan: Object.keys(weeks).map(function(k){ return weeks[k]; }), memos: state._coach_memos || '' };
   try {
     const token = await getAuthToken();
@@ -751,6 +774,7 @@ async function askCoachPlanReview(){
     const keep = a.proposals.filter(function(p){ return !rej[p.key] && !coachDetail[p.key]; }).map(function(p){ return Object.assign({ on: true }, p); });
     _prReview.items = keep.concat(items).sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
     _prReview.rejected = (j.rejected || []).length;
+    _prReview.held = (R.held || []).filter(function(p){ return !coachDetail[p.key]; });
     _prReview.coach = j.assessment || '';
     _prRender();
     const cc = document.querySelector('#pr-content .pr-coach'); if(cc){ cc.classList.add('pr-pop'); cc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }

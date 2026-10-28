@@ -1097,6 +1097,7 @@ Période post-course jusqu'au : ${b.postRaceUntil || 'aucune'}
 HISTORIQUE (prépas précédentes, la plus récente d'abord) : ${hist.length ? JSON.stringify(hist).slice(0, 9000) : 'aucun'}
 Contrôles automatiques : ${JSON.stringify(b.warnings || [])}
 Propositions automatiques (allures) : ${JSON.stringify(b.proposals || [])}
+Séances mises en attente (non accélérées automatiquement car tôt dans la récupération ; à toi de juger, change leur "detail" si l'accélération est justifiée) : ${JSON.stringify(Array.isArray(b.held) ? b.held.slice(0, 20) : [])}
 ${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(0, 1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
 PLAN COMPLET :
 ${JSON.stringify(compact)}`;
