@@ -277,24 +277,45 @@ function planReviewPending(){
 }
 
 // ─── Mes records ────────────────────────────────────────────────────────────
+// saisie d'un temps au pavé numérique (sans « : ») : 1500 → 15:00 · 13700 → 1:37:00
+function prFmtTimeInput(el){
+  const d = el.value.replace(/\D/g, '').slice(0, 6);
+  el.value = d.length <= 2 ? d : d.length <= 4 ? d.slice(0, -2) + ':' + d.slice(-2) : d.slice(0, -4) + ':' + d.slice(-4, -2) + ':' + d.slice(-2);
+}
+// niveau équivalent affiché en direct sous chaque record
+function prRecLive(i){
+  const c = PR_CATS[i], sec = prTimeSec(document.getElementById('rec-t-' + i).value), out = document.getElementById('rec-v-' + i);
+  const dIn = document.getElementById('rec-d-' + i), ph = document.getElementById('rec-dp-' + i); if(ph) ph.hidden = !!dIn.value; dIn.classList.toggle('has', !!dIn.value);
+  if(!out) return;
+  const ok = sec && sec / (PR_RACE_M[c] / 1000) >= 150 && sec / (PR_RACE_M[c] / 1000) <= 600;
+  out.textContent = ok ? 'niveau ' + vdotFromRace(PR_RACE_M[c], sec).toFixed(1).replace('.', ',') + ' · ' + prPace(sec / (PR_RACE_M[c] / 1000)) + '/km' : '';
+}
 function openRecordsModal(onDone){
   _prCss();
   const meta = state._records || {}, mc = document.getElementById('modal-container'), ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'records-modal'; ov.style.zIndex = '720'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
   const best = function(c){ return typeof prepBestTime === 'function' ? prepBestTime(c) : null; };
-  ov.innerHTML = '<div class="modal-box"><div class="pr-head"><div><p class="pr-eb">Entraînement</p><p class="pr-title">🏆 Mes records</p></div><button class="pr-x" onclick="document.getElementById(\'records-modal\').remove()" aria-label="Fermer">×</button></div>'
-    + '<div class="modal-scroll-body"><div style="padding:14px 16px 20px;display:flex;flex-direction:column;gap:10px;">'
-    + '<p class="pr-note">Tes records servent à calculer ton niveau actuel et les allures de ton plan. Indique la date : un record ancien compte moins.</p>'
+  const ph = ['mm:ss', 'mm:ss', 'h:mm:ss', 'h:mm:ss'];
+  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="pr-head"><div><p class="pr-eb">Entraînement</p><p class="pr-title">🏆 Mes records</p><p class="pr-sub">Ils fixent ton niveau et les allures de ton plan</p></div><button class="pr-x" onclick="document.getElementById(\'records-modal\').remove()" aria-label="Fermer">×</button></div>'
+    + '<div class="modal-scroll-body pr-body"><div style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px;">'
+    + '<div class="pr-card rec-list">'
     + PR_CATS.map(function(c, i){
         const k = PR_RECORD_KEY[c], m = meta[c] || {}, b = best(c), v = state[k] || '';
-        return '<div class="pr-card"><div class="pr-rec-top"><b>' + prCatLabel(c) + '</b>' + (!v && b ? '<button type="button" class="pr-link" onclick="document.getElementById(\'rec-t-' + i + '\').value=\'' + b.time + '\'">Reprendre ' + b.time + '</button>' : '') + '</div>'
-          + '<div class="pr-rec-row"><label>Temps<input id="rec-t-' + i + '" inputmode="numeric" placeholder="' + ['20:30', '42:30', '1:35:00', '3:30:00'][i] + '" value="' + prEsc(v) + '"></label>'
-          + '<label>Date<input id="rec-d-' + i + '" type="date" value="' + prEsc(m.date || '') + '"></label></div>'
-          + '<label class="pr-full">Course<input id="rec-r-' + i + '" placeholder="ex. Semi de Paris" value="' + prEsc(m.race || '') + '"></label></div>';
+        return '<div class="rec-row">'
+          + '<div class="rec-dist"><b>' + prCatLabel(c) + '</b><span id="rec-v-' + i + '"></span></div>'
+          + '<div class="rec-fields">'
+          +   '<input id="rec-t-' + i + '" class="rec-time" inputmode="numeric" autocomplete="off" aria-label="Temps ' + prCatLabel(c) + '" placeholder="' + ph[i] + '" value="' + prEsc(v) + '" oninput="prFmtTimeInput(this);prRecLive(' + i + ')">'
+          +   '<label class="rec-date"><input id="rec-d-' + i + '" type="date" aria-label="Date du record ' + prCatLabel(c) + '" max="' + prTodayIso() + '" value="' + prEsc(m.date || '') + '" onchange="prRecLive(' + i + ')"><span id="rec-dp-' + i + '" class="rec-dph"' + (m.date ? ' hidden' : '') + '>Date</span></label>'
+          + '</div>'
+          + '<input id="rec-r-' + i + '" class="rec-race" aria-label="Course ' + prCatLabel(c) + '" placeholder="Nom de la course (facultatif)" value="' + prEsc(m.race || '') + '">'
+          + (!v && b ? '<button type="button" class="pr-link rec-sugg" onclick="const t=document.getElementById(\'rec-t-' + i + '\');t.value=\'' + b.time + '\';prRecLive(' + i + ');this.remove()">↺ Reprendre ' + b.time + ' (' + prEsc(b.src === 'record' ? 'record' : b.src) + ')</button>' : '')
+          + '</div>';
       }).join('')
-    + '<button type="button" class="pr-btn pri" onclick="saveRecordsModal()">Enregistrer mes records</button></div></div></div>';
+    + '</div><p class="pr-note" style="padding:0 2px;">Tape seulement les chiffres : 4423 → 44:23 · 13700 → 1:37:00. Un record sans date ou de plus de 6 mois compte moins.</p></div></div>'
+    + '<div class="pr-foot"><button type="button" class="pr-btn pri" onclick="saveRecordsModal()">Enregistrer mes records</button></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
+  PR_CATS.forEach(function(c, i){ prRecLive(i); });
   window._recordsDone = onDone || null;
 }
 function saveRecordsModal(){
@@ -346,6 +367,15 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-rec-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}.pr-card label{font-size:11.5px;font-weight:700;color:#5B6675;display:flex;flex-direction:column;gap:3px;}'
   + '.pr-card input:not([type=checkbox]){width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #D6DFEC;border-radius:9px;font-size:15px;font-family:inherit;background:#fff;}'
   + '.pr-coach{background:#F0FDF4;border-color:#BBF7D0;}.pr-coach p{margin:0;font-size:13px;line-height:1.5;color:#14532D;white-space:pre-line;}'
+  + '.rec-list{padding:4px 14px;gap:0;}.rec-row{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:10px;row-gap:6px;align-items:center;padding:12px 0;border-bottom:1px solid #EEF2F7;}.rec-row:last-child{border-bottom:none;}'
+  + '.rec-dist{display:flex;flex-direction:column;gap:2px;grid-row:span 2;align-self:start;padding-top:9px;}.rec-dist b{font-size:15px;font-weight:850;color:#0C447C;}.rec-dist span{font-size:10.5px;font-weight:700;color:#15803D;line-height:1.3;}'
+  + '.rec-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0;}'
+  + '.rec-row input{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;margin:0;border:1px solid #D6DFEC;border-radius:10px;background:#fff;font-family:inherit;color:#0F172A;-webkit-appearance:none;appearance:none;}'
+  + '.rec-time{height:44px;padding:0 12px;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;}.rec-time::placeholder{color:#C3CCD9;font-weight:600;}'
+  + '.rec-date{position:relative;display:block;min-width:0;}.rec-date input{height:44px;padding:0 8px 0 10px;font-size:13.5px;text-align:left;}'
+  + '.rec-date input::-webkit-date-and-time-value{text-align:left;}.rec-date input:not(.has):not(:focus){color:transparent;}.rec-date input:not(.has):not(:focus)::-webkit-datetime-edit{color:transparent;}.rec-dph{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;color:#A3AEBE;pointer-events:none;}'
+  + '.rec-race{grid-column:2;height:34px;padding:0 10px;font-size:13px;border-color:#E6ECF5 !important;background:#F8FAFD !important;}'
+  + '.rec-sugg{grid-column:2;justify-self:start;font-size:12px;}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS; document.head.appendChild(st); } }
 
