@@ -288,6 +288,18 @@ async function buildTrainingSituation(db, state, todayStr) {
     lines.push(`Dernière course : ${last.name}${last.dist ? ' (' + last.dist + ')' : ''} le ${fmtD(last.date)}${last.result ? ' en ' + last.result : ''}${last.note ? ' — ' + last.note : ''} — il y a ${ago} jour${ago > 1 ? 's' : ''}.`);
     if (rec && ago >= 0 && ago < rec) lines.push(`→ PÉRIODE POST-COURSE : J+${ago} sur ~${rec} jours de récupération après un ${cat === 'Marathon' ? 'marathon' : cat === 'Semi-marathon' ? 'semi-marathon' : cat}. Reprise progressive : footings faciles et courts, aucune intensité tant que la récupération n'est pas complète ; se fier aux sensations, à la FC repos, à la VFC et à la récupération WHOOP plutôt qu'à l'allure ; FC repos ou VFC dégradées = alléger ou repos.`);
   }
+  // base d'entraînement : volume habituel de la dernière prépa terminée (8 semaines avant l'affûtage)
+  const lastPrep = Object.keys(idx).map((id) => Object.assign({ id }, idx[id])).filter((p) => p.date && p.date <= today && p.id !== state._prep_id && Array.isArray(p.shape) && p.shape.length)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (lastPrep) {
+    const sh = lastPrep.shape; let end = sh.length; for (let i = sh.length - 1; i >= 0; i--) if (sh[i] && sh[i][2] === 'c') { end = i; break; }
+    let w = sh.slice(0, end).filter((x) => x && x[2] !== 't'); if (!sh.some((x) => x && x[2] === 't')) w = w.slice(0, Math.max(0, w.length - 2));
+    const done = w.map((x) => +x[1] || 0).filter((x) => x > 0).slice(-8);
+    if (done.length >= 3) {
+      const avg = Math.round(done.reduce((a, b) => a + b, 0) / done.length), peak = Math.round(Math.max(...sh.map((x) => +(x && x[1]) || 0)));
+      lines.push(`Base d'entraînement (prépa ${lastPrep.race || lastPrep.title}) : ~${avg} km/semaine en moyenne sur les 8 semaines avant l'affûtage, pic ${peak} km/semaine — c'est sa charge habituelle : en reprise, remonter vers ce volume est normal.`);
+    }
+  }
   if (next && next.date) lines.push(`Prépa suivante : ${next.title}${next.dist ? ' (' + next.dist + ')' : ''} le ${fmtD(next.date)}${next.target ? ', objectif ' + fmtT(next.target) : ''} — démarre le ${fmtD(next.start)}.`);
   if (list.length) lines.push('Courses réalisées : ' + list.slice(0, 5).map((r) => `${r.name} (${r.date.split('-').reverse().join('/')}${r.result ? ', ' + r.result : ''}${r.weeks ? ', prépa de ' + r.weeks + ' sem. / ' + r.km + ' km' : ''})`).join(' · ') + '.');
 

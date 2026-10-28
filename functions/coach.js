@@ -1063,26 +1063,36 @@ exports.planReview = onRequest(
       const compact = b.plan.map((w) => ({ semaine: w.w, phase: w.meta && w.meta.phase, recup: !!(w.meta && w.meta.isRecov), pic: !!(w.meta && w.meta.isPeak), affutage: !!(w.meta && w.meta.isTaper),
         seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km },
           s.done ? { fait: true, resultat: s.result } : { modifiable: !!editable[s.ref] })) }));
-      const system = `Tu es un entraîneur de course à pied expert (méthodes Daniels, Pfitzinger, Canova), coach personnel de Guillaume. On te demande de relire son plan d'entraînement et de l'optimiser à partir de ses résultats réels, de son niveau actuel et de sa situation.
+      const system = `Tu es un entraîneur de course à pied de haut niveau (Daniels, Pfitzinger, Canova, Magness), coach personnel de Guillaume, coureur expérimenté. On te demande de relire son plan et de l'optimiser pour la PERFORMANCE, à partir de son historique, de ses résultats réels et de sa situation. Tu n'es pas là pour tout sécuriser : un plan trop prudent est aussi un mauvais plan.
+
+CE QUE TU DOIS ANALYSER D'ABORD :
+- Son historique (prépas précédentes : km réalisés par semaine, volume habituel, pic, sortie longue max, séances de qualité et allures tenues). C'est sa CHARGE CHRONIQUE : elle fixe ce qu'il peut encaisser, pas la semaine précédente seule.
+- Son niveau actuel (équivalent VDOT d'après records et séances) et l'écart avec l'objectif.
+- Ses séances réalisées dans le plan en cours (allures, FC, ressenti).
 
 PRINCIPES :
-- Les allures suivent le niveau ACTUEL (équivalent VDOT fourni, calculé d'après ses records datés et ses séances), pas l'objectif : une séance doit être réalisable et productive. L'allure course (ex. AS21) peut viser l'objectif s'il est proche du niveau actuel, sinon s'en rapprocher progressivement.
-- Respecter l'intention de chaque séance (seuil, fractionné, sortie longue, récupération) et la structure de la semaine (jours, nombre de séances) sauf erreur manifeste.
-- Progression du volume ≤ 10-15 %/semaine, une semaine allégée toutes les 3-4 semaines, sortie longue ≤ 35-40 % du volume, jamais deux séances exigeantes d'affilée, affûtage de 2 semaines (60-75 % puis ~40-50 % du pic), période post-course : reprise douce sans intensité.
-- Corriger les incohérences (allure absente, distance totale incohérente avec la structure, temps par répétition faux, intitulé trompeur).
-- Tenir compte des résultats : séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → ajuster.
-- Les « propositions automatiques » fournies sont un calcul d'allures : garde-les, ajuste-les ou écarte-les selon ton analyse.
+- Volume : la règle des +10-15 %/semaine vaut pour construire un volume jamais tenu. Sous son volume habituel (reprise après une course, retour après coupure), remonter plus vite est normal et souhaitable : après un marathon, ~40-50 % du volume habituel la 1re semaine, ~60-70 % la 2e, ~75-90 % la 3e, puis plein volume. Ne réduis pas un volume qui reste sous sa charge habituelle.
+- Sortie longue : le repère 35-40 % du volume n'a de sens qu'au-dessus de ~40 km/sem ; une sortie longue de 8-12 km n'est jamais un risque pour un marathonien.
+- Post-marathon : l'intensité revient progressivement (lignes droites puis fractionné court dès ~J+14-18 si les sensations sont bonnes) ; une course de 10 km à ~5 semaines d'un marathon se prépare avec du seuil et de la VMA, pas seulement du footing.
+- Allures : suivent le niveau ACTUEL (VDOT fourni). L'allure course peut viser l'objectif s'il est à moins de ~3 % du niveau actuel, sinon s'en rapprocher.
+- Respecte l'intention de chaque séance et la structure de la semaine (jours, nombre de séances).
+- Séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → durcir.
+- Les « contrôles automatiques » et « propositions automatiques » sont des calculs simples : garde-les, ajuste-les ou écarte-les selon ton analyse (dis-le si une alerte n'est pas pertinente vu son historique).
+- Ne change que ce qui a un vrai effet sur la performance ou le risque : pas de retouche de 1 km, pas de changement cosmétique. Mieux vaut 0 à 5 changements forts que 10 petits. Tu peux AUGMENTER (volume, intensité) autant que réduire.
 
 FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
 
 RÉPONSE : uniquement un objet JSON valide, sans texte autour :
-{"assessment":"ton avis global en 3 à 6 phrases, en français, tutoiement, concret (ce qui va bien, ce que tu changes et pourquoi)",
- "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"pourquoi, une phrase"}]}
-Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 30 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne ; pas de changement cosmétique.`;
+{"assessment":"2 ou 3 phrases courtes (300 caractères max), tutoiement : le verdict et l'idée principale, sans répéter le détail des changements",
+ "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots maximum"}]}
+Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
+      const hist = Array.isArray(b.history) ? b.history.slice(0, 2) : [];
       const userMsg = `Aujourd'hui : ${b.today || ''}
 Course objectif : ${JSON.stringify(b.race || {})}
 Niveau calculé dans l'app : ${JSON.stringify(b.fitness || 'non disponible (aucun record ni séance exploitable)')}
+Volume habituel (charge chronique, dernière prépa) : ${b.habitualKm ? b.habitualKm + ' km/semaine' : 'inconnu'}
 Période post-course jusqu'au : ${b.postRaceUntil || 'aucune'}
+HISTORIQUE (prépas précédentes, la plus récente d'abord) : ${hist.length ? JSON.stringify(hist).slice(0, 9000) : 'aucun'}
 Contrôles automatiques : ${JSON.stringify(b.warnings || [])}
 Propositions automatiques (allures) : ${JSON.stringify(b.proposals || [])}
 ${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(0, 1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
@@ -1094,15 +1104,15 @@ ${JSON.stringify(compact)}`;
       try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
       if (!j) { res.status(502).json({ success: false, error: 'réponse illisible' }); return; }
       const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
-      const changes = (Array.isArray(j.changes) ? j.changes : []).filter((c) => c && editable[c.ref]).slice(0, 30).map((c) => {
-        const s = editable[c.ref], o = { ref: c.ref, reason: str(c.reason, 300) || '' };
+      const changes = (Array.isArray(j.changes) ? j.changes : []).filter((c) => c && editable[c.ref]).slice(0, 12).map((c) => {
+        const s = editable[c.ref], o = { ref: c.ref, reason: str(c.reason, 160) || '' };
         const d = str(c.detail, 300); if (d) o.detail = d.replace(/\|/g, '·');
         const t = str(c.title, 80); if (t && s.type !== 'race') o.title = t.replace(/\|/g, '·');
         const km = parseFloat(c.km); if (isFinite(km) && km > 0 && km <= 60 && s.type !== 'race') o.km = Math.round(km * 10) / 10;
         if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && s.type !== 'race') o.type = c.type;
         return o;
       }).filter((o) => o.detail || o.title || o.km || o.type);
-      res.json({ success: true, assessment: str(j.assessment, 1500) || '', changes });
+      res.json({ success: true, assessment: str(j.assessment, 500) || '', changes });
     } catch(e) {
       console.error('planReview error:', e.message);
       res.status(500).json({ success: false, error: e.message });
