@@ -60,6 +60,7 @@ Chargés dans cet ordre (dépendances respectées) :
 |---|---|
 | `index.js` | Re-exporte tous les modules (9 lignes) |
 | `helpers.js` | ADMIN_UID, corsHeaders, verifyAdmin, callAnthropic, sendPush, sendPushToAll, getWeekFromDB… |
+| `whoop.js` | Synchronisation WHOOP (`whoopSync`) : la FC de repos de la nuit (WHOOP `recoveries[].rhr`) est la FC repos de référence — elle remplace `fc_repos_<date>` pour chaque jour connu (14 j), côté serveur et client (`whoopFcToState`) |
 | `strava.js` | stravaAuth, stravaCallback, stravaFetch, stravaFetchDetail, stravaGear (chaussures Strava, scope profile:read_all) |
 | `garmin.js` | garminFetch, garminProxy, garminSync |
 | `calendar.js` | calendar (export ICS) |

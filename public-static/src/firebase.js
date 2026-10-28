@@ -125,6 +125,7 @@ function initFirebase(){
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
               if(typeof prepShortDescV1==='function') prepShortDescV1();
               if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
+              if(typeof whoopFcToState==='function'&&state.whoop_data) whoopFcToState(state.whoop_data);   // FC repos = FC de nuit WHOOP
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               if(dbRef) dbRef.set(state).catch(()=>{}); // persister les migrations
               firebaseReady=true;
@@ -219,6 +220,7 @@ function initFirebase(){
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
               if(typeof prepShortDescV1==='function') prepShortDescV1();
               if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
+              if(typeof whoopFcToState==='function'&&state.whoop_data) whoopFcToState(state.whoop_data);   // FC repos = FC de nuit WHOOP
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               firebaseReady=true;
               hideLoginScreen();

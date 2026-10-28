@@ -413,7 +413,7 @@ function wellnessScoreToday(){
   const parts = [];
   if (r0 && r0.score != null) parts.push('récup ' + r0.score + ' %');
   if (s0 && s0.performance_pct != null) parts.push('sommeil ' + s0.performance_pct + ' %');
-  if (fcToday != null) parts.push('FC repos du matin ' + fcToday);
+  if (fcToday != null) parts.push('FC repos ' + fcToday);
   if (r0 && r0.hrv != null) parts.push('VFC ' + Math.round(r0.hrv) + ' ms');
   return { score: score, parts: parts };
 }
@@ -496,7 +496,7 @@ function renderWhoopStats() {
     {
       label: 'Récupération',
       value: r0?.score != null ? r0.score + '%' : '—',
-      sub: r0?.rhr ? `<span style="color:${rhrColor(r0.rhr)};font-weight:700;">${r0.rhr}</span> bpm la nuit (WHOOP)` : (cy0?.avg_hr ? cy0.avg_hr + ' bpm moy' : ''),
+      sub: r0?.rhr ? `<span style="color:${rhrColor(r0.rhr)};font-weight:700;">${r0.rhr}</span> bpm repos (nuit)` : (cy0?.avg_hr ? cy0.avg_hr + ' bpm moy' : ''),
       color: r0?.score != null ? scoreColor(r0.score) : 'var(--muted)',
       bg: isDark ? 'rgba(34,197,94,0.12)' : '#f0fdf4',
       border: isDark ? 'rgba(34,197,94,0.25)' : '#bbf7d0'
@@ -566,7 +566,7 @@ function renderWhoopStats() {
       const col = scoreColor(avg);
       const emoji = avg >= 67 ? '🟢' : avg >= 34 ? '🟡' : '🔴';
       const label = avg >= 67 ? 'Bonne forme' : avg >= 34 ? 'Forme moyenne' : 'Récupération insuffisante';
-      const components = ['récup', 'sommeil', 'FC repos du matin'];
+      const components = ['récup', 'sommeil', 'FC repos'];
       if (r0?.hrv != null) components.push('VFC');
       let trendHtml = '';
       if (trendDiff != null) {

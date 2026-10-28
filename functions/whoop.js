@@ -314,7 +314,11 @@ async function _whoopFetchAndSave(db) {
     latest_hrv: latestRecovery?.hrv ?? null
   });
 
-  if (rhrProxy) {
+  // FC de repos de la nuit (WHOOP) = FC repos de référence : elle remplace la saisie du matin, jour par jour (14 jours)
+  const fcUp = {};
+  recoveries.forEach((r) => { if (r.date && r.rhr >= 30 && r.rhr <= 100) fcUp[`fc_repos_${r.date}`] = Math.round(r.rhr); });
+  if (Object.keys(fcUp).length) await db.ref(`users/${ADMIN_UID}/state`).update(fcUp);
+  else if (rhrProxy) {
     const today = new Date().toISOString().slice(0, 10);
     await db.ref(`users/${ADMIN_UID}/state/fc_repos_${today}`).transaction(existing => {
       return existing === null ? rhrProxy : existing;

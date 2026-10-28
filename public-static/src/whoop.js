@@ -83,6 +83,16 @@ function connectWhoop() {
   }, 1500);
 }
 
+// FC de repos de la nuit (WHOOP) = FC repos de référence : remplace la saisie du matin pour chaque jour connu
+function whoopFcToState(wd){
+  const rec = ((wd || state.whoop_data || {}).recoveries) || [], up = {};
+  rec.forEach(function(r){ if(r && r.date && r.rhr >= 30 && r.rhr <= 100){ const k = 'fc_repos_' + r.date, v = Math.round(r.rhr); if(+state[k] !== v){ state[k] = v; up[k] = v; } } });
+  const n = Object.keys(up).length;
+  if(n && dbRef && (typeof _prepView === 'undefined' || !_prepView)) dbRef.update(up).catch(function(){});
+  const today = new Date().toISOString().slice(0, 10); if(up['fc_repos_' + today]) state['fc_repos'] = up['fc_repos_' + today];
+  return n;
+}
+
 // Relit whoop_data ET fc_repos_today depuis Firebase et met à jour state
 async function _pullWhoopStateFromFirebase() {
   if (!dbRef) return null;
@@ -94,6 +104,7 @@ async function _pullWhoopStateFromFirebase() {
   const wd = wdSnap.val();
   if (wd) {
     state.whoop_data = wd;
+    whoopFcToState(wd);
     if (typeof renderWhoopStats === 'function') renderWhoopStats();
   }
   const fcVal = fcSnap.val();
