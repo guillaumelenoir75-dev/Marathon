@@ -702,8 +702,16 @@ function renderAthletePlan(el){
     </button>`;
   actionBanner.className='pt-row';
   actionBanner.style.cssText='';
-  actionBanner.innerHTML=reviewBtn+legendBtn;
+  const _tools2=_canReview&&typeof openImprevu==='function';
+  actionBanner.innerHTML=reviewBtn+(_tools2?'':legendBtn);
   el.appendChild(actionBanner);
+  if(_tools2){
+    // Imprévu / Plan de course / Légende (plan-daily.js)
+    const row2=document.createElement('div'); row2.className='pt-row pt-row2';
+    const tile=(fn,ico,lab)=>`<button type="button" class="pt-card pt-leg" onclick="${fn}"><span class="pt-ic sm">${ico}</span><b>${lab}</b></button>`;
+    row2.innerHTML=tile('openImprevu()','🧳','Imprévu')+tile('openRacePlan()','🏁','Plan de course')+legendBtn.replace('pt-leg wide','pt-leg');
+    el.appendChild(row2);
+  }
   if(regenBtn||updateBtn||regenDateBtn||delBtn){
     const mgmt=document.createElement('div');
     mgmt.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin:-2px 0 4px;';
@@ -1043,7 +1051,8 @@ function _planToolsCss(){
     +'.pt-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}.pt-txt b{font-size:15px;font-weight:850;letter-spacing:-.2px;line-height:1.2;}.pt-txt small{font-size:12px;font-weight:600;color:#64748B;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
     +'.pt-maj.has .pt-txt small{color:#C2410C;font-weight:800;}.pt-chev{flex-shrink:0;color:#94A3B8;}'
     +'.pt-leg{flex:0 0 auto;flex-direction:column;justify-content:center;gap:5px;padding:10px 14px;}.pt-leg>b{font-size:12px;font-weight:800;color:#334155;}'
-    +'.pt-leg.wide{flex:1;flex-direction:row;gap:12px;padding:12px 14px;}';
+    +'.pt-leg.wide{flex:1;flex-direction:row;gap:12px;padding:12px 14px;}'
+    +'.pt-row2{margin-top:2px;}.pt-row2 .pt-leg{flex:1;}.pt-row2 .pt-ic.sm{font-size:19px;}';
   document.head.appendChild(st);
 }
 function renderPlan(){
@@ -1234,7 +1243,7 @@ function renderPlan(){
                 return parts.length?`<div style="font-size:11px;font-weight:600;color:#3B6D11;margin-top:3px;display:flex;gap:8px;">${parts.join('<span style="opacity:0.4;"> · </span>')}</div>`:'';
               }
               const dur=calcSessionDuration(s2,getBestEfPace(),getMarathonPaceStr());
-              return dur?`<div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;">⏱ ~${dur}</div>`:'';
+              return (dur?`<div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;">⏱ ~${dur}</div>`:'')+(typeof prWeatherLine==='function'?prWeatherLine(s2):'');
             })()}
             <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
               ${schedHtml}

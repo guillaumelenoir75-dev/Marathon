@@ -18,6 +18,7 @@ function sendGoalChip(){
 
 function renderHome(){
   if(typeof initLiveHomeBtn === 'function') initLiveHomeBtn();
+  if(typeof prRenderHomeCard === 'function') prRenderHomeCard();   // forme du jour, série, badges (plan-daily.js)
   const w = homeViewWeek; // semaine affichée (peut ≠ CW si navigation)
   const eCW = getEffectiveCW(); // semaine courante effective (admin=CW, athlete=getAthleteCW)
   const isPast   = w < eCW;
@@ -833,7 +834,7 @@ function renderHome(){
         ${(()=>{
           if(!done){
             const dur=estimateDuration(s2);
-            return dur?`<span style="font-size:10px;color:#6B8DB5;font-weight:500;">⏱ ~${dur}</span>`:'';
+            return (dur?`<span style="font-size:10px;color:#6B8DB5;font-weight:500;">⏱ ~${dur}</span>`:'')+(typeof prWeatherLine==='function'?prWeatherLine(s2):'');
           }
           const perfRaw = state[`extra_w${w}_s${ei}_perf`];
           let perf2={};try{perf2=perfRaw?JSON.parse(perfRaw):{}}catch(e){}
@@ -1117,6 +1118,7 @@ function openValidationModalExtra(w,ei){
         html+='</div>';
         return html;
       })()}
+      ${s.type!=='race'&&typeof prRpeHtml==='function'?prRpeHtml(prev):''}
     </div>
     <div style="padding:0 0 28px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;">
@@ -1300,6 +1302,9 @@ async function saveValidationExtra(w,ei){
   if(pace) perf.pace=pace;
   if(hr) perf.hr=hr;
   if(dateVal) perf.date=dateVal;
+  // Effort ressenti (1-10) et douleur (plan-daily.js)
+  const _rpe=typeof prRpeRead==='function'?prRpeRead():null;
+  if(_rpe){ if(_rpe.rpe) perf.rpe=_rpe.rpe; if(_rpe.pain) perf.pain=_rpe.pain; }
   // Blocs Tempo/Frac
   let sExtra={};try{sExtra=JSON.parse(state[k]||'{}');}catch(e){}
   if(sExtra.type==='tempo'||sExtra.type==='frac'){
@@ -1324,10 +1329,17 @@ async function saveValidationExtra(w,ei){
     if(g.best_400m) stravaData.best_400m=g.best_400m;
     if(g.splits&&g.splits.length>0) stravaData.splits=g.splits;
     if(g.zones_fc&&g.zones_fc.length>0) stravaData.zones_fc=g.zones_fc;
+    if(g.laps&&g.laps.length>0) stravaData.laps=g.laps;
     if(Object.keys(stravaData).length>0){
       let ex={};try{ex=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-      Object.assign(perf,ex);
+      const _keep=Object.assign({},perf);
+      Object.assign(perf,ex,_keep);
       perf.strava=stravaData;
+    }
+    // blocs non saisis : lus depuis les tours Strava
+    if((sExtra.type==='tempo'||sExtra.type==='frac')&&!(perf.blocsAllure||[]).some(Boolean)&&stravaData.laps&&typeof prBlocsFromLaps==='function'){
+      const _p=(sExtra.d||'').split('|'), _bl=prBlocsFromLaps(_p[0],_p.slice(1).join('|'),stravaData.laps);
+      if(_bl){ perf.blocsAllure=_bl; perf.blocsAuto=true; }
     }
     window._stravaActivityData=null;
   }

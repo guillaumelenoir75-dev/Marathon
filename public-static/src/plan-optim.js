@@ -223,7 +223,8 @@ function prWhoopProposals(st, a, wh){
 function prSessionVdot(s, hrMax){
   const it = prIntent(s); if(it !== 'T' && it !== 'I' && it !== 'race') return null;
   const bl = (s.perf.blocsAllure || []).map(prPaceSec).filter(Boolean); if(bl.length < 2) return null;
-  let v = vdotFromPaceAt(prMean(bl), it === 'I' ? 0.975 : it === 'race' ? 0.9 : 0.88);
+  const wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(s.perf.meteo).pct : 0;
+  let v = vdotFromPaceAt(prMean(bl) / (1 + wx / 100), it === 'I' ? 0.975 : it === 'race' ? 0.9 : 0.88);
   const hr = parseInt(s.perf.hr); if(hr && hr > 0.93 * hrMax) v -= 0.8;
   return v;
 }
@@ -295,8 +296,8 @@ function prCalib(st){
     if(!real && (s.type === 'ef' || s.type === 'long')) real = prPaceSec(s.perf.pace);
     if(!real){ const laps = (((s.perf || {}).strava || {}).laps || []).map(function(l){ return prPaceSec(l.allure); }).filter(function(p){ return p && Math.abs(p - (lo + hi) / 2) <= 25; }); real = prMean(laps); }
     if(!real) return;
-    const easy = s.type === 'ef' || s.type === 'long';
-    res[c.ref] = { key: c.ref, title: s.title, date: s.date, target: m[0].replace(/\s*\/\s*km$/, ''), real: real, ok: easy ? real <= hi + 10 : real <= hi + 3, hr: s.perf.hr || null };
+    const easy = s.type === 'ef' || s.type === 'long', wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(s.perf.meteo).pct : 0, hiW = hi * (1 + wx / 100);   // allure cible corrigée de la météo du jour
+    res[c.ref] = { key: c.ref, title: s.title, date: s.date, target: m[0].replace(/\s*\/\s*km$/, ''), real: real, ok: easy ? real <= hiW + 10 : real <= hiW + 3, hr: s.perf.hr || null, wx: wx };
   }); });
   const list = Object.keys(res).map(function(k){ return res[k]; }).sort(function(x, y){ return (x.date || '').localeCompare(y.date || ''); });
   const k = list.filter(function(r){ return r.ok; }).length, n = list.length;
@@ -310,6 +311,8 @@ function prUndoReview(i){
   (h.changes || []).forEach(function(c){
     let x; try { x = JSON.parse(state[c.ref]); } catch(e) { skip++; return; }
     if(!x || state[c.ref + '_done'] || state[c.ref + '_km'] != null){ skip++; return; }
+    if(c.field === 'skip'){ if(state[c.ref + '_skip'] && state[c.ref + '_skip_reason'] === c.after){ delete state[c.ref + '_skip']; delete state[c.ref + '_skip_reason']; ok++; } else skip++; return; }
+    if(c.field === 'date'){ if(x.sched_date === c.after){ x.sched_date = c.before; const st0 = state.plan_start_date ? String(state.plan_start_date).slice(0, 10) : null; if(st0 && x.sched_day){ const di = prDays(st0, c.before) - (+String(c.ref).match(/_w(\d+)_/)[1] - 1) * 7 + 1; if(di >= 1 && di <= 7) x.sched_day = di; } x._seq = (x._seq || 0) + 1; state[c.ref] = JSON.stringify(x); ok++; } else skip++; return; }
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');
     const same = c.field === 'detail' ? det === c.after : c.field === 'title' ? title === c.after : c.field === 'km' ? +x.km === +c.after : c.field === 'type' ? x.type === c.after
       : c.field === 'session' ? title === c.after.t && det === c.after.d : false;

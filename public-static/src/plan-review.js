@@ -62,6 +62,10 @@ function prSessions(st, opt){
       let pace = null;
       if(pm){ const a = prParsePace(pm[1], pm[2]), b = pm[3] ? prParsePace(pm[3], pm[4]) : a; pace = { lo: Math.min(a, b), hi: Math.max(a, b), range: !!pm[3], text: pm[0] }; }
       const done = !!(st[k + '_done'] || st[k + '_km'] != null);
+      if(done && perf.date && /^\d{4}-\d{2}-\d{2}/.test(perf.date)) date = String(perf.date).slice(0, 10);   // séance faite : date réelle
+      if(done && (x.type === 'tempo' || x.type === 'frac') && !(perf.blocsAllure || []).some(Boolean) && perf.strava && perf.strava.laps && typeof prBlocsFromLaps === 'function'){
+        const bl = prBlocsFromLaps(parts[0], det, perf.strava.laps); if(bl){ perf.blocsAllure = bl; perf._blocsAuto = true; }
+      }
       out.push({ key: k, w: w, ei: ei, x: x, perf: perf, date: date, title: parts[0], detail: det, pace: pace, done: done,
         km: done && parseFloat(st[k + '_km']) > 0 ? parseFloat(st[k + '_km']) : parseFloat(x.km) || 0, kmPlan: parseFloat(x.km) || 0, type: x.type });
     }
@@ -121,12 +125,13 @@ function prFitness(st, opt){
     const it = prIntent(s); if(it !== 'T' && it !== 'I' && it !== 'race') return;
     const bl = (s.perf.blocsAllure || []).map(function(b){ const m = String(b).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean);
     if(bl.length < 2) return;
-    const avg = bl.reduce(function(a, b){ return a + b; }, 0) / bl.length, hr = parseInt(s.perf.hr) || null;
+    const wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(s.perf.meteo).pct : 0;
+    const avg = bl.reduce(function(a, b){ return a + b; }, 0) / bl.length / (1 + wx / 100), hr = parseInt(s.perf.hr) || null;   // allure équivalente sans chaleur
     // seuil ≈ 88 % VDOT, fractionné ≈ 97,5 % ; FC moyenne de séance basse = effort contenu (marge)
     const pct = it === 'I' ? 0.975 : it === 'race' ? 0.9 : 0.88;
     let v = vdotFromPaceAt(avg, pct);
     if(hr && hr > 0.93 * hrMax) v -= 0.8;
-    recent.push({ kind: 'séance', label: s.title, date: s.date, pace: prPace(avg), hr: hr, vdot: v });
+    recent.push({ kind: 'séance', label: s.title + (s.perf._blocsAuto ? ' (tours Strava)' : '') + (wx >= 1 ? ' (corrigé chaleur +' + prV(wx) + ' %)' : ''), date: s.date, pace: prPace(avg), hr: hr, vdot: v });
   });
   src.push.apply(src, recent);
   const races = src.filter(function(x){ return x.kind === 'course'; }), sesV = recent.map(function(x){ return x.vdot; }).sort(function(a, b){ return a - b; });
@@ -346,12 +351,13 @@ function prAnalyze(){
   const a = { fit: fit, opt: opt, race: R };
   if(opt2){
     a.load = prLoad(today); a.drift = prDrift(today); a.whoop = prWhoop(today); a.calib = prCalib(state);
+    if(typeof prInternal === 'function') a.internal = prInternal(today);
     opt.drift = a.drift; opt.calib = a.calib.mode;
     a.volume = prVolumePlan(state, a); opt.volumeManaged = !!a.volume;
   }
   const all = prPaceProposals(state, fit, opt);
   // une proposition par séance et par champ : WHOOP > séance test > volume / allure
-  const extra = opt2 ? prWhoopProposals(state, a, a.whoop).concat([prTestProposal(state, a)].filter(Boolean)).concat(a.volume ? a.volume.proposals : []) : [];
+  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(a.volume ? a.volume.proposals : []) : [];
   const seen = {}, merged = [];
   extra.concat(all).forEach(function(p){
     const k = p.key + '|' + (p.field === 'session' ? 'session' : p.field), ks = p.key + '|session';
@@ -552,7 +558,7 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-vol{gap:6px;padding:12px 12px 10px;}.pr-vol-h{margin:0;font-size:13px;font-weight:850;color:#0C447C;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.pr-vol-h span{font-size:11px;font-weight:700;color:#64748B;}'
   + '.vc-plan{fill:#E2E8F0;}.vc-after{fill:#1B4FD8;}.vc-done{fill:#86EFAC;}.vc-tgt{stroke:#1B4FD8;stroke-width:2.5;stroke-linecap:round;}'
   + '.pr-undo{display:block;margin:6px 0 2px;font-size:12px;}'
-  + '.pr-snack{position:fixed;left:16px;right:16px;margin:0 auto;width:max-content;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9999;display:flex;align-items:center;gap:12px;background:#0F172A;color:#fff;border-radius:16px;padding:10px 10px 10px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100vw - 32px);animation:_prFade .3s ease both;}'
+  + '.pr-snack{position:fixed;left:16px;right:16px;margin:0 auto;width:max-content;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:450;display:flex;align-items:center;gap:12px;background:#0F172A;color:#fff;border-radius:16px;padding:10px 10px 10px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100vw - 32px);animation:_prFade .3s ease both;}'
   + '.pr-snack button{flex-shrink:0;background:#3B82F6;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:800;font-size:13px;font-family:inherit;cursor:pointer;}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS; document.head.appendChild(st); } }
@@ -691,7 +697,7 @@ function _prItem(p, i){
   } else {
     swap = '<div class="pr-txt"><p class="pr-old">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.before) + '</p><p class="pr-new">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.after) + '</p></div>';
   }
-  const kindTag = p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : '';
+  const kindTag = p.kind === 'pain' ? ' · <span class="pr-tag rev">🩹 Douleur</span>' : p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : '';
   return '<div class="pr-chg' + (p.on ? '' : ' off') + '" id="pr-it-' + i + '">'
     + '<div class="pr-chg-h"><span class="pr-dot" style="background:' + bg + ';color:' + col + ';">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[ty]) || '•') + '</span>'
     + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) : 'S' + p.w) + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + kindTag + (p.revert ? ' · <span class="pr-tag rev">↩ annule la modif du ' + prFmtDate(p.revert) + '</span>' : '') + '</small></div>'
@@ -752,6 +758,9 @@ function _prRender(){
   if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) pills.push('<span class="pr-pill rest">🛌 Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées jusqu\'au ' + prFmtDate(a.opt.noFasterUntil, { day: 'numeric', month: 'short' }) : '') + '</span>');
   if(a.load && a.load.chronic) pills.push('<span class="pr-pill base">📈 Charge : ' + a.load.k7 + ' km / 7 j · ~' + a.load.chronic + ' km/sem sur 28 j' + (a.load.acwr ? ' · ratio ' + prV(a.load.acwr) : '') + '</span>');
   if(a.whoop) pills.push('<span class="pr-pill ' + (a.whoop.tired ? 'rest' : 'ok') + '">' + (a.whoop.tired ? '😮‍💨 WHOOP : récupération basse (' + a.whoop.avg3 + ' %)' : a.whoop.fresh ? '💚 WHOOP : bien récupéré (' + a.whoop.avg3 + ' %)' : '💛 WHOOP : récupération moyenne (' + a.whoop.avg3 + ' %)') + (a.whoop.hrvDrop != null ? ' · VFC ' + (a.whoop.hrvDrop > 0 ? '+' : '') + a.whoop.hrvDrop + ' %' : '') + '</span>');
+  const pn = a.internal && a.internal.pains[0];
+  if(pn) pills.push('<span class="pr-pill ' + (pn.level >= 2 ? 'rest' : 'base') + '">🩹 Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' (' + prEsc(pn.zone.toLowerCase()) + ') le ' + prFmtDate(pn.date) + (pn.level >= 2 ? ' → jours suivants allégés' : ' : surveille') + '</span>');
+  if(a.internal && a.internal.ratio) pills.push('<span class="pr-pill ' + (a.internal.ratio > 1.5 ? 'rest' : 'base') + '">💪 Charge ressentie 7 j : ' + prV(a.internal.ratio) + '× ta moyenne</span>');
   if(a.drift) pills.push('<span class="pr-pill base">❤️ Dérive cardiaque ' + prV(a.drift.avg) + ' % : endurance ' + a.drift.label + '</span>');
   if(a.calib && a.calib.n) pills.push('<span class="pr-pill ' + (a.calib.mode === 'prudent' ? 'rest' : 'base') + '">🎯 Allures proposées tenues : ' + a.calib.k + '/' + a.calib.n + (a.calib.mode === 'prudent' ? ' → calcul plus prudent' : a.calib.mode === 'confiant' ? ' → progression plus franche' : '') + '</span>');
   if(pills.length) h += '<div class="pr-pills">' + pills.join('') + '</div>';
@@ -830,10 +839,10 @@ function _prRender(){
 
   // ── Historique
   const allH = state._plan_reviews || [], hist = allH.slice(-3).reverse();
-  const short = function(c, v){ if(c.field === 'km') return v + ' km'; if(c.field === 'session') return v && v.t ? v.t + ' · ' + v.km + ' km' : ''; const m = String(v).match(PR_PACE_RE); return c.field === 'detail' && m ? m[0].replace(/\s*\/\s*km$/, '') : String(v); };
+  const short = function(c, v){ if(c.field === 'km') return v + ' km'; if(c.field === 'skip') return v ? 'non réalisée' : 'prévue'; if(c.field === 'date') return v ? prFmtDate(v, { weekday: 'short', day: 'numeric' }) : ''; if(c.field === 'session') return v && v.t ? v.t + ' · ' + v.km + ' km' : ''; const m = String(v).match(PR_PACE_RE); return c.field === 'detail' && m ? m[0].replace(/\s*\/\s*km$/, '') : String(v); };
   if(hist.length) h += '<p class="pr-sec"><span>Dernières mises à jour</span></p><div class="pr-card">' + hist.map(function(x){
       const idx = allH.indexOf(x);
-      const line = (x.undone ? '↩ ' : '✓ ') + prFmtDate(x.date, { day: 'numeric', month: 'long' }) + ' — ' + x.n + ' séance' + (x.n > 1 ? 's' : '') + ' modifiée' + (x.n > 1 ? 's' : '') + (x.coach ? ' (avec le Coach)' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
+      const line = (x.undone ? '↩ ' : x.imprevu ? '🧳 ' : '✓ ') + prFmtDate(x.date, { day: 'numeric', month: 'long' }) + ' — ' + (x.imprevu ? 'imprévu (' + ({ indispo: 'indisponible', charge: 'semaine chargée', malade: 'malade' }[x.imprevu] || '') + ') : ' : '') + x.n + ' séance' + (x.n > 1 ? 's' : '') + ' modifiée' + (x.n > 1 ? 's' : '') + (x.coach ? ' (avec le Coach)' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
       if(!(x.changes || []).length) return '<p class="pr-note">' + line + '</p>';
       return '<details class="pr-hist"><summary class="pr-note">' + line + '</summary><ul>' + x.changes.map(function(c){ return '<li><b>' + prEsc(typeof normalizeSessionTitle === 'function' && c.type ? normalizeSessionTitle(c.title, c.type, typeof c.before === 'string' ? c.before : '') || c.title : c.title) + '</b>' + (c.date ? ' · ' + prFmtDate(c.date) : '') + ' : ' + prEsc(short(c, c.before)) + ' → <b>' + prEsc(short(c, c.after)) + '</b></li>'; }).join('') + '</ul>'
         + (x.undone ? '<p class="pr-note">Annulée le ' + prFmtDate(x.undone, { day: 'numeric', month: 'long' }) + '.</p>' : '<button type="button" class="pr-link pr-undo" onclick="if(confirm(\'Annuler cette mise à jour ? Les séances pas encore faites retrouvent leur ancienne version.\')) prUndoReview(' + idx + ')">↩ Annuler cette mise à jour</button>') + '</details>';
@@ -885,6 +894,8 @@ async function askCoachPlanReview(force){
     reviewHistory: (state._plan_reviews || []).slice(-4).map(function(h){ return { date: h.date, avec_coach: !!h.coach, niveau: h.vdot, changements: (h.changes || []).map(function(c){ return { ref: c.ref, seance: c.title, date: c.date, champ: c.field, avant: c.before, apres: c.after, par: c.src === 'coach' ? 'toi (Coach)' : 'calcul', raison: c.reason }; }) }; }),
     volume: a.volume ? { base_km_sem: a.volume.base, pic_vise_km: a.volume.peak, semaines: a.volume.weeks.map(function(w){ return { semaine: w.w, prevu: w.plan, fait: w.past ? w.done : undefined, conseille: w.target || undefined, raison: w.why || undefined }; }) } : null,
     charge: a.load ? { km_7j: a.load.k7, moyenne_28j_km_sem: a.load.chronic, ratio: a.load.acwr ? Math.round(a.load.acwr * 100) / 100 : null } : null,
+    effort_ressenti: a.internal && a.internal.rpes.length ? { seances_14j: a.internal.rpes, charge_ressentie_ratio_7j_28j: a.internal.ratio ? Math.round(a.internal.ratio * 100) / 100 : null } : null,
+    douleurs: a.internal && a.internal.pains.length ? a.internal.pains : null,
     derive_cardiaque: a.drift ? { moyenne_pct: Math.round(a.drift.avg * 10) / 10, sorties: a.drift.n, endurance: a.drift.label } : null,
     whoop: a.whoop ? { recup_3j: a.whoop.scores, moyenne: a.whoop.avg3, vfc_vs_moyenne_pct: a.whoop.hrvDrop, fatigue: a.whoop.tired } : null,
     allures_tenues: a.calib && a.calib.n ? { tenues: a.calib.k, total: a.calib.n, detail: a.calib.list.map(function(r){ return { seance: r.title, date: r.date, cible: r.target, realise: prPace(r.real), tenue: r.ok }; }) } : null,
@@ -936,7 +947,7 @@ function applyPlanReview(){
     else if(p.field === 'title') x.d = p.after + (det ? '|' + det : '');
     else if(p.field === 'km') x.km = +p.after;
     else if(p.field === 'type' && ['ef', 'long', 'tempo', 'frac'].indexOf(p.after) >= 0) x.type = p.after;
-    else if(p.field === 'session' && p.after && p.after.t){ x.d = p.after.t + '|' + p.after.d; x.km = +p.after.km; if(['ef', 'long', 'tempo', 'frac'].indexOf(p.after.type) >= 0) x.type = p.after.type; }
+    else if(p.field === 'session' && p.after && p.after.t){ x.d = p.after.t + '|' + p.after.d; x.km = +p.after.km; if(['ef', 'long', 'tempo', 'frac', 'rest'].indexOf(p.after.type) >= 0) x.type = p.after.type; }
     else return;
     x._modified = true; x._seq = (x._seq || 0) + 1;
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;

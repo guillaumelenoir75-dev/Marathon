@@ -495,9 +495,10 @@ function _applyStravaToValidation(activity) {
   const dateEl = document.getElementById('val-date');
   if(dateEl && activity.date) dateEl.value = activity.date;
 
-  // Blocs tempo/frac : message d'aide, saisie manuelle uniquement
+  // Blocs tempo/frac : pré-remplis depuis les tours Strava (plan-daily.js), sinon message d'aide
   const ctx = window._currentValidationSession;
-  if (ctx && ctx.s && (ctx.s.type === 'tempo' || ctx.s.type === 'frac')) {
+  if (typeof prFillBlocsFromStrava === 'function') prFillBlocsFromStrava(activity);
+  else if (ctx && ctx.s && (ctx.s.type === 'tempo' || ctx.s.type === 'frac')) {
     const blocsContainer = document.getElementById('val-blocs-container');
     const existing = document.getElementById('val-blocs-strava-msg');
     if (existing) existing.remove();
