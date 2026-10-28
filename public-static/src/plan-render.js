@@ -209,32 +209,30 @@ function estimateDuration(s) {
   }
 
   if(s.type === 'tempo' || s.type === 'frac') {
+    // Structure lue dans la consigne : échauffement « 3 km EF », répétitions en mètres (« 4 × 1000 m ») ou en minutes
+    // (« 3 × 6 min »), allure des blocs, récup (« récup 2 min », « récup 1'30 », « 2:30 min récup »), puis EF jusqu'au total
     const isFrac = s.type === 'frac';
-    const repMatch = title.match(/(\d+)[×x×](\d+)/);
-    const reps = repMatch ? parseInt(repMatch[1]) : (isFrac ? 6 : 2);
-    const durMin = repMatch ? parseInt(repMatch[2]) : (isFrac ? 2 : 8);
-
-    const efDetailMatch = detail.match(/EF\s*[@\s]\s*(\d+)['':](\d+)/i);
-    const paceEf = efDetailMatch
-      ? (parsePaceMin(efDetailMatch[1]+':'+efDetailMatch[2]) || 6.67)
-      : (parsePaceMin((getBestEfPace()||"6'40").replace("'",":")) || 6.67);
-
-    // 1ère allure dans le detail = allure des blocs
-    const paceMatch2 = detail.match(/(\d+)[':](\d+)/);
-    const paceBlocMin = paceMatch2 ? parsePaceMin(paceMatch2[1]+':'+paceMatch2[2]) : (isFrac ? 4.5 : 4.92);
-
-    const recupMatch = detail.match(/([\d:]+)\s*min\s*r[eé]cup/i);
-    const recupMinutes = recupMatch ? (()=>{
-      const rp = recupMatch[1].split(':');
-      return rp.length>1 ? parseInt(rp[0])+parseInt(rp[1])/60 : parseFloat(rp[0])||(isFrac?2:3);
-    })() : (isFrac ? 2 : 3);
-
-    const KM_ECHA = isFrac ? 2.0 : 3.0;
-    const kmBlocs = paceBlocMin ? (reps * durMin) / paceBlocMin : 0;
-    const kmRecup = (reps * recupMinutes) / paceEf;
-    const kmEfRestantRaw = km - KM_ECHA - kmBlocs - kmRecup;
-    const kmEfRestant = kmEfRestantRaw <= 0 ? kmEfRestantRaw : Math.ceil(kmEfRestantRaw * 2) / 2;
-    const totalMin = (KM_ECHA * paceEf) + (reps * durMin) + (reps * recupMinutes) + (Math.max(0,kmEfRestant) * paceEf);
+    const txt = (title + ' · ' + detail).replace(/ /g, ' ');
+    const paceEf = (() => { const m = detail.match(/EF\s*[@\s]\s*(\d+)['’:](\d+)/i); return (m && parsePaceMin(m[1] + ':' + m[2])) || parsePaceMin((getBestEfPace() || "6'00").replace(/['’]/, ':')) || 6; })();
+    const repM = txt.match(/(\d+)\s*[×x]\s*(\d[\d\s]*?)\s*m\b(?!in)/i), repMn = txt.match(/(\d+)\s*[×x]\s*(\d+(?:[,.]\d+)?)\s*min/i);
+    const rep = repM && (!repMn || txt.indexOf(repM[0]) <= txt.indexOf(repMn[0])) ? { n: +repM[1], m: parseInt(repM[2].replace(/\s/g, '')) }
+      : repMn ? { n: +repMn[1], min: parseFloat(repMn[2].replace(',', '.')) } : null;
+    // allure des blocs : 1re allure après les répétitions (plage → milieu), sinon 1re allure /km de la consigne
+    const at = rep ? Math.max(0, detail.search(/\d+\s*[×x]/)) : 0;
+    const pm = detail.slice(at).match(/(\d{1,2})['’:](\d{2})(?:\s*[—–-]\s*(\d{1,2})['’:](\d{2}))?/);
+    const paceBloc = pm ? (pm[3] ? (parsePaceMin(pm[1] + ':' + pm[2]) + parsePaceMin(pm[3] + ':' + pm[4])) / 2 : parsePaceMin(pm[1] + ':' + pm[2])) : (isFrac ? 4.5 : 4.9);
+    const rc = detail.match(/r[eé]cup\w*\s*:?\s*(\d+)(?:\s*['’:]\s*(\d{2}))?\s*(min|s\b)?/i) || detail.match(/(\d+)(?:[:'’](\d{2}))?\s*(min)\s*r[eé]cup/i);
+    const recup = rc ? (rc[3] && /^s/i.test(rc[3]) ? +rc[1] / 60 : +rc[1] + (rc[2] ? +rc[2] / 60 : 0)) : (isFrac ? 2 : 3);
+    const wu = detail.match(/^\s*(\d+(?:[,.]\d+)?)(?:\s*-\s*\d+)?\s*km\s*EF/i), wuMin = detail.match(/^\s*(\d+)\s*min\s*EF/i);
+    const kmWu = wu ? parseFloat(wu[1].replace(',', '.')) : wuMin ? +wuMin[1] / paceEf : (isFrac ? 2 : 3);
+    let blocMin = 0, blocKm = 0;
+    if(rep && rep.m){ blocKm = rep.n * rep.m / 1000; blocMin = blocKm * paceBloc; }
+    else if(rep && rep.min){ blocMin = rep.n * rep.min; blocKm = blocMin / paceBloc; }
+    else { const one = detail.match(/(\d+)\s*min\s*(?:à|@|tempo|au seuil)/i); if(one){ blocMin = +one[1]; blocKm = blocMin / paceBloc; } }
+    const nRec = rep ? Math.max(0, rep.n - 1) : 0, recKm = nRec * recup / (paceEf * 1.15);    // récup trottinée, un peu plus lente que l'EF
+    const kmEf = Math.max(0, (parseFloat(km) || 0) - kmWu - blocKm - recKm);
+    let totalMin = blocMin ? kmWu * paceEf + blocMin + nRec * recup + kmEf * paceEf : (parseFloat(km) || 0) * (paceEf + paceBloc) / 2;
+    if(!(totalMin > 0) || totalMin > (parseFloat(km) || 0) * 12 + 30) totalMin = (parseFloat(km) || 0) * paceEf;   // garde-fou
     return fmtDur(totalMin);
   }
 

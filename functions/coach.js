@@ -1077,14 +1077,16 @@ PRINCIPES :
 - Allures : suivent le niveau ACTUEL (VDOT fourni). L'allure course peut viser l'objectif s'il est à moins de ~3 % du niveau actuel, sinon s'en rapprocher.
 - Respecte l'intention de chaque séance et la structure de la semaine (jours, nombre de séances).
 - Séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → durcir.
-- Les « contrôles automatiques » et « propositions automatiques » sont des calculs simples : garde-les, ajuste-les ou écarte-les selon ton analyse (dis-le si une alerte n'est pas pertinente vu son historique).
+- Les « propositions automatiques » (allures) sont CONSERVÉES par défaut et s'ajoutent à tes changements : ne les recopie pas. Pour en modifier une, renvoie un changement "detail" sur la même ref ; pour l'écarter, mets sa ref dans "rejected". Les « contrôles automatiques » sont indicatifs : dis-le si une alerte n'est pas pertinente vu son historique.
 - Ne change que ce qui a un vrai effet sur la performance ou le risque : pas de retouche de 1 km, pas de changement cosmétique. Mieux vaut 0 à 5 changements forts que 10 petits. Tu peux AUGMENTER (volume, intensité) autant que réduire.
 
 FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
 
 RÉPONSE : uniquement un objet JSON valide, sans texte autour :
 {"assessment":"2 ou 3 phrases courtes (300 caractères max), tutoiement : le verdict et l'idée principale, sans répéter le détail des changements",
- "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots maximum"}]}
+ "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots maximum"}],
+ "rejected":["refs des propositions automatiques que tu écartes (facultatif)"]}
+IMPORTANT : l'avis ne décrit QUE ce qui est réellement dans "changes" (et les propositions automatiques conservées) ; n'annonce jamais un changement que tu ne renvoies pas.
 Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
       const hist = Array.isArray(b.history) ? b.history.slice(0, 2) : [];
       const userMsg = `Aujourd'hui : ${b.today || ''}
@@ -1112,7 +1114,9 @@ ${JSON.stringify(compact)}`;
         if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && s.type !== 'race') o.type = c.type;
         return o;
       }).filter((o) => o.detail || o.title || o.km || o.type);
-      res.json({ success: true, assessment: str(j.assessment, 500) || '', changes });
+      const auto = new Set((b.proposals || []).map((p) => p && p.ref).filter(Boolean));
+      const rejected = (Array.isArray(j.rejected) ? j.rejected : []).filter((r) => typeof r === 'string' && auto.has(r)).slice(0, 30);
+      res.json({ success: true, assessment: str(j.assessment, 500) || '', changes, rejected });
     } catch(e) {
       console.error('planReview error:', e.message);
       res.status(500).json({ success: false, error: e.message });

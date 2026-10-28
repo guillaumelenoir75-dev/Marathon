@@ -746,7 +746,12 @@ async function askCoachPlanReview(){
       push('detail', s.detail, c.detail); push('title', s.title, c.title); push('km', s.kmPlan, c.km != null ? Math.round(+c.km * 10) / 10 : null); push('type', s.type, c.type);
     });
     clearInterval(R.clTimer); if(_prReview !== R) return;
-    _prReview.items = items; _prReview.coach = j.assessment || '';
+    const rej = {}; (j.rejected || []).forEach(function(r){ rej[r] = 1; });
+    const coachDetail = {}; items.forEach(function(x){ if(x.field === 'detail') coachDetail[x.key] = 1; });
+    const keep = a.proposals.filter(function(p){ return !rej[p.key] && !coachDetail[p.key]; }).map(function(p){ return Object.assign({ on: true }, p); });
+    _prReview.items = keep.concat(items).sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
+    _prReview.rejected = (j.rejected || []).length;
+    _prReview.coach = j.assessment || '';
     _prRender();
     const cc = document.querySelector('#pr-content .pr-coach'); if(cc){ cc.classList.add('pr-pop'); cc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   } catch(e) {
