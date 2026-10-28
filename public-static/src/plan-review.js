@@ -427,12 +427,12 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-tick{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:2px solid #C3CEE0;background:#fff;cursor:pointer;position:relative;padding:0;}.pr-tick[aria-pressed=true]{background:#1B4FD8;border-color:#1B4FD8;}'
   + '.pr-tick[aria-pressed=true]::after{content:"";position:absolute;left:9px;top:4px;width:7px;height:13px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg);}'
   + '.pr-swap{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums;}.pr-p{font-size:15px;font-weight:800;border-radius:9px;padding:5px 9px;white-space:nowrap;}.pr-p.old{background:#F1F5F9;color:#94A3B8;text-decoration:line-through;font-size:13px;}.pr-p.new{background:#1B4FD8;color:#fff;}'
-  + '.pr-arr{font-weight:900;color:#1B4FD8;}.pr-u{font-size:12px;font-weight:700;color:#64748B;margin-left:-2px;}.pr-d{margin-left:auto;font-size:11.5px;font-weight:900;border-radius:999px;padding:3px 8px;}.pr-d.fast{background:#DCFCE7;color:#15803D;}.pr-d.slow{background:#FFEDD5;color:#C2410C;}'
+  + '.pr-arr{font-weight:900;color:#1B4FD8;}.pr-u{font-size:12px;font-weight:700;color:#64748B;margin-left:-2px;}.pr-d{display:inline-block;font-size:11.5px;font-weight:900;border-radius:999px;padding:2px 8px;margin-right:6px;white-space:nowrap;}.pr-d.fast{background:#DCFCE7;color:#15803D;}.pr-d.slow{background:#FFEDD5;color:#C2410C;}'
   + '.pr-chg .pr-why{font-size:12.5px;color:#334155;font-weight:600;margin:0;line-height:1.4;}.pr-txt{display:flex;flex-direction:column;gap:4px;}.pr-txt p,.pr-full p{margin:0;}'
   + '.pr-full summary{font-size:11.5px;font-weight:800;color:#1B4FD8;cursor:pointer;}.pr-full[open]{display:flex;flex-direction:column;gap:4px;}'
   + '.pr-vig{display:flex;flex-direction:column;gap:6px;background:#FFFBEB;border-radius:12px;padding:9px 11px;}.pr-vig p{margin:0;display:flex;gap:8px;font-size:12.5px;line-height:1.4;color:#713F12;}.pr-vig i{font-style:normal;flex-shrink:0;}.pr-vig .pr-vig-n{font-size:11.5px;color:#A16207;font-weight:700;}'
   + '.pr-ask{display:flex;flex-direction:column;gap:6px;}'
-  + '.pr-fold summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}.pr-fold summary::-webkit-details-marker{display:none;}.pr-fold summary::after{content:"Détail ▾";font-size:12px;font-weight:800;color:#1B4FD8;}.pr-fold[open] summary::after{content:"Masquer ▴";}'
+  + '.pr-fold{display:block;}.pr-fold[open]>*:not(summary){margin-top:10px;}.pr-fold summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}.pr-fold summary::-webkit-details-marker{display:none;}.pr-fold summary::after{content:"Détail ▾";font-size:12px;font-weight:800;color:#1B4FD8;}.pr-fold[open] summary::after{content:"Masquer ▴";}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS; document.head.appendChild(st); } }
 
@@ -486,7 +486,7 @@ function _prToggle(i){
 function _prItem(p, i){
   const ty = p.type || 'ef', col = (typeof typeColor !== 'undefined' && typeColor[ty]) || '#1B4FD8', bg = (typeof typeBg !== 'undefined' && typeBg[ty]) || '#EEF3FC';
   const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, p.before) || p.title : p.title;
-  let swap = '', full = '';
+  let swap = '', full = '', delta = '';
   if(p.field === 'detail' && !p.pb){                                       // consigne du Coach : allures extraites si elles changent
     const m1 = String(p.before).match(PR_PACE_RE), m2 = String(p.after).match(PR_PACE_RE);
     if(m1 && m2 && m1[0] !== m2[0]){
@@ -496,8 +496,8 @@ function _prItem(p, i){
   }
   if(p.pb && p.pa){
     const d = p.delta || 0;
-    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span>'
-      + '<span class="pr-d ' + (d < 0 ? 'fast' : 'slow') + '">' + (d < 0 ? '⚡ ' + d : '🐢 +' + d) + ' s</span></div>';
+    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span></div>';
+    if(d) delta = '<span class="pr-d ' + (d < 0 ? 'fast' : 'slow') + '">' + (d < 0 ? '⚡ ' + (-d) + ' s/km plus vite' : '🐢 ' + d + ' s/km plus lent') + '</span>';
     full = '<details class="pr-full"><summary>Consigne complète</summary><p class="pr-old">' + prEsc(p.before) + '</p><p class="pr-new">' + prEsc(p.after) + '</p></details>';
   } else if(p.field === 'km'){
     swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.before) + ' km</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.after) + ' km</span></div>';
@@ -511,7 +511,7 @@ function _prItem(p, i){
     + '<div class="pr-chg-h"><span class="pr-dot" style="background:' + bg + ';color:' + col + ';">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[ty]) || '•') + '</span>'
     + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'short' }) : 'S' + p.w) + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + '</small></div>'
     + '<button type="button" class="pr-tick" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="Retenir ce changement" onclick="_prToggle(' + i + ')"></button></div>'
-    + swap + '<p class="pr-why">' + prEsc(p.short || p.reason) + '</p>' + full + '</div>';
+    + swap + '<p class="pr-why">' + delta + prEsc(p.short || p.reason) + '</p>' + full + '</div>';
 }
 
 function _prRender(){
