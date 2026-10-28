@@ -84,20 +84,29 @@ function prIntent(s){
 }
 
 // ─── Niveau actuel ──────────────────────────────────────────────────────────
+// niveau retenu pour un résultat : VDOT de la course, moins de poids s'il est ancien ou sans date,
+// marathon corrigé (+0,8 : la fin de course sous-estime le niveau). null si trop ancien (> 18 mois).
+function prResultVdot(cat, sec, date, today){
+  const m = PR_RACE_M[cat]; if(!m || !sec) return null;
+  let v = vdotFromRace(m, sec), note = '';
+  const age = date ? prDays(date, today || prTodayIso()) : null;
+  if(age === null){ v -= 1; note = 'date inconnue : compte moins'; }
+  else if(age > 540) return null;
+  else if(age > 180){ v -= (age - 180) / 90; note = 'il y a ' + Math.round(age / 30) + ' mois : compte moins'; }
+  if(cat === 'Marathon'){ v += 0.8; note = (note ? note + ' · ' : '') + 'marathon corrigé +0,8'; }
+  return { vdot: v, note: note };
+}
 // sources : records datés (state._records), résultats des prépas enregistrées, course de la prépa en cours,
 // blocs tempo / fractionné des 8 dernières semaines (allure par bloc et FC). Retourne aussi le détail des sources.
 function prFitness(st, opt){
   opt = opt || {};
   const today = opt.today || prTodayIso(), hrMax = parseInt(st.fc_max) || parseInt((st.onboarding || {}).fc_max) || 196;
   const meta = st._records || {}, src = [];
+  const seen = {};
   const addRace = function(cat, time, date, label){
-    const m = PR_RACE_M[cat], sec = prTimeSec(time); if(!m || !sec) return;
-    let v = vdotFromRace(m, sec), age = date ? prDays(date, today) : null, note = '';
-    if(age === null){ v -= 1; note = 'date inconnue'; }                       // sans date : un peu de prudence
-    else if(age > 540) return;                                                 // plus de 18 mois : ignoré
-    else if(age > 180){ v -= (age - 180) / 90; note = 'il y a ' + Math.round(age / 30) + ' mois'; }
-    if(cat === 'Marathon') v += 0.8;                                           // le marathon sous-estime le niveau (fatigue de fin de course)
-    src.push({ kind: 'course', cat: cat, label: label || cat, time: prTime(sec), date: date || null, vdot: v, note: note });
+    const sec = prTimeSec(time), r = prResultVdot(cat, sec, date, today); if(!r) return;
+    const k = cat + '|' + Math.round(sec); if(seen[k]) return; seen[k] = 1;     // même course en record et en fiche de prépa : une fois
+    src.push({ kind: 'course', cat: cat, label: label || cat, time: prTime(sec), date: date || null, vdot: r.vdot, note: r.note });
   };
   Object.keys(PR_RECORD_KEY).forEach(function(cat){ if(st[PR_RECORD_KEY[cat]]) addRace(cat, st[PR_RECORD_KEY[cat]], (meta[cat] || {}).date, 'Record ' + (cat === 'Semi-marathon' ? 'semi' : cat.toLowerCase())); });
   (opt.races || []).forEach(function(r){ if(PR_RACE_M[r.cat]) addRace(r.cat, r.time, r.date, r.label); });
@@ -288,7 +297,9 @@ function prRecLive(i){
   const dIn = document.getElementById('rec-d-' + i), ph = document.getElementById('rec-dp-' + i); if(ph) ph.hidden = !!dIn.value; dIn.classList.toggle('has', !!dIn.value);
   if(!out) return;
   const ok = sec && sec / (PR_RACE_M[c] / 1000) >= 150 && sec / (PR_RACE_M[c] / 1000) <= 600;
-  out.textContent = ok ? 'niveau ' + vdotFromRace(PR_RACE_M[c], sec).toFixed(1).replace('.', ',') + ' · ' + prPace(sec / (PR_RACE_M[c] / 1000)) + '/km' : '';
+  const r = ok ? prResultVdot(c, sec, dIn.value || null) : null;
+  out.textContent = ok ? (r ? 'niveau ' + r.vdot.toFixed(1).replace('.', ',') : 'trop ancien, non compté') + ' · ' + prPace(sec / (PR_RACE_M[c] / 1000)) + '/km' : '';
+  out.title = r && r.note ? r.note : '';
 }
 function openRecordsModal(onDone){
   _prCss();
@@ -376,6 +387,9 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.rec-date input::-webkit-date-and-time-value{text-align:left;white-space:nowrap;margin:0;line-height:44px;font-size:14px;}.rec-date input:not(.has):not(:focus){color:transparent;}.rec-date input:not(.has):not(:focus)::-webkit-datetime-edit{color:transparent;}.rec-dph{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;color:#A3AEBE;pointer-events:none;}'
   + '.rec-race{grid-column:2;height:34px;padding:0 10px;font-size:13px;border-color:#E6ECF5 !important;background:#F8FAFD !important;}'
   + '.rec-sugg{grid-column:2;justify-self:start;font-size:12px;}'
+  + '.pr-tab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;}.pr-tab th,.pr-tab td{padding:7px 4px;text-align:left;border-top:1px solid #EEF2F7;vertical-align:top;}'
+  + '.pr-tab thead th{border-top:none;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B;padding-top:0;}.pr-tab tbody th{font-weight:800;color:#0C447C;width:28%;}'
+  + '.pr-tab td b{display:block;font-size:14px;color:#0F172A;}.pr-tab td small{display:block;font-size:11px;color:#64748B;font-weight:600;}.pr-tab td:last-child b{color:#1B4FD8;}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS; document.head.appendChild(st); } }
 
@@ -406,7 +420,12 @@ function _prRender(){
   h += '<p class="pr-sec"><span>Ton niveau actuel</span><button class="pr-link" onclick="openRecordsModal(function(){ _prReview.a = prAnalyze(); _prReview.items = _prReview.a.proposals.map(function(p){ return Object.assign({ on: true }, p); }); _prRender(); })">🏆 Mes records</button></p><div class="pr-card">';
   if(f.vdot){
     h += '<div class="pr-lvl"><b>' + f.vdot.toFixed(1).replace('.', ',') + '</b><span>équivalent VDOT (Daniels)<br>d\'après tes ' + prEsc(f.basis) + '</span></div>'
-      + '<div class="pr-chips">' + PR_CATS.map(function(c){ return '<span class="pr-chip">' + prCatLabel(c) + ' <b>' + prTime(f.preds[c]) + '</b></span>'; }).join('') + '</div>'
+      + '<table class="pr-tab"><thead><tr><th></th><th>Ton record</th><th>À ton niveau</th></tr></thead><tbody>'
+      + PR_CATS.map(function(c){
+          const rec = state[PR_RECORD_KEY[c]], rs = prTimeSec(rec), rv = rs ? prResultVdot(c, rs, ((state._records || {})[c] || {}).date || null) : null;
+          return '<tr><th>' + prCatLabel(c) + '</th><td>' + (rec ? '<b>' + prEsc(prTime(rs)) + '</b><small>' + (rv ? 'niveau ' + rv.vdot.toFixed(1).replace('.', ',') : 'trop ancien') + '</small>' : '<small>—</small>') + '</td><td><b>' + prTime(f.preds[c]) + '</b></td></tr>';
+        }).join('') + '</tbody></table>'
+      + '<p class="pr-note">« À ton niveau » : temps équivalents à ton niveau ' + f.vdot.toFixed(1).replace('.', ',') + ', fixé par ton meilleur résultat récent. Sur marathon, l\'équivalent suppose une prépa marathon complète et des conditions idéales : il est souvent plus rapide que le temps réalisé.</p>'
       + '<p class="pr-note">Allures du moment : seuil <b>' + prPace(f.paces.T) + '</b> · fractionné <b>' + prPace(f.paces.I) + '</b>' + (a.opt.efPace ? ' · EF réelle <b>' + prPace(a.opt.efPace) + '</b> (FC ≤ 148)' : '') + ' /km'
       + (a.planVdot ? '. Ton plan a été écrit pour un niveau ' + a.planVdot.toFixed(1).replace('.', ',') + '.' : '.') + '</p>'
       + (a.opt.postRace ? '<p class="pr-note" style="color:#B45309;font-weight:700;">Période de récupération après ta dernière course jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'long' }) + ' : aucune séance n\'est accélérée d\'ici là.</p>' : '')
