@@ -233,7 +233,8 @@ function raceCategory(dist, km) {
   return null;
 }
 function parisToday() { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); }
-async function buildTrainingSituation(db, state, todayStr) {
+async function buildTrainingSituation(db, state, todayStr, opts) {
+  opts = opts || {};
   state = state || {};
   const today = todayStr || parisToday();
   const base = ADMIN_STATE.replace(/\/state$/, '');
@@ -286,7 +287,7 @@ async function buildTrainingSituation(db, state, todayStr) {
   if (last) {
     const ago = days(last.date, today), cat = raceCategory(last.dist), rec = RECOVERY_DAYS[cat];
     lines.push(`Dernière course : ${last.name}${last.dist ? ' (' + last.dist + ')' : ''} le ${fmtD(last.date)}${last.result ? ' en ' + last.result : ''}${last.note ? ' — ' + last.note : ''} — il y a ${ago} jour${ago > 1 ? 's' : ''}.`);
-    if (rec && ago >= 0 && ago < rec) lines.push(`→ PÉRIODE POST-COURSE : J+${ago} sur ~${rec} jours de récupération après un ${cat === 'Marathon' ? 'marathon' : cat === 'Semi-marathon' ? 'semi-marathon' : cat}. Reprise progressive : footings faciles et courts, aucune intensité tant que la récupération n'est pas complète ; se fier aux sensations, à la FC repos, à la VFC et à la récupération WHOOP plutôt qu'à l'allure ; FC repos ou VFC dégradées = alléger ou repos.`);
+    if (rec && ago >= 0 && ago < rec) lines.push(`→ PÉRIODE POST-COURSE : J+${ago} sur ~${rec} jours de récupération après un ${cat === 'Marathon' ? 'marathon' : cat === 'Semi-marathon' ? 'semi-marathon' : cat}. ${opts.planReview ? 'Reprise progressive : footings faciles d\'abord, puis intensité réintroduite peu à peu (lignes droites, puis fractionné court) à partir des ~3/4 de la récupération si sensations, FC repos, VFC et récupération WHOOP sont bonnes ; sinon alléger ou repos.' : 'Reprise progressive : footings faciles et courts, aucune intensité tant que la récupération n\'est pas complète ; se fier aux sensations, à la FC repos, à la VFC et à la récupération WHOOP plutôt qu\'à l\'allure ; FC repos ou VFC dégradées = alléger ou repos.'}`);
   }
   // base d'entraînement : volume habituel de la dernière prépa terminée (8 semaines avant l'affûtage)
   const lastPrep = Object.keys(idx).map((id) => Object.assign({ id }, idx[id])).filter((p) => p.date && p.date <= today && p.id !== state._prep_id && Array.isArray(p.shape) && p.shape.length)

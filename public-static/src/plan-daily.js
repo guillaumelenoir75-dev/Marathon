@@ -141,14 +141,14 @@ function prInternal(today){
 // douleur gênante ou forte dans les 5 derniers jours → les 4 prochains jours sont allégés
 function prPainProposals(st, a, I){
   const p = I && I.pains && I.pains.filter(function(x){ return x.level >= 2; })[0]; if(!p) return [];
-  const today = a.opt.today, end = prAddDays(today, 3);
+  const today = a.opt.today, end = prAddDays(today, 3), eased = typeof prEasedSince === 'function' ? prEasedSince(st, p.date) : {};
   const why = 'Douleur ' + (p.level >= 3 ? 'forte' : 'gênante') + ' (' + p.zone.toLowerCase() + ') signalée le ' + prFmtDate(p.date);
-  return prSessions(st).filter(function(s){ return !s.done && s.date && s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest'; }).map(function(s){
+  return prSessions(st).filter(function(s){ return !s.done && !s.skip && !eased[s.key] && s.date && s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest'; }).map(function(s){
     if(p.level >= 3) return { key: s.key, w: s.w, date: s.date, field: 'session', title: s.title, type: s.type, before: { t: s.title, d: s.detail, km: s.kmPlan, type: s.type },
       after: { t: 'Repos (douleur)', d: 'Repos, ou vélo / natation sans douleur · consulte si ça persiste', km: 0, type: 'rest' }, src: 'calcul', kind: 'pain', reason: why + ' : repos.', short: why + ' : repos, sans impact.' };
     if(s.type === 'tempo' || s.type === 'frac') return { key: s.key, w: s.w, date: s.date, field: 'session', title: s.title, type: s.type, before: { t: s.title, d: s.detail, km: s.kmPlan, type: s.type },
       after: { t: 'Footing EF', d: 'Très facile, sur terrain souple · arrête si la douleur revient', km: Math.max(3, Math.round(s.kmPlan * 0.6)), type: 'ef' }, src: 'calcul', kind: 'pain', reason: why + ' : pas d\'intensité.', short: why + ' : pas d\'intensité.' };
-    const to = Math.max(3, Math.round(s.kmPlan * 0.7));
+    const to = Math.min(s.kmPlan, Math.max(3, Math.round(s.kmPlan * 0.7)));
     return to === s.kmPlan ? null : { key: s.key, w: s.w, date: s.date, field: 'km', title: s.title, type: s.type, before: s.kmPlan, after: to, src: 'calcul', kind: 'pain', delta: to - s.kmPlan, reason: why + ' : −30 % de volume.', short: why + ' : −30 % de volume.' };
   }).filter(Boolean);
 }
@@ -179,14 +179,15 @@ function _pdImpSet(k, v){
 }
 // changements proposés pour l'imprévu (séances de la prépa affichée, à venir et non faites)
 function prImprevuChanges(type, from, to){
-  const today = prTodayIso(), sess = prSessions(state).filter(function(s){ return !s.done && !state[s.key + '_skip'] && s.date && s.date >= today; });
+  const today = prTodayIso(), all = prSessions(state).filter(function(s){ return !s.skip && s.date && s.type !== 'rest'; });
+  const sess = all.filter(function(s){ return !s.done && s.date >= today; });
   const inR = function(d){ return d >= from && d <= to; }, hard = function(s){ return s.type === 'tempo' || s.type === 'frac' || s.type === 'long' || s.type === 'race'; };
   const out = [], W = prWeeks(state, today), taken = {};
-  sess.forEach(function(s){ taken[s.date] = (taken[s.date] || []).concat([s]); });
+  all.forEach(function(s){ taken[s.date] = (taken[s.date] || []).concat([s]); });       // séances faites comprises
   const reason = { indispo: 'Indisponible', charge: 'Semaine chargée', malade: 'Malade' }[type];
   sess.filter(function(s){ return inR(s.date) && s.type !== 'race'; }).forEach(function(s){
     if(type === 'charge'){
-      if(s.type === 'ef' || s.type === 'long'){ const to2 = Math.max(3, Math.round(s.kmPlan * (s.type === 'long' ? 0.8 : 0.7))); if(to2 !== s.kmPlan) out.push({ key: s.key, s: s, field: 'km', before: s.kmPlan, after: to2, why: s.type === 'long' ? 'sortie longue raccourcie (−20 %)' : 'footing raccourci (−30 %)' }); }
+      if(s.type === 'ef' || s.type === 'long'){ const to2 = Math.min(s.kmPlan, Math.max(3, Math.round(s.kmPlan * (s.type === 'long' ? 0.8 : 0.7)))); if(to2 !== s.kmPlan) out.push({ key: s.key, s: s, field: 'km', before: s.kmPlan, after: to2, why: s.type === 'long' ? 'sortie longue raccourcie (−20 %)' : 'footing raccourci (−30 %)' }); }
       return;
     }
     if(type === 'indispo' && hard(s)){
@@ -207,7 +208,7 @@ function prImprevuChanges(type, from, to){
     const end = prAddDays(to, 3);
     sess.filter(function(s){ return s.date > to && s.date <= end && s.type !== 'race' && s.type !== 'rest'; }).forEach(function(s){
       if(s.type === 'tempo' || s.type === 'frac') out.push({ key: s.key, s: s, field: 'session', before: { t: s.title, d: s.detail, km: s.kmPlan, type: s.type }, after: { t: 'Footing EF', d: 'Reprise très facile · aucune intensité', km: Math.max(3, Math.round(s.kmPlan * 0.6)), type: 'ef' }, why: 'reprise : pas d\'intensité' });
-      else { const to2 = Math.max(3, Math.round(s.kmPlan * 0.7)); if(to2 !== s.kmPlan) out.push({ key: s.key, s: s, field: 'km', before: s.kmPlan, after: to2, why: 'reprise : −30 % de volume' }); }
+      else { const to2 = Math.min(s.kmPlan, Math.max(3, Math.round(s.kmPlan * 0.7))); if(to2 !== s.kmPlan) out.push({ key: s.key, s: s, field: 'km', before: s.kmPlan, after: to2, why: 'reprise : −30 % de volume' }); }
     });
   }
   return out.sort(function(a, b){ return (a.s.date || '').localeCompare(b.s.date || ''); });
@@ -225,15 +226,15 @@ function _pdImpRender(){
 }
 function applyImprevu(){
   if(!_pdImp || !_pdImp.changes.length) return;
-  const start = state.plan_start_date ? String(state.plan_start_date).slice(0, 10) : null, done = [];
+  const done = [];
   _pdImp.changes.forEach(function(c){
     let x; try { x = JSON.parse(state[c.key]); } catch(e) { return; }
     if(c.field === 'skip'){ state[c.key + '_skip'] = true; state[c.key + '_skip_reason'] = c.after; }
-    else if(c.field === 'date'){ x.sched_date = c.after; if(start){ const di = prDays(start, c.after) - (c.s.w - 1) * 7 + 1; if(di >= 1 && di <= 7) x.sched_day = di; } }
-    else if(c.field === 'km') x.km = c.after;
+    else if(c.field === 'date'){ x.sched_date = c.after; x.sched_day = prWeekday(c.after); }
+    else if(c.field === 'km'){ const parts = String(x.d || '').split('|'), det = parts.slice(1).join('|'), nd = prKmDetail(det, x.type, x.km, c.after); x.km = c.after; if(nd !== det){ x.d = parts[0] + '|' + nd; c.detBefore = det; c.detAfter = nd; } }
     else if(c.field === 'session'){ x.d = c.after.t + '|' + c.after.d; x.km = c.after.km; x.type = c.after.type; }
     if(c.field !== 'skip'){ x._modified = true; x._seq = (x._seq || 0) + 1; state[c.key] = JSON.stringify(x); }
-    done.push({ ref: c.key, title: c.s.title, type: c.s.type, date: c.s.date, field: c.field, before: c.before, after: c.after, src: 'imprevu', reason: c.why });
+    done.push({ ref: c.key, title: c.s.title, type: c.s.type, date: c.s.date, field: c.field, before: c.before, after: c.after, src: 'imprevu', reason: c.why, detBefore: c.detBefore, detAfter: c.detAfter });
   });
   const hist = (state._plan_reviews || []).slice(-5);
   hist.push({ date: prTodayIso(), n: done.length, imprevu: _pdImp.type, from: _pdImp.from, to: _pdImp.to, changes: done });

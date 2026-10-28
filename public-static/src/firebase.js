@@ -146,6 +146,12 @@ function initFirebase(){
               }, 3000);
               // Vérifier _open_coach au démarrage (app rouverte depuis notif quand elle était fermée)
               (async () => {
+                // ?action=review (notification « Relecture de ta semaine ») : prioritaire, retirée de l'URL tout de suite
+                if (window.location.search.includes('action=review')) {
+                  try { history.replaceState({}, '', '/'); } catch(e) {}
+                  if (typeof prOpenFromNotif === 'function') setTimeout(prOpenFromNotif, 1200);
+                  return;
+                }
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
                   if (snap.val()) { await dbRef.child('_open_coach').remove(); await openCoachFromNotif(); return; }
@@ -158,8 +164,6 @@ function initFirebase(){
                     history.replaceState({}, '', '/');
                     await openCoachFromNotif();
                   }
-                  // ?action=review : relecture du plan du dimanche (notification « plan-review »)
-                  if (window.location.search.includes('action=review') && typeof prOpenFromNotif === 'function') setTimeout(prOpenFromNotif, 1200);
                 } catch(e) {}
               })();
 

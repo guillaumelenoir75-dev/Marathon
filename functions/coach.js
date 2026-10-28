@@ -1056,10 +1056,10 @@ exports.planReview = onRequest(
       if (!Array.isArray(b.plan) || !b.plan.length) { res.status(400).json({ success: false, error: 'plan requis' }); return; }
       const db = admin.database();
       let situation = '';
-      try { situation = (await buildTrainingSituation(db, (await db.ref(ADMIN_STATE).once('value')).val() || {}, b.today)).text; } catch(e) {}
-      // séances modifiables : à venir et non réalisées
-      const editable = {};
-      b.plan.forEach((w) => (w.sessions || []).forEach((s) => { if (!s.done && (!s.date || !b.today || s.date >= b.today)) editable[s.ref] = s; }));
+      if (!b.next) { try { situation = (await buildTrainingSituation(db, (await db.ref(ADMIN_STATE).once('value')).val() || {}, b.today, { planReview: true })).text; } catch(e) {} }
+      // séances modifiables : à venir, non réalisées, ni repos ni course (objet sans prototype, refs au format attendu)
+      const editable = Object.create(null);
+      b.plan.forEach((w) => (w.sessions || []).forEach((s) => { if (s && /^extra_w\d+_s\d+$/.test(String(s.ref)) && !s.done && s.type !== 'rest' && (!s.date || !b.today || s.date >= b.today)) editable[s.ref] = s; }));
       const compact = b.plan.map((w) => ({ semaine: w.w, phase: w.meta && w.meta.phase, recup: !!(w.meta && w.meta.isRecov), pic: !!(w.meta && w.meta.isPeak), affutage: !!(w.meta && w.meta.isTaper),
         seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km },
           s.done ? { fait: true, resultat: s.result } : { modifiable: !!editable[s.ref] })) }));
@@ -1077,8 +1077,9 @@ PRINCIPES :
 - Allures : suivent le niveau ACTUEL (VDOT fourni). L'allure course peut viser l'objectif s'il est à moins de ~3 % du niveau actuel, sinon s'en rapprocher.
 - Respecte l'intention de chaque séance et la structure de la semaine (jours, nombre de séances).
 - Séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → durcir.
-- Les « propositions automatiques » (allures) sont CONSERVÉES par défaut et s'ajoutent à tes changements : ne les recopie pas. Pour en modifier une, renvoie un changement "detail" sur la même ref ; pour l'écarter, mets sa ref dans "rejected". Les « contrôles automatiques » sont indicatifs : dis-le si une alerte n'est pas pertinente vu son historique.
-- CONTINUITÉ : l'« historique des modifications » liste ce qui a déjà été changé et appliqué lors des relectures précédentes (souvent par toi). Ces décisions sont acquises : ne les annule pas et ne les retouche pas, sauf fait nouveau (séance réalisée depuis, record, ressenti, résultat qui contredit le choix) — et dans ce cas dis-le dans la raison. Si aucune donnée nouvelle depuis ta dernière relecture, renvoie "changes": [] (sauf erreur manifeste) et dis simplement que le plan est à jour.
+- Les « propositions automatiques » sont CONSERVÉES par défaut et s'ajoutent à tes changements : ne les recopie pas. Chacune a un "champ" : detail (allure / consigne), km, ou session (remplacement de la séance entière : footing à la place d'une séance de qualité si fatigue ou douleur, test 5 km…) ; "retenue": false = décochée par l'athlète. Pour en modifier une, renvoie un changement sur la même ref et le même champ (pour une proposition "session", ton "detail" s'applique à la nouvelle séance) ; pour l'écarter, mets "ref:champ" (ou "ref" pour toutes celles de la séance) dans "rejected". Les « contrôles automatiques » sont indicatifs : dis-le si une alerte n'est pas pertinente vu son historique.
+- PRIORITÉS en cas de conflit : 1) douleur, fatigue (WHOOP, effort ressenti) ; 2) récupération après course ; 3) volume habituel et progression ; 4) performance (allures, objectif).
+- CONTINUITÉ : l'« historique des modifications » liste ce qui a déjà été changé et appliqué lors des relectures précédentes (souvent par toi). Ces décisions sont acquises : ne les annule pas et ne les retouche pas, sauf fait nouveau (séance réalisée depuis, record, ressenti, résultat qui contredit le choix) — et dans ce cas dis-le dans la raison. Si aucune donnée nouvelle depuis ta dernière relecture, renvoie "changes": [] (sauf erreur manifeste) et dis simplement que le plan est à jour — sauf si la relecture est « redemandée par l'athlète » : propose alors ce que tu juges vraiment utile.
 - DONNÉES RÉELLES : appuie-toi sur la charge réelle (ratio 7 j / 28 j idéalement 0,8-1,3), le volume conseillé par semaine (il tient compte de ta base, de la reprise après course et de l'affûtage ; les propositions de km correspondantes sont déjà dans les propositions automatiques), la dérive cardiaque (> 5 % : ne pas accélérer l'endurance), WHOOP (fatigue = alléger les 3 prochains jours) et les allures tenues ou non (souvent pas tenues = plus prudent). Effort ressenti élevé sur des footings (RPE ≥ 7) = fatigue ; douleur gênante ou forte = pas d'intensité ni de hausse de volume tant qu'elle persiste (conseille de consulter si elle dure). Si la trajectoire rend l'objectif « ambitieux », dis-le franchement et propose ce qui peut le rapprocher.
 - Ne change que ce qui a un vrai effet sur la performance ou le risque : pas de retouche de 1 km, pas de changement cosmétique. Mieux vaut 0 à 5 changements forts que 10 petits. Tu peux AUGMENTER (volume, intensité) autant que réduire.
 
@@ -1087,7 +1088,7 @@ FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'
 RÉPONSE : uniquement un objet JSON valide, sans texte autour :
 {"assessment":"2 ou 3 phrases courtes (300 caractères max), tutoiement : le verdict et l'idée principale, sans répéter le détail des changements",
  "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots maximum"}],
- "rejected":["refs des propositions automatiques que tu écartes (facultatif)"]}
+ "rejected":["ref:champ (ou ref) des propositions automatiques que tu écartes (facultatif)"]}
 IMPORTANT : l'avis ne décrit QUE ce qui est réellement dans "changes" (et les propositions automatiques conservées) ; n'annonce jamais un changement que tu ne renvoies pas.
 Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
       const hist = Array.isArray(b.history) ? b.history.slice(0, 2) : [];
@@ -1109,7 +1110,7 @@ Ta dernière relecture : ${b.lastCoachReview ? JSON.stringify(b.lastCoachReview)
 Données nouvelles depuis ta dernière relecture (séances réalisées) : ${b.lastCoachReview ? (Array.isArray(b.newSince) && b.newSince.length ? JSON.stringify(b.newSince.slice(0, 15)) : 'AUCUNE') : 'première relecture'}
 Historique des modifications déjà appliquées (la plus récente en dernier) : ${Array.isArray(b.reviewHistory) && b.reviewHistory.length ? JSON.stringify(b.reviewHistory.slice(-4)).slice(0, 6000) : 'aucune'}
 Contrôles automatiques : ${JSON.stringify(b.warnings || [])}
-Propositions automatiques (allures) : ${JSON.stringify(b.proposals || [])}
+${b.force ? 'Relecture REDEMANDÉE PAR L\'ATHLÈTE (mêmes données que ta dernière relecture) : il attend un regard neuf.\n' : ''}${b.next ? 'PRÉPA À VENIR, pas encore commencée (début ' + String(b.startDate || '').slice(0, 10) + ') : la situation actuelle (semaine en cours, récupération, charge) ne s\'applique pas à ses premières semaines ; raisonne depuis son démarrage.\n' : ''}Propositions automatiques : ${JSON.stringify((Array.isArray(b.proposals) ? b.proposals : []).slice(0, 40))}
 Séances mises en attente (non accélérées automatiquement car tôt dans la récupération ; à toi de juger, change leur "detail" si l'accélération est justifiée) : ${JSON.stringify(Array.isArray(b.held) ? b.held.slice(0, 20) : [])}
 ${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(0, 1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
 PLAN COMPLET :
@@ -1120,16 +1121,20 @@ ${JSON.stringify(compact)}`;
       try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
       if (!j) { res.status(502).json({ success: false, error: 'réponse illisible' }); return; }
       const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
-      const changes = (Array.isArray(j.changes) ? j.changes : []).filter((c) => c && editable[c.ref]).slice(0, 12).map((c) => {
-        const s = editable[c.ref], o = { ref: c.ref, reason: str(c.reason, 160) || '' };
-        const d = str(c.detail, 300); if (d) o.detail = d.replace(/\|/g, '·');
-        const t = str(c.title, 80); if (t && s.type !== 'race') o.title = t.replace(/\|/g, '·');
-        const km = parseFloat(c.km); if (isFinite(km) && km > 0 && km <= 60 && s.type !== 'race') o.km = Math.round(km * 10) / 10;
-        if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && s.type !== 'race') o.type = c.type;
+      const clean = (v, n) => { const x = str(v, n); return x ? x.replace(/\|/g, '·').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ') : undefined; };
+      const seenRef = Object.create(null);
+      const changes = (Array.isArray(j.changes) ? j.changes : []).filter((c) => c && typeof c.ref === 'string' && editable[c.ref] && !seenRef[c.ref] && (seenRef[c.ref] = 1)).slice(0, 12).map((c) => {
+        const s = editable[c.ref], o = { ref: c.ref, reason: clean(c.reason, 160) || '' }, race = s.type === 'race', km0 = parseFloat(s.km) || 0;
+        const d = clean(c.detail, 300); if (d) o.detail = d;
+        const t = clean(c.title, 80); if (t && !race) o.title = t;
+        // km : bornés autour du plan (au plus ×1,5 ou +6 km, au moins ×0,4), 42 km maximum
+        const km = parseFloat(c.km); if (isFinite(km) && km > 0 && !race){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
+        // type : seulement avec une nouvelle consigne qui va avec
+        if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && c.type !== s.type && !race && o.detail) o.type = c.type;
         return o;
       }).filter((o) => o.detail || o.title || o.km || o.type);
-      const auto = new Set((b.proposals || []).map((p) => p && p.ref).filter(Boolean));
-      const rejected = (Array.isArray(j.rejected) ? j.rejected : []).filter((r) => typeof r === 'string' && auto.has(r)).slice(0, 30);
+      const auto = new Set((Array.isArray(b.proposals) ? b.proposals : []).map((p) => p && p.ref).filter(Boolean));
+      const rejected = (Array.isArray(j.rejected) ? j.rejected : []).filter((r) => typeof r === 'string' && auto.has(r.split(':')[0])).slice(0, 30);
       res.json({ success: true, assessment: str(j.assessment, 500) || '', changes, rejected });
     } catch(e) {
       console.error('planReview error:', e.message);

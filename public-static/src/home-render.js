@@ -1332,6 +1332,7 @@ async function saveValidationExtra(w,ei){
     if(g.laps&&g.laps.length>0) stravaData.laps=g.laps;
     if(Object.keys(stravaData).length>0){
       let ex={};try{ex=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
+      ['rpe','pain','blocsAllure','blocsAuto','_blocsAuto'].forEach(f=>delete ex[f]);   // gérés par le formulaire : jamais repris de l'ancienne validation
       const _keep=Object.assign({},perf);
       Object.assign(perf,ex,_keep);
       perf.strava=stravaData;

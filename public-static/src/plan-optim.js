@@ -62,19 +62,27 @@ function prVolumePlan(st, a){
   const longCap = PR_LONG_CAP[cat] || 20;
   // plus longue sortie des 8 dernières semaines (prépa précédente comprise) : une sortie déjà encaissée n'est pas un risque
   const recentLong = Math.max.apply(null, (a.load ? a.load.log : []).filter(function(x){ return x.type === 'long' && prDays(x.date, today) <= 56; }).map(function(x){ return x.km; }).concat([0]));
-  const out = { base: Math.round(base), peak: Math.round(peak), weeks: [], proposals: [] };
+  const out = { base: Math.round(base), peak: Math.round(peak), weeks: [], proposals: [], horizonWeeks: [] };
+  const noUp = !!a.opt.noVolumeUp;                                                // fatigue WHOOP / douleur : pas de hausse cette semaine
   // progression mesurée depuis la dernière semaine de charge (pas depuis une semaine allégée) ; propositions de km sur 4 semaines
   let lastBuild = null, prevT = null, prevLong = null, buildLong = null, prevPast = null, firstFuture = true, nFuture = 0;
   weeks.forEach(function(o){
     const longS = o.sess.filter(function(s){ return s.type === 'long'; }).sort(function(x, y){ return y.kmPlan - x.kmPlan; })[0];
     if(o.past){
       const done = o.sess.filter(function(s){ return s.done && s.type !== 'race'; }).reduce(function(x, s){ return x + s.km; }, 0);
+      // séances des 2 derniers jours pas encore validées (sortie longue du dimanche le lundi matin…) : comptées comme prévues
+      const pending = o.sess.filter(function(s){ return !s.done && s.type !== 'race' && s.date && prDays(s.date, today) <= 2; }).reduce(function(x, s){ return x + s.kmPlan; }, 0);
+      const real = done + pending, ok = o.km <= 0 || real >= o.km * 0.8;
       out.weeks.push({ w: o.w, from: o.from, plan: Math.round(o.km), done: Math.round(done), target: null, past: true, kind: o.kind });
-      prevPast = { plan: o.km, done: done, kind: o.kind }; prevT = done || o.km; prevLong = longS ? (longS.done ? longS.km : longS.kmPlan) : prevLong;
-      if(o.kind !== 'recov' && o.kind !== 'race'){ lastBuild = prevT; buildLong = prevLong; }
+      prevPast = { plan: o.km, done: real, kind: o.kind, race: o.race };
+      prevT = ok ? o.km : Math.max(real, o.km * 0.6);                            // semaine faite (≥ 80 %) : le plan sert de référence
+      prevLong = longS ? (longS.done ? longS.km : longS.kmPlan) : prevLong;
+      if(o.kind !== 'recov' && !o.race){ lastBuild = prevT; buildLong = prevLong; }
       return;
     }
     const toRace = raceW != null ? raceW - o.w : null;
+    // course de préparation (semi test d'un marathon…) : semaine laissée telle quelle, sans servir de référence
+    if(o.race && toRace !== 0){ nFuture++; out.weeks.push({ w: o.w, from: o.from, plan: Math.round(o.km), target: Math.round(o.km), after: Math.round(o.km), why: 'course de préparation', kind: o.kind, now: o.now, changed: false }); firstFuture = false; return; }
     let t, why;
     // affûtage selon la distance : 10 km 90 % → 60 % ; semi 90 → 75 → 50 % ; marathon 80 → 60 → 40 % du pic
     const TAPER = cat === 'Marathon' ? [0.4, 0.6, 0.8] : cat === 'Semi-marathon' ? [0.5, 0.75, 0.9] : [0.6, 0.9];
@@ -90,8 +98,8 @@ function prVolumePlan(st, a){
     }
     if(firstFuture){
       // semaine passée pas faite : on ne rattrape pas, on repart de ce qui a été fait
-      if(prevPast && prevPast.kind !== 'recov' && prevPast.kind !== 'race' && prevPast.plan > 0 && prevPast.done < prevPast.plan * 0.8){
-        const cap = Math.max(prevPast.done * 1.15, prevPast.plan * 0.5);
+      if(prevPast && prevPast.kind !== 'recov' && !prevPast.race && prevPast.plan > 0 && prevPast.done < prevPast.plan * 0.8){
+        const cap = Math.max(prevPast.done * 1.15, prevPast.plan * 0.6);
         if(cap < t){ t = cap; why = 'semaine passée faite à ' + Math.round(prevPast.done / prevPast.plan * 100) + ' % : on repart de là'; }
       }
       // garde-fou de charge réelle
@@ -104,6 +112,8 @@ function prVolumePlan(st, a){
     firstFuture = false;
     t = Math.round(t);
     const horizon = nFuture++ < 4;                                               // km proposés sur les 4 prochaines semaines
+    if(horizon) out.horizonWeeks.push(o.w);
+    const build = o.kind !== 'recov' && !(toRace != null && toRace < TAPER.length) && !(ds != null && ds < recD * 1.08);
     // sortie longue : progression depuis la précédente (+2 km), repère 32-40 % du volume, plafond selon la course
     let longTo = null, longWhy = '';
     if(longS && !longS.done && (!longS.date || longS.date >= today)){
@@ -112,15 +122,17 @@ function prVolumePlan(st, a){
       let up = Math.min(longCap, Math.max(share * t, refLong != null ? refLong : 0, recentLong * 0.6), refLong != null ? Math.max(refLong + 2, recentLong * 0.75) : Infinity);
       if(o.kind === 'recov' || (toRace != null && toRace < TAPER.length - 1)) up = Math.min(up, (refLong || longS.kmPlan) * 0.85);   // allégée / affûtage (10 km : semaine de course seulement)
       up = Math.max(up, 6);
-      if(!horizon){}
+      if(!horizon || (noUp && o.now && longS.kmPlan <= up + 1)){}
       else if(longS.kmPlan > up + 1){ longTo = Math.round(up); longWhy = 'sortie longue : ' + (refLong != null && Math.round(up) === Math.round(refLong + 2) && recentLong * 0.75 <= refLong + 2 ? '+2 km max après ' + refLong + ' km' : up === longCap ? 'plafond ' + longCap + ' km pour ta course' : 'pas plus de ~' + Math.round(up) + ' km cette semaine'); }
       else if(o.kind !== 'recov' && !(toRace != null && toRace <= 2) && longS.kmPlan < up * 0.75 - 1){ longTo = Math.round(Math.min(up, longS.kmPlan + 3)); longWhy = 'sortie longue un peu courte pour ta base'; }
     }
     // répartition : sortie longue d'abord, puis footings EF au prorata
     const adj = o.sess.filter(function(s){ return !s.done && (!s.date || s.date >= today) && s.type === 'ef'; });
     // zone conseillée = cible ± 15 % : seules les semaines qui en sortent sont corrigées (jusqu'au bord de la zone)
-    const hiZ = t * 1.15, loZ = t * 0.85;
-    const goal = o.km > hiZ ? hiZ : o.km < loZ ? Math.min(loZ, o.km * 1.25) : null;
+    // en construction, la hausse reste proche de +12 %/semaine (+4 % de tolérance, +10 % au pic) ; ailleurs ± 15 %
+    const hiZ = t * (build ? (t >= peak - 0.5 ? 1.1 : 1.04) : 1.15), loZ = t * 0.85;
+    let goal = o.km > hiZ ? hiZ : o.km < loZ ? Math.min(loZ, o.km * 1.25) : null;
+    if(goal != null && goal > o.km && ((noUp && o.now) || (toRace != null && toRace < TAPER.length))) goal = null;   // affûtage / fatigue : jamais de hausse
     const changes = {};
     let target = Math.round(o.km);
     if(longTo != null){ changes[longS.key] = { s: longS, to: longTo, why: longWhy }; target += longTo - longS.kmPlan; }
@@ -174,7 +186,7 @@ function prTestProposal(st, a){
   sess.forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && (!lastB || s.date > lastB)) lastB = s.date; });
   if(raceDate <= today) return null;
   const W = prWeeks(st, today), due = lastB ? prAddDays(lastB, 42) : today, latest = prAddDays(raceDate, -21), soon = prAddDays(today, 5);
-  const cand = sess.filter(function(s){ const o = W[s.w]; return !s.done && (s.type === 'tempo' || s.type === 'frac') && s.date && s.date >= soon && s.date >= due && s.date <= latest && o && o.kind !== 'recov' && o.kind !== 'taper' && !o.race; })
+  const cand = sess.filter(function(s){ const o = W[s.w]; return !s.done && !s.skip && (s.type === 'tempo' || s.type === 'frac') && s.date && s.date >= soon && s.date >= due && s.date <= latest && o && o.kind !== 'recov' && o.kind !== 'taper' && !o.race; })
     .sort(function(x, y){ return x.date.localeCompare(y.date); });
   if(!cand.length) return null;
   const s = cand.find(function(x){ return x.type === 'tempo' && prDays(cand[0].date, x.date) <= 7; }) || cand[0];
@@ -205,15 +217,21 @@ function prWhoop(today){
   return { tired: red >= 2 || avg3 < 40 || (hrvDrop != null && hrvDrop <= -15), fresh: avg3 >= 67 && (hrvDrop == null || hrvDrop >= -5),
     avg3: Math.round(avg3), red: red, hrvDrop: hrvDrop != null ? Math.round(hrvDrop) : null, scores: last3.map(function(r){ return r.score; }) };
 }
+// séances déjà allégées par une mise à jour (WHOOP / douleur) depuis une date : pas de nouvel allègement par-dessus
+function prEasedSince(st, since){
+  const out = {};
+  (st._plan_reviews || []).forEach(function(h){ if(h.undone || !h.date || h.date < since) return; (h.changes || []).forEach(function(c){ if(c.kind === 'whoop' || c.kind === 'pain') out[c.ref] = 1; }); });
+  return out;
+}
 function prWhoopProposals(st, a, wh){
   if(!wh || !wh.tired) return [];
-  const today = a.opt.today, end = prAddDays(today, 3);
+  const today = a.opt.today, end = prAddDays(today, 3), eased = prEasedSince(st, prAddDays(today, -4));
   const efTxt = (function(){ const c = {}; prSessions(st).forEach(function(s){ if(s.type === 'ef' && s.pace) c[s.pace.text] = (c[s.pace.text] || 0) + 1; }); const k = Object.keys(c).sort(function(x, y){ return c[y] - c[x]; })[0]; return k || (a.fit.paces ? prPace(a.fit.paces.E[0]) + ' — ' + prPace(a.fit.paces.E[1]) + ' /km' : 'allure très facile'); })();
   const why = 'WHOOP : récupération ' + wh.scores.map(function(x){ return x + ' %'; }).join(', ') + (wh.hrvDrop != null && wh.hrvDrop < 0 ? ', VFC ' + wh.hrvDrop + ' % vs ta moyenne' : '');
-  return prSessions(st).filter(function(s){ return !s.done && s.date && s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest'; }).map(function(s){
+  return prSessions(st).filter(function(s){ return !s.done && s.date && s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest' && !s.skip && !eased[s.key]; }).map(function(s){
     if(s.type === 'tempo' || s.type === 'frac') return { key: s.key, w: s.w, date: s.date, field: 'session', title: s.title, type: s.type, before: { t: s.title, d: s.detail, km: s.kmPlan, type: s.type },
       after: { t: 'Footing EF', d: efTxt, km: Math.max(4, Math.round(s.kmPlan * 0.8)), type: 'ef' }, src: 'calcul', kind: 'whoop', reason: why + ' : séance de qualité remplacée par un footing.', short: why + ' : on remplace l\'intensité par un footing.' };
-    const to = Math.max(3, Math.round(s.kmPlan * 0.8));
+    const to = Math.min(s.kmPlan, Math.max(3, Math.round(s.kmPlan * 0.8)));
     return to === s.kmPlan ? null : { key: s.key, w: s.w, date: s.date, field: 'km', title: s.title, type: s.type, before: s.kmPlan, after: to, src: 'calcul', kind: 'whoop', delta: to - s.kmPlan, reason: why + ' : volume allégé de 20 %.', short: why + ' : −20 % de volume.' };
   }).filter(Boolean);
 }
@@ -312,14 +330,14 @@ function prUndoReview(i){
     let x; try { x = JSON.parse(state[c.ref]); } catch(e) { skip++; return; }
     if(!x || state[c.ref + '_done'] || state[c.ref + '_km'] != null){ skip++; return; }
     if(c.field === 'skip'){ if(state[c.ref + '_skip'] && state[c.ref + '_skip_reason'] === c.after){ delete state[c.ref + '_skip']; delete state[c.ref + '_skip_reason']; ok++; } else skip++; return; }
-    if(c.field === 'date'){ if(x.sched_date === c.after){ x.sched_date = c.before; const st0 = state.plan_start_date ? String(state.plan_start_date).slice(0, 10) : null; if(st0 && x.sched_day){ const di = prDays(st0, c.before) - (+String(c.ref).match(/_w(\d+)_/)[1] - 1) * 7 + 1; if(di >= 1 && di <= 7) x.sched_day = di; } x._seq = (x._seq || 0) + 1; state[c.ref] = JSON.stringify(x); ok++; } else skip++; return; }
+    if(c.field === 'date'){ if(x.sched_date === c.after){ x.sched_date = c.before; x.sched_day = prWeekday(c.before); x._seq = (x._seq || 0) + 1; state[c.ref] = JSON.stringify(x); ok++; } else skip++; return; }
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');
     const same = c.field === 'detail' ? det === c.after : c.field === 'title' ? title === c.after : c.field === 'km' ? +x.km === +c.after : c.field === 'type' ? x.type === c.after
       : c.field === 'session' ? title === c.after.t && det === c.after.d : false;
     if(!same){ skip++; return; }
     if(c.field === 'detail') x.d = title + '|' + c.before;
     else if(c.field === 'title') x.d = c.before + (det ? '|' + det : '');
-    else if(c.field === 'km') x.km = +c.before;
+    else if(c.field === 'km'){ x.km = +c.before; if(c.detAfter != null && det === c.detAfter) x.d = title + '|' + c.detBefore; }
     else if(c.field === 'type') x.type = c.before;
     else if(c.field === 'session'){ x.d = c.before.t + (c.before.d ? '|' + c.before.d : ''); x.km = +c.before.km; if(c.before.type) x.type = c.before.type; }
     x._seq = (x._seq || 0) + 1; state[c.ref] = JSON.stringify(x); ok++;
