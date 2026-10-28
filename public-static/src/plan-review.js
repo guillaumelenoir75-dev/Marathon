@@ -475,6 +475,19 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-vig{display:flex;flex-direction:column;gap:6px;background:#FFFBEB;border-radius:12px;padding:9px 11px;}.pr-vig p{margin:0;display:flex;gap:8px;font-size:12.5px;line-height:1.4;color:#713F12;}.pr-vig i{font-style:normal;flex-shrink:0;}.pr-vig .pr-vig-n{font-size:11.5px;color:#A16207;font-weight:700;}'
   + '.pr-ask{display:flex;flex-direction:column;gap:6px;}'
   + '.pr-fold{display:block;}.pr-fold[open]>*:not(summary){margin-top:10px;}.pr-fold summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}.pr-fold summary::-webkit-details-marker{display:none;}.pr-fold summary::after{content:"Détail ▾";font-size:12px;font-weight:800;color:#1B4FD8;}.pr-fold[open] summary::after{content:"Masquer ▴";}'
+  + '.pr-load{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;}.pr-load-h{display:flex;justify-content:space-between;align-items:baseline;}.pr-load-h b{font-size:16px;font-weight:900;color:#0C447C;}.pr-load-h span{font-size:12px;font-weight:800;color:#1B4FD8;font-variant-numeric:tabular-nums;}'
+  + '.pr-bar{height:6px;border-radius:3px;background:#E2E8F3;overflow:hidden;position:relative;}.pr-bar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#60A5FA,#1B4FD8);transition:width .35s ease;}'
+  + '.pr-bar.indet i{width:40%;position:absolute;animation:_prInd 1.4s ease-in-out infinite;}@keyframes _prInd{0%{left:-40%;}100%{left:100%;}}'
+  + '.pr-step{display:flex;align-items:center;gap:12px;opacity:.35;transition:opacity .25s;}.pr-step.run,.pr-step.ok{opacity:1;}'
+  + '.pr-step-ic{position:relative;flex-shrink:0;width:36px;height:36px;border-radius:11px;background:#F1F5FB;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .25s;}.pr-step.ok .pr-step-ic{background:#E7F0FF;}'
+  + '.pr-step.run .pr-step-ic::after{content:"";position:absolute;inset:-3px;border-radius:13px;border:2.5px solid transparent;border-top-color:#1B4FD8;border-right-color:#1B4FD8;animation:_prSpin .7s linear infinite;}'
+  + '.pr-step-t{flex:1;min-width:0;}.pr-step-t b{display:block;font-size:13.5px;font-weight:800;color:#0F172A;}.pr-step-t small{display:block;font-size:12px;font-weight:600;color:#64748B;margin-top:1px;transition:opacity .25s;}.pr-step:not(.ok) small{opacity:0;}'
+  + '.pr-step-ok{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#15803D;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;transform:scale(0);transition:transform .25s cubic-bezier(.3,1.6,.5,1);}.pr-step.ok .pr-step-ok{transform:scale(1);}'
+  + '#pr-content.pr-in>*{animation:_prFade .4s ease both;}#pr-content.pr-in>*:nth-child(2){animation-delay:.06s;}#pr-content.pr-in>*:nth-child(3){animation-delay:.12s;}#pr-content.pr-in>*:nth-child(n+4){animation-delay:.18s;}@keyframes _prFade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}'
+  + '.pr-cl{background:#fff;border:1.5px solid #1B4FD8;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;}.pr-cl-h{display:flex;align-items:center;gap:12px;}.pr-cl-ic{font-size:22px;width:42px;height:42px;border-radius:13px;background:#EEF3FC;display:flex;align-items:center;justify-content:center;animation:_prBob 1.6s ease-in-out infinite;}@keyframes _prBob{50%{transform:translateY(-3px);}}'
+  + '.pr-cl-h b{display:block;font-size:15px;font-weight:900;color:#0C447C;}.pr-cl-h small{display:block;font-size:11.5px;font-weight:700;color:#64748B;font-variant-numeric:tabular-nums;}.pr-cl-msg{margin:0;font-size:13px;font-weight:600;color:#334155;min-height:36px;line-height:1.4;}.pr-cl-msg.sw{animation:_prFade .35s ease both;}'
+  + '.pr-pop{animation:_prFade .45s ease both;}'
+  + '@media (prefers-reduced-motion:reduce){.pr-bar.indet i,.pr-cl-ic,.pr-step.run .pr-step-ic::after{animation:none;}#pr-content.pr-in>*{animation:none;}}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS; document.head.appendChild(st); } }
 
@@ -492,10 +505,48 @@ function openPlanReview(){
     + '<div class="pr-foot"><button type="button" id="pr-apply" class="pr-btn ok" onclick="applyPlanReview()"></button></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) closePlanReview(); });
   mc.appendChild(ov);
-  _prRender();
+  _prLoading(a);
   try { if(typeof renderPlan === 'function'){ rendered.plan = false; } } catch(e) {}
 }
-function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); _prReview = null; try { renderPlan(); } catch(e) {} }
+function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); if(_prReview && _prReview.clTimer) clearInterval(_prReview.clTimer); _prReview = null; try { renderPlan(); } catch(e) {} }
+
+// Analyse affichée étape par étape, avec les chiffres réellement calculés (records, séances, base, plan), puis le résultat
+function _prLoading(a){
+  const box = document.getElementById('pr-content'); if(!box) return;
+  const f = a.fit, sess = prSessions(state), today = a.opt.today, pl = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
+  const done = sess.filter(function(x){ return x.done; }).length, next = sess.filter(function(x){ return !x.done && (!x.date || x.date >= today); }).length;
+  const nW = Object.keys(sess.reduce(function(o, x){ o[x.w] = 1; return o; }, {})).length;
+  const races = (f.sources || []).filter(function(x){ return x.kind === 'course'; }).length, qual = (f.sources || []).filter(function(x){ return x.kind === 'séance'; }).length;
+  const n = a.proposals.length, nv = a.warnings.filter(function(x){ return x.w != null; }).length;
+  const steps = [
+    ['🏆', 'Tes records et tes courses', races ? pl(races, 'résultat') + ' → niveau ' + prV(f.vdot) : f.vdot ? 'niveau ' + prV(f.vdot) + ' d\'après tes ' + prEsc(f.basis) : 'aucun record daté'],
+    ['✅', 'Tes séances réalisées', pl(done, 'séance') + ' validée' + (done > 1 ? 's' : '') + (qual ? ' · ' + pl(qual, 'séance') + ' de qualité mesurée' + (qual > 1 ? 's' : '') : '')],
+    ['🏋️', 'Ta base d\'entraînement', a.opt.habitual ? '~' + a.opt.habitual + ' km/sem (' + prEsc(a.opt.habitualFrom) + ')' : 'pas de prépa précédente enregistrée'],
+    ['📅', 'Ton plan, semaine par semaine', pl(nW, 'semaine') + ' · ' + pl(next, 'séance') + ' à venir contrôlée' + (next > 1 ? 's' : '')],
+    ['🎯', 'Propositions', (n ? pl(n, 'ajustement') + ' proposé' + (n > 1 ? 's' : '') : 'rien à ajuster') + (nv ? ' · ' + pl(nv, 'point') + ' de vigilance' : '')]
+  ];
+  box.innerHTML = '<div class="pr-load"><div class="pr-load-h"><b>Analyse de ton plan…</b><span id="pr-load-pct">0 %</span></div><div class="pr-bar"><i id="pr-load-bar"></i></div>'
+    + steps.map(function(st, i){ return '<div class="pr-step" id="pr-step-' + i + '"><span class="pr-step-ic">' + st[0] + '</span><span class="pr-step-t"><b>' + st[1] + '</b><small>' + st[2] + '</small></span><span class="pr-step-ok">✓</span></div>'; }).join('') + '</div>';
+  const b = document.getElementById('pr-apply'); if(b){ b.disabled = true; b.textContent = 'Analyse en cours…'; }
+  const fast = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches, T = fast ? 90 : 380, R = _prReview;
+  steps.forEach(function(st, i){
+    setTimeout(function(){
+      if(_prReview !== R) return;
+      const el = document.getElementById('pr-step-' + i); if(el) el.classList.add('run');
+      setTimeout(function(){
+        if(_prReview !== R) return;
+        if(el){ el.classList.remove('run'); el.classList.add('ok'); }
+        const pct = Math.round((i + 1) / steps.length * 100), bar = document.getElementById('pr-load-bar'), t = document.getElementById('pr-load-pct');
+        if(bar) bar.style.width = pct + '%'; if(t) t.textContent = pct + ' %';
+      }, T * 0.75);
+    }, i * T);
+  });
+  setTimeout(function(){
+    if(_prReview !== R) return;
+    const c = document.getElementById('pr-content'); if(c){ c.classList.add('pr-in'); }
+    _prRender();
+  }, steps.length * T + (fast ? 100 : 450));
+}
 
 // semaines de la prépa : dates, volume, nature (charge, allègement, affûtage, course)
 function prWeeks(st, today){
@@ -651,8 +702,25 @@ function _prFoot(){
 // Coach IA : relecture complète du plan (fonction planReview)
 async function askCoachPlanReview(){
   if(!_prReview) return;
-  const btn = document.getElementById('pr-coach-btn'); if(btn){ btn.disabled = true; btn.innerHTML = '<span class="pr-spin"></span> Le Coach relit ton plan…'; }
-  const a = _prReview.a, today = a.opt.today;
+  const a = _prReview.a, today = a.opt.today, R = _prReview;
+  const ask = document.querySelector('#pr-content .pr-ask');
+  const nW = Object.keys(prSessions(state).reduce(function(o, x){ o[x.w] = 1; return o; }, {})).length;
+  const msgs = ['Il relit tes ' + nW + ' semaines de plan, séance par séance…', 'Il regarde tes séances réalisées : allures, FC, ressenti…']
+    .concat(a.opt.habitual ? ['Il compare avec ta prépa ' + a.opt.habitualFrom + ' (~' + a.opt.habitual + ' km/sem)…'] : [])
+    .concat(a.fit.vdot ? ['Il vérifie tes allures par rapport à ton niveau ' + prV(a.fit.vdot) + '…'] : [])
+    .concat(a.opt.postRace ? ['Il tient compte de ta récupération après ta dernière course…'] : [])
+    .concat(['Il prépare ses propositions…']);
+  if(ask){
+    ask.innerHTML = '<div class="pr-cl"><div class="pr-cl-h"><span class="pr-cl-ic">🤖</span><div><b>Le Coach relit ton plan</b><small id="pr-cl-t">0 s · en général 15 à 40 s</small></div></div>'
+      + '<p id="pr-cl-msg" class="pr-cl-msg">' + prEsc(msgs[0]) + '</p><div class="pr-bar indet"><i></i></div></div>';
+    ask.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  let k = 0; const t0 = Date.now();
+  R.clTimer = setInterval(function(){
+    const m = document.getElementById('pr-cl-msg'), t = document.getElementById('pr-cl-t'), sec = Math.round((Date.now() - t0) / 1000);
+    if(t) t.textContent = sec + ' s · en général 15 à 40 s';
+    if(sec && sec % 3 === 0 && m && k < msgs.length - 1){ k++; m.classList.remove('sw'); void m.offsetWidth; m.classList.add('sw'); m.textContent = msgs[k]; }
+  }, 1000);
   const weeks = {};
   prSessions(state).forEach(function(s){
     const w = weeks[s.w] = weeks[s.w] || { w: s.w, meta: (function(){ try { return JSON.parse(state['meta_w' + s.w] || '{}'); } catch(e) { return {}; } })(), sessions: [] };
@@ -677,11 +745,14 @@ async function askCoachPlanReview(){
       const push = function(field, before, after){ if(after === undefined || after === null || String(after) === String(before)) return; items.push({ on: true, key: s.key, w: s.w, date: s.date, field: field, title: s.title, type: s.type, before: before, after: after, reason: c.reason || '', src: 'coach' }); };
       push('detail', s.detail, c.detail); push('title', s.title, c.title); push('km', s.kmPlan, c.km != null ? Math.round(+c.km * 10) / 10 : null); push('type', s.type, c.type);
     });
+    clearInterval(R.clTimer); if(_prReview !== R) return;
     _prReview.items = items; _prReview.coach = j.assessment || '';
     _prRender();
+    const cc = document.querySelector('#pr-content .pr-coach'); if(cc){ cc.classList.add('pr-pop'); cc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   } catch(e) {
+    clearInterval(R.clTimer); if(_prReview !== R) return;
     alert('Le Coach n\'a pas pu relire le plan (' + e.message + '). Réessaie dans un instant.');
-    if(btn){ btn.disabled = false; btn.textContent = '🤖 Demander l\'avis du Coach'; }
+    _prRender();
   }
 }
 
