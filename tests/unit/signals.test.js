@@ -132,3 +132,24 @@ test('zones affichées : la Z2 s\'arrête au plafond d\'endurance utilisé, born
   assert.deepEqual(z.map((x) => [x.lo || null, x.hi]), [[null, 135], [136, 148], [149, 162], [163, 176], [177, 193]]);
   assert.equal(app.bsDisplayZones(null, 148), null);
 });
+
+test('zones : allures par zone d\'après le niveau, EF d\'après les sorties réelles, recalculées après chaque séance', () => {
+  const st = { record_10km: '42:00', _records: { '10 km': { date: '2026-10-01' } } };
+  const app = loadApp({ now: NOW, state: st });
+  let P = J(app.bsZonePaces('2026-10-29'));
+  assert.ok(P.vdot > 45 && P.vdot < 50, 'niveau ' + P.vdot);
+  const z = P.z;
+  assert.ok(z[4].lo < z[3].lo && z[3].lo < z[2].lo && z[2].lo < z[1].lo, 'VMA < seuil < tempo < EF (s/km)');
+  assert.ok(z[0].hi == null && z[0].lo > z[1].hi, 'récup : plus lent que l\'EF');
+  assert.equal(P.efObs, null);
+  // trois footings validés à 5'40 et FC ≤ 148 : la zone EF suit l'allure réellement courue
+  ['2026-10-20', '2026-10-23', '2026-10-26'].forEach((d, i) => {
+    const k = 'extra_w1_s' + i;
+    st[k] = JSON.stringify({ type: 'ef', km: 10, d: 'Footing EF|x', sched_date: d }); st[k + '_done'] = true; st[k + '_km'] = 10;
+    st[k + '_perf'] = JSON.stringify({ date: d, pace: '5:40', hr: 142 });
+  });
+  st.plan_start_date = '2026-10-19'; st._plan_engine = 'generated';
+  app.ctx.prHistoryChanged();
+  P = J(app.bsZonePaces('2026-10-29'));
+  assert.equal(P.efObs, 340); assert.equal(P.z[1].lo, 330); assert.equal(P.z[1].hi, 355);
+});

@@ -146,18 +146,27 @@ function bsRenderStatsCard(){
     } else if(S) h += '<p class="bs-line">✅ <b>Foulée : rien d\'anormal</b><span>FC et cadence stables · ' + S.n.recent + ' sorties récentes vs ' + S.n.base + '</span></p>';
     else h += '<p class="bs-line">👣 <b>Foulée</b><span>pas encore assez de sorties avec FC pour comparer</span></p>';
     // zones
-    const zs = bsDisplayZones((Z && Z.zones) || E.zones, hrEfMax());
-    h += '<div class="bs-row"><p class="bs-h">❤️ Zones FC <span>EF ≤ <b>' + hrEfMax() + '</b> · ' + (Z ? 'recalée le ' + prFmtDate(Z.at) : 'par défaut') + '</span></p>';
-    if(zs) h += bsZonesBar(zs);
+    // zones : recalées, sinon estimées, sinon d'après la FC max saisie ; sans FC du tout, allures seules
+    const fm = parseInt(state.fc_max) || parseInt((state.onboarding || {}).fc_max) || null;
+    const zs = bsDisplayZones((Z && Z.zones) || E.zones || (fm ? bsZonesFromMax(fm) : null), hrEfMax());
+    h += '<div class="bs-row"><p class="bs-h">❤️ Zones FC et allures <span>EF ≤ <b>' + hrEfMax() + '</b> · ' + (Z ? 'recalée le ' + prFmtDate(Z.at) : 'par défaut') + '</span></p>';
+    const zp = bsZonePaces();
+    if(zs) h += bsZonesBar(zs, zp);
+    else if(zp) h += bsZonesBar([1, 2, 3, 4, 5].map(function(i){ return { z: i, t: '', lo: null, hi: null }; }), zp);
     const src = [];
     if(E.lthr) src.push('FC seuil ~' + E.lthr + ' (' + E.thr.length + ' séance' + (E.thr.length > 1 ? 's' : '') + ')');
     if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ' · saisie ' + E.declared : ''));
-    h += '<p class="bs-n">' + (src.length ? 'D\'après ' + src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones') + '</p>';
+    h += '<p class="bs-n">' + (src.length ? 'FC d\'après ' + src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones') + '</p>';
+    if(zp) h += '<p class="bs-n">Allures (min/km) d\'après ton niveau' + (zp.vdot ? ' (' + String(zp.vdot).replace('.', ',') + ')' : '') + (zp.efObs ? ', EF d\'après tes sorties' : '') + ' · recalculées après chaque séance</p>';
     if(E.propose) h += '<div class="bs-prop"><p>Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.fcMax.v : '') + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
     else if(Z) h += '<button type="button" class="bs-link" onclick="hrZonesReset()">Revenir à ' + BS_EF_DEFAULT + ' bpm</button>';
     h += '</div></div>';
     el.innerHTML = h;
   } catch(e) { console.warn('[signaux] ', e); el.innerHTML = ''; }
+}
+function bsZonesFromMax(m){
+  return [{ z: 1, hi: Math.round(m * 0.70) }, { z: 2, lo: Math.round(m * 0.71), hi: Math.round(m * 0.755) }, { z: 3, lo: Math.round(m * 0.76), hi: Math.round(m * 0.84) },
+    { z: 4, lo: Math.round(m * 0.85), hi: Math.round(m * 0.91) }, { z: 5, lo: Math.round(m * 0.92), hi: m }].map(function(x){ return Object.assign({ t: '' }, x); });
 }
 // zones affichées : la Z2 s'arrête au plafond d'endurance utilisé par l'app (hrEfMax), bornes toujours croissantes
 const BS_ZONE_SHORT = ['', 'Récup', 'EF', 'Tempo', 'Seuil', 'VMA'];
@@ -172,13 +181,37 @@ function bsDisplayZones(zs, ef){
   }
   return z;
 }
-// une seule barre : largeur de chaque zone ∝ sa plage de bpm, bornes sous les jonctions
-function bsZonesBar(z){
-  const w = z.map(function(x, i){ return Math.max(9, i === 0 ? 18 : x.hi - x.lo + 1); }), tot = w.reduce(function(a, b){ return a + b; }, 0);
+// allures de chaque zone (s/km, lo = la plus rapide) d'après le niveau actuel (prFitness, tout l'historique) :
+// Z2 = ton allure EF réelle (prObservedEf) si connue, sinon l'EF Daniels ; Z3 tempo ≈ allure marathon-semi ; Z4 seuil (T) ; Z5 VMA (I)
+function bsZonePaces(today){
+  try {
+    today = today || prTodayIso();
+    const f = typeof prFitness === 'function' ? prFitness(state, { today: today, races: typeof prKnownRaces === 'function' ? prKnownRaces() : [] }) : null;
+    const efObs = typeof prObservedEf === 'function' ? prObservedEf(state, today) : null;
+    const v = f && f.vdot, at = function(p){ return Math.round(paceAtPct(v, p)); };
+    if(!v && !efObs) return null;
+    const z2 = efObs ? { lo: efObs - 10, hi: efObs + 15 } : { lo: at(0.70), hi: at(0.62) };
+    return { vdot: v || null, efObs: efObs || null, z: [
+      { z: 1, lo: z2.hi + 1, hi: null },
+      { z: 2, lo: z2.lo, hi: z2.hi },
+      v ? { z: 3, lo: at(0.84), hi: at(0.79) } : null,
+      v ? { z: 4, lo: at(0.90), hi: at(0.86) } : null,
+      v ? { z: 5, lo: at(1.0), hi: at(0.95) } : null] };
+  } catch(e) { return null; }
+}
+const _bsP = function(s){ return Math.floor(s / 60) + '\'' + String(Math.round(s % 60)).padStart(2, '0'); };
+// une seule barre : largeur de chaque zone ∝ sa plage de bpm, bornes sous les jonctions ; allures en dessous (zp)
+function bsZonesBar(z, zp){
+  const bpm = z.every(function(x){ return x.hi != null; });
+  const w = z.map(function(x, i){ return !bpm ? 1 : Math.max(9, i === 0 ? 18 : x.hi - x.lo + 1); }), tot = w.reduce(function(a, b){ return a + b; }, 0);
   let acc = 0;
   const ticks = z.map(function(x, i){ acc += w[i]; return '<i style="left:' + (acc / tot * 100).toFixed(2) + '%"' + (i === 4 ? ' class="end"' : '') + '>' + x.hi + '</i>'; }).join('');
-  return '<div class="bs-bar">' + z.map(function(x, i){ return '<div class="bs-s z' + x.z + '" style="flex:' + w[i] + ' 1 0" title="' + prEsc(x.t) + ' : ' + (i ? x.lo + '–' : '< ') + x.hi + ' bpm"><b>Z' + x.z + '</b><span>' + BS_ZONE_SHORT[x.z] + '</span></div>'; }).join('') + '</div>'
-    + '<div class="bs-ticks">' + ticks + '</div>';
+  const pace = zp ? '<div class="bs-paces">' + z.map(function(x, i){
+    const p = zp.z[i];
+    const t = !p ? '—' : p.hi == null ? '> ' + _bsP(p.lo) : '<b>' + _bsP(p.lo) + '</b><b>' + _bsP(p.hi) + '</b>';
+    return '<div class="z' + x.z + '" style="flex:' + w[i] + ' 1 0">' + t + '</div>'; }).join('') + '</div>' : '';
+  return '<div class="bs-bar">' + z.map(function(x, i){ return '<div class="bs-s z' + x.z + '" style="flex:' + w[i] + ' 1 0" title="' + (bpm ? prEsc(x.t) + ' : ' + (i ? x.lo + '–' : '< ') + x.hi + ' bpm' : BS_ZONE_SHORT[x.z]) + '"><b>Z' + x.z + '</b><span>' + BS_ZONE_SHORT[x.z] + '</span></div>'; }).join('') + '</div>'
+    + (bpm ? '<div class="bs-ticks">' + ticks + '</div>' : '') + pace;
 }
 function _bsCss(){
   if(document.getElementById('bs-css')) return;
@@ -191,6 +224,8 @@ function _bsCss(){
     + '.bs-bar{display:flex;gap:2px;margin-top:8px;border-radius:10px;overflow:hidden;}.bs-s{min-width:0;padding:6px 2px;text-align:center;display:flex;flex-direction:column;line-height:1.1;}'
     + '.bs-s b{font-size:11.5px;}.bs-s span{font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
     + '.bs-s.z1{background:#E0F2FE;color:#075985;}.bs-s.z2{background:#BBF7D0;color:#14532D;}.bs-s.z3{background:#FEF08A;color:#713F12;}.bs-s.z4{background:#FED7AA;color:#9A3412;}.bs-s.z5{background:#FECACA;color:#991B1B;}'
+    + '.bs-paces{display:flex;gap:2px;margin-top:6px;font-variant-numeric:tabular-nums;}.bs-paces>div{min-width:0;text-align:center;font-size:10.5px;font-weight:700;color:#64748B;line-height:1.25;display:flex;flex-direction:column;border-top:2px solid;padding-top:3px;}'
+    + '.bs-paces b{font-weight:800;color:#1E293B;}.bs-paces>div.z1{border-color:#BAE6FD;}.bs-paces>div.z2{border-color:#86EFAC;}.bs-paces>div.z3{border-color:#FDE047;}.bs-paces>div.z4{border-color:#FDBA74;}.bs-paces>div.z5{border-color:#FCA5A5;}'
     + '.bs-ticks{position:relative;height:15px;margin-top:3px;font-variant-numeric:tabular-nums;}.bs-ticks i{position:absolute;top:0;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:800;color:#475569;}.bs-ticks i.end{transform:translateX(-100%);}'
     + '.bs-prop{margin-top:8px;border:1.5px solid #BBF7D0;background:#F0FDF4;border-radius:12px;padding:10px;}.bs-prop p{margin:0;font-size:13px;color:#14532D;}.bs-btn{margin-top:8px;width:100%;padding:10px;border:none;border-radius:11px;background:#16A34A;color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}'
     + '.bs-link{margin-top:6px;background:none;border:none;color:#64748B;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;font-family:inherit;}'
