@@ -139,25 +139,46 @@ function bsRenderStatsCard(){
     const E = hrZonesEstimate(), S = prStride(), Z = state._hr_zones && state._hr_zones.applied ? state._hr_zones : null;
     let h = '<div class="bs-card"><p class="bs-t">🫀 Signaux du corps</p>';
     // foulée
-    if(S){
-      h += '<div class="bs-row ' + S.status + '"><p class="bs-h">' + (S.level === 2 ? '⚠️ Foulée : signal à prendre au sérieux' : S.level === 1 ? '👀 Foulée : à surveiller' : '✅ Foulée : rien d\'anormal') + '</p>'
-        + (S.items.length ? '<ul>' + S.items.map(function(t){ return '<li>' + prEsc(t) + '</li>'; }).join('') + '</ul>' : '<p class="bs-n">FC et cadence stables à allure égale (' + S.n.recent + ' sorties récentes comparées à ' + S.n.base + ').</p>')
+    if(S && (S.level || S.items.length)){
+      h += '<div class="bs-row ' + S.status + '"><p class="bs-h">' + (S.level === 2 ? '⚠️ Foulée : signal à prendre au sérieux' : S.level === 1 ? '👀 Foulée : à surveiller' : '✅ Foulée : en progrès') + '</p>'
+        + '<ul>' + S.items.map(function(t){ return '<li>' + prEsc(t) + '</li>'; }).join('') + '</ul>'
         + (S.advice ? '<p class="bs-a">' + prEsc(S.advice) + '</p>' : '') + '</div>';
-    } else h += '<div class="bs-row"><p class="bs-n">👣 Foulée : il faut au moins 5 footings ou sorties longues avec FC sur 6 semaines (dont 2 sur les 14 derniers jours) pour comparer.</p></div>';
+    } else if(S) h += '<p class="bs-line">✅ <b>Foulée : rien d\'anormal</b><span>FC et cadence stables · ' + S.n.recent + ' sorties récentes vs ' + S.n.base + '</span></p>';
+    else h += '<p class="bs-line">👣 <b>Foulée</b><span>pas encore assez de sorties avec FC pour comparer</span></p>';
     // zones
-    const zs = (Z && Z.zones) || E.zones;
-    h += '<div class="bs-row"><p class="bs-h">❤️ Tes zones FC <span>endurance jusqu\'à <b>' + hrEfMax() + ' bpm</b>' + (Z ? ' · recalée le ' + prFmtDate(Z.at) : ' · valeur par défaut') + '</span></p>';
-    if(zs) h += '<div class="bs-zones">' + zs.map(function(z){ return '<div class="bs-z z' + z.z + '"><b>Z' + z.z + '</b><span>' + prEsc(z.t) + '</span><i>' + (z.lo ? z.lo : '<') + (z.hi ? (z.lo ? '–' : '') + z.hi : '+') + '</i></div>'; }).join('') + '</div>';
+    const zs = bsDisplayZones((Z && Z.zones) || E.zones, hrEfMax());
+    h += '<div class="bs-row"><p class="bs-h">❤️ Zones FC <span>EF ≤ <b>' + hrEfMax() + '</b> · ' + (Z ? 'recalée le ' + prFmtDate(Z.at) : 'par défaut') + '</span></p>';
+    if(zs) h += bsZonesBar(zs);
     const src = [];
-    if(E.lthr) src.push('FC au seuil ~' + E.lthr + ' bpm (' + E.thr.slice(0, 3).map(function(t){ return prEsc(t.src); }).join(', ') + ')');
-    if(E.fcMax) src.push('FC max observée ' + E.fcMax.v + ' bpm (' + prEsc(E.fcMax.t) + ', ' + prFmtDate(E.fcMax.date) + ')' + (E.declared ? ' · saisie : ' + E.declared : ''));
-    if(src.length) h += '<p class="bs-n">D\'après ' + src.join(' · ') + '.</p>';
-    else h += '<p class="bs-n">Valide des séances de seuil avec l\'import Strava (tours) ou une course 10 km / semi avec ta FC pour recaler tes zones.</p>';
+    if(E.lthr) src.push('FC seuil ~' + E.lthr + ' (' + E.thr.length + ' séance' + (E.thr.length > 1 ? 's' : '') + ')');
+    if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ' · saisie ' + E.declared : ''));
+    h += '<p class="bs-n">' + (src.length ? 'D\'après ' + src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones') + '</p>';
     if(E.propose) h += '<div class="bs-prop"><p>Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.fcMax.v : '') + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
     else if(Z) h += '<button type="button" class="bs-link" onclick="hrZonesReset()">Revenir à ' + BS_EF_DEFAULT + ' bpm</button>';
     h += '</div></div>';
     el.innerHTML = h;
   } catch(e) { console.warn('[signaux] ', e); el.innerHTML = ''; }
+}
+// zones affichées : la Z2 s'arrête au plafond d'endurance utilisé par l'app (hrEfMax), bornes toujours croissantes
+const BS_ZONE_SHORT = ['', 'Récup', 'EF', 'Tempo', 'Seuil', 'VMA'];
+function bsDisplayZones(zs, ef){
+  if(!zs || zs.length !== 5) return null;
+  const z = zs.map(function(x){ return { z: x.z, t: x.t, lo: x.lo, hi: x.hi }; });
+  if(ef){ z[1].hi = ef; z[0].hi = Math.min(z[0].hi, ef - 4); }
+  for(let i = 1; i < 5; i++){
+    z[i].lo = z[i - 1].hi + 1;
+    if(z[i].hi == null) z[i].hi = z[i].lo + 12;
+    if(z[i].hi < z[i].lo + 2) z[i].hi = z[i].lo + 2;
+  }
+  return z;
+}
+// une seule barre : largeur de chaque zone ∝ sa plage de bpm, bornes sous les jonctions
+function bsZonesBar(z){
+  const w = z.map(function(x, i){ return Math.max(9, i === 0 ? 18 : x.hi - x.lo + 1); }), tot = w.reduce(function(a, b){ return a + b; }, 0);
+  let acc = 0;
+  const ticks = z.map(function(x, i){ acc += w[i]; return '<i style="left:' + (acc / tot * 100).toFixed(2) + '%"' + (i === 4 ? ' class="end"' : '') + '>' + x.hi + '</i>'; }).join('');
+  return '<div class="bs-bar">' + z.map(function(x, i){ return '<div class="bs-s z' + x.z + '" style="flex:' + w[i] + ' 1 0" title="' + prEsc(x.t) + ' : ' + (i ? x.lo + '–' : '< ') + x.hi + ' bpm"><b>Z' + x.z + '</b><span>' + BS_ZONE_SHORT[x.z] + '</span></div>'; }).join('') + '</div>'
+    + '<div class="bs-ticks">' + ticks + '</div>';
 }
 function _bsCss(){
   if(document.getElementById('bs-css')) return;
@@ -166,9 +187,11 @@ function _bsCss(){
     + '.bs-t{font-size:15px;font-weight:800;color:#0F172A;margin:0;}.bs-row{border-radius:12px;background:#F8FAFC;padding:10px 12px;}.bs-row.watch{background:#FFFBEB;}.bs-row.alert{background:#FEF2F2;}'
     + '.bs-h{font-size:13px;font-weight:800;color:#1E293B;margin:0 0 4px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.bs-h span{font-weight:600;color:#64748B;font-size:12px;}'
     + '.bs-row ul{margin:2px 0 0;padding-left:18px;font-size:12.5px;color:#334155;line-height:1.45;}.bs-n{font-size:11.5px;color:#64748B;margin:4px 0 0;line-height:1.4;}.bs-a{font-size:12px;font-weight:700;color:#9A3412;margin:6px 0 0;}'
-    + '.bs-zones{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px;}.bs-z{border-radius:9px;padding:6px 4px;text-align:center;display:flex;flex-direction:column;gap:1px;font-variant-numeric:tabular-nums;}'
-    + '.bs-z b{font-size:12px;}.bs-z span{font-size:9.5px;line-height:1.15;}.bs-z i{font-style:normal;font-size:11px;font-weight:800;}'
-    + '.bs-z.z1{background:#E0F2FE;color:#075985;}.bs-z.z2{background:#DCFCE7;color:#166534;}.bs-z.z3{background:#FEF9C3;color:#854D0E;}.bs-z.z4{background:#FFEDD5;color:#9A3412;}.bs-z.z5{background:#FEE2E2;color:#991B1B;}'
+    + '.bs-line{margin:0;font-size:12.5px;color:#1E293B;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;padding:0 2px;}.bs-line span{font-size:11.5px;color:#64748B;}'
+    + '.bs-bar{display:flex;gap:2px;margin-top:8px;border-radius:10px;overflow:hidden;}.bs-s{min-width:0;padding:6px 2px;text-align:center;display:flex;flex-direction:column;line-height:1.1;}'
+    + '.bs-s b{font-size:11.5px;}.bs-s span{font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '.bs-s.z1{background:#E0F2FE;color:#075985;}.bs-s.z2{background:#BBF7D0;color:#14532D;}.bs-s.z3{background:#FEF08A;color:#713F12;}.bs-s.z4{background:#FED7AA;color:#9A3412;}.bs-s.z5{background:#FECACA;color:#991B1B;}'
+    + '.bs-ticks{position:relative;height:15px;margin-top:3px;font-variant-numeric:tabular-nums;}.bs-ticks i{position:absolute;top:0;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:800;color:#475569;}.bs-ticks i.end{transform:translateX(-100%);}'
     + '.bs-prop{margin-top:8px;border:1.5px solid #BBF7D0;background:#F0FDF4;border-radius:12px;padding:10px;}.bs-prop p{margin:0;font-size:13px;color:#14532D;}.bs-btn{margin-top:8px;width:100%;padding:10px;border:none;border-radius:11px;background:#16A34A;color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}'
     + '.bs-link{margin-top:6px;background:none;border:none;color:#64748B;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;font-family:inherit;}'
     + '.bs-home{display:block;width:100%;text-align:left;margin-top:8px;border-radius:12px;padding:9px 12px;font-size:12.5px;border:1px solid #FDE68A;background:#FFFBEB;color:#78350F;cursor:pointer;font-family:inherit;line-height:1.35;}.bs-home.alert{border-color:#FECACA;background:#FEF2F2;color:#991B1B;}';

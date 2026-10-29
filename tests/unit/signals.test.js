@@ -124,3 +124,11 @@ test('chaussure du jour : rotation, fin de vie, paire de course préservée', ()
   assert.match(A.warn, /garde-la pour la course/); assert.notEqual(A.name, 'Adios');
   assert.equal(app.shoeDayAdvice({ type: 'race', shoe: 'Adios' }, '2026-11-22').name, 'Adios');
 });
+
+test('zones affichées : la Z2 s\'arrête au plafond d\'endurance utilisé, bornes croissantes', () => {
+  const app = loadApp({ now: NOW });
+  const fromMax = [{ z: 1, hi: 135 }, { z: 2, lo: 137, hi: 146 }, { z: 3, lo: 147, hi: 162 }, { z: 4, lo: 164, hi: 176 }, { z: 5, lo: 178, hi: 193 }];
+  const z = J(app.bsDisplayZones(fromMax, 148));
+  assert.deepEqual(z.map((x) => [x.lo || null, x.hi]), [[null, 135], [136, 148], [149, 162], [163, 176], [177, 193]]);
+  assert.equal(app.bsDisplayZones(null, 148), null);
+});
