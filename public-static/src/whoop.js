@@ -106,6 +106,7 @@ async function _pullWhoopStateFromFirebase() {
     state.whoop_data = wd;
     whoopFcToState(wd);
     if (typeof renderWhoopStats === 'function') renderWhoopStats();
+    if (typeof prRenderHomeCard === 'function') prRenderHomeCard();   // forme du jour : sort de l'attente du réveil
   }
   const fcVal = fcSnap.val();
   if (fcVal && fcVal >= 30 && fcVal <= 100) {

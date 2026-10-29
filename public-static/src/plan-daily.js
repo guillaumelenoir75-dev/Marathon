@@ -455,7 +455,13 @@ function prRenderHomeCard(){
     } else if(!state._badges_init){ state._badges_init = true; if(dbRef) dbRef.child('_badges_init').set(true).catch(function(){}); }
     const R = typeof prepRace === 'function' ? prepRace() : null, dRace = R && R.date ? prDays(prTodayIso(), R.date) : null;
     let h = '<div class="pd-home">';
-    if(F){ const C = 2 * Math.PI * 26;
+    // après 4h : la récupération WHOOP de la nuit n'est pas encore là → en attente du réveil (comme le bouton Réveil)
+    if(typeof wellnessWaiting === 'function' && wellnessWaiting()){
+      const C = 2 * Math.PI * 26;
+      h += '<div class="pd-form wait"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><text x="32" y="38" text-anchor="middle">💤</text></svg>'
+        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>En attente du réveil</b><small>Ta récupération WHOOP de cette nuit arrive au réveil.</small></div>'
+        + (typeof onWakeup === 'function' && typeof isAdmin === 'function' && isAdmin() ? '<button type="button" class="pd-wake" onclick="onWakeup()">☀️ Je suis réveillé</button>' : '') + '</div>';
+    } else if(F){ const C = 2 * Math.PI * 26;
       h += '<div class="pd-form ' + F.tone + '"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="37" text-anchor="middle">' + F.score + '</text></svg>'
         + '<div><p class="pd-form-l">Forme du jour</p><b>' + F.label + '</b><small>' + prEsc(F.why.join(' · ')) + '</small></div></div>'; }
     h += '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
@@ -499,6 +505,7 @@ function _pdCss(){
     + '.pd-memo{background:#0F172A;color:#fff;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;}.pd-memo-h{margin:0;font-size:15px;font-weight:900;}.pd-memo-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}.pd-memo-g div{background:rgba(255,255,255,.08);border-radius:10px;padding:8px;display:flex;flex-direction:column;}.pd-memo-g small{font-size:10.5px;opacity:.7;font-weight:700;}.pd-memo-g b{font-size:19px;font-weight:900;font-variant-numeric:tabular-nums;}.pd-memo-f{margin:0;font-size:12px;opacity:.8;font-weight:700;}'
     + '.pd-home{display:flex;flex-direction:column;gap:8px;}.pd-form{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:10px 14px;}.pd-gauge{width:56px;height:56px;flex-shrink:0;transform:rotate(-90deg);}.pd-gauge text{transform:rotate(90deg);transform-origin:32px 32px;font-size:17px;font-weight:900;fill:#0F172A;font-family:inherit;}'
     + '.g-bg{fill:none;stroke:#EEF2F7;stroke-width:7;}.g-fg{fill:none;stroke-width:7;stroke-linecap:round;}.pd-form.ok .g-fg{stroke:#16A34A;}.pd-form.mid .g-fg{stroke:#EAB308;}.pd-form.low .g-fg{stroke:#DC2626;}'
+    + '.pd-form.wait{background:linear-gradient(135deg,#F5F3FF,#EEF2FF);border-color:#DDD6FE;}.pd-form.wait text{font-size:20px;}.pd-wake{flex-shrink:0;border:none;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f97316,#fbbf24);cursor:pointer;font-family:inherit;}'
     + '.pd-form-l{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748B;}.pd-form b{display:block;font-size:14.5px;font-weight:850;color:#0F172A;}.pd-form small{display:block;font-size:11.5px;color:#64748B;font-weight:600;margin-top:1px;}'
     + '.pd-strip{display:flex;gap:8px;align-items:center;}.pd-streak{flex-shrink:0;background:#FFF7ED;color:#9A3412;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;}.pd-bdg-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:2px;background:#F5F3FF;border:none;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit;}.pd-bdg-btn i{font-style:normal;font-size:15px;}.pd-bdg-btn span{font-size:12px;font-weight:800;color:#5B21B6;margin-left:4px;white-space:nowrap;}'
     + '.pd-raceb{width:100%;text-align:left;background:linear-gradient(135deg,#FFFBEB,#FEF3C7);border:1px solid #FDE68A;border-radius:14px;padding:10px 14px;font-size:13px;color:#78350F;cursor:pointer;font-family:inherit;}'

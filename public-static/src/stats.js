@@ -405,6 +405,11 @@ function wellnessScore(rRec, sSleep, fcV){
   if (rRec && rRec.hrv != null) sc.push(Math.max(0, Math.min(100, Math.round((rRec.hrv - 40) / 50 * 100))));
   return sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null;
 }
+function wellnessWaiting(){
+  const wd = state.whoop_data, r0 = wd && wd.recoveries ? wd.recoveries[0] : null;
+  if (!wd || typeof _getWakeupDate !== 'function') return false;
+  return !r0 || !r0.date || r0.date < _getWakeupDate();
+}
 function wellnessScoreToday(){
   const wd = state.whoop_data || null, r0 = wd && wd.recoveries ? wd.recoveries[0] || null : null, s0 = wd && wd.sleeps ? wd.sleeps[0] || null : null;
   const fc = Object.keys(state).filter(k => /^fc_repos_\d{4}-\d{2}-\d{2}$/.test(k)).map(k => ({ date: k.slice(9), val: parseInt(state[k]) })).filter(e => e.val >= 30 && e.val <= 100).sort((a, b) => a.date.localeCompare(b.date));
@@ -581,7 +586,7 @@ function renderWhoopStats() {
           <div style="font-size:36px;font-weight:900;color:${col};line-height:1;">${avg}<span style="font-size:16px;">%</span></div>
           <div>
             <div style="font-size:13px;font-weight:700;color:${col};">${emoji} ${label}${trendHtml}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Score du jour · ${components.join(' + ')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">${wellnessWaiting() ? '💤 Score de la nuit précédente · en attente du réveil' : 'Score du jour · ' + components.join(' + ')}</div>
             ${avg7jHtml}
           </div>
         </div>`;
