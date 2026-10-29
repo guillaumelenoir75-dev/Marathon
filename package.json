@@ -2,11 +2,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/unit/*.test.js tests/server/*.test.js",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.test.js",
+    "test:all": "npm test && npm run build && npm run test:e2e"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
     "jimp": "^1.6.1",
+    "playwright": "^1.63.0",
     "vite": "^8.0.16"
   }
 }

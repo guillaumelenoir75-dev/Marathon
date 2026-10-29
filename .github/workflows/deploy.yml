@@ -6,7 +6,34 @@ on:
       - main
 
 jobs:
+  # Tests : le déploiement n'a lieu que s'ils passent (unitaires, serveur, bout en bout sur l'app construite)
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Unit and server tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:

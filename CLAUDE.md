@@ -69,6 +69,12 @@ Chargés dans cet ordre (dépendances respectées) :
 | `notifs.js` | Toutes les fonctions `onSchedule` (rappels, briefings automatiques ; `planReviewSunday` dimanche 18h30 : séances validées depuis la dernière relecture du Coach — `perf.validatedAt` > `_coach_review.at`, sinon 7 derniers jours — → push `plan-review` → `/?action=review`, ou message `open_review` du service worker si l'app est ouverte ; le rappel de planification de 20h est alors sauté via `_plan_review_push`) |
 | `live.js` | owntracksToken (clé + config OwnTracks, admin), owntracks (réception des positions OwnTracks → `/live` ; géométrie d'après la fiche `/live/race`, Seine-Eure `live-course.json` par défaut, mode sans tracé = GPS cumulé) |
 
+## Tests (filet de sécurité avant chaque déploiement)
+- `npm test` : tests unitaires (`tests/unit/`, moteur de l'app chargé tel quel par `tests/helpers/frontend.js`) et serveur (`tests/server/`, Cloud Functions avec doublures Firebase / IA / push via `tests/helpers/functions.js`). `node --test`, sans dépendance.
+- `npm run test:e2e` (après `npm run build`) : bout en bout dans Chromium (Playwright) sur `dist/`, Firebase simulée par `tests/e2e/firebase-mock.js` (données dans `window.__DB`), appels aux fonctions interceptés. `npm run test:all` = tout.
+- Le workflow lance le job `test` avant `deploy` (`needs: test`) : un test rouge bloque la mise en production.
+- Règle : toute correction ou nouvelle fonction du moteur arrive avec son test ; lancer `npm run test:all` avant de pousser sur `main`.
+
 ## Déploiement
 - AUTOMATIQUE : tout commit sur `main` déclenche `.github/workflows/deploy.yml` → `firebase deploy` (functions + hosting + database rules).
 - Ne PAS modifier `.github/workflows/deploy.yml` sans raison explicite.

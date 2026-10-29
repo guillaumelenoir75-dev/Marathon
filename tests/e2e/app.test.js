@@ -1,0 +1,168 @@
+// Tests de bout en bout : l'app construite (dist/) dans Chromium, avec une fausse Firebase (firebase-mock.js).
+// Parcours : premier lancement (plan Seine-Eure) → enregistrer la prépa marathon → installer la Novemb'Run →
+// mise à jour du plan (calcul, Coach simulé, application, annulation), imprévu, validation (effort, douleur),
+// plan de course, forme du jour, prépa à venir. Lancer : npm run build && npm run test:e2e
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
+
+const DIST = path.join(__dirname, '..', '..', 'dist');
+const MOCK = path.join(__dirname, 'firebase-mock.js');
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
+let server, base, browser, savedDb = null;
+
+test.before(async () => {
+  assert.ok(fs.existsSync(path.join(DIST, 'index.html')), 'lancer « npm run build » avant les tests de bout en bout');
+  server = http.createServer((req, res) => {
+    let f = path.join(DIST, decodeURIComponent(req.url.split('?')[0]));
+    if (f.endsWith(path.sep) || !path.extname(f)) f = path.join(DIST, 'index.html');
+    fs.readFile(f, (err, buf) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' }); res.end(buf); });
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  base = 'http://127.0.0.1:' + server.address().port + '/';
+  browser = await chromium.launch();
+});
+test.after(async () => { if (browser) await browser.close(); if (server) server.close(); });
+
+// nouvelle page à une date donnée, avec une base (JSON) éventuelle
+async function open(dateIso, db, opts) {
+  opts = opts || {};
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris' });
+  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+  await ctx.route(/cloudfunctions\.net/, (r) => (opts.functions ? opts.functions(r) : r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"ok","reply":"ok","text":"ok"}' })));
+  await ctx.route(/firebase-app-compat/, (r) => r.fulfill({ contentType: 'text/javascript', path: MOCK }));
+  await ctx.route(/firebase-(auth|database|messaging)-compat/, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
+  await ctx.route(/chart\.umd/, (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.Chart=function(){return{destroy(){},update(){},data:{datasets:[]},options:{}}};window.Chart.register=function(){};' }));
+  await ctx.addInitScript((t) => { const real = Date.now.bind(Date), off = t - real(), D = Date; class FD extends D { constructor(...a) { if (a.length === 0) super(real() + off); else super(...a); } static now() { return real() + off; } } window.Date = FD; }, new Date(dateIso).getTime());
+  if (db) await ctx.addInitScript((j) => { window.__DB = JSON.parse(j); }, db);
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('dialog', (d) => d.accept());
+  await page.goto(base + (opts.query || ''));
+  await page.waitForFunction(() => typeof firebaseReady !== 'undefined' && firebaseReady, null, { timeout: 15000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => { const w = document.getElementById('wakeup-banner'); if (w) w.remove(); });
+  return { ctx, page, errors };
+}
+const db = (page) => page.evaluate(() => JSON.stringify(window.__DB));
+// ouvre « Mettre à jour le plan » et attend la fin de l'analyse animée
+async function openReview(page) {
+  await page.evaluate(() => { showScreen('plan'); openPlanReview(); });
+  await page.waitForFunction(() => typeof _prReview !== 'undefined' && _prReview && document.querySelector('#pr-content .pr-card'), null, { timeout: 15000 });
+}
+
+test('premier lancement (plan Seine-Eure) : tous les écrans sans erreur', async () => {
+  const { ctx, page, errors } = await open('2026-10-27T10:00:00+01:00');
+  for (const s of ['home', 'plan', 'renfo', 'stats', 'coach', 'compte']) { await page.evaluate((x) => showScreen(x), s); await page.waitForTimeout(400); }
+  assert.deepEqual(errors, []);
+  // enregistrer la prépa marathon (résultat) puis installer la Novemb'Run
+  await page.evaluate(async () => { await openPrepsPanel(); }); await page.waitForTimeout(500);
+  await page.click('text=Enregistrer cette prépa'); await page.fill('#pf-result', '3:37:05'); await page.click('#pf-save'); await page.waitForTimeout(700);
+  await page.click('text=Installer cette prépa'); await page.waitForTimeout(300); await page.click('#cm-confirm'); await page.waitForTimeout(1500);
+  const st = await page.evaluate(() => state);
+  assert.ok(st._plan_engine && st.extra_w1_s0, 'Novemb\'Run installée');
+  savedDb = await db(page);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  for (const s of ['home', 'plan', 'stats', 'compte']) { await page.evaluate((x) => showScreen(x), s); await page.waitForTimeout(400); }
+  await page.evaluate(() => { showScreen('home'); renderHome(); });
+  assert.ok(await page.evaluate(() => !!document.getElementById('home-form-card')));
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('mise à jour du plan : analyse, application, historique, annulation', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await openReview(page);
+  const n = await page.evaluate(() => _prReview.items.length);
+  assert.ok(n > 0, 'des propositions');
+  const before = await page.evaluate(() => JSON.stringify(Object.fromEntries(Object.keys(state).filter((k) => /^extra_w\d+_s\d+$/.test(k)).map((k) => [k, state[k]]))));
+  await page.click('#pr-apply'); await page.waitForTimeout(800);
+  const hist = await page.evaluate(() => state._plan_reviews.slice(-1)[0]);
+  assert.equal(hist.changes.length, hist.n);
+  const changed = await page.evaluate((b) => { const o = JSON.parse(b); return Object.keys(o).filter((k) => o[k] !== state[k]).length; }, before);
+  assert.ok(changed > 0);
+  await page.evaluate(() => prUndoReview(state._plan_reviews.length - 1)); await page.waitForTimeout(500);
+  const left = await page.evaluate((b) => { const o = JSON.parse(b); return Object.keys(o).filter((k) => JSON.parse(o[k]).d !== JSON.parse(state[k]).d || +JSON.parse(o[k]).km !== +JSON.parse(state[k]).km).length; }, before);
+  assert.equal(left, 0, 'annulation complète');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('avis du Coach (simulé) : fusion, application, avis réaffiché tant qu\'il n\'est pas appliqué', async () => {
+  let calls = 0;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: async (r) => {
+    if (!/planReview/.test(r.request().url())) return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    calls++;
+    const b = JSON.parse(r.request().postData()), s = [].concat(...b.plan.map((w) => w.sessions)).find((x) => !x.done && x.type === 'ef' && x.date >= b.today);
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, assessment: 'Avis test.', changes: [{ ref: s.ref, km: s.km + 1, reason: 'test' }], rejected: [] }) });
+  } });
+  await openReview(page);
+  await page.click('#pr-coach-btn'); await page.waitForFunction(() => _prReview && _prReview.coach === 'Avis test.', null, { timeout: 10000 });
+  await page.evaluate(() => closePlanReview());
+  await openReview(page);
+  assert.equal(await page.evaluate(() => _prReview.coach), 'Avis test.', 'avis réaffiché');
+  assert.ok(await page.evaluate(() => _prReview.items.some((x) => x.src === 'coach')));
+  await page.evaluate(() => { _prReview.items.forEach((x) => { x.on = x.src === 'coach'; }); });
+  await page.click('#pr-apply'); await page.waitForTimeout(800);
+  assert.equal(await page.evaluate(() => state._coach_review.applied), true);
+  assert.equal(calls, 1);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('imprévu : séance clé déplacée, annulable', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(() => { showScreen('plan'); openImprevu(); _pdImpSet('from', '2026-11-17'); _pdImpSet('to', '2026-11-17'); });
+  const ch = await page.evaluate(() => _pdImp.changes.map((c) => c.field));
+  assert.ok(ch.length >= 1 && ch.every((f) => f === 'date' || f === 'skip'));
+  const before = await page.evaluate(() => JSON.stringify(_pdImp.changes.map((c) => [c.key, state[c.key], state[c.key + '_skip'] || null])));
+  await page.evaluate(() => applyImprevu()); await page.waitForTimeout(400);
+  await page.evaluate(() => prUndoReview(state._plan_reviews.length - 1)); await page.waitForTimeout(400);
+  const left = await page.evaluate((b) => JSON.parse(b).filter(([k, v, sk]) => JSON.parse(state[k]).sched_date !== JSON.parse(v).sched_date || (state[k + '_skip'] || null) !== sk).length, before);
+  assert.equal(left, 0);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('validation : effort ressenti et douleur enregistrés, effacés à la revalidation', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  const save = async (rpe, pain) => {
+    await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); showScreen('home'); openValidationModalExtra(2, 0); });
+    await page.waitForTimeout(300);
+    await page.evaluate(([r, p]) => { if (r) prRpePick(r); prPainPick(p); }, [rpe, pain]);   // toucher la valeur déjà choisie la désélectionne
+    await page.evaluate(() => saveValidationExtra(2, 0)); await page.waitForTimeout(1200);
+    return page.evaluate(() => JSON.parse(state.extra_w2_s0_perf));
+  };
+  let perf = await save(7, 2);
+  assert.equal(perf.rpe, 7); assert.equal(perf.pain.level, 2); assert.ok(perf.validatedAt);
+  assert.equal(await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); openValidationModalExtra(2, 0); return document.getElementById('pd-rpe').dataset.rpe; }), '7', 'effort précédent repris à la revalidation');
+  perf = await save(7, 0);
+  assert.ok(!perf.rpe && !perf.pain, 'effort désélectionné et douleur « Aucune » : plus enregistrés');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('plan de course et prépa à venir', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(() => openRacePlan()); await page.waitForTimeout(500);
+  const r = await page.evaluate(() => ({ n: _pdRace.splits.length, last: _pdRace.splits[_pdRace.splits.length - 1].cum, target: _pdRace.target }));
+  assert.equal(r.n, 10); assert.ok(Math.abs(r.last - r.target) < 1);
+  await page.evaluate(() => document.getElementById('pd-race').remove());
+  await page.evaluate(async () => { await openPrepsPanel(); }); await page.waitForTimeout(800);
+  await page.evaluate(() => document.querySelector('[data-prep-open="#next"]').click()); await page.waitForTimeout(1500);
+  await openReview(page);
+  assert.ok(await page.evaluate(() => _prReview.items.length > 0), 'propositions sur la prépa à venir');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
