@@ -466,6 +466,8 @@ function prRenderHomeCard(){
         + '<div><p class="pd-form-l">Forme du jour</p><b>' + F.label + '</b><small>' + prEsc(F.why.join(' · ')) + '</small></div></div>'; }
     h += '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
       + '<button type="button" class="pd-bdg-btn" onclick="openBadges()">' + on.slice(-4).map(function(b){ return '<i>' + b.ico + '</i>'; }).join('') + '<span>' + on.length + '/' + B.list.length + ' badges ›</span></button></div>';
+    if(typeof bsHomeLine === 'function') h += bsHomeLine();                    // foulée qui se dégrade (body-signals.js)
+    if(typeof wsHomeButton === 'function') h += wsHomeButton();                // ta semaine en image (week-share.js)
     if(dRace != null && dRace >= 0 && dRace <= 21) h += '<button type="button" class="pd-raceb" onclick="openRacePlan()">🏁 <b>' + prEsc(R.name) + '</b> dans ' + dRace + ' jour' + (dRace > 1 ? 's' : '') + ' · ton plan de course ›</button>';
     el.innerHTML = h + '</div>';
   } catch(e) { el.innerHTML = ''; }

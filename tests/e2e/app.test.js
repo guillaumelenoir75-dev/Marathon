@@ -175,6 +175,45 @@ test('validation : effort ressenti et douleur enregistrés, effacés à la reval
   await ctx.close();
 });
 
+test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, « Et si… »', async () => {
+  const { ctx, page, errors } = await open('2026-11-01T15:00:00+01:00', savedDb);
+  // journal : le texte remplit l'effort et la douleur, enregistrés avec la note
+  await page.evaluate(() => { showScreen('home'); openValidationModalExtra(1, 0); });
+  await page.waitForSelector('#jv-text');
+  await page.fill('#jv-text', 'Dur sur la fin, mollet un peu tendu');
+  await page.click('.jv-go'); await page.waitForTimeout(400);
+  assert.deepEqual(await page.evaluate(() => { const b = document.getElementById('pd-rpe').dataset; return [b.rpe, b.pain, b.zone]; }), ['7', '1', 'Mollet']);
+  await page.evaluate(() => saveValidationExtra(1, 0)); await page.waitForTimeout(1200);
+  const perf = await page.evaluate(() => JSON.parse(state.extra_w1_s0_perf));
+  assert.equal(perf.journal, 'Dur sur la fin, mollet un peu tendu'); assert.equal(perf.rpe, 7); assert.equal(perf.pain.zone, 'Mollet'); assert.ok(perf.note);
+  // Statistiques : carte « Signaux du corps » (zones FC, foulée)
+  await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); showScreen('stats'); });
+  await page.waitForTimeout(600);
+  assert.ok(await page.evaluate(() => /Signaux du corps/.test(document.getElementById('bs-stats-card').textContent) && /endurance jusqu'à 148 bpm/.test(document.getElementById('bs-stats-card').textContent)));
+  // accueil du dimanche : bouton « ta semaine en image » → aperçu PNG
+  await page.evaluate(() => { showScreen('home'); renderHome(); });
+  await page.waitForSelector('.ws-home');
+  await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-img');
+  assert.ok(await page.evaluate(() => document.querySelector('#ws-share .ws-img').src.startsWith('data:image/png') && document.querySelector('#ws-share .ws-img').naturalWidth === 1080));
+  await page.evaluate(() => document.getElementById('ws-share').remove());
+  // chaussure du jour : conseil affiché sans erreur, « Prendre » change la paire de la séance
+  const shoe = await page.evaluate(() => { const st = Object.keys(state).filter((k) => /^extra_w\d+_s\d+$/.test(k)).map((k) => [k, JSON.parse(state[k])]).find(([, x]) => x.type === 'ef' && x.sched_date >= '2026-11-02');
+    if (!st) return null; const A = shoeDayAdvice(st[1], st[1].sched_date); return A && A.name; });
+  if (shoe) assert.ok(await page.evaluate((n) => getShoes().some((s) => s.name === n && !s.retired), shoe), 'paire conseillée active');
+  // « Et si… » depuis la trajectoire de la mise à jour du plan
+  await openReview(page);
+  const hasTj = await page.evaluate(() => !!(_prReview.a.trajectory && _prReview.a.trajectory.race));
+  if (hasTj) {
+    await page.click('text=Et si… ? Teste un scénario'); await page.waitForSelector('#wi-res .wi-big');
+    const t0 = await page.textContent('#wi-res .wi-big');
+    await page.click('#pr-whatif .wi-seg[data-k="skipWeeks"] button:nth-child(3)'); await page.waitForTimeout(200);
+    assert.notEqual(await page.textContent('#wi-res .wi-big'), t0, 'scénario « 2 semaines sautées » recalculé');
+    assert.ok(await page.evaluate(() => /Après l'arrêt/.test(document.getElementById('wi-res').textContent)));
+  }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('plan de course et prépa à venir', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await page.evaluate(() => openRacePlan()); await page.waitForTimeout(500);

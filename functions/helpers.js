@@ -314,6 +314,11 @@ async function buildTrainingSituation(db, state, todayStr, opts) {
   };
   recFrom('5 km', 'record_5km'); recFrom('10 km', 'record_10km'); recFrom('Semi-marathon', 'record_semi'); recFrom('Marathon', 'record_marathon');
   if (rec.length) lines.push('Records : ' + rec.join(' · ') + '.');
+  // zones FC recalées et signaux de la foulée calculés par l'app (body-signals.js)
+  const hz = state._hr_zones;
+  if (hz && hz.applied && hz.efMax) lines.push(`Zones FC recalées le ${fmtD(hz.at)} d'après ses séances (PRIORITAIRES sur les valeurs FC écrites dans tes consignes) : endurance fondamentale jusqu'à ${hz.efMax} bpm${hz.lthr ? `, FC au seuil ~${hz.lthr} bpm` : ''}${hz.fcMax ? `, FC max ${hz.fcMax} bpm` : ''}.`);
+  const bsig = state._body_signals;
+  if (bsig && bsig.level && bsig.at && Array.isArray(bsig.items) && days(bsig.at, today) <= 3) lines.push(`Signal de la foulée (calculé par l'app le ${fmtD(bsig.at)}) : ${bsig.items.join(' ')} → ${bsig.level >= 2 ? 'signal précoce de fatigue ou de blessure : pas de hausse de charge, privilégier la récupération' : 'à surveiller'}.`);
 
   // charge récente (séances réalisées et datées)
   const doneD = sess.filter((s) => s.done && s.date && s.date <= today && s.x.type !== 'rest');

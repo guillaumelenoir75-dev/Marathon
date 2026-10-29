@@ -333,7 +333,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       : `NORMALE (${kmCW}km)`,
     consignes_ef_semaine: isDecharge
       ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < 140 bpm idéalement (correction thermique applicable si > 25°C : ajouter +3 à +12 bpm selon la chaleur). Si Guillaume court plus vite, ce n'est PAS une bonne séance.`
-      : `Allure EF normale : entre ${zoneMin} et ${zoneMax} /km. FC < 148 bpm.`,
+      : `Allure EF normale : entre ${zoneMin} et ${zoneMax} /km. FC < ${hrEfMax()} bpm.`,
     maintenant: {
       jour: jourActuel,
       heure: heureActuelle,
@@ -349,7 +349,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     // nouvelle prépa sur une autre distance : prédiction sur la distance objectif (les champs « marathon » restent des repères)
     prediction_course_objectif: (!usesHardPlan() && prepRace().course && prepRace().course!=='Marathon') ? (()=>{ const p=buildDistancePrediction(prepRace().course); return p&&p.tempsStr ? {course:prepRace().course, temps_estime:p.tempsStr, allure_estimee:p.paceStr, confiance:p.confiance, objectif:prepRace().objectif} : {course:prepRace().course, objectif:prepRace().objectif, note:'pas encore assez de séances validées pour estimer'}; })() : undefined,
     allure_ef_actuelle: getBestEfPace()||"6'40",
-    allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ 148 bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue).",
+    allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ "+hrEfMax()+" bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue).",
     note_comparaison_allures: "IMPORTANT — convention allure : une allure s'exprime en min:sec PAR KILOMÈTRE. Plus le nombre est GRAND (plus de secondes/km), plus c'est LENT. Ex: 5'46/km est PLUS LENT que 5'30/km. Ne jamais confondre sens de comparaison : réalisé > cible en sec/km = plus lent, pas plus rapide.",
     projection_sub4h: !usesHardPlan() ? undefined : (()=>{
       const objectifSec = 4*3600; // 4h00
@@ -360,7 +360,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         getOrderedWeekSessions(ws).forEach(({s:sess,ei})=>{
           if(sess.type!=='ef' && sess.type!=='long') return;
           let perf=null;try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):null;}catch(e){}
-          if(!perf||!perf.pace||!perf.hr||parseInt(perf.hr)>148) return;
+          if(!perf||!perf.pace||!perf.hr||parseInt(perf.hr)>hrEfMax()) return;
           efPoints.push({ws, sec: paceStrToSec(perf.pace)});
         });
       }
@@ -483,7 +483,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
             if(sess.type!=='ef'&&sess.type!=='long') return;
             const k=`extra_w${ws}_s${ei}`;
             let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
-            if(perf&&perf.hr&&parseInt(perf.hr)<=148) efFCRecent.push({ws,hr:parseInt(perf.hr)});
+            if(perf&&perf.hr&&parseInt(perf.hr)<=hrEfMax()) efFCRecent.push({ws,hr:parseInt(perf.hr)});
           });
         }
         const fcMontante = efFCRecent.length>=3 &&
@@ -553,7 +553,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           if(!perf || !perf.pace || !perf.hr) return;
           const sec = paceStrToSec(perf.pace);
           const hr = parseInt(perf.hr);
-          if(sec>0 && hr>0 && hr<=148) efData.push({ws, sec, hr});
+          if(sec>0 && hr>0 && hr<=hrEfMax()) efData.push({ws, sec, hr});
         });
       }
       if(efData.length < 4) return null;
@@ -586,7 +586,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           const k = `extra_w${ws}_s${ei}`;
           let perf=null;try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):null;}catch(e){}
           if(!perf || !perf.pace || !perf.hr) return;
-          if(parseInt(perf.hr) > 148) return;
+          if(parseInt(perf.hr) > hrEfMax()) return;
           const sec = paceStrToSec(perf.pace);
           if(sec > 0) efPoints.push({ws, sec});
         });
@@ -619,7 +619,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
           : 'Allure EF stable sur la période'
       };
     })(),
-    logique_allure_marathon: "EF<148bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
+    logique_allure_marathon: "EF<"+hrEfMax()+"bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
     chaussures_plan_verite: !usesHardPlan() ? shoeRulesText() : `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
     contexte_semaines_speciales: usesHardPlan() ? {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'} : {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
     note: "Pour avoir plus de détails, précise ta question.",

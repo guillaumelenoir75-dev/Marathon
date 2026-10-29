@@ -38,7 +38,7 @@ function getHistoricalComparison(type, pace, hr){
 function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   const fcMax=parseInt(state.fc_max)||0;
   const efMin=fcMax?Math.round(fcMax*0.714):140;
-  const efMax=fcMax?Math.round(fcMax*0.755):148;
+  const efMax=state._hr_zones&&state._hr_zones.applied?hrEfMax():fcMax?Math.round(fcMax*0.755):148;   // zones recalées (body-signals.js) prioritaires
   const plannedKm=parseFloat(s.km)||0;
   const realKm=parseFloat(km)||0;
   const kmRatio=plannedKm>0?realKm/plannedKm:1;
@@ -503,7 +503,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         `CHALEUR ${meteo.temperature}°C (ressenti ${meteo.ressenti}°C) — RÈGLES OBLIGATOIRES :`,
         `1. FC effective = FC mesurée - ${imp.elevation_fc_bpm} bpm (Mora-Rodriguez). NE JAMAIS évaluer la FC brute sans appliquer cette correction.`,
         `2. Perte de performance attendue : -${imp.perte_perf_pct}%. Allure ralentie de +${imp.ralent_sec_km} sec/km = NORMAL et SOUHAITABLE.`,
-        `3. Zone EF effective : ${imp.zone_ef_ajustee || '140-148 bpm'}. Comparer FC effective (= FC mesurée - ${imp.elevation_fc_bpm}) à cette zone.`,
+        `3. Zone EF effective : ${imp.zone_ef_ajustee || ((hrEfMax()-8)+'-'+hrEfMax()+' bpm')}. Comparer FC effective (= FC mesurée - ${imp.elevation_fc_bpm}) à cette zone.`,
         `4. NE PAS critiquer une allure lente ou une FC haute sans signaler d'abord l'impact chaleur.`,
         `5. Commencer l'analyse par : "Avec ${meteo.temperature}°C, la chaleur a ajouté +${imp.elevation_fc_bpm} bpm — ta FC effective était..."`,
       ].join(' ');
@@ -569,9 +569,10 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   // Seuils FC
   if(hr){
     if(s.type==='ef'||s.type==='long'){
-      analysisContext.fcSeuil = 148;
-      analysisContext.fcAnalyse = hr<=148?'bonne_maitrise':hr<=158?'un_peu_elevee':'trop_elevee';
-      analysisContext.fcComptePourCalcAM = hr<=148;
+      const _efHr = hrEfMax();
+      analysisContext.fcSeuil = _efHr;
+      analysisContext.fcAnalyse = hr<=_efHr?'bonne_maitrise':hr<=_efHr+10?'un_peu_elevee':'trop_elevee';
+      analysisContext.fcComptePourCalcAM = hr<=_efHr;
     } else if(s.type==='tempo'||s.type==='frac'){
       analysisContext.fcSeuil = s.type==='frac'?170:165;
       const seuil=analysisContext.fcSeuil;
@@ -689,7 +690,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         }
       }
     } catch(e) {}
-    // Couleur FC : toujours colorée. EF/long ≤148 vert, tempo/frac ≤172 vert
+    // Couleur FC : toujours colorée. EF/long ≤ plafond EF (hrEfMax) vert, tempo/frac ≤172 vert
     let _hrBg = 'rgba(255,255,255,0.22)';
     if(hr) {
       const _hrN = parseInt(hr, 10);
@@ -697,7 +698,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         if(_isTempo) {
           _hrBg = _hrN<=172 ? 'rgba(134,239,172,0.4)' : _hrN<=185 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
         } else {
-          _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+          _hrBg = _hrN<=hrEfMax() ? 'rgba(134,239,172,0.4)' : _hrN<=hrEfMax()+10 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
         }
       }
     }

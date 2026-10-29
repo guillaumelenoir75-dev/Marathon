@@ -445,3 +445,82 @@ function saveShoesStravaLinks(){
   saveShoes(arr); closeModal(); rendered.stats=false; renderStats();
   if(typeof showToast==='function') showToast('Chaussures reliées à Strava');
 }
+
+// ── Chaussure du jour ─────────────────────────────────────────────────────────
+// Paire conseillée pour une séance à venir : règle par type (_shoe_rules), puis fin de vie (km ≥ max), paire de course
+// préservée avant l'objectif, rotation des paires d'entraînement (pas la même paire deux jours de suite, sortie longue
+// avec la plus fraîche). Alterner les paires est associé à moins de blessures (Malisoux et al., 2015).
+const SHOE_FAST=['frac','tempo','race'];
+function shoeDayAdvice(x, date){
+  if(!x||x.type==='rest'||usesHardPlan()) return null;
+  const shoes=getShoes().filter(sh=>!sh.retired); if(!shoes.length) return null;
+  const km=n=>shoeKmTotal(n), life=sh=>sh.max?km(sh.name)/sh.max:0, byName=n=>shoes.find(sh=>sh.name===n);
+  let r={}; try{ r=JSON.parse(state._shoe_rules||'{}')||{}; }catch(e){}
+  const fast=new Set(SHOE_FAST.map(t=>r[t]).filter(Boolean)), easy=new Set(['ef','long'].map(t=>r[t]).filter(Boolean));
+  const isFast=sh=>fast.has(sh.name)&&!easy.has(sh.name);
+  const quality=SHOE_FAST.includes(x.type);
+  const planned=x.shoe&&byName(x.shoe)?x.shoe:shoeForType(x.type);
+  let pool=shoes.filter(sh=>quality?(isFast(sh)||sh.name===planned):!isFast(sh));
+  if(!pool.length) pool=shoes;
+  const freshest=list=>list.slice().sort((a,b)=>life(a)-life(b))[0];
+  if(!planned){ const f=freshest(pool); return f?{planned:null,name:f.name,reason:'la paire la plus fraîche pour ce type de séance',warn:''}:null; }
+  const out={planned:planned,name:planned,reason:'',warn:''};
+  const P=planned&&byName(planned);
+  const short=n=>{ const sh=byName(n); return (sh&&sh.short)||n; };
+  // 1. fin de vie
+  if(P&&P.max&&life(P)>=1){
+    const alt=freshest(pool.filter(sh=>sh.name!==planned&&life(sh)<0.9));
+    out.warn=short(planned)+' : '+Math.round(km(planned))+'/'+P.max+' km, amorti en fin de vie';
+    if(alt){ out.name=alt.name; out.reason='passe à '+short(alt.name)+' ('+Math.round(km(alt.name))+' km)'; }
+    return out;
+  }
+  if(x.type==='race'){ out.reason=planned?'ta paire de course':''; return out; }
+  // 2. paire de course préservée : marge de km avant l'objectif
+  const R=typeof prepRace==='function'?prepRace():null, raceShoe=r.race&&byName(r.race);
+  if(quality&&raceShoe&&R&&R.date&&date&&date<R.date&&planned===raceShoe.name&&raceShoe.max){
+    const left=raceShoe.max-km(raceShoe.name)-(R.km||10)-5;
+    if(left<40){
+      const alt=freshest(pool.filter(sh=>sh.name!==raceShoe.name))||freshest(shoes.filter(sh=>sh.name!==raceShoe.name&&life(sh)<0.9));
+      out.warn=short(raceShoe.name)+' : '+Math.round(km(raceShoe.name))+'/'+raceShoe.max+' km, garde-la pour la course';
+      if(alt){ out.name=alt.name; out.reason='séance rapide avec '+short(alt.name); }
+      return out;
+    }
+  }
+  if(quality) return out;
+  // 3. rotation des paires d'entraînement
+  const others=pool.filter(sh=>sh.name!==planned&&life(sh)<0.9);
+  if(!others.length) return out;
+  const prev=typeof prAddDays==='function'&&date?prAddDays(date,-1):null;
+  const wornS=typeof prSessions==='function'&&prev?prSessions(state).filter(s=>s.done&&s.x.shoe&&(s.date===prev||s.date===date)):[], worn=wornS.map(s=>s.x.shoe);
+  if(planned&&worn.includes(planned)){
+    const alt=freshest(others.filter(sh=>!worn.includes(sh.name)));
+    const when=wornS.some(s=>s.x.shoe===planned&&s.date===date)?'aujourd\'hui':'hier';
+    if(alt){ out.name=alt.name; out.reason=short(planned)+' déjà portée '+when; out.why='Alterner les paires est associé à moins de blessures'; return out; }
+  }
+  if(x.type==='long'&&P&&life(P)>=0.8){
+    const alt=freshest(others); if(alt&&life(alt)<life(P)-0.15){ out.name=alt.name; out.reason='sortie longue avec la plus fraîche ('+short(planned)+' à '+Math.round(km(planned))+' km)'; }
+  }
+  return out;
+}
+// Accueil : badge de la paire conseillée + ligne « conseil » quand elle diffère de la paire prévue
+function shoeDayHtml(x, w, ei){
+  try{
+    const today=typeof prTodayIso==='function'?prTodayIso():null, date=x.sched_date||null;
+    if(!date||!today||date<today||(typeof prDays==='function'&&prDays(today,date)>7)) return x.shoe?shoeFullBadge(x.shoe):'';
+    const A=shoeDayAdvice(x,date); if(!A||!A.name) return x.shoe?shoeFullBadge(x.shoe):'';
+    let h=A.planned?shoeFullBadge(A.planned):'';
+    const sh=getShoes().find(s=>s.name===A.name), nm=(sh&&sh.short)||A.name;
+    if(A.name!==A.planned) h+=`<span style="display:block;width:100%;font-size:10.5px;color:#4C1D95;font-weight:600;margin-top:3px;"${A.why?` title="${A.why}"`:''}>👟 Plutôt <b>${nm}</b>${A.reason?' · '+A.reason:''} <button onclick="event.stopPropagation();shoeDayTake(${w},${ei},'${String(A.name).replace(/'/g,"\\'")}')" style="margin-left:4px;border:1px solid #C4B5FD;background:#F5F3FF;color:#5B21B6;border-radius:12px;padding:1px 8px;font-size:10.5px;font-weight:800;cursor:pointer;">Prendre</button></span>`;
+    else if(A.reason&&!A.warn) h+=`<span style="font-size:10px;color:#6B8DB5;">${A.reason}</span>`;
+    if(A.warn) h+=`<span style="display:block;width:100%;font-size:10.5px;color:#B45309;font-weight:700;margin-top:2px;">⚠️ ${A.warn}</span>`;
+    return h;
+  }catch(e){ return x.shoe?shoeFullBadge(x.shoe):''; }
+}
+function shoeDayTake(w, ei, name){
+  const k=`extra_w${w}_s${ei}`; let x; try{ x=JSON.parse(state[k]); }catch(e){ return; }
+  x.shoe=name; state[k]=JSON.stringify(x);
+  try{ if(dbRef) dbRef.child(k).set(state[k]).catch(()=>{}); }catch(e){}
+  if(typeof showToast==='function') showToast('Paire de la séance : '+name,'👟');
+  if(typeof rendered!=='undefined'){ rendered.plan=false; rendered.stats=false; }
+  if(typeof renderHome==='function') renderHome();
+}

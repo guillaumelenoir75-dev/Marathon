@@ -219,7 +219,7 @@ function _syncPlanValidationToExtraW(ws, si, doneKey) {
 
 // Table EF → AM (depuis Excel)
 const EF_AM_TABLE=[
-  // Mapping allure EF (FC≤148) → allure marathon cible
+  // Mapping allure EF (FC ≤ plafond EF, hrEfMax : 148 par défaut) → allure marathon cible
   // Règle : allure marathon ≈ allure EF + ~55s/km pour coureur intermédiaire
   // (une EF à 6'00 = coureur qui peut courir un marathon ~5'45/km soit ~4h02)
   {efSec:7*60+30, amStr:"6'35"},
@@ -261,7 +261,7 @@ function getBestEfPace(){
         if(!state[k+'done']) return;
         let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
         if(!perf.pace||!perf.hr) return;
-        if(parseInt(perf.hr)>148) return;
+        if(parseInt(perf.hr)>hrEfMax()) return;
         const sec=paceStrToSec(perf.pace);
         if(sec===null) return;
         paces.push(sec);
@@ -273,7 +273,7 @@ function getBestEfPace(){
       let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
       if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
         let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-        if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
+        if(perf.pace&&perf.hr&&parseInt(perf.hr)<=hrEfMax()){
           const sec=paceStrToSec(perf.pace);
           if(sec!==null) paces.push(sec);
         }
@@ -421,7 +421,7 @@ function calcMarathonPace(){
       if(!state[k+'done']) return;
       let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
       if(!perf.pace||!perf.hr) return;
-      if(parseInt(perf.hr)>148) return;
+      if(parseInt(perf.hr)>hrEfMax()) return;
       const sec=paceStrToSec(perf.pace);
       if(sec===null) return;
       validEF.push({ws,si,sec});
@@ -432,7 +432,7 @@ function calcMarathonPace(){
       let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
       if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
         let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-        if(perf.pace&&perf.hr&&parseInt(perf.hr)<=148){
+        if(perf.pace&&perf.hr&&parseInt(perf.hr)<=hrEfMax()){
           const sec=paceStrToSec(perf.pace);
           if(sec!==null) validEF.push({ws,ei,sec,extra:true});
         }

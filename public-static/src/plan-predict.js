@@ -72,7 +72,7 @@ function buildMarathonPrediction() {
   }
 
   // ── Tendance EF (slope) — exclure S1-S3 démarrage ──
-  const slopePts = efPts.filter(p=>p.fc<=148 && p.ws>=4);
+  const slopePts = efPts.filter(p=>p.fc<=hrEfMax() && p.ws>=4);
   let slope = 0;
   if(slopePts.length >= 3) {
     const n=slopePts.length, sX=slopePts.reduce((a,p)=>a+p.ws,0), sY=slopePts.reduce((a,p)=>a+p.paceSec,0);
@@ -661,18 +661,18 @@ function openMarathonPredModal() {
         const efExplication = (() => {
           const ratio = Math.round((1 - 0.961) * 100);
           if(efPaceGreat && efProgressing)
-            return `Tes EF progressent clairement : chaque sortie normalise une allure plus rapide à FC identique. C'est le signe que ton cœur travaille plus efficacement. Continue à rester strictement sous FC 148 — la progression se construit là, pas dans la vitesse.`;
+            return `Tes EF progressent clairement : chaque sortie normalise une allure plus rapide à FC identique. C'est le signe que ton cœur travaille plus efficacement. Continue à rester strictement sous FC ${hrEfMax()} — la progression se construit là, pas dans la vitesse.`;
           if(efPaceGreat && efStable)
             return `Ta base aérobie est solide. Les 3 dernières EF montrent une allure normalisée cohérente — le moteur tourne bien. La prochaine progression viendra des longues sorties et des blocs tempo accumulés.`;
           if(efPaceGood && efProgressing)
-            return `L'allure EF se normalise à la baisse : à fréquence cardiaque équivalente, tu cours plus vite. C'est exactement ce que le plan cherche à construire. Garde le cap sur les FC cibles (140-148 bpm).`;
+            return `L'allure EF se normalise à la baisse : à fréquence cardiaque équivalente, tu cours plus vite. C'est exactement ce que le plan cherche à construire. Garde le cap sur les FC cibles (${hrEfMax()-8}-${hrEfMax()} bpm).`;
           if(efRegressing)
             return `L'allure EF normalisée remonte, ce qui peut indiquer une fatigue cardiaque ou un manque de récupération. Vérifie ta FC repos du matin — si elle dépasse 55 bpm, prends une journée de plus. Ce n'est pas une régression durable, juste un signal à ne pas ignorer.`;
           return `L'allure normalisée = ce que tu aurais couru à exactement FC 143. Le ratio ${ratio}% appliqué reflète la marge entre ton EF confortable et ton allure marathon soutenable sur 42km. Il s'affine automatiquement à mesure que ta prépa avance.`;
         })();
 
         const efLevier = (() => {
-          if(!efNormSec) return `Complète tes séances EF sous FC 148 pour alimenter ce signal`;
+          if(!efNormSec) return `Complète tes séances EF sous FC ${hrEfMax()} pour alimenter ce signal`;
           const targetNorm = 330; // ~5'30 normalisée
           if(efNormSec <= targetNorm) return `Signal EF déjà excellent — mise sur les longues pour confirmer`;
           const gainSec = Math.round((efNormSec - targetNorm) * 0.961 * 42.195);

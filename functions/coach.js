@@ -1147,3 +1147,40 @@ ${JSON.stringify(compact)}`;
     }
   }
 );
+
+// Journal de séance (dicté ou écrit après la validation) : le Coach en tire l'effort ressenti, la douleur, la zone et une note courte.
+// Réponse validée : rpe 1-10, douleur 0-3 + zone de la liste de l'app, note ≤ 160 caractères.
+const JOURNAL_ZONES = ['Mollet', 'Tibia', 'Genou', 'Cheville / pied', 'Ischios', 'Quadriceps', 'Hanche', 'Dos', 'Autre'];
+exports.sessionJournal = onRequest(
+  { secrets: [ANTHROPIC_API_KEY], cors: true, timeoutSeconds: 40, memory: '256MiB' },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    try {
+      const b = req.body || {};
+      const text = String(b.text || '').replace(/\s+/g, ' ').trim().slice(0, 1200);
+      if (text.length < 3) { res.status(400).json({ success: false, error: 'texte requis' }); return; }
+      const s = b.session || {};
+      const system = `Tu lis le compte rendu dicté par un coureur juste après sa séance et tu en extrais des données pour son carnet d'entraînement. Réponds UNIQUEMENT par un objet JSON, sans texte autour :
+{"rpe": entier 1-10 ou null, "pain_level": 0 | 1 | 2 | 3 | null, "pain_zone": une valeur de ${JSON.stringify(JOURNAL_ZONES)} ou null, "note": "résumé de son ressenti en une phrase, à la 1re personne, ≤ 140 caractères"}
+- rpe = effort ressenti (échelle de Borg CR10 : 2 très facile, 4 facile, 5-6 modéré, 7-8 difficile, 9-10 maximal). null s'il n'en dit rien.
+- pain_level : 0 = il dit n'avoir aucune douleur ; 1 = légère / tension / courbature ; 2 = gênante (il y pense en courant) ; 3 = forte (boite, a dû ralentir ou s'arrêter). null s'il n'en parle pas. Une simple fatigue n'est pas une douleur.
+- pain_zone : seulement si pain_level ≥ 1 ; "Autre" si la zone n'est pas dans la liste.
+- note : fidèle à ce qu'il dit, sans conseil ni invention.`;
+      const user = `Séance : ${String(s.title || '').slice(0, 80)} (${String(s.type || '').slice(0, 10)}${s.km ? ', ' + s.km + ' km' : ''}${s.pace ? ', ' + s.pace + '/km' : ''}${s.hr ? ', FC ' + s.hr : ''}).\nCompte rendu : « ${text} »`;
+      const raw = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{ role: 'user', content: user }], 300);
+      let j = null;
+      try { const m = String(raw || '').match(/\{[\s\S]*\}/); j = m ? JSON.parse(m[0]) : null; } catch(e) {}
+      if (!j || typeof j !== 'object') { res.status(502).json({ success: false, error: 'réponse du Coach illisible' }); return; }
+      const rpe = Number.isInteger(j.rpe) && j.rpe >= 1 && j.rpe <= 10 ? j.rpe : null;
+      const lvl = Number.isInteger(j.pain_level) && j.pain_level >= 0 && j.pain_level <= 3 ? j.pain_level : null;
+      const zone = lvl ? (JOURNAL_ZONES.includes(j.pain_zone) ? j.pain_zone : 'Autre') : null;
+      const note = typeof j.note === 'string' ? j.note.replace(/[\r\n|]+/g, ' ').trim().slice(0, 160) : null;
+      res.json({ success: true, rpe, pain: lvl == null ? null : { level: lvl, zone }, note: note || null });
+    } catch(e) {
+      console.error('sessionJournal error:', e.message);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);

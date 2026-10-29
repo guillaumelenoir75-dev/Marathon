@@ -10,6 +10,7 @@ const scriptFiles = [
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
   'coach-memos.js', 'coach-ui.js', 'notifs.js', 'whoop.js', 'preps.js', 'prep-progress.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
+  'body-signals.js', 'journal.js', 'plan-whatif.js', 'week-share.js',
 ];
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

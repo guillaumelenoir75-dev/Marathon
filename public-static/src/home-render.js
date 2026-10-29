@@ -849,7 +849,7 @@ function renderHome(){
           <span style="font-size:12px;font-weight:${rv!=null?700:400};color:${rv!=null?typeC:'#6B8DB5'};">
             ${rv!=null?rv+' <span style="font-size:10px;font-weight:400;color:#6B8DB5;">/ '+s2.km+' km</span>':s2.km+' <span style="font-size:10px;color:#6B8DB5;">km</span>'}
           </span>
-          ${s2.shoe?shoeFullBadge(s2.shoe):''}
+          ${!done&&!skip&&typeof shoeDayHtml==='function'?shoeDayHtml(s2,w,ei):(s2.shoe?shoeFullBadge(s2.shoe):'')}
         </div>
         ${schedHtml}
       </div>
@@ -1118,6 +1118,7 @@ function openValidationModalExtra(w,ei){
         html+='</div>';
         return html;
       })()}
+      ${s.type!=='race'&&typeof jvHtml==='function'?jvHtml(prev,{title:(s.d||'').split('|')[0],type:s.type,km:s.km}):''}
       ${s.type!=='race'&&typeof prRpeHtml==='function'?prRpeHtml(prev):''}
     </div>
     <div style="padding:0 0 28px;">
@@ -1306,6 +1307,9 @@ async function saveValidationExtra(w,ei){
   // Effort ressenti (1-10) et douleur (plan-daily.js)
   const _rpe=typeof prRpeRead==='function'?prRpeRead():null;
   if(_rpe){ if(_rpe.rpe) perf.rpe=_rpe.rpe; if(_rpe.pain) perf.pain=_rpe.pain; }
+  // Journal de séance dicté / écrit (journal.js) : texte + note lue par le Coach
+  const _jv=typeof jvRead==='function'?jvRead():null;
+  if(_jv&&_jv.text){ perf.journal=_jv.text; if(_jv.note) perf.note=_jv.note; }
   // Blocs Tempo/Frac
   let sExtra={};try{sExtra=JSON.parse(state[k]||'{}');}catch(e){}
   if(sExtra.type==='tempo'||sExtra.type==='frac'){
@@ -1333,7 +1337,7 @@ async function saveValidationExtra(w,ei){
     if(g.laps&&g.laps.length>0) stravaData.laps=g.laps;
     if(Object.keys(stravaData).length>0){
       let ex={};try{ex=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-      ['rpe','pain','blocsAllure','blocsAuto','_blocsAuto'].forEach(f=>delete ex[f]);   // gérés par le formulaire : jamais repris de l'ancienne validation
+      ['rpe','pain','blocsAllure','blocsAuto','_blocsAuto','journal','note'].forEach(f=>delete ex[f]);   // gérés par le formulaire : jamais repris de l'ancienne validation
       const _keep=Object.assign({},perf);
       Object.assign(perf,ex,_keep);
       perf.strava=stravaData;
@@ -1450,7 +1454,7 @@ function openEditEFModal(){
         </div>
         <div>
           <p style="font-size:16px;font-weight:800;color:#0C447C;margin:0;">Allure EF</p>
-          <p style="font-size:12px;color:#888;margin:2px 0 0;">Endurance fondamentale — FC 140-148 bpm</p>
+          <p style="font-size:12px;color:#888;margin:2px 0 0;">Endurance fondamentale — FC ${hrEfMax()-8}-${hrEfMax()} bpm</p>
         </div>
       </div>
       <p style="font-size:13px;color:#666;margin:12px 0 6px;">Saisir l'allure cible (ex : <b>5'45</b> ou <b>6'10</b>)</p>

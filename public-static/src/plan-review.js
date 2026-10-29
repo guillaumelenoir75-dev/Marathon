@@ -206,12 +206,12 @@ function prPaceProposals(st, fit, opt){
     const mid = (s.pace.lo + s.pace.hi) / 2, half = Math.max(2, (s.pace.hi - s.pace.lo) / 2);
     let nmid, why, short;
     if(it === 'E'){
-      // EF : uniquement si ton allure EF réelle (FC ≤ 148) sort nettement de la plage ; jamais les footings « très facile »
+      // EF : uniquement si ton allure EF réelle (FC ≤ plafond EF, hrEfMax) sort nettement de la plage ; jamais les footings « très facile »
       if(!efObs || opt.postRace || /très facile|récup/i.test(s.title + ' ' + s.detail)) return;
       if(efObs >= s.pace.lo - 10 && efObs <= s.pace.hi + 10) return;
       if(opt.drift && opt.drift.avg >= 5 && efObs < s.pace.lo) return;                   // dérive cardiaque élevée : on n'accélère pas l'EF
-      nmid = efObs + (s.pace.hi - s.pace.lo) / 2 - 5; why = 'ton allure EF réelle (FC ≤ 148) est ' + prPace(efObs) + '/km';
-      short = 'Ton endurance réelle (FC ≤ 148) tourne à ' + prPace(efObs) + '/km : la plage est recalée dessus.';
+      nmid = efObs + (s.pace.hi - s.pace.lo) / 2 - 5; why = 'ton allure EF réelle (FC ≤ ' + hrEfMax() + ') est ' + prPace(efObs) + '/km';
+      short = 'Ton endurance réelle (FC ≤ ' + hrEfMax() + ') tourne à ' + prPace(efObs) + '/km : la plage est recalée dessus.';
     } else if(it === 'race'){
       if(!racePace || s.type === 'race' || (s.date && prDays(today, s.date) > 42)) return;
       nmid = racePace;
@@ -353,9 +353,9 @@ async function prHistory(today){
   }
   return out;
 }
-// allure EF réelle : médiane des 5 dernières sorties EF / longues à FC ≤ 148 (6 dernières semaines)
+// allure EF réelle : médiane des 5 dernières sorties EF / longues à FC ≤ plafond EF (148 ou zones recalées, hrEfMax) (6 dernières semaines)
 function prObservedEf(st, today){
-  const v = prSessions(st).filter(function(s){ return s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= 148; })
+  const v = prSessions(st).filter(function(s){ return s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= hrEfMax(st); })
     .sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 5)
     .map(function(s){ const m = String(s.perf.pace).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean).sort(function(a, b){ return a - b; });
   return v.length >= 2 ? v[Math.floor(v.length / 2)] : null;
@@ -385,8 +385,9 @@ function prAnalyze(){
   if(opt2){
     a.load = prLoad(today); a.drift = prDrift(today); a.whoop = prWhoop(today); a.calib = prCalib(state);
     if(typeof prInternal === 'function') a.internal = prInternal(today);
+    if(typeof prStride === 'function') a.stride = prStride(today);              // FC à allure égale et cadence (body-signals.js)
     a.recette = state._recette || null; opt.recette = a.recette;              // ce que tes prépas précédentes ont appris (prep-debrief.js)
-    opt.noVolumeUp = !!(a.whoop && a.whoop.tired) || !!(a.internal && a.internal.pains.some(function(x){ return x.level >= 2; }));
+    opt.noVolumeUp = !!(a.whoop && a.whoop.tired) || !!(a.internal && a.internal.pains.some(function(x){ return x.level >= 2; })) || !!(a.stride && a.stride.level >= 2);
     opt.drift = a.drift; opt.calib = a.calib.n >= 2 || !(a.recette && a.recette.calib) ? a.calib.mode : a.recette.calib;   // sans recul dans cette prépa : réglage de ta recette
     a.volume = prVolumePlan(state, a); opt.volumeManaged = !!a.volume; opt.volumeWeeks = a.volume ? a.volume.horizonWeeks : null;
   }
@@ -805,6 +806,7 @@ function _prRender(){
   if(pn) pills.push('<span class="pr-pill ' + (pn.level >= 2 ? 'rest' : 'base') + '">🩹 Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' (' + prEsc(pn.zone.toLowerCase()) + ') le ' + prFmtDate(pn.date) + (pn.level >= 2 ? ' → jours suivants allégés' : ' : surveille') + '</span>');
   if(a.internal && a.internal.ratio) pills.push('<span class="pr-pill ' + (a.internal.ratio > 1.5 ? 'rest' : 'base') + '">💪 Charge ressentie 7 j : ' + prV(a.internal.ratio) + '× ta moyenne</span>');
   if(a.recette) pills.push('<span class="pr-pill base">🧬 Ta recette : +' + Math.round((a.recette.progression - 1) * 100) + ' %/sem max' + (a.recette.taper && (a.recette.taper.long || a.recette.taper.short) ? ' · affûtage perso' : '') + (a.recette.calib ? ' · allures ' + a.recette.calib : '') + '</span>');
+  if(a.stride && a.stride.level) pills.push('<span class="pr-pill ' + (a.stride.level >= 2 ? 'rest' : 'base') + '">' + (a.stride.level >= 2 ? '⚠️ Foulée : signal de fatigue → pas de hausse de volume' : '👀 Foulée à surveiller') + ' (' + prEsc(a.stride.items.map(function(t){ return t.split(' : ')[0].replace(/^\S+\s/, ''); }).join(', ').toLowerCase()) + ')</span>');
   if(a.drift) pills.push('<span class="pr-pill base">❤️ Dérive cardiaque ' + prV(a.drift.avg) + ' % : endurance ' + a.drift.label + '</span>');
   if(a.calib && a.calib.n) pills.push('<span class="pr-pill ' + (a.calib.mode === 'prudent' ? 'rest' : 'base') + '">🎯 Allures proposées tenues : ' + a.calib.k + '/' + a.calib.n + (a.calib.mode === 'prudent' ? ' → calcul plus prudent' : a.calib.mode === 'confiant' ? ' → progression plus franche' : '') + '</span>');
   if(pills.length) h += '<div class="pr-pills">' + pills.join('') + '</div>';
@@ -820,7 +822,8 @@ function _prRender(){
       + (TJ.verdict ? ' <span class="pr-verd ' + col + '">objectif ' + prEsc(a.race.objectif || prTime(a.opt.goalSec)) + ' : ' + TJ.verdict + '</span>' : '') + '</p>'
       + prTrajectorySvg(TJ)
       + '<p class="pr-tj-leg"><span><i class="lg-race"></i>courses et tests</span><span><i class="lg-ses"></i>séances de qualité</span><span><i class="lg-proj"></i>projection</span></p>'
-      + '<p class="pr-note">' + (TJ.assumed ? 'Pas encore assez de séances mesurées pour une tendance : projection sur une progression type (+0,1 de niveau par semaine).' : 'Tendance de tes 4 derniers mois : ' + (TJ.slope >= 0 ? '+' : '') + prV(TJ.slope * 7) + ' de niveau par semaine.') + ' Fourchette = ± 0,6 de niveau.</p></div>';
+      + '<p class="pr-note">' + (TJ.assumed ? 'Pas encore assez de séances mesurées pour une tendance : projection sur une progression type (+0,1 de niveau par semaine).' : 'Tendance de tes 4 derniers mois : ' + (TJ.slope >= 0 ? '+' : '') + prV(TJ.slope * 7) + ' de niveau par semaine.') + ' Fourchette = ± 0,6 de niveau.</p>'
+      + (typeof openWhatIf === 'function' ? '<button type="button" class="pr-btn sec" style="margin-top:8px;width:100%;" onclick="openWhatIf()">🔮 Et si… ? Teste un scénario</button>' : '') + '</div>';
   }
 
   // ── Avis du Coach
@@ -876,7 +879,7 @@ function _prRender(){
           return '<tr><th>' + prCatLabel(c) + '</th><td>' + (rec ? '<b>' + prEsc(prTime(rs)) + '</b><small>' + (rv ? 'niveau ' + prV(rv.vdot) : 'trop ancien') + '</small>' : '<small>—</small>') + '</td><td><b>' + prTime(f.preds[c]) + '</b></td></tr>';
         }).join('') + '</tbody></table>'
       + '<p class="pr-note">« À ton niveau » : temps équivalents à ton niveau ' + prV(f.vdot) + ', fixé par ton meilleur résultat récent. Sur marathon, l\'équivalent suppose une prépa marathon complète et des conditions idéales : il est souvent plus rapide que le temps réalisé.</p>'
-      + '<p class="pr-note">Allures du moment : seuil <b>' + prPace(f.paces.T) + '</b> · fractionné <b>' + prPace(f.paces.I) + '</b>' + (a.opt.efPace ? ' · EF réelle <b>' + prPace(a.opt.efPace) + '</b> (FC ≤ 148)' : '') + ' /km'
+      + '<p class="pr-note">Allures du moment : seuil <b>' + prPace(f.paces.T) + '</b> · fractionné <b>' + prPace(f.paces.I) + '</b>' + (a.opt.efPace ? ' · EF réelle <b>' + prPace(a.opt.efPace) + '</b> (FC ≤ ' + hrEfMax() + ')' : '') + ' /km'
       + (a.planVdot ? '. Ton plan a été écrit pour un niveau ' + prV(a.planVdot) + '.' : '.') + '</p>'
       + '<p class="pr-note"><b>Sur quoi c\'est calculé</b><br>' + f.sources.map(function(x){ return '• ' + prEsc(x.label) + ' — ' + (x.time || x.pace + '/km' + (x.hr ? ', FC ' + x.hr : '')) + (x.date ? ' (' + prFmtDate(x.date, { day: 'numeric', month: 'short', year: 'numeric' }) + ')' : '') + (x.note ? ' · ' + x.note : '') + ' → ' + prV(x.vdot); }).join('<br>') + '</p></details>';
   } else h += '<div class="pr-card"><p class="pr-note">Aucun niveau calculé pour l\'instant.</p></div>';
@@ -940,6 +943,8 @@ async function askCoachPlanReview(force){
     reviewHistory: (state._plan_reviews || []).slice(-4).map(function(h){ return { date: h.date, avec_coach: !!h.coach, niveau: h.vdot, changements: (h.changes || []).map(function(c){ return { ref: c.ref, seance: c.title, date: c.date, champ: c.field, avant: c.before, apres: c.after, par: c.src === 'coach' ? 'toi (Coach)' : 'calcul', raison: c.reason }; }) }; }),
     volume: a.volume ? { base_km_sem: a.volume.base, pic_vise_km: a.volume.peak, semaines: a.volume.weeks.map(function(w){ return { semaine: w.w, prevu: w.plan, fait: w.past ? w.done : undefined, conseille: w.target || undefined, raison: w.why || undefined }; }) } : null,
     charge: a.load ? { km_7j: a.load.k7, moyenne_28j_km_sem: a.load.chronic, ratio: a.load.acwr ? Math.round(a.load.acwr * 100) / 100 : null } : null,
+    signaux_foulee: a.stride ? { niveau: a.stride.status, efficacite_pct: a.stride.eiPct, cadence: a.stride.cad, constats: a.stride.items } : null,
+    zones_fc: { plafond_ef: typeof hrEfMax === 'function' ? hrEfMax() : 148, recalees: !!(state._hr_zones && state._hr_zones.applied), fc_seuil: (state._hr_zones || {}).lthr || null },
     recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
     dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     effort_ressenti: a.internal && a.internal.rpes.length ? { seances_14j: a.internal.rpes, charge_ressentie_ratio_7j_28j: a.internal.ratio ? Math.round(a.internal.ratio * 100) / 100 : null } : null,

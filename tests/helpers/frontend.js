@@ -6,7 +6,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = path.join(__dirname, '..', '..', 'public-static', 'src');
-const FILES = ['plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js', 'stats.js', 'whoop.js'];
+const FILES = ['plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js', 'body-signals.js', 'journal.js', 'plan-whatif.js', 'week-share.js', 'shoes.js', 'stats.js', 'whoop.js'];
 
 function fakeDate(nowIso) {
   const RealDate = Date, fixed = new RealDate(nowIso).getTime();
@@ -31,12 +31,15 @@ function loadApp(opts) {
     isAdmin: () => opts.admin !== false, usesHardPlan: () => false, save() {}, showToast() {}, initFirebase() {},
     prepRace: () => opts.race || { name: 'Course test', course: '10 km', date: '2026-11-22', km: 10, objectif: '42:00' },
     normalizeSessionTitle: (t) => t, FUNCTIONS_BASE: 'https://functions.test', ADMIN_EMAIL: 'admin@test',
+    // chaussures (config.js, plan Seine-Eure) : liste dans state._shoes, km dans state._shoe_km_test
+    getShoes: () => { try { return JSON.parse((opts.state || {})._shoes || '[]'); } catch (e) { return []; } },
+    P: 'Pegasus', S: 'Saucony', Z: 'Zoom', CW: 1, getOrderedWeekSessions: () => [], getEffectiveCW: () => 0,
   };
   ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
   // un seul script : les const / let de premier niveau restent visibles entre modules, comme dans le bundle
   const code = FILES.map((f) => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n;\n')
-    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig, prepDebrief, prepRecette, prepRecetteLines };';
+    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig, prepDebrief, prepRecette, prepRecetteLines, hrEfMax, hrZonesEstimate, prStride, jvParse, prWhatIf, weekShareData, wsPickWeek, shoeDayAdvice };';
   vm.runInContext(code, ctx, { filename: 'app-bundle.js' });
   const app = ctx.__app;
   app.ctx = ctx;
