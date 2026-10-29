@@ -1,5 +1,6 @@
 // Journal de séance à la validation : tu dictes (ou écris) comment ça s'est passé, l'app en tire l'effort ressenti,
-// la douleur, sa zone et une note courte, et remplit les champs « Effort ressenti » / « Une douleur ? » (plan-daily.js).
+// la douleur, sa zone et une note courte, et remplit tout seul les champs « Effort ressenti » / « Une douleur ? » (plan-daily.js)
+// pendant que tu écris (pause de 0,7 s) ou à la fin de la dictée — sans bouton ; un choix fait à la main n'est jamais écrasé.
 // jvParse(texte) : lecture locale, immédiate, sans réseau ; compte admin : affinée par le Coach (fonction sessionJournal).
 // Enregistré dans perf.journal (texte) et perf.note (note, lue par le Coach : « ressenti »).
 
@@ -47,13 +48,12 @@ function jvParse(text){
 // ─── Validation : bloc « Raconte ta séance » ────────────────────────────────
 let _jvSession = null, _jvRec = null;
 function jvHtml(prev, sess){
-  prev = prev || {}; _jvSession = sess || null; _jvCss();
+  prev = prev || {}; _jvSession = sess || null; _jvCoachText = prev.journal || ''; _jvCss();
   const can = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   return '<div class="jv" id="jv"><p class="jv-h">🎙️ Raconte ta séance <span>facultatif</span></p>'
-    + '<div class="jv-row"><textarea id="jv-text" rows="2" maxlength="1200" placeholder="« Dur sur la fin, mollet gauche un peu tendu, sinon bonnes jambes »">' + prEsc(prev.journal || '') + '</textarea>'
+    + '<div class="jv-row"><textarea id="jv-text" rows="2" maxlength="1200" oninput="jvInput()" onblur="jvAnalyze(true)" placeholder="« Dur sur la fin, mollet gauche un peu tendu, sinon bonnes jambes »">' + prEsc(prev.journal || '') + '</textarea>'
     + (can ? '<button type="button" class="jv-mic" id="jv-mic" onclick="jvMic()" aria-label="Dicter">🎙️</button>' : '') + '</div>'
-    + (can ? '' : '<p class="jv-n">Astuce : le micro de ton clavier permet de dicter.</p>')
-    + '<button type="button" class="jv-go" onclick="jvAnalyze()">✨ Remplir l\'effort et la douleur</button><div class="jv-out" id="jv-out"></div></div>';
+    + '<div class="jv-out" id="jv-out"><p class="jv-n">L\'effort et la douleur ci-dessous se remplissent tout seuls d\'après ton texte' + (can ? '' : ' (le micro de ton clavier permet de dicter)') + '.</p></div></div>';
 }
 function jvMic(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, ta = document.getElementById('jv-text'), btn = document.getElementById('jv-mic');
@@ -63,33 +63,45 @@ function jvMic(){
   const r = new SR(); r.lang = 'fr-FR'; r.interimResults = true; r.continuous = true; _jvRec = r;
   r.onresult = function(e){ let s = ''; for(let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript; ta.value = base + s; };
   r.onerror = function(e){ if(e && e.error === 'not-allowed' && typeof showToast === 'function') showToast('Micro refusé : autorise-le dans les réglages, ou écris ton ressenti', '🎙️'); };
-  r.onend = function(){ _jvRec = null; if(btn) btn.classList.remove('on'); if(ta.value.trim()) jvAnalyze(); };
+  r.onend = function(){ _jvRec = null; if(btn) btn.classList.remove('on'); if(ta.value.trim()) jvAnalyze(true); };
   try { r.start(); if(btn) btn.classList.add('on'); } catch(e) { _jvRec = null; }
 }
-// applique un résultat aux champs effort / douleur du formulaire
+// applique un résultat aux champs effort / douleur du formulaire (sauf ceux choisis à la main : data-m-rpe / data-m-pain)
 function _jvApply(res, by){
-  const b = document.getElementById('pd-rpe');
+  const b = document.getElementById('pd-rpe'), kept = [];
   if(b){
-    if(res.rpe && b.dataset.rpe !== String(res.rpe) && typeof prRpePick === 'function') prRpePick(res.rpe);
-    if(res.pain && typeof prPainPick === 'function'){
-      prPainPick(res.pain.level);
-      if(res.pain.level && res.pain.zone){ const z = Array.prototype.find.call(document.querySelectorAll('#pd-zones .pd-c'), function(x){ return x.textContent === res.pain.zone; }); if(z) prZonePick(z); }
-    }
+    window._jvApplying = true;
+    try {
+      if(res.rpe && b.dataset.mRpe) kept.push('effort');
+      else if(res.rpe && b.dataset.rpe !== String(res.rpe) && typeof prRpePick === 'function') prRpePick(res.rpe);
+      if(res.pain && b.dataset.mPain) kept.push('douleur');
+      else if(res.pain && typeof prPainPick === 'function'){
+        prPainPick(res.pain.level);
+        if(res.pain.level && res.pain.zone){ const z = Array.prototype.find.call(document.querySelectorAll('#pd-zones .pd-c'), function(x){ return x.textContent === res.pain.zone; }); if(z) prZonePick(z); }
+      }
+    } finally { window._jvApplying = false; }
   }
   const o = document.getElementById('jv-out'); if(!o) return;
-  const P = ['Aucune', 'Légère', 'Gênante', 'Forte'];
-  const chips = [];
-  if(res.rpe) chips.push('💪 Effort ' + res.rpe + '/10');
-  if(res.pain) chips.push('🩹 ' + (res.pain.level ? 'Douleur ' + P[res.pain.level].toLowerCase() + (res.pain.zone ? ' · ' + res.pain.zone.toLowerCase() : '') : 'Aucune douleur'));
+  const P = ['aucune', 'légère', 'gênante', 'forte'], got = [];
+  if(res.rpe && kept.indexOf('effort') < 0) got.push('effort ' + res.rpe + '/10');
+  if(res.pain && kept.indexOf('douleur') < 0) got.push(res.pain.level ? 'douleur ' + P[res.pain.level] + (res.pain.zone ? ' (' + res.pain.zone.toLowerCase() + ')' : '') : 'aucune douleur');
   o.dataset.note = res.note || '';
-  o.innerHTML = (chips.length ? '<div class="jv-chips">' + chips.map(function(c){ return '<span>' + prEsc(c) + '</span>'; }).join('') + '</div>' : '<p class="jv-n">Rien trouvé sur l\'effort ou une douleur : choisis-les ci-dessous.</p>')
-    + (res.note ? '<p class="jv-note">📝 ' + prEsc(res.note) + '</p>' : '') + '<p class="jv-n">' + by + ' · vérifie et corrige ci-dessous si besoin.</p>';
+  const coachNote = res.note && res.note !== jvParse(document.getElementById('jv-text').value).note;   // résumé du Coach (sinon c'est ton texte)
+  o.innerHTML = '<p class="jv-ok">' + (got.length ? '✓ ' + by + ' : ' + prEsc(got.join(' · ')) + ' — rempli ci-dessous' : 'Rien trouvé sur l\'effort ou une douleur : choisis-les ci-dessous') + '</p>'
+    + (kept.length ? '<p class="jv-n">Ton choix fait à la main est gardé (' + kept.join(', ') + ').</p>' : '')
+    + (coachNote ? '<p class="jv-note">📝 ' + prEsc(res.note) + '</p>' : '');
 }
-async function jvAnalyze(){
+let _jvTimer = null, _jvCoachText = '';
+function jvInput(){ clearTimeout(_jvTimer); _jvTimer = setTimeout(function(){ _jvTimer = null; jvAnalyze(false); }, 700); }
+// avant l'enregistrement : une saisie encore en attente est lue tout de suite
+function jvFlush(){ if(_jvTimer){ clearTimeout(_jvTimer); _jvTimer = null; jvAnalyze(false); } }
+// lecture locale immédiate ; avec withCoach (fin de saisie ou de dictée, compte admin) : relue par le Coach, une fois par texte
+async function jvAnalyze(withCoach){
   const ta = document.getElementById('jv-text'); if(!ta) return;
   const text = ta.value.trim(); if(text.length < 3) return;
-  _jvApply(jvParse(text), 'Lu par l\'app');
-  if(!(typeof isAdmin === 'function' && isAdmin()) || typeof getAuthToken !== 'function') return;
+  _jvApply(jvParse(text), 'Lu dans ton texte');
+  if(!withCoach || text === _jvCoachText || !(typeof isAdmin === 'function' && isAdmin()) || typeof getAuthToken !== 'function') return;
+  _jvCoachText = text;
   const o = document.getElementById('jv-out'); if(o) o.insertAdjacentHTML('beforeend', '<p class="jv-n" id="jv-wait">🤖 Le Coach relit…</p>');
   try {
     const token = await getAuthToken();
@@ -99,7 +111,7 @@ async function jvAnalyze(){
     if(document.getElementById('jv-text') !== ta || ta.value.trim() !== text) return;      // formulaire fermé ou texte modifié entre-temps
     const loc = jvParse(text);
     _jvApply({ rpe: j.rpe || loc.rpe, pain: j.pain || loc.pain, note: j.note || loc.note }, '🤖 Relu par le Coach');
-  } catch(e) { const w = document.getElementById('jv-wait'); if(w) w.remove(); }
+  } catch(e) { _jvCoachText = ''; const w = document.getElementById('jv-wait'); if(w) w.remove(); }
 }
 // lu à l'enregistrement de la validation
 function jvRead(){
@@ -114,8 +126,7 @@ function _jvCss(){
   st.textContent = '.jv{margin-top:14px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:14px;padding:12px;}.jv-h{font-size:12px;font-weight:800;color:#4C1D95;margin:0 0 8px;display:flex;justify-content:space-between;}.jv-h span{font-weight:700;color:#7C3AED;opacity:.7;}'
     + '.jv-row{display:flex;gap:8px;align-items:stretch;}.jv-row textarea{flex:1;min-width:0;border:1.5px solid #DDD6FE;border-radius:11px;padding:9px 10px;font-size:14px;font-family:inherit;color:#1E1B4B;background:#fff;resize:vertical;outline:none;}'
     + '.jv-mic{width:48px;flex-shrink:0;border:none;border-radius:11px;background:#7C3AED;color:#fff;font-size:20px;cursor:pointer;}.jv-mic.on{background:#DC2626;animation:jvp 1s ease-in-out infinite;}@keyframes jvp{50%{opacity:.6;}}@media (prefers-reduced-motion:reduce){.jv-mic.on{animation:none;}}'
-    + '.jv-go{margin-top:8px;width:100%;padding:9px;border:1.5px solid #C4B5FD;border-radius:11px;background:#fff;color:#5B21B6;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit;}'
-    + '.jv-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}.jv-chips span{background:#EDE9FE;color:#4C1D95;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;}'
+    + '.jv-ok{font-size:12px;font-weight:700;color:#4C1D95;margin:8px 0 0;line-height:1.4;}'
     + '.jv-note{font-size:12.5px;color:#312E81;margin:6px 0 0;line-height:1.4;}.jv-n{font-size:11px;color:#6D28D9;opacity:.8;margin:5px 0 0;}';
   document.head.appendChild(st);
 }

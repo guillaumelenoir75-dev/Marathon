@@ -180,12 +180,19 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   // journal : le texte remplit l'effort et la douleur, enregistrés avec la note
   await page.evaluate(() => { showScreen('home'); openValidationModalExtra(1, 0); });
   await page.waitForSelector('#jv-text');
-  await page.fill('#jv-text', 'Dur sur la fin, mollet un peu tendu');
-  await page.click('.jv-go'); await page.waitForTimeout(400);
+  assert.equal(await page.$('.jv-go'), null, 'plus de bouton : rempli tout seul');
+  await page.fill('#jv-text', 'Dur sur la fin, mollet un peu tendu'); await page.waitForTimeout(1000);
   assert.deepEqual(await page.evaluate(() => { const b = document.getElementById('pd-rpe').dataset; return [b.rpe, b.pain, b.zone]; }), ['7', '1', 'Mollet']);
+  assert.match(await page.textContent('#jv-out'), /effort 7\/10 · douleur légère \(mollet\) — rempli ci-dessous/);
+  // effort corrigé à la main : la suite du texte ne l'écrase plus
+  await page.evaluate(() => prRpePick(6));
+  await page.fill('#jv-text', 'Très dur sur la fin, mollet un peu tendu'); await page.waitForTimeout(1000);
+  assert.equal(await page.evaluate(() => document.getElementById('pd-rpe').dataset.rpe), '6');
+  assert.match(await page.textContent('#jv-out'), /choix fait à la main est gardé \(effort\)/);
+  await page.evaluate(() => prRpePick(7));
   await page.evaluate(() => saveValidationExtra(1, 0)); await page.waitForTimeout(1200);
   const perf = await page.evaluate(() => JSON.parse(state.extra_w1_s0_perf));
-  assert.equal(perf.journal, 'Dur sur la fin, mollet un peu tendu'); assert.equal(perf.rpe, 7); assert.equal(perf.pain.zone, 'Mollet'); assert.ok(perf.note);
+  assert.equal(perf.journal, 'Très dur sur la fin, mollet un peu tendu'); assert.equal(perf.rpe, 7); assert.equal(perf.pain.zone, 'Mollet'); assert.ok(perf.note);
   // Statistiques : carte « Signaux du corps » (zones FC, foulée)
   await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); showScreen('stats'); });
   await page.waitForTimeout(600);

@@ -1305,6 +1305,7 @@ async function saveValidationExtra(w,ei){
   if(dateVal) perf.date=dateVal;
   perf.validatedAt=new Date().toISOString();   // relecture du Coach : séances validées depuis
   // Effort ressenti (1-10) et douleur (plan-daily.js)
+  if(typeof jvFlush==='function') jvFlush();   // journal tapé juste avant « Valider » : lu avant de lire l'effort
   const _rpe=typeof prRpeRead==='function'?prRpeRead():null;
   if(_rpe){ if(_rpe.rpe) perf.rpe=_rpe.rpe; if(_rpe.pain) perf.pain=_rpe.pain; }
   // Journal de séance dicté / écrit (journal.js) : texte + note lue par le Coach

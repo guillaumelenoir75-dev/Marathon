@@ -125,6 +125,7 @@ function prRpeHtml(prev){
 }
 function prRpePick(v){
   const b = document.getElementById('pd-rpe'); if(!b) return;
+  if(!window._jvApplying) b.dataset.mRpe = '1';                                 // choisi à la main : le journal ne l'écrase plus
   b.dataset.rpe = b.dataset.rpe === String(v) ? '' : v;
   b.querySelectorAll('.pd-n').forEach(function(x){ x.classList.toggle('on', x.textContent === b.dataset.rpe); });
   const l = document.getElementById('pd-rpe-l'), r = +b.dataset.rpe;
@@ -132,11 +133,13 @@ function prRpePick(v){
 }
 function prPainPick(i){
   const b = document.getElementById('pd-rpe'); if(!b) return;
+  if(!window._jvApplying) b.dataset.mPain = '1';
   b.dataset.pain = i; b.querySelectorAll('.pd-chips:not(.pd-zones) .pd-c').forEach(function(x, k){ x.classList.toggle('on', k === i); });
   const z = document.getElementById('pd-zones'); if(z) z.hidden = !i;
 }
 function prZonePick(btn){
   const b = document.getElementById('pd-rpe'); if(!b) return;
+  if(!window._jvApplying) b.dataset.mPain = '1';
   b.dataset.zone = btn.textContent; btn.parentNode.querySelectorAll('.pd-c').forEach(function(x){ x.classList.toggle('on', x === btn); });
 }
 function prRpeRead(){
