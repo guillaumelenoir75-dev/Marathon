@@ -81,6 +81,28 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
   await ctx.close();
 });
 
+test('bilan de la prépa terminée et recette appliquée à la mise à jour du plan', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(async () => { await openPrepsPanel(); }); await page.waitForTimeout(500);
+  await page.waitForFunction(() => Object.values(_prepIndex || {}).some((p) => p.debrief), null, { timeout: 15000 });
+  const d = await page.evaluate(() => Object.values(_prepIndex).find((p) => p.debrief).debrief);
+  assert.ok(d.sessions.planned > 50 && d.sessions.done > 0 && d.volume.peak > 0 && d.lessons.length > 0, JSON.stringify(d).slice(0, 300));
+  const id = await page.evaluate(() => Object.keys(_prepIndex).find((k) => _prepIndex[k].debrief));
+  assert.ok(JSON.parse(await db(page)).users.ADMINUID.prep_index[id].debrief, 'bilan enregistré');
+  // base de test : prépa peu validée → pas de recette ; puis recette d'une prépa complète
+  assert.ok(d.completion < 0.6 && !(await page.evaluate(() => state._recette)), 'prépa incomplète ignorée');
+  await page.evaluate(async (x) => { Object.assign(_prepIndex[x].debrief, { completion: 0.95, rises: { maxOk: 1.1, risky: 1.2 }, taperOk: true }); await prepDebriefAll(); await openPrepsPanel(); }, id);
+  assert.equal(await page.evaluate(() => state._recette.progression), 1.12);
+  await page.waitForSelector('text=Ta recette');
+  await page.evaluate((x) => openPrepDebrief(x), id); await page.waitForTimeout(500);
+  assert.ok(await page.evaluate(() => /Ce que tu en retiens/.test(document.getElementById('prep-debrief').textContent)));
+  await page.evaluate(() => { document.getElementById('prep-debrief').remove(); });
+  await openReview(page);
+  assert.ok(await page.evaluate(() => /Ta recette/.test(document.getElementById('pr-content').textContent)));
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('mise à jour du plan : analyse, application, historique, annulation', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await openReview(page);

@@ -398,7 +398,7 @@ function prFormScore(){
   const I = prInternal(today), hardEasy = I.rpes.slice(-3).filter(function(x){ return (x.type === 'ef' || x.type === 'long') && x.rpe >= 7; }).length;
   if(hardEasy){ score -= 5 * hardEasy; why.push('footings ressentis durs −' + 5 * hardEasy); }
   const pain = I.pains[0];
-  if(pain && pain.level >= 2){ const cap = pain.level >= 3 ? 25 : 45; if(score > cap){ score = cap; why.push('douleur ' + pain.zone.toLowerCase() + ' : plafonné à ' + cap); } }
+  if(pain && pain.level >= 2){ const cap = pain.level >= 3 ? 25 : 45; if(score > cap){ score = cap; why.push('douleur ' + String(pain.zone || 'non précisée').toLowerCase() + ' : plafonné à ' + cap); } }
   score = Math.max(0, Math.min(100, Math.round(score)));
   return { score: score, why: why, label: score >= 67 ? 'Bonne forme : feu vert' : score >= 34 ? 'Forme moyenne : écoute tes sensations' : 'Récupération insuffisante : privilégie la récup', tone: score >= 67 ? 'ok' : score >= 34 ? 'mid' : 'low' };
 }

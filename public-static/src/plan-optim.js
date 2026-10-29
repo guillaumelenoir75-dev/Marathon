@@ -64,6 +64,7 @@ function prVolumePlan(st, a){
   const recentLong = Math.max.apply(null, (a.load ? a.load.log : []).filter(function(x){ return x.type === 'long' && prDays(x.date, today) <= 56; }).map(function(x){ return x.km; }).concat([0]));
   const out = { base: Math.round(base), peak: Math.round(peak), weeks: [], proposals: [], horizonWeeks: [] };
   const noUp = !!a.opt.noVolumeUp;                                                // fatigue WHOOP / douleur : pas de hausse cette semaine
+  const REC = a.opt.recette || null, PROG = REC && REC.progression >= 1.03 && REC.progression <= 1.2 ? REC.progression : 1.12;   // recette : progression encaissée
   // progression mesurée depuis la dernière semaine de charge (pas depuis une semaine allégée) ; propositions de km sur 4 semaines
   let lastBuild = null, prevT = null, prevLong = null, buildLong = null, prevPast = null, firstFuture = true, nFuture = 0;
   weeks.forEach(function(o){
@@ -85,10 +86,13 @@ function prVolumePlan(st, a){
     if(o.race && toRace !== 0){ nFuture++; out.weeks.push({ w: o.w, from: o.from, plan: Math.round(o.km), target: Math.round(o.km), after: Math.round(o.km), why: 'course de préparation', kind: o.kind, now: o.now, changed: false }); firstFuture = false; return; }
     let t, why;
     // affûtage selon la distance : 10 km 90 % → 60 % ; semi 90 → 75 → 50 % ; marathon 80 → 60 → 40 % du pic
-    const TAPER = cat === 'Marathon' ? [0.4, 0.6, 0.8] : cat === 'Semi-marathon' ? [0.5, 0.75, 0.9] : [0.6, 0.9];
+    let TAPER = cat === 'Marathon' ? [0.4, 0.6, 0.8] : cat === 'Semi-marathon' ? [0.5, 0.75, 0.9] : [0.6, 0.9];
+    // recette : affûtage de ta dernière course réussie de la même famille (borné à ± 0,15 autour des repères)
+    const RT = REC && REC.taper && REC.taper[longRace ? 'long' : 'short'];
+    if(RT){ const own = [RT.w0, RT.w1, RT.w2]; TAPER = TAPER.map(function(f, i){ const x = own[i]; return x > 0 ? Math.max(f - 0.15, Math.min(f + 0.15, x)) : f; }); }
     if(toRace != null && toRace >= 0 && toRace < TAPER.length){ t = peak * TAPER[toRace]; why = toRace === 0 ? 'semaine de course' : toRace === TAPER.length - 1 ? 'début d\'affûtage' : 'affûtage'; }
     else if(o.kind === 'recov'){ t = lastBuild ? lastBuild * 0.78 : o.km; why = 'semaine allégée'; }   // sans semaine de charge avant : le plan fait foi
-    else { t = Math.min(peak, (lastBuild || o.km) * 1.12); why = t >= peak - 0.5 ? 'pic de la prépa (~' + Math.round(peak) + ' km)' : 'progression ≤ +12 %/semaine'; }
+    else { t = Math.min(peak, (lastBuild || o.km) * PROG); why = t >= peak - 0.5 ? 'pic de la prépa (~' + Math.round(peak) + ' km)' : 'progression ≤ +' + Math.round((PROG - 1) * 100) + ' %/semaine' + (PROG !== 1.12 ? ' (ta recette)' : ''); }
     // reprise après un marathon / semi : pourcentage de ta base selon le nombre de jours depuis la course
     const ds = recD && o.from ? prDays(lr.date, o.from) : null;
     if(ds != null && ds >= 0 && ds < recD * 1.08){

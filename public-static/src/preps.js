@@ -330,6 +330,8 @@ function _renderPrepsBody(){
   // ── Comparer (dès 2 prépas)
   if(!_prepView && saved.length + (cs.planned ? 1 : 0) + (_prepNext ? 1 : 0) >= 2)
     h += '<button class="pp-btn sec" style="flex:none;width:100%;padding:13px;margin-top:2px;" onclick="openProgress()">📈 Comparer mes prépas</button>';
+  // ── Ta recette (tirée des bilans des prépas terminées)
+  if(!_prepView && typeof prepRecetteCard === 'function') h += prepRecetteCard();
   // ── Terminées
   h += '<p class="pp-sec"><span>Terminées</span>' + (saved.length ? '<span>' + saved.length + '</span>' : '') + '</p>';
   if(!saved.length) h += '<p class="pp-empty">Aucune pour l\'instant : ta prépa en cours y sera enregistrée automatiquement.</p>';
@@ -342,10 +344,13 @@ function _renderPrepsBody(){
       + (p.note && !(p.result && shortNote) ? '<p class="pp-note" style="color:#B45309;">🏅 <span>' + _prepEsc(p.note) + '</span></p>' : '')
       + (p.shape && p.shape.length ? '<div class="pp-chart">' + _ppBars(p.shape, 'done') + '</div>' : '')
       + '<div class="pp-acts"><button class="pp-btn sec" data-prep-open="' + p.id + '" onclick="prepView(\'' + p.id + '\')">' + PP_ICON.book + 'Consulter</button>'
+      +   (typeof openPrepDebrief === 'function' && p.date && p.date < _prepToday() ? '<button class="pp-btn sec" onclick="openPrepDebrief(\'' + p.id + '\')">📋 Bilan</button>' : '')
       +   (p.replay ? '<a class="pp-btn warm" href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener">' + PP_ICON.play + 'Revoir</a>' : '')
       +   (_prepView ? '' : '<button class="pp-btn icon" onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer ' + _prepEsc(p.title) + '" title="Supprimer">' + PP_ICON.trash + '</button>') + '</div></section>';
   });
   box.innerHTML = h;
+  // bilans des prépas terminées pas encore calculés : en arrière-plan, puis réaffichage
+  if(!_prepView && typeof prepDebriefAll === 'function' && !window._pdbRendering) prepDebriefAll().then(function(ch){ if(ch && document.getElementById('preps-body')){ window._pdbRendering = true; try { _renderPrepsBody(); } finally { window._pdbRendering = false; } } });
   // en-tête : résumé
   const hs = document.getElementById('preps-head-sub');
   if(hs) hs.textContent = _prepView ? (_prepView.next ? 'Prépa à venir ouverte' : 'Consultation en cours')
@@ -751,6 +756,7 @@ async function prepDailyTasks(){
   try { await _prepSeedNext(); } catch(e) { console.warn('[prépa] à venir', e); }
   try { await prepAutoSave(false); } catch(e) { console.warn('[prépa] enregistrement auto', e); }
   try { await _prepMaybeAdvance(); } catch(e) { console.warn('[prépa] bascule', e); }
+  try { if(typeof prepDebriefAll === 'function') await prepDebriefAll(); } catch(e) { console.warn('[prépa] bilan', e); }   // bilan des prépas terminées + recette
   _prepDailyBusy = false;
 }
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(prepDailyTasks, 1500); });

@@ -6,7 +6,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = path.join(__dirname, '..', '..', 'public-static', 'src');
-const FILES = ['plan-review.js', 'plan-optim.js', 'plan-daily.js', 'stats.js', 'whoop.js'];
+const FILES = ['plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js', 'stats.js', 'whoop.js'];
 
 function fakeDate(nowIso) {
   const RealDate = Date, fixed = new RealDate(nowIso).getTime();
@@ -36,7 +36,7 @@ function loadApp(opts) {
   vm.createContext(ctx);
   // un seul script : les const / let de premier niveau restent visibles entre modules, comme dans le bundle
   const code = FILES.map((f) => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n;\n')
-    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig };';
+    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig, prepDebrief, prepRecette, prepRecetteLines };';
   vm.runInContext(code, ctx, { filename: 'app-bundle.js' });
   const app = ctx.__app;
   app.ctx = ctx;

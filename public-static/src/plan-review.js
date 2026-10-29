@@ -385,8 +385,9 @@ function prAnalyze(){
   if(opt2){
     a.load = prLoad(today); a.drift = prDrift(today); a.whoop = prWhoop(today); a.calib = prCalib(state);
     if(typeof prInternal === 'function') a.internal = prInternal(today);
+    a.recette = state._recette || null; opt.recette = a.recette;              // ce que tes prépas précédentes ont appris (prep-debrief.js)
     opt.noVolumeUp = !!(a.whoop && a.whoop.tired) || !!(a.internal && a.internal.pains.some(function(x){ return x.level >= 2; }));
-    opt.drift = a.drift; opt.calib = a.calib.mode;
+    opt.drift = a.drift; opt.calib = a.calib.n >= 2 || !(a.recette && a.recette.calib) ? a.calib.mode : a.recette.calib;   // sans recul dans cette prépa : réglage de ta recette
     a.volume = prVolumePlan(state, a); opt.volumeManaged = !!a.volume; opt.volumeWeeks = a.volume ? a.volume.horizonWeeks : null;
   }
   const all = prPaceProposals(state, fit, opt);
@@ -803,6 +804,7 @@ function _prRender(){
   const pn = a.internal && a.internal.pains[0];
   if(pn) pills.push('<span class="pr-pill ' + (pn.level >= 2 ? 'rest' : 'base') + '">🩹 Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' (' + prEsc(pn.zone.toLowerCase()) + ') le ' + prFmtDate(pn.date) + (pn.level >= 2 ? ' → jours suivants allégés' : ' : surveille') + '</span>');
   if(a.internal && a.internal.ratio) pills.push('<span class="pr-pill ' + (a.internal.ratio > 1.5 ? 'rest' : 'base') + '">💪 Charge ressentie 7 j : ' + prV(a.internal.ratio) + '× ta moyenne</span>');
+  if(a.recette) pills.push('<span class="pr-pill base">🧬 Ta recette : +' + Math.round((a.recette.progression - 1) * 100) + ' %/sem max' + (a.recette.taper && (a.recette.taper.long || a.recette.taper.short) ? ' · affûtage perso' : '') + (a.recette.calib ? ' · allures ' + a.recette.calib : '') + '</span>');
   if(a.drift) pills.push('<span class="pr-pill base">❤️ Dérive cardiaque ' + prV(a.drift.avg) + ' % : endurance ' + a.drift.label + '</span>');
   if(a.calib && a.calib.n) pills.push('<span class="pr-pill ' + (a.calib.mode === 'prudent' ? 'rest' : 'base') + '">🎯 Allures proposées tenues : ' + a.calib.k + '/' + a.calib.n + (a.calib.mode === 'prudent' ? ' → calcul plus prudent' : a.calib.mode === 'confiant' ? ' → progression plus franche' : '') + '</span>');
   if(pills.length) h += '<div class="pr-pills">' + pills.join('') + '</div>';
@@ -938,6 +940,8 @@ async function askCoachPlanReview(force){
     reviewHistory: (state._plan_reviews || []).slice(-4).map(function(h){ return { date: h.date, avec_coach: !!h.coach, niveau: h.vdot, changements: (h.changes || []).map(function(c){ return { ref: c.ref, seance: c.title, date: c.date, champ: c.field, avant: c.before, apres: c.after, par: c.src === 'coach' ? 'toi (Coach)' : 'calcul', raison: c.reason }; }) }; }),
     volume: a.volume ? { base_km_sem: a.volume.base, pic_vise_km: a.volume.peak, semaines: a.volume.weeks.map(function(w){ return { semaine: w.w, prevu: w.plan, fait: w.past ? w.done : undefined, conseille: w.target || undefined, raison: w.why || undefined }; }) } : null,
     charge: a.load ? { km_7j: a.load.k7, moyenne_28j_km_sem: a.load.chronic, ratio: a.load.acwr ? Math.round(a.load.acwr * 100) / 100 : null } : null,
+    recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
+    dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     effort_ressenti: a.internal && a.internal.rpes.length ? { seances_14j: a.internal.rpes, charge_ressentie_ratio_7j_28j: a.internal.ratio ? Math.round(a.internal.ratio * 100) / 100 : null } : null,
     douleurs: a.internal && a.internal.pains.length ? a.internal.pains : null,
     derive_cardiaque: a.drift ? { moyenne_pct: Math.round(a.drift.avg * 10) / 10, sorties: a.drift.n, endurance: a.drift.label } : null,
