@@ -139,8 +139,10 @@ test('zones : allures par zone d\'après le niveau, EF d\'après les sorties ré
   let P = J(app.bsZonePaces('2026-10-29'));
   assert.ok(P.vdot > 45 && P.vdot < 50, 'niveau ' + P.vdot);
   const z = P.z;
-  assert.ok(z[4].lo < z[3].lo && z[3].lo < z[2].lo && z[2].lo < z[1].lo, 'VMA < seuil < tempo < EF (s/km)');
-  assert.ok(z[0].hi == null && z[0].lo > z[1].hi, 'récup : plus lent que l\'EF');
+  assert.ok(z[3].lo < z[2].lo && z[2].lo < z[1].lo, 'seuil < tempo < EF (s/km)');
+  // plages continues : pas de trou entre deux zones
+  assert.equal(z[0].lo, z[1].hi + 1); assert.equal(z[2].hi, z[1].lo - 1); assert.equal(z[3].hi, z[2].lo - 1); assert.equal(z[4].hi, z[3].lo - 1);
+  assert.ok(z[0].hi == null && z[4].lo == null, 'récup : plus lent que l\'EF ; VMA : plus rapide que le seuil');
   assert.equal(P.efObs, null);
   // trois footings validés à 5'40 et FC ≤ 148 : la zone EF suit l'allure réellement courue
   ['2026-10-20', '2026-10-23', '2026-10-26'].forEach((d, i) => {
@@ -152,4 +154,5 @@ test('zones : allures par zone d\'après le niveau, EF d\'après les sorties ré
   app.ctx.prHistoryChanged();
   P = J(app.bsZonePaces('2026-10-29'));
   assert.equal(P.efObs, 340); assert.equal(P.z[1].lo, 330); assert.equal(P.z[1].hi, 355);
+  assert.equal(P.z[2].hi, 329, 'le tempo commence juste sous l\'EF réelle : allure marathon couverte');
 });

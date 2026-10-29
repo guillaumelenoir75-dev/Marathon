@@ -191,12 +191,14 @@ function bsZonePaces(today){
     const v = f && f.vdot, at = function(p){ return Math.round(paceAtPct(v, p)); };
     if(!v && !efObs) return null;
     const z2 = efObs ? { lo: efObs - 10, hi: efObs + 15 } : { lo: at(0.70), hi: at(0.62) };
-    return { vdot: v || null, efObs: efObs || null, z: [
-      { z: 1, lo: z2.hi + 1, hi: null },
-      { z: 2, lo: z2.lo, hi: z2.hi },
-      v ? { z: 3, lo: at(0.84), hi: at(0.79) } : null,
-      v ? { z: 4, lo: at(0.90), hi: at(0.86) } : null,
-      v ? { z: 5, lo: at(1.0), hi: at(0.95) } : null] };
+    // plages continues, comme les FC : chaque zone s'arrête là où commence la plus lente (pas de trou entre l'EF et le tempo,
+    // où tombe l'allure marathon réelle) ; Z1 = plus lent que l'EF, Z5 = plus rapide que le seuil
+    let z3 = null, z4 = null, z5 = null;
+    if(v){
+      const t3 = Math.min(at(0.84), z2.lo - 2), t4 = Math.min(at(0.90), t3 - 2);
+      z3 = { z: 3, lo: t3, hi: z2.lo - 1 }; z4 = { z: 4, lo: t4, hi: t3 - 1 }; z5 = { z: 5, lo: null, hi: t4 - 1 };
+    }
+    return { vdot: v || null, efObs: efObs || null, z: [{ z: 1, lo: z2.hi + 1, hi: null }, { z: 2, lo: z2.lo, hi: z2.hi }, z3, z4, z5] };
   } catch(e) { return null; }
 }
 const _bsP = function(s){ return Math.floor(s / 60) + '\'' + String(Math.round(s % 60)).padStart(2, '0'); };
@@ -208,7 +210,7 @@ function bsZonesBar(z, zp){
   const ticks = z.map(function(x, i){ acc += w[i]; return '<i style="left:' + (acc / tot * 100).toFixed(2) + '%"' + (i === 4 ? ' class="end"' : '') + '>' + x.hi + '</i>'; }).join('');
   const pace = zp ? '<div class="bs-paces">' + z.map(function(x, i){
     const p = zp.z[i];
-    const t = !p ? '—' : p.hi == null ? '> ' + _bsP(p.lo) : '<b>' + _bsP(p.lo) + '</b><b>' + _bsP(p.hi) + '</b>';
+    const t = !p ? '—' : p.hi == null ? '> ' + _bsP(p.lo) : p.lo == null ? '< ' + _bsP(p.hi + 1) : '<b>' + _bsP(p.lo) + '</b><b>' + _bsP(p.hi) + '</b>';
     return '<div class="z' + x.z + '" style="flex:' + w[i] + ' 1 0">' + t + '</div>'; }).join('') + '</div>' : '';
   return '<div class="bs-bar">' + z.map(function(x, i){ return '<div class="bs-s z' + x.z + '" style="flex:' + w[i] + ' 1 0" title="' + (bpm ? prEsc(x.t) + ' : ' + (i ? x.lo + '–' : '< ') + x.hi + ' bpm' : BS_ZONE_SHORT[x.z]) + '"><b>Z' + x.z + '</b><span>' + BS_ZONE_SHORT[x.z] + '</span></div>'; }).join('') + '</div>'
     + (bpm ? '<div class="bs-ticks">' + ticks + '</div>' : '') + pace;
