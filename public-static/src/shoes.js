@@ -491,7 +491,7 @@ function shoeDayAdvice(x, date){
   const others=pool.filter(sh=>sh.name!==planned&&life(sh)<0.9);
   if(!others.length) return out;
   const prev=typeof prAddDays==='function'&&date?prAddDays(date,-1):null;
-  const wornS=typeof prSessions==='function'&&prev?prSessions(state).filter(s=>s.done&&s.x.shoe&&(s.date===prev||s.date===date)):[], worn=wornS.map(s=>s.x.shoe);
+  const wornS=typeof prAllDone==='function'&&prev?prAllDone(date).filter(s=>s.x.shoe&&(s.date===prev||s.date===date)):[], worn=wornS.map(s=>s.x.shoe);
   if(planned&&worn.includes(planned)){
     const alt=freshest(others.filter(sh=>!worn.includes(sh.name)));
     const when=wornS.some(s=>s.x.shoe===planned&&s.date===date)?'aujourd\'hui':'hier';

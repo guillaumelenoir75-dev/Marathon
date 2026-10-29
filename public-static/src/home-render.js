@@ -749,7 +749,7 @@ function renderHome(){
       if(state.ef_pace_auto==='true'&&!state.ef_pace_auto_seen){
         efAutoEl.style.display='flex';
         const msgEl=document.getElementById('home-ef-auto-msg');
-        if(msgEl) msgEl.innerHTML=`Allure EF estimée : <b>${state.ef_pace}/km</b> — calculée d'après ta première semaine. Tu peux l'ajuster dans les paramètres.`;
+        if(msgEl) msgEl.innerHTML=`Allure EF estimée : <b>${state.ef_pace}/km</b> — calculée d'après ${state.ef_pace_src==='hist'?'tes dernières sorties':'ta première semaine'}. Tu peux l'ajuster dans les paramètres.`;
       } else {
         efAutoEl.style.display='none';
       }

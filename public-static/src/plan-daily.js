@@ -161,7 +161,7 @@ function prInternal(today){
   const log = (typeof prDoneLog === 'function' ? prDoneLog(today) : []).filter(function(x){ return x.s.perf && x.s.perf.rpe; });
   const load = function(n){ return log.filter(function(x){ const d = prDays(x.date, today); return d >= 0 && d < n; }).reduce(function(a, x){ const m = prDurMin(x.s); return a + (m ? m * x.s.perf.rpe : 0); }, 0); };
   const k7 = load(7), k28 = load(28), chronic = k28 / 4;
-  const pains = prSessions(state).filter(function(s){ return s.done && s.perf && s.perf.pain && s.perf.pain.level && s.date && prDays(s.date, today) >= 0 && prDays(s.date, today) <= 5; })
+  const pains = (typeof prAllDone === 'function' ? prAllDone(today) : prSessions(state)).filter(function(s){ return s.done && s.perf && s.perf.pain && s.perf.pain.level && s.date && prDays(s.date, today) >= 0 && prDays(s.date, today) <= 5; })
     .map(function(s){ return { date: s.date, level: s.perf.pain.level, zone: s.perf.pain.zone, title: s.title }; }).sort(function(a, b){ return b.date.localeCompare(a.date); });
   const rpes = log.filter(function(x){ return prDays(x.date, today) <= 14; }).map(function(x){ return { date: x.date, type: x.type, rpe: x.s.perf.rpe, title: x.s.title }; });
   return { n: log.length, k7: Math.round(k7), chronic: Math.round(chronic), ratio: chronic > 50 && log.filter(function(x){ return prDays(x.date, today) < 28; }).length >= 6 ? k7 / chronic : null, pains: pains, rpes: rpes };
@@ -407,7 +407,9 @@ function prFormScore(){
 }
 // séances d'affilée réalisées (une séance passée ni faite ni retirée casse la série ; une séance retirée pour imprévu non)
 function prStreak(){
-  const today = prTodayIso(), list = prSessions(state).filter(function(s){ return s.type !== 'rest' && s.date && s.date <= today; }).sort(function(a, b){ return b.date.localeCompare(a.date); });
+  // séances faites de tout l'historique (la série continue d'une prépa à l'autre) + séances prévues de la prépa en cours
+  const today = prTodayIso(), hist = typeof prAllDone === 'function' ? prAllDone(today) : [];
+  const list = hist.concat(prSessions(state).filter(function(s){ return !s.done; })).filter(function(s){ return s.type !== 'rest' && s.date && s.date <= today; }).sort(function(a, b){ return b.date.localeCompare(a.date); });
   let n = 0;
   for(const s of list){
     if(s.done){ n++; continue; }

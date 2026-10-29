@@ -2,41 +2,87 @@
 // charge réelle (7 j / 28 j), volume conseillé semaine par semaine, sortie longue pilotée, dérive cardiaque (splits Strava),
 // séance test, récupération WHOOP, trajectoire vers l'objectif, bilan des allures proposées, annulation d'une mise à jour.
 
-// ─── Copie de la dernière prépa terminée (charge des 28 derniers jours, sorties longues, séances de qualité) ───
-let _prPrevSnap = null, _prPrevSnapId = null, _prPrefetching = null;
+// ─── Historique complet : toutes les prépas enregistrées (copies figées) + la prépa en cours ───
+// Toutes les analyses (charge, dérive, foulée, zones FC, niveau, allure EF, prédiction, Coach…) portent sur TOUT ce qui a été
+// couru depuis la 1re séance enregistrée, pas seulement sur la prépa en cours : prAllDone(today) / prDoneLog(today).
+// prPrefetch() charge les copies (une fois par prépa, en parallèle) ; _prPrevSnap = dernière prépa terminée (≤ 120 j).
+let _prAllSnaps = {}, _prPrevSnap = null, _prPrevSnapId = null, _prPrefetching = null;
+const _prShimHard = function(st){ return (!st._plan_engine && !st.plan_start_date) ? Object.assign({}, st, { plan_start_date: '2026-03-09' }) : st; };   // plan Seine-Eure écrit en dur
+// état réel de la prépa en cours (« Voir et modifier » la prépa à venir remplace state)
+function prRealState(){ const V = typeof _prepView !== 'undefined' && _prepView; return V && V.next && V.state ? V.state : state; }
 function prPrefetch(){
   if(_prPrefetching) return _prPrefetching;
+  let added = 0;
   _prPrefetching = (async function(){
     try {
       const today = prTodayIso();
       if(typeof _prepIndex !== 'undefined' && !_prepIndex && typeof _prepRef === 'function') _prepIndex = (await _prepRef('prep_index').once('value')).val() || {};
-      const idx = (typeof _prepIndex !== 'undefined' && _prepIndex) || {};
-      const id = Object.keys(idx).filter(function(k){ const p = idx[k]; return p && p.date && p.date <= today && k !== state._prep_id && prDays(p.date, today) <= 120; })
+      const idx = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}, real = prRealState();
+      Object.keys(_prAllSnaps).forEach(function(k){ if(!idx[k]){ delete _prAllSnaps[k]; added++; } });   // prépa supprimée
+      if(typeof _prepGetSnap === 'function'){
+        await Promise.all(Object.keys(idx).filter(function(k){ return k !== real._prep_id && !_prAllSnaps[k]; }).map(function(id){
+          return Promise.race([_prepGetSnap(id), new Promise(function(r){ setTimeout(function(){ r(null); }, 4000); })])
+            .then(function(st){ if(st){ _prAllSnaps[id] = _prShimHard(st); added++; } }).catch(function(){});
+        }));
+      }
+      const id = Object.keys(idx).filter(function(k){ const p = idx[k]; return p && p.date && p.date <= today && k !== real._prep_id && prDays(p.date, today) <= 120 && _prAllSnaps[k]; })
         .sort(function(a, b){ return idx[b].date.localeCompare(idx[a].date); })[0];
-      if(!id || id === _prPrevSnapId || typeof _prepGetSnap !== 'function') return;
-      const st = await Promise.race([_prepGetSnap(id), new Promise(function(r){ setTimeout(function(){ r(null); }, 2500); })]);
-      if(st){ _prPrevSnap = (!st._plan_engine && !st.plan_start_date) ? Object.assign({}, st, { plan_start_date: '2026-03-09' }) : st; _prPrevSnapId = id; }
+      _prPrevSnap = id ? _prAllSnaps[id] : null; _prPrevSnapId = id || null;
     } catch(e) {}
-  })().finally(function(){ window._prPrefetchDone = true; setTimeout(function(){ _prPrefetching = null; }, 0); });
+  })().finally(function(){
+    window._prPrefetchDone = true; setTimeout(function(){ _prPrefetching = null; }, 0);
+    if(added){ _prAllCache = null; if(typeof prHistoryRefresh === 'function') prHistoryRefresh(); }
+  });
   return _prPrefetching;
+}
+// historique chargé : les écrans d'analyse se recalculent
+function prHistoryRefresh(){
+  try {
+    if(typeof rendered !== 'undefined'){ rendered.stats = false; rendered.plan = false; }
+    if(typeof prRenderHomeCard === 'function') prRenderHomeCard();
+    const sc = document.getElementById('sc-stats'); if(sc && sc.style.display !== 'none' && typeof bsRenderStatsCard === 'function') bsRenderStatsCard();
+  } catch(e) {}
+}
+// états à analyser : prépa affichée, prépa en cours réelle, toutes les copies (sauf celle de la prépa en cours) ;
+// copie figée consultée en lecture seule : ses seules données
+function prHistoryStates(){
+  const V = typeof _prepView !== 'undefined' && _prepView;
+  if(V && !V.next) return [state];
+  const real = prRealState(), out = [state];
+  if(real !== state) out.push(real);
+  Object.keys(_prAllSnaps).forEach(function(k){ if(k !== real._prep_id) out.push(_prAllSnaps[k]); });
+  return out;
+}
+// toutes les séances réalisées (hors repos) jusqu'à today, dédoublonnées (date | type | km), triées par date ;
+// s.date = date réelle, s.cur = prépa affichée, s.hard = plan Seine-Eure écrit en dur, s.gw = n° de semaine continu depuis la 1re séance
+let _prAllCache = null;                                                         // { key, t, list } : 1 s au plus, vidé à chaque save()
+function prHistoryChanged(){ _prAllCache = null; }
+function prAllDone(today){
+  today = today || prTodayIso();
+  const states = prHistoryStates();
+  const key = today + '|' + states.length;
+  if(_prAllCache && _prAllCache.key === key && _prAllCache.st0 === state && Date.now() - _prAllCache.t < 1000) return _prAllCache.list.slice();
+  const out = [], seen = {};
+  prHistoryStates().forEach(function(st){ prSessions(st).forEach(function(s){
+    if(!s.done || s.type === 'rest') return;
+    const d = s.perf && s.perf.date ? String(s.perf.date).slice(0, 10) : s.date;
+    if(!d || d > today) return;
+    const k = d + '|' + s.type + '|' + Math.round(s.km * 10); if(seen[k]) return; seen[k] = 1;
+    s.date = d; s.cur = st === state; s.hard = !st._plan_engine; out.push(s);
+  }); });
+  out.sort(function(a, b){ return a.date.localeCompare(b.date); });
+  if(out.length){ const m0 = prMonday(out[0].date).getTime(); out.forEach(function(s){ s.gw = Math.round((prMonday(s.date).getTime() - m0) / 604800000) + 1; }); }
+  _prAllCache = { key: key, st0: state, t: Date.now(), list: out };
+  return out.slice();
 }
 const prAddDays = function(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return prIso(d); };
 const prMean = function(a){ return a.length ? a.reduce(function(x, y){ return x + y; }, 0) / a.length : null; };
 const prPaceSec = function(t){ const m = String(t || '').match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; };
 
 // ─── 2. Charge réelle ───────────────────────────────────────────────────────
-// séances réalisées (prépa en cours + dernière prépa) : date, km, type
+// séances réalisées de tout l'historique : date, km, type
 function prDoneLog(today){
-  const out = [], seen = {};
-  const add = function(st, src){ prSessions(st).forEach(function(s){
-    if(!s.done || s.type === 'rest') return;
-    const d = s.perf && s.perf.date ? String(s.perf.date).slice(0, 10) : s.date;
-    if(!d || d > today) return;
-    const k = d + '|' + s.type + '|' + s.km; if(seen[k]) return; seen[k] = 1;
-    out.push({ date: d, km: s.km, type: s.type, s: s, src: src });
-  }); };
-  add(state, 'cur'); if(_prPrevSnap) add(_prPrevSnap, 'prev');
-  return out.sort(function(a, b){ return a.date.localeCompare(b.date); });
+  return prAllDone(today).map(function(s){ return { date: s.date, km: s.km, type: s.type, s: s, src: s.cur ? 'cur' : 'hist' }; });
 }
 function prLoad(today){
   const log = prDoneLog(today);
@@ -187,7 +233,7 @@ function prTestProposal(st, a){
   if(sess.some(function(s){ return !s.done && /^Test\b/i.test(s.title); })) return null;
   let lastB = null;
   (a.fit.sources || []).forEach(function(x){ if(x.kind === 'course' && x.date && x.date <= today && (!lastB || x.date > lastB)) lastB = x.date; });
-  sess.forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && (!lastB || s.date > lastB)) lastB = s.date; });
+  (st === state && typeof prAllDone === 'function' ? prAllDone(today) : sess).forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && (!lastB || s.date > lastB)) lastB = s.date; });
   if(raceDate <= today) return null;
   const W = prWeeks(st, today), due = lastB ? prAddDays(lastB, 42) : today, latest = prAddDays(raceDate, -21), soon = prAddDays(today, 5);
   const cand = sess.filter(function(s){ const o = W[s.w]; return !s.done && !s.skip && (s.type === 'tempo' || s.type === 'frac') && s.date && s.date >= soon && s.date >= due && s.date <= latest && o && o.kind !== 'recov' && o.kind !== 'taper' && !o.race; })

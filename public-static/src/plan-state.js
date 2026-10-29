@@ -252,35 +252,8 @@ function getBestEfPace(){
     const fb=paceStrToSec(state.ef_pace.replace("'",":"));
     if(fb!==null) paces.push(fb);
   }
-  for(let ws=1;ws<=CW;ws++){
-    // Séances base (plan Guillaume) — admin seulement
-    if(usesHardPlan()){
-      weeks[ws-1].sessions.forEach((s,si)=>{
-        if(s.type!=='ef') return;
-        const k=gk(ws,si);
-        if(!state[k+'done']) return;
-        let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
-        if(!perf.pace||!perf.hr) return;
-        if(parseInt(perf.hr)>hrEfMax()) return;
-        const sec=paceStrToSec(perf.pace);
-        if(sec===null) return;
-        paces.push(sec);
-      });
-    }
-    // Séances extra EF
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-      if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
-        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-        if(perf.pace&&perf.hr&&parseInt(perf.hr)<=hrEfMax()){
-          const sec=paceStrToSec(perf.pace);
-          if(sec!==null) paces.push(sec);
-        }
-      }
-      ei++;
-    }
-  }
+  // séances EF de tout l'historique (toutes les prépas, plan Seine-Eure compris), par date
+  histEfSessions().forEach(s=>paces.push(s.sec));
   if(paces.length===0) return "6'40";
 
   let refSec;
@@ -337,15 +310,20 @@ async function tryAutoCalculateEF(){
     }catch(e){}
     ei++;
   }
-  if(efPaces.length===0) return null;
-  // Prendre l'allure la plus lente parmi les séances validées (estimation conservative)
-  const efSec=Math.max(...efPaces);
+  // sorties EF / longues des 6 dernières semaines, toutes prépas confondues : plus fiable que la seule 1re semaine
+  const hist=typeof prAllDone==='function'?prAllDone().filter(s=>(s.type==='ef'||s.type==='long')&&s.perf&&s.perf.pace&&prDays(s.date,prTodayIso())<=42)
+    .map(s=>paceStrToSec(String(s.perf.pace))).filter(x=>x!==null&&x>200):[];
+  let efSec;
+  if(hist.length>=3){ const srt=hist.slice(-5).sort((a,b)=>a-b); efSec=srt[Math.floor(srt.length/2)]; state.ef_pace_src='hist'; }
+  else if(efPaces.length) efSec=Math.max(...efPaces);   // la plus lente de la 1re semaine (estimation prudente)
+  else return null;
   const m=Math.floor(efSec/60);
   const s=efSec%60;
   const efStr=`${m}'${s.toString().padStart(2,'0')}`;
   state.ef_pace=efStr;
   state.ef_pace_auto='true';
   const dbUpdates={ef_pace:efStr,ef_pace_auto:'true'};
+  if(state.ef_pace_src) dbUpdates.ef_pace_src=state.ef_pace_src;
   // Regénérer le plan avec la nouvelle allure EF (descriptions S2+ mises à jour) — jamais pour un programme
   // fourni et installé tel quel (Mes prépas › prépa prête : plan_version « import-… »)
   try{
@@ -412,34 +390,14 @@ function secToPace(sec){
   return m+"'"+(s+'').padStart(2,'0');
 }
 
+// séances EF valides (allure + FC ≤ plafond EF) de tout l'historique, par date : { date, sec, hr, km, s }
+function histEfSessions(){
+  if(typeof prAllDone!=='function') return [];
+  return prAllDone().filter(s=>s.type==='ef'&&s.perf&&s.perf.pace&&s.perf.hr&&parseInt(s.perf.hr)<=hrEfMax())
+    .map(s=>({date:s.date,sec:paceStrToSec(String(s.perf.pace)),hr:parseInt(s.perf.hr),km:s.km,s})).filter(x=>x.sec!==null);
+}
 function calcMarathonPace(){
-  const validEF=[];
-  for(let ws=1;ws<=CW;ws++){
-    weeks[ws-1].sessions.forEach((s,si)=>{
-      if(s.type!=='ef') return;
-      const k=gk(ws,si);
-      if(!state[k+'done']) return;
-      let perf={};try{perf=state[k+'perf']?JSON.parse(state[k+'perf']):{}}catch(e){}
-      if(!perf.pace||!perf.hr) return;
-      if(parseInt(perf.hr)>hrEfMax()) return;
-      const sec=paceStrToSec(perf.pace);
-      if(sec===null) return;
-      validEF.push({ws,si,sec});
-    });
-    // Extra EF
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-      if(es&&es.type==='ef'&&state[`extra_w${ws}_s${ei}_done`]){
-        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-        if(perf.pace&&perf.hr&&parseInt(perf.hr)<=hrEfMax()){
-          const sec=paceStrToSec(perf.pace);
-          if(sec!==null) validEF.push({ws,ei,sec,extra:true});
-        }
-      }
-      ei++;
-    }
-  }
+  const validEF=histEfSessions();
   if(validEF.length===0) return state._am_pace||"5'40";
   const lastSec=validEF[validEF.length-1].sec;
   const sorted=[...EF_AM_TABLE].reverse();
@@ -484,6 +442,7 @@ function isPlaisirMode(st) {
 }
 
 function save(){
+  if(typeof prHistoryChanged==='function') prHistoryChanged();   // historique des analyses à recalculer (plan-optim.js)
   if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
   if(typeof syncPlanCompat==='function'&&isAdmin()&&!usesHardPlan()) syncPlanCompat();   // séances ajoutées/modifiées
   setTimeout(checkCoachAlerts, 100);

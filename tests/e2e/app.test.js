@@ -81,6 +81,23 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
   await ctx.close();
 });
 
+test('historique complet : la prépa Seine-Eure enregistrée nourrit les analyses de la nouvelle prépa', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(async () => { await prPrefetch(); });
+  const h = await page.evaluate(() => { const all = prAllDone(); return { n: all.length, old: all.filter((s) => !s.cur).length, cur: all.filter((s) => s.cur).length }; });
+  assert.ok(h.old > 0, 'séances de la prépa Seine-Eure dans l\'historique : ' + JSON.stringify(h));
+  // Statistiques : historique des séances et tableau des performances, toutes prépas confondues
+  await page.evaluate(() => { showScreen('stats'); renderStats(); }); await page.waitForTimeout(500);
+  assert.match(await page.textContent('#stats-sessions-section'), / avr /, 'séances d\'avril (Seine-Eure) listées avec celles de la nouvelle prépa');
+  // prédiction et contexte du Coach construits sur l'historique, sans erreur
+  const r = await page.evaluate(() => { const p = buildMarathonPrediction(); const c = typeof buildCompactContext === 'function' ? buildCompactContext(null, [], 'jeudi', '09:00') : null;
+    return { nb: p.nbSeances || 0, months: c && c.historique_complet_par_mois ? c.historique_complet_par_mois.length : (c ? -1 : -2) }; });
+  assert.ok(r.nb > 0, 'prédiction : séances de la prépa précédente prises en compte');
+  assert.ok(r.months >= 2, 'Coach : historique mois par mois depuis la 1re séance (' + r.months + ' mois)');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('bilan de la prépa terminée et recette appliquée à la mise à jour du plan', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await page.evaluate(async () => { await openPrepsPanel(); }); await page.waitForTimeout(500);

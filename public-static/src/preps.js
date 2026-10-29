@@ -757,6 +757,14 @@ async function prepDailyTasks(){
   try { await prepAutoSave(false); } catch(e) { console.warn('[prépa] enregistrement auto', e); }
   try { await _prepMaybeAdvance(); } catch(e) { console.warn('[prépa] bascule', e); }
   try { if(typeof prepDebriefAll === 'function') await prepDebriefAll(); } catch(e) { console.warn('[prépa] bilan', e); }   // bilan des prépas terminées + recette
+  try {
+    if(typeof prPrefetch === 'function') await prPrefetch();                    // historique complet (toutes les prépas) pour les analyses
+    // allure EF de référence calculée sur tout l'historique : reprise telle quelle par les briefs du Coach (serveur : efRefOf)
+    if(!_prepView && typeof getBestEfPace === 'function'){
+      const p = getBestEfPace(), r = state._ef_ref || {}, t = _prepToday();
+      if(p && (r.pace !== p || r.at !== t)){ state._ef_ref = { pace: p, at: t }; if(dbRef) dbRef.child('_ef_ref').set(state._ef_ref).catch(function(){}); }
+    }
+  } catch(e) {}
   _prepDailyBusy = false;
 }
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(prepDailyTasks, 1500); });

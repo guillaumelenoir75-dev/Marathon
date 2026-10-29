@@ -30,3 +30,18 @@ test('situation du Coach : zones FC recalées prioritaires et signal de la foul�
   const t2 = (await F.helpers.buildTrainingSituation(F.db, st, '2026-10-29')).text;
   assert.ok(!/Signal de la foulée|PRIORITAIRES/.test(t2), 'signal trop ancien, zones non appliquées');
 });
+
+test('situation du Coach : charge récente et dernière séance incluent la prépa précédente ; allure EF de l\'app', async () => {
+  const UID = 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1';
+  const old = { _plan_engine: 'generated', extra_w1_s0: JSON.stringify({ type: 'ef', km: 12, sched_date: '2026-10-24' }), extra_w1_s0_done: true, extra_w1_s0_km: 12,
+    extra_w1_s0_perf: JSON.stringify({ date: '2026-10-24', pace: '5:40', hr: 140 }) };
+  const data = { users: { [UID]: { prep_index: { seine: { title: 'Marathon', date: '2026-10-18', dist: 'Marathon' } }, preps: { seine: old } } } };
+  const F = loadFunctions({ data, modules: [] });
+  const st = { _plan_engine: 'generated', _prep_id: 'nov', _ef_ref: { pace: "5'38", at: '2026-10-28' }, _hr_zones: { applied: true, efMax: 151 } };
+  const t = (await F.helpers.buildTrainingSituation(F.db, st, '2026-10-29')).text;
+  assert.match(t, /Charge récente : 12 km sur les 7 derniers jours \(1 séance\)/);
+  assert.match(t, /Dernière séance : .*24 octobre.* 12 km à 5:40\/km/);
+  assert.equal(F.helpers.efRefOf(st, '2026-10-29'), "5'38");
+  assert.equal(F.helpers.efRefOf(st, '2026-11-10'), null, 'référence trop ancienne');
+  assert.equal(F.helpers.efMaxOf(st), 151); assert.equal(F.helpers.efMaxOf({}), 148);
+});

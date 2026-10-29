@@ -1,62 +1,41 @@
+// Historique complet pour la prédiction : toutes les séances réalisées, toutes prépas confondues (prAllDone, plan-optim.js)
+function _ppHist(){ return typeof prAllDone==='function'?prAllDone():[]; }
+// n° de semaine continu d'aujourd'hui (1 = semaine de la 1re séance enregistrée) et lundi d'une semaine continue
+function _ppGwNow(){ const h=_ppHist(); if(!h.length||typeof prMonday!=='function') return CW; return Math.round((prMonday(prTodayIso()).getTime()-prMonday(h[0].date).getTime())/604800000)+1; }
+function _ppGwDate(gw){ const h=_ppHist(); if(!h.length||typeof prMonday!=='function') return null; const d=prMonday(h[0].date); d.setDate(d.getDate()+(gw-1)*7); return prIso(d); }
+// libellé d'une séance / semaine de l'historique : date courte (« 12 mars »), sinon S + n° de semaine
+function _ppWk(h){ return h&&h.date?new Date(h.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'S'+(h&&h.ws); }
 function buildMarathonPrediction() {
   // Pour les athlètes sans données : retourner vide
   if(!usesHardPlan()){
     // Vérifier s'ils ont des séances validées avec perf
-    let hasData=false;
-    for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){if(state[`extra_w${ws}_s${ei}_perf`]){hasData=true;break;}ei++;}if(hasData)break;}
+    const hasData=_ppHist().some(h=>h.perf&&(h.perf.pace||h.perf.hr));   // tout l'historique, pas seulement la prépa en cours
     if(!hasData) return {tempsStr:null,amPaceRecoStr:null,confiance:0};
   }
   const vo2max = getVo2max();
   const vdotPaceSec = vdotMarathonPaceSec(vo2max);
   const fmtTime = s => { const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60); return `${hh}h${String(mm).padStart(2,'0')}`; };
 
-  // ── Collecter toutes les séances validées ──
+  // ── Collecter toutes les séances validées : tout l'historique (toutes les prépas) ──
+  // ws = n° de semaine continu depuis la 1re séance enregistrée (prAllDone), date = date réelle
   const efPts = [], longPts = [], tempoPts = [];
-  for(let ws = 1; ws <= CW; ws++) {
-    if(ws === 22 || ws === 23) continue;
-    getOrderedWeekSessions(ws).forEach(({s, ei}) => {
-      const k = `extra_w${ws}_s${ei}`;
-      if(!state[k+'_done']) return;
-      let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-      if(!perf.pace || !perf.hr) return;
-      const fc = parseInt(perf.hr);
-      const paceSec = paceStrToSec(perf.pace);
-      if(!paceSec || fc < 100) return;
-      const cadence = perf.strava ? (perf.strava.cadence || perf.strava.cadence_moy || null) : null;
-      const km = parseFloat(state[k+'_km'] || s.km) || s.km;
-      const entry = { ws, ei, paceSec, fc, km, cadence, type: s.type };
-      if(s.type === 'ef' && fc <= 152) { efPts.push(entry); }
-      else if(s.type === 'long' && fc <= 158) { longPts.push(entry); }
-      else if(s.type === 'tempo' || s.type === 'frac') {
-        const blocs = perf.blocsAllure ? perf.blocsAllure.filter(Boolean) : [];
-        if(blocs.length > 0) { blocs.forEach(b => { const bSec = paceStrToSec(b); if(bSec) tempoPts.push({...entry, paceSec: bSec}); }); }
-      }
-    });
-    // Séances extra
-    let ei=0;
-    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-      if(state[`extra_w${ws}_s${ei}_done`]){
-        let es;try{es=JSON.parse(state[`extra_w${ws}_s${ei}`]);}catch(e){ei++;continue;}
-        if(!es){ei++;continue;}
-        let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-        if(perf.pace&&perf.hr){
-          const fc=parseInt(perf.hr);
-          const paceSec=paceStrToSec(perf.pace);
-          if(paceSec&&fc>=100){
-            const km=parseFloat(state[`extra_w${ws}_s${ei}_km`]||es.km)||es.km;
-            const entry={ws,paceSec,fc,km,cadence:null,type:es.type};
-            if(es.type==='ef'&&fc<=152) efPts.push(entry);
-            else if(es.type==='long'&&fc<=158) longPts.push(entry);
-            else if(es.type==='tempo'||es.type==='frac'){
-              const blocs=perf.blocsAllure?perf.blocsAllure.filter(Boolean):[];
-              if(blocs.length>0) blocs.forEach(b=>{const bSec=paceStrToSec(b);if(bSec)tempoPts.push({...entry,paceSec:bSec});});
-            }
-          }
-        }
-      }
-      ei++;
+  _ppHist().forEach(h => {
+    if(h.hard && (h.w === 22 || h.w === 23)) return;          // plan Seine-Eure : semaines 22-23 exclues (comme avant)
+    const perf = h.perf || {};
+    if(!perf.pace || !perf.hr) return;
+    const fc = parseInt(perf.hr);
+    const paceSec = paceStrToSec(String(perf.pace));
+    if(!paceSec || fc < 100) return;
+    const cadence = perf.strava ? (perf.strava.cadence || perf.strava.cadence_moy || null) : null;
+    const entry = { ws: h.gw, date: h.date, paceSec, fc, km: h.km, cadence, type: h.type, perf };
+    if(h.type === 'ef' && fc <= 152) { efPts.push(entry); }
+    else if(h.type === 'long' && fc <= 158) { longPts.push(entry); }
+    else if(h.type === 'tempo' || h.type === 'frac') {
+      const blocs = perf.blocsAllure ? perf.blocsAllure.filter(Boolean) : [];
+      if(blocs.length > 0) { blocs.forEach(b => { const bSec = paceStrToSec(b); if(bSec) tempoPts.push({...entry, paceSec: bSec}); }); }
     }
-  }
+  });
+  const gwNow = _ppGwNow();
 
   const nbTotal = efPts.length + longPts.length + tempoPts.length;
 
@@ -99,7 +78,7 @@ function buildMarathonPrediction() {
     const efRatioBase = Math.max(0.875, 0.905 - (Math.max(0, efPts.length - 6) * 0.003));
     amFromEf = weightedNormPace * efRatioBase;
     efHistory = last3Ef.map((p,i) => ({
-      ws: p.ws, pace: p.paceSec, fc: p.fc,
+      ws: p.ws, date: p.date, pace: p.paceSec, fc: p.fc,
       normPace: Math.round(normPaces[i]),
       rawPaceStr: `${Math.floor(p.paceSec/60)}'${String(Math.round(p.paceSec%60)).padStart(2,'0')}`,
       amPred: Math.round(normPaces[i] * efRatioBase * 42.195)
@@ -110,15 +89,15 @@ function buildMarathonPrediction() {
   let amFromTempo = null, bestTempoPaceSec = null, tempoHistory = [];
   if(tempoPts.length >= 2) {
     // Regrouper les blocs par séance (ws) et faire la moyenne par séance
-    const byWs = {};
+    const byWs = {}, dateWs = {};
     tempoPts.forEach(p => {
       if(!byWs[p.ws]) byWs[p.ws] = [];
-      byWs[p.ws].push(p.paceSec);
+      byWs[p.ws].push(p.paceSec); dateWs[p.ws] = p.date;
     });
     const tempoSessions = Object.entries(byWs)
       .sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
       .map(([ws, paces]) => ({
-        ws: parseInt(ws),
+        ws: parseInt(ws), date: dateWs[ws],
         avgPace: Math.round(paces.reduce((a,b)=>a+b,0)/paces.length),
         blocs: paces.length,
         bestPace: Math.min(...paces)
@@ -134,7 +113,7 @@ function buildMarathonPrediction() {
       amFromTempo = bestTempoPaceSec * 1.06;
       // Historique individuel
       tempoHistory = last3Tempo.map(s => ({
-        ws: s.ws, avgPace: s.avgPace, blocs: s.blocs,
+        ws: s.ws, date: s.date, avgPace: s.avgPace, blocs: s.blocs,
         avgPaceStr: `${Math.floor(s.avgPace/60)}'${String(Math.round(s.avgPace%60)).padStart(2,'0')}`,
         amPred: Math.round(s.avgPace * 1.17 * 42.195)
       }));
@@ -161,7 +140,7 @@ function buildMarathonPrediction() {
       bestLongPaceSec = Math.min(...recentLong.map(p=>p.paceSec));
       // Historique individuel
       longHistory = recentLong.map((p,i) => ({
-        ws: p.ws, pace: p.paceSec, fc: p.fc, km: p.km,
+        ws: p.ws, date: p.date, pace: p.paceSec, fc: p.fc, km: p.km,
         paceStr: `${Math.floor(p.paceSec/60)}'${String(Math.round(p.paceSec%60)).padStart(2,'0')}`,
         riegelAm: Math.round(riegelPaces[i]*42.195)
       }));
@@ -207,15 +186,13 @@ function buildMarathonPrediction() {
   // FC début (1er tiers) vs FC fin (dernier tiers) — 3 dernières longues uniquement
   let cardiacDrift = null, driftPenaltySec = 0, driftHistory = [];
   const longWithSplits = longPts.filter(p => {
-    const k = `extra_w${p.ws}_s${p.ei}`;
-    let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
+    const perf = p.perf || {};
     return perf.strava && perf.strava.splits && perf.strava.splits.length >= 6; // min 6km pour avoir 4 après skip
   });
   if(longWithSplits.length > 0) {
     const drifts = [];
     longWithSplits.slice(-3).forEach(p => {
-      const k = `extra_w${p.ws}_s${p.ei}`;
-      let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
+      const perf = p.perf || {};
       const allSplits = (perf.strava.splits||[]).filter(sp=>sp.fc&&sp.fc>0);
       if(allSplits.length < 6) return;
       // Ignorer les 2 premiers km (échauffement cardiaque — FC encore en montée)
@@ -225,7 +202,7 @@ function buildMarathonPrediction() {
       const fcEnd = stable.slice(half).reduce((a,s)=>a+s.fc,0)/stable.slice(half).length;
       const drift = (fcEnd-fcMid)/fcMid*100;
       drifts.push({
-        ws: p.ws, drift: Math.round(drift*10)/10, km: p.km,
+        ws: p.ws, date: p.date, drift: Math.round(drift*10)/10, km: p.km,
         fcStart: Math.round(fcMid), fcEnd: Math.round(fcEnd),
         note: `km3-${2+half} vs km${3+half}-${allSplits.length}`
       });
@@ -275,12 +252,12 @@ function buildMarathonPrediction() {
   // Confiance : monte avec nb séances, semaines avancées, convergence signaux
   const convergence = spread < 30 ? 20 : spread < 60 ? 10 : 0;
   const confiance = Math.min(88, Math.round(
-    (nbTotal/25)*30 + (CW/32)*25 + convergence + (signals.length>=2?10:0) + (vo2max>0?5:0)
+    (nbTotal/25)*30 + (Math.min(gwNow,32)/32)*25 + convergence + (signals.length>=2?10:0) + (vo2max>0?5:0)
   ));
 
   // Historique semaine par semaine
   const historique = [];
-  for(let ws=4; ws<=CW; ws++) {
+  for(let ws=4; ws<=gwNow; ws++) {
     const ePts=efPts.filter(p=>p.ws<=ws), lPts=longPts.filter(p=>p.ws<=ws), tPts=tempoPts.filter(p=>p.ws<=ws);
     const sig=[];
     if(ePts.length>=1){
@@ -301,7 +278,7 @@ function buildMarathonPrediction() {
     }
     if(sig.length===0) continue;
     const tw=sig.reduce((a,s)=>a+s.weight,0);
-    historique.push({ws, tempsSec:Math.round(sig.reduce((a,s)=>a+s.val*s.weight,0)/tw*42.195)});
+    historique.push({ws, date:_ppGwDate(ws), tempsSec:Math.round(sig.reduce((a,s)=>a+s.val*s.weight,0)/tw*42.195)});
   }
 
   // Allure marathon recommandée = depuis le temps FINAL (moyenne avec 10km si dispo)
@@ -502,7 +479,7 @@ function openMarathonPredModal() {
     <!-- Stats -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
       <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;">
-        <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Tendance allure EF (S4→S${CW})</p>
+        <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Tendance allure EF (tout l'historique)</p>
         <p style="font-size:13px;font-weight:700;color:${pred.tendanceSec!=null&&pred.tendanceSec<-0.3?'#3B6D11':pred.tendanceSec!=null&&pred.tendanceSec>0.3?'#E24B4A':'var(--text)'};">${tendanceText}</p>
         <p style="font-size:9px;color:var(--muted);margin-top:3px;">${pred.tendanceSec!=null&&pred.tendanceSec<-0.3?'Tu t\'améliores ✅':pred.tendanceSec!=null&&pred.tendanceSec>0.3?'Régression (fatigue ?)':'Stable'}</p>
       </div>
@@ -527,8 +504,8 @@ function openMarathonPredModal() {
       <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Évolution de la prédiction</p>
       ${svgGraph}
       <div style="display:flex;justify-content:space-between;margin-top:4px;">
-        <span style="font-size:9px;color:var(--muted);">S1</span>
-        <span style="font-size:9px;color:var(--muted);">S${CW} (aujourd'hui)</span>
+        <span style="font-size:9px;color:var(--muted);">${pred.historique[0]&&pred.historique[0].date?_ppWk(pred.historique[0]):'début'}</span>
+        <span style="font-size:9px;color:var(--muted);">aujourd'hui</span>
       </div>
     </div>` : ''}
 
@@ -618,7 +595,7 @@ function openMarathonPredModal() {
             const arrow = prev===null ? '' : h.normPace < prev-3 ? ' ↓' : h.normPace > prev+3 ? ' ↑' : ' →';
             const color = h.normPace < 345 ? '#3B6D11' : h.normPace < 365 ? '#E8530A' : '#E24B4A';
             // Afficher l'allure réelle, FC, et normalisée en petit
-            return `<span style="color:${color};font-weight:600;">S${h.ws} ${h.rawPaceStr}/km FC${h.fc}${arrow}</span>`;
+            return `<span style="color:${color};font-weight:600;">${_ppWk(h)} ${h.rawPaceStr}/km FC${h.fc}${arrow}</span>`;
           }).join('<span style="color:var(--muted);"> · </span>');
           const first = d.efHistory[0].normPace, last = d.efHistory[d.efHistory.length-1].normPace;
           const trend = last < first-3 ? ' 📉 En progression' : last > first+3 ? ' 📈 En recul' : ' → Stable';
@@ -629,7 +606,7 @@ function openMarathonPredModal() {
               const arrowColor = arrow==='↓' ? '#3B6D11' : arrow==='↑' ? '#E24B4A' : '#888';
               const color = h.normPace < 345 ? '#3B6D11' : h.normPace < 365 ? '#E8530A' : '#E24B4A';
               return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 10px;">
-                <span style="font-size:11px;font-weight:600;color:var(--muted);">S${h.ws}</span>
+                <span style="font-size:11px;font-weight:600;color:var(--muted);">${_ppWk(h)}</span>
                 <span style="font-size:13px;font-weight:700;color:${color};">${h.rawPaceStr}/km</span>
                 <span style="font-size:11px;color:var(--muted);">FC ${h.fc}</span>
                 ${arrow ? `<span style="font-size:13px;font-weight:700;color:${arrowColor};">${arrow}</span>` : '<span style="width:13px;"></span>'}
@@ -729,7 +706,7 @@ function openMarathonPredModal() {
             const arrow = prev===null ? '' : h.riegelAm < prev-120 ? ' ↓' : h.riegelAm > prev+120 ? ' ↑' : ' →';
             const fmtH = s => `${Math.floor(s/3600)}h${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
             const color = h.riegelAm < 14400 ? '#3B6D11' : h.riegelAm < 15000 ? '#E8530A' : '#888';
-            return `<span style="color:${color};font-weight:600;">S${h.ws} ${h.paceStr||fmtPS(h.pace)} ${h.km}km→${fmtH(h.riegelAm)}${arrow}</span>`;
+            return `<span style="color:${color};font-weight:600;">${_ppWk(h)} ${h.paceStr||fmtPS(h.pace)} ${h.km}km→${fmtH(h.riegelAm)}${arrow}</span>`;
           }).join('<span style="color:var(--muted);"> · </span>');
           const first = d.longHistory[0].riegelAm, last = d.longHistory[d.longHistory.length-1].riegelAm;
           const trend = last < first-120 ? ' 📉 En progression' : last > first+120 ? ' 📈 En recul' : ' → Stable';
@@ -741,7 +718,7 @@ function openMarathonPredModal() {
               const fmtH = s => `${Math.floor(s/3600)}h${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
               const color = h.riegelAm < 14400 ? '#3B6D11' : h.riegelAm < 15000 ? '#E8530A' : '#888';
               return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 10px;">
-                <span style="font-size:11px;font-weight:600;color:var(--muted);">S${h.ws}</span>
+                <span style="font-size:11px;font-weight:600;color:var(--muted);">${_ppWk(h)}</span>
                 <span style="font-size:13px;font-weight:700;color:var(--text);">${h.paceStr}/km · ${h.km}km</span>
                 <span style="font-size:12px;font-weight:700;color:${color};">${fmtH(h.riegelAm)}</span>
                 ${arrow ? `<span style="font-size:13px;font-weight:700;color:${arrowColor};">${arrow}</span>` : '<span style="width:13px;"></span>'}
@@ -805,7 +782,7 @@ function openMarathonPredModal() {
             const prev = i>0 ? d.tempoHistory[i-1].avgPace : null;
             const arrow = prev===null ? '' : h.avgPace < prev-3 ? ' ↓' : h.avgPace > prev+3 ? ' ↑' : ' →';
             const color = h.avgPace < 295 ? '#3B6D11' : h.avgPace < 315 ? '#E8530A' : '#E24B4A';
-            return `<span style="color:${color};font-weight:600;">S${h.ws} ${h.avgPaceStr||fmtPS(h.avgPace)}/km${arrow}</span>`;
+            return `<span style="color:${color};font-weight:600;">${_ppWk(h)} ${h.avgPaceStr||fmtPS(h.avgPace)}/km${arrow}</span>`;
           }).join('<span style="color:var(--muted);"> · </span>');
           const first = d.tempoHistory[0].avgPace, last = d.tempoHistory[d.tempoHistory.length-1].avgPace;
           const trend = last < first-3 ? ' 📉 En progression' : last > first+3 ? ' 📈 En recul' : ' → Stable';
@@ -816,7 +793,7 @@ function openMarathonPredModal() {
               const arrowColor = arrow==='↓' ? '#3B6D11' : arrow==='↑' ? '#E24B4A' : '#888';
               const color = h.avgPace < 295 ? '#3B6D11' : h.avgPace < 315 ? '#E8530A' : '#E24B4A';
               return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 10px;">
-                <span style="font-size:11px;font-weight:600;color:var(--muted);">S${h.ws}</span>
+                <span style="font-size:11px;font-weight:600;color:var(--muted);">${_ppWk(h)}</span>
                 <span style="font-size:13px;font-weight:700;color:${color};">${h.avgPaceStr}/km</span>
                 <span style="font-size:11px;color:var(--muted);">${h.blocs} bloc${h.blocs>1?'s':''}</span>
                 ${arrow ? `<span style="font-size:13px;font-weight:700;color:${arrowColor};">${arrow}</span>` : '<span style="width:13px;"></span>'}
@@ -897,7 +874,7 @@ function openMarathonPredModal() {
               const color = h.drift < 5 ? '#3B6D11' : h.drift < 8 ? '#3B6D11' : h.drift < 12 ? '#E8530A' : '#E24B4A';
               const lbl = h.drift < 3 ? 'Parfait' : h.drift < 5 ? 'Excellent' : h.drift < 8 ? 'Bon' : h.drift < 12 ? 'Moyen' : 'Élevé';
               return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 10px;">
-                <span style="font-size:11px;font-weight:600;color:var(--muted);">S${h.ws} · ${h.km}km</span>
+                <span style="font-size:11px;font-weight:600;color:var(--muted);">${_ppWk(h)} · ${h.km}km</span>
                 <span style="font-size:11px;color:var(--muted);">FC ${h.fcStart}→${h.fcEnd} bpm</span>
                 <span style="font-size:12px;font-weight:700;color:${color};">+${h.drift}% · ${lbl}</span>
                 ${arrow ? `<span style="font-size:13px;font-weight:700;color:${arrowColor};">${arrow}</span>` : '<span style="width:13px;"></span>'}
@@ -1203,16 +1180,12 @@ function buildShortDistancePrediction(course) {
     blocs.forEach(b=>{const s=paceStrToSec(b);if(s){(type==='frac'?fracPts:tempoPts).push(s);added=true;}});
     if(added) nbSeancesAvecBlocs++;
   };
-  for(let ws=1;ws<=CW;ws++){
-    if(ws===22||ws===23) continue;
-    getOrderedWeekSessions(ws).forEach(({s,ei})=>{
-      const k=`extra_w${ws}_s${ei}`;
-      if(!state[k+'_done']) return;
-      if(s.type!=='frac'&&s.type!=='tempo') return;
-      let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-      collectBlocs(s.type, perf);
-    });
-  }
+  // blocs de fractionné / tempo de tout l'historique (toutes les prépas)
+  _ppHist().forEach(h=>{
+    if(h.hard&&(h.w===22||h.w===23)) return;
+    if(h.type!=='frac'&&h.type!=='tempo') return;
+    collectBlocs(h.type, h.perf||{});
+  });
 
   if(fracPts.length===0&&tempoPts.length===0) return {tempsStr:null,paceStr:null,confiance:0,nbSeances:0,nbFrac:0,nbTempo:0,_method:'blocs_directs'};
 
@@ -1430,8 +1403,8 @@ function openDistancePredModal(course) {
         <p style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Évolution de la prédiction</p>
         ${svgGraph}
         <div style="display:flex;justify-content:space-between;margin-top:4px;">
-          <span style="font-size:9px;color:var(--muted);">S1</span>
-          <span style="font-size:9px;color:var(--muted);">S${CW} (aujourd'hui)</span>
+          <span style="font-size:9px;color:var(--muted);">${pred.historique[0]&&pred.historique[0].date?_ppWk(pred.historique[0]):'début'}</span>
+          <span style="font-size:9px;color:var(--muted);">aujourd'hui</span>
         </div>
       </div>`:''}
 

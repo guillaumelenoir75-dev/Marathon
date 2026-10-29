@@ -129,10 +129,12 @@ function prFitness(st, opt){
   };
   Object.keys(PR_RECORD_KEY).forEach(function(cat){ if(st[PR_RECORD_KEY[cat]]) addRace(cat, st[PR_RECORD_KEY[cat]], (meta[cat] || {}).date, 'Record ' + (cat === 'Semi-marathon' ? 'semi' : cat.toLowerCase())); });
   (opt.races || []).forEach(function(r){ if(PR_RACE_M[r.cat]) addRace(r.cat, r.time, r.date, r.label); });
+  // séances réalisées : tout l'historique (toutes les prépas) pour la prépa en cours, sinon celles de la copie analysée
+  const doneAll = st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st).filter(function(s){ return s.done; });
   // séances test (5 km à fond) réalisées : comptent comme une course
-  prSessions(st).forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && typeof prTestTime === 'function'){ const t = prTestTime(s); if(t) addRace('5 km', prTime(t), s.date, 'Test 5 km'); } });
+  doneAll.forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && typeof prTestTime === 'function'){ const t = prTestTime(s); if(t) addRace('5 km', prTime(t), s.date, 'Test 5 km'); } });
   // blocs de qualité récents
-  const sess = prSessions(st), recent = [];
+  const sess = doneAll, recent = [];
   sess.forEach(function(s){
     if(!s.done || !s.date || prDays(s.date, today) > 56 || prDays(s.date, today) < 0) return;
     const it = prIntent(s); if(it !== 'T' && it !== 'I' && it !== 'race') return;
@@ -353,9 +355,10 @@ async function prHistory(today){
   }
   return out;
 }
-// allure EF réelle : médiane des 5 dernières sorties EF / longues à FC ≤ plafond EF (148 ou zones recalées, hrEfMax) (6 dernières semaines)
+// allure EF réelle : médiane des 5 dernières sorties EF / longues à FC ≤ plafond EF (148 ou zones recalées, hrEfMax) (6 dernières semaines,
+// toutes prépas confondues pour la prépa en cours)
 function prObservedEf(st, today){
-  const v = prSessions(st).filter(function(s){ return s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= hrEfMax(st); })
+  const v = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st)).filter(function(s){ return s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= hrEfMax(st); })
     .sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 5)
     .map(function(s){ const m = String(s.perf.pace).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean).sort(function(a, b){ return a - b; });
   return v.length >= 2 ? v[Math.floor(v.length / 2)] : null;

@@ -234,6 +234,15 @@ function raceCategory(dist, km) {
   return null;
 }
 function parisToday() { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); }
+// plafond FC de l'endurance : zones recalées par l'app (_hr_zones, body-signals.js) sinon 148 bpm
+function efMaxOf(state) { const z = state && state._hr_zones; return z && z.applied && z.efMax >= 120 && z.efMax <= 185 ? z.efMax : 148; }
+// allure EF de référence calculée par l'app sur TOUT l'historique (toutes les prépas) : _ef_ref { pace, at }, récente (≤ 7 j)
+function efRefOf(state, todayStr) {
+  const r = state && state._ef_ref; if (!r || !r.pace || !r.at) return null;
+  const t = todayStr || parisToday();
+  return Math.round((Date.parse(t + 'T12:00:00Z') - Date.parse(String(r.at).slice(0, 10) + 'T12:00:00Z')) / 86400000) <= 7 ? r.pace : null;
+}
+
 async function buildTrainingSituation(db, state, todayStr, opts) {
   opts = opts || {};
   state = state || {};
@@ -320,8 +329,26 @@ async function buildTrainingSituation(db, state, todayStr, opts) {
   const bsig = state._body_signals;
   if (bsig && bsig.level && bsig.at && Array.isArray(bsig.items) && days(bsig.at, today) <= 3) lines.push(`Signal de la foulée (calculé par l'app le ${fmtD(bsig.at)}) : ${bsig.items.join(' ')} → ${bsig.level >= 2 ? 'signal précoce de fatigue ou de blessure : pas de hausse de charge, privilégier la récupération' : 'à surveiller'}.`);
 
-  // charge récente (séances réalisées et datées)
+  // charge récente (séances réalisées et datées) : prépa en cours + prépas enregistrées terminées depuis moins de 6 semaines
+  // (après une bascule de prépa, la charge et la dernière séance tiennent compte de la prépa précédente)
   const doneD = sess.filter((s) => s.done && s.date && s.date <= today && s.x.type !== 'rest');
+  try {
+    const seen = new Set(doneD.map((s) => s.date + '|' + s.x.type + '|' + Math.round(s.km * 10)));
+    const recentIds = Object.keys(idx).filter((id) => id !== state._prep_id && idx[id] && idx[id].date && idx[id].date <= today && days(idx[id].date, today) <= 42);
+    for (const id of recentIds) {
+      const snap = (await db.ref(base + '/preps/' + id).once('value')).val() || {};
+      for (let w = 1; w <= 60; w++) for (let ei = 0; ei <= 50 && snap[`extra_w${w}_s${ei}`] !== undefined; ei++) {
+        let x = {}, perf = {}; try { x = JSON.parse(snap[`extra_w${w}_s${ei}`]) || {}; } catch (e) {}
+        try { perf = JSON.parse(snap[`extra_w${w}_s${ei}_perf`] || '{}') || {}; } catch (e) {}
+        if (!(snap[`extra_w${w}_s${ei}_done`] || snap[`extra_w${w}_s${ei}_km`] != null) || x.type === 'rest') continue;
+        const km = parseFloat(snap[`extra_w${w}_s${ei}_km`]) > 0 ? parseFloat(snap[`extra_w${w}_s${ei}_km`]) : parseFloat(x.km) || 0;
+        const date = String(perf.date || x.sched_date || '').slice(0, 10);
+        const k = date + '|' + x.type + '|' + Math.round(km * 10);
+        if (!date || date > today || seen.has(k)) continue;
+        seen.add(k); doneD.push({ w, x, perf, done: true, km, date, prev: true });
+      }
+    }
+  } catch (e) {}
   const inLast = (n) => doneD.filter((s) => days(s.date, today) < n);
   const k7 = inLast(7), k14 = inLast(14);
   lines.push(`Charge récente : ${Math.round(k7.reduce((a, s) => a + s.km, 0))} km sur les 7 derniers jours (${k7.length} séance${k7.length > 1 ? 's' : ''}) · ${Math.round(k14.reduce((a, s) => a + s.km, 0))} km sur 14 jours.`);
@@ -507,11 +534,11 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     for (let si=0;si<5;si++) {
       const pr=state[`w${ws}_s${si}perf`]||state[`s${ws}i${si}perf`];
       if (!pr) continue;
-      try { const p=JSON.parse(pr); if ((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
+      try { const p=JSON.parse(pr); if ((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
     }
     if (state._plan_engine) for (let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++) {   // prépa générée : séances extra
       const pr=state[`extra_w${ws}_s${ei}_perf`]; if (!pr) continue;
-      try { const es=JSON.parse(state[`extra_w${ws}_s${ei}`]), p=JSON.parse(pr); if ((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
+      try { const es=JSON.parse(state[`extra_w${ws}_s${ei}`]), p=JSON.parse(pr); if ((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
     }
   }
   let efPace = null;
@@ -521,7 +548,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     else { const last3=efPaces.slice(-3); const before3=efPaces.slice(0,-3); const prevBest=before3.length>0?Math.min(...before3):last3[0]; const minL=Math.min(...last3); const medL=[...last3].sort((a,b)=>a-b)[1]; refSec=minL<=prevBest?minL:medL; }
     let _em=Math.floor(refSec/60); let _es=Math.round(refSec%60); if(_es===60){_em++;_es=0;} efPace=`${_em}'${(_es+'').padStart(2,'0')}`;
   }
-  efPace = efPace || "6'40";
+  efPace = efRefOf(state, todayStr) || efPace || "6'40";
 
   // vision complète : prépas, courses passées et à venir, période post-course, charge récente, séance du jour
   const sit = await buildTrainingSituation(db, state, todayStr);
@@ -809,7 +836,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  buildTrainingSituation, parisToday,
+  buildTrainingSituation, parisToday, efMaxOf, efRefOf,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,

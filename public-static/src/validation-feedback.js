@@ -5,17 +5,19 @@ function parsePaceToSec(paceStr){
   return parseInt(p[0])*60+parseInt(p[1]);
 }
 
+// séances réalisées avant la semaine en cours, toutes prépas confondues (prAllDone, plan-optim.js) ; ws = date de la séance
+function _vfHistBefore(days){
+  if(typeof prAllDone!=='function') return [];
+  const today=prTodayIso(), mon=prIso(prMonday(today));
+  return prAllDone(today).filter(s=>s.date<mon&&(!days||prDays(s.date,today)<=days));
+}
 function getHistoricalComparison(type, pace, hr){
   const history=[];
-  for(let ws=1;ws<CW;ws++){
-    getOrderedWeekSessions(ws).forEach(({s:es,ei})=>{
-      if(es.type!==type||!state[`extra_w${ws}_s${ei}_done`]) return;
-      let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-      if(!perf.pace) return;
-      const sec=paceStrToSec(perf.pace);
-      if(sec) history.push({ws,sec,pace:perf.pace,hr:perf.hr?parseInt(perf.hr):null});
-    });
-  }
+  _vfHistBefore().forEach(s=>{
+    if(s.type!==type||!s.perf||!s.perf.pace) return;
+    const sec=paceStrToSec(String(s.perf.pace));
+    if(sec) history.push({ws:s.date,sec,pace:s.perf.pace,hr:s.perf.hr?parseInt(s.perf.hr):null});
+  });
   if(history.length===0||!pace) return null;
   const curSec=paceStrToSec(pace);
   if(!curSec) return null;
@@ -626,7 +628,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     const comp=getHistoricalComparison(s.type,pace,hr);
     if(comp){
       analysisContext.historique = {
-        derniereSemaine: comp.last.ws,
+        derniereSeance: comp.last.ws,
         derniereAllure: comp.last.pace,
         evolutionPct: comp.pctLast,
         tendance: comp.diffLast>2?'progression':comp.diffLast<-2?'regression':'stable'
@@ -635,21 +637,15 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         analysisContext.historique.fcComparaison = {
           fcActuelle: hr, fcPrecedente: comp.hrComp.hr,
           evolutionAllureMemeFC: comp.hrComp.pct+'%',
-          semainePrecedente: comp.hrComp.ws
+          seancePrecedente: comp.hrComp.ws
         };
       }
     }
   }
 
   // Historique récent
-  const historyData=[];
-  for(let ws=Math.max(1,CW-8);ws<CW;ws++){
-    getOrderedWeekSessions(ws).forEach(({s:es,ei})=>{
-      if(!state[`extra_w${ws}_s${ei}_done`]) return;
-      let perf={};try{perf=state[`extra_w${ws}_s${ei}_perf`]?JSON.parse(state[`extra_w${ws}_s${ei}_perf`]):{}}catch(e){}
-      historyData.push({semaine:ws,type:es.type,km:state[`extra_w${ws}_s${ei}_km`]||es.km,date_reelle:perf.date||null,...perf});
-    });
-  }
+  // 8 semaines avant celle-ci, toutes prépas confondues
+  const historyData=_vfHistBefore(56).map(s=>({semaine:s.cur?s.w:null,type:s.type,km:s.km,date_reelle:s.date,...s.perf,date:s.date}));
 
   // Fermer le modal de validation et aller dans le Coach
   closeModal();

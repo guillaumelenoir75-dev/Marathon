@@ -26,6 +26,8 @@ const {
   weekTypeFor,
   callAnthropic,
   generateWeeklyBilanContent,
+  efMaxOf,
+  efRefOf,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -358,10 +360,10 @@ exports.briefAfterFcRepos = onSchedule(
         for(let si=0;si<5;si++){
           const pr=state[`w${ws}_s${si}perf`]||state[`s${ws}i${si}perf`];
           if(!pr)continue;
-          try{const p=JSON.parse(pr);if((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}
+          try{const p=JSON.parse(pr);if((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}
         }
         // prépa générée : séances extra (EF à FC ≤ 148)
-        if(state._plan_engine)for(let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr)continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=148){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}}
+        if(state._plan_engine)for(let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr)continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}}
       }
       if(efPaces.length>0){
         let refSec;
@@ -369,7 +371,7 @@ exports.briefAfterFcRepos = onSchedule(
         else{const last3=efPaces.slice(-3);const before3=efPaces.slice(0,-3);const prevBest=before3.length>0?Math.min(...before3):last3[0];const minL=Math.min(...last3);const medL=[...last3].sort((a,b)=>a-b)[1];refSec=minL<=prevBest?minL:medL;}
         let _em=Math.floor(refSec/60);let _es=Math.round(refSec%60);if(_es===60){_em++;_es=0;}efPace=`${_em}'${(_es+'').padStart(2,'0')}`;
       }
-      efPace=efPace||"6'40";
+      efPace=efRefOf(state)||efPace||"6'40";   // référence de l'app sur tout l'historique si récente
 
       const isDecharge=state._plan_engine?weekTypeFor(state,cw)==='décharge':[8,12,16,20].includes(cw);
       const consignesEf=sit.postRace?`Période post-course : footing très facile, FC < 140 bpm, sensations avant l'allure`:isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;

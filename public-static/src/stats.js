@@ -185,20 +185,10 @@ function renderStats(){
   // Tableau performances
   const pr=document.getElementById('perf-rows');
   if(pr){
-    const perfRows=[];
-    for(let ws=1;ws<=CW;ws++){
-      getOrderedWeekSessions(ws).forEach(({s,ei})=>{
-        if(s.type==='rest'||s.km===0) return;
-        const k=`extra_w${ws}_s${ei}`;
-        const done=!!state[k+'_done']||(ws<CW&&state[k+'_km']!=null);
-        if(!done) return;
-        const kmReal=state[k+'_km']!=null?state[k+'_km']:s.km;
-        let perf={};try{perf=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-        const c=typeColor[s.type]||'#888';
-        const title=sessionTitle(s);
-        perfRows.push({ws,si:ei,title,km:kmReal,perf,c,type:s.type,extra:true});
-      });
-    }
+    // toutes les séances réalisées, toutes prépas confondues (prAllDone, plan-optim.js), dans l'ordre des dates
+    const perfRows=(typeof prAllDone==='function'?prAllDone():[]).filter(h=>h.km>0).map((h,i)=>({
+      ws:h.cur?h.w:h.gw, si:i, wl:h.cur?'S'+h.w:new Date(h.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}),
+      title:sessionTitle(h.x), km:h.km, perf:Object.assign({},h.perf,{date:h.date}), c:typeColor[h.type]||'#888', type:h.type, extra:true, cur:h.cur }));
     // Apply filter
     const filtered=perfFilter==='all'?perfRows:perfRows.filter(r=>r.type===perfFilter);
     const moisFr=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -206,9 +196,9 @@ function renderStats(){
       row.bg=typeBg[row.type]||'#f5f5f5';
       if(row.perf.date){
         const d=new Date(row.perf.date);
-        row.month=moisFr[d.getMonth()];
+        row.month=moisFr[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'');
       } else {
-        row.month=weeks[row.ws-1].month;
+        row.month=(weeks[row.ws-1]||{}).month||'';
       }
     });
     if(filtered.length===0){
@@ -228,7 +218,7 @@ function renderStats(){
         const detail=rows.map((row,i)=>`
           <div style="padding:10px 14px;${i<rows.length-1?'border-bottom:1px solid var(--border)':''};">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="font-size:10px;font-weight:700;color:${row.c};background:${row.bg};padding:2px 7px;border-radius:20px;">S${row.ws} · ${typeLabel[row.type]||'EF'}</span>
+              <span style="font-size:10px;font-weight:700;color:${row.c};background:${row.bg};padding:2px 7px;border-radius:20px;">${row.wl||'S'+row.ws} · ${typeLabel[row.type]||'EF'}</span>
               <span style="font-size:13px;font-weight:600;color:var(--text);">${row.title}</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
@@ -1567,18 +1557,9 @@ function renderSessionsHistory() {
   const container = document.getElementById('stats-sessions-section');
   if (!container) return;
 
-  const sessions = [];
-  const maxW = usesHardPlan() ? weeks.length : getAthleteMaxWeek();
-
-  for (let ws = 1; ws <= maxW; ws++) {
-    getOrderedWeekSessions(ws).forEach(({s:es,ei}) => {
-      if (!state[`extra_w${ws}_s${ei}_done`]) return;
-      let perf = {}; try { perf = state[`extra_w${ws}_s${ei}_perf`] ? JSON.parse(state[`extra_w${ws}_s${ei}_perf`]) : {}; } catch(e) {}
-      sessions.push({ ws, type: es.type, title: sessionTitle(es) || 'Séance',
-        km: parseFloat(state[`extra_w${ws}_s${ei}_km`] || es.km) || null,
-        date: perf.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null });
-    });
-  }
+  // toutes les séances réalisées, toutes prépas confondues (prAllDone, plan-optim.js)
+  const sessions = (typeof prAllDone==='function'?prAllDone():[]).map(h=>{ const perf=h.perf||{}; return { ws: h.cur?h.w:h.gw, type: h.type, title: sessionTitle(h.x) || 'Séance',
+    km: h.km || null, date: h.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null }; });
 
   sessions.sort((a, b) => {
     if (a.date && b.date) return b.date.localeCompare(a.date);
