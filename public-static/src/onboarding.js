@@ -1241,7 +1241,7 @@ async function saveOnboarding(){
       // Générer le plan
       setProgress(10,'Calcul des semaines d\'entraînement…');
       await new Promise(r=>setTimeout(r,300));
-      const plan=generateAthletePlan(_obData);
+      const plan=generateAthletePlan({..._obData,recette:(typeof state!=='undefined'&&state&&state._recette)||null});
       const entries=Object.entries(plan||{});
       setProgress(30,'Plan calculé — enregistrement…');
       await new Promise(r=>setTimeout(r,200));

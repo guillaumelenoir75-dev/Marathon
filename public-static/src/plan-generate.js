@@ -189,6 +189,16 @@ function generateAthletePlan(ob){
     '5 km':          {w:1,r:[0.48],          noInt:[1]},
   }[course]||{w:2,r:[0.65,0.30],noInt:[2]};
 
+  // Recette personnelle du coureur (ob.recette = son state._recette, prep-debrief.js) : affûtage d'une course réussie
+  // de la même famille (±15 % autour du standard), progression de volume plafonnée
+  const recette=ob.recette||null;
+  const recTaper=recette&&recette.taper&&recette.taper[(course==='Marathon'||course==='Semi-marathon')?'long':'short'];
+  if(recTaper&&taperCfg.r.length){
+    const mine=[recTaper.w2,recTaper.w1,recTaper.w0].slice(-taperCfg.r.length);
+    taperCfg.r=taperCfg.r.map((r,i)=>isFinite(mine[i])?Math.round(Math.min(r+0.15,Math.max(r-0.15,mine[i]))*100)/100:r);
+  }
+  const recProg=recette&&recette.progression>=1.03&&recette.progression<=1.2?recette.progression:null;
+
   // taperStartW calculé ici pour que recovery ne chevauche jamais le taper
   const taperStartW=taperCfg.w>0?numWeeks-taperCfg.w+1:numWeeks+1;
 
@@ -219,7 +229,7 @@ function generateAthletePlan(ob){
     } else {
       weekKms.push(Math.min(Math.round(cur),peakKm));
       // Règle des 10% : max +10%/sem en phase de construction
-      if(cur<peakKm) cur=Math.min(cur*(cur<15?1.10:1.07),peakKm);
+      if(cur<peakKm) cur=Math.min(cur*Math.min(cur<15?1.10:1.07,recProg||9),peakKm);
     }
   }
   // Appliquer l'affûtage sur les dernières semaines

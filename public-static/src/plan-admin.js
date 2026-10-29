@@ -422,7 +422,7 @@ async function cvRegeneratePlan(){
   ob=ob||{};
   if(!ob.course){ alert('Données onboarding introuvables.'); return; }
 
-  const newPlan=generateAthletePlan(ob);
+  const newPlan=generateAthletePlan({...ob,recette:state._recette||null});
   const {updates,nbUpdated,nbKept}=_buildPlanUpdates(state,newPlan);
 
   await dbRef.update(updates).catch(e=>alert('Erreur : '+e.message));
@@ -506,7 +506,7 @@ function openRegenFromDateModal(){
     ob=ob||{};
     if(!ob.course){alert('Données onboarding introuvables.');return;}
     ob={...ob,plan_start_date:dateVal};
-    const newPlan=generateAthletePlan(ob);
+    const newPlan=generateAthletePlan({...ob,recette:state._recette||null});
     const {updates,nbUpdated,nbKept}=_buildPlanUpdates(state,newPlan);
     // BUG FIX : plan_start_date et onboarding doivent être persistés après regen
     updates.plan_start_date=dateVal;
@@ -589,7 +589,7 @@ async function adminUpdateAllPlans(){
         if(!ob||!ob.course){nbSkipped++;continue;}
 
         // Générer le nouveau plan et construire les updates (décalage automatique)
-        const newPlan=generateAthletePlan(ob);
+        const newPlan=generateAthletePlan({...ob,recette:st._recette||null});
         const {updates,nbUpdated:nu,nbKept:nk}=_buildPlanUpdates(st,newPlan);
 
         // Écrire en DB via dbAdmin

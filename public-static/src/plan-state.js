@@ -362,7 +362,7 @@ async function tryAutoCalculateEF(){
         fc_max:state.fc_max||'',
         run_days:runDays,run_times:runTimes,run_time:state.run_time||'',
       };
-      const planUpdates=generateAthletePlan(ob);
+      const planUpdates=generateAthletePlan({...ob,recette:state._recette||null});
       Object.entries(planUpdates).forEach(([k,v])=>{ state[k]=v; });
       Object.assign(dbUpdates,planUpdates);
     }
