@@ -196,7 +196,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   // Statistiques : carte « Signaux du corps » (zones FC, foulée)
   await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); showScreen('stats'); });
   await page.waitForTimeout(600);
-  assert.ok(await page.evaluate(() => /Signaux du corps/.test(document.getElementById('bs-stats-card').textContent) && /endurance jusqu'à 148 bpm/.test(document.getElementById('bs-stats-card').textContent)));
+  assert.ok(await page.evaluate(() => /Signaux du corps/.test(document.getElementById('bs-stats-card').textContent) && /EF ≤ 148/.test(document.getElementById('bs-stats-card').textContent)));
   // accueil du dimanche : bouton « ta semaine en image » → aperçu PNG
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   await page.waitForSelector('.ws-home');
