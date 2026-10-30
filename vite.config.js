@@ -4,7 +4,7 @@ import { resolve } from 'path';
 
 // Ordre de chargement exact des scripts classiques (dépendances respectées)
 const scriptFiles = [
-  'config.js', 'firebase.js', 'auth.js', 'onboarding.js',
+  'config.js', 'firebase.js', 'sync.js', 'auth.js', 'onboarding.js',
   'plan-generate.js', 'plan-admin.js', 'race-live.js', 'plan-state.js', 'plan-predict.js',
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',

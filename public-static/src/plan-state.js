@@ -443,7 +443,9 @@ function isPlaisirMode(st) {
 
 function save(){
   if(typeof prHistoryChanged==='function') prHistoryChanged();   // historique des analyses à recalculer (plan-optim.js)
-  if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
+  // seulement les clés modifiées (sync.js) : une écriture du serveur ou d'un autre appareil n'est pas écrasée ; gardé sans réseau
+  if(typeof syncSave==='function') syncSave();
+  else if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
   if(typeof syncPlanCompat==='function'&&isAdmin()&&!usesHardPlan()) syncPlanCompat();   // séances ajoutées/modifiées
   setTimeout(checkCoachAlerts, 100);
 }

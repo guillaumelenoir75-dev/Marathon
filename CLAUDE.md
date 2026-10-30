@@ -19,6 +19,7 @@ Chargés dans cet ordre (dépendances respectées) :
 |---|---|
 | `config.js` | Constantes globales (FUNCTIONS_BASE, typeLabel, typeColor…) |
 | `firebase.js` | Init Firebase, auth, dbRef, variables globales partagées |
+| `sync.js` | Enregistrement de l'état : `save()` → `syncSave()` n'écrit que les clés modifiées depuis la dernière version connue de la base (`dbRef.update`, base par emplacement `_syncBases`, `syncBaseReset` à chaque rechargement de l'état) → une écriture du serveur (pilote de nuit, Strava, WHOOP) ou d'un autre appareil n'est jamais écrasée ; état remplacé (copie, athlète, prépa à venir) = écriture complète. **Hors ligne** : écritures gardées dans `localStorage` (`pm_pending_<uid>`) jusqu'à l'accusé de la base, rejouées au lancement suivant (`syncApplyPending`) ; démarrage sans réseau sur la copie `pm_state_<uid>` / `pm_role_<uid>` (`syncOfflineOnce`, 8 s ou tout de suite si hors ligne), rechargement au retour du réseau (`syncOnReconnect`), bandeau « Hors connexion » (`syncStatusRender`). L'app elle-même est gardée par le service worker (`sw.js`, cache `pm-shell-v1`) |
 | `auth.js` | Connexion / déconnexion |
 | `onboarding.js` | Écran de bienvenue premier lancement |
 | `plan-generate.js` | Génération du plan marathon (semaines/séances) |

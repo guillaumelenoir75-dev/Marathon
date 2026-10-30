@@ -39,6 +39,7 @@ async function open(dateIso, db, opts) {
   await ctx.route(/chart\.umd/, (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.Chart=function(){return{destroy(){},update(){},data:{datasets:[]},options:{}}};window.Chart.register=function(){};' }));
   await ctx.addInitScript((t) => { const real = Date.now.bind(Date), off = t - real(), D = Date; class FD extends D { constructor(...a) { if (a.length === 0) super(real() + off); else super(...a); } static now() { return real() + off; } } window.Date = FD; }, new Date(dateIso).getTime());
   if (db) await ctx.addInitScript((j) => { window.__DB = JSON.parse(j); }, db);
+  if (opts.init) await ctx.addInitScript(opts.init, opts.initArg);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -342,6 +343,45 @@ test('Statistiques en onglets (Forme / Entraînement / Historique), chaussures d
   await page.evaluate(() => { showScreen('compte'); openShoesPanel(); }); await page.waitForTimeout(300);
   assert.match(await page.textContent('#shoes-panel'), /Ajouter une paire/);
   await page.evaluate(() => closeShoesPanel());
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('enregistrement ciblé : une écriture du serveur n\'est pas écrasée ; hors ligne, rien n\'est perdu (rejoué au lancement suivant)', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  // la nuit, le serveur écrit une clé que l'app ouverte ne connaît pas encore
+  await page.evaluate(() => { window.__DB.users.ADMINUID.state._autopilot_last = { date: 'serveur' }; state.extra_note_test = 'app'; save(); });
+  await page.waitForTimeout(200);
+  let S = JSON.parse(await db(page)).users.ADMINUID.state;
+  assert.equal(S._autopilot_last.date, 'serveur', 'écriture du serveur conservée');
+  assert.equal(S.extra_note_test, 'app');
+  // sans réseau : modification gardée sur le téléphone, pas encore dans la base
+  await page.evaluate(() => { window.__HOLD = true; state.extra_offline_test = 'hors-ligne'; delete state.extra_note_test; save(); });
+  await page.waitForTimeout(200);
+  S = JSON.parse(await db(page)).users.ADMINUID.state;
+  assert.equal(S.extra_offline_test, undefined); assert.equal(S.extra_note_test, 'app');
+  const pending = await page.evaluate(() => localStorage.getItem('pm_pending_ADMINUID'));
+  assert.ok(pending && /hors-ligne/.test(pending), 'en attente sur le téléphone');
+  const dbNow = await db(page);
+  await ctx.close();   // app fermée avant le retour du réseau
+  // lancement suivant : écritures en attente rejouées
+  const b = await open('2026-10-29T10:00:00+01:00', dbNow, { init: (p) => localStorage.setItem('pm_pending_ADMINUID', p), initArg: pending });
+  await b.page.waitForTimeout(300);
+  S = JSON.parse(await db(b.page)).users.ADMINUID.state;
+  assert.equal(S.extra_offline_test, 'hors-ligne', 'rejouée'); assert.equal(S.extra_note_test, undefined, 'suppression rejouée');
+  assert.equal(S._autopilot_last.date, 'serveur');
+  assert.equal(await b.page.evaluate(() => localStorage.getItem('pm_pending_ADMINUID')), null, 'plus rien en attente');
+  assert.deepEqual(errors.concat(b.errors), []);
+  await b.ctx.close();
+});
+
+test('démarrage sans réseau : l\'app s\'ouvre sur la copie du téléphone, bandeau « Hors connexion »', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const st = JSON.stringify(JSON.parse(savedDb).users.ADMINUID.state);
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { init: (s) => { localStorage.setItem('pm_state_ADMINUID', s); localStorage.setItem('pm_role_ADMINUID', 'admin'); window.__NO_NET = true; Object.defineProperty(navigator, 'onLine', { get: () => false }); }, initArg: st });
+  assert.ok(await page.evaluate(() => !!state.plan_start_date && !!document.getElementById('sync-banner')));
+  assert.match(await page.textContent('#sync-banner'), /Hors connexion/);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

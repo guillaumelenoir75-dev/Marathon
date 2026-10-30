@@ -4,13 +4,46 @@
 self.addEventListener('install', event => { self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(clients.claim()); });
 
-// Force index.html à toujours venir du réseau (bypass du cache iOS PWA)
+// Ouverture sans réseau : l'app (page, scripts, bibliothèques) est gardée dans le cache « pm-shell ».
+// - page d'accueil : toujours depuis le réseau (contourne le cache iOS), copie de secours si hors ligne ;
+// - scripts versionnés (bundle-<n°>.js, lazy-*, Firebase, Chart.js, polices) : cache d'abord (nom unique par version) ;
+// - autres fichiers de l'app : réseau d'abord, cache si hors ligne. Base de données, fonctions, API : jamais interceptées.
+const SHELL = 'pm-shell-v1';
+const VERSIONED = /\/src\/(bundle|lazy)-[\w-]+\.js$/;
+const CDN = /^https:\/\/(www\.gstatic\.com\/firebasejs\/|cdn\.jsdelivr\.net\/npm\/|cdnjs\.cloudflare\.com\/|fonts\.(googleapis|gstatic)\.com\/)/;
+async function shellPut(req, res) {
+  if (!res || !(res.ok || res.type === 'opaque')) return res;
+  try {
+    const c = await caches.open(SHELL);
+    await c.put(req, res.clone());
+    // anciennes versions du bundle : on garde les 2 plus récentes de chaque famille
+    const m = new URL(req.url).pathname.match(/\/src\/((?:bundle|lazy-[a-z]+))-(\d+)\.js$/);
+    if (m) {
+      const same = (await c.keys()).map(k => ({ k, m: new URL(k.url).pathname.match(/\/src\/((?:bundle|lazy-[a-z]+))-(\d+)\.js$/) }))
+        .filter(x => x.m && x.m[1] === m[1]).sort((a, b) => +b.m[2] - +a.m[2]);
+      same.slice(2).forEach(x => c.delete(x.k));
+    }
+  } catch (e) {}
+  return res;
+}
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  if (url.pathname === '/' || url.pathname === '/index.html') {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  const same = url.origin === self.location.origin;
+  if (same && (url.pathname === '/' || url.pathname === '/index.html')) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
+      fetch(req, { cache: 'no-store' }).then(r => shellPut(new Request('/'), r))
+        .catch(() => caches.match('/', { ignoreSearch: true }).then(r => r || caches.match(req)))
     );
+    return;
+  }
+  if ((same && VERSIONED.test(url.pathname)) || CDN.test(req.url)) {
+    event.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => shellPut(req, r))));
+    return;
+  }
+  if (same && /^\/(src\/|manifest\.json$|[\w-]+\.(png|svg|css)$)/.test(url.pathname)) {
+    event.respondWith(fetch(req).then(r => shellPut(req, r)).catch(() => caches.match(req)));
   }
 });
 

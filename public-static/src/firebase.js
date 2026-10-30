@@ -75,8 +75,11 @@ function initFirebase(){
             const db=firebase.database();
 
             // Charger ou initialiser le rôle
-            let roleSnap=await db.ref('users/'+user.uid+'/role').once('value');
+            // sans réseau : rôle et état gardés sur le téléphone (sync.js)
+            const _once=(r,k,ms)=>typeof syncOfflineOnce==='function'?syncOfflineOnce(r,k,ms):r.once('value');
+            let roleSnap=await _once(db.ref('users/'+user.uid+'/role'),'pm_role_'+user.uid,8000);
             currentUserRole=roleSnap.val();
+            if(typeof syncCacheRole==='function') syncCacheRole(user.uid,currentUserRole);
 
             // Auto-attribution admin à la première connexion de l'admin
             if(!currentUserRole && user.email===ADMIN_EMAIL){
@@ -107,7 +110,7 @@ function initFirebase(){
 
             // Migration one-time : admin récupère ses données depuis marathon/state
             if(isAdmin()){
-              const existingSnap=await dbRef.once('value');
+              const existingSnap=await _once(dbRef,'pm_state_'+user.uid,8000);
               if(!existingSnap.val()){
                 const oldSnap=await db.ref('marathon/state').once('value');
                 if(oldSnap.val()){
@@ -117,9 +120,11 @@ function initFirebase(){
               }
             }
 
-            dbRef.once('value',(snapshot)=>{
+            _once(dbRef,'pm_state_'+user.uid,8000).then((snapshot)=>{
               const data=snapshot.val();
               if(data) state=data;
+              // base = version de la base ; écritures faites sans réseau puis app fermée : rejouées
+              if(typeof syncBaseReset==='function'){ syncBaseReset(data||{}); syncApplyPending(); if(snapshot._cached) syncMarkFromCache(true); syncWatchConnection(); }
               migrateState();
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
@@ -127,7 +132,8 @@ function initFirebase(){
               if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
               if(typeof whoopFcToState==='function'&&state.whoop_data) whoopFcToState(state.whoop_data);   // FC repos = FC de nuit WHOOP
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
-              if(dbRef) dbRef.set(state).catch(()=>{}); // persister les migrations
+              if(typeof syncSave==='function'){ if(!snapshot._cached){ syncSave(); syncCacheState(true); } }   // persister les migrations (clés modifiées seulement)
+              else if(dbRef) dbRef.set(state).catch(()=>{});
               firebaseReady=true;
               hideLoginScreen();
               applyRoleUI();
@@ -298,7 +304,7 @@ async function openCoachFromNotif() {
   try { await dbRef.child('_open_coach').remove(); } catch(e) {}
   try {
     const stateSnap = await dbRef.once('value');
-    if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncPlanCompat==='function') syncPlanCompat(); }
+    if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncBaseReset==='function'){ syncBaseReset(state); if(syncApplyPending()) syncSave(); } if(typeof syncPlanCompat==='function') syncPlanCompat(); }
   } catch(e) {}
 
   try { await loadCoachHistory(); } catch(e) {}

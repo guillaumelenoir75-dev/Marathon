@@ -14,16 +14,21 @@
   function snap(p) { const v = clone(get(p)), ks = split(p); return { val: () => v, exists: () => v != null, key: ks[ks.length - 1] || null, forEach(fn) { if (v && typeof v === 'object') Object.keys(v).forEach((k) => fn(snap(p + '/' + k))); }, child: (c) => snap(p + '/' + c) }; }
   function notify(p) { listeners.slice().forEach((l) => { if (l.path === p || p.startsWith(l.path + '/') || l.path.startsWith(p + '/')) { try { l.cb(snap(l.path)); } catch (e) {} } }); }
   let pushN = 0;
+  // réseau simulé : window.__HOLD = écritures en attente (envoyées par window.__flush()), window.__NO_NET = lectures sans réponse
+  const held = [];
+  const write = (fn) => { if (!window.__HOLD) { fn(); return Promise.resolve(); } return new Promise((res) => held.push(() => { fn(); res(); })); };
+  window.__flush = () => { window.__HOLD = false; held.splice(0).forEach((f) => f()); };
   function ref(path) {
     const p = split(path).join('/');
     const r = {
       key: split(p).pop() || null,
+      toString: () => 'mock://db/' + p,
       child: (c) => ref(p + '/' + c),
-      once: (ev, cb) => { const s = snap(p); if (typeof cb === 'function') cb(s); return Promise.resolve(s); },
+      once: (ev, cb) => { if (window.__NO_NET) return new Promise(() => {}); const s = snap(p); if (typeof cb === 'function') cb(s); return Promise.resolve(s); },
       on: (ev, cb) => { listeners.push({ path: p, cb }); setTimeout(() => cb(snap(p)), 0); return cb; },
       off: (ev, cb) => { for (let i = listeners.length - 1; i >= 0; i--) if (listeners[i].path === p && (!cb || listeners[i].cb === cb)) listeners.splice(i, 1); },
-      set: (v) => { setAt(p, v); notify(p); return Promise.resolve(); },
-      update: (o) => { Object.keys(o || {}).forEach((k) => setAt(p + '/' + k, o[k])); notify(p); return Promise.resolve(); },
+      set: (v) => write(() => { setAt(p, v); notify(p); }),
+      update: (o) => write(() => { Object.keys(o || {}).forEach((k) => setAt(p + '/' + k, o[k])); notify(p); }),
       remove: () => { setAt(p, null); notify(p); return Promise.resolve(); },
       push: (v) => { const c = ref(p + '/k' + String(++pushN).padStart(6, '0')); if (v !== undefined) c.set(v); return c; },
       transaction: (fn) => { const nv = fn(clone(get(p))); if (nv !== undefined) setAt(p, nv); notify(p); return Promise.resolve({ committed: true, snapshot: snap(p) }); },

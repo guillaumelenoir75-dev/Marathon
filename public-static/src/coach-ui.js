@@ -749,7 +749,7 @@ async function generateFullBriefFromNotif(memos) {
   if (dbRef && (!state || Object.keys(state).length === 0)) {
     try {
       const stateSnap = await dbRef.once('value');
-      if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncPlanCompat==='function') syncPlanCompat(); }
+      if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncBaseReset==='function'){ syncBaseReset(state); if(syncApplyPending()) syncSave(); } if(typeof syncPlanCompat==='function') syncPlanCompat(); }
     } catch(e) {}
   }
 

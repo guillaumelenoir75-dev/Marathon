@@ -101,7 +101,7 @@ async function apRefreshIfServerChanged(){
     const rev = (await dbRef.child('_server_rev').once('value')).val();
     if(!rev || rev === state._server_rev) return false;
     const snap = await dbRef.once('value'); if(!snap.val()) return false;
-    state = snap.val(); if(typeof syncPlanCompat === 'function') syncPlanCompat();
+    state = snap.val(); if(typeof syncBaseReset==='function'){ syncBaseReset(state); if(syncApplyPending()) syncSave(); } if(typeof syncPlanCompat === 'function') syncPlanCompat();
     if(typeof prHistoryChanged === 'function') prHistoryChanged();
     if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
     try { renderHome(); } catch(e) {}
