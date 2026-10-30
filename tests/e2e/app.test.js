@@ -88,7 +88,7 @@ test('historique complet : la prépa Seine-Eure enregistrée nourrit les analyse
   assert.ok(h.old > 0, 'séances de la prépa Seine-Eure dans l\'historique : ' + JSON.stringify(h));
   // Statistiques : historique des séances et tableau des performances, toutes prépas confondues
   await page.evaluate(() => { showScreen('stats'); renderStats(); }); await page.waitForTimeout(500);
-  assert.match(await page.textContent('#stats-sessions-section'), / avr /, 'séances d\'avril (Seine-Eure) listées avec celles de la nouvelle prépa');
+  assert.match(await page.textContent('#perf-rows'), / avr /, 'séances d\'avril (Seine-Eure) listées avec celles de la nouvelle prépa');
   // prédiction et contexte du Coach construits sur l'historique, sans erreur
   const r = await page.evaluate(() => { const p = buildMarathonPrediction(); const c = typeof buildCompactContext === 'function' ? buildCompactContext(null, [], 'jeudi', '09:00') : null;
     return { nb: p.nbSeances || 0, months: c && c.historique_complet_par_mois ? c.historique_complet_par_mois.length : (c ? -1 : -2) }; });
@@ -315,6 +315,33 @@ test('pilote automatique : ajustements de la nuit expliqués sur l\'accueil, ann
   await page.evaluate(() => { showScreen('compte'); openAutopilotSettings(); });
   await page.click('#ap-set .ap-opt:nth-of-type(2)');
   assert.equal(JSON.parse(await db(page)).users.ADMINUID.state._autopilot, 'suggest');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Statistiques en onglets (Forme / Entraînement / Historique), chaussures dans Compte, gels dans le plan de course', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(() => showScreen('stats')); await page.waitForTimeout(700);
+  const vis = (sel) => page.evaluate((s) => { const e = document.querySelector(s); return !!e && e.offsetParent !== null; }, sel);
+  assert.ok(await vis('#fm-card') && !(await vis('#chart-km')) && !(await vis('#perf-rows')), 'Forme par défaut');
+  await page.click('#st-tabs button[data-st="train"]');
+  assert.ok(await vis('#chart-km') && await vis('#bs-stats-card') && !(await vis('#fm-card')));
+  await page.click('#st-tabs button[data-st="hist"]');
+  assert.ok(await vis('#perf-rows'));
+  // une seule liste : ligne compacte par séance, détail au toucher
+  assert.ok(await vis('#perf-rows .ph-row'), 'mois le plus récent ouvert');
+  const row = page.locator('#perf-rows .ph-row').first();
+  await row.click();
+  assert.ok(await page.evaluate(() => [...document.querySelectorAll('[id^="prd_"]')].some((e) => e.style.display === 'block')), 'détail ouvert');
+  assert.equal(await page.evaluate(() => !!document.getElementById('stats-sessions-section') || !!document.getElementById('stats-gels-section') || !!document.getElementById('shoes-bars')), false);
+  // onglet mémorisé
+  await page.evaluate(() => { showScreen('home'); showScreen('stats'); }); await page.waitForTimeout(300);
+  assert.ok(await vis('#perf-rows'), 'dernier onglet rouvert');
+  // chaussures : Compte › Mes chaussures
+  await page.evaluate(() => { showScreen('compte'); openShoesPanel(); }); await page.waitForTimeout(300);
+  assert.match(await page.textContent('#shoes-panel'), /Ajouter une paire/);
+  await page.evaluate(() => closeShoesPanel());
   assert.deepEqual(errors, []);
   await ctx.close();
 });

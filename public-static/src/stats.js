@@ -3,7 +3,6 @@ function renderStats(){
   if(chartKm)chartKm.destroy();
   renderFcReposChart();
   if(isAdmin()){ renderWhoopStats(); _initStatsPTR(); }
-  renderSessionsHistory();
   if(typeof bsRenderStatsCard === 'function') bsRenderStatsCard();         // signaux du corps : foulée, zones FC (body-signals.js)
   if(typeof fmRenderStatsCard === 'function') fmRenderStatsCard();         // forme / fatigue, jour J, affûtage (fitness-model.js)
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
@@ -135,54 +134,7 @@ function renderStats(){
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
   if(badge) badge.textContent = (usesHardPlan() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
-  const sb=document.getElementById('shoes-bars');if(!sb) return;sb.innerHTML='';
-  const dynamicShoes=getShoes();
-  if(dynamicShoes.length===0){
-    sb.innerHTML='<div style="text-align:center;padding:16px 12px 20px;border:1.5px dashed var(--border);border-radius:14px;"><p style="font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4;">👟 Aucune chaussure renseignée.<br><span style="font-size:11px;">Ajoute tes paires pour suivre leur kilométrage et savoir quand les remplacer.</span></p><button onclick="openAddShoeModal()" style="padding:9px 18px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">+ Ajouter une chaussure</button></div>';
-    const sm=document.getElementById('shoes-manage');
-    if(sm) sm.innerHTML='';
-    return;
-  }
-  dynamicShoes.forEach((sh)=>{
-    const km=shoeKmTotal(sh.name);
-    const pct=Math.min(100,Math.round(km/sh.max*100));
-    const row=document.createElement('div');
-    row.style.cssText='margin-bottom:14px;';
-    // ligne : nom complet (touche → historique) · km à droite · actions en icônes
-    const _icoBtn='width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;cursor:pointer;';
-    row.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:7px;">
-      <button type="button" onclick="openShoeHistory('${sh.name}')" title="Voir l'historique des séances" style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;background:none;border:none;padding:0;text-align:left;cursor:pointer;font-family:inherit;">
-        <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};flex-shrink:0;margin-top:4px;"></span>
-        <span style="min-width:0;">
-          <span style="display:block;font-size:13.5px;font-weight:700;color:var(--text);line-height:1.3;">${sh.name}</span>
-          <span style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:3px;font-size:10.5px;color:var(--muted);font-weight:600;">
-            <span style="text-decoration:underline dotted;">Historique</span>
-            ${sh.retired?'<span style="color:#92400E;background:#FEF3C7;border-radius:10px;padding:1px 6px;">retirée</span>':''}
-            ${shoeStravaFor(sh.name)?'<span title="Kilométrage Strava" style="font-weight:800;color:#FC4C02;background:#FFF1EA;border-radius:6px;padding:1px 5px;">STRAVA</span>':''}
-          </span>
-        </span>
-      </button>
-      <span style="flex-shrink:0;font-size:14px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:1px;">${km}<span style="color:var(--muted);font-weight:600;font-size:12px;"> / ${sh.max} km</span></span>
-      <button onclick="openEditShoeModal('${sh.name}')" aria-label="Modifier ${sh.name}" title="Modifier" style="${_icoBtn}background:var(--bg2);border:1px solid var(--border);color:var(--muted);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
-      </button>
-      <button onclick="deleteShoe('${sh.name}')" aria-label="Supprimer ${sh.name}" title="Supprimer" style="${_icoBtn}background:#fff;border:1px solid #F1D4D4;color:#C0392B;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
-      </button>
-    </div>
-    <div style="background:var(--bg2);border-radius:4px;height:8px;">
-      <div style="background:${sh.color};border-radius:4px;height:8px;width:${pct}%;transition:width 0.5s;"></div>
-    </div>`;
-    sb.appendChild(row);
-  });
-
-  // Shoe management section
-  const sm=document.getElementById('shoes-manage');
-  if(sm) sm.innerHTML=`<button onclick="openAddShoeModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(27,79,216,0.35);">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    👟 Ajouter une paire de chaussures
-  </button>${state.strava_token?`<button onclick="openShoesStravaModal()" style="width:100%;margin-top:8px;padding:12px;background:#fff;border:1.5px solid #FDBA9A;border-radius:14px;font-size:13.5px;font-weight:800;color:#C2410C;cursor:pointer;">🔗 Relier mes chaussures à Strava</button>`:''}`;
-  if(typeof shoesStravaSync==='function') shoesStravaSync();
+  renderShoesList();   // Compte › Mes chaussures (si ouvert)
   // Tableau performances
   const pr=document.getElementById('perf-rows');
   if(pr){
@@ -212,17 +164,16 @@ function renderStats(){
         byMonth[row.month].push(row);
       });
       pr.innerHTML='';
-      Object.entries(byMonth).forEach(([month,rows])=>{
+      Object.entries(byMonth).forEach(([month,rows],mi)=>{
         const totalKm=rows.reduce((a,r)=>a+Number(r.km),0);
         const hid='pm_'+month.replace(/[^a-zA-Z]/g,'_');
         const card=document.createElement('div');
         card.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;';
+        // une ligne par séance (type, date · km · allure · FC, effort WHOOP) ; toucher = détail
         const detail=rows.map((row,i)=>`
-          <div style="padding:10px 14px;${i<rows.length-1?'border-bottom:1px solid var(--border)':''};">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="font-size:10px;font-weight:700;color:${row.c};background:${row.bg};padding:2px 7px;border-radius:20px;">${row.wl||'S'+row.ws} · ${typeLabel[row.type]||'EF'}</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text);">${row.title}</span>
-            </div>
+          <div style="${i<rows.length-1?'border-bottom:1px solid var(--border)':''};">
+            ${_perfLine(row, hid+'_'+i)}
+            <div id="prd_${hid}_${i}" style="display:none;padding:0 14px 12px;">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
               <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">KM</p><p style="font-size:14px;font-weight:700;color:var(--text);">${row.km}</p></div>
               <div style="background:var(--bg2);border-radius:6px;padding:6px;text-align:center;"><p style="font-size:10px;color:var(--muted);margin-bottom:2px;">Durée</p><p style="font-size:12px;font-weight:700;color:var(--text);">${row.perf.dur||'—'}</p></div>
@@ -308,30 +259,101 @@ function renderStats(){
               sh += '</div></div>';
               return sh;
             })()}
+            </div>
           </div>`).join('');
-        card.innerHTML=`<div onclick="togglePerfMonth('${hid}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;user-select:none;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.06em;">${month}</span><span style="font-size:11px;color:var(--muted);">${rows.length} séance${rows.length>1?'s':''}</span></div><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:600;color:var(--text);">${Math.round(totalKm*10)/10} km</span><svg id="arr-${hid}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="transition:transform 0.2s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg></div></div><div id="${hid}" style="display:none;border-top:1px solid var(--border);">${detail}</div>`;
+        card.innerHTML=`<div onclick="togglePerfMonth('${hid}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;user-select:none;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.06em;">${month}</span><span style="font-size:11px;color:var(--muted);">${rows.length} séance${rows.length>1?'s':''}</span></div><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:600;color:var(--text);">${Math.round(totalKm*10)/10} km</span><svg id="arr-${hid}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="transition:transform 0.2s;flex-shrink:0;${mi===0?'transform:rotate(180deg);':''}"><polyline points="6 9 12 15 18 9"/></svg></div></div><div id="${hid}" style="display:${mi===0?'block':'none'};border-top:1px solid var(--border);">${detail}</div>`;
         pr.appendChild(card);
       });
     }
   }
+}
 
-  // stratégie gels : inutile pour une course objectif de moins de 21 km (ex. 10 km)
-  const _gelSec=document.getElementById('stats-gels-section');
-  if(_gelSec&&isAdmin()) _gelSec.style.display=(prepRace().km&&prepRace().km<21)?'none':'';
-  const gr=document.getElementById('gels-rows');gr.innerHTML='';
-  if(!gels.length){
-    const empty=document.createElement('div');
-    empty.style.cssText='padding:14px 16px;font-size:12px;color:var(--muted);font-style:italic;text-align:center;line-height:1.5;';
-    empty.textContent='La stratégie gels sera calculée automatiquement après tes premières sorties longues.';
-    gr.appendChild(empty);
-  } else {
-    gels.forEach((g,i)=>{
-      const row=document.createElement('div');
-      row.style.cssText=`display:grid;grid-template-columns:72px 52px 1fr;padding:10px 12px;border-bottom:${i<gels.length-1?'1px solid var(--border)':'none'};`;
-      row.innerHTML=`<span style="font-size:13px;color:var(--text);">${typeof g.km==='number'?g.km+' km':g.km}</span><span style="font-size:13px;font-weight:600;color:#1B4FD8;">${g.nb} gel${g.nb>1?'s':''}</span><span style="font-size:12px;color:var(--muted);">${g.t}</span>`;
-      gr.appendChild(row);
-    });
+// Historique (Statistiques) : ligne compacte d'une séance, qui ouvre son détail
+const _PERF_SHORT={ef:'EF',tempo:'Tempo',frac:'Frac.',long:'SL',race:'Course',sortie:'SL',marathon:'Course',cac:'CAC'};
+function _perfLine(row, id){
+  const p=row.perf||{}, wh=p.whoop||{}, strain=wh.workout_strain!=null?+wh.workout_strain:wh.cycle_strain!=null?+wh.cycle_strain:null;
+  const sc=strain==null?'':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=8?'#16a34a':strain>=4?'#3b82f6':'#6b7280';
+  const dt=p.date?new Date(p.date+'T12:00:00'):null;
+  const d=dt?['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][dt.getDay()]+' '+dt.getDate()+' '+['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'][dt.getMonth()]:(row.wl||'S'+row.ws);
+  const meta=[d, row.km+' km']; if(p.pace) meta.push(p.pace+'/km'); if(p.hr) meta.push('FC '+p.hr);
+  return `<button type="button" class="ph-row" onclick="togglePerfRow('${id}')"><span class="ph-b" style="color:${row.c};background:${row.bg};">${_PERF_SHORT[row.type]||(typeLabel[row.type]||'EF')}</span>`
+    +`<span class="ph-m"><b>${row.title}</b><small>${meta.join(' · ')}</small></span>`
+    +(strain!=null?`<span class="ph-e"><small>Effort</small><b style="color:${sc};">${strain.toFixed(1)}</b></span>`:'')
+    +`<svg id="arr-prd_${id}" class="ph-c" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>`;
+}
+function togglePerfRow(id){
+  const el=document.getElementById('prd_'+id), a=document.getElementById('arr-prd_'+id); if(!el) return;
+  const open=el.style.display==='none'; el.style.display=open?'block':'none'; if(a) a.style.transform=open?'rotate(180deg)':'';
+}
+
+// ── Statistiques en onglets : Forme · Entraînement · Historique (dernier onglet mémorisé) ──
+function statsTab(t){
+  if(['forme','train','hist'].indexOf(t)<0) t='forme';
+  document.querySelectorAll('#sc-stats .st-pane').forEach(el=>{ el.style.display=el.dataset.st===t?'':'none'; });
+  document.querySelectorAll('#st-tabs button').forEach(b=>{ const on=b.dataset.st===t; b.classList.toggle('on',on); b.setAttribute('aria-selected',on?'true':'false'); });
+  try{ localStorage.setItem('stats_tab',t); }catch(e){}
+  // graphiques dessinés dans un onglet caché : remis à la bonne taille
+  setTimeout(()=>{ try{ if(chartKm) chartKm.resize(); if(_whoopChart) _whoopChart.resize(); }catch(e){} },30);
+}
+function statsTabInit(){ let t='forme'; try{ t=localStorage.getItem('stats_tab')||'forme'; }catch(e){} statsTab(t); }
+// récupération WHOOP : le graphique 7 jours s'ouvre en touchant le score ou une tuile, sur la bonne courbe
+function whoopChartOpen(mode){
+  const box=document.getElementById('whoop-chart-box'), lnk=document.getElementById('whoop-chart-link'); if(!box) return;
+  const same=box.style.display!=='none'&&mode===_whoopChartMode;
+  box.style.display=same?'none':''; if(lnk) lnk.textContent=same?'Voir l\'évolution sur 7 jours ›':'Masquer l\'évolution';
+  if(!same){ switchUnifiedChart(mode||_whoopChartMode); setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}),60); }
+}
+
+// Liste des chaussures (km, historique, modifier / supprimer, ajout, Strava) : Compte › « Mes chaussures » (openShoesPanel, shoes.js)
+function renderShoesList(){
+  const sb=document.getElementById('shoes-bars');if(!sb) return;sb.innerHTML='';
+  const dynamicShoes=getShoes();
+  if(dynamicShoes.length===0){
+    sb.innerHTML='<div style="text-align:center;padding:16px 12px 20px;border:1.5px dashed var(--border);border-radius:14px;"><p style="font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4;">👟 Aucune chaussure renseignée.<br><span style="font-size:11px;">Ajoute tes paires pour suivre leur kilométrage et savoir quand les remplacer.</span></p><button onclick="openAddShoeModal()" style="padding:9px 18px;background:#1B4FD8;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">+ Ajouter une chaussure</button></div>';
+    const sm=document.getElementById('shoes-manage');
+    if(sm) sm.innerHTML='';
+    return;
   }
+  dynamicShoes.forEach((sh)=>{
+    const km=shoeKmTotal(sh.name);
+    const pct=Math.min(100,Math.round(km/sh.max*100));
+    const row=document.createElement('div');
+    row.style.cssText='margin-bottom:14px;';
+    // ligne : nom complet (touche → historique) · km à droite · actions en icônes
+    const _icoBtn='width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;cursor:pointer;';
+    row.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:7px;">
+      <button type="button" onclick="openShoeHistory('${sh.name}')" title="Voir l'historique des séances" style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;background:none;border:none;padding:0;text-align:left;cursor:pointer;font-family:inherit;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${sh.color};flex-shrink:0;margin-top:4px;"></span>
+        <span style="min-width:0;">
+          <span style="display:block;font-size:13.5px;font-weight:700;color:var(--text);line-height:1.3;">${sh.name}</span>
+          <span style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:3px;font-size:10.5px;color:var(--muted);font-weight:600;">
+            <span style="text-decoration:underline dotted;">Historique</span>
+            ${sh.retired?'<span style="color:#92400E;background:#FEF3C7;border-radius:10px;padding:1px 6px;">retirée</span>':''}
+            ${shoeStravaFor(sh.name)?'<span title="Kilométrage Strava" style="font-weight:800;color:#FC4C02;background:#FFF1EA;border-radius:6px;padding:1px 5px;">STRAVA</span>':''}
+          </span>
+        </span>
+      </button>
+      <span style="flex-shrink:0;font-size:14px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:1px;">${km}<span style="color:var(--muted);font-weight:600;font-size:12px;"> / ${sh.max} km</span></span>
+      <button onclick="openEditShoeModal('${sh.name}')" aria-label="Modifier ${sh.name}" title="Modifier" style="${_icoBtn}background:var(--bg2);border:1px solid var(--border);color:var(--muted);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+      <button onclick="deleteShoe('${sh.name}')" aria-label="Supprimer ${sh.name}" title="Supprimer" style="${_icoBtn}background:#fff;border:1px solid #F1D4D4;color:#C0392B;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+      </button>
+    </div>
+    <div style="background:var(--bg2);border-radius:4px;height:8px;">
+      <div style="background:${sh.color};border-radius:4px;height:8px;width:${pct}%;transition:width 0.5s;"></div>
+    </div>`;
+    sb.appendChild(row);
+  });
+
+  // Shoe management section
+  const sm=document.getElementById('shoes-manage');
+  if(sm) sm.innerHTML=`<button onclick="openAddShoeModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0C447C,#1B4FD8);border:none;border-radius:14px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(27,79,216,0.35);">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    👟 Ajouter une paire de chaussures
+  </button>${state.strava_token?`<button onclick="openShoesStravaModal()" style="width:100%;margin-top:8px;padding:12px;background:#fff;border:1.5px solid #FDBA9A;border-radius:14px;font-size:13.5px;font-weight:800;color:#C2410C;cursor:pointer;">🔗 Relier mes chaussures à Strava</button>`:''}`;
+  if(typeof shoesStravaSync==='function') shoesStravaSync();
 }
 
 // ── Pull-to-refresh WHOOP sur l'écran Stats ───────────────────────────────
@@ -575,7 +597,7 @@ function renderWhoopStats() {
       }
       const avg7jHtml = avg7j != null ? `<div style="font-size:10px;color:var(--muted);margin-top:1px;">Moy 7j : <span style="font-weight:700;color:${scoreColor(avg7j)};">${avg7j}%</span></div>` : '';
       syntheticEl.innerHTML = `
-        <div style="background:${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)'};border:1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+        <div role="button" tabindex="0" onclick="whoopChartOpen('fc')" style="cursor:pointer;background:${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)'};border:1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)'};border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;">
           <div style="font-size:36px;font-weight:900;color:${col};line-height:1;">${avg}<span style="font-size:16px;">%</span></div>
           <div>
             <div style="font-size:13px;font-weight:700;color:${col};">${emoji} ${label}${trendHtml}</div>
@@ -589,8 +611,9 @@ function renderWhoopStats() {
     }
   }
 
+  const _kMode={'Récupération':'recovery','VFC':'hrv','Sommeil':'sleep','Effort':'strain'};
   document.getElementById('whoop-kpi-row').innerHTML = kpis.map(k => `
-    <div style="background:${k.bg};border:1px solid ${k.border};border-radius:12px;padding:12px 10px;text-align:center;">
+    <div role="button" tabindex="0" onclick="whoopChartOpen('${_kMode[k.label]||'fc'}')" style="cursor:pointer;background:${k.bg};border:1px solid ${k.border};border-radius:12px;padding:12px 10px;text-align:center;">
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${k.label}</div>
       <div style="font-size:24px;font-weight:800;color:${k.color};line-height:1;">${k.value}</div>
       ${k.sub ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;">${k.sub}</div>` : ''}
@@ -1238,6 +1261,7 @@ function showScreen(name, renfoTab){
   }
   if(name==='stats'){
     rendered.stats=true;
+    if(typeof statsTabInit==='function') statsTabInit();   // dernier onglet ouvert (Forme / Entraînement / Historique)
     setTimeout(renderStats,50);
     window.scrollTo({top:0,behavior:'instant'});
     // Auto-sync WHOOP si données > 5 min (syncWhoopFresh ne clear pas state.whoop_data en cas d'erreur)
@@ -1555,59 +1579,6 @@ function fixAccents(text) {
   return result;
 }
 // ── HISTORIQUE SÉANCES VALIDÉES ───────────────────────────────────────────────
-function renderSessionsHistory() {
-  const container = document.getElementById('stats-sessions-section');
-  if (!container) return;
-
-  // toutes les séances réalisées, toutes prépas confondues (prAllDone, plan-optim.js)
-  const sessions = (typeof prAllDone==='function'?prAllDone():[]).filter(h=>!h.ext||prDays(h.date,prTodayIso())<=365).map(h=>{ const perf=h.perf||{}; return { ws: h.cur?h.w:h.gw, type: h.type, title: sessionTitle(h.x) || 'Séance',
-    km: h.km || null, date: h.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null }; });
-
-  sessions.sort((a, b) => {
-    if (a.date && b.date) return b.date.localeCompare(a.date);
-    return b.ws - a.ws;
-  });
-
-  if (sessions.length === 0) { container.innerHTML = ''; return; }
-
-  const typeColors = { ef:'#3b82f6', tempo:'#f59e0b', frac:'#ef4444', sortie:'#22c55e', cac:'#8b5cf6', marathon:'#E8530A', repos:'#6b7280' };
-  const typeLabels = { ef:'EF', tempo:'Tempo', frac:'Frac.', sortie:'SL', cac:'CAC', marathon:'Marathon', repos:'Repos' };
-  const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-  const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
-
-  function formatDate(d) {
-    if (!d) return '';
-    const dt = new Date(d + 'T12:00:00');
-    return `${days[dt.getDay()]} ${dt.getDate()} ${months[dt.getMonth()]}`;
-  }
-
-  let html = '<p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Séances validées</p>';
-  html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">';
-
-  sessions.slice(0, 30).forEach((s, idx) => {
-    const col = typeColors[s.type] || '#6b7280';
-    const label = typeLabels[s.type] || (s.type||'?').toUpperCase().slice(0,3);
-    const strain = s.whoop?.workout_strain ?? s.whoop?.cycle_strain ?? null;
-    const strainColor = strain == null ? '#888' : strain >= 18 ? '#dc2626' : strain >= 14 ? '#f59e0b' : strain >= 8 ? '#16a34a' : strain >= 4 ? '#3b82f6' : '#6b7280';
-
-    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${idx > 0 ? 'border-top:1px solid var(--border);' : ''}">`;
-    html += `<span style="background:${col}20;color:${col};font-size:10px;font-weight:700;padding:3px 7px;border-radius:8px;flex-shrink:0;min-width:32px;text-align:center;">${label}</span>`;
-    html += `<div style="flex:1;min-width:0;"><p style="font-size:12px;font-weight:600;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.title}</p>`;
-    const meta = [s.date ? formatDate(s.date) : `S${s.ws}`];
-    if (s.km) meta.push(`${s.km} km`);
-    if (s.pace) meta.push(s.pace + '/km');
-    if (s.hr) meta.push('FC ' + s.hr);
-    html += `<p style="font-size:10px;color:var(--muted);margin:1px 0 0;">${meta.join(' · ')}</p></div>`;
-    if (strain != null) {
-      html += `<div style="text-align:right;flex-shrink:0;"><p style="font-size:9px;color:var(--muted);margin:0 0 1px;">Effort</p><p style="font-size:14px;font-weight:700;color:${strainColor};margin:0;line-height:1;">${strain.toFixed(1)}</p></div>`;
-    }
-    html += `</div>`;
-  });
-
-  html += '</div>';
-  if (sessions.length > 30) html += `<p style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">${sessions.length - 30} séances supplémentaires non affichées</p>`;
-  container.innerHTML = html;
-}
 
 // Nettoyer une réponse tronquée : retirer tout ce qui suit le dernier . ! ? ou bloc complet
 function cleanTruncated(text) {

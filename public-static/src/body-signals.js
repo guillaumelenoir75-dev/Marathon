@@ -162,6 +162,8 @@ function bsStoreSignal(S){
 let _bsPrefetched = false;
 function bsRenderStatsCard(){
   const el = document.getElementById('bs-stats-card'); if(!el) return;
+  const lv = document.getElementById('bs-level-card');   // onglet Forme : le niveau du moment, à part
+  if(lv) lv.innerHTML = '';
   try {
     if((typeof usesHardPlan === 'function' && usesHardPlan()) || (typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
     if(!_bsPrefetched && typeof prPrefetch === 'function'){ _bsPrefetched = true; prPrefetch().then(function(){ bsRenderStatsCard(); }); }   // dernière prépa : plus de recul
@@ -170,8 +172,9 @@ function bsRenderStatsCard(){
     const zp = bsZonePaces(), L = bsLevelNow();
     if(zp){ const zp7 = bsZonePaces(prAddDays(prTodayIso(), -7)); if(zp7) zp.prev = zp7.z; }
     let h = '<div class="bs-card"><p class="bs-t">🫀 Signaux du corps</p>';
-    // niveau du moment : en tête, ouvre le graphique détaillé
-    if(L) h += bsLevelHtml(L);
+    // niveau du moment : en tête de l'onglet Forme (sinon en tête de la carte), ouvre le graphique détaillé
+    if(L && lv) lv.innerHTML = '<div class="bs-card bs-lv-only">' + bsLevelHtml(L) + '</div>';
+    else if(L) h += bsLevelHtml(L);
     // foulée
     if(S && (S.level || S.items.length)){
       h += '<div class="bs-row ' + S.status + '"><p class="bs-h">' + (S.level === 2 ? '⚠️ Foulée : signal à prendre au sérieux' : S.level === 1 ? '👀 Foulée : à surveiller' : '✅ Foulée : en progrès') + '</p>'
@@ -441,7 +444,7 @@ function bsZonesBar(z, zp){
 function _bsCss(){
   if(document.getElementById('bs-css')) return;
   const st = document.createElement('style'); st.id = 'bs-css';
-  st.textContent = '.bs-card{background:#fff;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);border:1px solid #E2E8F0;display:flex;flex-direction:column;gap:10px;}'
+  st.textContent = '.bs-card.bs-lv-only{padding:0;background:none;border:none;box-shadow:none;}.bs-card{background:#fff;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);border:1px solid #E2E8F0;display:flex;flex-direction:column;gap:10px;}'
     + '.bs-t{font-size:15px;font-weight:800;color:#0F172A;margin:0;}.bs-row{border-radius:12px;background:#F8FAFC;padding:10px 12px;}.bs-row.watch{background:#FFFBEB;}.bs-row.alert{background:#FEF2F2;}'
     + '.bs-h{font-size:13px;font-weight:800;color:#1E293B;margin:0 0 4px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.bs-h span{font-weight:600;color:#64748B;font-size:12px;}'
     + '.bs-row ul{margin:2px 0 0;padding-left:18px;font-size:12.5px;color:#334155;line-height:1.45;}.bs-n{font-size:11.5px;color:#64748B;margin:4px 0 0;line-height:1.4;}.bs-a{font-size:12px;font-weight:700;color:#9A3412;margin:6px 0 0;}'

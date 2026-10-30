@@ -524,3 +524,20 @@ function shoeDayTake(w, ei, name){
   if(typeof rendered!=='undefined'){ rendered.plan=false; rendered.stats=false; }
   if(typeof renderHome==='function') renderHome();
 }
+
+// ─── Compte › « Mes chaussures » : km par paire, historique, modifier / supprimer, ajout, liaison Strava ───
+// Hors de #modal-container (sous les fenêtres d'édition, z-index 490) : fermer « Modifier » ne referme pas la liste.
+function openShoesPanel(){
+  const old = document.getElementById('shoes-panel'); if(old) old.remove();
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'shoes-panel'; ov.style.zIndex = '490'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
+  ov.innerHTML = '<div class="modal-box" style="max-height:90vh;"><div style="flex-shrink:0;padding:16px;border-radius:24px 24px 0 0;color:#fff;background:linear-gradient(135deg,#0C447C,#1B4FD8);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    + '<div><p style="font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8;margin:0;">Compte</p><p style="font-size:20px;font-weight:900;margin:2px 0;">👟 Mes chaussures</p><p style="font-size:12.5px;opacity:.9;margin:0;">Km cumulés par paire · associe une paire à une séance dans le plan</p></div>'
+    + '<button onclick="closeShoesPanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;">×</button></div>'
+    + '<div class="modal-scroll-body" style="background:#F5F7FB;"><div style="padding:16px 16px 24px;">'
+    + '<div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div><div id="shoes-manage"></div></div></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) closeShoesPanel(); });
+  document.body.appendChild(ov);
+  if(typeof renderShoesList === 'function') renderShoesList();
+}
+function closeShoesPanel(){ const ov = document.getElementById('shoes-panel'); if(ov) ov.remove(); }

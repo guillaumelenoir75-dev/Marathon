@@ -351,6 +351,12 @@ function _pdRaceRender(){
   const pre = 'Dernier vrai repas 3 h avant (glucides, peu de fibres). Café possible 45-60 min avant si tu en as l\'habitude. Rien de nouveau le jour J.';
   const cues = cat === 'Marathon' ? ['Km 1-10 : facile, ne gagne pas de temps', 'Km 10-30 : régularité, mange et bois', 'Km 30-42 : la course commence, relance'] : cat === 'Semi-marathon' ? ['Km 1-5 : contrôle, laisse partir les autres', 'Km 5-15 : régularité, en rythme', 'Km 15-21 : relance progressive jusqu\'à l\'arrivée'] : ['Km 1-2 : contrôle, ne pars pas trop vite', 'Km 3-7 : régularité, souffle maîtrisé', 'Km 8-10 : tout donner, finir fort'];
   h += '<p class="pd-sec">Le jour J</p><div class="pd-card pd-list"><p><span>🔥</span><b>Échauffement</b>' + warm + '</p><p><span>🍌</span><b>Avant</b>' + pre + '</p><p><span>💧</span><b>Ravitaillement</b>' + fuel + '</p><p><span>🧠</span><b>En course</b>' + cues.join(' · ') + '</p></div>';
+  // gels à tester en sortie longue (ancienne « Stratégie gels » de Statistiques) : semi et marathon
+  if(long && typeof gels !== 'undefined' && gels.length){
+    const gl = gels.filter(function(g){ return typeof g.km === 'number' && (cat === 'Marathon' || g.km <= 20); });
+    if(gl.length) h += '<p class="pd-sec">Gels en sortie longue <span>pour habituer ton ventre avant le jour J</span></p><div class="pd-card pd-splits"><table><thead><tr><th>Sortie</th><th>Gels</th><th>Quand</th></tr></thead><tbody>'
+      + gl.map(function(g){ return '<tr><td>' + g.km + ' km</td><td>' + g.nb + '</td><td>' + prEsc(g.t) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  }
   // carte mémo
   const memo = sp.filter(function(x, i){ return i === sp.length - 1 || [1, 3, 5, 7, 10, 15, 21, 25, 30, 35, 40].indexOf(Math.round(x.km)) >= 0 && x.km === Math.round(x.km); });
   h += '<p class="pd-sec">Carte mémo <span>capture d\'écran à garder sur toi</span></p><div class="pd-memo"><p class="pd-memo-h">' + prEsc(I.R.name) + ' · ' + prTime(tgtWx) + '</p><div class="pd-memo-g">'

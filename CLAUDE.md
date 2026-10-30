@@ -38,7 +38,7 @@ Chargés dans cet ordre (dépendances respectées) :
 | `plan-edit.js` | Édition semaines, utilitaires, modals validation perf |
 | `session-edit.js` | Modals édition/ajout/suppression séances classiques |
 | `shoes.js` | Gestion chaussures (CRUD, historique km) ; « chaussure du jour » (`shoeDayAdvice`/`shoeDayHtml` sur les séances de l'accueil des 7 prochains jours, « Prendre » = `shoeDayTake`) : règle par type `_shoe_rules`, fin de vie (km ≥ max), paire de course préservée avant l'objectif, rotation des paires d'entraînement (pas la même paire deux jours de suite), sortie longue avec la plus fraîche |
-| `stats.js` | Écran Statistiques (graphiques, courbes EF) |
+| `stats.js` | Écran Statistiques en 3 onglets (`statsTab`, dernier onglet mémorisé `localStorage.stats_tab`) : **Forme** (niveau du moment `#bs-level-card`, forme / fatigue `#fm-card`, récupération WHOOP — graphique 7 jours ouvert en touchant le score ou une tuile `whoopChartOpen`), **Entraînement** (volume par semaine, `#bs-stats-card` : foulée, zones FC et allures, données suspectes), **Historique** (une seule liste par mois `#perf-rows`, mois récent ouvert, ligne compacte `_perfLine` → détail `togglePerfRow`). Liste des chaussures `renderShoesList` (affichée dans Compte › « Mes chaussures » `openShoesPanel`, shoes.js) ; gels en sortie longue dans le plan de course (`openRacePlan`) |
 | `coach-context.js` | Construction du contexte envoyé au Coach IA |
 | `coach-plan-modif.js` | Coach → proposition de modification de plan |
 | `coach-memos.js` | Coach → mémos, notes, mémoire coach |

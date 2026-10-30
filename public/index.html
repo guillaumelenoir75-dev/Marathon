@@ -281,8 +281,16 @@
   <div id="stats-ptr-spinner" style="display:flex;justify-content:center;padding:0 0 6px;opacity:0;transition:opacity 0.15s;pointer-events:none;">
     <div style="width:22px;height:22px;border:2.5px solid rgba(27,79,216,0.2);border-top-color:#1B4FD8;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
   </div>
-  <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;">Statistiques</p>
-  <div id="bs-stats-card"></div>
+  <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:12px;">Statistiques</p>
+  <div id="st-tabs" class="st-tabs" role="tablist">
+    <button type="button" role="tab" data-st="forme" class="on" onclick="statsTab('forme')">Forme</button>
+    <button type="button" role="tab" data-st="train" onclick="statsTab('train')">Entraînement</button>
+    <button type="button" role="tab" data-st="hist" onclick="statsTab('hist')">Historique</button>
+  </div>
+
+  <!-- ═══ Onglet Forme : niveau, forme / fatigue, récupération ═══ -->
+  <div class="st-pane" data-st="forme">
+  <div id="bs-level-card"></div>
   <div id="fm-card"></div>
 
   <!-- 1. WHOOP KPIs + chart (admin uniquement) -->
@@ -291,8 +299,9 @@
     <div id="whoop-synthetic-score" style="display:none;"></div>
     <div id="whoop-kpi-row" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;align-items:stretch;"></div>
 
-    <!-- Graphique unifié 5 onglets -->
-    <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;">
+    <!-- Graphique unifié 5 onglets : ouvert en touchant le score ou une tuile -->
+    <button type="button" id="whoop-chart-link" class="st-more" onclick="whoopChartOpen(_whoopChartMode)">Voir l'évolution sur 7 jours ›</button>
+    <div id="whoop-chart-box" style="display:none;background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-top:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;">
         <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;white-space:nowrap;">Évolution 7 jours</p>
         <div style="display:flex;gap:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:1px;" id="whoop-chart-tabs-unified">
@@ -313,7 +322,11 @@
     </div>
   </div>
 
-  <!-- 4. Volume km par semaine -->
+  </div>
+
+  <!-- ═══ Onglet Entraînement : volume, foulée, zones, données ═══ -->
+  <div class="st-pane" data-st="train" style="display:none;">
+  <!-- Volume km par semaine -->
   <div style="background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-bottom:20px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
       <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;">Volume par semaine</p>
@@ -327,8 +340,12 @@
     </div>
   </div>
 
-  <!-- 5. Performances -->
-  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Performances — séances validées</p>
+  <div id="bs-stats-card"></div>
+  </div>
+
+  <!-- ═══ Onglet Historique : toutes les séances, par mois ═══ -->
+  <div class="st-pane" data-st="hist" style="display:none;">
+  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Séances validées</p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="perf-filters">
     <button onclick="setPerfFilter('all')" id="pf-all" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Tout</button>
     <button onclick="setPerfFilter('ef')" id="pf-ef" style="padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#3B6D11;margin-right:4px;vertical-align:middle;"></span>Endurance</button>
@@ -338,29 +355,7 @@
   </div>
   <div id="perf-rows" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px;"></div>
 
-  <!-- 6. Gels -->
-  <div id="stats-gels-section">
-  <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Stratégie gels en course</p>
-  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
-    <div style="display:grid;grid-template-columns:72px 52px 1fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <span style="font-size:11px;font-weight:600;color:var(--muted);">Distance</span>
-      <span style="font-size:11px;font-weight:600;color:var(--muted);">Gels</span>
-      <span style="font-size:11px;font-weight:600;color:var(--muted);">Timing</span>
-    </div>
-    <div id="gels-rows"></div>
   </div>
-  </div>
-
-  <!-- 7. Chaussures -->
-  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;">KM cumulés par chaussure</p>
-    <span style="font-size:10px;color:var(--muted);">Associe les chaussures dans le plan ›</span>
-  </div>
-  <div id="shoes-bars" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
-  <div id="shoes-manage" style="margin-bottom:20px;"></div>
-
-  <!-- 8. Historique séances validées -->
-  <div id="stats-sessions-section" style="margin-bottom:20px;"></div>
 </div>
 
 <!-- RENFO -->
@@ -464,6 +459,7 @@
     <button type="button" class="cp-row" onclick="openAutopilotSettings()"><span class="cp-ic" style="background:#E0E7FF;">🤖</span><span class="cp-txt"><b>Pilote automatique</b><span>Le plan s'ajuste chaque nuit, expliqué dans le brief</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" onclick="openStravaHistory()"><span class="cp-ic" style="background:#FFEDD5;">🟠</span><span class="cp-txt"><b>Historique Strava</b><span>Toutes tes courses depuis le début, dans les analyses</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" onclick="openQuickValidateHelp()"><span class="cp-ic" style="background:#FFEDD5;">⚡</span><span class="cp-txt"><b>Validation express</b><span>Ta dernière sortie Strava en un geste · raccourci iPhone</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openShoesPanel()"><span class="cp-ic" style="background:#FFF1EA;">👟</span><span class="cp-txt"><b>Mes chaussures</b><span>Km par paire, ajout, liaison Strava</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" id="records-row" onclick="openRecordsModal()"><span class="cp-ic" style="background:#FEF3C7;">🏆</span><span class="cp-txt"><b>Mes records</b><span id="records-sub">5 km, 10 km, semi, marathon</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" id="export-plan-btn" onclick="exportPlanDocument()" style="display:none;"><span class="cp-ic" style="background:#FFF7ED;">📋</span><span class="cp-txt"><b>Exporter le plan complet</b><span>Document HTML, toutes les séances</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" id="cal-url-btn" onclick="showCalendarUrl()" style="display:none;"><span class="cp-ic" style="background:#F0FFF4;">📅</span><span class="cp-txt"><b>Abonnement calendrier</b><span>URL pour Outlook ou Google</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
@@ -701,6 +697,20 @@
   </div>
 </div>
 <style>
+/* Statistiques : onglets, historique compact */
+.st-tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;margin:0 0 14px;background:#E2E8F0;border-radius:14px;box-shadow:0 6px 12px -10px rgba(15,23,42,.4);}
+.st-tabs button{border:none;background:transparent;border-radius:10px;padding:9px 4px;font:inherit;font-size:13px;font-weight:700;color:#475569;cursor:pointer;}
+.st-tabs button.on{background:#fff;color:#1B4FD8;box-shadow:0 1px 3px rgba(15,23,42,.12);}
+.st-tabs button:focus-visible,.ph-row:focus-visible,.st-more:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+.st-more{display:block;width:100%;margin-top:10px;padding:10px;border:1px dashed #CBD5E1;border-radius:12px;background:transparent;color:#1B4FD8;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+.ph-row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:none;text-align:left;font:inherit;cursor:pointer;color:var(--text);}
+.ph-b{flex-shrink:0;min-width:40px;text-align:center;font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;}
+.ph-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.ph-m b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ph-m small{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+.ph-e{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;}
+.ph-e small{font-size:9px;color:var(--muted);}.ph-e b{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;}
+.ph-c{flex-shrink:0;color:var(--muted);transition:transform .2s;}
 @keyframes _sunPulse {
   0%,100% { transform: scale(1) rotate(-5deg); }
   50% { transform: scale(1.12) rotate(5deg); }
