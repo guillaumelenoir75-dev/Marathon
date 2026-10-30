@@ -214,6 +214,11 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); showScreen('stats'); });
   await page.waitForTimeout(600);
   assert.ok(await page.evaluate(() => /Signaux du corps/.test(document.getElementById('bs-stats-card').textContent) && /EF ≤ 148/.test(document.getElementById('bs-stats-card').textContent)));
+  // niveau du moment : la carte ouvre le graphique détaillé (périodes, détail d'une date, temps équivalents)
+  await page.click('.bs-hero'); await page.waitForSelector('#bs-lc .lc-svg');
+  for (const r of ['3 mois', 'Tout', '6 mois']) { await page.click('#bs-lc .lc-seg >> text=' + r); await page.waitForSelector('#bs-lc #lc-detail .lc-card'); }
+  assert.match(await page.textContent('#bs-lc #lc-detail'), /Temps équivalents à ce niveau.*10 km/s);
+  await page.evaluate(() => document.getElementById('bs-lc').remove());
   // accueil du dimanche : bouton « ta semaine en image » → aperçu PNG
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   await page.waitForSelector('.ws-home');

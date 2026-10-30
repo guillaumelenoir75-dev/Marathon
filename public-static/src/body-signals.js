@@ -137,7 +137,11 @@ function bsRenderStatsCard(){
     if(!_bsPrefetched && typeof prPrefetch === 'function'){ _bsPrefetched = true; prPrefetch().then(function(){ bsRenderStatsCard(); }); }   // dernière prépa : plus de recul
     _bsCss();
     const E = hrZonesEstimate(), S = prStride(), Z = state._hr_zones && state._hr_zones.applied ? state._hr_zones : null;
+    const zp = bsZonePaces(), L = bsLevelNow();
+    if(zp){ const zp7 = bsZonePaces(prAddDays(prTodayIso(), -7)); if(zp7) zp.prev = zp7.z; }
     let h = '<div class="bs-card"><p class="bs-t">🫀 Signaux du corps</p>';
+    // niveau du moment : en tête, ouvre le graphique détaillé
+    if(L) h += bsLevelHtml(L);
     // foulée
     if(S && (S.level || S.items.length)){
       h += '<div class="bs-row ' + S.status + '"><p class="bs-h">' + (S.level === 2 ? '⚠️ Foulée : signal à prendre au sérieux' : S.level === 1 ? '👀 Foulée : à surveiller' : '✅ Foulée : en progrès') + '</p>'
@@ -145,22 +149,18 @@ function bsRenderStatsCard(){
         + (S.advice ? '<p class="bs-a">' + prEsc(S.advice) + '</p>' : '') + '</div>';
     } else if(S) h += '<p class="bs-line">✅ <b>Foulée : rien d\'anormal</b><span>FC et cadence stables · ' + S.n.recent + ' sorties récentes vs ' + S.n.base + '</span></p>';
     else h += '<p class="bs-line">👣 <b>Foulée</b><span>pas encore assez de sorties avec FC pour comparer</span></p>';
-    // zones
     // zones : recalées, sinon estimées, sinon d'après la FC max saisie ; sans FC du tout, allures seules
     const fm = parseInt(state.fc_max) || parseInt((state.onboarding || {}).fc_max) || null;
     const zs = bsDisplayZones((Z && Z.zones) || E.zones || (fm ? bsZonesFromMax(fm) : null), hrEfMax());
     h += '<div class="bs-row"><p class="bs-h">❤️ Zones FC et allures <span>EF ≤ <b>' + hrEfMax() + '</b> · ' + (Z ? 'recalée le ' + prFmtDate(Z.at) : 'par défaut') + '</span></p>';
-    const zp = bsZonePaces(), L = bsLevelNow();
-    if(zp){ const zp7 = bsZonePaces(prAddDays(prTodayIso(), -7)); if(zp7) zp.prev = zp7.z; }
-    if(L) h += bsLevelHtml(L);
     if(zs) h += bsZonesBar(zs, zp);
     else if(zp) h += bsZonesBar([1, 2, 3, 4, 5].map(function(i){ return { z: i, t: '', lo: null, hi: null }; }), zp);
     const src = [];
     if(E.lthr) src.push('FC seuil ~' + E.lthr + ' (' + E.thr.length + ' séance' + (E.thr.length > 1 ? 's' : '') + ')');
-    if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ' · saisie ' + E.declared : ''));
-    h += '<p class="bs-n">' + (src.length ? 'FC d\'après ' + src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones') + '</p>';
-    if(zp) h += '<p class="bs-n">Allures (min/km) d\'après ton niveau' + (zp.efObs ? ', EF d\'après tes sorties' : '') + ' · recalculées après chaque séance' + (zp.arrows ? ' · ↑↓ : depuis il y a 7 jours' : '') + '</p>';
-    if(L && L.why && L.why.length) h += '<details class="bs-why"><summary>Ce qui fait ton niveau</summary><ul>' + L.why.map(function(w){ return '<li><span>' + prEsc(w.t) + '</span><b>' + (w.base ? _bsV(w.v) : (w.d > 0 ? '+' : '−') + _bsV(Math.abs(w.d))) + '</b></li>'; }).join('') + '</ul></details>';
+    if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ', saisie ' + E.declared : ''));
+    const notes = [src.length ? src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones'];
+    if(zp) notes.push('allures en min/km' + (zp.efObs ? ', EF d\'après tes sorties' : '') + (zp.arrows ? ' · ↑↓ depuis 7 jours' : ''));
+    h += '<p class="bs-n">' + notes.join(' · ') + '</p>';
     if(E.propose) h += '<div class="bs-prop"><p>Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.fcMax.v : '') + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
     else if(Z) h += '<button type="button" class="bs-link" onclick="hrZonesReset()">Revenir à ' + BS_EF_DEFAULT + ' bpm</button>';
     h += '</div></div>';
@@ -219,22 +219,126 @@ function bsLevelNow(today){
     return out;
   } catch(e) { return null; }
 }
+function bsLevelSpark(H, W, Hh){
+  if(H.length < 3) return '';
+  const vs = H.map(function(p){ return p.v; }), lo = Math.min.apply(null, vs) - 0.3, hi = Math.max.apply(null, vs) + 0.3;
+  const X = function(i){ return 3 + i / (H.length - 1) * (W - 9); }, Y = function(v){ return 4 + (hi - v) / Math.max(0.6, hi - lo) * (Hh - 9); };
+  const line = H.map(function(p, i){ return X(i).toFixed(1) + ',' + Y(p.v).toFixed(1); }).join(' ');
+  return '<svg class="bs-spark" viewBox="0 0 ' + W + ' ' + Hh + '" preserveAspectRatio="none" aria-hidden="true">'
+    + '<polygon points="' + X(0).toFixed(1) + ',' + Hh + ' ' + line + ' ' + X(H.length - 1).toFixed(1) + ',' + Hh + '" class="a"/><polyline points="' + line + '" class="l" vector-effect="non-scaling-stroke"/>'
+    + '<circle cx="' + X(H.length - 1).toFixed(1) + '" cy="' + Y(H[H.length - 1].v).toFixed(1) + '" r="3.2" class="d"/></svg>';
+}
+// en-tête de la carte : niveau, évolution sur 7 jours et sa cause, courbe 6 mois — touche = graphique détaillé
 function bsLevelHtml(L){
-  const H = L.hist, W = 128, Hh = 34;
-  let svg = '';
-  if(H.length >= 3){
-    const vs = H.map(function(p){ return p.v; }), lo = Math.min.apply(null, vs) - 0.3, hi = Math.max.apply(null, vs) + 0.3;
-    const X = function(i){ return 2 + i / (H.length - 1) * (W - 8); }, Y = function(v){ return 3 + (hi - v) / Math.max(0.6, hi - lo) * (Hh - 8); };
-    const line = H.map(function(p, i){ return X(i).toFixed(1) + ',' + Y(p.v).toFixed(1); }).join(' ');
-    svg = '<svg class="bs-spark" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Niveau sur 6 mois : de ' + _bsV(H[0].v) + ' à ' + _bsV(L.v) + '">'
-      + '<polygon points="' + X(0).toFixed(1) + ',' + Hh + ' ' + line + ' ' + X(H.length - 1).toFixed(1) + ',' + Hh + '" class="a"/><polyline points="' + line + '" class="l"/>'
-      + '<circle cx="' + X(H.length - 1).toFixed(1) + '" cy="' + Y(L.v).toFixed(1) + '" r="3" class="d"/></svg>';
-  }
   const d = L.delta, chip = d == null || Math.abs(d) < 0.1 ? '<span class="bs-chip">stable cette semaine</span>'
-    : '<span class="bs-chip ' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '+' : '−') + _bsV(Math.abs(d)) + ' cette semaine</span>';
-  return '<div class="bs-lvl"><div><p class="bs-lvl-l">Niveau du moment</p><p class="bs-lvl-v">' + _bsV(L.v) + chip + '</p>'
-    + (L.cause ? '<p class="bs-n" style="margin:2px 0 0;">' + prEsc(L.cause) + '</p>' : '') + '</div>'
-    + (svg ? '<div class="bs-lvl-c">' + svg + '<span>6 mois</span></div>' : '') + '</div>';
+    : '<span class="bs-chip ' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '▲ +' : '▼ −') + _bsV(Math.abs(d)) + ' cette semaine</span>';
+  return '<button type="button" class="bs-hero" onclick="openLevelChart()" aria-label="Niveau du moment ' + _bsV(L.v) + ' : ouvrir le graphique détaillé">'
+    + '<div class="bs-hero-top"><div><p class="bs-lvl-l">Niveau du moment</p><p class="bs-lvl-v">' + _bsV(L.v) + chip + '</p></div>'
+    + '<div class="bs-hero-c">' + bsLevelSpark(L.hist, 140, 44) + '</div></div>'
+    + '<div class="bs-hero-b"><span>' + prEsc(L.cause || 'Équivalent VDOT · recalculé après chaque séance') + '</span><b>Détail ›</b></div></button>';
+}
+
+// ─── Graphique détaillé du niveau (plein écran) ─────────────────────────────
+let _lcRange = '6m', _lcData = null, _lcSel = null;
+// série : un point tous les 2 jours (3 mois), 4 jours (6 mois) ou 7 jours (tout l'historique), même calcul qu'aujourd'hui à chaque date
+function bsLevelSeries(range, today){
+  today = today || prTodayIso();
+  if(typeof prFitness !== 'function' || typeof prAllDone !== 'function') return null;
+  const done = prAllDone(today), races = typeof prKnownRaces === 'function' ? prKnownRaces() : [];
+  const first = done.length ? done[0].date : today;
+  const span = range === '3m' ? 91 : range === '6m' ? 182 : Math.max(28, prDays(first, today));
+  const step = span <= 100 ? 2 : span <= 200 ? 4 : 7, from = prAddDays(today, -span), pts = [];
+  for(let d = 0; d <= span; d += step){
+    const day = prAddDays(today, -span + d), f = prFitness(state, { today: day, races: races, done: done });
+    if(f.vdot) pts.push({ date: day, v: f.vdot, why: f.why || [] });
+  }
+  if(!pts.length || pts[pts.length - 1].date !== today){ const f = prFitness(state, { today: today, races: races, done: done }); if(f.vdot) pts.push({ date: today, v: f.vdot, why: f.why || [] }); }
+  // repères : courses / records / tests 5 km, séances de qualité avec blocs
+  const fNow = prFitness(state, { today: today, races: races, done: done });
+  const ev = (fNow.sources || []).filter(function(x){ return x.kind === 'course' && x.date && x.date >= from && x.date <= today; })
+    .map(function(x){ return { date: x.date, kind: /^Test/.test(x.label) ? 'test' : 'race', label: x.label + ' ' + x.time }; });
+  const qual = done.filter(function(s){ return (s.type === 'tempo' || s.type === 'frac') && s.date >= from && (s.perf.blocsAllure || []).some(Boolean); })
+    .map(function(s){ return { date: s.date, kind: 'q', label: s.title }; });
+  // l'axe commence au 1er niveau connu (pas de longue zone vide avant)
+  // (en gardant la course qui a fait naître ce 1er niveau)
+  let from2 = pts.length && pts[0].date > from ? pts[0].date : from;
+  ev.forEach(function(e){ if(e.date >= from && e.date < from2) from2 = e.date; });
+  return { pts: pts, from: from2, today: today, ev: ev.concat(qual).filter(function(e){ return e.date >= from2; }) };
+}
+function openLevelChart(range){
+  _bsCss(); _lcRange = range || _lcRange;
+  let ov = document.getElementById('bs-lc');
+  if(!ov){
+    const mc = document.getElementById('modal-container'); ov = document.createElement('div');
+    ov.className = 'modal-overlay'; ov.id = 'bs-lc'; ov.style.zIndex = '740'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.5)');
+    ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+    mc.appendChild(ov);
+  }
+  _lcData = bsLevelSeries(_lcRange); _lcSel = _lcData && _lcData.pts.length ? _lcData.pts.length - 1 : null;
+  const seg = [['3m', '3 mois'], ['6m', '6 mois'], ['all', 'Tout']].map(function(r){ return '<button type="button" class="' + (r[0] === _lcRange ? 'on' : '') + '" onclick="openLevelChart(\'' + r[0] + '\')">' + r[1] + '</button>'; }).join('');
+  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="lc-head"><div><p class="lc-eb">Signaux du corps</p><p class="lc-title">Niveau du moment</p><p class="lc-sub">Équivalent VDOT (Daniels) · recalculé à chaque séance validée</p></div>'
+    + '<button class="lc-x" onclick="document.getElementById(\'bs-lc\').remove()" aria-label="Fermer">×</button></div>'
+    + '<div class="modal-scroll-body" style="background:#F5F7FB;"><div class="lc-body"><div class="lc-seg">' + seg + '</div>'
+    + '<div class="lc-chart" id="lc-chart"></div><p class="lc-leg"><span><i class="r"></i>course / record</span><span><i class="t"></i>test 5 km</span><span><i class="q"></i>séance de qualité</span></p>'
+    + '<div id="lc-detail"></div></div></div></div>';
+  _lcDraw(); _lcDetail();
+}
+function _lcDraw(){
+  const el = document.getElementById('lc-chart'), D = _lcData; if(!el) return;
+  if(!D || D.pts.length < 2){ el.innerHTML = '<p class="bs-n" style="padding:24px 8px;text-align:center;">Pas encore assez de données sur cette période.</p>'; return; }
+  const W = 340, H = 230, L = 30, R = 10, T = 12, B = 34;
+  const t0 = Date.parse(D.from + 'T12:00:00Z'), t1 = Date.parse(D.today + 'T12:00:00Z'), tx = function(d){ return L + (Date.parse(d + 'T12:00:00Z') - t0) / Math.max(1, t1 - t0) * (W - L - R); };
+  const vs = D.pts.map(function(p){ return p.v; }), v0 = Math.floor(Math.min.apply(null, vs) - 0.5), v1 = Math.ceil(Math.max.apply(null, vs) + 0.5);
+  const ty = function(v){ return T + (v1 - v) / Math.max(1, v1 - v0) * (H - T - B); };
+  let g = '';
+  const stepY = v1 - v0 > 6 ? 2 : 1;
+  for(let v = v0; v <= v1; v += stepY) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + ty(v) + '" y2="' + ty(v) + '" class="lc-grid"/><text x="' + (L - 6) + '" y="' + (ty(v) + 3.5) + '" class="lc-ax" text-anchor="end">' + v + '</text>';
+  // mois
+  const m = new Date(D.from + 'T12:00:00Z'); m.setUTCDate(1); m.setUTCMonth(m.getUTCMonth() + 1);
+  const months = []; while(m.getTime() <= t1){ months.push(new Date(m)); m.setUTCMonth(m.getUTCMonth() + 1); }
+  const every = Math.ceil(months.length / 6), xEnd = W - R;
+  // bornes : date de début à gauche, « auj. » à droite ; mois entre les deux (sans chevauchement)
+  g += '<text x="' + L + '" y="' + (H - B + 14) + '" class="lc-ax" text-anchor="start">' + prFmtDate(D.from) + '</text><text x="' + xEnd + '" y="' + (H - B + 14) + '" class="lc-ax" text-anchor="end">auj.</text>';
+  months.forEach(function(d, i){ if(i % every) return; const iso = d.toISOString().slice(0, 10), x = tx(iso);
+    if(x - L < 34 || xEnd - x < 26) return;
+    g += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" class="lc-grid v"/><text x="' + x + '" y="' + (H - B + 14) + '" class="lc-ax" text-anchor="middle">' + d.toLocaleDateString('fr-FR', { month: 'short' }) + '</text>'; });
+  const line = D.pts.map(function(p){ return tx(p.date).toFixed(1) + ',' + ty(p.v).toFixed(1); }).join(' ');
+  g += '<polygon points="' + tx(D.pts[0].date).toFixed(1) + ',' + (H - B) + ' ' + line + ' ' + tx(D.pts[D.pts.length - 1].date).toFixed(1) + ',' + (H - B) + '" class="lc-area"/>';
+  g += '<polyline points="' + line + '" class="lc-line"/>';
+  // repères : séances de qualité (piste du bas), courses et tests (sur la courbe)
+  const yAt = function(d){ let best = D.pts[0]; D.pts.forEach(function(p){ if(Math.abs(Date.parse(p.date) - Date.parse(d)) < Math.abs(Date.parse(best.date) - Date.parse(d))) best = p; }); return ty(best.v); };
+  D.ev.forEach(function(e){
+    const x = tx(e.date);
+    if(e.kind === 'q') g += '<circle cx="' + x.toFixed(1) + '" cy="' + (H - B + 24) + '" r="2.6" class="lc-q"><title>' + prEsc(e.label) + ' · ' + prFmtDate(e.date) + '</title></circle>';
+    else g += '<rect x="' + (x - 4.5).toFixed(1) + '" y="' + (yAt(e.date) - 4.5).toFixed(1) + '" width="9" height="9" rx="2" transform="rotate(45 ' + x.toFixed(1) + ' ' + yAt(e.date).toFixed(1) + ')" class="lc-' + (e.kind === 'test' ? 't' : 'r') + '"><title>' + prEsc(e.label) + ' · ' + prFmtDate(e.date) + '</title></rect>';
+  });
+  // point sélectionné
+  const sp = D.pts[_lcSel];
+  g += '<line id="lc-cur" x1="' + tx(sp.date) + '" x2="' + tx(sp.date) + '" y1="' + T + '" y2="' + (H - B) + '" class="lc-cur"/><circle id="lc-dot" cx="' + tx(sp.date) + '" cy="' + ty(sp.v) + '" r="5" class="lc-dot"/>';
+  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="lc-svg" role="img" aria-label="Niveau du ' + prFmtDate(D.pts[0].date) + ' au ' + prFmtDate(D.today) + ' : de ' + _bsV(D.pts[0].v) + ' à ' + _bsV(D.pts[D.pts.length - 1].v) + '">' + g + '</svg>';
+  const svg = el.querySelector('svg');
+  const pick = function(ev){
+    const r = svg.getBoundingClientRect(), cx = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    let bi = 0, bd = 1e9; D.pts.forEach(function(p, i){ const dd = Math.abs(tx(p.date) - cx); if(dd < bd){ bd = dd; bi = i; } });
+    if(bi === _lcSel) return;
+    _lcSel = bi; const p = D.pts[bi], x = tx(p.date).toFixed(1);
+    const cur = svg.querySelector('#lc-cur'), dot = svg.querySelector('#lc-dot');
+    cur.setAttribute('x1', x); cur.setAttribute('x2', x); dot.setAttribute('cx', x); dot.setAttribute('cy', ty(p.v).toFixed(1));
+    _lcDetail();
+  };
+  svg.style.touchAction = 'pan-y';
+  svg.addEventListener('pointerdown', pick); svg.addEventListener('pointermove', function(e){ if(e.buttons || e.pointerType === 'mouse') pick(e); });
+}
+function _lcDetail(){
+  const el = document.getElementById('lc-detail'), D = _lcData; if(!el || !D || _lcSel == null || !D.pts[_lcSel]) { if(el) el.innerHTML = ''; return; }
+  const p = D.pts[_lcSel], prev = _lcSel > 0 ? D.pts[_lcSel - 1] : null, d = prev ? Math.round((p.v - prev.v) * 10) / 10 : null;
+  const isToday = p.date === D.today;
+  const eq = typeof PR_RACE_M !== 'undefined' ? ['5 km', '10 km', 'Semi-marathon', 'Marathon'].filter(function(c){ return PR_RACE_M[c]; }).map(function(c){ return '<div><span>' + (c === 'Semi-marathon' ? 'Semi' : c) + '</span><b>' + prTime(raceTimeFromVdot(p.v, PR_RACE_M[c])) + '</b></div>'; }).join('') : '';
+  el.innerHTML = '<div class="lc-card"><div class="lc-dh"><div><p class="lc-dd">' + (isToday ? 'Aujourd\'hui' : (function(t){ return t.charAt(0).toUpperCase() + t.slice(1); })(prFmtDate(p.date, { weekday: 'long', day: 'numeric', month: 'long' }))) + '</p>'
+    + '<p class="lc-dv">' + _bsV(p.v) + (d != null && Math.abs(d) >= 0.1 ? '<span class="bs-chip ' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '▲ +' : '▼ −') + _bsV(Math.abs(d)) + '</span>' : '') + '</p></div>'
+    + '<p class="lc-hint">Touche la courbe pour voir une autre date</p></div>'
+    + (p.why.length ? '<p class="lc-sec">Ce qui fait ce niveau</p><ul class="lc-why">' + p.why.map(function(w){ return '<li><span>' + prEsc(w.t) + '</span><b class="' + (w.base ? '' : w.d > 0 ? 'up' : 'down') + '">' + (w.base ? _bsV(w.v) : (w.d > 0 ? '+' : '−') + _bsV(Math.abs(w.d))) + '</b></li>'; }).join('') + '</ul>' : '')
+    + (eq ? '<p class="lc-sec">Temps équivalents à ce niveau</p><div class="lc-eq">' + eq + '</div>' : '') + '</div>';
 }
 
 // allures de chaque zone (s/km, lo = la plus rapide) d'après le niveau actuel (prFitness, tout l'historique) :
@@ -266,12 +370,13 @@ function bsZonesBar(z, zp){
   const ticks = z.map(function(x, i){ acc += w[i]; return '<i style="left:' + (acc / tot * 100).toFixed(2) + '%"' + (i === 4 ? ' class="end"' : '') + '>' + x.hi + '</i>'; }).join('');
   const pace = zp ? '<div class="bs-paces">' + z.map(function(x, i){
     const p = zp.z[i];
-    const t = !p ? '—' : p.hi == null ? '> ' + _bsP(p.lo) : p.lo == null ? '< ' + _bsP(p.hi + 1) : '<b>' + _bsP(p.lo) + '</b><b>' + _bsP(p.hi) + '</b>';
+    let t;
     // flèche : allure de la zone plus rapide (↑) ou plus lente (↓) qu'il y a 7 jours
     const q = zp.prev && zp.prev[i], ref = function(o){ return o ? (o.lo != null ? o.lo : o.hi) : null; }, dv = p && q ? ref(p) - ref(q) : 0;
     if(Math.abs(dv) >= 2) zp.arrows = true;
     const arr = Math.abs(dv) >= 2 ? '<i class="bs-arr ' + (dv < 0 ? 'up' : 'down') + '" title="' + (dv < 0 ? 'plus rapide' : 'plus lente') + ' de ' + Math.abs(Math.round(dv)) + ' s/km qu\'il y a 7 jours">' + (dv < 0 ? '↑' : '↓') + '</i>' : '';
-    return '<div class="z' + x.z + '" style="flex:' + w[i] + ' 1 0">' + arr + t + '</div>'; }).join('') + '</div>' : '';
+    t = !p ? '—' : p.hi == null ? '<span>' + arr + '&gt; ' + _bsP(p.lo) + '</span>' : p.lo == null ? '<span>' + arr + '&lt; ' + _bsP(p.hi + 1) + '</span>' : '<b>' + arr + _bsP(p.lo) + '</b><b>' + _bsP(p.hi) + '</b>';
+    return '<div class="z' + x.z + '" style="flex:' + w[i] + ' 1 0">' + t + '</div>'; }).join('') + '</div>' : '';
   return '<div class="bs-bar">' + z.map(function(x, i){ return '<div class="bs-s z' + x.z + '" style="flex:' + w[i] + ' 1 0" title="' + (bpm ? prEsc(x.t) + ' : ' + (i ? x.lo + '–' : '< ') + x.hi + ' bpm' : BS_ZONE_SHORT[x.z]) + '"><b>Z' + x.z + '</b><span>' + BS_ZONE_SHORT[x.z] + '</span></div>'; }).join('') + '</div>'
     + (bpm ? '<div class="bs-ticks">' + ticks + '</div>' : '') + pace;
 }
@@ -292,7 +397,31 @@ function _bsCss(){
     + '.bs-lvl-v{font-size:26px;font-weight:900;color:#0F172A;margin:0;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}'
     + '.bs-chip{font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;white-space:nowrap;background:#E2E8F0;color:#475569;letter-spacing:0;}.bs-chip.up{background:#DCFCE7;color:#15803D;}.bs-chip.down{background:#FFEDD5;color:#C2410C;}'
     + '.bs-lvl-c{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:1;min-width:0;}.bs-lvl>div:first-child{min-width:0;}.bs-lvl-c span{font-size:9.5px;color:#94A3B8;font-weight:700;}.bs-spark{width:110px;max-width:100%;height:34px;overflow:visible;}.bs-spark .a{fill:#6366F1;opacity:.12;}.bs-spark .l{fill:none;stroke:#6366F1;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;}.bs-spark .d{fill:#4F46E5;}'
-    + '.bs-arr{font-style:normal;font-size:11px;font-weight:900;line-height:1;}.bs-arr.up{color:#16A34A;}.bs-arr.down{color:#EA580C;}'
+    + '.bs-hero{display:block;width:100%;text-align:left;border:1px solid #E0E7FF;border-radius:16px;padding:12px 14px 10px;background:linear-gradient(135deg,#EEF2FF 0%,#F8FAFF 70%);cursor:pointer;font-family:inherit;color:inherit;}'
+    + '.bs-hero:active{transform:scale(.99);}.bs-hero:focus-visible{outline:2px solid #6366F1;outline-offset:2px;}'
+    + '.bs-hero-top{display:flex;justify-content:space-between;align-items:center;gap:10px;}.bs-hero-top>div:first-child{min-width:0;}.bs-hero-c{flex:1;max-width:150px;min-width:90px;}.bs-hero-c .bs-spark{width:100%;height:44px;}'
+    + '.bs-hero-b{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#475569;}.bs-hero-b b{color:#4F46E5;font-weight:800;white-space:nowrap;}'
+    + '.lc-head{flex-shrink:0;color:#fff;padding:16px;border-radius:24px 24px 0 0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:linear-gradient(135deg,#312E81,#4F46E5);}'
+    + '.lc-eb{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin:0;}.lc-title{font-size:20px;font-weight:900;margin:2px 0;}.lc-sub{font-size:12px;opacity:.85;margin:0;}'
+    + '.lc-x{background:rgba(255,255,255,.18);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}'
+    + '.lc-body{padding:14px 14px 24px;display:flex;flex-direction:column;gap:10px;}.lc-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#E2E8F0;border-radius:12px;padding:3px;}'
+    + '.lc-seg button{border:none;background:transparent;border-radius:9px;padding:8px;font-size:13px;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;}.lc-seg button.on{background:#fff;color:#312E81;box-shadow:0 1px 3px rgba(15,23,42,.15);}'
+    + '.lc-chart{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:8px 6px 4px;}.lc-svg{width:100%;height:auto;display:block;user-select:none;-webkit-user-select:none;}'
+    + '.lc-grid{stroke:#EEF2F7;stroke-width:1;}.lc-grid.v{stroke-dasharray:2 3;}.lc-ax{font-size:9.5px;fill:#94A3B8;font-weight:600;font-variant-numeric:tabular-nums;}'
+    + '.lc-area{fill:#6366F1;opacity:.10;}.lc-line{fill:none;stroke:#4F46E5;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;}'
+    + '.lc-r{fill:#F59E0B;stroke:#fff;stroke-width:1.5;}.lc-t{fill:#10B981;stroke:#fff;stroke-width:1.5;}.lc-q{fill:#A5B4FC;}'
+    + '.lc-cur{stroke:#312E81;stroke-width:1;stroke-dasharray:3 3;opacity:.6;}.lc-dot{fill:#fff;stroke:#4F46E5;stroke-width:3;}'
+    + '.lc-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:#64748B;margin:0 2px;}.lc-leg i{display:inline-block;width:8px;height:8px;margin-right:5px;vertical-align:middle;}'
+    + '.lc-leg i.r{background:#F59E0B;transform:rotate(45deg);border-radius:2px;}.lc-leg i.t{background:#10B981;transform:rotate(45deg);border-radius:2px;}.lc-leg i.q{background:#A5B4FC;border-radius:50%;}'
+    + '.lc-card{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:12px 14px;}.lc-dh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}'
+    + '.lc-dd{font-size:12px;font-weight:800;color:#64748B;margin:0;}.lc-dv{font-size:30px;font-weight:900;color:#0F172A;margin:0;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;}'
+    + '.lc-hint{font-size:10.5px;color:#94A3B8;margin:2px 0 0;text-align:right;max-width:110px;}'
+    + '.lc-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B;margin:12px 0 6px;}'
+    + '.lc-why{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;}.lc-why li{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:#334155;line-height:1.35;}'
+    + '.lc-why b{font-variant-numeric:tabular-nums;color:#0F172A;white-space:nowrap;}.lc-why b.up{color:#15803D;}.lc-why b.down{color:#C2410C;}'
+    + '.lc-eq{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}.lc-eq div{background:#F8FAFC;border-radius:10px;padding:7px 4px;text-align:center;display:flex;flex-direction:column;gap:2px;}'
+    + '.lc-eq span{font-size:10.5px;color:#64748B;font-weight:700;}.lc-eq b{font-size:13px;color:#0F172A;font-variant-numeric:tabular-nums;}'
+    + '.bs-arr{font-style:normal;font-size:11px;font-weight:900;line-height:1;margin-right:2px;}.bs-arr.up{color:#16A34A;}.bs-arr.down{color:#EA580C;}'
     + '.bs-why{margin-top:6px;}.bs-why summary{font-size:11.5px;font-weight:700;color:#4F46E5;cursor:pointer;}.bs-why ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;}'
     + '.bs-why li{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#475569;}.bs-why li b{font-variant-numeric:tabular-nums;color:#0F172A;}'
     + '.bs-ticks{position:relative;height:15px;margin-top:3px;font-variant-numeric:tabular-nums;}.bs-ticks i{position:absolute;top:0;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:800;color:#475569;}.bs-ticks i.end{transform:translateX(-100%);}'
