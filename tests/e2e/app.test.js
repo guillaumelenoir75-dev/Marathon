@@ -262,6 +262,25 @@ test('validation express (?action=validate) : la dernière sortie Strava ouvre l
   await ctx.close();
 });
 
+test('démarrage allégé : carte, comparaison des prépas et simulateur chargés à la demande', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  const loaded = () => page.evaluate(() => [...document.querySelectorAll('script[src*="/src/lazy-"]')].map((s) => s.src.replace(/.*lazy-(\w+)-.*/, '$1')).sort());
+  assert.deepEqual(await loaded(), [], 'rien de chargé au démarrage');
+  assert.ok(await page.evaluate(() => window.LAZY_BUNDLES && typeof _wiPick === 'undefined' && typeof PROG_COLORS === 'undefined' && typeof RaceNav === 'undefined'));
+  // Mes prépas › Comparer mes prépas
+  await page.evaluate(() => openProgress()); await page.waitForSelector('#prog-panel');
+  await page.evaluate(() => document.getElementById('prog-panel').remove());
+  // carte « Organisation course » (Leaflet bloqué dans les tests : l'écran s'ouvre quand même)
+  await page.evaluate(() => { if (typeof openRaceOrgSheet === 'function' && document.getElementById('race-org-panel')) openRaceOrgSheet(); else initRaceOrgMap(); });
+  await page.waitForFunction(() => typeof RaceNav !== 'undefined', null, { timeout: 10000 });
+  assert.deepEqual(await loaded(), ['course', 'progress']);
+  // un 2e appel ne recharge rien
+  await page.evaluate(() => openProgress()); await page.waitForSelector('#prog-panel');
+  assert.equal((await loaded()).length, 2);
+  assert.deepEqual(errors.filter((e) => !/Leaflet|L is not defined|leaflet/i.test(e)), []);
+  await ctx.close();
+});
+
 test('plan de course et prépa à venir', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await page.evaluate(() => openRacePlan()); await page.waitForTimeout(500);

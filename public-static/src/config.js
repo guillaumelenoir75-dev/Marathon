@@ -342,3 +342,25 @@ function onPaceInput(el){
   if(!v.includes(':')&&v.length>=2) v=v.slice(0,v.length>2?2:1)+':'+v.slice(v.length>2?2:1);
   el.value=v;
 }
+
+
+// ─── Écrans rares chargés à la demande ──────────────────────────────────────
+// En production, window.LAZY_BUNDLES (injecté par vite.config.js) donne le fichier minifié de chaque groupe ;
+// en développement, les fichiers sources sont chargés un par un. Les points d'entrée ci-dessous sont remplacés par
+// les vraies fonctions dès que le module est chargé (déclarations globales du même nom).
+const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'] };
+const _lazyP = {};
+function lazyLoad(g){
+  if(_lazyP[g]) return _lazyP[g];
+  const B = window.LAZY_BUNDLES || {}, files = B[g] ? [B[g]] : LAZY_GROUPS[g].map(function(f){ return '/src/' + f; });
+  _lazyP[g] = files.reduce(function(p, src){ return p.then(function(){ return new Promise(function(ok, ko){
+    const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = function(){ ko(new Error('chargement ' + src)); }; document.head.appendChild(s); }); }); }, Promise.resolve())
+    .catch(function(e){ delete _lazyP[g]; if(typeof showToast === 'function') showToast('Connexion nécessaire pour ouvrir cet écran', '📶'); throw e; });
+  return _lazyP[g];
+}
+function _lazyCall(g, name, stub, args){
+  return lazyLoad(g).then(function(){ const f = window[name]; if(typeof f !== 'function' || f === stub) throw new Error(name + ' introuvable'); return f.apply(null, args); });
+}
+function initRaceOrgMap(){ return _lazyCall('course', 'initRaceOrgMap', initRaceOrgMap, arguments); }
+function openProgress(){ return _lazyCall('progress', 'openProgress', openProgress, arguments); }
+function openWhatIf(){ return _lazyCall('whatif', 'openWhatIf', openWhatIf, arguments); }
