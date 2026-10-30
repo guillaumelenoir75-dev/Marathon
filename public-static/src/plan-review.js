@@ -924,6 +924,8 @@ function _prRender(){
     + '<button type="button" id="pr-coach-btn" class="pr-link" style="align-self:center;padding:6px;" onclick="askCoachPlanReview(true)">Relancer quand même</button></div>';
   else if(typeof isAdmin === 'function' && isAdmin()) h += '<div class="pr-ask"><button type="button" id="pr-coach-btn" class="pr-btn pri" onclick="askCoachPlanReview()">' + (R.coach ? '🤖 Redemander l\'avis du Coach' : '🤖 Demander l\'avis du Coach') + '</button>'
     + '<p class="pr-note">Il relit tout le plan, tes séances faites et ta forme, et peut proposer d\'autres changements (volumes, enchaînements, allures)' + (nW ? ', notamment pour corriger les points de vigilance' : '') + '.</p></div>';
+  // ── En parler : discussion « Mon plan » dans l'onglet Coach (plan-chat.js)
+  if(typeof isAdmin === 'function' && isAdmin() && typeof openPlanChat === 'function') h += '<button type="button" class="pr-btn" style="background:#EEF2FF;color:#3730A3;border:1.5px solid #C7D2FE;" onclick="openPlanChat(_prReview && _prReview.items.length ? \'À propos des ajustements proposés par la mise à jour : \' : \'\')">💬 En parler avec le Coach</button>';
 
   // ── Ton niveau (détail)
   h += '<p class="pr-sec"><span>Ton niveau en détail</span><button class="pr-link" onclick="' + prReload + '">🏆 Mes records</button></p>';
@@ -982,6 +984,32 @@ async function askCoachPlanReview(force){
     if(t) t.textContent = sec + ' s · en général 15 à 40 s';
     if(sec && sec % 3 === 0 && m && k < msgs.length - 1){ k++; m.classList.remove('sw'); void m.offsetWidth; m.classList.add('sw'); m.textContent = msgs[k]; }
   }, 1000);
+  const body = await prCoachBody(a, R, force);
+  try {
+    const token = await getAuthToken();
+    const r = await fetch(FUNCTIONS_BASE + '/planReview', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if(!r.ok || !j.success) throw new Error(j.error || 'HTTP ' + r.status);
+    const items = prCoachItems(j.changes);
+    clearInterval(R.clTimer); if(_prReview !== R) return;
+    _prMergeCoach(R, items, j.rejected || [], j.assessment || '');
+    // avis mémorisé avec ses changements : réaffiché tant qu'ils ne sont pas appliqués
+    state._coach_review = { date: today, at: new Date().toISOString(), sig: prDataSig(), assessment: R.coach, rejected: (j.rejected || []).slice(0, 30),
+      changes: items.map(function(x){ return { key: x.key, w: x.w, date: x.date, field: x.field, title: x.title, type: x.type, before: x.before, after: x.after, reason: x.reason }; }), applied: !items.length };
+    if(dbRef) dbRef.child('_coach_review').set(state._coach_review).catch(function(){});
+    _prRender();
+    const cc = document.querySelector('#pr-content .pr-coach'); if(cc){ cc.classList.add('pr-pop'); cc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  } catch(e) {
+    clearInterval(R.clTimer); if(_prReview !== R) return;
+    alert('Le Coach n\'a pas pu relire le plan (' + e.message + '). Réessaie dans un instant.');
+    _prRender();
+  }
+}
+
+// données envoyées au Coach (relecture du plan, discussion « Mon plan ») : plan complet, niveau, volume, charge, ressenti, historique…
+// a = prAnalyze() ; R = { items: propositions calculées, held: séances en attente }
+async function prCoachBody(a, R, force){
+  const today = a.opt.today;
   const weeks = {};
   prSessions(state).forEach(function(s){
     const w = weeks[s.w] = weeks[s.w] || { w: s.w, meta: (function(){ try { return JSON.parse(state['meta_w' + s.w] || '{}'); } catch(e) { return {}; } })(), sessions: [] };
@@ -994,7 +1022,7 @@ async function askCoachPlanReview(force){
     postRaceUntil: a.opt.postRaceUntil, habitualKm: a.opt.habitual, history: await prHistory(today).catch(function(){ return []; }), warnings: a.warnings.slice(0, 20).map(function(w){ return w.text; }),
     proposals: R.items.filter(function(p){ return p.src !== 'coach'; }).map(function(p){ return { ref: p.key, champ: p.field, nature: p.kind || 'allure', title: p.title, before: p.before, after: p.after, reason: p.short || p.reason, retenue: !!p.on }; }),
     force: force, next: !!(typeof _prepView !== 'undefined' && _prepView && _prepView.next), startDate: state.plan_start_date || null,
-    held: (_prReview.held || []).map(function(p){ return { ref: p.key, title: p.title, date: p.date, before: p.before, allure_a_ton_niveau: p.after }; }),
+    held: (R.held || []).map(function(p){ return { ref: p.key, title: p.title, date: p.date, before: p.before, allure_a_ton_niveau: p.after }; }),
     plan: Object.keys(weeks).map(function(k){ return weeks[k]; }), memos: state._coach_memos || '',
     reviewHistory: (state._plan_reviews || []).slice(-4).map(function(h){ return { date: h.date, avec_coach: !!h.coach, niveau: h.vdot, changements: (h.changes || []).map(function(c){ return { ref: c.ref, seance: c.title, date: c.date, champ: c.field, avant: c.before, apres: c.after, par: c.src === 'coach' ? 'toi (Coach)' : 'calcul', raison: c.reason }; }) }; }),
     volume: a.volume ? { base_km_sem: a.volume.base, pic_vise_km: a.volume.peak, semaines: a.volume.weeks.map(function(w){ return { semaine: w.w, prevu: w.plan, fait: w.past ? w.done : undefined, conseille: w.target || undefined, raison: w.why || undefined }; }) } : null,
@@ -1012,33 +1040,19 @@ async function askCoachPlanReview(force){
     trajectoire: a.trajectory && a.trajectory.race ? { niveau: a.fit.vdot, tendance_par_semaine: Math.round(a.trajectory.slope * 70) / 10, projection_jour_j: Math.round(a.trajectory.race.v * 10) / 10, fourchette: prTime(a.trajectory.race.lo) + ' – ' + prTime(a.trajectory.race.hi), niveau_objectif: a.trajectory.need ? Math.round(a.trajectory.need * 10) / 10 : null, verdict: a.trajectory.verdict || null } : null,
     lastCoachReview: state._coach_review ? { date: state._coach_review.date, avis: state._coach_review.assessment } : null,
     newSince: state._coach_review ? prDoneSince(state._coach_review.date, state._coach_review.at) : null };
-  try {
-    const token = await getAuthToken();
-    const r = await fetch(FUNCTIONS_BASE + '/planReview', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
-    const j = await r.json();
-    if(!r.ok || !j.success) throw new Error(j.error || 'HTTP ' + r.status);
-    const byKey = {}; prSessions(state).forEach(function(s){ byKey[s.key] = s; });
-    const items = [];
-    (j.changes || []).forEach(function(c){
-      const s = byKey[c.ref]; if(!s || s.done) return;
-      const push = function(field, before, after){ if(after === undefined || after === null || String(after) === String(before)) return; items.push({ on: true, key: s.key, w: s.w, date: s.date, field: field, title: s.title, type: s.type, before: before, after: after, reason: c.reason || '', src: 'coach' }); };
-      push('detail', s.detail, c.detail); push('title', s.title, c.title); push('km', s.kmPlan, c.km != null ? Math.round(+c.km * 10) / 10 : null); push('type', s.type, c.type);
-    });
-    clearInterval(R.clTimer); if(_prReview !== R) return;
-    _prMergeCoach(R, items, j.rejected || [], j.assessment || '');
-    // avis mémorisé avec ses changements : réaffiché tant qu'ils ne sont pas appliqués
-    state._coach_review = { date: today, at: new Date().toISOString(), sig: prDataSig(), assessment: R.coach, rejected: (j.rejected || []).slice(0, 30),
-      changes: items.map(function(x){ return { key: x.key, w: x.w, date: x.date, field: x.field, title: x.title, type: x.type, before: x.before, after: x.after, reason: x.reason }; }), applied: !items.length };
-    if(dbRef) dbRef.child('_coach_review').set(state._coach_review).catch(function(){});
-    _prRender();
-    const cc = document.querySelector('#pr-content .pr-coach'); if(cc){ cc.classList.add('pr-pop'); cc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-  } catch(e) {
-    clearInterval(R.clTimer); if(_prReview !== R) return;
-    alert('Le Coach n\'a pas pu relire le plan (' + e.message + '). Réessaie dans un instant.');
-    _prRender();
-  }
+  return body;
 }
-
+// changements renvoyés par le Coach → propositions (séances à venir non faites ; un champ par proposition)
+function prCoachItems(changes){
+  const byKey = {}; prSessions(state).forEach(function(s){ byKey[s.key] = s; });
+  const items = [];
+  (changes || []).forEach(function(c){
+    const s = byKey[c.ref]; if(!s || s.done) return;
+    const push = function(field, before, after){ if(after === undefined || after === null || String(after) === String(before)) return; items.push({ on: true, key: s.key, w: s.w, date: s.date, field: field, title: s.title, type: s.type, before: before, after: after, reason: c.reason || '', src: 'coach' }); };
+    push('detail', s.detail, c.detail); push('title', s.title, c.title); push('km', s.kmPlan, c.km != null ? Math.round(+c.km * 10) / 10 : null); push('type', s.type, c.type);
+  });
+  return items;
+}
 // Fusion des changements du Coach avec les propositions calculées, en gardant les choix déjà faits (coché / décoché,
 // « Accélérer quand même »). Une consigne du Coach sur une séance remplacée (footing WHOOP, test…) s'applique à la
 // nouvelle séance ; tout autre changement du Coach sur cette séance retire le remplacement. « ref » ou « ref:champ » écartés.

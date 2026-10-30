@@ -69,8 +69,9 @@ function apCardHtml(){
       + (c.why ? '<span class="ap-why">' + _apEsc(c.why) + '</span>' : '') + '</li>';
   }).join('');
   const head = L.undone ? '↩ Ajustements de la nuit annulés : ton plan d\'origine est rétabli' : L.applied ? '🤖 Ajusté cette nuit par le pilote automatique' : '🤖 Ajustements proposés cette nuit (mode « sur proposition »)';
-  const act = L.undone ? '' : L.applied ? '<button type="button" class="ap-undo" onclick="apUndo()">Annuler ces ajustements</button>'
-    : '<button type="button" class="ap-undo go" onclick="if(typeof openPlanReview===\'function\')openPlanReview()">Voir et appliquer</button>';
+  const talk = typeof openPlanChat === 'function' && typeof isAdmin === 'function' && isAdmin() ? '<button type="button" class="ap-undo" style="background:#fff;color:#4338CA;border:1px solid #C7D2FE;margin-top:6px;" onclick="openPlanChat(\'À propos des ajustements de cette nuit : \')">💬 En parler avec le Coach</button>' : '';
+  const act = (L.undone ? '' : L.applied ? '<button type="button" class="ap-undo" onclick="apUndo()">Annuler ces ajustements</button>'
+    : '<button type="button" class="ap-undo go" onclick="if(typeof openPlanReview===\'function\')openPlanReview()">Voir et appliquer</button>') + talk;
   return '<div class="ap-card' + (L.undone ? ' off' : '') + '"><p class="ap-h">' + head + '</p>' + (L.undone ? '' : '<ul>' + rows + '</ul>') + act + '</div>';
 }
 const _apEsc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };

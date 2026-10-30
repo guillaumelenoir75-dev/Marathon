@@ -1100,27 +1100,8 @@ exports.adminTriggerBrief = onRequest(
 // ─── Plan › « MAJ le plan » : relecture du plan par le Coach ─────────────────
 // Reçoit le plan (séances faites avec leurs résultats, séances à venir), le niveau calculé dans l'app, les contrôles
 // et propositions automatiques ; renvoie un avis et des modifications JSON (séances à venir uniquement), validées ici.
-exports.planReview = onRequest(
-  { secrets: [ANTHROPIC_API_KEY], cors: true, timeoutSeconds: 120, memory: '512MiB' },
-  async (req, res) => {
-    corsHeaders(res);
-    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
-    try {
-      const b = req.body || {};
-      if (!Array.isArray(b.plan) || !b.plan.length) { res.status(400).json({ success: false, error: 'plan requis' }); return; }
-      const db = admin.database();
-      let situation = '';
-      if (!b.next) { try { situation = (await buildTrainingSituation(db, (await db.ref(ADMIN_STATE).once('value')).val() || {}, b.today, { planReview: true })).text; } catch(e) {} }
-      // séances modifiables : à venir, non réalisées, ni repos ni course (objet sans prototype, refs au format attendu)
-      const editable = Object.create(null);
-      b.plan.forEach((w) => (w.sessions || []).forEach((s) => { if (s && /^extra_w\d+_s\d+$/.test(String(s.ref)) && !s.done && s.type !== 'rest' && (!s.date || !b.today || s.date >= b.today)) editable[s.ref] = s; }));
-      const compact = b.plan.map((w) => ({ semaine: w.w, phase: w.meta && w.meta.phase, recup: !!(w.meta && w.meta.isRecov), pic: !!(w.meta && w.meta.isPeak), affutage: !!(w.meta && w.meta.isTaper),
-        seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km },
-          s.done ? { fait: true, resultat: s.result } : { modifiable: !!editable[s.ref] })) }));
-      const system = `Tu es un entraîneur de course à pied de haut niveau (Daniels, Pfitzinger, Canova, Magness), coach personnel de Guillaume, coureur expérimenté. On te demande de relire son plan et de l'optimiser pour la PERFORMANCE, à partir de son historique, de ses résultats réels et de sa situation. Tu n'es pas là pour tout sécuriser : un plan trop prudent est aussi un mauvais plan.
-
-CE QUE TU DOIS ANALYSER D'ABORD :
+// ─── Plan : éléments communs à la relecture du Coach (planReview) et à la discussion « Mon plan » (planChat) ───
+const PLAN_PRINCIPLES = `CE QUE TU DOIS ANALYSER D'ABORD :
 - Son historique (prépas précédentes : km réalisés par semaine, volume habituel, pic, sortie longue max, séances de qualité et allures tenues). C'est sa CHARGE CHRONIQUE : elle fixe ce qu'il peut encaisser, pas la semaine précédente seule.
 - Son niveau actuel (équivalent VDOT d'après records et séances) et l'écart avec l'objectif.
 - Ses séances réalisées dans le plan en cours (allures, FC, ressenti).
@@ -1141,14 +1122,20 @@ PRINCIPES :
 
 FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
 
-RÉPONSE : uniquement un objet JSON valide, sans texte autour :
-{"assessment":"2 ou 3 phrases courtes (300 caractères max), tutoiement : le verdict et l'idée principale, sans répéter le détail des changements",
- "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots maximum"}],
- "rejected":["ref:champ (ou ref) des propositions automatiques que tu écartes (facultatif)"]}
-IMPORTANT : l'avis ne décrit QUE ce qui est réellement dans "changes" (et les propositions automatiques conservées) ; n'annonce jamais un changement que tu ne renvoies pas.
-Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
-      const hist = Array.isArray(b.history) ? b.history.slice(0, 2) : [];
-      const userMsg = `Aujourd'hui : ${b.today || ''}
+`;
+// séances modifiables (à venir, non faites, ni repos) et plan compact envoyé au Coach
+function planEditable(b){
+  const editable = Object.create(null);
+  b.plan.forEach((w) => (w.sessions || []).forEach((s) => { if (s && /^extra_w\d+_s\d+$/.test(String(s.ref)) && !s.done && s.type !== 'rest' && (!s.date || !b.today || s.date >= b.today)) editable[s.ref] = s; }));
+  const compact = b.plan.map((w) => ({ semaine: w.w, phase: w.meta && w.meta.phase, recup: !!(w.meta && w.meta.isRecov), pic: !!(w.meta && w.meta.isPeak), affutage: !!(w.meta && w.meta.isTaper),
+    seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km },
+      s.done ? { fait: true, resultat: s.result } : { modifiable: !!editable[s.ref] })) }));
+  return { editable, compact };
+}
+// toutes les données de l'athlète et du plan, en texte pour le Coach
+function planDataText(b, situation, compact){
+  const hist = Array.isArray(b.history) ? b.history.slice(0, 2) : [];
+  return `Aujourd'hui : ${b.today || ''}
 Course objectif : ${JSON.stringify(b.race || {})}
 Niveau calculé dans l'app : ${JSON.stringify(b.fitness || 'non disponible (aucun record ni séance exploitable)')}
 Volume habituel (charge chronique, dernière prépa) : ${b.habitualKm ? b.habitualKm + ' km/semaine' : 'inconnu'}
@@ -1173,6 +1160,48 @@ Séances mises en attente (non accélérées automatiquement car tôt dans la r�
 ${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(-1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
 PLAN COMPLET :
 ${JSON.stringify(compact)}`;
+}
+// changements du Coach validés : séances modifiables seulement, champs nettoyés, km bornés autour du plan
+function planCleanChanges(list, editable){
+  const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
+  const clean = (v, n) => { const x = str(v, n); return x ? x.replace(/\|/g, '·').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ') : undefined; };
+  const seenRef = Object.create(null);
+  return (Array.isArray(list) ? list : []).filter((c) => c && typeof c.ref === 'string' && editable[c.ref] && !seenRef[c.ref] && (seenRef[c.ref] = 1)).slice(0, 12).map((c) => {
+    const s = editable[c.ref], o = { ref: c.ref, reason: clean(c.reason, 160) || '' }, race = s.type === 'race', km0 = parseFloat(s.km) || 0;
+    const d = clean(c.detail, 300); if (d) o.detail = d;
+    const t = clean(c.title, 80); if (t && !race) o.title = t;
+    // km : bornés autour du plan (au plus ×1,5 ou +6 km, au moins ×0,4), 42 km maximum
+    const km = parseFloat(c.km); if (isFinite(km) && km > 0 && !race){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
+    // type : seulement avec une nouvelle consigne qui va avec
+    if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && c.type !== s.type && !race && o.detail) o.type = c.type;
+    return o;
+  }).filter((o) => o.detail || o.title || o.km || o.type);
+}
+
+exports.planReview = onRequest(
+  { secrets: [ANTHROPIC_API_KEY], cors: true, timeoutSeconds: 120, memory: '512MiB' },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    try {
+      const b = req.body || {};
+      if (!Array.isArray(b.plan) || !b.plan.length) { res.status(400).json({ success: false, error: 'plan requis' }); return; }
+      const db = admin.database();
+      let situation = '';
+      if (!b.next) { try { situation = (await buildTrainingSituation(db, (await db.ref(ADMIN_STATE).once('value')).val() || {}, b.today, { planReview: true })).text; } catch(e) {} }
+      // séances modifiables : à venir, non réalisées, ni repos ni course (objet sans prototype, refs au format attendu)
+      const { editable, compact } = planEditable(b);
+      const system = `Tu es un entraîneur de course à pied de haut niveau (Daniels, Pfitzinger, Canova, Magness), coach personnel de Guillaume, coureur expérimenté. On te demande de relire son plan et de l'optimiser pour la PERFORMANCE, à partir de son historique, de ses résultats réels et de sa situation. Tu n'es pas là pour tout sécuriser : un plan trop prudent est aussi un mauvais plan.
+
+${PLAN_PRINCIPLES}
+RÉPONSE : uniquement un objet JSON valide, sans texte autour :
+{"assessment":"2 ou 3 phrases courtes (300 caractères max), tutoiement : le verdict et l'idée principale, sans répéter le détail des changements",
+ "changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":10,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots maximum"}],
+ "rejected":["ref:champ (ou ref) des propositions automatiques que tu écartes (facultatif)"]}
+IMPORTANT : l'avis ne décrit QUE ce qui est réellement dans "changes" (et les propositions automatiques conservées) ; n'annonce jamais un changement que tu ne renvoies pas.
+Règles : uniquement des "ref" marquées modifiable ; ne mets dans chaque objet que les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
+      const userMsg = planDataText(b, situation, compact);
       const out = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{ role: 'user', content: userMsg }], 6000, undefined, { timeout: 100000, full: true });
       const raw = out && out.text;
       if (!raw) { res.status(502).json({ success: false, error: 'réponse vide' }); return; }
@@ -1181,23 +1210,70 @@ ${JSON.stringify(compact)}`;
       try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
       if (!j) { res.status(502).json({ success: false, error: 'réponse illisible' }); return; }
       const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
-      const clean = (v, n) => { const x = str(v, n); return x ? x.replace(/\|/g, '·').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ') : undefined; };
-      const seenRef = Object.create(null);
-      const changes = (Array.isArray(j.changes) ? j.changes : []).filter((c) => c && typeof c.ref === 'string' && editable[c.ref] && !seenRef[c.ref] && (seenRef[c.ref] = 1)).slice(0, 12).map((c) => {
-        const s = editable[c.ref], o = { ref: c.ref, reason: clean(c.reason, 160) || '' }, race = s.type === 'race', km0 = parseFloat(s.km) || 0;
-        const d = clean(c.detail, 300); if (d) o.detail = d;
-        const t = clean(c.title, 80); if (t && !race) o.title = t;
-        // km : bornés autour du plan (au plus ×1,5 ou +6 km, au moins ×0,4), 42 km maximum
-        const km = parseFloat(c.km); if (isFinite(km) && km > 0 && !race){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
-        // type : seulement avec une nouvelle consigne qui va avec
-        if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && c.type !== s.type && !race && o.detail) o.type = c.type;
-        return o;
-      }).filter((o) => o.detail || o.title || o.km || o.type);
+      const changes = planCleanChanges(j.changes, editable);
       const auto = new Set((Array.isArray(b.proposals) ? b.proposals : []).map((p) => p && p.ref).filter(Boolean));
       const rejected = (Array.isArray(j.rejected) ? j.rejected : []).filter((r) => typeof r === 'string' && auto.has(r.split(':')[0])).slice(0, 30);
       res.json({ success: true, assessment: str(j.assessment, 500) || '', changes, rejected });
     } catch(e) {
       console.error('planReview error:', e.message);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);
+
+// Discussion « Mon plan » (onglet Coach) : Guillaume parle de son plan (ressenti, volume, contraintes) ; le Coach répond et peut
+// proposer des changements (mêmes règles et mêmes contrôles que la relecture du plan) qu'il valide ou non dans l'app.
+exports.planChat = onRequest(
+  { secrets: [ANTHROPIC_API_KEY], cors: true, timeoutSeconds: 120, memory: '512MiB' },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    try {
+      const b = req.body || {};
+      const message = String(b.message || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
+      if (!message) { res.status(400).json({ success: false, error: 'message requis' }); return; }
+      if (!Array.isArray(b.plan) || !b.plan.length) { res.status(400).json({ success: false, error: 'plan requis' }); return; }
+      const db = admin.database();
+      let situation = '';
+      if (!b.next) { try { situation = (await buildTrainingSituation(db, (await db.ref(ADMIN_STATE).once('value')).val() || {}, b.today, { planReview: true })).text; } catch(e) {} }
+      const { editable, compact } = planEditable(b);
+      const system = `Tu es le coach running personnel de Guillaume. Dans ce fil, vous parlez UNIQUEMENT de son plan d'entraînement : son ressenti sur les séances et les semaines, le volume, l'intensité, l'organisation, les ajustements. Tu as tout son plan et ses données.
+
+${PLAN_PRINCIPLES}
+CONVERSATION :
+- Réponds à ce qu'il dit, en 2 à 5 phrases, tutoiement, chaleureux et concret : appuie-toi sur ses chiffres (km faits / prévus, allures, charge, semaines). Pas de titres ni de listes ; **gras** pour les chiffres clés seulement.
+- Son ressenti compte. S'il dit que ça s'est bien passé et qu'il voudrait plus, vérifie dans ses données (charge réelle 7 j / 28 j, volume habituel, recette, WHOOP, douleurs, récupération après course) : si c'est sûr, propose une hausse RAISONNABLE et chiffrée ; sinon explique pourquoi pas maintenant et propose une alternative (plus tard, ou autrement).
+- S'il veut moins, ou annonce une contrainte (jour indisponible, fatigue, voyage, douleur), adapte le plan.
+- Tout changement utile va dans "changes" : il les verra comme des propositions à valider d'un geste. Annonce-les dans ta réponse en une phrase (« je te propose de passer la sortie longue de dimanche de 12 à 14 km »). N'annonce JAMAIS un changement que tu ne renvoies pas, et ne renvoie pas un changement sans l'annoncer.
+- Propositions automatiques de l'app (calcul) : si tu les approuves dans ce contexte, mets leur "ref:champ" dans "auto" ; elles seront proposées avec les tiennes (dis-le en une phrase).
+- S'il manque une information indispensable, pose UNE question courte au lieu de proposer.
+- Hors sujet (autre chose que le plan) : réponds en une phrase et rappelle que ce fil sert au plan (le reste : onglet Coach).
+- Ce que la conversation a déjà réglé (propositions appliquées ou refusées) est acquis : ne le repropose pas, sauf s'il le redemande.
+
+RÉPONSE : uniquement un objet JSON valide, sans texte autour :
+{"reply":"ta réponse (900 caractères max)","changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":12,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots"}],"auto":["ref:champ"]}
+Règles : uniquement des "ref" marquées modifiable ; dans chaque objet, seulement les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
+      const thread = (Array.isArray(b.thread) ? b.thread : []).slice(-12).map((m) => {
+        const who = m && m.r === 'u' ? 'Guillaume' : 'Coach';
+        const ch = m && Array.isArray(m.ch) && m.ch.length ? ' [propositions : ' + m.ch.slice(0, 8).map((c) => (c.title || c.ref) + ' — ' + c.field + ' : ' + c.before + ' → ' + c.after).join(' ; ') + ' — ' + (m.st === 'applied' ? 'APPLIQUÉES' : m.st === 'dismissed' ? 'REFUSÉES' : m.st === 'undone' ? 'ANNULÉES' : 'en attente') + ']' : '';
+        return who + ' : ' + String((m && m.t) || '').slice(0, 900) + ch;
+      });
+      const userMsg = planDataText(b, situation, compact)
+        + `\n\nCONVERSATION SUR LE PLAN (la plus récente en dernier) :\n${thread.length ? thread.join('\n') : '(début de la conversation)'}\n\nMESSAGE DE GUILLAUME : ${message}`;
+      const out = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{ role: 'user', content: userMsg }], 3000, undefined, { timeout: 100000, full: true });
+      const raw = out && out.text;
+      if (!raw) { res.status(502).json({ success: false, error: 'réponse vide' }); return; }
+      let j = null;
+      try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
+      // réponse en texte libre (JSON raté) : la réponse est gardée, sans changement
+      if (!j || typeof j.reply !== 'string') j = { reply: String(raw).replace(/^```[\s\S]*?```$/g, '').trim().slice(0, 1200), changes: [] };
+      const changes = planCleanChanges(j.changes, editable);
+      const autoRefs = new Set((Array.isArray(b.proposals) ? b.proposals : []).map((p) => p && p.ref && p.ref + ':' + p.champ).filter(Boolean));
+      const auto = (Array.isArray(j.auto) ? j.auto : []).filter((r) => typeof r === 'string' && autoRefs.has(r)).slice(0, 20);
+      res.json({ success: true, reply: String(j.reply || '').trim().slice(0, 1200), changes, auto });
+    } catch(e) {
+      console.error('planChat error:', e.message);
       res.status(500).json({ success: false, error: e.message });
     }
   }

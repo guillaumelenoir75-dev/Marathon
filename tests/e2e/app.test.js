@@ -461,3 +461,39 @@ test('analyse du Coach après validation : ton ressenti et l\'écart à la consi
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('Coach › « Mon plan » : je parle de ma semaine, le Coach propose, j\'applique puis j\'annule', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  let target = null, body = null;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: (r) => {
+    if (/planChat/.test(r.request().url())) {
+      body = JSON.parse(r.request().postData() || '{}');
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, reply: 'Belle semaine ! Je te propose de passer **' + target.title + '** de ' + target.km + ' à ' + (target.km + 2) + ' km.', changes: [{ ref: target.key, km: target.km + 2, reason: 'Semaine bien encaissée' }], auto: [] }) });
+    }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true,"reply":"ok","text":"ok"}' });
+  } });
+  target = await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.date > prTodayIso()).shift(); return { key: s.key, title: s.title, km: s.kmPlan }; });
+  await page.evaluate(() => showScreen('coach')); await page.waitForTimeout(300);
+  await page.click('#coach-mode button[data-m="plan"]');
+  await page.waitForSelector('#pc-panel .pc-sum');
+  assert.ok(await page.evaluate(() => document.getElementById('coach-messages').style.display === 'none' && document.getElementById('coach-chat-foot').style.display === 'none'), 'discussion libre masquée');
+  await page.fill('#pc-input', 'Cette semaine ça s\'est bien passé, j\'aurais bien vu un peu plus de volume la semaine prochaine, qu\'en penses-tu ?');
+  await page.click('#pc-send');
+  await page.waitForSelector('#pc-messages .pc-card.pending .pc-go');
+  assert.match(body.message, /un peu plus de volume/); assert.ok(Array.isArray(body.plan) && body.plan.length && body.race, 'tout le plan et les données envoyés');
+  assert.match(await page.textContent('#pc-messages .pc-card'), new RegExp('km : ' + target.km + ' km → ' + (target.km + 2) + ' km'));
+  await page.click('#pc-messages .pc-go');
+  await page.waitForSelector('#pc-messages .pc-card.applied');
+  let S = await page.evaluate((k) => ({ km: JSON.parse(state[k]).km, h: state._plan_reviews.slice(-1)[0] }), target.key);
+  assert.equal(S.km, target.km + 2); assert.equal(S.h.kind, 'chat'); assert.ok(S.h.coach);
+  assert.equal(JSON.parse(JSON.parse(await db(page)).users.ADMINUID.state[target.key]).km, target.km + 2, 'enregistré');
+  await page.click('#pc-messages .pc-done button');
+  await page.waitForSelector('#pc-messages .pc-card.undone');
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, target.key), target.km, 'annulé');
+  // mode mémorisé ; « En parler avec le Coach » depuis MAJ le plan ouvre ce fil
+  await page.evaluate(() => { showScreen('home'); showScreen('coach'); }); await page.waitForTimeout(300);
+  assert.ok(await page.evaluate(() => document.getElementById('pc-panel').style.display !== 'none'));
+  assert.equal(await page.evaluate(() => state._plan_chat.msgs.length >= 4), true);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

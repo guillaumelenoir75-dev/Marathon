@@ -1279,6 +1279,7 @@ function showScreen(name, renfoTab){
   }
   if(name==='coach'){
     loadCoachHistory();
+    if(typeof coachModeInit==='function') coachModeInit();   // « Coach » ou « Mon plan » (plan-chat.js)
   }
   if(name==='compte'){
     renderCompteScreen();

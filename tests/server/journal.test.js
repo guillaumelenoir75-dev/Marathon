@@ -124,3 +124,30 @@ test('analyse de séance : cadre imposé quand l\'EF est courue plus vite par ch
   // une bonne note n'est pas touchée
   assert.match(C.analysisFix('[FEU:🟢]\n●●●●●●●●○○ **8/10**', C.analysisFrame(sessionData)), /\*\*8\/10\*\*/);
 });
+
+test('« Mon plan » (planChat) : réponse + changements validés (séances à venir seulement, km bornés), ajustements calculés approuvés, fil transmis', async () => {
+  const { loadFunctions: lf, callHttp: ch } = require('../helpers/functions');
+  const ai = JSON.stringify({ reply: 'Belle semaine ! Je te propose de passer la sortie longue de dimanche de **12 à 14 km**.',
+    changes: [{ ref: 'extra_w3_s2', km: 14, reason: 'Semaine réussie, hausse de 2 km raisonnable' },
+      { ref: 'extra_w2_s0', km: 20, reason: 'séance déjà faite : refusée' },
+      { ref: 'extra_w3_s1', km: 40, reason: 'hors bornes : refusée' }],
+    auto: ['extra_w3_s1:detail', 'extra_w9_s9:km'] });
+  const F = lf({ data: {}, modules: ['coach.js'], ai });
+  const plan = [{ w: 2, sessions: [{ ref: 'extra_w2_s0', date: '2026-10-27', type: 'ef', title: 'Footing', km: 8, done: true }] },
+    { w: 3, sessions: [{ ref: 'extra_w3_s1', date: '2026-11-04', type: 'tempo', title: 'Tempo', km: 10, detail: "3 × 8 min à 4'35" }, { ref: 'extra_w3_s2', date: '2026-11-08', type: 'long', title: 'Sortie longue', km: 12 }] }];
+  const r = await ch(F.coach.planChat, { today: '2026-10-31', plan, next: true, message: 'Cette semaine ça s\'est bien passé, un peu plus de volume la semaine prochaine ?',
+    proposals: [{ ref: 'extra_w3_s1', champ: 'detail' }], thread: [{ r: 'u', t: 'Salut' }, { r: 'c', t: 'Je te propose 10 km', ch: [{ title: 'Footing', field: 'km', before: '8 km', after: '10 km' }], st: 'applied' }] });
+  assert.equal(r.status, 200, JSON.stringify(r.out));
+  assert.match(r.out.reply, /12 à 14 km/);
+  assert.deepEqual(r.out.changes.map((c) => [c.ref, c.km]), [['extra_w3_s2', 14]]);
+  assert.deepEqual(r.out.auto, ['extra_w3_s1:detail']);
+  const u = F.calls.ai[0].user;
+  assert.match(u, /MESSAGE DE GUILLAUME : Cette semaine ça s'est bien passé/);
+  assert.match(u, /Coach : Je te propose 10 km \[propositions : Footing — km : 8 km → 10 km — APPLIQUÉES\]/);
+  assert.match(F.calls.ai[0].system, /UNIQUEMENT de son plan/);
+  // réponse non JSON : gardée telle quelle, sans changement
+  const F2 = lf({ data: {}, modules: ['coach.js'], ai: 'Je pense que tu peux garder ce volume.' });
+  const r2 = await ch(F2.coach.planChat, { today: '2026-10-31', plan, next: true, message: 'Et alors ?' });
+  assert.equal(r2.out.reply, 'Je pense que tu peux garder ce volume.'); assert.deepEqual(r2.out.changes, []);
+  assert.equal((await ch(F2.coach.planChat, { today: '2026-10-31', plan, message: '' })).status, 400);
+});
