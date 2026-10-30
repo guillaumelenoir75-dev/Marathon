@@ -119,6 +119,8 @@ test('analyse de séance : cadre imposé quand l\'EF est courue plus vite par ch
   const u = F.calls.ai[0].user;
   assert.match(u, /CADRE IMPOSÉ POUR CETTE ANALYSE \(non négociable/);
   assert.match(u.slice(-1500), /JAMAIS \[FEU:🔴\]/, 'rappelé en fin de message');
+  // consigne recopiée dans la réponse : retirée
+  assert.equal(C.analysisFix('[FEU:🟡]\n●●●●●●●○○○ **7/10**\nMais ton WHOOP affiche 26/100 aujourd\'hui — une phrase d\'info, pas un reproche : le système nerveux récupère.', C.analysisFrame(sessionData)).split('\n')[2], 'Mais ton WHOOP affiche 26/100 aujourd\'hui : le système nerveux récupère.');
   // une bonne note n'est pas touchée
   assert.match(C.analysisFix('[FEU:🟢]\n●●●●●●●●○○ **8/10**', C.analysisFrame(sessionData)), /\*\*8\/10\*\*/);
 });
