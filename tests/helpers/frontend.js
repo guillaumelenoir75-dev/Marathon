@@ -1,54 +1,14 @@
 // Charge les modules de l'app (scripts classiques, fonctions globales) dans un contexte isolé pour les tests unitaires.
 // Usage : const app = loadApp({ state: {...}, now: '2026-10-29T09:00:00+01:00' }); app.prVolumePlan(...)
 'use strict';
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
 
-const SRC = path.join(__dirname, '..', '..', 'public-static', 'src');
-const FILES = ['plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js', 'body-signals.js', 'journal.js', 'plan-whatif.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'shoes.js', 'stats.js', 'whoop.js'];
-
-function fakeDate(nowIso) {
-  const RealDate = Date, fixed = new RealDate(nowIso).getTime();
-  class FakeDate extends RealDate {
-    constructor(...a) { if (a.length === 0) super(fixed); else super(...a); }
-    static now() { return fixed; }
-  }
-  return FakeDate;
-}
-
+const { loadEngine } = require('../../functions/engine');
+// course par défaut des tests quand l'état n'en décrit pas
+const TEST_RACE = { name: 'Course test', course: '10 km', date: '2026-11-22', km: 10, objectif: '42:00' };
 function loadApp(opts) {
-  opts = opts || {};
-  const el = () => ({ style: {}, classList: { add() {}, remove() {}, toggle() {} }, appendChild() {}, remove() {}, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}, setAttribute() {}, dataset: {} });
-  const ctx = {
-    console, Math, JSON, Promise, setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
-    Date: opts.now ? fakeDate(opts.now) : Date,
-    document: { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], createElement: el, head: el(), body: el(), addEventListener() {}, visibilityState: 'visible' },
-    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-    navigator: {}, location: { pathname: '/', search: '' }, history: { replaceState() {} },
-    fetch: () => Promise.reject(new Error('réseau coupé dans les tests')),
-    state: opts.state || {}, dbRef: null, rendered: {},
-    isAdmin: () => opts.admin !== false, usesHardPlan: () => false, save() {}, showToast() {}, initFirebase() {},
-    prepRace: () => opts.race || { name: 'Course test', course: '10 km', date: '2026-11-22', km: 10, objectif: '42:00' },
-    normalizeSessionTitle: (t) => t, FUNCTIONS_BASE: 'https://functions.test', ADMIN_EMAIL: 'admin@test',
-    // chaussures (config.js, plan Seine-Eure) : liste dans state._shoes, km dans state._shoe_km_test
-    getShoes: () => { try { return JSON.parse((opts.state || {})._shoes || '[]'); } catch (e) { return []; } },
-    P: 'Pegasus', S: 'Saucony', Z: 'Zoom', CW: 1, getOrderedWeekSessions: () => [], getEffectiveCW: () => 0,
-  };
-  ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
-  vm.createContext(ctx);
-  // un seul script : les const / let de premier niveau restent visibles entre modules, comme dans le bundle
-  const code = FILES.map((f) => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n;\n')
-    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig, prepDebrief, prepRecette, prepRecetteLines, prAllDone, prObservedEf, prFitness, hrEfMax, hrZonesEstimate, prStride, jvParse, prWhatIf, weekShareData, wsPickWeek, shoeDayAdvice, bsDisplayZones, bsZonePaces, bsLevelNow, bsLevelHistory, dqIssues, dqKeep, qvMatch, bsBedtime, prStravaSessions, prStravaRaces, prKnownRaces, prStreak, fmSeries, fmRaceDay, fmTaperBest, fmTaperChanges, fmTrimp, fmLsq, prApplyChanges, prUndoReview };';
-  // copies des prépas enregistrées (historique complet) : app.setSnaps({ id: state })
-  vm.runInContext(code + '\n;globalThis.__setSnaps = function(o){ _prAllSnaps = o || {}; _prAllCache = null; };'
-    + '\n;globalThis.__setStrava = function(h){ _prStravaHist = h; _prAllCache = null; };', ctx, { filename: 'app-bundle.js' });
-  const app = ctx.__app;
-  app.ctx = ctx;
-  app.setSnaps = (o) => ctx.__setSnaps(o);
-  app.setStrava = (h) => ctx.__setStrava(h);
-  app.setState = (st) => { vm.runInContext('state = __next', Object.assign(ctx, { __next: st })); };
-  return app;
+  opts = Object.assign({}, opts || {});
+  if (!opts.race && !((opts.state || {}).onboarding || {}).date) opts.race = TEST_RACE;
+  return loadEngine(opts);
 }
 
 // Plan synthétique : nWeeks semaines (lun EF, mer qualité, dim sortie longue), course finale la dernière semaine

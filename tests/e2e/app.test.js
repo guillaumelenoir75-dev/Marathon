@@ -294,3 +294,27 @@ test('plan de course et prépa à venir', async () => {
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('pilote automatique : ajustements de la nuit expliqués sur l\'accueil, annulables en un geste, réglage', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  // la nuit : même moteur que la fonction serveur autopilotNightly
+  await page.evaluate(async () => { await prPrefetch(); });
+  const r = await page.evaluate(() => { const r = apRun(prTodayIso()); state._autopilot_last = r; save(); showScreen('home'); renderHome(); return JSON.parse(JSON.stringify(r)); });
+  assert.ok(r && r.applied && r.changes.length, JSON.stringify(r));
+  const c = r.changes[0];
+  const before = await page.evaluate((k) => state[k], c.key);
+  await page.waitForSelector('#home-form-card .ap-card .ap-undo');
+  assert.match(await page.textContent('#home-form-card .ap-card'), /Ajusté cette nuit/);
+  await page.click('#home-form-card .ap-card .ap-undo');
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => ({ L: state._autopilot_last, h: state._plan_reviews.slice(-1)[0] }));
+  assert.ok(after.L.undone && after.h.undone, 'annulé et marqué');
+  assert.notEqual(await page.evaluate((k) => state[k], c.key), before, 'séance rétablie');
+  assert.match(await page.textContent('#home-form-card .ap-card'), /plan d'origine est rétabli/);
+  await page.evaluate(() => { showScreen('compte'); openAutopilotSettings(); });
+  await page.click('#ap-set .ap-opt:nth-of-type(2)');
+  assert.equal(JSON.parse(await db(page)).users.ADMINUID.state._autopilot, 'suggest');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

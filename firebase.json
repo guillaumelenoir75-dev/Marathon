@@ -92,6 +92,7 @@
     {
       "source": "functions",
       "codebase": "default",
+      "predeploy": ["node scripts/copy-engine.js"],
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
         "node_modules",

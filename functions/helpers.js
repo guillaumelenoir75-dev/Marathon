@@ -260,6 +260,16 @@ function bedtimePlan(state, today) {
   return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type, debtMin: Math.round(debt), extraMin: extra, key: !!key };
 }
 
+// Ajustements de la nuit du pilote automatique (autopilot.js / autopilot.js serveur) pour le brief du matin
+function autopilotBriefText(state, todayStr) {
+  const L = state && state._autopilot_last, head = 'Ajustements de la nuit (pilote automatique)';
+  if (!L || L.date !== todayStr || !Array.isArray(L.changes) || !L.changes.length) return head + ' : aucun — séance confirmée telle que prévue.';
+  if (L.undone) return head + ' : annulés par toi ce matin — plan d\'origine rétabli.';
+  const F = { detail: 'allure / consigne', km: 'km', session: 'séance', title: 'intitulé', type: 'type' };
+  return head + (L.applied ? ' — APPLIQUÉS automatiquement (annulables par le bouton Annuler sous le brief) :\n' : ' — PROPOSÉS seulement (mode « sur proposition », rien n\'est modifié) :\n')
+    + L.changes.slice(0, 8).map((c) => `- ${c.today ? 'AUJOURD\'HUI' : c.date} · ${c.title} — ${F[c.field] || c.field} : ${c.before} → ${c.after}${c.why ? ' (raison : ' + c.why + ')' : ''}`).join('\n');
+}
+
 // plafond FC de l'endurance : zones recalées par l'app (_hr_zones, body-signals.js) sinon 148 bpm
 function efMaxOf(state) { const z = state && state._hr_zones; return z && z.applied && z.efMax >= 120 && z.efMax <= 185 ? z.efMax : 148; }
 // allure EF de référence calculée par l'app sur TOUT l'historique (toutes les prépas) : _ef_ref { pace, at }, récente (≤ 7 j)
@@ -668,7 +678,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 
 2. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : es-tu bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes. Tu t'adresses à moi directement : "Tu arrives...", "Ta récupération...", etc.
 
-3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
+3. 🏃 TON ENTRAÎNEMENT DU JOUR — la séance du jour (distance, heure, intention en une phrase). Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique. Puis, d'après « Ajustements de la nuit (pilote automatique) » fourni dans le contexte : s'ils ont été APPLIQUÉS, dire clairement ce qui a changé (avant → après, en **gras**) et POURQUOI, une phrase simple par changement (reformuler la raison fournie, sans jargon), en commençant par la séance d'aujourd'hui, puis terminer par : « Si tu préfères le plan d'origine, touche **Annuler** juste en dessous. » S'ils sont seulement PROPOSÉS : le dire et inviter à les appliquer dans « MAJ le plan ». S'il n'y en a aucun : écrire « Séance confirmée telle que prévue. »
 
 4. ⚡ CONSIGNES & MÉTÉO — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
    Ligne 1 : allure cible en **gras** (celle de la « Consigne de la séance » si fournie) + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
@@ -696,6 +706,7 @@ RÈGLES :
 ${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
 Consigne de la séance (plan) : ${consigneJour||'—'}
+${autopilotBriefText(state, todayStr)}
 Heure de la séance : ${seanceHeure||'non définie'}
 ${meteoStr||'Météo : non disponible'}
 ${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}
@@ -862,7 +873,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  buildTrainingSituation, parisToday, efMaxOf, efRefOf, bedtimePlan,
+  buildTrainingSituation, parisToday, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,

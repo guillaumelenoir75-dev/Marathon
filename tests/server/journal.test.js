@@ -62,3 +62,23 @@ test('stravaHistory : toutes les pages, courses seulement, résumé dans state, 
   r = (await callHttp(F.strava.stravaHistory, {})).out;
   assert.equal(r.full, false); assert.ok(F.calls.fetch.slice(-1)[0].includes('&after='), 'ensuite : seulement les nouvelles');
 });
+
+test('pilote de nuit (serveur) : moteur de l\'app exécuté sur l\'état, seules les séances changées écrites, résumé pour le brief', async () => {
+  const { loadFunctions: lf } = require('../helpers/functions');
+  const { synthPlan } = require('../helpers/frontend');
+  const st = synthPlan({ km: [30, 34, 38, 40, 42, 30], start: '2026-10-26' });
+  st.record_10km = '40:00'; st._records = { '10 km': { date: '2026-10-10' } };
+  st.onboarding = { course: '10 km', date: '2026-12-06', race_name: 'Course test' };
+  const UID = 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1';
+  const F = lf({ data: { users: { [UID]: { state: st } } }, modules: ['autopilot.js'] });
+  const r = await F.autopilot.runAutopilot(F.db, UID, '2026-10-29');
+  assert.equal(r.applied, true, JSON.stringify(r));
+  const S = F.db.data.users[UID].state;
+  assert.match(JSON.parse(S.extra_w2_s1).d, /4'25 — 4'30/);
+  assert.equal(S._autopilot_last.date, '2026-10-29'); assert.ok(S._server_rev > 0);
+  assert.equal(S.extra_w1_s0, st.extra_w1_s0, 'séance non concernée intacte');
+  const t = F.helpers.autopilotBriefText(S, '2026-10-29');
+  assert.match(t, /APPLIQUÉS automatiquement/); assert.match(t, /Tempo 3×8 min — allure \/ consigne : .*4'35 — 4'40.* → .*4'25 — 4'30/);
+  assert.match(F.helpers.autopilotBriefText(S, '2026-10-30'), /aucun — séance confirmée/);
+  S._autopilot = 'off'; assert.equal((await F.autopilot.runAutopilot(F.db, UID, '2026-10-30')).skip, 'désactivé');
+});

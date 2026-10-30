@@ -30,6 +30,7 @@ const {
   efRefOf,
   bedtimePlan,
   parisToday,
+  autopilotBriefText,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -480,7 +481,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 
 2. ✅ PRÊT POUR AUJOURD'HUI ? — synthèse de l'état du jour : es-tu bien reposé ? Quelque chose à surveiller ? Vert = feu vert total. Jaune = séance ok mais vigilance. Rouge = séance à adapter. 1-2 phrases directes. Tu t'adresses à moi directement : "Tu arrives...", "Ta récupération...", etc.
 
-3. 🎯 PROGRAMME DU JOUR — lister les activités avec distance et heure. Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique.
+3. 🏃 TON ENTRAÎNEMENT DU JOUR — la séance du jour (distance, heure, intention en une phrase). Si run + renfo, tout mentionner. Si repos : dire explicitement "Récupération active" et ce que ça implique. Puis, d'après « Ajustements de la nuit (pilote automatique) » fourni dans le contexte : s'ils ont été APPLIQUÉS, dire clairement ce qui a changé (avant → après, en **gras**) et POURQUOI, une phrase simple par changement (reformuler la raison fournie, sans jargon), en commençant par la séance d'aujourd'hui, puis terminer par : « Si tu préfères le plan d'origine, touche **Annuler** juste en dessous. » S'ils sont seulement PROPOSÉS : le dire et inviter à les appliquer dans « MAJ le plan ». S'il n'y en a aucun : écrire « Séance confirmée telle que prévue. »
 
 4. ⚡ CONSIGNES & MÉTÉO — MAX 3 LIGNES au total, ultra-concis, chiffres en **gras** :
    Ligne 1 : allure cible en **gras** (celle de la « Consigne de la séance » si fournie) + FC cible en **gras** (si chaleur ≥25°C : allure ajustée en **gras** + delta en **gras** à la place).
@@ -505,6 +506,7 @@ RÈGLES :
 ${globalScoreLine?globalScoreLine+'\n':''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
 Consigne de la séance (plan) : ${consigneJour||'—'}
+${autopilotBriefText(state, todayStr)}
 Heure de la séance : ${seanceHeure||'non définie'}
 ${meteoStr||'Météo : non disponible'}
 ${allureAjusteeStr||'Pas d\'ajustement chaleur nécessaire'}

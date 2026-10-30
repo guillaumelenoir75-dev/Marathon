@@ -122,6 +122,7 @@ function addCoachMessage(role, text, opts){
       +'</div>'
       +'<div style="background:#fff;padding:14px 16px;">'
         +'<div data-coach-text="1" style="color:var(--text,#1a1a1a);">'+renderBriefText(text)+'</div>'
+        +(briefType==='morning'&&typeof apCardHtml==='function'?apCardHtml():'')   // ajustements de la nuit + « Annuler » (autopilot.js)
       +'</div>'
       +'</div>';
   } else {
