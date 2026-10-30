@@ -465,6 +465,18 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     if(!window._stravaActivityData && _vp.strava && _vp.strava.splits) analysisContext.strava = { cadence: _vp.strava.cadence || null, fcMax: _vp.strava.fcMax || null, splits: _vp.strava.splits.filter(sp => !sp.distanceKm || sp.distanceKm >= 0.5).map(sp => ({ km: sp.km, allure: sp.allure, fc: sp.fc })) };
   }
   (function(){
+    const sp = ((analysisContext.strava || {}).splits || []).filter(x => x.allure && x.fc && (!x.distanceKm || x.distanceKm >= 0.9));
+    if(sp.length < 5) return;
+    const sec = x => { const m = String(x.allure).match(/(\d{1,2})['’:](\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+    const body = sp.slice(1), h = Math.floor(body.length / 2), a = body.slice(0, h), b = body.slice(h);
+    const mean = arr => arr.reduce((t, v) => t + v, 0) / arr.length;
+    const p1 = mean(a.map(sec)), p2 = mean(b.map(sec)), f1 = mean(a.map(x => +x.fc)), f2 = mean(b.map(x => +x.fc));
+    const e1 = (1000 / p1) / f1, e2 = (1000 / p2) / f2, d = Math.round((e1 - e2) / e1 * 1000) / 10;
+    const fmt = v => Math.floor(v / 60) + "'" + String(Math.round(v % 60)).padStart(2, '0');
+    analysisContext.derive_cardio = { km_exclus: 'km 1 (mise en route)', fc_1re_moitie: Math.round(f1), fc_2e_moitie: Math.round(f2), allure_1re_moitie: fmt(p1), allure_2e_moitie: fmt(p2), derive_pct: d,
+      lecture: d <= 4 ? 'stable : FC qui suit l\'allure, endurance solide' : d <= 8 ? 'modérée : la FC monte un peu à allure égale en fin de séance' : 'marquée : la FC monte nettement à allure égale, fatigue ou chaleur', note: p2 < p1 * 0.98 ? 'la 2e moitié est plus rapide : une partie de la hausse de FC vient de l\'accélération, pas de la fatigue' : null };
+  })();
+  (function(){
     const det = String(s.d || '').split('|').slice(1).join('|'), r = String(pace || '').match(/(\d{1,2})['’:](\d{2})/);
     // allure prévue : celle de la consigne (borne rapide d'une fourchette), sinon ton allure EF de référence
     let m = det.match(/(\d{1,2})['’:](\d{2})/);

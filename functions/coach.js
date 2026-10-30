@@ -157,7 +157,7 @@ RÈGLES DE COHÉRENCE — OBLIGATOIRES :
   • blocs_tempo : allure réelle de chaque bloc tempo (ex: bloc1=4:55/km, bloc2=5:02/km). Si présent, utiliser ces valeurs OBLIGATOIREMENT pour évaluer si les blocs étaient dans la plage cible — ne jamais utiliser l'allure globale pour évaluer les blocs.
   • splits_par_km : tableau détaillé km par km avec allure et FC. OBLIGATOIRE de l'utiliser si présent :
     - Lister EXPLICITEMENT la FC et l'allure de chaque km quand Guillaume demande le détail
-    - Détecter la dérive cardiaque (FC qui monte progressivement = fatigue)
+    - Dérive cardiaque : utiliser sessionData.derive_cardio si présent (km 1 exclu, calculée à allure égale) et ses mots (stable / modérée / marquée). Ne JAMAIS appeler « dérive » la montée de FC du km 1 (mise en route) aux suivants, ni celle due à une accélération voulue.
     - Détecter l'irrégularité d'allure (écarts > 15 sec/km entre kms)
     - Mentionner le km le plus rapide et le plus lent
     - Si Guillaume demande "FC par km" ou "splits" : répondre avec les valeurs exactes du tableau
@@ -353,7 +353,7 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
         const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, stream: true, system, messages: [{role:'user', content: userMsg}] })
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, stream: true, system, messages: [{role:'user', content: userMsg}] })
         }, 55000);
         if (!streamRes.ok) {
           res.write('data: ' + JSON.stringify({token: 'Erreur temporaire, réessaie dans quelques secondes.'}) + '\n\n');
@@ -382,7 +382,7 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
         if(_frame && held) res.write('data: ' + JSON.stringify({token: analysisFix(held, _frame)}) + '\n\n');
         res.end();
       } else {
-        const reply = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{role:'user', content: userMsg}], 500);
+        const reply = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{role:'user', content: userMsg}], 900);
         res.json({ analysis: analysisFix(reply, _frame) || 'Analyse non disponible.' });
       }
     } catch(e) {

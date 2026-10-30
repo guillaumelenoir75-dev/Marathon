@@ -454,6 +454,10 @@ test('analyse du Coach après validation : ton ressenti et l\'écart à la consi
   assert.match(S.ressenti_athlete.ce_que_guillaume_a_dit, /je me sentais bien/);
   assert.equal(S.ressenti_athlete.effort_ressenti_sur_10, 6); assert.equal(S.ressenti_athlete.douleur, 'aucune');
   if (/\d['’:]\d{2}/.test(det.split('|').slice(1).join('|'))) assert.equal(S.ecart_consigne.sens, 'plus rapide que prévu');
+  // en-tête du Coach : objectif de la prépa en cours (plus « avant le marathon » ni l'allure du marathon Seine-Eure)
+  const hdr = await page.evaluate(() => { const r = []; for (let m = 0; m < 60; m += 15) { const D = Date; window.Date = class extends D { constructor(...a) { if (a.length) super(...a); else { super(); this.setMinutes(m); } } static now() { return D.now(); } }; updateCoachHeader(); r.push(document.getElementById('coach-header-status').textContent); window.Date = D; } return r; });
+  assert.ok(!hdr.some((t) => /avant le marathon/.test(t)), hdr.join(' | '));
+  assert.ok(hdr.some((t) => /Objectif : \d/.test(t)), hdr.join(' | '));
   assert.deepEqual(errors, []);
   await ctx.close();
 });

@@ -94,8 +94,12 @@ function updateCoachHeader(){
   const ef=getBestEfPace(),am=getMarathonPaceStr();
   const dj=prepRace().date?Math.round((new Date(prepRace().date)-now)/(1000*60*60*24)):999;
   const pct=Math.round(calcTotalDone()/getGrandTotal()*100);
-  const msgs=[gr+' Guillaume — S'+CW+' · J-'+dj+' avant le marathon',
-    'Allure EF : '+(ef||'---')+'/km · Objectif : '+(am||'---')+'/km',
+  // course et objectif de la prépa en cours (temps visé → allure), plus l'ancien marathon Seine-Eure écrit en dur
+  const R=prepRace(), _ts=typeof prTimeSec==='function'?prTimeSec(R.objectif):null;
+  const _op=_ts&&R.km?(Math.floor(_ts/R.km/60)+"'"+String(Math.round(_ts/R.km%60)).padStart(2,'0')):am;
+  const _rn=usesHardPlan()?'le marathon':(R.name||R.course||'ta course');
+  const msgs=[gr+' Guillaume — S'+CW+(dj>=0&&dj<999?' · J-'+dj+' avant '+_rn:''),
+    'Allure EF : '+(ef||'---')+'/km · Objectif : '+(_ts?R.objectif+' ('+_op+'/km)':(_op||'---')+'/km'),
     pct+'% du plan accompli · S'+CW+' en cours',
     gr+' Guillaume — je suis là pour toi'];
   el.textContent=msgs[Math.floor(now.getMinutes()/15)%msgs.length];

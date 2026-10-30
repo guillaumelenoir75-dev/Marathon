@@ -96,6 +96,8 @@ test('analyse de séance : le ressenti de Guillaume est lu en premier ; une EF a
   assert.match(call.system, /RESSENTI ET ÉCART CHOISI — RÈGLE PRIORITAIRE/);
   assert.match(call.system, /JAMAIS de reproche/);
   assert.match(call.system, /REQUALIFIE la séance/);
+  assert.match(call.system, /Ne JAMAIS appeler « dérive » la montée de FC du km 1/);
+  assert.equal(call.maxTokens, 900, 'assez long pour tous les blocs (🎯 compris)');
 });
 
 test('analyse de séance : cadre imposé quand l\'EF est courue plus vite par choix — jamais de feu rouge, note plancher', async () => {
