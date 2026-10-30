@@ -178,6 +178,7 @@ function openPrefsModal(){
             + rowN('Planification semaine','Rappel de planification le dimanche','notif_planif')
             + rowN('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')
             + (isAdmin()?rowN('Rappel FC de repos','Mesure FC repos le matin','notif_fc_repos'):'')
+            + (isAdmin()?rowN('Heure de coucher','20h30 la veille d\'une séance — d\'après ton sommeil WHOOP','notif_bedtime'):'')
             + rowN('Séances non validées','Rappel si des séances ne sont pas cochées','notif_unvalidated');
         })()}
       </div>

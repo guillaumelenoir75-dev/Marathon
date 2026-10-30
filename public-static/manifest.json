@@ -9,7 +9,11 @@
   "theme_color": "#0C447C",
   "orientation": "portrait-primary",
   "lang": "fr",
-  "categories": ["sports", "health", "fitness"],
+  "categories": [
+    "sports",
+    "health",
+    "fitness"
+  ],
   "icons": [
     {
       "src": "/enpiste-icon.png",
@@ -40,6 +44,21 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Valider ma séance",
+      "short_name": "Valider",
+      "description": "Dernière sortie Strava rattachée à la bonne séance",
+      "url": "/?action=validate",
+      "icons": [
+        {
+          "src": "/enpiste-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

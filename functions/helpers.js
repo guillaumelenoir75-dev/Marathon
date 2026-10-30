@@ -234,6 +234,32 @@ function raceCategory(dist, km) {
   return null;
 }
 function parisToday() { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); }
+// Heure de coucher conseillée (même calcul que l'app, body-signals.js bsBedtime) : séance du lendemain (réveil 50 min avant
+// si elle est le matin, sinon 7h), besoin de sommeil (_sleep_target_h, 8 h par défaut), moitié de la dette des 3 dernières
+// nuits WHOOP (1 h au plus), +15 min avant une séance clé, 15 min pour s'endormir. null sans séance demain.
+function bedtimePlan(state, today) {
+  state = state || {};
+  const add = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const tomorrow = add(today, 1), sess = [];
+  for (let w = 1; w <= 60; w++) for (let ei = 0; ei <= 50 && state[`extra_w${w}_s${ei}`] !== undefined; ei++) {
+    let x = {}; try { x = JSON.parse(state[`extra_w${w}_s${ei}`]) || {}; } catch (e) {}
+    if (x.sched_date === tomorrow && x.type !== 'rest' && !state[`extra_w${w}_s${ei}_done`] && !state[`extra_w${w}_s${ei}_skip`]) sess.push(x);
+  }
+  if (!sess.length) return null;
+  sess.sort((a, b) => String(a.sched_time || '99').localeCompare(String(b.sched_time || '99')));
+  const s = sess[0], tm = String(s.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
+  const wake = sm != null && sm < 12 * 60 ? sm - 50 : 7 * 60;
+  const target = (parseFloat(state._sleep_target_h) || 8) * 60;
+  const sleeps = ((state.whoop_data || {}).sleeps || []).filter((x) => x && x.date && x.date <= today).slice(0, 3);
+  const dur = (t) => { const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+  const debt = sleeps.reduce((a, x) => { const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) : 0); }, 0);
+  const extra = Math.min(60, Math.round(debt / 2 / 5) * 5), key = /tempo|frac|long|race/.test(s.type) ? 15 : 0;
+  let bed = wake - target - extra - key - 15; if (bed < 0) bed += 1440;
+  const hm = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+  const title = String(s.d || '').split('|')[0] || 'séance';
+  return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type, debtMin: Math.round(debt), extraMin: extra, key: !!key };
+}
+
 // plafond FC de l'endurance : zones recalées par l'app (_hr_zones, body-signals.js) sinon 148 bpm
 function efMaxOf(state) { const z = state && state._hr_zones; return z && z.applied && z.efMax >= 120 && z.efMax <= 185 ? z.efMax : 148; }
 // allure EF de référence calculée par l'app sur TOUT l'historique (toutes les prépas) : _ef_ref { pace, at }, récente (≤ 7 j)
@@ -836,7 +862,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  buildTrainingSituation, parisToday, efMaxOf, efRefOf,
+  buildTrainingSituation, parisToday, efMaxOf, efRefOf, bedtimePlan,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,

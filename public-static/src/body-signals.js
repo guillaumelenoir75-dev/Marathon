@@ -108,6 +108,36 @@ function prStride(today){
     advice: lvl === 2 ? 'Signal précoce de fatigue ou de blessure : pas de hausse de volume, 2-3 jours faciles, sommeil, et surveille mollets / tibias.' : lvl === 1 ? 'À surveiller : si ça continue, allège quelques jours.' : '' };
 }
 
+// ─── Heure de coucher conseillée (même calcul que le serveur, helpers.js bedtimePlan) ───
+// séance de demain (réveil 50 min avant si elle est le matin, sinon 7h), besoin de sommeil (_sleep_target_h, 8 h), moitié de la
+// dette des 3 dernières nuits WHOOP (1 h au plus), +15 min avant une séance clé, 15 min pour s'endormir
+function bsBedtime(today){
+  today = today || prTodayIso();
+  const tomorrow = prAddDays(today, 1), st = typeof prRealState === 'function' ? prRealState() : state;
+  const sess = prSessions(st).filter(function(s){ return !s.done && !s.skip && s.type !== 'rest' && s.x && s.x.sched_date === tomorrow; })
+    .sort(function(a, b){ return String(a.x.sched_time || '99').localeCompare(String(b.x.sched_time || '99')); });
+  if(!sess.length) return null;
+  const s = sess[0], tm = String(s.x.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
+  const wake = sm != null && sm < 720 ? sm - 50 : 420, target = (parseFloat(st._sleep_target_h || state._sleep_target_h) || 8) * 60;
+  const sleeps = ((state.whoop_data || {}).sleeps || []).filter(function(x){ return x && x.date && x.date <= today; }).slice(0, 3);
+  const dur = function(t){ const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+  const debt = sleeps.reduce(function(a, x){ const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) : 0); }, 0);
+  const extra = Math.min(60, Math.round(debt / 2 / 5) * 5), key = /tempo|frac|long|race/.test(s.type) ? 15 : 0;
+  let bed = wake - target - extra - key - 15; if(bed < 0) bed += 1440;
+  const hm = function(m){ return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+  return { bed: hm(bed), wake: hm(wake), session: s.title, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key };
+}
+// ligne du soir sur la carte « Forme du jour » (à partir de 18h, la veille d'une séance)
+function bsBedtimeLine(){
+  try {
+    if(new Date().getHours() < 18) return '';
+    const B = bsBedtime(); if(!B) return '';
+    _bsCss();
+    const why = B.extraMin ? ' · +' + B.extraMin + ' min de rattrapage (dette ' + Math.floor(B.debtMin / 60) + 'h' + String(B.debtMin % 60).padStart(2, '0') + ')' : B.key ? ' · séance clé' : '';
+    return '<div class="bs-bed"><span>🌙</span><div><b>Couche-toi vers ' + B.bed + '</b><small>Demain ' + (B.time ? B.time + ' · ' : '') + prEsc(B.session) + ' · réveil ' + B.wake + why + '</small></div></div>';
+  } catch(e) { return ''; }
+}
+
 // ─── Affichage (Statistiques, accueil) ──────────────────────────────────────
 function bsRefresh(){
   try { if(typeof rendered !== 'undefined'){ rendered.stats = false; rendered.plan = false; } } catch(e) {}
@@ -163,7 +193,11 @@ function bsRenderStatsCard(){
     h += '<p class="bs-n">' + notes.join(' · ') + '</p>';
     if(E.propose) h += '<div class="bs-prop"><p>Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.fcMax.v : '') + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
     else if(Z) h += '<button type="button" class="bs-link" onclick="hrZonesReset()">Revenir à ' + BS_EF_DEFAULT + ' bpm</button>';
-    h += '</div></div>';
+    h += '</div>';
+    // nettoyage des données : valeurs suspectes écartées des analyses
+    const DQ = typeof dqIssues === 'function' ? dqIssues() : [], nx = DQ.filter(function(i){ return !i.kept && !i.info; }).length;
+    if(DQ.length) h += '<button type="button" class="bs-dq" onclick="openDataQuality()">🧹 <span>' + (nx ? '<b>' + nx + ' valeur' + (nx > 1 ? 's' : '') + ' suspecte' + (nx > 1 ? 's' : '') + '</b> écartée' + (nx > 1 ? 's' : '') + ' des analyses' : 'Données vérifiées') + '</span><b class="go">Voir ›</b></button>';
+    h += '</div>';
     el.innerHTML = h;
   } catch(e) { console.warn('[signaux] ', e); el.innerHTML = ''; }
 }
@@ -236,6 +270,30 @@ function bsLevelHtml(L){
     + '<div class="bs-hero-top"><div><p class="bs-lvl-l">Niveau du moment</p><p class="bs-lvl-v">' + _bsV(L.v) + chip + '</p></div>'
     + '<div class="bs-hero-c">' + bsLevelSpark(L.hist, 140, 44) + '</div></div>'
     + '<div class="bs-hero-b"><span>' + prEsc(L.cause || 'Équivalent VDOT · recalculé après chaque séance') + '</span><b>Détail ›</b></div></button>';
+}
+
+// ─── Nettoyage des données : liste des valeurs suspectes ────────────────────
+const DQ_KIND = { fcmax: 'FC max', hr: 'FC moyenne', pace: 'Allure', splits: 'Tours GPS', dup: 'Double validation' };
+function openDataQuality(){
+  _bsCss();
+  let ov = document.getElementById('bs-dq');
+  if(!ov){
+    const mc = document.getElementById('modal-container'); ov = document.createElement('div');
+    ov.className = 'modal-overlay'; ov.id = 'bs-dq'; ov.style.zIndex = '740'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.5)');
+    ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+    mc.appendChild(ov);
+  }
+  const L = (typeof dqIssues === 'function' ? dqIssues() : []).slice().sort(function(a, b){ return b.date.localeCompare(a.date); });
+  const row = function(i){
+    const st = i.info ? '<span class="dq-st info">comptée une fois</span>' : i.kept ? '<span class="dq-st kept">gardée</span>' : '<span class="dq-st out">écartée</span>';
+    const btns = (i.info ? '' : '<button type="button" class="dq-b" onclick="dqKeep(\'' + i.id + '\',' + (!i.kept) + ');openDataQuality();bsRenderStatsCard()">' + (i.kept ? 'Écarter' : 'Garder quand même') + '</button>')
+      + (i.cur && i.w ? '<button type="button" class="dq-b sec" onclick="document.getElementById(\'bs-dq\').remove();openValidationModalExtra(' + i.w + ',' + i.ei + ')">Modifier la séance</button>' : '');
+    return '<div class="dq-row"><div class="dq-top"><b>' + DQ_KIND[i.kind] + '</b>' + st + '</div><p class="dq-s">' + prFmtDate(i.date, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + prEsc(i.title) + '</p>'
+      + '<p class="dq-m">' + prEsc(i.msg) + '</p>' + (btns ? '<div class="dq-bs">' + btns + '</div>' : '') + '</div>';
+  };
+  ov.innerHTML = '<div class="modal-box" style="max-height:92vh;"><div class="lc-head" style="background:linear-gradient(135deg,#0F766E,#14B8A6);"><div><p class="lc-eb">Signaux du corps</p><p class="lc-title">🧹 Données vérifiées</p><p class="lc-sub">Les valeurs suspectes sont écartées des analyses (zones, niveau, foulée, prédiction, Coach) — seule la valeur fautive, pas la séance</p></div>'
+    + '<button class="lc-x" onclick="document.getElementById(\'bs-dq\').remove()" aria-label="Fermer">×</button></div>'
+    + '<div class="modal-scroll-body" style="background:#F5F7FB;"><div class="lc-body">' + (L.length ? L.map(row).join('') : '<p class="bs-n" style="text-align:center;padding:24px;">Rien de suspect dans tes séances.</p>') + '</div></div></div>';
 }
 
 // ─── Graphique détaillé du niveau (plein écran) ─────────────────────────────
@@ -421,6 +479,12 @@ function _bsCss(){
     + '.lc-why b{font-variant-numeric:tabular-nums;color:#0F172A;white-space:nowrap;}.lc-why b.up{color:#15803D;}.lc-why b.down{color:#C2410C;}'
     + '.lc-eq{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}.lc-eq div{background:#F8FAFC;border-radius:10px;padding:7px 4px;text-align:center;display:flex;flex-direction:column;gap:2px;}'
     + '.lc-eq span{font-size:10.5px;color:#64748B;font-weight:700;}.lc-eq b{font-size:13px;color:#0F172A;font-variant-numeric:tabular-nums;}'
+    + '.bs-bed{display:flex;gap:10px;align-items:center;margin-top:8px;border-radius:12px;padding:9px 12px;background:linear-gradient(90deg,#1E1B4B,#312E81);color:#E0E7FF;}.bs-bed>span{font-size:20px;}.bs-bed b{display:block;font-size:13.5px;color:#fff;}.bs-bed small{font-size:11.5px;opacity:.85;line-height:1.35;}'
+    + '.bs-dq{display:flex;width:100%;align-items:center;gap:8px;text-align:left;border:1px solid #CCFBF1;background:#F0FDFA;color:#134E4A;border-radius:12px;padding:9px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;}.bs-dq span{flex:1;}.bs-dq .go{color:#0F766E;white-space:nowrap;}'
+    + '.dq-row{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:11px 12px;}.dq-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:#0F172A;}'
+    + '.dq-st{font-size:10.5px;font-weight:800;border-radius:20px;padding:2px 8px;}.dq-st.out{background:#FFEDD5;color:#C2410C;}.dq-st.kept{background:#DCFCE7;color:#15803D;}.dq-st.info{background:#E0E7FF;color:#3730A3;}'
+    + '.dq-s{font-size:11.5px;color:#64748B;margin:2px 0 0;}.dq-m{font-size:12.5px;color:#334155;margin:5px 0 0;line-height:1.4;}.dq-bs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}'
+    + '.dq-b{border:1.5px solid #99F6E4;background:#fff;color:#0F766E;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;}.dq-b.sec{border-color:#E2E8F0;color:#475569;}'
     + '.bs-arr{font-style:normal;font-size:11px;font-weight:900;line-height:1;margin-right:2px;}.bs-arr.up{color:#16A34A;}.bs-arr.down{color:#EA580C;}'
     + '.bs-why{margin-top:6px;}.bs-why summary{font-size:11.5px;font-weight:700;color:#4F46E5;cursor:pointer;}.bs-why ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;}'
     + '.bs-why li{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#475569;}.bs-why li b{font-variant-numeric:tabular-nums;color:#0F172A;}'

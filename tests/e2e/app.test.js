@@ -243,6 +243,25 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await ctx.close();
 });
 
+test('validation express (?action=validate) : la dernière sortie Strava ouvre la bonne séance, déjà remplie', async () => {
+  const act = { activityId: 42, date: '2026-10-29', nom: 'Morning Run', distanceKm: 7.1, duree: '40:12', allure: '5:40', fcMoyenne: 141 };
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb, { query: '?action=validate', functions: async (r) => {
+    const u = r.request().url();
+    if (/stravaFetchDetail/.test(u)) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, detail: { splits: [{ km: 1, distanceKm: 1, allure: '5:41', fc: 138 }] } }) });
+    if (/stravaFetch/.test(u)) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, activities: [act] }) });
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  await page.waitForSelector('#val-km', { timeout: 15000 }); await page.waitForTimeout(800);
+  const v = await page.evaluate(() => ({ km: document.getElementById('val-km').value, date: document.getElementById('val-date').value, hr: document.getElementById('val-hr').value }));
+  assert.equal(v.km, '7.1'); assert.equal(v.date, '2026-10-29'); assert.equal(v.hr, '141');
+  assert.equal(await page.evaluate(() => location.search), '', 'lien retiré de l\'adresse');
+  // Compte › Validation express : mode d'emploi du raccourci
+  await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); openQuickValidateHelp(); });
+  assert.match(await page.textContent('#qv-help'), /Raccourcis.*Ouvrir les URL/s);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('plan de course et prépa à venir', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await page.evaluate(() => openRacePlan()); await page.waitForTimeout(500);

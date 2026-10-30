@@ -43,3 +43,19 @@ test('situation envoyée au Coach : récupération post-course nuancée pour la 
   assert.match(t1, /intensité réintroduite peu à peu/);
   assert.match(t2, /aucune intensité tant que/);
 });
+
+test('heure de coucher (20h30) : push la veille d\'une séance, une fois par jour, même calcul que l\'app', async () => {
+  const { loadFunctions: lf } = require('../helpers/functions');
+  const d = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); const tomorrow = t.toISOString().slice(0, 10);
+  const data = { users: { WkEWrmnYWuUNkGLrwXf9HhaJWfh1: { state: { _plan_engine: 'generated',
+    extra_w1_s0: JSON.stringify({ type: 'ef', km: 8, d: 'Footing EF|x', sched_date: tomorrow, sched_time: '07:00' }),
+    whoop_data: { sleeps: [{ date: d, duration_hours: '7h20' }] } } } } };
+  const F = lf({ data });
+  await F.notifs.bedtimeReminder();
+  assert.equal(F.calls.push.length, 1);
+  assert.match(F.calls.push[0].title, /Couche-toi vers 21h35/);          // réveil 6h10 − 8 h − 20 min (dette 40) − 15 min d'endormissement
+  assert.match(F.calls.push[0].body, /Demain 7h00 : Footing EF/);
+  await F.notifs.bedtimeReminder();
+  assert.equal(F.calls.push.length, 1, 'une seule fois par jour');
+});

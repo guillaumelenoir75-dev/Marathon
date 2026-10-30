@@ -28,6 +28,8 @@ const {
   generateWeeklyBilanContent,
   efMaxOf,
   efRefOf,
+  bedtimePlan,
+  parisToday,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -948,5 +950,24 @@ exports.cleanupPushSubscribers = onSchedule(
     } catch (e) {
       console.error('cleanupPushSubscribers:', e.message);
     }
+  }
+);
+
+// Heure de coucher conseillée (20h30) : séance demain → « couche-toi vers 22h10 » d'après la dette de sommeil WHOOP (bedtimePlan).
+// Une fois par jour (_bedtime_push), désactivable (_prefs.notif_bedtime).
+exports.bedtimeReminder = onSchedule(
+  { schedule: '30 20 * * *', timeZone: 'Europe/Paris', secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
+  async () => {
+    try {
+      const db = admin.database(), today = parisToday();
+      if (!(await getUserPref(db, ADMIN_STATE, 'notif_bedtime'))) return;
+      const state = (await db.ref(ADMIN_STATE).once('value')).val() || {};
+      if (state._bedtime_push === today) return;
+      const B = bedtimePlan(state, today); if (!B) return;
+      const why = B.extraMin ? ` (+${B.extraMin} min pour rattraper ta dette de sommeil)` : B.key ? ' (séance clé : un quart d\'heure de plus)' : '';
+      await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), `🌙 Couche-toi vers ${B.bed}`,
+        `Demain ${B.time ? B.time + ' : ' : ''}${B.session}. Réveil ${B.wake}${why}.`, 'bedtime', '/');
+      await db.ref(`${ADMIN_STATE}/_bedtime_push`).set(today);
+    } catch (e) { console.error('bedtimeReminder:', e.message); }
   }
 );

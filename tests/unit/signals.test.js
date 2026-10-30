@@ -25,7 +25,7 @@ test('zones FC : plafond EF 148 par défaut, FC seuil lue dans les blocs tempo, 
   const T = (date, fc) => ({ type: 'tempo', date, km: 10, d: "Tempo 3×8 min|3 km EF · 3 × 8 min à 4'35 — 4'40 /km", pace: 290, hr: 160,
     strava: { fcMax: 0, laps: [{ allure: '5:50', duree_sec: 900, fc: 135 }, { allure: '4:31', duree_sec: 480, fc: fc }, { allure: '4:33', duree_sec: 480, fc: fc + 1 }, { allure: '6:30', duree_sec: 120, fc: 150 }] } });
   const st = runs([T('2026-10-01', 170), T('2026-10-08', 171), T('2026-10-15', 169),
-    { date: '2026-10-20', pace: 340, hr: 142, strava: { fcMax: 199 } }, { date: '2026-10-21', pace: 340, hr: 142, strava: { fcMax: 190 } }], { fc_max: '186' });
+    { date: '2026-10-20', type: 'frac', pace: 270, hr: 168, strava: { fcMax: 199 } }, { date: '2026-10-21', type: 'frac', pace: 270, hr: 168, strava: { fcMax: 190 } }], { fc_max: '186' });
   const app = loadApp({ now: NOW, state: st });
   assert.equal(app.hrEfMax(), 148);
   const E = app.hrZonesEstimate('2026-10-29');

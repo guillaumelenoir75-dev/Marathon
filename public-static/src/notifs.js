@@ -46,6 +46,7 @@ async function testLocalNotif(type){
     notif_planif:      { title: '📅 On planifie la semaine ?', body: 'Prends 2 min pour planifier tes séances de la semaine à venir.' },
     notif_congrats:    { title: '🏆 Semaine S'+cw+' complète !', body: 'Toutes tes séances sont validées. Beau travail, continue ! 💪' },
     notif_fc_repos:    { title: 'Rappel ☀️', body: 'Rentre ta FC repos avant de te lever ❤️' },
+    notif_bedtime:     { title: '🌙 Couche-toi vers 22h10', body: 'Demain 6h30 : Tempo 3×8 min. Réveil 5h40 (+25 min pour rattraper ta dette de sommeil).' },
     notif_unvalidated: { title: '⚠️ Séances non validées', body: '2 séances de cette semaine ne sont pas encore cochées.' },
     notif_plan_review: { title: '🔄 Relecture de ta semaine', body: '3 séances depuis la dernière relecture : touche pour que le Coach ajuste ton plan.', tag: 'plan-review' },
   };

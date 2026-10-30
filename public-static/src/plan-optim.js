@@ -62,18 +62,66 @@ function prAllDone(today){
   const states = prHistoryStates();
   const key = today + '|' + states.length;
   if(_prAllCache && _prAllCache.key === key && _prAllCache.st0 === state && Date.now() - _prAllCache.t < 1000) return _prAllCache.list.slice();
-  const out = [], seen = {};
+  const out = [], seen = {}, dups = [];
   prHistoryStates().forEach(function(st){ prSessions(st).forEach(function(s){
     if(!s.done || s.type === 'rest') return;
     const d = s.perf && s.perf.date ? String(s.perf.date).slice(0, 10) : s.date;
     if(!d || d > today) return;
-    const k = d + '|' + s.type + '|' + Math.round(s.km * 10); if(seen[k]) return; seen[k] = 1;
+    const k = d + '|' + s.type + '|' + Math.round(s.km * 10);
+    // même séance validée deux fois dans la même prépa (deux séances du plan pour une seule sortie) : comptée une fois, signalée
+    if(seen[k]){ if(seen[k].st === st && seen[k].key !== s.key) dups.push({ s: s, first: seen[k].s, cur: st === state, date: d }); return; }
+    seen[k] = { st: st, key: s.key, s: s };
     s.date = d; s.cur = st === state; s.hard = !st._plan_engine; out.push(s);
   }); });
   out.sort(function(a, b){ return a.date.localeCompare(b.date); });
+  const issues = typeof dqClean === 'function' ? dqClean(out, dups) : [];
   if(out.length){ const m0 = prMonday(out[0].date).getTime(); out.forEach(function(s){ s.gw = Math.round((prMonday(s.date).getTime() - m0) / 604800000) + 1; }); }
-  _prAllCache = { key: key, st0: state, t: Date.now(), list: out };
+  _prAllCache = { key: key, st0: state, t: Date.now(), list: out, issues: issues };
   return out.slice();
+}
+
+// ─── Nettoyage des données : valeurs suspectes écartées des analyses (sauf « garder », state._data_keep) ───
+// fcmax : pic de FC max sur un footing (capteur) ou au-dessus de la FC max ; hr : FC moyenne improbable (cadence prise pour la FC) ;
+// pace : allure impossible ou incohérente avec km + durée (GPS) ; splits : tours à moins de 2'45/km (saut GPS) ;
+// dup : même sortie validée sur deux séances du plan (déjà comptée une fois). Seule la valeur fautive est retirée, pas la séance.
+function dqClean(list, dups){
+  const keep = (typeof state !== 'undefined' && state && state._data_keep) || {}, issues = [];
+  const ref = parseInt(state && state.fc_max) || parseInt(((state && state.onboarding) || {}).fc_max) || 196;
+  const efMax = typeof hrEfMax === 'function' ? hrEfMax() : 148, P = function(x){ return prPace(x); };
+  const durSec = function(t){ const p = String(t || '').split(':').map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : null; };
+  const add = function(s, kind, msg, fix){
+    const id = (s.date + '|' + s.key + '|' + kind).replace(/[.#$\[\]\/]/g, '_'), kept = !!keep[id];
+    issues.push({ id: id, kind: kind, date: s.date, key: s.key, w: s.w, ei: s.ei, title: s.title, msg: msg, cur: !!s.cur, kept: kept });
+    if(!kept && fix) fix();
+  };
+  list.forEach(function(s){
+    const p = s.perf || {}, st = p.strava || {}, hr = parseInt(p.hr) || null, easy = s.type === 'ef' || s.type === 'long', ps = prPaceSec(p.pace);
+    const fm = parseInt(st.fcMax) || null;
+    // (au-dessus de la FC max saisie sur une séance dure : plausible, sert à la relever — seul > 215 est impossible)
+    if(fm && ((easy && hr && fm - hr > 35 && fm >= 0.95 * ref) || fm > 215))
+      add(s, 'fcmax', 'FC max ' + fm + (fm > 215 ? ' impossible' : ' sur une sortie à ' + hr + ' de moyenne : pic du capteur probable'), function(){ p.strava = Object.assign({}, st); delete p.strava.fcMax; });
+    if(hr && (hr < 85 || hr > 210 || (easy && hr > 0.92 * ref)))
+      add(s, 'hr', 'FC moyenne ' + hr + ' improbable' + (easy ? ' pour une sortie facile' : '') + ' : capteur (cadence prise pour la FC ?)', function(){ delete p.hr; });
+    if(ps){
+      const d = durSec(p.dur), comp = d && s.km > 0 ? d / s.km : null;
+      if(ps < 150 || ps > 600) add(s, 'pace', 'Allure ' + P(ps) + '/km impossible', function(){ delete p.pace; });
+      // durée trop courte pour les km (saisie ou GPS) ; plus longue = arrêts (feux, marche) : l'allure en mouvement reste juste
+      else if(comp && comp < ps * 0.85) add(s, 'pace', 'Allure ' + P(ps) + '/km incohérente avec ' + String(s.km).replace('.', ',') + ' km en ' + p.dur + ' (' + P(comp) + '/km) : GPS ?', function(){ delete p.pace; });
+    }
+    const bad = (st.splits || []).filter(function(sp){ const x = prPaceSec(sp.allure); return x && x < 165 && (sp.distanceKm == null || sp.distanceKm >= 0.5); });
+    if(bad.length) add(s, 'splits', bad.length + ' km à ' + bad.map(function(sp){ return sp.allure; }).slice(0, 2).join(', ') + '/km : saut GPS', function(){ p.strava = Object.assign({}, p.strava || st); p.strava.splits = (st.splits || []).filter(function(sp){ return bad.indexOf(sp) < 0; }); });
+  });
+  dups.forEach(function(d){ issues.push({ id: (d.date + '|' + d.s.key + '|dup').replace(/[.#$\[\]\/]/g, '_'), kind: 'dup', date: d.date, key: d.s.key, w: d.s.w, ei: d.s.ei, title: d.s.title,
+    msg: 'Même sortie validée aussi pour « ' + d.first.title + ' » : comptée une fois', cur: d.cur, kept: false, info: true }); });
+  return issues;
+}
+// valeurs suspectes de tout l'historique (après le calcul de prAllDone)
+function dqIssues(today){ prAllDone(today); return (_prAllCache && _prAllCache.issues) || []; }
+function dqKeep(id, on){
+  state._data_keep = Object.assign({}, state._data_keep || {});
+  if(on) state._data_keep[id] = true; else delete state._data_keep[id];
+  if(typeof dbRef !== 'undefined' && dbRef) dbRef.child('_data_keep').set(Object.keys(state._data_keep).length ? state._data_keep : null).catch(function(){});
+  prHistoryChanged();
 }
 const prAddDays = function(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return prIso(d); };
 const prMean = function(a){ return a.length ? a.reduce(function(x, y){ return x + y; }, 0) / a.length : null; };

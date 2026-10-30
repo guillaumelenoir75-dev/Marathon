@@ -148,6 +148,12 @@ function initFirebase(){
               }, 3000);
               // Vérifier _open_coach au démarrage (app rouverte depuis notif quand elle était fermée)
               (async () => {
+                // ?action=validate (raccourci « Valider ma séance ») : dernière sortie Strava → validation pré-remplie
+                if (window.location.search.includes('action=validate')) {
+                  try { history.replaceState({}, '', '/'); } catch(e) {}
+                  if (typeof quickValidate === 'function') setTimeout(quickValidate, 1200);
+                  return;
+                }
                 // ?action=review (notification « Relecture de ta semaine ») : prioritaire, retirée de l'URL tout de suite
                 if (window.location.search.includes('action=review')) {
                   try { history.replaceState({}, '', '/'); } catch(e) {}
