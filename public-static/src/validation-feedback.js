@@ -452,6 +452,25 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
   analysisContext.fc = hr;
   analysisContext.semaine = CW;
 
+  // Ressenti de Guillaume (journal, effort ressenti, douleur) et écart à la consigne : lus en premier par le Coach
+  const _vp = window._lastValidatedPerf || null; window._lastValidatedPerf = null;
+  if(_vp){
+    const _r = {};
+    if(_vp.journal || _vp.note) _r.ce_que_guillaume_a_dit = _vp.journal || _vp.note;
+    if(_vp.note && _vp.journal && _vp.note !== _vp.journal) _r.resume = _vp.note;
+    if(_vp.rpe) _r.effort_ressenti_sur_10 = _vp.rpe;
+    _r.douleur = _vp.pain && _vp.pain.level ? { niveau_0_3: _vp.pain.level, zone: _vp.pain.zone || null } : 'aucune';
+    if(Object.keys(_r).length > 1 || _r.ce_que_guillaume_a_dit) analysisContext.ressenti_athlete = _r;
+    // splits Strava de la séance (déjà enregistrés) si l'import n'est plus en mémoire
+    if(!window._stravaActivityData && _vp.strava && _vp.strava.splits) analysisContext.strava = { cadence: _vp.strava.cadence || null, fcMax: _vp.strava.fcMax || null, splits: _vp.strava.splits.filter(sp => !sp.distanceKm || sp.distanceKm >= 0.5).map(sp => ({ km: sp.km, allure: sp.allure, fc: sp.fc })) };
+  }
+  (function(){
+    const det = String(s.d || '').split('|').slice(1).join('|'), m = det.match(/(\d{1,2})['’:](\d{2})/), r = String(pace || '').match(/(\d{1,2})['’:](\d{2})/);
+    if(!m || !r || s.type === 'tempo' || s.type === 'frac' || s.type === 'race') return;
+    const tgt = +m[1] * 60 + +m[2], real = +r[1] * 60 + +r[2], d = real - tgt;
+    if(Math.abs(d) >= 15) analysisContext.ecart_consigne = { allure_prevue: m[1] + "'" + m[2], allure_realisee: r[1] + "'" + r[2], ecart_sec: Math.abs(d), sens: d < 0 ? 'plus rapide que prévu' : 'plus lent que prévu' };
+  })();
+
   // Données WHOOP si importées (paramètre direct ou perf sauvegardé)
   let _whoopRaw = whoopData || null;
   if(!_whoopRaw && idx != null) {

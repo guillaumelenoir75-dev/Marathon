@@ -434,3 +434,26 @@ test('prochaine course : options, conseil, création de la prépa à venir (remp
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('analyse du Coach après validation : ton ressenti et l\'écart à la consigne lui sont envoyés', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  let body = null;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: (r) => {
+    if (/analyzeSession/.test(r.request().url())) body = JSON.parse(r.request().postData() || '{}');
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"[FEU:🟢]\\n⭐ ÉVALUATION\\n●●●●●●●●○○ **8/10**","reply":"ok","text":"ok"}' });
+  } });
+  await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
+  await page.waitForTimeout(300);
+  const det = await page.evaluate(() => JSON.parse(state.extra_w2_s0).d);
+  await page.fill('#val-km', '8'); await page.fill('#val-pace', '4:53'); await page.fill('#val-hr', '157');
+  await page.fill('#jv-text', 'Super séance, après le premier km je me sentais bien alors j\'ai accéléré, très content');
+  await page.evaluate(() => { prRpePick(6); saveValidationExtra(2, 0); });
+  await page.waitForFunction(() => true); await page.waitForTimeout(2500);
+  assert.ok(body, 'analyse demandée');
+  const S = body.sessionData;
+  assert.match(S.ressenti_athlete.ce_que_guillaume_a_dit, /je me sentais bien/);
+  assert.equal(S.ressenti_athlete.effort_ressenti_sur_10, 6); assert.equal(S.ressenti_athlete.douleur, 'aucune');
+  if (/\d['’:]\d{2}/.test(det.split('|').slice(1).join('|'))) assert.equal(S.ecart_consigne.sens, 'plus rapide que prévu');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

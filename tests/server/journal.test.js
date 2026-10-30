@@ -82,3 +82,18 @@ test('pilote de nuit (serveur) : moteur de l\'app exécuté sur l\'état, seules
   assert.match(F.helpers.autopilotBriefText(S, '2026-10-30'), /aucun — séance confirmée/);
   S._autopilot = 'off'; assert.equal((await F.autopilot.runAutopilot(F.db, UID, '2026-10-30')).skip, 'désactivé');
 });
+
+test('analyse de séance : le ressenti de Guillaume est lu en premier ; une EF accélérée par choix n\'est pas reprochée', async () => {
+  const { loadFunctions: lf, callHttp: ch } = require('../helpers/functions');
+  const F = lf({ data: {}, modules: ['coach.js'], ai: '[FEU:🟢]\n⭐ ÉVALUATION\n●●●●●●●●○○ **8/10**' });
+  const sessionData = { type: 'long', titre: 'Sortie longue', kmRealise: 10, allure: '4:53', fc: 157,
+    ressenti_athlete: { ce_que_guillaume_a_dit: 'Super séance, je me sentais bien après le 1er km alors j\'ai accéléré, très content', effort_ressenti_sur_10: 6, douleur: 'aucune' },
+    ecart_consigne: { allure_prevue: "5'35", allure_realisee: "4'53", ecart_sec: 42, sens: 'plus rapide que prévu' } };
+  const r = await ch(F.coach.analyzeSession, { sessionData, historyData: [], planContext: {} });
+  assert.equal(r.status, 200, JSON.stringify(r.out));
+  const call = F.calls.ai[0];
+  assert.match(call.user, /^RESSENTI DE GUILLAUME \(à lire en premier\) : .*je me sentais bien.*écart à la consigne/);
+  assert.match(call.system, /RESSENTI ET ÉCART CHOISI — RÈGLE PRIORITAIRE/);
+  assert.match(call.system, /JAMAIS de reproche/);
+  assert.match(call.system, /REQUALIFIE la séance/);
+});

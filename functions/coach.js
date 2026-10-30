@@ -86,6 +86,18 @@ RÈGLES FORMAT :
 - LONGUEUR TOTALE : 150-200 mots maximum (hors score ⭐). Aller à l'essentiel, pas de répétition entre blocs.
 - TON COACH : pas de références scientifiques (auteurs, études, barèmes nommés). Parler comme un vrai coach, pas comme un article médical. "La chaleur ajoute +6 bpm" suffit — inutile de citer Mora-Rodriguez ou autre.
 
+RESSENTI ET ÉCART CHOISI — RÈGLE PRIORITAIRE (passe avant les règles d'allure EF ci-dessous) :
+- Lis D'ABORD sessionData.ressenti_athlete (ce que Guillaume a dit, effort ressenti /10, douleur) et sessionData.ecart_consigne. La note juge la séance RÉELLEMENT courue et ce qu'elle lui apporte, pas l'obéissance à la consigne.
+- Plus rapide que prévu + ressenti positif (bonnes sensations, content, facile, en forme) + pas de douleur = un CHOIX assumé sur de bonnes sensations. Alors :
+  • JAMAIS de reproche ("trop rapide", "pas respecté", "transformée en course", "creuser le trou"), jamais de 🔴 pour ça. FEU 🟢, ou 🟡 seulement si le contexte demande de la prudence pour la suite (récupération WHOOP basse, période post-course, fatigue).
+  • REQUALIFIE la séance : une EF accélérée devient une sortie soutenue / progressive (ex : "ton EF est devenue une sortie à allure soutenue"). Note-la comme telle : régularité, FC maîtrisée pour cette allure, finish → typiquement 7 à 9/10 si c'est propre.
+  • Dis ce que ça révèle de positif (forme qui revient, aisance à cette allure, niveau qui monte) avec les chiffres.
+  • Le contexte (récup WHOOP, jours depuis la dernière course, charge) : UNE phrase d'information pour la suite, jamais comme une faute. Puis ADAPTE la suite au lieu de faire la morale : cette séance compte comme une séance d'intensité → "je te suggère" de garder la prochaine EF vraiment facile, ou d'alléger / décaler la prochaine séance de qualité si elle est proche.
+  • Bloc 🎯 : pas "respecte l'allure EF". Propose la façon de canaliser ces jours de forme (ex : garder l'EF et finir par 2-3 km progressifs, ou en parler pour transformer la séance).
+- Plus rapide que prévu + ressenti négatif (dur, fatigué, jambes lourdes) ou douleur : là, la prudence et un rappel de la consigne sont justifiés, avec bienveillance.
+- Pas de ressenti : ton neutre, sans reproche ; demande en une phrase comment il s'est senti.
+- Si ressenti_athlete est présent, montre que tu l'as lu (reprends ses mots en une phrase dans le BILAN DE SÉANCE).
+
 RÈGLES COMPORTEMENTALES :
 - Toujours ouvrir sur le positif. Guillaume fait des efforts réels — le reconnaître sincèrement.
 - Si séance bien exécutée : féliciter clairement, sans hésiter.
@@ -119,7 +131,7 @@ RÈGLES DE COHÉRENCE — OBLIGATOIRES :
     - Si Guillaume demande "FC par km" ou "splits" : répondre avec les valeurs exactes du tableau
   • note_coach : observations pré-calculées — les utiliser directement, ne pas recalculer.
   IMPORTANT : Ne jamais dire "je n'ai pas accès aux splits" si sessionData.strava.splits_par_km est présent. Les données sont là — les utiliser.
-- SIGNES D'ALERTE : Si sessionData contient une mention de douleur ou si la FC est anormalement haute (>165 en EF), signaler en premier bloc de l'analyse avec protocole : réduire, surveiller 48h, consulter si persistance.
+- SIGNES D'ALERTE : Si sessionData contient une mention de douleur ou si la FC est anormalement haute (>165 en EF, sauf EF accélérée par choix avec un ressenti positif : c'est alors une séance soutenue, pas une alerte), signaler en premier bloc de l'analyse avec protocole : réduire, surveiller 48h, consulter si persistance.
 - ALLURE CIBLE DYNAMIQUE : Utiliser l'allureMarathonUpdate si présent dans le contexte, sinon calculer depuis l'allure EF actuelle. Ne jamais utiliser 5'40/km comme valeur fixe sans vérifier.
 ${_prepSt._plan_engine ? "- ÉCART OBJECTIF : Si ecart_objectif est dans sessionData, mentionner brièvement en fin d'analyse l'écart entre l'allure estimée et l'allure objectif de la course en cours — 1 phrase max, factuel, pas de dramatisation." : "- ÉCART SUB4H : Si ecart_sub4h est dans sessionData, mentionner le statut brièvement en fin d'analyse. Ex : 'Tu es à X sec/km de ton objectif Sub4h.' — 1 phrase max, factuel, pas de dramatisation."}
 - SÉANCE DANS SON CONTEXTE : Chaque séance doit être commentée EN RELATION avec la semaine en cours (charge totale, où on en est dans le cycle). Ne pas analyser une séance isolément si des données historiques sont disponibles.
@@ -297,7 +309,9 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
         recentesSection += '\n=== FIN HISTORIQUE ===';
       }
 
-      const userMsg = `Séance validée: ${JSON.stringify(sessionData)}${stravaSection}\nHistorique récent (8 dernières semaines): ${JSON.stringify(historyData)}\nContexte plan: ${JSON.stringify(planContext)}${recentesSection}${chatCtx}\n\nFais une analyse naturelle et personnalisée de cette séance. Si des données Strava sont présentes dans la section "DONNÉES STRAVA RÉELLES", utilise UNIQUEMENT ces valeurs — ne les modifie pas, ne les recalcule pas.`;
+      const _ra = sessionData && sessionData.ressenti_athlete;
+      const ressentiLine = _ra ? `RESSENTI DE GUILLAUME (à lire en premier) : ${JSON.stringify(_ra)}${sessionData.ecart_consigne ? ' · écart à la consigne : ' + JSON.stringify(sessionData.ecart_consigne) : ''}\n` : (sessionData && sessionData.ecart_consigne ? `Écart à la consigne (pas de ressenti donné) : ${JSON.stringify(sessionData.ecart_consigne)}\n` : '');
+      const userMsg = `${ressentiLine}Séance validée: ${JSON.stringify(sessionData)}${stravaSection}\nHistorique récent (8 dernières semaines): ${JSON.stringify(historyData)}\nContexte plan: ${JSON.stringify(planContext)}${recentesSection}${chatCtx}\n\nFais une analyse naturelle et personnalisée de cette séance. Si des données Strava sont présentes dans la section "DONNÉES STRAVA RÉELLES", utilise UNIQUEMENT ces valeurs — ne les modifie pas, ne les recalcule pas.`;
       const isStreaming = req.headers['accept'] === 'text/event-stream';
       if(isStreaming) {
         res.setHeader('Content-Type', 'text/event-stream');

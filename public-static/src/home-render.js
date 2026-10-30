@@ -1436,7 +1436,7 @@ async function saveValidationExtra(w,ei){
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
     rendered.stats=false;
   }
-  if(isAdmin()){ closeModal(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
+  if(isAdmin()){ closeModal(); window._lastValidatedPerf=(()=>{try{return JSON.parse(state[k+'_perf']||'{}');}catch(e){return perf;}})(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
   if(typeof prAfterValidation==='function') prAfterValidation();   // ajustements du plan proposés (plan-optim.js)
 }
