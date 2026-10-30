@@ -86,7 +86,7 @@ function prHistoryRefresh(){
   try {
     if(typeof rendered !== 'undefined'){ rendered.stats = false; rendered.plan = false; }
     if(typeof prRenderHomeCard === 'function') prRenderHomeCard();
-    const sc = document.getElementById('sc-stats'); if(sc && sc.style.display !== 'none' && typeof bsRenderStatsCard === 'function') bsRenderStatsCard();
+    const sc = document.getElementById('sc-stats'); if(sc && sc.style.display !== 'none' && typeof bsRenderStatsCard === 'function'){ bsRenderStatsCard(); if(typeof fmRenderStatsCard === 'function') fmRenderStatsCard(); }
   } catch(e) {}
 }
 // états à analyser : prépa affichée, prépa en cours réelle, toutes les copies (sauf celle de la prépa en cours) ;

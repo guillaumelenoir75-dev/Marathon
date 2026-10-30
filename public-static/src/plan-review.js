@@ -1074,6 +1074,19 @@ function _prRestoreCoach(R){
 function applyPlanReview(){
   if(!_prReview) return;
   const sel = _prReview.items.filter(function(x){ return x.on; }); if(!sel.length) return;
+  const r = prApplyChanges(sel, { coach: sel.some(function(p){ return p.src === 'coach'; }), vdot: _prReview.a.fit.vdot || null });
+  if(state._coach_review && sel.some(function(p){ return p.src === 'coach'; })) state._coach_review.applied = true;
+  save();
+  if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
+  const k = r.n;
+  closePlanReview();
+  try { renderHome(); } catch(e) {}
+  if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour');
+}
+// applique des changements au plan (state) et les inscrit dans l'historique _plan_reviews (annulables : prUndoReview) ;
+// meta : { coach, vdot, auto (pilote automatique), kind } — utilisé par « MAJ le plan », l'affûtage conseillé et le pilote de nuit
+function prApplyChanges(sel, meta){
+  meta = meta || {};
   let n = 0; const touched = {};
   sel.forEach(function(p){
     let x; try { x = JSON.parse(state[p.key]); } catch(e) { return; }
@@ -1088,15 +1101,12 @@ function applyPlanReview(){
     x._modified = true; x._seq = (x._seq || 0) + 1;
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;
   });
+  if(!n) return { n: 0, touched: touched, index: null };
   const hist = (state._plan_reviews || []).slice(-5);
-  hist.push({ date: prTodayIso(), n: Object.keys(touched).length, coach: sel.some(function(p){ return p.src === 'coach'; }), vdot: _prReview.a.fit.vdot || null, sig: prDataSig(),
-    changes: sel.filter(function(p){ return touched[p.key]; }).slice(0, 200).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, kind: p.kind || null, detBefore: p.detBefore, detAfter: p.detAfter, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, reason: String(p.short || p.reason || '').slice(0, 140) }; }) });
+  const entry = { date: prTodayIso(), n: Object.keys(touched).length, coach: !!meta.coach, vdot: meta.vdot || null, sig: prDataSig() };
+  if(meta.auto) entry.auto = true; if(meta.kind) entry.kind = meta.kind; if(meta.at) entry.at = meta.at;
+  entry.changes = sel.filter(function(p){ return touched[p.key]; }).slice(0, 200).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, kind: p.kind || null, detBefore: p.detBefore, detAfter: p.detAfter, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, reason: String(p.short || p.reason || p.why || '').slice(0, 140) }; });
+  hist.push(entry);
   state._plan_reviews = hist;
-  if(state._coach_review && sel.some(function(p){ return p.src === 'coach'; })) state._coach_review.applied = true;
-  save();
-  if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-  const k = Object.keys(touched).length;
-  closePlanReview();
-  try { renderHome(); } catch(e) {}
-  if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour');
+  return { n: Object.keys(touched).length, touched: touched, index: hist.length - 1, entry: entry };
 }
