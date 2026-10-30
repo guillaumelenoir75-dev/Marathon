@@ -150,14 +150,17 @@ function bsRenderStatsCard(){
     const fm = parseInt(state.fc_max) || parseInt((state.onboarding || {}).fc_max) || null;
     const zs = bsDisplayZones((Z && Z.zones) || E.zones || (fm ? bsZonesFromMax(fm) : null), hrEfMax());
     h += '<div class="bs-row"><p class="bs-h">❤️ Zones FC et allures <span>EF ≤ <b>' + hrEfMax() + '</b> · ' + (Z ? 'recalée le ' + prFmtDate(Z.at) : 'par défaut') + '</span></p>';
-    const zp = bsZonePaces();
+    const zp = bsZonePaces(), L = bsLevelNow();
+    if(zp){ const zp7 = bsZonePaces(prAddDays(prTodayIso(), -7)); if(zp7) zp.prev = zp7.z; }
+    if(L) h += bsLevelHtml(L);
     if(zs) h += bsZonesBar(zs, zp);
     else if(zp) h += bsZonesBar([1, 2, 3, 4, 5].map(function(i){ return { z: i, t: '', lo: null, hi: null }; }), zp);
     const src = [];
     if(E.lthr) src.push('FC seuil ~' + E.lthr + ' (' + E.thr.length + ' séance' + (E.thr.length > 1 ? 's' : '') + ')');
     if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ' · saisie ' + E.declared : ''));
     h += '<p class="bs-n">' + (src.length ? 'FC d\'après ' + src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones') + '</p>';
-    if(zp) h += '<p class="bs-n">Allures (min/km) d\'après ton niveau' + (zp.vdot ? ' (' + String(zp.vdot).replace('.', ',') + ')' : '') + (zp.efObs ? ', EF d\'après tes sorties' : '') + ' · recalculées après chaque séance</p>';
+    if(zp) h += '<p class="bs-n">Allures (min/km) d\'après ton niveau' + (zp.efObs ? ', EF d\'après tes sorties' : '') + ' · recalculées après chaque séance' + (zp.arrows ? ' · ↑↓ : depuis il y a 7 jours' : '') + '</p>';
+    if(L && L.why && L.why.length) h += '<details class="bs-why"><summary>Ce qui fait ton niveau</summary><ul>' + L.why.map(function(w){ return '<li><span>' + prEsc(w.t) + '</span><b>' + (w.base ? _bsV(w.v) : (w.d > 0 ? '+' : '−') + _bsV(Math.abs(w.d))) + '</b></li>'; }).join('') + '</ul></details>';
     if(E.propose) h += '<div class="bs-prop"><p>Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.fcMax.v : '') + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
     else if(Z) h += '<button type="button" class="bs-link" onclick="hrZonesReset()">Revenir à ' + BS_EF_DEFAULT + ' bpm</button>';
     h += '</div></div>';
@@ -181,6 +184,59 @@ function bsDisplayZones(zs, ef){
   }
   return z;
 }
+// ─── Niveau du moment : valeur, évolution sur 7 jours, courbe sur 6 mois ────
+const _bsV = function(v){ return (Math.round(v * 10) / 10).toFixed(1).replace('.', ','); };
+// niveau chaque semaine sur 26 semaines, calculé à chaque date comme aujourd'hui (même historique, filtré à la date)
+function bsLevelHistory(today){
+  today = today || prTodayIso();
+  if(typeof prFitness !== 'function' || typeof prAllDone !== 'function') return [];
+  const done = prAllDone(today), races = typeof prKnownRaces === 'function' ? prKnownRaces() : [], pts = [];
+  for(let k = 26; k >= 0; k--){ const d = prAddDays(today, -7 * k), f = prFitness(state, { today: d, races: races, done: done }); if(f.vdot) pts.push({ date: d, v: f.vdot, why: f.why || [] }); }
+  return pts;
+}
+// niveau aujourd'hui vs il y a 7 jours, avec la cause principale du changement
+function bsLevelNow(today){
+  try {
+    today = today || prTodayIso();
+    const H = bsLevelHistory(today); if(!H.length || H[H.length - 1].date !== today) return null;
+    const now = H[H.length - 1], prev = H.length > 1 && H[H.length - 2].date === prAddDays(today, -7) ? H[H.length - 2] : null;
+    const out = { v: now.v, why: now.why, hist: H, delta: prev ? Math.round((now.v - prev.v) * 10) / 10 : null, cause: '' };
+    if(prev && Math.abs(out.delta) >= 0.1){
+      const val = function(w, k){ const x = w.filter(function(y){ return y.k === k; })[0]; return x ? (x.base ? x.v : x.d) : 0; };
+      const lab = { base: 1, qual: 1, miss: 1, gap: 1, ef: 1 };
+      let best = null, bd = 0;
+      Object.keys(lab).forEach(function(k){ const d = Math.abs(val(now.why, k) - val(prev.why, k)); if(d > bd){ bd = d; best = k; } });
+      const it = function(w, k){ return w.filter(function(y){ return y.k === k; })[0]; };
+      if(best === 'base'){ const nb = it(now.why, 'base'), pb = it(prev.why, 'base');
+        out.cause = nb && pb && nb.t !== pb.t ? 'Nouvelle référence : ' + nb.t.split(' — ')[0] + '.' : 'Ta course de référence compte un peu moins : elle date.'; }
+      else if(best === 'qual'){
+        const q = typeof prAllDone === 'function' ? prAllDone(today).filter(function(s){ return (s.type === 'tempo' || s.type === 'frac') && prDays(s.date, today) <= 7; }).pop() : null;
+        out.cause = q ? 'Grâce à ton ' + q.title + ' de ' + new Date(q.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long' }) + '.' : 'Tes séances de qualité récentes.';
+      } else if(best === 'miss') out.cause = 'Séances de qualité sous l\'allure prévue.';
+      else if(best === 'gap'){ const g = it(now.why, 'gap') || it(prev.why, 'gap'); out.cause = g ? g.t.charAt(0).toUpperCase() + g.t.slice(1) + '.' : 'Pause dans l\'entraînement.'; }
+      else if(best === 'ef') out.cause = 'Ton endurance (allure à FC égale).';
+    }
+    return out;
+  } catch(e) { return null; }
+}
+function bsLevelHtml(L){
+  const H = L.hist, W = 128, Hh = 34;
+  let svg = '';
+  if(H.length >= 3){
+    const vs = H.map(function(p){ return p.v; }), lo = Math.min.apply(null, vs) - 0.3, hi = Math.max.apply(null, vs) + 0.3;
+    const X = function(i){ return 2 + i / (H.length - 1) * (W - 8); }, Y = function(v){ return 3 + (hi - v) / Math.max(0.6, hi - lo) * (Hh - 8); };
+    const line = H.map(function(p, i){ return X(i).toFixed(1) + ',' + Y(p.v).toFixed(1); }).join(' ');
+    svg = '<svg class="bs-spark" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Niveau sur 6 mois : de ' + _bsV(H[0].v) + ' à ' + _bsV(L.v) + '">'
+      + '<polygon points="' + X(0).toFixed(1) + ',' + Hh + ' ' + line + ' ' + X(H.length - 1).toFixed(1) + ',' + Hh + '" class="a"/><polyline points="' + line + '" class="l"/>'
+      + '<circle cx="' + X(H.length - 1).toFixed(1) + '" cy="' + Y(L.v).toFixed(1) + '" r="3" class="d"/></svg>';
+  }
+  const d = L.delta, chip = d == null || Math.abs(d) < 0.1 ? '<span class="bs-chip">stable cette semaine</span>'
+    : '<span class="bs-chip ' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '+' : '−') + _bsV(Math.abs(d)) + ' cette semaine</span>';
+  return '<div class="bs-lvl"><div><p class="bs-lvl-l">Niveau du moment</p><p class="bs-lvl-v">' + _bsV(L.v) + chip + '</p>'
+    + (L.cause ? '<p class="bs-n" style="margin:2px 0 0;">' + prEsc(L.cause) + '</p>' : '') + '</div>'
+    + (svg ? '<div class="bs-lvl-c">' + svg + '<span>6 mois</span></div>' : '') + '</div>';
+}
+
 // allures de chaque zone (s/km, lo = la plus rapide) d'après le niveau actuel (prFitness, tout l'historique) :
 // Z2 = ton allure EF réelle (prObservedEf) si connue, sinon l'EF Daniels ; Z3 tempo ≈ allure marathon-semi ; Z4 seuil (T) ; Z5 VMA (I)
 function bsZonePaces(today){
@@ -211,7 +267,11 @@ function bsZonesBar(z, zp){
   const pace = zp ? '<div class="bs-paces">' + z.map(function(x, i){
     const p = zp.z[i];
     const t = !p ? '—' : p.hi == null ? '> ' + _bsP(p.lo) : p.lo == null ? '< ' + _bsP(p.hi + 1) : '<b>' + _bsP(p.lo) + '</b><b>' + _bsP(p.hi) + '</b>';
-    return '<div class="z' + x.z + '" style="flex:' + w[i] + ' 1 0">' + t + '</div>'; }).join('') + '</div>' : '';
+    // flèche : allure de la zone plus rapide (↑) ou plus lente (↓) qu'il y a 7 jours
+    const q = zp.prev && zp.prev[i], ref = function(o){ return o ? (o.lo != null ? o.lo : o.hi) : null; }, dv = p && q ? ref(p) - ref(q) : 0;
+    if(Math.abs(dv) >= 2) zp.arrows = true;
+    const arr = Math.abs(dv) >= 2 ? '<i class="bs-arr ' + (dv < 0 ? 'up' : 'down') + '" title="' + (dv < 0 ? 'plus rapide' : 'plus lente') + ' de ' + Math.abs(Math.round(dv)) + ' s/km qu\'il y a 7 jours">' + (dv < 0 ? '↑' : '↓') + '</i>' : '';
+    return '<div class="z' + x.z + '" style="flex:' + w[i] + ' 1 0">' + arr + t + '</div>'; }).join('') + '</div>' : '';
   return '<div class="bs-bar">' + z.map(function(x, i){ return '<div class="bs-s z' + x.z + '" style="flex:' + w[i] + ' 1 0" title="' + (bpm ? prEsc(x.t) + ' : ' + (i ? x.lo + '–' : '< ') + x.hi + ' bpm' : BS_ZONE_SHORT[x.z]) + '"><b>Z' + x.z + '</b><span>' + BS_ZONE_SHORT[x.z] + '</span></div>'; }).join('') + '</div>'
     + (bpm ? '<div class="bs-ticks">' + ticks + '</div>' : '') + pace;
 }
@@ -228,6 +288,13 @@ function _bsCss(){
     + '.bs-s.z1{background:#E0F2FE;color:#075985;}.bs-s.z2{background:#BBF7D0;color:#14532D;}.bs-s.z3{background:#FEF08A;color:#713F12;}.bs-s.z4{background:#FED7AA;color:#9A3412;}.bs-s.z5{background:#FECACA;color:#991B1B;}'
     + '.bs-paces{display:flex;gap:2px;margin-top:6px;font-variant-numeric:tabular-nums;}.bs-paces>div{min-width:0;text-align:center;font-size:10.5px;font-weight:700;color:#64748B;line-height:1.25;display:flex;flex-direction:column;border-top:2px solid;padding-top:3px;}'
     + '.bs-paces b{font-weight:800;color:#1E293B;}.bs-paces>div.z1{border-color:#BAE6FD;}.bs-paces>div.z2{border-color:#86EFAC;}.bs-paces>div.z3{border-color:#FDE047;}.bs-paces>div.z4{border-color:#FDBA74;}.bs-paces>div.z5{border-color:#FCA5A5;}'
+    + '.bs-lvl{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin:6px 0 4px;}.bs-lvl-l{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B;margin:0;}'
+    + '.bs-lvl-v{font-size:26px;font-weight:900;color:#0F172A;margin:0;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}'
+    + '.bs-chip{font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;white-space:nowrap;background:#E2E8F0;color:#475569;letter-spacing:0;}.bs-chip.up{background:#DCFCE7;color:#15803D;}.bs-chip.down{background:#FFEDD5;color:#C2410C;}'
+    + '.bs-lvl-c{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:1;min-width:0;}.bs-lvl>div:first-child{min-width:0;}.bs-lvl-c span{font-size:9.5px;color:#94A3B8;font-weight:700;}.bs-spark{width:110px;max-width:100%;height:34px;overflow:visible;}.bs-spark .a{fill:#6366F1;opacity:.12;}.bs-spark .l{fill:none;stroke:#6366F1;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;}.bs-spark .d{fill:#4F46E5;}'
+    + '.bs-arr{font-style:normal;font-size:11px;font-weight:900;line-height:1;}.bs-arr.up{color:#16A34A;}.bs-arr.down{color:#EA580C;}'
+    + '.bs-why{margin-top:6px;}.bs-why summary{font-size:11.5px;font-weight:700;color:#4F46E5;cursor:pointer;}.bs-why ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;}'
+    + '.bs-why li{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#475569;}.bs-why li b{font-variant-numeric:tabular-nums;color:#0F172A;}'
     + '.bs-ticks{position:relative;height:15px;margin-top:3px;font-variant-numeric:tabular-nums;}.bs-ticks i{position:absolute;top:0;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:800;color:#475569;}.bs-ticks i.end{transform:translateX(-100%);}'
     + '.bs-prop{margin-top:8px;border:1.5px solid #BBF7D0;background:#F0FDF4;border-radius:12px;padding:10px;}.bs-prop p{margin:0;font-size:13px;color:#14532D;}.bs-btn{margin-top:8px;width:100%;padding:10px;border:none;border-radius:11px;background:#16A34A;color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}'
     + '.bs-link{margin-top:6px;background:none;border:none;color:#64748B;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;font-family:inherit;}'

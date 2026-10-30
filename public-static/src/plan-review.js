@@ -110,8 +110,9 @@ function prResultVdot(cat, sec, date, today){
   let v = vdotFromRace(m, sec), note = '';
   const age = date ? prDays(date, today || prTodayIso()) : null;
   if(age === null){ v -= 1; note = 'date inconnue : compte moins'; }
-  else if(age > 540) return null;
-  else if(age > 180){ v -= (age - 180) / 90; note = 'il y a ' + Math.round(age / 30) + ' mois : compte moins'; }
+  else if(age < 0 || age > 540) return null;                                    // course pas encore courue à cette date / trop ancienne
+  // fraîcheur : une course compte pleinement 8 semaines, puis perd ~0,5 point toutes les 8 semaines (tes séances peuvent la confirmer)
+  else if(age > 56){ v -= (age - 56) / 112; note = 'il y a ' + (age < 60 ? Math.round(age / 7) + ' sem.' : Math.round(age / 30) + ' mois') + ' : compte moins'; }
   if(cat === 'Marathon'){ v += 0.8; note = (note ? note + ' · ' : '') + 'marathon corrigé +0,8'; }
   return { vdot: v, note: note };
 }
@@ -130,7 +131,9 @@ function prFitness(st, opt){
   Object.keys(PR_RECORD_KEY).forEach(function(cat){ if(st[PR_RECORD_KEY[cat]]) addRace(cat, st[PR_RECORD_KEY[cat]], (meta[cat] || {}).date, 'Record ' + (cat === 'Semi-marathon' ? 'semi' : cat.toLowerCase())); });
   (opt.races || []).forEach(function(r){ if(PR_RACE_M[r.cat]) addRace(r.cat, r.time, r.date, r.label); });
   // séances réalisées : tout l'historique (toutes les prépas) pour la prépa en cours, sinon celles de la copie analysée
-  const doneAll = st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st).filter(function(s){ return s.done; });
+  // (opt.done : historique déjà chargé, filtré à la date demandée — courbe du niveau dans le temps)
+  const doneAll = opt.done ? opt.done.filter(function(s){ return s.date && s.date <= today; })
+    : st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st).filter(function(s){ return s.done; });
   // séances test (5 km à fond) réalisées : comptent comme une course
   doneAll.forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && typeof prTestTime === 'function'){ const t = prTestTime(s); if(t) addRace('5 km', prTime(t), s.date, 'Test 5 km'); } });
   // blocs de qualité récents
@@ -146,20 +149,69 @@ function prFitness(st, opt){
     const pct = it === 'I' ? 0.975 : it === 'race' ? 0.9 : 0.88;
     let v = vdotFromPaceAt(avg, pct);
     if(hr && hr > 0.93 * hrMax) v -= 0.8;
-    recent.push({ kind: 'séance', label: s.title + (s.perf._blocsAuto || s.perf.blocsAuto ? ' (tours Strava)' : '') + (wx >= 1 ? ' (corrigé chaleur +' + prV(wx) + ' %)' : ''), date: s.date, pace: prPace(avg), hr: hr, vdot: v });
+    // blocs nettement plus lents que la consigne (corrigée de la chaleur) : allure non tenue
+    const missed = !!(s.pace && avg > s.pace.hi + 3);
+    recent.push({ kind: 'séance', label: s.title + (s.perf._blocsAuto || s.perf.blocsAuto ? ' (tours Strava)' : '') + (wx >= 1 ? ' (corrigé chaleur +' + prV(wx) + ' %)' : ''), date: s.date, pace: prPace(avg), hr: hr, vdot: v, missed: missed });
   });
   src.push.apply(src, recent);
   const races = src.filter(function(x){ return x.kind === 'course'; }), sesV = recent.map(function(x){ return x.vdot; }).sort(function(a, b){ return a - b; });
-  const raceBest = races.length ? Math.max.apply(null, races.map(function(x){ return x.vdot; })) : null;
-  const sesMed = sesV.length >= 2 ? sesV[Math.floor(sesV.length / 2)] : null;
+  const bestRace = races.length ? races.slice().sort(function(a, b){ return b.vdot - a.vdot; })[0] : null, raceBest = bestRace ? bestRace.vdot : null;
+  // niveau des séances : moyenne pondérée par la fraîcheur (poids divisé par 2 toutes les 3 semaines) — chaque séance compte ;
+  // à partir de 4 séances, la plus haute et la plus basse sont écartées (valeurs aberrantes)
+  const sesMed = (function(){
+    if(recent.length < 2) return null;
+    let l = recent.slice().sort(function(a, b){ return a.vdot - b.vdot; });
+    if(l.length >= 4) l = l.slice(1, -1);
+    let sw = 0, sv = 0; l.forEach(function(x){ const w = Math.pow(0.5, Math.max(0, prDays(x.date, today)) / 21); sw += w; sv += w * x.vdot; });
+    return sw ? sv / sw : null;
+  })();
+  // « niveau du moment » : meilleure course (selon sa fraîcheur), relevée par les séances de qualité, abaissée par des
+  // séances manquées, une coupure ou une endurance en recul ; why = ce qui a fait bouger le niveau
+  const why = [];
   let vdot = raceBest, basis = 'courses';
-  if(sesMed && (!vdot || sesMed > vdot)){ vdot = raceBest ? Math.min(sesMed, raceBest + 2) : sesMed; basis = 'séances récentes'; }
-  if(!vdot && st.vo2max_current){ vdot = parseFloat(st.vo2max_current) * 0.9; basis = 'VO2max montre'; }
-  if(!vdot) return { vdot: null, sources: src, hrMax: hrMax };
+  if(bestRace) why.push({ k: 'base', t: bestRace.label + (bestRace.date ? ' (' + prFmtDate(bestRace.date) + ')' : '') + (bestRace.note ? ' — ' + bestRace.note : ''), v: raceBest, base: true });
+  if(sesMed && (!vdot || sesMed > vdot)){
+    const nv = raceBest ? Math.min(sesMed, raceBest + 2) : sesMed;
+    if(raceBest) why.push({ k: 'qual', t: 'séances de qualité récentes', d: nv - raceBest }); else why.push({ k: 'qual', t: 'séances de qualité récentes', v: nv, base: true });
+    vdot = nv; basis = 'séances récentes';
+  }
+  if(!vdot && st.vo2max_current){ vdot = parseFloat(st.vo2max_current) * 0.9; basis = 'VO2max montre'; why.push({ k: 'base', t: 'VO2max de la montre', v: vdot, base: true }); }
+  if(!vdot) return { vdot: null, sources: src, hrMax: hrMax, why: why };
+  // séances de qualité manquées : ≥ 3 sur 6 semaines nettement sous le niveau → baisse (moitié de l'écart, 1,5 au plus)
+  const miss = recent.filter(function(x){ return x.missed && prDays(x.date, today) <= 42; }).map(function(x){ return x.vdot; }).sort(function(a, b){ return a - b; });
+  if(miss.length >= 3){
+    const mm = miss[Math.floor(miss.length / 2)];
+    if(mm < vdot - 0.5){ const d = -Math.min(1.5, (vdot - mm) / 2); vdot += d; why.push({ k: 'miss', t: miss.length + ' séances de qualité sous l\'allure prévue (6 sem.)', d: d }); }
+  }
+  // coupure : plus de 10 jours sans courir → −0,35 par semaine d'arrêt (3 au plus), effacé progressivement à la reprise
+  // (une course enregistrée compte comme une sortie, même sans séance validée ce jour-là)
+  // (seulement dans la période couverte par l'historique : un record plus ancien que la 1re séance n'invente pas de pause)
+  const runD = doneAll.filter(function(s){ return s.date && s.date <= today && s.type !== 'rest'; }).map(function(s){ return s.date; }).sort();
+  const runs = runD.concat(races.filter(function(r){ return r.date && r.date <= today && runD.length && r.date >= runD[0]; }).map(function(r){ return r.date; })).sort();
+  if(runs.length){
+    let gap = 0, back = null, from = null;
+    for(let i = 1; i < runs.length; i++){ const g = prDays(runs[i - 1], runs[i]); if(g > 10 && prDays(runs[i], today) <= 60){ gap = g; back = runs[i]; from = runs[i - 1]; } }
+    const cur = prDays(runs[runs.length - 1], today); if(cur > 10){ gap = cur; back = null; from = runs[runs.length - 1]; }
+    // repos prévu après une course (≈ 1 jour par mile : marathon 26 j, semi 13 j, 10 km 6 j) : pas une perte de forme
+    const REC = { 'Marathon': 26, 'Semi-marathon': 13, '10 km': 6, '5 km': 3 };
+    const raceRest = from && races.some(function(r){ return r.date && Math.abs(prDays(r.date, from)) <= 2 && gap <= (REC[r.cat] || 7) + 3; });
+    if(gap && !raceRest){
+      const pen = Math.min(3, 0.35 * (gap - 7) / 7), left = back ? Math.max(0, 1 - prDays(back, today) / gap) : 1;
+      const raceAfter = back && races.some(function(r){ return r.date && r.date >= back; });
+      const d = raceAfter ? 0 : -pen * left;
+      if(d <= -0.05){ vdot += d; why.push({ k: 'gap', t: back ? 'reprise après ' + gap + ' jours sans courir' : gap + ' jours sans courir', d: d }); }
+    }
+  }
+  // endurance : allure à FC égale des footings, 3 dernières semaines vs 6-12 semaines avant (±0,5 au plus)
+  const efE = function(a, b){ const l = doneAll.filter(function(s){ const d = prDays(s.date, today); return (s.type === 'ef' || s.type === 'long') && d >= a && d <= b && s.perf && s.perf.pace && parseInt(s.perf.hr) >= 100; })
+    .map(function(s){ const p = prPaceSec(s.perf.pace), wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(s.perf.meteo).pct : 0; return p ? 60000 / p * (1 + wx / 100) / parseInt(s.perf.hr) : null; }).filter(Boolean);
+    return l.length >= 3 ? prMean(l) : null; };
+  const e1 = efE(0, 21), e0 = efE(42, 84);
+  if(e1 && e0){ const pct = (e1 - e0) / e0 * 100, d = Math.max(-0.5, Math.min(0.5, pct * 0.1)); if(Math.abs(d) >= 0.1){ vdot += d; why.push({ k: 'ef', t: 'endurance (allure à FC égale) ' + (d > 0 ? 'en progrès' : 'en recul') + ' de ' + Math.round(Math.abs(pct)) + ' %', d: d }); } }
   vdot = Math.round(vdot * 10) / 10;
   const paces = { T: paceAtPct(vdot, 0.88), I: paceAtPct(vdot, 0.975), R: paceAtPct(vdot, 1.05), E: [paceAtPct(vdot, 0.70), paceAtPct(vdot, 0.62)] };
   const preds = {}; Object.keys(PR_RACE_M).forEach(function(c){ preds[c] = raceTimeFromVdot(vdot, PR_RACE_M[c]); });
-  return { vdot: vdot, basis: basis, paces: paces, preds: preds, sources: src, hrMax: hrMax };
+  return { vdot: vdot, basis: basis, paces: paces, preds: preds, sources: src, hrMax: hrMax, why: why };
 }
 
 // ─── Propositions d'allures ─────────────────────────────────────────────────
