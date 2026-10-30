@@ -325,6 +325,7 @@ function _renderPrepsBody(){
         + '<p class="pp-sub">Course le ' + _prepDate(R.date) + ' · ' + _ppS(R.weeks.length, 'semaine') + ' · ' + _ppS(n, 'séance') + ' · objectif ' + _ppTime(R.target) + '</p></div>'
         + '<div class="pp-acts"><button class="pp-btn ok" onclick="prepInstallReady(\'' + R.id + '\')">Installer cette prépa</button></div></section>';
     });
+    if(typeof openNextRace === 'function') h += '<button class="pp-new" style="background:#0F766E;" onclick="openNextRace()">🧭 Choisir ma prochaine course</button>';
     h += '<button class="pp-new" onclick="prepNew()">' + PP_ICON.plus + 'Nouvelle prépa</button>';
   }
   // ── Comparer (dès 2 prépas)

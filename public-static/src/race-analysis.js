@@ -153,7 +153,7 @@ function openRaceAnalysis(A){
   if(A.heat) tiles.push(tile('Météo', '+' + String(A.heat.pct).replace('.', ',') + ' %', A.heat.why || '', 'ko'));
   const d = A.date ? new Date(A.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const ov = document.createElement('div');
-  ov.className = 'modal-overlay'; ov.id = 'ra-modal'; ov.style.zIndex = '495'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
+  ov.className = 'modal-overlay'; ov.id = 'ra-modal'; ov.style.zIndex = '510';   // au-dessus du bilan de prépa (#modal-container, 500) ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
   ov.innerHTML = '<div class="modal-box" style="max-height:92vh;"><div class="ra-head"><div><p class="ra-eb">Analyse de course' + (d ? ' · ' + d : '') + '</p><p class="ra-name">' + prEsc(A.name || A.cat) + '</p>'
     + '<p class="ra-time">' + A.time + '<small> · ' + prPace(A.avg) + '/km</small></p></div><button class="ra-x" onclick="document.getElementById(\'ra-modal\').remove()" aria-label="Fermer">×</button></div>'
     + '<div class="modal-scroll-body" style="background:#F5F7FB;"><div class="ra-body">'
@@ -163,6 +163,7 @@ function openRaceAnalysis(A){
     + (A.lessons.length ? '<p class="ra-sec">Ce que tu en retiens</p><div class="ra-card ra-les">' + A.lessons.map(function(l){ return '<p>' + prEsc(l) + '</p>'; }).join('') + '</div>' : '')
     + (A.startAdvice === 'slower' ? '<p class="ra-n">Retenu dans ta recette : ton prochain plan de course partira un peu plus prudemment.</p>' : '')
     + '<button type="button" class="ra-share" onclick="raShare()">📤 Partager mon bilan</button>'
+    + (typeof openNextRace === 'function' ? '<button type="button" class="ra-share" style="background:#0F766E;" onclick="document.getElementById(\'ra-modal\').remove();openNextRace()">🧭 Et ensuite ? Ta prochaine course</button>' : '')
     + '</div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);

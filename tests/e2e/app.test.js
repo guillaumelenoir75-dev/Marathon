@@ -410,3 +410,27 @@ test('analyse de course : après la validation, carte sur l\'accueil, écran dé
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('prochaine course : options, conseil, création de la prépa à venir (remplace celle déjà prévue après confirmation)', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-30T09:00:00+01:00', savedDb);
+  await page.evaluate(async () => { showScreen('compte'); await openPrepsPanel(); });
+  await page.waitForTimeout(400);
+  await page.click('text=Choisir ma prochaine course');
+  await page.waitForSelector('#nr-modal .nr-card.on .nr-form');
+  assert.equal(await page.locator('#nr-modal .nr-card').count(), 4);
+  assert.match(await page.textContent('#nr-modal .nr-card.on'), /Conseillé/);
+  const best = await page.evaluate(() => _nr.sel);
+  await page.fill('#nr-name', 'Ma course test');
+  assert.ok(await page.locator('#nr-modal .nr-tg button').count() === 2, 'temps visés réaliste / ambitieux');
+  await page.click('#nr-modal .nr-tg button:nth-child(2)');
+  const hadNext = await page.evaluate(() => !!_nr.O.next);
+  await page.click('#nr-modal .nr-go');
+  if (hadNext) { await page.waitForSelector('#confirm-modal-overlay'); await page.click('#confirm-modal-overlay button:has-text("Remplacer")'); }
+  await page.waitForFunction(() => !document.getElementById('nr-modal'), null, { timeout: 5000 });
+  const N = JSON.parse(await db(page)).users.ADMINUID.prep_next;
+  assert.equal(N.meta.title, 'Ma course test'); assert.equal(N.meta.dist, best);
+  assert.ok(N.meta.target && N.meta.weeks >= 6 && Object.keys(N.state).some((k) => /^extra_w1_s0$/.test(k)));
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

@@ -6,7 +6,7 @@ function generateDecouvertePlan(ob){
   // Durée : 8 semaines minimum, 24 max
   let numWeeks=8;
   if(ob.date){
-    const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
+    const diff=Math.floor((new Date(ob.date)-(ob.plan_start_date?new Date(ob.plan_start_date+'T00:00:00'):new Date()))/(7*24*3600*1000));   // prépa à venir : semaines depuis son début
     if(diff>0) numWeeks=Math.min(Math.max(diff,8),24);
   }
 
@@ -155,7 +155,7 @@ function generateAthletePlan(ob){
   // Plaisir sans date : 16 semaines par défaut (un semestre), min 8
   let numWeeks=isPlaisir?16:minW;
   if(ob.date){
-    const diff=Math.floor((new Date(ob.date)-new Date())/(7*24*3600*1000));
+    const diff=Math.floor((new Date(ob.date)-(ob.plan_start_date?new Date(ob.plan_start_date+'T00:00:00'):new Date()))/(7*24*3600*1000));   // prépa à venir : semaines depuis son début
     if(diff>0) numWeeks=Math.min(Math.max(diff,minW),maxW);
   }
 

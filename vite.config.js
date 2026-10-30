@@ -10,7 +10,7 @@ const scriptFiles = [
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
   'coach-memos.js', 'coach-ui.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
-  'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js',
+  'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js', 'next-race.js',
 ];
 
 // Écrans rares chargés à la demande (lazyLoad dans config.js) : un fichier minifié par groupe, nom unique par version
