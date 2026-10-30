@@ -233,7 +233,8 @@ function _ccMonthly(){
     if(h.km>o.plus_longue_km) o.plus_longue_km=Math.round(h.km*10)/10;
     const p=h.perf; if((h.sess.type==='ef'||h.sess.type==='long')&&p&&p.pace&&p.hr&&parseInt(p.hr)<=hrEfMax()){ const s=paceStrToSec(String(p.pace)); if(s) o._ef.push(s); }
   });
-  return Object.keys(M).sort().slice(-24).map(k=>{   // 24 derniers mois (l'historique Strava peut remonter à des années) const o=M[k], ef=o._ef.sort((a,b)=>a-b); return {mois:o.mois,km:Math.round(o.km),seances:o.seances,qualite:o.qualite,plus_longue_km:o.plus_longue_km,allure_ef_mediane:ef.length?secToPace(ef[Math.floor(ef.length/2)]):null}; });
+  // 24 derniers mois (l'historique Strava peut remonter à des années)
+  return Object.keys(M).sort().slice(-24).map(k=>{ const o=M[k], ef=o._ef.sort((a,b)=>a-b); return {mois:o.mois,km:Math.round(o.km),seances:o.seances,qualite:o.qualite,plus_longue_km:o.plus_longue_km,allure_ef_mediane:ef.length?secToPace(ef[Math.floor(ef.length/2)]):null}; });
 }
 function _ccWeekDone(k){ const a=_ccWeekFrom(k), b=_ccWeekFrom(k-1); return _ccHist(k).filter(h=>h.date>=a&&h.date<b); }
 
