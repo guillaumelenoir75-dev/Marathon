@@ -97,3 +97,26 @@ test('analyse de séance : le ressenti de Guillaume est lu en premier ; une EF a
   assert.match(call.system, /JAMAIS de reproche/);
   assert.match(call.system, /REQUALIFIE la séance/);
 });
+
+test('analyse de séance : cadre imposé quand l\'EF est courue plus vite par choix — jamais de feu rouge, note plancher', async () => {
+  const { loadFunctions: lf, callHttp: ch } = require('../helpers/functions');
+  const ec = { allure_prevue: "5'35", allure_realisee: "4'53", ecart_sec: 42, sens: 'plus rapide que prévu' };
+  const F = lf({ data: {}, modules: ['coach.js'], ai: '[FEU:🔴]\n⭐ ÉVALUATION\n●●●○○○○○○○ **3/10**\nSortie longue transformée en course.' });
+  const C = F.coach;
+  // détection
+  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'Je me sentais bien, super content', douleur: 'aucune' } }).kind, 'choisi');
+  assert.equal(C.analysisFrame({ ecart_consigne: ec }).kind, 'sans_ressenti');
+  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'Pas bien, jambes lourdes' } }), null, 'ressenti négatif : pas de cadre');
+  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'top', douleur: { niveau_0_3: 2, zone: 'Mollet' } } }), null, 'douleur : pas de cadre');
+  assert.equal(C.analysisFrame({ ecart_consigne: Object.assign({}, ec, { sens: 'plus lent que prévu' }) }), null);
+  // réponse : feu rouge et 3/10 corrigés, cadre dans la consigne (début et fin)
+  const sessionData = { type: 'long', allure: '4:53', fc: 157, ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'Je me sentais bien après le 1er km, j\'ai accéléré, très content', douleur: 'aucune' } };
+  const r = await ch(C.analyzeSession, { sessionData, historyData: [], planContext: {} });
+  assert.match(r.out.analysis, /^\[FEU:🟡\]/);
+  assert.match(r.out.analysis, /●●●●●●○○○○ \*\*6\/10\*\*/);
+  const u = F.calls.ai[0].user;
+  assert.match(u, /CADRE IMPOSÉ POUR CETTE ANALYSE \(non négociable/);
+  assert.match(u.slice(-1500), /JAMAIS \[FEU:🔴\]/, 'rappelé en fin de message');
+  // une bonne note n'est pas touchée
+  assert.match(C.analysisFix('[FEU:🟢]\n●●●●●●●●○○ **8/10**', C.analysisFrame(sessionData)), /\*\*8\/10\*\*/);
+});

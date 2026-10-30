@@ -465,7 +465,10 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     if(!window._stravaActivityData && _vp.strava && _vp.strava.splits) analysisContext.strava = { cadence: _vp.strava.cadence || null, fcMax: _vp.strava.fcMax || null, splits: _vp.strava.splits.filter(sp => !sp.distanceKm || sp.distanceKm >= 0.5).map(sp => ({ km: sp.km, allure: sp.allure, fc: sp.fc })) };
   }
   (function(){
-    const det = String(s.d || '').split('|').slice(1).join('|'), m = det.match(/(\d{1,2})['’:](\d{2})/), r = String(pace || '').match(/(\d{1,2})['’:](\d{2})/);
+    const det = String(s.d || '').split('|').slice(1).join('|'), r = String(pace || '').match(/(\d{1,2})['’:](\d{2})/);
+    // allure prévue : celle de la consigne (borne rapide d'une fourchette), sinon ton allure EF de référence
+    let m = det.match(/(\d{1,2})['’:](\d{2})/);
+    if(!m && (s.type === 'ef' || s.type === 'long')){ const ep = (state._ef_ref && state._ef_ref.pace) || (typeof getBestEfPace === 'function' ? getBestEfPace() : null); m = ep ? String(ep).match(/(\d{1,2})['’:](\d{2})/) : null; }
     if(!m || !r || s.type === 'tempo' || s.type === 'frac' || s.type === 'race') return;
     const tgt = +m[1] * 60 + +m[2], real = +r[1] * 60 + +r[2], d = real - tgt;
     if(Math.abs(d) >= 15) analysisContext.ecart_consigne = { allure_prevue: m[1] + "'" + m[2], allure_realisee: r[1] + "'" + r[2], ecart_sec: Math.abs(d), sens: d < 0 ? 'plus rapide que prévu' : 'plus lent que prévu' };

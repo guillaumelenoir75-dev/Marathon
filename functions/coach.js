@@ -9,6 +9,38 @@ const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
 
+// ─── Analyse de séance : cadre imposé quand Guillaume a couru plus vite que prévu sans signal négatif ───
+// 'choisi' = ressenti positif (accélération assumée), 'sans_ressenti' = rien dit ; ressenti négatif / douleur / effort ≥ 9 = pas de cadre
+function analysisFrame(sd){
+  sd = sd || {};
+  const ec = sd.ecart_consigne, ra = sd.ressenti_athlete || null;
+  if(!ec || ec.sens !== 'plus rapide que prévu') return null;
+  const txt = ra ? String((ra.ce_que_guillaume_a_dit || '') + ' ' + (ra.resume || '')).toLowerCase() : '';
+  const pain = ra && ra.douleur && typeof ra.douleur === 'object' && ra.douleur.niveau_0_3 >= 2;
+  const neg = /(pas (très |trop )?bien|\bdur|difficile|fatigu|lourd|\bmal\b|douleur|épuis|cram|vidé|tendu|gêne|gené|crevé|explos|souffert)/.test(txt);
+  if(pain || neg || (ra && ra.effort_ressenti_sur_10 >= 9)) return null;
+  const pos = /(bien|super|content|top|facile|sensation|en forme|génial|genial|kiff|nickel|frais|plaisir|heureux|ravi|léger|leger|excellent|parfait)/.test(txt) || (ra && ra.effort_ressenti_sur_10 && ra.effort_ressenti_sur_10 <= 6);
+  return { kind: pos ? 'choisi' : 'sans_ressenti', min: pos ? 6 : 5, quote: ra && ra.ce_que_guillaume_a_dit ? String(ra.ce_que_guillaume_a_dit).slice(0, 200) : null, ec };
+}
+function analysisFrameText(F){
+  if(!F) return '';
+  const e = F.ec;
+  return F.kind === 'choisi'
+    ? `\n\nCADRE IMPOSÉ POUR CETTE ANALYSE (non négociable, prime sur toute autre règle, mémos compris) : Guillaume a couru ${e.allure_realisee}/km au lieu de ${e.allure_prevue}/km PAR CHOIX, sur de bonnes sensations${F.quote ? ' (il a dit : « ' + F.quote + ' »)' : ''}. Première ligne [FEU:🟢] — ou [FEU:🟡] seulement si la récupération est basse ou qu'il sort d'une course, pour la SUITE — JAMAIS [FEU:🔴]. Note entre ${F.min}/10 et 9/10, jugée sur la séance réellement courue (régularité, FC pour cette allure, finish), comme une sortie soutenue / progressive. Verdict (ligne 2) positif. Le BILAN reprend ses mots. Interdits : "trop rapide", "transformée en course", "t'emballes", "forcer", "rogner", "creuser", "malgré", "pas respecté", tout reproche, tout mémo négatif sur l'allure. La fatigue (WHOOP, FC repos, course récente) = UNE phrase d'information, puis ce que tu adaptes pour la suite (prochaine EF très facile, séance de qualité allégée ou décalée) avec "je te suggère".`
+    : `\n\nCADRE IMPOSÉ POUR CETTE ANALYSE (prime sur toute autre règle, mémos compris) : Guillaume a couru ${e.allure_realisee}/km au lieu de ${e.allure_prevue}/km sans dire comment il s'est senti. Ne reproche pas l'allure : c'est peut-être un choix sur de bonnes sensations. [FEU:🟢] ou [FEU:🟡] (🟡 si la récupération est basse pour la suite) — JAMAIS [FEU:🔴] sans douleur. Note entre ${F.min}/10 et 9/10 sur l'exécution réelle (régularité, FC pour cette allure). Termine le BILAN en lui demandant en une phrase comment il s'est senti. La fatigue éventuelle = une phrase pour la suite et une adaptation proposée, sans morale.`;
+}
+// garde-fou sur la réponse : jamais de feu rouge, note au moins F.min/10 dans ce cadre
+function analysisFix(text, F){
+  if(!F || !text) return text;
+  let t = String(text).replace(/^\s*\[FEU:🔴\]/, '[FEU:🟡]');
+  t = t.replace(/([●○]{3,})\s*\*\*(\d{1,2})\/10\*\*/, function(m, dots, n){
+    const v = Math.max(F.min, Math.min(10, +n));
+    return '●'.repeat(v) + '○'.repeat(10 - v) + ' **' + v + '/10**';
+  });
+  return t;
+}
+exports.analysisFrame = analysisFrame; exports.analysisFix = analysisFix;
+
 exports.analyzeSession = onRequest(
   { secrets: [ANTHROPIC_API_KEY] },
   async (req, res) => {
@@ -311,7 +343,8 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
 
       const _ra = sessionData && sessionData.ressenti_athlete;
       const ressentiLine = _ra ? `RESSENTI DE GUILLAUME (à lire en premier) : ${JSON.stringify(_ra)}${sessionData.ecart_consigne ? ' · écart à la consigne : ' + JSON.stringify(sessionData.ecart_consigne) : ''}\n` : (sessionData && sessionData.ecart_consigne ? `Écart à la consigne (pas de ressenti donné) : ${JSON.stringify(sessionData.ecart_consigne)}\n` : '');
-      const userMsg = `${ressentiLine}Séance validée: ${JSON.stringify(sessionData)}${stravaSection}\nHistorique récent (8 dernières semaines): ${JSON.stringify(historyData)}\nContexte plan: ${JSON.stringify(planContext)}${recentesSection}${chatCtx}\n\nFais une analyse naturelle et personnalisée de cette séance. Si des données Strava sont présentes dans la section "DONNÉES STRAVA RÉELLES", utilise UNIQUEMENT ces valeurs — ne les modifie pas, ne les recalcule pas.`;
+      const _frame = analysisFrame(sessionData);
+      const userMsg = `${ressentiLine}${analysisFrameText(_frame).trim() ? analysisFrameText(_frame).trim() + '\n' : ''}Séance validée: ${JSON.stringify(sessionData)}${stravaSection}\nHistorique récent (8 dernières semaines): ${JSON.stringify(historyData)}\nContexte plan: ${JSON.stringify(planContext)}${recentesSection}${chatCtx}\n\nFais une analyse naturelle et personnalisée de cette séance. Si des données Strava sont présentes dans la section "DONNÉES STRAVA RÉELLES", utilise UNIQUEMENT ces valeurs — ne les modifie pas, ne les recalcule pas.${analysisFrameText(_frame)}`;
       const isStreaming = req.headers['accept'] === 'text/event-stream';
       if(isStreaming) {
         res.setHeader('Content-Type', 'text/event-stream');
@@ -326,7 +359,7 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
           res.write('data: ' + JSON.stringify({token: 'Erreur temporaire, réessaie dans quelques secondes.'}) + '\n\n');
           res.write('data: [DONE]\n\n'); res.end(); return;
         }
-        let buffer = '';
+        let buffer = '', held = '';
         for await (const chunk of streamRes.body) {
           buffer += Buffer.from(chunk).toString('utf-8');
           const lines = buffer.split('\n'); buffer = lines.pop();
@@ -335,16 +368,22 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
             const data = line.slice(6).trim();
             try {
               const parsed = JSON.parse(data);
-              if(parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.text)
-                res.write('data: ' + JSON.stringify({token: parsed.delta.text}) + '\n\n');
-              if(parsed.type === 'message_stop') res.write('data: [DONE]\n\n');
+              if(parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.text){
+                if(_frame) held += parsed.delta.text;                       // cadre imposé : réponse vérifiée avant envoi
+                else res.write('data: ' + JSON.stringify({token: parsed.delta.text}) + '\n\n');
+              }
+              if(parsed.type === 'message_stop'){
+                if(_frame && held){ res.write('data: ' + JSON.stringify({token: analysisFix(held, _frame)}) + '\n\n'); held = ''; }
+                res.write('data: [DONE]\n\n');
+              }
             } catch(e) {}
           }
         }
+        if(_frame && held) res.write('data: ' + JSON.stringify({token: analysisFix(held, _frame)}) + '\n\n');
         res.end();
       } else {
         const reply = await callAnthropic(ANTHROPIC_API_KEY.value(), system, [{role:'user', content: userMsg}], 500);
-        res.json({ analysis: reply || 'Analyse non disponible.' });
+        res.json({ analysis: analysisFix(reply, _frame) || 'Analyse non disponible.' });
       }
     } catch(e) {
       console.error('analyzeSession error:', e.message);
