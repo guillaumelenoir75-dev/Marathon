@@ -275,13 +275,15 @@ function applyImprevu(){
 
 // ─── 8. Plan de course ──────────────────────────────────────────────────────
 const PD_CAT = function(R){ return R && PR_RACE_M[R.course] ? R.course : R && R.km ? (Math.abs(R.km - 21.1) < 0.6 ? 'Semi-marathon' : Math.abs(R.km - 42.2) < 0.6 ? 'Marathon' : Math.abs(R.km - 10) < 0.6 ? '10 km' : Math.abs(R.km - 5) < 0.6 ? '5 km' : null) : null; };
-// allure km par km : départ prudent (+1,2 %), 1re moitié +0,3 %, 2e moitié −0,3 %, dernier km −1 % ; total = temps visé
-function prRaceSplits(totalSec, distKm){
+// allure km par km : départ prudent (+1,2 %, ou startW si ta recette demande un départ plus prudent : km 1 et 2), 1re moitié +0,3 %,
+// 2e moitié −0,3 %, dernier km −1 % ; total = temps visé
+function prRaceSplits(totalSec, distKm, startW){
   const n = Math.ceil(distKm - 1e-6), lens = [];
   for(let i = 0; i < n; i++) lens.push(Math.min(1, Math.round((distKm - i) * 1000) / 1000));
   const half = distKm / 2;
   const lastFull = lens[n - 1] < 1 ? n - 2 : n - 1;                          // semi / marathon : relance sur le dernier km entier + les derniers mètres
-  const w = lens.map(function(L, i){ const mid = i + L / 2; return i >= lastFull && distKm > 3 ? 0.99 : mid < 1 ? 1.012 : mid < half ? 1.003 : 0.997; });
+  const sw = startW && startW > 1.012 ? startW : 1.012;
+  const w = lens.map(function(L, i){ const mid = i + L / 2; return i >= lastFull && distKm > 3 ? 0.99 : mid < 1 ? sw : mid < 2 && sw > 1.012 ? 1 + (sw - 1) / 2 : mid < half ? 1.003 : 0.997; });
   const base = totalSec / lens.reduce(function(a, L, i){ return a + L * w[i]; }, 0);
   let cum = 0;
   return lens.map(function(L, i){ const p = base * w[i]; cum += p * L; return { km: Math.round((i + L) * 100) / 100, len: L, pace: p, cum: cum }; });
@@ -328,7 +330,7 @@ function _pdRaceRender(){
   const wx = I.days >= 0 && I.days <= 7 && P.wx ? prWxAt(I.R.date, I.time, P.wx) : null, adj = prWxAdj(wx);
   let target = _pdRaceTarget(); if(!target){ box.innerHTML = '<p class="pd-note">Ajoute un objectif ou des records pour calculer ton plan de course.</p>'; return; }
   const tgtWx = adj.pct >= 1 ? target * (1 + adj.pct / 100) : target;
-  const sp = prRaceSplits(tgtWx, I.dist); P.splits = sp; P.target = tgtWx;
+  const pac = (state._recette || {}).pacing, sp = prRaceSplits(tgtWx, I.dist, pac && pac.start); P.splits = sp; P.target = tgtWx;
   const mk = function(m, l, t){ return '<button type="button" class="pd-seg' + (P.mode === m ? ' on' : '') + '" onclick="_pdRace.mode=\'' + m + '\';_pdRaceRender()"><b>' + l + '</b><small>' + t + '</small></button>'; };
   let h = '<div class="pd-segs">' + (I.goal ? mk('goal', 'Objectif', prTime(I.goal)) : '') + (I.real ? mk('real', 'Réaliste', prTime(I.real)) : '')
     + '<button type="button" class="pd-seg' + (P.mode === 'custom' ? ' on' : '') + '" onclick="_pdRace.mode=\'custom\';_pdRaceRender();setTimeout(function(){const e=document.getElementById(\'pd-custom\');if(e)e.focus();},50)"><b>Mon temps</b><small>' + (P.custom ? prTime(P.custom) : 'à saisir') + '</small></button></div>';
@@ -340,7 +342,8 @@ function _pdRaceRender(){
   const marks = sp.filter(function(x, i){ return i === sp.length - 1 || (I.dist <= 10 ? true : I.dist <= 22 ? (i + 1) % 2 === 1 || i === 0 : (i + 1) % 5 === 0); });
   h += '<p class="pd-sec">Allure km par km</p><div class="pd-card pd-splits"><table><thead><tr><th>Km</th><th>Allure</th><th>Passage</th></tr></thead><tbody>'
     + marks.map(function(x, i){ return '<tr' + (x.km === sp[sp.length - 1].km ? ' class="fin"' : '') + '><td>' + (x.km === sp[sp.length - 1].km ? '🏁 ' + String(x.km).replace('.', ',') : x.km) + '</td><td>' + prPace(x.pace) + '</td><td>' + prTime(x.cum) + '</td></tr>'; }).join('') + '</tbody></table>'
-    + '<p class="pd-note">Départ un peu plus lent (+' + Math.round(sp[0].pace - tgtWx / I.dist) + ' s au 1er km), régularité jusqu\'à la mi-course, puis on relance légèrement : finir plus vite qu\'on est parti.</p></div>';
+    + '<p class="pd-note">Départ un peu plus lent (+' + Math.round(sp[0].pace - tgtWx / I.dist) + ' s au 1er km), régularité jusqu\'à la mi-course, puis on relance légèrement : finir plus vite qu\'on est parti.</p>'
+    + (pac && pac.start ? '<p class="pd-note pd-warm">🐢 D\'après ta dernière course : ' + prEsc(pac.why) + ' — départ encore plus prudent sur les 2 premiers km.</p>' : '') + '</div>';
   // échauffement, ravitaillement, consignes
   const warm = cat === 'Marathon' ? '8-10 min de footing très léger + 2 lignes droites, 20 min avant le départ. Garde de l\'énergie : les premiers km servent d\'échauffement.'
     : cat === 'Semi-marathon' ? '12-15 min de footing + 3 accélérations progressives de 80 m + 1 min à allure course, à finir 10 min avant le départ.'
@@ -480,6 +483,7 @@ function prRenderHomeCard(){
     if(typeof bsHomeLine === 'function') h += bsHomeLine();                    // foulée qui se dégrade (body-signals.js)
     if(typeof bsBedtimeLine === 'function') h += bsBedtimeLine();              // le soir : heure de coucher conseillée
     if(typeof apCardHtml === 'function') h += apCardHtml();                    // ajustements de la nuit (pilote automatique)
+    if(typeof raHomeLine === 'function') h += raHomeLine();                    // analyse de la course (10 jours après)
     if(typeof wsHomeButton === 'function') h += wsHomeButton();                // ta semaine en image (week-share.js)
     if(dRace != null && dRace >= 0 && dRace <= 21) h += '<button type="button" class="pd-raceb" onclick="openRacePlan()">🏁 <b>' + prEsc(R.name) + '</b> dans ' + dRace + ' jour' + (dRace > 1 ? 's' : '') + ' · ton plan de course ›</button>';
     el.innerHTML = h + '</div>';

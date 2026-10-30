@@ -1362,6 +1362,8 @@ async function saveValidationExtra(w,ei){
   }
   if(sExtra.type==='race'&&_offVal&&typeof prepSaveRaceResult==='function'){
     prepSaveRaceResult(_offVal, dateVal||null).then(r=>{
+      // analyse de la course (allure km par km vs plan, départ, cardio, météo) : carte sur l'accueil
+      if(r&&typeof raStore==='function'){ try{ raStore(); if(typeof renderHome==='function') renderHome(); }catch(e){} }
       if(!r||typeof showToast!=='function') return;
       showToast(r.pr?('🏅 Nouveau record '+(r.cat||'')+' : '+r.time+(r.prev?' (ancien '+r.prev.time+')':'')):('Temps officiel enregistré : '+r.time));
     }).catch(()=>{});

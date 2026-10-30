@@ -4,7 +4,7 @@
 // prepRecette(bilans) : réglages personnels appliqués à « Mettre à jour le plan » (progression de volume, affûtage par
 // famille de distance, calibrage des allures, base). Stockage : prep_index/{id}/debrief, state._recette (gardée d'une prépa à l'autre).
 
-const PD_DEBRIEF_V = 1;
+const PD_DEBRIEF_V = 2;   // 2 : analyse de la course (d.ra)
 const PD_MIN_DONE = 0.6;   // une prépa validée à moins de 60 % ne sert pas à la recette (volume, affûtage faussés)
 const _pdMed = function(a){ a = a.filter(function(x){ return x != null && isFinite(x); }).sort(function(x, y){ return x - y; }); return a.length ? a[Math.floor(a.length / 2)] : null; };
 const _pdPct = function(x){ return Math.round(x * 100) + ' %'; };
@@ -72,12 +72,17 @@ function prepDebrief(st, meta){
     sessions: { planned: sess.length, done: doneS.length, skipped: sess.filter(function(s){ return s.skip; }).length }, completion: completion,
     volume: { avg8: avg8, peak: Math.round(peak), longest: longest, weekly: weeks.map(function(o){ return Math.round(o.done); }) },
     rises: { maxOk: okR.length ? Math.round(Math.max.apply(null, okR) * 100) / 100 : null, risky: risky.length ? Math.round(Math.min.apply(null, risky) * 100) / 100 : null },
-    taper: taper, taperOk: dayOk, level: { start: startL, end: endL, race: raceV }, goal: goal || null, calib: { n: calib.n, k: calib.k }, pains: pains, stops: stops, lessons: L };
+    taper: taper, taperOk: dayOk, level: { start: startL, end: endL, race: raceV }, goal: goal || null, calib: { n: calib.n, k: calib.k }, pains: pains, stops: stops, lessons: L,
+    ra: typeof raFromSnap === 'function' && meta.result ? raFromSnap(st, meta) : null };
 }
 
 // recette : bilans du plus récent au plus ancien
-function prepRecette(list){
-  list = (list || []).filter(function(d){ return d && (d.completion == null || d.completion >= PD_MIN_DONE); }); if(!list.length) return null;
+function prepRecette(list, curRa){
+  // départ du plan de course : la course la plus récente analysée (prépa en cours comprise), même si la prépa était peu validée
+  const ras = [curRa].concat((list || []).map(function(d){ return d && d.ra; })).filter(function(r){ return r && r.start && r.pacing; });
+  list = (list || []).filter(function(d){ return d && (d.completion == null || d.completion >= PD_MIN_DONE); }); if(!list.length && !ras.length) return null;
+  const pacing = ras.length ? (ras[0].startAdvice === 'slower' ? { start: 1.02, why: 'départ trop rapide à ' + (ras[0].name || ras[0].cat) + ' (' + String(Math.round(ras[0].start.pct * 10) / 10).replace('.', ',') + ' % sur ' + ras[0].start.n + ' km)' } : { start: null, why: 'départ bien géré à ' + (ras[0].name || ras[0].cat) }) : null;
+  if(!list.length) return { v: 1, at: prTodayIso(), progression: 1.12, progWhy: 'règle de base (+12 %)', taper: {}, calib: null, calibWhy: '', base: null, longest: null, from: [], pacing: pacing };
   const risky = list.map(function(d){ return d.rises && d.rises.risky; }).filter(Boolean), okR = list.map(function(d){ return d.rises && d.rises.maxOk; }).filter(Boolean);
   let prog = 1.12, progWhy = 'règle de base (+12 %)';
   if(risky.length){ const r = Math.min.apply(null, risky); prog = Math.max(1.05, Math.min(1.12, r - 0.03)); progWhy = 'une douleur a suivi une hausse de +' + Math.round((r - 1) * 100) + ' %'; }
@@ -89,7 +94,7 @@ function prepRecette(list){
   const calib = n >= 3 ? (k / n < 0.5 ? 'prudent' : k / n >= 0.8 ? 'confiant' : 'normal') : null;
   return { v: 1, at: prTodayIso(), progression: Math.round(prog * 1000) / 1000, progWhy: progWhy, taper: taper, calib: calib, calibWhy: n ? k + '/' + n + ' allures tenues' : '',
     base: list[0].volume ? list[0].volume.avg8 : null, longest: Math.max.apply(null, list.map(function(d){ return (d.volume || {}).longest || 0; }).concat([0])) || null,
-    from: list.map(function(d){ return d.title; }).slice(0, 4) };
+    from: list.map(function(d){ return d.title; }).slice(0, 4), pacing: pacing };
 }
 
 // bilans manquants des prépas terminées (copies figées), puis recette ; appelée chaque jour et à l'ouverture de Mes prépas
@@ -112,7 +117,7 @@ function prepDebriefAll(){
     }
     const list = Object.keys(_prepIndex).map(function(id){ return _prepIndex[id]; }).filter(function(p){ return p && p.debrief; })
       .sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); }).map(function(p){ return p.debrief; });
-    const R = prepRecette(list), sig = JSON.stringify(R && Object.assign({}, R, { at: '' })), old = JSON.stringify(state._recette && Object.assign({}, state._recette, { at: '' }));
+    const R = prepRecette(list, state._race_analysis), sig = JSON.stringify(R && Object.assign({}, R, { at: '' })), old = JSON.stringify(state._recette && Object.assign({}, state._recette, { at: '' }));
     if(sig !== old){
       if(R) state._recette = R; else delete state._recette;
       if(dbRef) dbRef.child('_recette').set(R || null).catch(function(){}); changed = true;
@@ -129,6 +134,7 @@ function prepRecetteLines(R){
   if(R.taper && R.taper.long) L.push('🪶 Affûtage semi / marathon : ' + _pdPct(R.taper.long.w2) + ' → ' + _pdPct(R.taper.long.w1) + ' → ' + _pdPct(R.taper.long.w0) + ' du pic (repris de ' + R.taper.long.from + ').');
   if(R.taper && R.taper.short) L.push('🪶 Affûtage 10 km / 5 km : ' + _pdPct(R.taper.short.w1) + ' → ' + _pdPct(R.taper.short.w0) + ' du pic (repris de ' + R.taper.short.from + ').');
   if(R.calib) L.push('🎯 Allures : calcul ' + R.calib + ' (' + R.calibWhy + ').');
+  if(R.pacing && R.pacing.start) L.push('🐢 Départ de course : un peu plus prudent sur les premiers km (' + R.pacing.why + ').');
   if(R.base) L.push('🏋️ Base ~' + R.base + ' km/sem' + (R.longest ? ', sortie longue jusqu\'à ' + R.longest + ' km' : '') + '.');
   return L;
 }
@@ -155,6 +161,7 @@ async function openPrepDebrief(id){
       b += '<p class="pdb-sec">Volume réalisé</p><div class="pdb-bars">' + d.volume.weekly.map(function(v, i){ return '<i style="height:' + Math.max(3, Math.round(v / mx * 56)) + 'px" title="S' + (i + 1) + ' : ' + v + ' km"></i>'; }).join('') + '</div>';
     }
     b += '<p class="pdb-sec">Ce que tu en retiens</p><ul class="pdb-ul">' + d.lessons.map(function(l){ return '<li>' + _prepEsc(l) + '</li>'; }).join('') + '</ul>';
+    if(d.ra && typeof openRaceAnalysis === 'function'){ window._pdRa = d.ra; b += '<button type="button" class="ra-share" style="width:100%;margin-top:10px;" onclick="openRaceAnalysis(window._pdRa)">📊 Analyse de la course (' + _prepEsc(d.ra.time) + ')</button>'; if(typeof _raCss === 'function') _raCss(); }
     const RL = prepRecetteLines(state._recette);
     if(RL.length) b += '<p class="pdb-sec">Pour la suite (ta recette)</p><ul class="pdb-ul rec">' + RL.map(function(l){ return '<li>' + _prepEsc(l) + '</li>'; }).join('') + '</ul>';
   }

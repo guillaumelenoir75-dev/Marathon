@@ -385,3 +385,28 @@ test('démarrage sans réseau : l\'app s\'ouvre sur la copie du téléphone, ban
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('analyse de course : après la validation, carte sur l\'accueil, écran détaillé, leçon dans la recette et le plan de course', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-11-23T09:00:00+01:00', savedDb);
+  const r = await page.evaluate(() => {
+    const race = prSessions(state).filter((s) => s.type === 'race').pop(); if(!race) return 'pas de course';
+    const mmss = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    const pac = [238, 240, 246, 250, 252, 255, 268, 270, 272, 266];
+    state[race.key + '_done'] = true; state[race.key + '_km'] = 10;
+    state[race.key + '_perf'] = JSON.stringify({ date: race.date, official: '42:37', strava: { splits: pac.map((p, i) => ({ km: i + 1, distanceKm: 1, allure: mmss(p), fc: 160 + i * 3 })) } });
+    state._race_result = { time: '42:37', date: race.date, dist: '10 km' };
+    const A = raStore(); showScreen('home'); renderHome();
+    return A ? A.verdict.t + '|' + A.startAdvice : 'null';
+  });
+  assert.match(r, /\|slower$/, r);
+  await page.waitForSelector('#home-form-card .ra-home');
+  await page.click('#home-form-card .ra-home');
+  await page.waitForSelector('#ra-modal .ra-svg');
+  assert.match(await page.textContent('#ra-modal'), /Départ trop rapide/);
+  assert.equal(JSON.parse(await db(page)).users.ADMINUID.state._race_analysis.time, '42:37', 'enregistrée');
+  await page.evaluate(() => { document.getElementById('ra-modal').remove(); state._recette = prepRecette([], state._race_analysis); });
+  assert.equal(await page.evaluate(() => state._recette.pacing.start), 1.02);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
