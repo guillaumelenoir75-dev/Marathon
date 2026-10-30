@@ -408,7 +408,7 @@ function prFormScore(){
 // séances d'affilée réalisées (une séance passée ni faite ni retirée casse la série ; une séance retirée pour imprévu non)
 function prStreak(){
   // séances faites de tout l'historique (la série continue d'une prépa à l'autre) + séances prévues de la prépa en cours
-  const today = prTodayIso(), hist = typeof prAllDone === 'function' ? prAllDone(today) : [];
+  const today = prTodayIso(), hist = typeof prAllDone === 'function' ? prAllDone(today).filter(function(s){ return !s.ext; }) : [];   // séances de l'app (pas l'import Strava)
   const list = hist.concat(prSessions(state).filter(function(s){ return !s.done; })).filter(function(s){ return s.type !== 'rest' && s.date && s.date <= today; }).sort(function(a, b){ return b.date.localeCompare(a.date); });
   let n = 0;
   for(const s of list){

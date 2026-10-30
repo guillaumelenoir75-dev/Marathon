@@ -307,3 +307,68 @@ exports.stravaGear = onRequest(
     }
   }
 );
+
+// Historique complet des courses Strava (toutes les années) → users/{uid}/strava_history/{id} (hors state : jamais réécrit
+// par l'app) + résumé state._strava_hist { count, first, last, lastEpoch, at }. 1er appel (ou full) : tout l'historique,
+// 200 activités par page ; ensuite : seulement les activités depuis la dernière synchro (veille comprise).
+// Une course = { d: date locale, t: heure, km, mv: temps en mouvement (s), el: temps écoulé (s), hr, mx, cad (pas/min),
+// up (dénivelé +), n: nom, sp: type, w: workout_type Strava (1 course, 2 sortie longue, 3 séance) }.
+function stravaRunCompact(a) {
+  const km = Math.round((a.distance || 0) / 10) / 100;
+  if (!(km > 0.5) || !a.start_date_local) return null;
+  return { d: a.start_date_local.slice(0, 10), t: a.start_date_local.slice(11, 16), km, mv: Math.round(a.moving_time || 0), el: Math.round(a.elapsed_time || 0),
+    hr: a.average_heartrate ? Math.round(a.average_heartrate) : null, mx: a.max_heartrate ? Math.round(a.max_heartrate) : null,
+    cad: a.average_cadence ? Math.round(a.average_cadence * 2) : null, up: a.total_elevation_gain != null ? Math.round(a.total_elevation_gain) : null,
+    n: String(a.name || 'Course').slice(0, 60), sp: a.sport_type || a.type || 'Run', w: a.workout_type != null ? a.workout_type : null };
+}
+const STRAVA_RUN_TYPES = ['Run', 'TrailRun', 'VirtualRun'];
+exports.stravaRunCompact = stravaRunCompact;
+
+exports.stravaHistory = onRequest(
+  { secrets: [STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET], timeoutSeconds: 180, memory: '512MiB', cors: true },
+  async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    let uid;
+    try { uid = await verifyUser(req); } catch(e) { res.status(401).json({ success: false, error: 'Non authentifié' }); return; }
+    try {
+      const db = admin.database();
+      const token = await getValidAccessToken(db, uid, STRAVA_CLIENT_ID.value(), STRAVA_CLIENT_SECRET.value());
+      if (!token) { res.json({ success: false, needsAuth: true }); return; }
+      const meta = (await db.ref(`users/${uid}/state/_strava_hist`).once('value')).val() || {};
+      const full = !!(req.body && req.body.full) || !meta.lastEpoch;
+      const after = full ? 0 : Math.max(0, meta.lastEpoch - 86400);
+      const runs = {};
+      let maxEpoch = meta.lastEpoch || 0;
+      for (let page = 1; page <= 25; page++) {                            // 5 000 activités au plus par appel
+        const r = await fetchWithTimeout(`https://www.strava.com/api/v3/athlete/activities?per_page=200&page=${page}${after ? '&after=' + after : ''}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }, 25000);
+        if (r.status === 429) break;                                       // limite Strava : on garde ce qui est déjà lu
+        const list = await r.json();
+        if (!Array.isArray(list) || !list.length) break;
+        list.forEach((a) => {
+          if (!STRAVA_RUN_TYPES.includes(a.sport_type || a.type)) return;
+          const c = stravaRunCompact(a); if (!c) return;
+          runs[a.id] = c;
+          const ep = Math.floor(Date.parse(a.start_date) / 1000); if (ep > maxEpoch) maxEpoch = ep;
+        });
+        if (list.length < 200) break;
+      }
+      const ids = Object.keys(runs);
+      for (let i = 0; i < ids.length; i += 400) {
+        const up = {}; ids.slice(i, i + 400).forEach((id) => { up[id] = runs[id]; });
+        await db.ref(`users/${uid}/strava_history`).update(up);
+      }
+      const all = (await db.ref(`users/${uid}/strava_history`).once('value')).val() || {};
+      const dates = Object.keys(all).map((k) => all[k] && all[k].d).filter(Boolean).sort();
+      const m = { count: dates.length, first: dates[0] || null, last: dates[dates.length - 1] || null, lastEpoch: maxEpoch, at: new Date().toISOString().slice(0, 10) };
+      await db.ref(`users/${uid}/state/_strava_hist`).set(m);
+      res.json({ success: true, added: ids.length, full, ...m });
+    } catch(e) {
+      console.error('stravaHistory error:', e.message);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+);

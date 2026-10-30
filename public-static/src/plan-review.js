@@ -366,6 +366,7 @@ const prFmtDate = function(d, o){ return d ? new Date(d + 'T12:00:00').toLocaleD
 function prKnownRaces(){
   const out = [], idx = (typeof _prepIndex !== 'undefined' && _prepIndex) || {};
   Object.keys(idx).forEach(function(k){ const p = idx[k]; if(p && p.result && p.date && PR_RACE_M[p.dist]) out.push({ cat: p.dist, time: p.result, date: p.date, label: p.race || p.title }); });
+  if(typeof prStravaRaces === 'function') prStravaRaces().forEach(function(r){ if(!out.some(function(o){ return o.date === r.date && o.cat === r.cat; })) out.push(r); });   // courses Strava
   const rr = state._race_result; if(rr && rr.time && PR_RACE_M[rr.dist]) out.push({ cat: rr.dist, time: rr.time, date: rr.date, label: (typeof prepRace === 'function' ? prepRace().name : 'Course') });
   return out;
 }

@@ -31,6 +31,8 @@ function loadFunctions(opts) {
   Object.keys(require.cache).forEach((k) => { if (k.startsWith(ROOT)) delete require.cache[k]; });
   const helpers = require(path.join(ROOT, 'helpers.js'));
   helpers.verifyAdmin = async () => 'ADMIN';
+  helpers.verifyUser = async () => opts.uid || 'ADMIN';
+  if (opts.fetch) helpers.fetchWithTimeout = async (url, o) => { calls.fetch = (calls.fetch || []).concat(url); return opts.fetch(url, o); };
   helpers.sendPush = async (a, b, title, body, tag, url) => { calls.push.push({ title, body, tag, url }); };
   helpers.callAnthropic = async (key, system, msgs, maxTokens, model, o) => {
     calls.ai.push({ system, user: msgs[0].content, maxTokens });

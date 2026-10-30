@@ -758,6 +758,7 @@ async function prepDailyTasks(){
   try { await _prepMaybeAdvance(); } catch(e) { console.warn('[prépa] bascule', e); }
   try { if(typeof prepDebriefAll === 'function') await prepDebriefAll(); } catch(e) { console.warn('[prépa] bilan', e); }   // bilan des prépas terminées + recette
   try {
+    if(typeof stravaHistSync === 'function') await stravaHistSync();            // courses Strava : toutes les années, puis les nouvelles chaque jour
     if(typeof prPrefetch === 'function') await prPrefetch();                    // historique complet (toutes les prépas) pour les analyses
     // allure EF de référence calculée sur tout l'historique : reprise telle quelle par les briefs du Coach (serveur : efRefOf)
     if(!_prepView && typeof getBestEfPace === 'function'){
@@ -842,12 +843,14 @@ function prepRaceCategory(km, course){
   return PREP_RECORD_KEYS[course] ? course : null;
 }
 // meilleur temps connu sur une distance : records saisis + temps des prépas enregistrées
-function prepBestTime(cat, index){
+function prepBestTime(cat, index, skipDate){
   let best = null;
   const take = function(t, src){ const sec = prepTimeSec(t); if(sec && (!best || sec < best.sec)) best = { sec: sec, time: prepTimeFmt(sec), src: src }; };
   const key = PREP_RECORD_KEYS[cat]; if(key) take(state[key], 'record');
   const idx = index || _prepIndex || {};
   Object.keys(idx).forEach(function(k){ const p = idx[k]; if(p.result && p.dist === cat) take(p.result, p.title); });
+  // courses de l'historique Strava (sauf la course qu'on est en train d'enregistrer)
+  if(typeof prStravaRaces === 'function') prStravaRaces().forEach(function(r){ if(r.cat === cat && r.date !== skipDate) take(r.time, r.label); });
   return best;
 }
 // enregistre le temps officiel de la course de la prépa en cours ; renvoie { time, cat, pr, prev }
@@ -861,7 +864,7 @@ async function prepSaveRaceResult(time, date){
   const key = PREP_RECORD_KEYS[cat];
   // record précédent : sans le temps de cette même course (en cas de correction)
   const saved = key ? state[key] : null; if(key && prevRes && prepTimeSec(saved) === prevRes && state._race_record_prev !== undefined) state[key] = state._race_record_prev;
-  const prev = cat ? prepBestTime(cat, others) : null;
+  const prev = cat ? prepBestTime(cat, others, date || R.date) : null;
   const txt = prepTimeFmt(sec), pr = !!cat && (!prev || sec < prev.sec);
   const up = { _race_result: { time: txt, date: date || _prepToday(), dist: cat || R.course || '' } };
   if(key){

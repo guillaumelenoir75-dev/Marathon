@@ -186,7 +186,8 @@ function renderStats(){
   const pr=document.getElementById('perf-rows');
   if(pr){
     // toutes les séances réalisées, toutes prépas confondues (prAllDone, plan-optim.js), dans l'ordre des dates
-    const perfRows=(typeof prAllDone==='function'?prAllDone():[]).filter(h=>h.km>0).map((h,i)=>({
+    // (courses importées de Strava : 12 derniers mois dans la liste, tout l'historique dans les analyses)
+    const perfRows=(typeof prAllDone==='function'?prAllDone():[]).filter(h=>h.km>0&&(!h.ext||prDays(h.date,prTodayIso())<=365)).map((h,i)=>({
       ws:h.cur?h.w:h.gw, si:i, wl:h.cur?'S'+h.w:new Date(h.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}),
       title:sessionTitle(h.x), km:h.km, perf:Object.assign({},h.perf,{date:h.date}), c:typeColor[h.type]||'#888', type:h.type, extra:true, cur:h.cur }));
     // Apply filter
@@ -1558,7 +1559,7 @@ function renderSessionsHistory() {
   if (!container) return;
 
   // toutes les séances réalisées, toutes prépas confondues (prAllDone, plan-optim.js)
-  const sessions = (typeof prAllDone==='function'?prAllDone():[]).map(h=>{ const perf=h.perf||{}; return { ws: h.cur?h.w:h.gw, type: h.type, title: sessionTitle(h.x) || 'Séance',
+  const sessions = (typeof prAllDone==='function'?prAllDone():[]).filter(h=>!h.ext||prDays(h.date,prTodayIso())<=365).map(h=>{ const perf=h.perf||{}; return { ws: h.cur?h.w:h.gw, type: h.type, title: sessionTitle(h.x) || 'Séance',
     km: h.km || null, date: h.date || null, pace: perf.pace || null, hr: perf.hr || null, whoop: perf.whoop || null }; });
 
   sessions.sort((a, b) => {

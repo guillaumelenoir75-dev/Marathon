@@ -25,6 +25,7 @@ function prPrefetch(){
             .then(function(st){ if(st){ _prAllSnaps[id] = _prShimHard(st); added++; } }).catch(function(){});
         }));
       }
+      if(!_prStravaHist && await prStravaHistLoad()) added++;                   // courses Strava des années passées
       const id = Object.keys(idx).filter(function(k){ const p = idx[k]; return p && p.date && p.date <= today && k !== real._prep_id && prDays(p.date, today) <= 120 && _prAllSnaps[k]; })
         .sort(function(a, b){ return idx[b].date.localeCompare(idx[a].date); })[0];
       _prPrevSnap = id ? _prAllSnaps[id] : null; _prPrevSnapId = id || null;
@@ -35,6 +36,51 @@ function prPrefetch(){
   });
   return _prPrefetching;
 }
+// ─── Historique Strava importé (toutes les années) : users/{uid}/strava_history, hors state ───
+// chargé une fois par session (prPrefetch) ; synchronisé chaque jour par stravaHistSync (fonction stravaHistory)
+let _prStravaHist = null;
+async function prStravaHistLoad(force){
+  if(_prStravaHist && !force) return _prStravaHist;
+  if(typeof _prepRef !== 'function' || !(state && (state._strava_hist || state.strava_token))) return _prStravaHist;
+  try { _prStravaHist = (await _prepRef('strava_history').once('value')).val() || {}; } catch(e) {}
+  return _prStravaHist;
+}
+// course Strava → séance réalisée (même forme que prSessions) : type déduit (course, sortie longue, séance, footing)
+function prStravaSessions(H){
+  const ids = Object.keys(H || {}); if(!ids.length) return [];
+  const kms = ids.map(function(k){ return H[k].km; }).sort(function(a, b){ return a - b; }), med = kms[Math.floor(kms.length / 2)] || 8;
+  const fmt = function(s){ s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  return ids.map(function(id){
+    const a = H[id]; if(!a || !a.d || !(a.km > 0)) return null;
+    const type = a.w === 1 ? 'race' : (a.w === 2 || a.km >= Math.max(16, med * 1.6)) ? 'long' : a.w === 3 ? 'tempo' : 'ef';
+    const mv = a.mv || a.el, perf = { date: a.d, dur: mv ? fmt(mv) : undefined, pace: mv ? prPace(mv / a.km) : undefined, hr: a.hr || undefined,
+      strava: { fcMax: a.mx || undefined, cadence: a.cad || undefined, denivele_pos: a.up != null ? a.up : undefined }, imported: true };
+    return { key: 'strava_' + id, w: null, ei: null, x: { type: type, km: a.km, d: a.n + '|', sched_date: a.d, sched_time: a.t }, perf: perf, date: a.d, title: a.n, detail: '', pace: null,
+      done: true, skip: false, km: a.km, kmPlan: a.km, type: type, ext: true, elapsed: a.el, stravaId: id };
+  }).filter(Boolean);
+}
+// courses Strava (marquées « course ») de distance officielle : 5 km, 10 km, semi, marathon (temps écoulé = temps de course)
+function prStravaRaces(){
+  const cat = function(km){ return km >= 4.9 && km <= 5.25 ? '5 km' : km >= 9.85 && km <= 10.45 ? '10 km' : km >= 20.9 && km <= 21.6 ? 'Semi-marathon' : km >= 41.9 && km <= 42.9 ? 'Marathon' : null; };
+  return prStravaSessions(_prStravaHist).filter(function(s){ return s.type === 'race' && cat(s.km) && s.elapsed; })
+    .map(function(s){ return { cat: cat(s.km), time: prTime(s.elapsed), date: s.date, label: s.title + ' (Strava)', strava: true }; });
+}
+// synchro quotidienne (tâches du jour) : 1re fois = tout l'historique, ensuite les nouvelles courses
+async function stravaHistSync(force){
+  if(typeof _prepView !== 'undefined' && _prepView) return null;
+  if(!state.strava_token || typeof getAuthToken !== 'function') return null;
+  const m = state._strava_hist || {};
+  if(!force && m.at === prTodayIso()) return null;
+  try {
+    const token = await getAuthToken();
+    const r = await fetch(FUNCTIONS_BASE + '/stravaHistory', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ full: !!force }) });
+    const j = await r.json(); if(!j.success) return j;
+    state._strava_hist = { count: j.count, first: j.first, last: j.last, lastEpoch: j.lastEpoch, at: j.at };   // écrit aussi par le serveur : gardé à jour ici avant tout save()
+    await prStravaHistLoad(true); _prAllCache = null; if(typeof prHistoryRefresh === 'function') prHistoryRefresh();
+    return j;
+  } catch(e) { return null; }
+}
+
 // historique chargé : les écrans d'analyse se recalculent
 function prHistoryRefresh(){
   try {
@@ -60,7 +106,7 @@ function prHistoryChanged(){ _prAllCache = null; }
 function prAllDone(today){
   today = today || prTodayIso();
   const states = prHistoryStates();
-  const key = today + '|' + states.length;
+  const key = today + '|' + states.length + '|' + (_prStravaHist ? Object.keys(_prStravaHist).length : 0);
   if(_prAllCache && _prAllCache.key === key && _prAllCache.st0 === state && Date.now() - _prAllCache.t < 1000) return _prAllCache.list.slice();
   const out = [], seen = {}, dups = [];
   prHistoryStates().forEach(function(st){ prSessions(st).forEach(function(s){
@@ -73,6 +119,16 @@ function prAllDone(today){
     seen[k] = { st: st, key: s.key, s: s };
     s.date = d; s.cur = st === state; s.hard = !st._plan_engine; out.push(s);
   }); });
+  // courses Strava importées : ajoutées si aucune séance de l'app le même jour à ±8 % de km (la séance validée fait foi)
+  const V = typeof _prepView !== 'undefined' && _prepView;
+  if(_prStravaHist && !(V && !V.next)){
+    const byDate = {}; out.forEach(function(s){ (byDate[s.date] = byDate[s.date] || []).push(s.km); });
+    prStravaSessions(_prStravaHist).forEach(function(s){
+      if(s.date > today) return;
+      if((byDate[s.date] || []).some(function(km){ return Math.abs(km - s.km) <= Math.max(0.6, s.km * 0.08); })) return;
+      s.cur = false; s.hard = false; out.push(s);
+    });
+  }
   out.sort(function(a, b){ return a.date.localeCompare(b.date); });
   const issues = typeof dqClean === 'function' ? dqClean(out, dups) : [];
   if(out.length){ const m0 = prMonday(out[0].date).getTime(); out.forEach(function(s){ s.gw = Math.round((prMonday(s.date).getTime() - m0) / 604800000) + 1; }); }

@@ -39,12 +39,14 @@ function loadApp(opts) {
   vm.createContext(ctx);
   // un seul script : les const / let de premier niveau restent visibles entre modules, comme dans le bundle
   const code = FILES.map((f) => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n;\n')
-    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig, prepDebrief, prepRecette, prepRecetteLines, prAllDone, prObservedEf, prFitness, hrEfMax, hrZonesEstimate, prStride, jvParse, prWhatIf, weekShareData, wsPickWeek, shoeDayAdvice, bsDisplayZones, bsZonePaces, bsLevelNow, bsLevelHistory, dqIssues, dqKeep, qvMatch, bsBedtime };';
+    + '\n;globalThis.__app = { prSessions, prWeeks, prMonday, prWeekday, prKmDetail, prPlanVdot, prOrigPaces, prPaceProposals, prChecks, prVolumePlan, prDoneLog, prLoad, prDrift, prTestTime, prTestProposal, prWhoop, prEasedSince, prCalib, prTrajectory, _prMergeCoach, prRevertOf, prBlocsFromLaps, prWxAdj, prRaceSplits, prImprevuChanges, prFixSchedDatesV1, prStreak, prBadges, prInternal, wellnessScore, wellnessScoreToday, wellnessWaiting, whoopFcToState, vdotFromRace, raceTimeFromVdot, prTime, prPace, prDataSig, prepDebrief, prepRecette, prepRecetteLines, prAllDone, prObservedEf, prFitness, hrEfMax, hrZonesEstimate, prStride, jvParse, prWhatIf, weekShareData, wsPickWeek, shoeDayAdvice, bsDisplayZones, bsZonePaces, bsLevelNow, bsLevelHistory, dqIssues, dqKeep, qvMatch, bsBedtime, prStravaSessions, prStravaRaces, prKnownRaces, prStreak };';
   // copies des prépas enregistrées (historique complet) : app.setSnaps({ id: state })
-  vm.runInContext(code + '\n;globalThis.__setSnaps = function(o){ _prAllSnaps = o || {}; _prAllCache = null; };', ctx, { filename: 'app-bundle.js' });
+  vm.runInContext(code + '\n;globalThis.__setSnaps = function(o){ _prAllSnaps = o || {}; _prAllCache = null; };'
+    + '\n;globalThis.__setStrava = function(h){ _prStravaHist = h; _prAllCache = null; };', ctx, { filename: 'app-bundle.js' });
   const app = ctx.__app;
   app.ctx = ctx;
   app.setSnaps = (o) => ctx.__setSnaps(o);
+  app.setStrava = (h) => ctx.__setStrava(h);
   app.setState = (st) => { vm.runInContext('state = __next', Object.assign(ctx, { __next: st })); };
   return app;
 }

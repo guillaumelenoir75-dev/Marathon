@@ -45,3 +45,20 @@ test('situation du Coach : charge récente et dernière séance incluent la pré
   assert.equal(F.helpers.efRefOf(st, '2026-11-10'), null, 'référence trop ancienne');
   assert.equal(F.helpers.efMaxOf(st), 151); assert.equal(F.helpers.efMaxOf({}), 148);
 });
+
+test('stravaHistory : toutes les pages, courses seulement, résumé dans state, puis seulement les nouvelles', async () => {
+  const { loadFunctions: lf } = require('../helpers/functions');
+  const act = (id, d, type) => ({ id, type, sport_type: type, start_date: d + 'T06:30:00Z', start_date_local: d + 'T07:30:00Z', distance: 10000, moving_time: 2700, elapsed_time: 2760, average_heartrate: 145, max_heartrate: 168, average_cadence: 86, total_elevation_gain: 50, name: 'Run ' + id, workout_type: id === 2 ? 1 : 0 });
+  const page1 = Array.from({ length: 200 }, (_, i) => act(1000 + i, '2025-0' + (1 + (i % 9)) + '-1' + (i % 9), i % 10 === 0 ? 'Ride' : 'Run'));
+  const page2 = [act(2, '2024-06-02', 'Run'), act(3, '2024-06-03', 'TrailRun')];
+  const data = { users: { U1: { state: { strava_token: { access_token: 't', refresh_token: 'r', expires_at: Date.now() / 1000 + 3600 } } } } };
+  const F = lf({ data, uid: 'U1', modules: ['strava.js'], fetch: async (url) => ({ ok: true, status: 200, json: async () => /page=1/.test(url) ? page1 : /page=2/.test(url) ? page2 : [] }) });
+  let r = (await callHttp(F.strava.stravaHistory, {})).out;
+  assert.equal(r.success, true); assert.equal(r.full, true);
+  assert.equal(r.count, 182, '180 courses page 1 (vélo écarté) + 2 page 2');
+  assert.equal(F.db.data.users.U1.strava_history[2].w, 1);
+  assert.equal(F.db.data.users.U1.strava_history[3].sp, 'TrailRun');
+  assert.equal(F.db.data.users.U1.state._strava_hist.first, '2024-06-02');
+  r = (await callHttp(F.strava.stravaHistory, {})).out;
+  assert.equal(r.full, false); assert.ok(F.calls.fetch.slice(-1)[0].includes('&after='), 'ensuite : seulement les nouvelles');
+});
