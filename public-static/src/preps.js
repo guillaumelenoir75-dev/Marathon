@@ -752,6 +752,12 @@ async function prepActivateNext(){
 // Tâches du jour (au chargement et au retour sur l'app) : consignes courtes, prépa à venir, enregistrement, bascule
 let _prepDailyBusy = false;
 async function prepDailyTasks(){
+  try {
+    if(!_prepView && typeof isAdmin === 'function' && isAdmin() && !state._wake_v1){
+      const up = { _wake_v1: true }; if(!state._wake_week) up._wake_week = '07:30'; if(!state._wake_weekend) up._wake_weekend = '10:00';
+      Object.assign(state, up); if(dbRef) dbRef.update(up).catch(function(){});
+    }
+  } catch(e) {}
   if(_prepDailyBusy || typeof firebaseReady === 'undefined' || !firebaseReady) return;
   _prepDailyBusy = true;
   try { await _prepSeedNext(); } catch(e) { console.warn('[prépa] à venir', e); }

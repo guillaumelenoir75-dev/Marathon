@@ -118,7 +118,7 @@ function bsBedtime(today){
   const sess = prSessions(st).filter(function(s){ return !s.done && !s.skip && s.type !== 'rest' && s.x && s.x.sched_date === tomorrow; })
     .sort(function(a, b){ return String(a.x.sched_time || '99').localeCompare(String(b.x.sched_time || '99')); });
   const s = sess[0] || null, tm = s ? String(s.x.sched_time || '').match(/^(\d{1,2}):(\d{2})/) : null, sm = tm ? +tm[1] * 60 + +tm[2] : null;
-  const wu = String(state._wake_usual || '').match(/^(\d{1,2}):(\d{2})$/), usual = wu ? +wu[1] * 60 + +wu[2] : 420;   // réveil habituel (7h par défaut)
+  const usual = bsWakeUsual(tomorrow);                                         // réveil habituel du jour (semaine / week-end)
   const wake = sm != null && sm < 720 ? Math.min(usual, sm - 50) : usual, target = Math.round((parseFloat(st._sleep_target_h || state._sleep_target_h) || 8) * 60);
   const sleeps = ((state.whoop_data || {}).sleeps || []).filter(function(x){ return x && x.date && x.date <= today; }).slice(0, 3);
   const dur = function(t){ const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
@@ -128,6 +128,12 @@ function bsBedtime(today){
   const hm = function(m){ m = ((m % 1440) + 1440) % 1440; return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
   return { bed: hm(bed), wake: hm(wake), session: s ? s.title : null, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key,
     target: target, sleepMin: target + extra + key, sleep: hm(target + extra + key), nights: sleeps.map(function(x){ return { date: x.date, min: dur(x.duration_hours) }; }) };
+}
+// réveil habituel (minutes) du matin `day` : semaine (lun-ven, _wake_week, 7h par défaut) / week-end (sam-dim, _wake_weekend, 9h par défaut)
+function bsWakeParse(v){ const m = String(v || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; }
+function bsWakeUsual(day){
+  const wd = new Date(day + 'T12:00:00').getDay(), we = wd === 0 || wd === 6;
+  return we ? (bsWakeParse(state._wake_weekend) || 540) : (bsWakeParse(state._wake_week) || bsWakeParse(state._wake_usual) || 420);
 }
 // accueil (toujours visible) et Statistiques › Aujourd'hui : ta nuit de ce soir en une ligne → détail au toucher
 function bsSleepChip(){
@@ -156,14 +162,18 @@ function openSleepPlan(){
   if(B.nights.length) h += '<p class="bs-sl-k">3 dernières nuits</p><div class="bs-sl-n">' + B.nights.map(function(n){ const d = n.min != null ? n.min - B.target : null;
     return '<div><small>' + new Date(n.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }).replace(/\./g, '') + '</small><b>' + (n.min != null ? hm(n.min) : '—') + '</b>' + (d != null ? '<em class="' + (d >= 0 ? 'ok' : 'low') + '">' + (d >= 0 ? '+' : '−') + hm(Math.abs(d)) + '</em>' : '') + '</div>'; }).join('') + '</div>';
   h += '<p class="bs-sl-k">Réglages</p><div class="bs-sl-set"><span>Besoin de sommeil</span><button type="button" onclick="bsSleepSet(\'need\',-15)" aria-label="Moins">−</button><b>' + hm(B.target) + '</b><button type="button" onclick="bsSleepSet(\'need\',15)" aria-label="Plus">+</button></div>'
-    + '<div class="bs-sl-set"><span>Réveil habituel</span><button type="button" onclick="bsSleepSet(\'wake\',-15)" aria-label="Plus tôt">−</button><b>' + (state._wake_usual ? state._wake_usual.replace(':', 'h') : '7h00') + '</b><button type="button" onclick="bsSleepSet(\'wake\',15)" aria-label="Plus tard">+</button></div>'
+    + [['wk', 'Réveil lun-ven', 420], ['we', 'Réveil sam-dim', 540]].map(function(r){ const v = r[0] === 'wk' ? (bsWakeParse(state._wake_week) || bsWakeParse(state._wake_usual) || r[2]) : (bsWakeParse(state._wake_weekend) || r[2]);
+      return '<div class="bs-sl-set"><span>' + r[1] + '</span><button type="button" onclick="bsSleepSet(\'' + r[0] + '\',-15)" aria-label="Plus tôt">−</button><b>' + hm(v) + '</b><button type="button" onclick="bsSleepSet(\'' + r[0] + '\',15)" aria-label="Plus tard">+</button></div>'; }).join('')
     + '<p class="bs-sl-note">Séance le matin : réveil 50 min avant</p></div></div></div>';
   ov.innerHTML = h; ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
 }
 function bsSleepSet(k, d){
   if(k === 'need'){ const v = Math.max(390, Math.min(600, Math.round((parseFloat(state._sleep_target_h) || 8) * 60) + d)); state._sleep_target_h = Math.round(v / 60 * 100) / 100; }
-  else { const m = String(state._wake_usual || '07:00').match(/^(\d{1,2}):(\d{2})$/), v = Math.max(300, Math.min(600, (m ? +m[1] * 60 + +m[2] : 420) + d)); state._wake_usual = String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0'); }
+  else {
+    const key = k === 'we' ? '_wake_weekend' : '_wake_week', cur = k === 'we' ? (bsWakeParse(state._wake_weekend) || 540) : (bsWakeParse(state._wake_week) || bsWakeParse(state._wake_usual) || 420);
+    const v = Math.max(300, Math.min(780, cur + d)); state[key] = String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
+  }
   if(typeof save === 'function') save();
   openSleepPlan();
   try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); if(typeof statsTodayRender === 'function') statsTodayRender(); } catch(e) {}

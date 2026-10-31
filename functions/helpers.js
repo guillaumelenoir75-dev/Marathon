@@ -248,7 +248,9 @@ function bedtimePlan(state, today) {
   if (!sess.length) return null;
   sess.sort((a, b) => String(a.sched_time || '99').localeCompare(String(b.sched_time || '99')));
   const s = sess[0], tm = String(s.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
-  const wu = String(state._wake_usual || '').match(/^(\d{1,2}):(\d{2})$/), usual = wu ? +wu[1] * 60 + +wu[2] : 7 * 60;   // réveil habituel (app : Ta nuit › Réglages)
+  // réveil habituel du lendemain (app : Ta nuit › Réglages) : lun-ven _wake_week (7h), sam-dim _wake_weekend (9h)
+  const wp = (v) => { const m = String(v || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
+  const twd = new Date(tomorrow + 'T12:00:00Z').getUTCDay(), usual = twd === 0 || twd === 6 ? (wp(state._wake_weekend) || 9 * 60) : (wp(state._wake_week) || wp(state._wake_usual) || 7 * 60);
   const wake = sm != null && sm < 12 * 60 ? Math.min(usual, sm - 50) : usual;
   const target = (parseFloat(state._sleep_target_h) || 8) * 60;
   const sleeps = ((state.whoop_data || {}).sleeps || []).filter((x) => x && x.date && x.date <= today).slice(0, 3);
