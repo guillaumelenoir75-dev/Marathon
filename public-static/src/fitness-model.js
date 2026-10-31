@@ -141,6 +141,7 @@ function fmRenderStatsCard(){
     let h = '<div class="fm-card"><p class="fm-t">📈 Forme et fatigue <span>' + (B.model.personal ? 'modèle ajusté sur toi (' + B.model.n + ' repères)' : 'modèle standard') + '</span></p>'
       + '<div class="fm-tiles"><div><span>Forme</span><b>' + Math.round(last.ctl) + '</b><small>42 jours</small></div><div><span>Fatigue</span><b>' + Math.round(last.atl) + '</b><small>7 jours</small></div>'
       + '<div class="' + lab[1] + '"><span>Fraîcheur</span><b>' + (tsbNow >= 0 ? '+' : '') + Math.round(tsbNow) + '</b><small>' + lab[0] + '</small></div></div>'
+      + '<p class="fm-n">Forme = charge des 6 dernières semaines · fatigue = 7 derniers jours · fraîcheur = l\'écart (positif = reposé)</p>'
       + fmChart(B, T ? T.plan : null);
     if(T){
       const P = T.plan, l2 = fmTsbLabel(P.tsb);

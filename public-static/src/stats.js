@@ -302,8 +302,10 @@ function statsTodayMsgs(F, AS){
   try {
     const B = typeof fmSeries === 'function' ? fmSeries(today) : null;
     if(B){ const t = B.last.ctl - B.last.atl, lab = fmTsbLabel(t), sg = (t >= 0 ? '+' : '−') + Math.abs(Math.round(t));
-      if(t <= -25) add(2, '🔴', 'Charge très élevée (fraîcheur ' + sg + ')', 'bad', 'statsGo(\'fm-card\')');
-      else add(6, t >= 5 ? '🔋' : '⚖️', 'Fraîcheur ' + sg + ' · ' + lab[0], t >= 5 ? 'good' : '', 'statsGo(\'fm-card\')'); }
+      // fraîcheur = charge des 6 dernières semaines − charge des 7 derniers jours : affichée seulement hors de la zone normale, en clair
+      if(t <= -25) add(2, '🔴', 'Charge d\'entraînement très élevée sur 7 j', 'bad', 'statsGo(\'fm-card\')');
+      else if(t <= -10) add(6, '🏋️', 'Grosse charge d\'entraînement cette semaine', '', 'statsGo(\'fm-card\')');
+      else if(t >= 15) add(7, '🪶', 'Semaine légère : peu de charge sur 7 j', '', 'statsGo(\'fm-card\')'); }
     const R = typeof prepRace === 'function' ? prepRace() : null, dR = R && R.date ? prDays(today, R.date) : null;
     if(dR != null && dR >= 0 && dR <= 60){
       let tap = false; try { if(B && dR <= 35){ const T = fmTaperBest(B, today); tap = !!(T && T.gain >= 0.5 && B.last.ctl >= 20); } } catch(e) {}
