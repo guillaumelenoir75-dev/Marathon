@@ -241,7 +241,7 @@ function bsLevelNow(today){
     const out = { v: now.v, why: now.why, hist: H, delta: prev ? Math.round((now.v - prev.v) * 10) / 10 : null, cause: '' };
     if(prev && Math.abs(out.delta) >= 0.1){
       const val = function(w, k){ const x = w.filter(function(y){ return y.k === k; })[0]; return x ? (x.base ? x.v : x.d) : 0; };
-      const lab = { base: 1, qual: 1, miss: 1, gap: 1, ef: 1 };
+      const lab = { base: 1, qual: 1, miss: 1, gap: 1, ef: 1, hr: 1 };
       let best = null, bd = 0;
       Object.keys(lab).forEach(function(k){ const d = Math.abs(val(now.why, k) - val(prev.why, k)); if(d > bd){ bd = d; best = k; } });
       const it = function(w, k){ return w.filter(function(y){ return y.k === k; })[0]; };
@@ -253,6 +253,7 @@ function bsLevelNow(today){
       } else if(best === 'miss') out.cause = 'Séances de qualité sous l\'allure prévue.';
       else if(best === 'gap'){ const g = it(now.why, 'gap') || it(prev.why, 'gap'); out.cause = g ? g.t.charAt(0).toUpperCase() + g.t.slice(1) + '.' : 'Pause dans l\'entraînement.'; }
       else if(best === 'ef') out.cause = 'Ton endurance (allure à FC égale).';
+      else if(best === 'hr') out.cause = 'Tes sorties récentes : ' + (val(now.why, 'hr') >= val(prev.why, 'hr') ? 'plus rapides' : 'moins rapides') + ' à FC égale.';
     }
     return out;
   } catch(e) { return null; }

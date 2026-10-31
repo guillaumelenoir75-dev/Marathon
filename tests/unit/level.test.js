@@ -94,3 +94,33 @@ test('séances de qualité faites le lendemain d\'une soirée arrosée : ni rep�
   assert.equal(f.vdot, base.vdot, 'pas de baisse : allures du lendemain d\'alcool écartées');
   assert.ok(!f.why.some((w) => w.k === 'miss'));
 });
+
+// allure + FC des sorties en endurance : FC repos 50 (30 derniers jours), FC max 190
+const withHr = (s) => { for (let k = 0; k <= 30; k++) s['fc_repos_' + add(-k)] = '50'; s.fc_max = '190'; return s; };
+const runs = (from, n, pace, hr) => Array.from({ length: n }, (_, i) => ({ date: add(from + i * 3), pace: pace, hr: hr }));
+
+test('allure et FC des sorties : plus rapides à FC égale depuis la course de référence → le niveau monte (calé sur la course, 1,5 au plus)', () => {
+  const before = runs(-118, 9, 340, 140);                                          // 5'40 à 140 bpm avant la course (il y a 90 j)
+  const base = fit(withHr(st(90, before.concat(runs(-20, 7, 340, 140)))));          // mêmes sorties aujourd'hui
+  const up = fit(withHr(st(90, before.concat(runs(-20, 7, 320, 140)))));            // 5'20 à 140 bpm aujourd'hui
+  const w = up.why.find((x) => x.k === 'hr');
+  assert.ok(w && w.d > 1.2 && w.d <= 1.5, JSON.stringify(up.why));
+  assert.match(w.t, /calé sur 1 course/);
+  assert.ok(Math.abs(base.vdot - fit(st(90, before.concat(runs(-20, 7, 340, 140)))).vdot) < 0.3, 'mêmes sorties : à peine bougé ' + base.vdot);
+  assert.ok(up.vdot > base.vdot + 1, base.vdot + ' → ' + up.vdot);
+  assert.equal(up.hr.runs, 7);
+});
+
+test('allure et FC sans course datée pour caler : seulement l\'évolution des sorties (0,7 au plus) ; sans FC repos : rien', () => {
+  const s = (pace) => { const x = st(20, runs(-80, 10, 340, 140).concat(runs(-20, 7, pace, 140))); delete x._records; return x; };   // record sans date
+  const flat = fit(withHr(s(340))), up = fit(withHr(s(320)));
+  assert.ok(!flat.why.some((x) => x.k === 'hr'), 'pas d\'évolution');
+  const w = up.why.find((x) => x.k === 'hr'); assert.ok(w && Math.abs(w.d - 0.7) < 0.01 && /en progrès/.test(w.t), JSON.stringify(up.why));
+  assert.ok(!fit(s(320)).why.some((x) => x.k === 'hr'), 'sans FC repos connue : pas de composante FC');
+});
+
+test('allure et FC : les sorties du lendemain d\'alcool ne comptent pas', () => {
+  const x = withHr(st(90, runs(-118, 9, 340, 140).concat(runs(-20, 7, 340, 150))));   // FC +10 à allure égale…
+  x._alcohol = {}; runs(-20, 7, 340, 150).forEach((r) => { x._alcohol[r.date] = { l: 7, t: [] }; });   // … chaque fois après une soirée
+  assert.ok(!fit(x).why.some((w) => w.k === 'hr' && w.d < -0.2), JSON.stringify(fit(x).why));
+});
