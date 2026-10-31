@@ -389,14 +389,21 @@ function _wakeupAlreadyDoneToday() {
 // Appelée par home-render après chaque rendu de l'accueil
 // forceShow=true depuis le bouton test Compte → active aussi le mode force sur onWakeup
 let _wakeupBannerHtml0 = null;
+// parcours du réveil en cours (étape alcool, « Réveil enregistré », 3 dernières nuits) : l'écran plein ne doit pas être
+// masqué par un rafraîchissement de l'accueil (synchro WHOOP, données reçues…) avant la fin du parcours
+var _wakeFlow = false;
+function wakeFlowSet(on) { _wakeFlow = !!on; }
 function checkWakeupBanner(forceShow) {
   if (!isAdmin()) return;
   const banner = document.getElementById('wakeup-banner');
   if (!banner) return;
+  if (_wakeFlow || (banner.style.display === 'flex' && banner.querySelector('.alc-fs'))) return;
   if (_wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
   // « Réinitialiser ce matin » (Préférences) : la bannière revient au prochain lancement, même hors de la plage 6h-14h
   try { if (localStorage.getItem('pm_force_wakeup') === '1') { localStorage.removeItem('pm_force_wakeup'); forceShow = true; } } catch (e) {}
   if (forceShow && banner.style.display !== 'flex') banner.innerHTML = _wakeupBannerHtml0;
+  // bannière forcée (test, « Réinitialiser ce matin ») : reste affichée tant qu'on n'a pas appuyé, même si l'accueil se rafraîchit
+  if (!forceShow && _wakeupBannerIsTest && banner.style.display === 'flex') return;
   _wakeupBannerIsTest = !!forceShow;
   const shouldShow = forceShow || (_isWakeupWindowNow() && !_wakeupAlreadyDoneToday());
   if (shouldShow) {
@@ -436,6 +443,7 @@ function wakeupStart(isTest) {
 async function onWakeupFromBanner() {
   const isTest = _wakeupBannerIsTest;
   _wakeupBannerIsTest = false;
+  _wakeFlow = true;
   const banner = document.getElementById('wakeup-banner');
   const wakeupDate = _getWakeupDate();
   // réveil enregistré + synchro WHOOP lancés tout de suite ; pendant ce temps, l'étape alcool (même fond, plein écran)
@@ -455,7 +463,7 @@ async function onWakeupFromBanner() {
       </div>
       <style>@keyframes _pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}</style>
     `;
-    setTimeout(() => { dismissWakeupBanner(); try { if (typeof renderHome === 'function') renderHome(); } catch (e) {} }, 2800);
+    setTimeout(() => { _wakeFlow = false; dismissWakeupBanner(); try { if (typeof renderHome === 'function') renderHome(); } catch (e) {} }, 2800);
   }
   await run;
 }

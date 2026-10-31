@@ -182,8 +182,9 @@ function alcMaybeAsk(){
     const banner = document.getElementById('wakeup-banner');
     if(!banner){ alcAsk(); return; }
     if(typeof _wakeupBannerHtml0 !== 'undefined' && _wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
+    if(typeof wakeFlowSet === 'function') wakeFlowSet(true);
     banner.style.display = 'flex';
-    alcBannerStep(banner, { day: alcDay(), done: function(){ banner.style.display = 'none'; try { if(typeof renderHome === 'function') renderHome(); } catch(e) {} } });
+    alcBannerStep(banner, { day: alcDay(), done: function(){ if(typeof wakeFlowSet === 'function') wakeFlowSet(false); banner.style.display = 'none'; try { if(typeof renderHome === 'function') renderHome(); } catch(e) {} } });
   } catch(e) {}
 }
 
@@ -216,9 +217,11 @@ function alcBackfill(){
   if(typeof _wakeupBannerHtml0 !== 'undefined' && _wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
   const days = alcBackfillDays().reverse();                       // la plus ancienne d'abord
   let i = 0;
+  if(typeof wakeFlowSet === 'function') wakeFlowSet(true);
   banner.style.display = 'flex';
   const next = function(){
     if(i >= days.length){
+      if(typeof wakeFlowSet === 'function') wakeFlowSet(false);
       banner.style.display = 'none';
       try { if(typeof renderHome === 'function') renderHome(); } catch(e) {}
       if(typeof showToast === 'function') showToast('Alcool des 3 dernières nuits enregistré', '🍷');
@@ -239,7 +242,7 @@ async function wakeResetMorning(){
   try { localStorage.setItem('pm_force_wakeup', '1'); localStorage.removeItem('pm_state_' + (typeof currentUserId !== 'undefined' ? currentUserId : '')); } catch(e) {}
   window._alcSkipped = null; window._whoopLastSync = null;
   if(typeof showToast === 'function') showToast('Matinée réinitialisée : réouverture…', '🔄');
-  setTimeout(function(){ try { location.reload(); } catch(e) {} }, 700);
+  setTimeout(function(){ try { if(typeof window._wakeReload === 'function') window._wakeReload(); else location.reload(); } catch(e) {} }, 700);   // _wakeReload : tests
 }
 
 // ─── Accueil : ligne sous la forme du jour ───

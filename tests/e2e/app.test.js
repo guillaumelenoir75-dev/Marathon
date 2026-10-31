@@ -582,6 +582,11 @@ test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec
   await page.waitForSelector('#wakeup-banner .alc-fs .alc-fs-none');
   assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('wakeup-banner')).position), 'fixed');
   assert.equal(await page.evaluate(() => !!document.getElementById('alc-modal')), false, 'pas de fenêtre par-dessus l\'accueil');
+  // l'accueil se rafraîchit pendant l'étape (fin de synchro WHOOP…) : l'écran reste, la question aussi
+  await page.evaluate(() => { renderHome(); checkWakeupBanner(); renderHome(); });
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => document.getElementById('wakeup-banner').style.display), 'flex');
+  assert.ok(await page.locator('#wakeup-banner .alc-fs-none').isVisible(), 'question toujours là');
   await page.click('#wakeup-banner .alc-n:nth-child(6)');
   await page.click('#wakeup-banner .alc-ty:nth-child(1)'); await page.click('#wakeup-banner .alc-ty:nth-child(2)');
   assert.match(await page.textContent('#alc-go'), /Enregistrer 6\/10 · bière, vin/);
@@ -609,14 +614,23 @@ test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec
   await page.evaluate(() => { showScreen('stats'); statsTab('forme'); }); await page.waitForTimeout(500);
   assert.match(await page.textContent('#alc-stats-card'), /Alcool et récupération/);
   // Préférences › Réinitialiser ce matin : réveil, alcool d'hier soir et brief effacés ; « Je suis réveillé » revient
-  await page.evaluate(() => { window.__noReload = true; location.reload = () => {}; });
+  await page.evaluate(() => { window._wakeReload = () => {}; });
   await page.evaluate(async () => { await wakeResetMorning(); });
   S = JSON.parse(await db(page)).users.ADMINUID.state;
   assert.equal(S['_wakeup_2026-10-29'], undefined); assert.equal(S._alcohol['2026-10-29'], undefined); assert.equal(S._alcohol['2026-10-27'].l, 8, 'les autres nuits gardées');
   assert.equal(await page.evaluate(() => localStorage.getItem('pm_force_wakeup')), '1');
   await page.evaluate(() => { showScreen('home'); checkWakeupBanner(); });
   assert.equal(await page.evaluate(() => document.getElementById('wakeup-banner').style.display), 'flex');
-  assert.match(await page.textContent('#wakeup-banner'), /Je suis réveillé|réveill/i);
+  assert.match(await page.textContent('#wakeup-banner'), /Je suis réveillé|réveill/i, 'écran d\'origine « Je suis réveillé »');
+  // bannière forcée : un rafraîchissement de l'accueil ne la ferme pas ; « Je suis réveillé » → question alcool qui reste
+  await page.evaluate(() => { renderHome(); checkWakeupBanner(); });
+  assert.equal(await page.evaluate(() => document.getElementById('wakeup-banner').style.display), 'flex');
+  await page.evaluate(() => { onWakeupFromBanner(); });   // sans attendre : le parcours attend un clic
+  await page.waitForSelector('#wakeup-banner .alc-fs-none');
+  await page.evaluate(() => { renderHome(); renderHome(); }); await page.waitForTimeout(400);
+  assert.ok(await page.locator('#wakeup-banner .alc-fs-none').isVisible(), 'la question ne disparaît pas toute seule');
+  await page.click('#wakeup-banner .alc-fs-none');
+  await page.waitForFunction(() => document.getElementById('wakeup-banner').style.display === 'none', null, { timeout: 6000 });
   assert.deepEqual(errors, []);
   await ctx.close();
   // ouverture : réveil déclaré, alcool pas encore renseigné → même écran plein
