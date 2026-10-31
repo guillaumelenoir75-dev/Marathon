@@ -596,7 +596,8 @@ test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec
   let S = JSON.parse(await db(page)).users.ADMINUID.state;
   assert.deepEqual(S._alcohol['2026-10-29'].t, ['beer', 'wine']); assert.equal(S._alcohol['2026-10-29'].l, 6); assert.ok(S['_wakeup_2026-10-29']);
   const line = await page.textContent('#home-form-card');
-  assert.match(line, /Alcool hier soir : 6\/10 \(bière, vin\)/); assert.match(line, /hors alcool, ta forme serait ~\d+/);
+  assert.match(line, /Alcool hier soir : 6\/10 \(bière, vin\)/); assert.match(line, /Forme mesurée\s*\d+/); assert.match(line, /Alcool\s*−\d+/); assert.match(line, /Sans alcool\s*~\d+/);
+  assert.ok(await page.locator('#home-form-card .g-alc').count(), 'arc « sans alcool » sur la jauge');
   // bouton temporaire : 3 dernières nuits, une par une, sur le même écran
   await page.click('#home-form-card .alc-home.back');
   await page.waitForSelector('#wakeup-banner .alc-fs-step');

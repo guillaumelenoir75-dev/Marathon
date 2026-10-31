@@ -283,8 +283,12 @@ function alcoholBriefText(state, todayStr) {
   const r = Math.round(M.rec * dose), h = Math.round(M.hrv * dose), f = Math.round(M.rhr * dose * 10) / 10, sl = Math.round(M.sleep * dose);
   const src = state._alcohol_model && state._alcohol_model.personal ? `modèle personnel (${state._alcohol_model.nAlc} nuits avec alcool${state._alcohol_model.base_rec != null ? ', récupération habituelle sans alcool ' + state._alcohol_model.base_rec + ' %' : ''})` : 'estimation générale';
   const what = l > 0 ? `${l}/10${types ? ' (' + types + ')' : ''}` : 'aucun';
+  const rr = ((state.whoop_data && state.whoop_data.recoveries) || []).find((x) => x && x.date === todayStr);
+  const sd = state._alcohol_model && state._alcohol_model.rec_sd ? state._alcohol_model.rec_sd * 1.28 * dose : null;
+  const without = rr && rr.score != null ? Math.max(0, Math.min(100, Math.round(rr.score - r))) : null;
+  const split = without != null ? ` Récupération mesurée ${rr.score} % → environ ${without} % sans alcool${sd ? ` (entre ${Math.max(0, Math.min(100, Math.round(rr.score - r - sd)))} et ${Math.max(0, Math.min(100, Math.round(rr.score - r + sd)))} %)` : ''} : ${Math.round(without - rr.score)} points perdus à cause de l'alcool. Donne ces deux chiffres (mesuré / sans alcool) dans le bloc nuit.` : '';
   const recent = Object.keys(A).filter((d) => d < todayStr && Date.parse(todayStr) - Date.parse(d) <= 7 * 864e5 && +A[d].l > 0).length;
-  return `Alcool hier soir : ${what}${prev ? ` ; avant-hier soir : ${prev}/10 (son effet se prolonge encore à moitié cette nuit)` : ''}. Effet estimé sur cette nuit (${src}) : récupération ${r} pts, VFC ${h} %, FC repos +${f} bpm, sommeil ${sl} pts.${recent ? ' Soirées avec alcool sur les 7 derniers jours : ' + recent + '.' : ''}
+  return `Alcool hier soir : ${what}${prev ? ` ; avant-hier soir : ${prev}/10 (son effet se prolonge encore à ${Math.round(carry * 100)} % cette nuit)` : ''}. Effet estimé sur cette nuit (${src}) : récupération ${r} pts, VFC ${h} %, FC repos +${f} bpm, sommeil ${sl} pts.${split}${recent ? ' Soirées avec alcool sur les 7 derniers jours : ' + recent + '.' : ''}
 RÈGLE ALCOOL : cette part de la baisse (récupération, VFC, FC repos, sommeil) vient de l'alcool, PAS de l'entraînement — ne l'attribue jamais à une séance trop rapide ou à la charge, ne propose pas d'alléger les jours suivants pour ça. Dis-le simplement, sans morale, en une phrase dans le bloc nuit ; conseille hydratation et sommeil ; une séance de qualité aujourd'hui se fait aux sensations (allure plus prudente, FC plus haute que d'habitude normale).`;
 }
 

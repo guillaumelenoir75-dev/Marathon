@@ -27,7 +27,7 @@ test('modèle personnel : effet de l\'alcool retrouvé sur la récupération, la
   assert.ok(M.coef.rec < -3 && M.coef.rec > -4, 'récup / point : ' + M.coef.rec);
   assert.ok(M.coef.rhr > 0.65 && M.coef.rhr < 1, 'FC repos / point : ' + M.coef.rhr);
   assert.ok(M.coef.hrv < -2.5 && M.coef.hrv > -3.8, 'VFC % / point : ' + M.coef.hrv);
-  assert.ok(M.base.rec >= 70 && M.base.rec <= 74, 'base sans alcool ' + M.base.rec); assert.equal(M.carry, 0.5);
+  assert.ok(M.base.rec >= 70 && M.base.rec <= 74, 'base sans alcool ' + M.base.rec); assert.ok(M.carry >= 0.35 && M.carry <= 0.65, 'effet du lendemain ajusté ' + M.carry);
   assert.equal(M.bands[0].lab, 'Sans alcool'); assert.ok(M.bands[0].rec > M.bands[3].rec || !M.bands[3].n);
 });
 
@@ -85,4 +85,24 @@ test('profil réel type : base ~77 %, 3 soirées (7, 8, 3/10) et un lendemain �
   assert.equal(I.dose, 7, '3/10 hier + la moitié de 8/10 avant-hier'); assert.ok(I.recWithout >= 68, 'hors alcool ' + I.recWithout); assert.ok(I.share >= 80, 'part ' + I.share);
   const W = J(app.prWhoop('2026-10-31'));
   assert.equal(W.tired, false, JSON.stringify(W)); assert.ok(W.alc && W.alc.explained, 'baisse expliquée par l\'alcool : pas d\'allègement du plan');
+});
+
+test('forme du jour décomposée : mesurée, perdue à cause de l\'alcool, sans alcool (fourchette) ; soirée probable non renseignée repérée', () => {
+  const N = [['10-31', 3, 35, 57, 63, 67], ['10-30', 8, 26, 52, 65, 57], ['10-29', 0, 56, 74, 52, 82], ['10-28', 7, 38, 65, 57, 74], ['10-27', null, 48, 72, 50, 83], ['10-26', null, 60, 79, 48, 82], ['10-25', null, 21, 55, 63, 65],
+    ['10-24', null, 77, 88, 53, 80], ['10-23', null, 88, 91, 49, 83], ['10-22', null, 90, 91, 49, 82], ['10-21', null, 77, 88, 55, 82], ['10-20', null, 74, 83, 45, 76], ['10-19', null, 56, 81, 51, 77], ['10-18', null, 90, 89, 49, 77]];
+  const st = { _plan_engine: 'generated', plan_start_date: '2026-10-26', whoop_data: { recoveries: N.map((n) => ({ date: '2026-' + n[0], score: n[2], hrv: n[3], rhr: n[4] })), sleeps: N.map((n) => ({ date: '2026-' + n[0], performance_pct: n[5] })) }, _alcohol: {}, 'fc_repos_2026-10-31': '63', '_wakeup_2026-10-31': true, _body: { kg: 75, cm: 185, sex: 'm' } };
+  N.forEach((n) => { if (n[1] != null) st._alcohol['2026-' + n[0]] = { l: n[1], t: [] }; });
+  const app = loadApp({ now: '2026-10-31T09:00:00+01:00', state: st });
+  const M = J(app.alcModel('2026-10-31'));
+  assert.equal(M.suspects.length, 1); assert.equal(M.suspects[0].date, '2026-10-25', 'FC +14, VFC −37 % sans charge : lendemain de soirée probable');
+  assert.ok(M.base.rec >= 76 && M.base.rec <= 80, 'base sans la nuit suspecte ni son lendemain ' + M.base.rec);
+  assert.ok(M.carry >= 0.4 && M.carry <= 0.6, 'effet du lendemain ajusté ' + M.carry);
+  assert.ok(M.check.every((c) => Math.abs(c.mesure - c.attendu) <= 8), JSON.stringify(M.check));
+  const F = J(app.prFormScore()); assert.equal(F.score, 42);
+  const S = J(app.alcFormSplit(F, '2026-10-31'));
+  assert.equal(S.obs, 42); assert.ok(S.without >= 68 && S.without <= 82, 'sans alcool ' + S.without); assert.equal(S.lost, S.without - 42);
+  assert.ok(S.lo < S.without && S.hi > S.without, 'fourchette ' + S.lo + '-' + S.hi);
+  assert.deepEqual(S.comps.map((c) => c.k), ['rec', 'sleep', 'rhr', 'hrv']);
+  assert.match(app.alcFormLabel(F, S), /à cause de l'alcool/);
+  const B = J(app.alcBlood(8)); assert.equal(B.drinks, 9); assert.ok(B.peak > 1 && B.peak < 2, 'pic ' + B.peak); assert.ok(B.hours >= 9 && B.hours <= 14, 'élimination ' + B.hours);
 });
