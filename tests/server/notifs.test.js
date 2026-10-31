@@ -59,3 +59,29 @@ test('heure de coucher (20h30) : push la veille d\'une séance, une fois par jou
   await F.notifs.bedtimeReminder();
   assert.equal(F.calls.push.length, 1, 'une seule fois par jour');
 });
+
+test('brief du matin un jour de repos : nuit, récupération et séance de demain — sans « prêt pour aujourd\'hui » ni organisation du plan', async () => {
+  const d = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  const add = (n) => { const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const mk = (todaySess) => ({ _plan_engine: 'generated', plan_start_date: add(-14),
+    extra_w3_s0: JSON.stringify(todaySess ? { type: 'tempo', km: 10, d: "Tempo 3×8 min|3 × 8 min à 4'35", sched_date: d, sched_time: '12:00' } : { type: 'ef', km: 6, d: 'Footing|x', sched_date: add(-2) }),
+    extra_w3_s1: JSON.stringify({ type: 'long', km: 14, d: "Sortie longue|5'45 — 6'10 /km", sched_date: add(1), sched_time: '09:00' }),
+    whoop_data: { sleeps: [{ date: d, duration_hours: '7h40' }] } });
+  // repos
+  let F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  let r = await F.helpers.generateMorningBriefContent('k', F.db, mk(false), 3, d);
+  let call = F.calls.ai[0];
+  assert.match(call.system, /JOUR DE REPOS/);
+  assert.match(call.system, /📅 DEMAIN/);
+  assert.match(call.system, /INTERDIT : bloc « prêt pour aujourd'hui », séance du jour/);
+  assert.doesNotMatch(call.system, /PRÊT POUR AUJOURD'HUI|CONSIGNES & MÉTÉO|NUTRITION/);
+  assert.match(call.user, /Prochaine séance : DEMAIN .* — Sortie longue 14 km à 09:00 — consigne : 5'45 — 6'10 \/km/);
+  assert.match(call.user, /Heure de coucher conseillée ce soir : \d+h\d\d/);
+  assert.doesNotMatch(call.user, /Gels :|Eau :|Allure AJUSTÉE/);
+  assert.match(r.pushBody, /Repos · demain : Sortie longue 14 km à 09:00/);
+  // jour de séance : brief habituel
+  F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  r = await F.helpers.generateMorningBriefContent('k', F.db, mk(true), 3, d);
+  assert.match(F.calls.ai[0].system, /PRÊT POUR AUJOURD'HUI/);
+  assert.doesNotMatch(r.pushBody, /Repos ·/);
+});

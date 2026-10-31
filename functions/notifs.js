@@ -31,6 +31,7 @@ const {
   bedtimePlan,
   parisToday,
   autopilotBriefText,
+  isRestDay, restBriefSystem, restBriefData, restPushPart,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -453,7 +454,9 @@ exports.briefAfterFcRepos = onSchedule(
       }
 
       // ── Générer le brief complet côté serveur ──────────────────────────────
-      const system=`Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+      // jour de repos (ni séance ni renfo) : brief centré sur la nuit, la récupération et la séance de demain
+      const restDay=isRestDay(ctx, sit);
+      const system=restDay?restBriefSystem(state):`Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
@@ -502,7 +505,12 @@ RÈGLES :
 - Si pas de séance run aujourd'hui (repos ou renfo seul) : sauter blocs 4 et 5.
 - INTERDIT : récapituler la semaine ou lister les séances passées. La situation (course passée, prépa, prochaine course) sert à calibrer le brief : y faire référence en une phrase au plus, dans le bloc 2.`;
 
-      const userMsg=`${dateComplet}
+      const userMsg=restDay?`${dateComplet}
+${globalScoreLine?globalScoreLine+'\n':''}${fcLine}${whoopBlock}
+${restBriefData(state, todayStr, sit)}
+${memosLine}
+
+${sit.text}`:`${dateComplet}
 ${globalScoreLine?globalScoreLine+'\n':''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
 Consigne de la séance (plan) : ${consigneJour||'—'}
@@ -545,7 +553,7 @@ ${sit.text}`;
       const recovScore=whoopRecent&&whoopRecov&&whoopRecov.score!=null?whoopRecov.score:null;
       const recovEmoji=recovScore===null?'':recovScore>=67?'🟢':recovScore>=34?'🟡':'🔴';
       // Emoji météo
-      const meteoEmoji=tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
+      const meteoEmoji=restDay||tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
       // FC repos dans la notif : RHR WHOOP d'aujourd'hui en priorité (jamais une valeur stale)
       const recovPart=recovScore!=null?`Récup ${recovScore}%${recovEmoji?' '+recovEmoji:''}`:recovEmoji?`Récup ${recovEmoji}`:'';
       const fcPart=fcToday?`FC ${fcToday} bpm`:'';
@@ -557,7 +565,7 @@ ${sit.text}`;
         const heure=seanceHeure?` à ${seanceHeure}`:'';
         seancePart=`Séance ${typeLabel}${km} 🏃${heure}`;
       }else{
-        seancePart='Pas de séance run';
+        seancePart=restDay?restPushPart(sit):'Pas de séance run';
       }
       // Corps push : score global en priorité, sinon récup WHOOP seule
       let pushBody;

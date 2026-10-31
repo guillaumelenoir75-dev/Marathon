@@ -260,6 +260,49 @@ function bedtimePlan(state, today) {
   return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type, debtMin: Math.round(debt), extraMin: extra, key: !!key };
 }
 
+// ─── Brief du matin d'un jour de repos (aucune séance ni renfo aujourd'hui) : nuit, récupération, séance de demain ───
+function isRestDay(ctx, sit) {
+  return !(ctx && ctx.seanceRunAujourdhui) && !((ctx && ctx.seancesAujourdHui) || []).length && !((sit && sit.todaySessions) || []).length;
+}
+function restBriefSystem(state) {
+  return `Tu es le coach running de Guillaume. Aujourd'hui est un JOUR DE REPOS : aucune séance ni renfo de prévu. Rédige un brief du matin court, centré sur sa récupération et sur la séance qui vient. Tu le tutoies ("tu", jamais "Guillaume" dans le texte).
+
+PROFIL :
+- ${state && state._plan_engine ? prepObjectiveText(state) : 'Prépare sa prochaine course.'}
+- FC max 196 bpm. FC repos > 55 bpm = signe de fatigue.
+
+STRUCTURE OBLIGATOIRE — dans cet ordre, rien d'autre :
+
+1. 😴 NUIT & RÉCUPÉRATION — commencer par le Score du jour en **gras** sur sa propre ligne (s'il est fourni), puis chaque valeur disponible sur sa propre ligne (score de récupération WHOOP, FC repos, VFC, durée et performance du sommeil), puis UNE phrase d'analyse (comparaison avec la moyenne 7 j, conclusion : bien récupéré / modéré / fatigué). Ne pas afficher une valeur absente.
+
+2. 🧘 TA JOURNÉE DE REPOS — 2 phrases au plus : ce que le repos doit t'apporter aujourd'hui d'après ta récupération (repos complet si la récupération est basse ; sinon marche, mobilité ou étirements doux sont possibles) et un conseil concret pour la journée (hydratation, alimentation ou sommeil ce soir). Si une période post-course est indiquée dans la situation, la rappeler en quelques mots ici.
+
+3. 📅 DEMAIN — la prochaine séance prévue (fournie dans « Prochaine séance ») : jour, type, distance et heure en **gras**, avec sa consigne d'allure en **gras** si elle est fournie, en une phrase. Puis une phrase pour s'y préparer dès ce soir : l'heure de coucher conseillée en **gras** si elle est fournie, et, pour une sortie longue ou une séance de qualité, un repas du soir adapté. Si la prochaine séance n'est pas demain, le dire (ex. « Prochaine séance jeudi ») et préparer quand même. Si des ajustements de la nuit concernent cette séance, dire ce qui a changé et pourquoi en une phrase.
+
+INTERDIT : bloc « prêt pour aujourd'hui », séance du jour, consignes d'allure ou météo pour aujourd'hui, gels, eau pendant l'effort, organisation du plan ou de la semaine, récapitulatif des séances passées.
+RÈGLES : zéro #, données chiffrées en **gras**, ton de coach direct et chaleureux, texte fluide sans tirets en début de ligne.`;
+}
+function restBriefData(state, todayStr, sit) {
+  const N = sit && sit.nextSession;
+  const fmt = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const lines = ['AUJOURD\'HUI : jour de repos (aucune séance prévue).'];
+  if (N) lines.push(`Prochaine séance : ${N.tomorrow ? 'DEMAIN ' : ''}${fmt(N.date)} — ${N.title} ${N.km} km${N.time ? ' à ' + N.time : ''}${N.consigne ? ' — consigne : ' + N.consigne : ''}`);
+  else lines.push('Prochaine séance : aucune de prévue pour l\'instant.');
+  const B = bedtimePlan(state, todayStr);
+  if (B) lines.push(`Heure de coucher conseillée ce soir : ${B.bed} (réveil ${B.wake}${B.extraMin ? ', +' + B.extraMin + ' min pour rattraper la dette de sommeil' : ''})`);
+  const L = state && state._autopilot_last;
+  if (N && L && L.date === todayStr && !L.undone && Array.isArray(L.changes)) {
+    const ch = L.changes.filter((c) => c.date === N.date);
+    if (ch.length) lines.push(`Ajustements de la nuit sur cette séance (${L.applied ? 'appliqués, annulables' : 'proposés'}) : ` + ch.map((c) => `${c.title} — ${c.field} : ${c.before} → ${c.after}${c.why ? ' (' + c.why + ')' : ''}`).join(' ; '));
+  }
+  return lines.join('\n');
+}
+// ligne de la notification d'un jour de repos
+function restPushPart(sit) {
+  const N = sit && sit.nextSession; if (!N) return 'Jour de repos';
+  return `Repos · ${N.tomorrow ? 'demain' : 'prochaine'} : ${N.title}${N.km ? ' ' + N.km + ' km' : ''}${N.time ? ' à ' + N.time : ''}`;
+}
+
 // Ajustements de la nuit du pilote automatique (autopilot.js / autopilot.js serveur) pour le brief du matin
 function autopilotBriefText(state, todayStr) {
   const L = state && state._autopilot_last, head = 'Ajustements de la nuit (pilote automatique)';
@@ -396,7 +439,8 @@ async function buildTrainingSituation(db, state, todayStr, opts) {
   const todaySessions = td.map((s) => ({ title: sessionTitleOf(s.x), km: parseFloat(s.x.km) || 0, time: s.x.sched_time || null, type: s.x.type, consigne: String(s.x.d || '').split('|')[1] || '' }));
   const nextS = sess.filter((s) => s.date > today && !s.done && s.x.type !== 'rest').sort((a, b) => a.date.localeCompare(b.date))[0];
   if (!todaySessions.length && nextS) lines.push(`Prochaine séance : ${fmtD(nextS.date)} — ${sessionTitleOf(nextS.x)} ${nextS.x.km} km.`);
-  return { text: `SITUATION D'ENTRAÎNEMENT (au ${fmtD(today)}) :\n- ` + lines.join('\n- '), todaySessions, postRace: !!(last && RECOVERY_DAYS[raceCategory(last.dist)] && days(last.date, today) < RECOVERY_DAYS[raceCategory(last.dist)]) };
+  const nextSession = nextS ? { date: nextS.date, title: sessionTitleOf(nextS.x), km: parseFloat(nextS.x.km) || 0, time: nextS.x.sched_time || null, type: nextS.x.type, consigne: String(nextS.x.d || '').split('|')[1] || '', tomorrow: days(today, nextS.date) === 1 } : null;
+  return { text: `SITUATION D'ENTRAÎNEMENT (au ${fmtD(today)}) :\n- ` + lines.join('\n- '), todaySessions, nextSession, postRace: !!(last && RECOVERY_DAYS[raceCategory(last.dist)] && days(last.date, today) < RECOVERY_DAYS[raceCategory(last.dist)]) };
 }
 
 async function buildNotifContext(state, cw) {
@@ -650,7 +694,8 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     allureAjusteeStr=`Allure AJUSTÉE chaleur (${tempSeance}°C) : ${am}'${String(as).padStart(2,'0')}/km (+${ajout} sec/km vs allure de référence)`;
   }
 
-  const system = `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+  const restDay = isRestDay(ctx, sit);
+  const system = restDay ? restBriefSystem(state) : `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
@@ -702,7 +747,12 @@ RÈGLES :
     ? `Score du jour (synthétique) : ${globalScore}% ${globalScoreEmoji} ${globalScoreLabel} [moyenne récup+sommeil+FC${r0?.hrv!=null?'+VFC':''}]`
     : '';
 
-  const userMsg = `${dateComplet}
+  const userMsg = restDay ? `${dateComplet}
+${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
+${restBriefData(state, todayStr, sit)}
+${memosLine}
+
+${sit.text}` : `${dateComplet}
 ${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
 Séances du jour : ${seancesStr}
 Consigne de la séance (plan) : ${consigneJour||'—'}
@@ -720,7 +770,7 @@ ${sit.text}`;
 
   let briefContent = '';
   try {
-    briefContent = await callAnthropic(anthropicKey, system, [{role:'user',content:userMsg}], 1100) || '';
+    briefContent = await module.exports.callAnthropic(anthropicKey, system, [{role:'user',content:userMsg}], 1100) || '';   // via l'export : remplaçable dans les tests
   } catch(e) { console.error('generateMorningBriefContent AI error:', e.message); }
 
   if (!briefContent) {
@@ -729,7 +779,7 @@ ${sit.text}`;
 
   // Corps de la push notification (résumé)
   // Priorité : score global synthétique > score récup WHOOP seul > rien
-  const meteoEmoji = tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
+  const meteoEmoji = restDay||tempSeance===null?'':tempSeance>=28?'🔥':tempSeance>=25?'☀️':tempSeance>=15?'⛅':'🌥️';
   let recovPart = '';
   if (globalScore !== null) {
     recovPart = `Score ${globalScore}%${globalScoreEmoji ? ' '+globalScoreEmoji : ''}`;
@@ -743,7 +793,7 @@ ${sit.text}`;
   if (seanceRunAujourdhui) {
     const tl={ef:'EF',tempo:'Tempo',seuil:'Seuil',vma:'VMA',long:'Sortie longue',ef_long:'Sortie longue'}[seanceRunAujourdhui.type]||seanceRunAujourdhui.type.toUpperCase();
     seancePart=`Séance ${tl}${seanceRunAujourdhui.km>0?' '+seanceRunAujourdhui.km+'km':''} 🏃${seanceHeure?' à '+seanceHeure:''}`;
-  } else { seancePart = 'Pas de séance run'; }
+  } else { seancePart = restDay ? restPushPart(sit) : 'Pas de séance run'; }
   let pushBody = `${recovPart}${recovPart&&(fcPart||seancePart)?' · ':''}${fcPart}${fcPart&&seancePart?' · ':''}${seancePart}${meteoEmoji?' '+meteoEmoji:''}`.trim();
   if (pushBody.length > 180) pushBody = pushBody.slice(0,177)+'...';
 
@@ -893,6 +943,6 @@ module.exports = {
   buildNotifContext,
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,
-  generateMorningBriefContent,
+  generateMorningBriefContent, isRestDay, restBriefSystem, restBriefData, restPushPart,
   generateWeeklyBilanContent,
 };
