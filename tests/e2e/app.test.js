@@ -650,8 +650,11 @@ test('alcool : une nuit passée non renseignée se complète depuis l\'historiqu
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { keepWakeup: true });
   await page.evaluate(() => openAlcoholInsights());
   await page.waitForSelector('#alc-ins .alc-row');
-  assert.equal(await page.locator('#alc-ins .alc-row').count() >= 7, true);
-  await page.locator('#alc-ins .alc-row').nth(2).click();                 // avant-hier
+  assert.equal(await page.locator('#alc-ins .alc-row:not(.hd)').count() >= 7, true);
+  // chaque ligne porte la date de la SOIRÉE (la veille du réveil), pas celle du matin
+  assert.match(await page.locator('#alc-ins .alc-row:not(.hd)').nth(0).textContent(), /^mer 28 oct soir/);
+  assert.match(await page.locator('#alc-ins .alc-row:not(.hd)').nth(2).textContent(), /^lun 26 oct soir/);
+  await page.locator('#alc-ins .alc-row:not(.hd)').nth(2).click();        // réveil d'avant-hier (soirée du 26)
   await page.waitForSelector('#alc-modal');
   assert.match(await page.textContent('#alc-modal'), /Nuit passée/);
   await page.click('#alc-modal .alc-n:nth-child(8)'); await page.click('#alc-go');

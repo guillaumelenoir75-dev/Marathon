@@ -354,7 +354,7 @@ function alcHomeLine(F){
     const back = miss.length ? '<button type="button" class="alc-home back" onclick="alcBackfill()"><span>🗓️</span><span><b>Renseigne l\'alcool des 3 dernières nuits</b><small>' + miss.length + ' nuit' + (miss.length > 1 ? 's' : '') + ' à compléter : avec leurs données WHOOP, ton profil se personnalise dès maintenant</small></span><span aria-hidden="true">›</span></button>' : '';
     let sus = '';
     if(e){ const M = alcModel(), S = (M.suspects || []).filter(function(x){ return prDays(x.date, prTodayIso()) <= 14 && x.date !== day; })[0];
-      if(S) sus = '<button type="button" class="alc-home back" onclick="alcAsk({day:\'' + S.date + '\'})"><span>🔎</span><span><b>' + _alcDayTxt(S.date) + ' : profil d\'un lendemain de soirée</b><small>FC repos +' + S.rhrUp + ' bpm, VFC ' + S.hrvPct + ' %, récupération ' + S.rec + ' % sans charge d\'entraînement. Alcool la veille ? Ta réponse affine ta base</small></span><span aria-hidden="true">›</span></button>'; }
+      if(S) sus = '<button type="button" class="alc-home back" onclick="alcAsk({day:\'' + S.date + '\'})"><span>🔎</span><span><b>' + _alcDayTxt(prAddDays(S.date, -1)) + ' soir : alcool ?</b><small>FC repos +' + S.rhrUp + ' bpm, VFC ' + S.hrvPct + ' %, récupération ' + S.rec + ' % au réveil, sans charge d\'entraînement : le profil d\'un lendemain de soirée. Ta réponse affine ta base</small></span><span aria-hidden="true">›</span></button>'; }
     return back + _alcHomeMain(F, day, e) + sus;
   } catch(err) { return ''; }
 }
@@ -382,6 +382,8 @@ function _alcHomeMain(F, day, e){
   } catch(err) { return ''; }
 }
 
+// une saisie est rangée au jour du RÉVEIL (nuit WHOOP du même jour) ; on l'affiche à la date de la SOIRÉE (la veille)
+function _alcEve(d){ return new Date(prAddDays(d, -1) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + ' soir'; }
 function _alcDayTxt(d){ const t = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' }).replace(/\./g, ''); return t.charAt(0).toUpperCase() + t.slice(1); }
 // carte de l'accueil : forme mesurée | perdue à cause de l'alcool | sans alcool
 function _alcSplitCard(S, carryOnly){
@@ -438,11 +440,11 @@ function openAlcoholInsights(){
     h += '</div>';
   }
   // nuits à vérifier : profil d'un lendemain de soirée sans saisie
-  if(M.suspects && M.suspects.length) h += '<p class="alc-sec">Nuits à vérifier</p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + x.date + '\'})"><span>' + new Date(x.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>récup ' + x.rec + ' %</em></button>'; }).join('') + '</div><p class="alc-card-n">Ces nuits ressemblent à un lendemain de soirée (FC repos haute, VFC basse, sans grosse séance la veille). Elles sont écartées de ta base en attendant ta réponse.</p>';
+  if(M.suspects && M.suspects.length) h += '<p class="alc-sec">Soirées à vérifier</p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + x.date + '\'})"><span>' + _alcEve(x.date) + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>récup ' + x.rec + ' %</em></button>'; }).join('') + '</div><p class="alc-card-n">Le réveil qui a suivi ces soirées ressemble à un lendemain d\'alcool (FC repos haute, VFC basse, sans grosse séance). Elles sont écartées de ta base en attendant ta réponse.</p>';
   // le modèle colle-t-il à tes nuits ? mesuré vs attendu
   if(M.check && M.check.length){
     const err = Math.round(_alcMean(M.check.map(function(c){ return Math.abs(c.mesure - c.attendu); })));
-    h += '<p class="alc-sec">Le modèle sur tes nuits avec alcool</p><div class="alc-list">' + M.check.slice().reverse().slice(0, 8).map(function(c){ return '<div class="alc-row chk"><span>' + new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + '</span><b class="y">' + (c.l ? c.l + '/10' : '0') + (c.prev ? ' +' + c.prev : '') + '</b><small>prévu ' + c.attendu + ' %</small><em>mesuré ' + c.mesure + ' %</em></div>'; }).join('') + '</div>'
+    h += '<p class="alc-sec">Le modèle sur tes nuits avec alcool</p><div class="alc-list"><div class="alc-row hd"><span>Soirée</span><b>Alcool</b><small>Récup prévue</small><em>Mesurée</em></div>' + M.check.slice().reverse().slice(0, 8).map(function(c){ return '<div class="alc-row chk"><span>' + _alcEve(c.date) + '</span><b class="y">' + (c.l ? c.l + '/10' : '0') + (c.prev ? ' +' + c.prev : '') + '</b><small>' + c.attendu + ' %</small><em>' + c.mesure + ' %</em></div>'; }).join('') + '</div>'
       + '<p class="alc-card-n">Écart moyen entre la récupération prévue par le modèle et celle mesurée : <b>' + err + ' pts</b>' + (M.sd && M.sd.rec ? ' · effet par point connu à ±' + String(Math.round(ALC_Z80 * M.sd.rec * 10) / 10).replace('.', ',') + ' pt près' : '') + '. « +8 » = soirée de la veille encore comptée à ' + Math.round(M.carry * 100) + ' %.</p>';
   }
   // gabarit
@@ -451,11 +453,11 @@ function openAlcoholInsights(){
     + '<label>Sexe <select id="alc-sex"><option value="m"' + (!BD || BD.sex === 'm' ? ' selected' : '') + '>Homme</option><option value="f"' + (BD && BD.sex === 'f' ? ' selected' : '') + '>Femme</option></select></label><button type="button" onclick="alcSaveBody()">OK</button></div>'
     + '<p class="alc-card-n">Sert à traduire l\'échelle en verres, alcoolémie et temps d\'élimination. L\'effet sur ta récupération, lui, est mesuré directement sur tes nuits.</p>';
   h += alcStatsHtml().replace('<button type="button" class="alc-card-b" onclick="openAlcoholInsights()">Détail et historique ›</button>', '');
-  h += '<p class="alc-sec">Tes dernières nuits</p><div class="alc-list">' + (days.length ? days.map(function(d){
-    const e = A[d], r = rec[d], dd = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+  h += '<p class="alc-sec">Tes dernières soirées</p><div class="alc-list"><div class="alc-row hd"><span>Soirée</span><b>Alcool</b><small></small><em>Récup du lendemain</em></div>' + (days.length ? days.map(function(d){
+    const e = A[d], r = rec[d], dd = _alcEve(d);
     return '<button type="button" class="alc-row" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + d + '\'})"><span>' + dd + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10' : 'Aucun') + '</b><small>' + (e ? prEsc(alcTypesText(e.t)) : '') + '</small><em>' + (r && r.score != null ? 'récup ' + r.score + ' %' : '') + '</em></button>';
   }).join('') : '<p class="alc-card-n">Pas encore de saisie.</p>') + '</div>';
-  h += '<p class="alc-card-n" style="margin-top:6px;">Toucher une nuit pour la corriger. Le Coach, le brief du matin et la mise à jour du plan tiennent compte de ces saisies.</p>'
+  h += '<p class="alc-card-n" style="margin-top:6px;">Chaque ligne = la soirée (ce que tu as bu) et ta récupération WHOOP au réveil le lendemain. Toucher une soirée pour la corriger. Le Coach, le brief du matin et la mise à jour du plan tiennent compte de ces saisies.</p>'
     + '<button type="button" class="alc-card-b" style="align-self:stretch;text-align:center;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;margin-top:4px;" onclick="alcCopyDiag(this)">📋 Copier mes données pour analyse</button></div></div></div>';
   ov.innerHTML = h;
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
@@ -470,7 +472,7 @@ function alcDiagText(today){
   const days = []; for(let k = 0; k < 14; k++) days.push(prAddDays(alcDay(), -k));
   const rec = {}, sl = {}; (wd.recoveries || []).forEach(function(r){ if(r && r.date) rec[r.date] = r; }); (wd.sleeps || []).forEach(function(s){ if(s && s.date) sl[s.date] = s; });
   const nights = days.map(function(d){ const e = A[d], r = rec[d], s = sl[d];
-    return { matin: d, alcool: e ? e.l : null, types: e ? (e.t || []) : null, saisi_le: e ? e.at : null, recup: r ? r.score : null, vfc: r ? r.hrv : null, fc_repos: r ? r.rhr : null, sommeil_pct: s ? s.performance_pct : null, sommeil: s ? s.duration_hours : null,
+    return { matin: d, soiree: prAddDays(d, -1), alcool: e ? e.l : null, types: e ? (e.t || []) : null, saisi_le: e ? e.at : null, recup: r ? r.score : null, vfc: r ? r.hrv : null, fc_repos: r ? r.rhr : null, sommeil_pct: s ? s.performance_pct : null, sommeil: s ? s.duration_hours : null,
       charge_veille_trimp: Math.round(L[prAddDays(d, -1)] || 0), dose: alcDose(d, M.carry), recup_corrigee: r && (alcDose(d) || 0) > 0 ? Math.round(alcCorrectRecovery(r, M).score) : null }; });
   return JSON.stringify({ genere: new Date().toISOString(), jour_reveil: alcDay(), saisies_total: Object.keys(A).length, nuits_14j: nights,
     modele: { personnel: M.personal, nuits: M.n, soirees: M.nAlc, sans_alcool: M.nFree, par_point_de_dose: M.coef, incertitude: M.sd, ajustement_brut: M.fit, effet_lendemain: M.carry, effet_lendemain_ajuste: M.carryFit, base: M.base, nuits_suspectes: M.suspects, controle: M.check, groupes: M.bands, gabarit: alcBody() },
@@ -542,7 +544,7 @@ function _alcCss(){
     + '.alc-fs .alc-go{background:#fff;color:#1E3A8A;}.alc-fs .alc-go:disabled{opacity:.35;}.alc-fs .alc-later{color:rgba(255,255,255,.75);}'
     + '.alc-fs-none:focus-visible,.alc-fs .alc-n:focus-visible,.alc-fs .alc-ty:focus-visible,.alc-fs .alc-go:focus-visible,.alc-fs .alc-later:focus-visible{outline:2px solid #fff;outline-offset:2px;}'
     + '.alc-home.back{border-color:#C7D2FE;background:#EEF2FF;color:#1E1B4B;}.alc-home.back small{color:#4338CA;}'
-    + '.alc-row{display:grid;grid-template-columns:92px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
+    + '.alc-row{display:grid;grid-template-columns:104px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
     + '.alc-split{display:flex;flex-direction:column;gap:7px;width:100%;padding:11px 13px;border:1.5px solid #DDD6FE;border-radius:16px;background:#FAF8FF;font:inherit;text-align:left;cursor:pointer;color:#2E1065;}.alc-split:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'
     + '.alc-sp-h{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:800;}.alc-sp-h>span:last-child{color:#7C3AED;font-size:17px;line-height:1;}'
     + '.alc-sp-n{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}.alc-sp-n>span{display:flex;flex-direction:column;align-items:flex-start;}.alc-sp-n small{font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.05em;}'
@@ -552,6 +554,6 @@ function _alcCss(){
     + '.alc-dec{margin:8px 0 6px;padding:10px;border-radius:12px;background:#F5F3FF;}.alc-dec-t{margin:0 0 6px!important;}.alc-dec-t span{color:#64748B;font-size:12px;}.alc-dec table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;}.alc-dec th{text-align:left;font-size:10.5px;color:#64748B;text-transform:uppercase;letter-spacing:.05em;padding:2px 4px;}.alc-dec td{padding:3px 4px;border-top:1px solid #EDE9FE;}.alc-dec td:last-child{font-weight:800;color:#4C1D95;}'
     + '.alc-blood{font-size:12.5px!important;color:#475569!important;}.alc-row.chk{cursor:default;}.alc-row.sus b.q{color:#B45309;}'
     + '.alc-body-f{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;}.alc-body-f label{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;color:#64748B;}.alc-body-f input,.alc-body-f select{width:84px;padding:8px;border:1.5px solid #E2E8F0;border-radius:10px;font:inherit;font-size:14px;background:#fff;}.alc-body-f button{padding:9px 14px;border:none;border-radius:10px;background:#4C1D95;color:#fff;font:inherit;font-weight:800;cursor:pointer;}'
-    + '.alc-row b.y{color:#7C3AED;}.alc-row b.n{color:#15803D;}.alc-row b.q{color:#94A3B8;font-weight:700;}.alc-row small{color:#64748B;font-size:11.5px;}.alc-row em{font-style:normal;font-size:11.5px;color:#475569;font-variant-numeric:tabular-nums;}';
+    + '.alc-row.hd{cursor:default;padding:7px 12px;background:#F8FAFC;}.alc-row.hd>*{font-size:10.5px!important;font-weight:800!important;color:#64748B!important;text-transform:uppercase;letter-spacing:.05em;}.alc-row b.y{color:#7C3AED;}.alc-row b.n{color:#15803D;}.alc-row b.q{color:#94A3B8;font-weight:700;}.alc-row small{color:#64748B;font-size:11.5px;}.alc-row em{font-style:normal;font-size:11.5px;color:#475569;font-variant-numeric:tabular-nums;}';
   document.head.appendChild(st);
 }
