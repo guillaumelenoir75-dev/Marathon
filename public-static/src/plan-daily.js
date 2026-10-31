@@ -498,10 +498,12 @@ function prRenderHomeCard(){
       h += '<div class="pd-form ' + F.tone + '"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/>' + ghost + '<circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="37" text-anchor="middle">' + F.score + '</text></svg>'
         + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>' + (AL || F.label) + '</b><small>' + prEsc(F.why.join(' · ')) + '</small>' + (chip = typeof alcFormChip === 'function' ? alcFormChip(F, AS) : '') + '</div></div>'; }
     if(typeof alcHomeLine === 'function') h += alcHomeLine(WS.kind === 'ok' ? F : null, !!chip);   // alcool hier soir : effet sur ta nuit, ou question du matin
-    h += '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
+    // série et badges : sous les séances (#home-form-extra), pour garder le plan de la semaine haut sur l'écran
+    const strip = '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
       + '<button type="button" class="pd-bdg-btn" onclick="openBadges()">' + on.slice(-4).map(function(b){ return '<i>' + b.ico + '</i>'; }).join('') + '<span>' + on.length + '/' + B.list.length + ' badges ›</span></button></div>';
+    const ex = document.getElementById('home-form-extra'); if(ex) ex.innerHTML = '<div class="pd-home">' + strip + '</div>'; else h += strip;
     if(typeof bsHomeLine === 'function') h += bsHomeLine();                    // foulée qui se dégrade (body-signals.js)
-    if(typeof bsSleepChip === 'function') h += bsSleepChip();                  // ta nuit de ce soir, toujours visible (body-signals.js)
+    if(typeof bsSleepPill === 'function') bsSleepPill();                       // ta nuit : pastille de l'en-tête (body-signals.js)
     if(typeof apCardHtml === 'function') h += apCardHtml();                    // ajustements de la nuit (pilote automatique)
     if(typeof raHomeLine === 'function') h += raHomeLine();                    // analyse de la course (10 jours après)
     if(typeof wsHomeButton === 'function') h += wsHomeButton();                // ta semaine en image (week-share.js)

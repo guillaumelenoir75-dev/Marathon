@@ -693,8 +693,13 @@ test('Statistiques › Forme : « Aujourd\'hui » en tête (forme du jour, à re
   // ta nuit : toujours visible (Statistiques et accueil), détail au toucher
   assert.match(await page.textContent('#st-today .bs-sleep'), /Ce soir : couche-toi vers \d+h\d{2}/);
   await page.evaluate(() => showScreen('home'));
-  await page.waitForSelector('#home-form-card .bs-sleep');
-  await page.click('#home-form-card .bs-sleep');
+  // accueil : pastille compacte dans l'en-tête ; série et badges sous les séances
+  await page.waitForSelector('#home-sleep-btn', { state: 'visible' });
+  assert.match(await page.textContent('#home-sleep-btn'), /🌙\s*\d+h\d{2}/);
+  assert.equal(await page.locator('#home-form-card .bs-sleep').count(), 0, 'plus de grande ligne sur l\'accueil');
+  assert.equal(await page.locator('#home-form-extra .pd-strip').count(), 1);
+  assert.equal(await page.locator('#home-form-card .pd-strip').count(), 0);
+  await page.click('#home-sleep-btn');
   await page.waitForSelector('#bs-sleep-m .bs-sl-big');
   assert.match(await page.textContent('#bs-sleep-m'), /Coucher.*Sommeil.*Réveil/s);
   if (process.env.SHOT) await page.locator('#bs-sleep-m .modal-box').screenshot({ path: process.env.SHOT + '-sleep.png' });

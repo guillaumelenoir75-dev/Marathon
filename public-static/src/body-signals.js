@@ -145,6 +145,16 @@ function bsSleepChip(){
   } catch(e) { return ''; }
 }
 function bsBedtimeLine(){ return ''; }   // remplacé par bsSleepChip (toujours visible)
+// accueil : pastille compacte dans l'en-tête (à côté de « Réveil ») — « 🌙 23h15 » → détail « Ta nuit »
+function bsSleepPill(){
+  const el = typeof document !== 'undefined' ? document.getElementById('home-sleep-btn') : null; if(!el) return;
+  try {
+    const B = (typeof _prepView !== 'undefined' && _prepView) ? null : bsBedtime();
+    if(!B){ el.style.display = 'none'; return; }
+    el.innerHTML = '<span style="font-size:11px;line-height:1;">🌙</span><span style="font-size:10px;font-weight:800;white-space:nowrap;">' + B.bed + '</span>';
+    el.setAttribute('aria-label', 'Ce soir : coucher vers ' + B.bed + ', ' + B.sleep + ' de sommeil'); el.style.display = 'flex';
+  } catch(e) { el.style.display = 'none'; }
+}
 function openSleepPlan(){
   _bsCss();
   const B = bsBedtime(); if(!B) return;

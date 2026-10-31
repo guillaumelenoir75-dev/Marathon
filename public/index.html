@@ -128,6 +128,8 @@
             <span style="font-size:11px;line-height:1;">✅</span>
             <span style="font-size:10px;font-weight:700;color:#7FD4A8;white-space:nowrap;">Réveil</span>
           </button>
+          <!-- ta nuit : heure de coucher conseillée (body-signals.js bsSleepPill) → détail « Ta nuit » -->
+          <button id="home-sleep-btn" type="button" onclick="openSleepPlan()" style="display:none;align-items:center;gap:4px;background:rgba(165,180,252,0.20);border:1px solid rgba(165,180,252,0.40);border-radius:20px;padding:3px 9px;cursor:pointer;flex-shrink:0;color:#C7D2FE;font:inherit;"></button>
         </div>
       </div>
       <!-- DROITE : EF + prédit + AM entraînement -->
@@ -248,6 +250,8 @@
     </div>
     <div id="home-sessions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;"></div>
   </div>
+  <!-- série et badges : sous les séances (prRenderHomeCard) -->
+  <div id="home-form-extra" style="background:#EDF2FB;padding:0 16px 12px;"></div>
   <div id="home-renfo-section" style="background:#EDF2FB;padding:0 16px 4px;">
     <p style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
       <span style="width:6px;height:6px;border-radius:50%;background:#0C447C;flex-shrink:0;display:inline-block;"></span>
