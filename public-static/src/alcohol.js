@@ -408,7 +408,7 @@ function _alcHomeMain(F, day, e){
 }
 
 // une saisie est rangée au jour du RÉVEIL (nuit WHOOP du même jour) ; on l'affiche à la date de la SOIRÉE (la veille)
-function _alcEve(d){ return new Date(prAddDays(d, -1) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + ' soir'; }
+function _alcEve(d, bare){ return new Date(prAddDays(d, -1) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + (bare ? '' : ' soir'); }
 function _alcDayTxt(d){ const t = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' }).replace(/\./g, ''); return t.charAt(0).toUpperCase() + t.slice(1); }
 // carte de l'accueil : forme mesurée | perdue à cause de l'alcool | sans alcool
 function _alcSplitCard(S, carryOnly){
@@ -424,66 +424,67 @@ function _alcSplitCard(S, carryOnly){
 }
 
 // ─── Statistiques › Forme : alcool et récupération ───
+const _alcN = function(x, d){ const k = Math.pow(10, d == null ? 1 : d); return String(Math.round(x * k) / k).replace('.', ','); };
+const _alcIco = function(t){ return (t || []).map(function(id){ const x = ALC_TYPES.find(function(y){ return y.id === id; }); return x ? x.ico : ''; }).join(''); };
+// profil : effet par point d'alcool (tuiles) + base sans alcool + 30 derniers jours — partagé par Statistiques et le détail
+function _alcProfileHtml(M){
+  const t = function(v, u){ return '<div><b>' + v + '</b><small>' + u + '</small></div>'; };
+  const last30 = Object.keys(state._alcohol || {}).filter(function(d){ const k = prDays(d, prTodayIso()); return k <= 30 && k >= 0; }), drinks = last30.filter(function(d){ return state._alcohol[d].l > 0; });
+  const lost = last30.reduce(function(s, d){ return s + Math.max(0, -M.coef.rec * (alcDose(d, M.carry) || 0)); }, 0);
+  return '<p class="alc-k">Par point d\'alcool (/10)</p><div class="alc-tiles">' + t('−' + _alcN(-M.coef.rec), 'pts récup') + t('−' + _alcN(-M.coef.hrv), '% VFC') + t('+' + _alcN(M.coef.rhr), 'bpm FC') + t(Math.round(M.carry * 100) + ' %', 'le lendemain') + '</div>'
+    + (M.base.rec != null ? '<p class="alc-k">Sans alcool (ta base)</p><div class="alc-tiles b">' + t(M.base.rec + ' %', 'récup') + (M.base.hrv ? t(M.base.hrv, 'ms VFC') : '') + (M.base.rhr != null ? t(_alcN(M.base.rhr), 'bpm FC') : '') + '</div>' : '')
+    + (last30.length ? '<p class="alc-meta">30 j : <b>' + drinks.length + '</b> soirée' + (drinks.length > 1 ? 's' : '') + ' · <b>−' + Math.round(lost) + '</b> pts récup</p>' : '');
+}
 function alcStatsHtml(){
   const M = alcModel(); if(!M.n && !Object.keys(state._alcohol || {}).length) return '';
   _alcCss();
-  const b = M.bands.filter(function(x){ return x.n; }), mx = Math.max.apply(null, b.map(function(x){ return x.rec || 0; }).concat([1]));
-  const last30 = Object.keys(state._alcohol || {}).filter(function(d){ return prDays(d, prTodayIso()) <= 30 && prDays(d, prTodayIso()) >= 0; }), drinks = last30.filter(function(d){ return state._alcohol[d].l > 0; });
-  const lost = last30.reduce(function(s, d){ const ds = alcDose(d, M.carry) || 0; return s + Math.max(0, -M.coef.rec * ds); }, 0);
-  let h = '<div class="alc-card"><p class="alc-card-t">🍷 Alcool et récupération <span>' + (M.personal ? 'modèle ajusté sur toi (' + M.nAlc + ' nuit' + (M.nAlc > 1 ? 's' : '') + ' avec alcool, base sur ' + M.base.n + ' nuits normales)' : 'estimation générale · se personnalise avec tes saisies') + '</span></p>';
-  h += '<p class="alc-card-s">' + (M.personal ? 'Chez toi' : 'En général (en attendant assez de tes saisies)') + ', chaque point d\'alcool (sur 10) coûte environ <b>' + String(-M.coef.rec).replace('.', ',') + ' pts</b> de récupération, <b>' + String(-M.coef.hrv).replace('.', ',') + ' %</b> de VFC et <b>+' + String(M.coef.rhr).replace('.', ',') + ' bpm</b> de FC repos, et l\'effet se prolonge : la soirée d\'avant-hier compte encore à ' + Math.round(M.carry * 100) + ' %' + (M.carryFit ? ' (mesuré sur tes nuits)' : '') + '.'
-    + (M.base.rec != null ? ' Ta base, les nuits sans alcool : récupération <b>' + M.base.rec + ' %</b>' + (M.base.hrv ? ', VFC <b>' + M.base.hrv + ' ms</b>' : '') + (M.base.rhr != null ? ', FC repos <b>' + String(M.base.rhr).replace('.', ',') + '</b>' : '') + '.' : '') + '</p>';
-  const bb = (M.base.n ? [{ lab: 'Ta base', n: M.base.n, rec: M.base.rec, hrv: M.base.hrv, rhr: M.base.rhr }] : []).concat(b.filter(function(x){ return x.lab !== 'Sans alcool' || x.n >= 3; }));
-  const mx2 = Math.max.apply(null, bb.map(function(x){ return x.rec || 0; }).concat([1]));
-  if(bb.length) h += '<div class="alc-bars">' + bb.map(function(x){ return '<div class="alc-bar"><small>' + x.lab + '</small><i style="width:' + Math.round((x.rec || 0) / mx2 * 100) + '%"></i><b>' + (x.rec != null ? x.rec + ' %' : '—') + '</b><span>' + x.n + ' nuit' + (x.n > 1 ? 's' : '') + (x.rhr ? ' · FC ' + String(x.rhr).replace('.', ',') : '') + (x.hrv ? ' · VFC ' + x.hrv : '') + '</span></div>'; }).join('') + '</div>';
-  h += '<p class="alc-card-n">30 derniers jours : ' + drinks.length + ' soirée' + (drinks.length > 1 ? 's' : '') + ' avec alcool sur ' + last30.length + ' renseignée' + (last30.length > 1 ? 's' : '') + (lost ? ' · ≈ ' + Math.round(lost) + ' points de récupération perdus' : '') + '. Les séances du lendemain d\'une soirée ≥ ' + ALC_AFFECTS_RUN + '/10 sont écartées de tes tendances de FC.</p>';
-  h += '<button type="button" class="alc-card-b" onclick="openAlcoholInsights()">Détail et historique ›</button></div>';
-  return h;
+  return '<div class="alc-card"><p class="alc-card-t">🍷 Alcool et récupération <span>' + (M.personal ? 'Perso · ' + M.nAlc + ' soirée' + (M.nAlc > 1 ? 's' : '') : 'Estimation générale') + '</span></p>'
+    + _alcProfileHtml(M) + '<button type="button" class="alc-card-b" onclick="openAlcoholInsights()">Détail ›</button></div>';
 }
 function openAlcoholInsights(){
   _alcCss();
   const M = alcModel(), I = alcImpact(alcDay(), M), A = state._alcohol || {};
-  // 7 dernières nuits toujours listées (même non renseignées, pour compléter après coup), puis les plus anciennes saisies
+  // 7 dernières soirées toujours listées (même non renseignées), puis les plus anciennes saisies
   const last7 = []; for(let k = 0; k < 7; k++) last7.push(prAddDays(alcDay(), -k));
   const days = last7.concat(Object.keys(A).filter(function(d){ return last7.indexOf(d) < 0; }).sort().reverse()).slice(0, 24);
   const old = document.getElementById('alc-ins'); if(old) old.remove();
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'alc-ins'; ov.style.zIndex = '510'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
   const rec = {}; ((state.whoop_data || {}).recoveries || []).forEach(function(r){ if(r && r.date) rec[r.date] = r; });
-  let h = '<div class="modal-box" style="max-height:90vh;"><div class="alc-ihead"><div><p class="alc-eb">Forme</p><p class="alc-t">🍷 Alcool et récupération</p><p class="alc-sub">' + (M.personal ? 'Modèle ajusté sur tes ' + M.n + ' nuits renseignées' : 'Estimation générale, personnalisée dès 3 soirées et 3 nuits sans alcool renseignées') + '</p></div>'
-    + '<button class="alc-x" onclick="document.getElementById(\'alc-ins\').remove()" aria-label="Fermer">×</button></div><div class="modal-scroll-body" style="background:#F5F3FA;"><div class="alc-ibody">';
+  const chk = {}; (M.check || []).forEach(function(c){ chk[c.date] = c; });
+  const close = 'document.getElementById(\'alc-ins\').remove();';
+  let h = '<div class="modal-box" style="max-height:90vh;"><div class="alc-ihead"><div><p class="alc-t">🍷 Alcool et récupération</p><p class="alc-sub">' + (M.personal ? 'Modèle perso · ' + M.nAlc + ' soirée' + (M.nAlc > 1 ? 's' : '') : 'Estimation générale') + '</p></div>'
+    + '<button class="alc-x" onclick="' + close + '" aria-label="Fermer">×</button></div><div class="modal-scroll-body" style="background:#F5F3FA;"><div class="alc-ibody">';
+  // ce matin : 3 chiffres + mesuré → sans alcool
   if(I){
-    const F = typeof prFormScore === 'function' ? prFormScore() : null, SP = F ? alcFormSplit(F, alcDay(), M) : null;
-    h += '<div class="alc-today"><b>Ce matin (' + (I.l ? I.l + '/10 hier soir' : 'pas d\'alcool hier soir') + (I.prev ? ' · ' + I.prev + '/10 avant-hier' : '') + ')</b>';
-    if(SP) h += '<div class="alc-dec"><p class="alc-dec-t">Ta forme du jour : <b>' + SP.obs + '</b> mesurée · <b>−' + SP.lost + '</b> à cause de l\'alcool · <b>~' + SP.without + '</b> sans alcool' + (SP.hi - SP.lo >= 2 ? ' <span>(entre ' + SP.lo + ' et ' + SP.hi + ')</span>' : '') + '</p>'
-      + '<table><thead><tr><th></th><th>Mesuré</th><th>Sans alcool</th></tr></thead><tbody>' + SP.comps.map(function(c){ return '<tr><td>' + c.lab + '</td><td>' + c.o + '</td><td>' + c.w + '</td></tr>'; }).join('') + '</tbody></table></div>';
-    h += '<p>Effet estimé : récupération <b>' + I.rec + ' pts</b>' + (I.recRange ? ' (entre ' + -I.recRange[0] + ' et ' + -I.recRange[1] + ')' : '') + (I.recObs != null ? ', ' + I.recObs + ' % mesuré → ~' + I.recWithout + ' % sans alcool' + (I.base != null ? ' (ta base : ' + I.base + ' %)' : '') : '') + ' ; VFC <b>' + I.hrv + ' %</b>, FC repos <b>+' + String(I.rhr).replace('.', ',') + ' bpm</b>, sommeil <b>' + I.sleep + ' pts</b>.'
-      + (I.prev && I.l ? ' Dont ≈ ' + I.recPrev + ' pts dus à la soirée d\'avant-hier.' : '')
-      + (I.share != null ? ' Environ <b>' + I.share + ' %</b> de ta baisse de récupération vient de l\'alcool.' : '') + ' Cette part n\'est pas comptée comme de la fatigue d\'entraînement : ton plan n\'est pas allégé pour ça.</p>';
-    const BL = alcBlood(I.l), BP = I.prev ? alcBlood(I.prev) : null;
-    if(BL) h += '<p class="alc-blood">🩸 Pour ton gabarit, ' + I.l + '/10 ≈ <b>' + String(BL.drinks).replace('.', ',') + ' verres</b> (' + BL.g + ' g d\'alcool) : pic vers <b>' + String(BL.peak).replace('.', ',') + ' g/L</b>, environ <b>' + String(BL.hours).replace('.', ',') + ' h</b> pour l\'éliminer depuis le début de la soirée' + (BL.hours >= 8 ? ' — encore présent pendant une bonne partie de la nuit, d\'où l\'effet sur la VFC et la FC' : '') + '.' + (BP ? ' Avant-hier (' + I.prev + '/10) : ' + String(BP.drinks).replace('.', ',') + ' verres, ' + String(BP.hours).replace('.', ',') + ' h.' : '') + '</p>';
-    h += '</div>';
+    const F = typeof prFormScore === 'function' ? prFormScore() : null, SP = F ? alcFormSplit(F, alcDay(), M) : null, BL = alcBlood(I.l);
+    h += '<div class="alc-today"><p class="alc-k">Ce matin · ' + (I.l ? I.l + '/10 hier' : '0 hier') + (I.prev ? ' · ' + I.prev + '/10 avant-hier' : '') + '</p>';
+    if(SP) h += '<div class="alc-big"><div><small>Forme</small><b>' + SP.obs + '</b></div><div class="m"><small>Alcool</small><b>−' + SP.lost + '</b></div><div><small>Sans alcool</small><b>~' + SP.without + '</b>' + (SP.hi - SP.lo >= 2 ? '<em>' + SP.lo + '-' + SP.hi + '</em>' : '') + '</div></div>'
+      + '<table class="alc-tab"><thead><tr><th></th><th>Mesuré</th><th>Sans alcool</th></tr></thead><tbody>' + SP.comps.map(function(c){ return '<tr><td>' + c.lab + '</td><td>' + c.o + '</td><td>' + c.w + '</td></tr>'; }).join('') + '</tbody></table>';
+    else h += '<div class="alc-big"><div class="m"><small>Récup</small><b>' + I.rec + '</b></div><div><small>VFC</small><b>' + I.hrv + ' %</b></div><div><small>FC</small><b>+' + _alcN(I.rhr) + '</b></div></div>';
+    const meta = [];
+    if(BL) meta.push('≈ ' + _alcN(BL.drinks) + ' verres · éliminé en ' + _alcN(BL.hours) + ' h');
+    if(I.prev && I.l) meta.push('dont ' + I.recPrev + ' pts d\'avant-hier');
+    meta.push('plan non allégé ✓');
+    h += '<p class="alc-meta">' + meta.join(' · ') + '</p></div>';
   }
-  // nuits à vérifier : profil d'un lendemain de soirée sans saisie
-  if(M.suspects && M.suspects.length) h += '<p class="alc-sec">Soirées à vérifier</p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + x.date + '\'})"><span>' + _alcEve(x.date) + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>récup ' + x.rec + ' %</em></button>'; }).join('') + '</div><p class="alc-card-n">Le réveil qui a suivi ces soirées ressemble à un lendemain d\'alcool (FC repos haute, VFC basse, sans grosse séance). Elles sont écartées de ta base en attendant ta réponse ; autre cause (maladie, nuit très courte…) : « Non » sur l\'accueil.</p>';
-  // le modèle colle-t-il à tes nuits ? mesuré vs attendu
-  if(M.check && M.check.length){
-    const err = Math.round(_alcMean(M.check.map(function(c){ return Math.abs(c.mesure - c.attendu); })));
-    h += '<p class="alc-sec">Le modèle sur tes nuits avec alcool</p><div class="alc-list"><div class="alc-row hd"><span>Soirée</span><b>Alcool</b><small>Récup prévue</small><em>Mesurée</em></div>' + M.check.slice().reverse().slice(0, 8).map(function(c){ return '<div class="alc-row chk"><span>' + _alcEve(c.date) + '</span><b class="y">' + (c.l ? c.l + '/10' : '0') + (c.prev ? ' +' + c.prev : '') + '</b><small>' + c.attendu + ' %</small><em>' + c.mesure + ' %</em></div>'; }).join('') + '</div>'
-      + '<p class="alc-card-n">Écart moyen entre la récupération prévue par le modèle et celle mesurée : <b>' + err + ' pts</b>' + (M.sd && M.sd.rec ? ' · effet par point connu à ±' + String(Math.round(ALC_Z80 * M.sd.rec * 10) / 10).replace('.', ',') + ' pt près' : '') + '. « +8 » = soirée de la veille encore comptée à ' + Math.round(M.carry * 100) + ' %.</p>';
-  }
-  // gabarit
+  // soirées à vérifier
+  if(M.suspects && M.suspects.length) h += '<p class="alc-sec">À vérifier <span>réveil type lendemain d\'alcool</span></p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="' + close + 'alcAsk({day:\'' + x.date + '\'})"><span>' + _alcEve(x.date, true) + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>' + x.rec + ' %</em></button>'; }).join('') + '</div>';
+  // profil
+  h += '<p class="alc-sec">Ton profil</p><div class="alc-card">' + _alcProfileHtml(M);
+  const bb = M.bands.filter(function(x){ return x.n && x.lab !== 'Sans alcool'; }), mx = Math.max.apply(null, [M.base.rec || 0].concat(bb.map(function(x){ return x.rec || 0; })).concat([1]));
+  if(bb.length && M.base.rec != null) h += '<div class="alc-bars">' + [{ lab: 'Sans alcool', n: M.base.n, rec: M.base.rec }].concat(bb).map(function(x){ return '<div class="alc-bar"><small>' + x.lab.replace(/ \(.*\)/, '') + '</small><i style="width:' + Math.round((x.rec || 0) / mx * 100) + '%"></i><b>' + x.rec + ' %</b></div>'; }).join('') + '</div>';
+  h += '</div>';
+  // soirées : alcool, récup mesurée au réveil, récup prévue par le modèle
+  h += '<p class="alc-sec">Tes soirées</p><div class="alc-list"><div class="alc-row ev hd"><span>Soirée</span><b>Alcool</b><small>Récup</small><em>Prévu</em></div>' + days.map(function(d){
+    const e = A[d], r = rec[d], c = chk[d];
+    return '<button type="button" class="alc-row ev" onclick="' + close + 'alcAsk({day:\'' + d + '\'})"><span>' + _alcEve(d, true) + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10 ' + _alcIco(e.t) : 'Aucun') + '</b><small>' + (r && r.score != null ? r.score + ' %' : '—') + '</small><em>' + (c ? c.attendu + ' %' : '') + '</em></button>';
+  }).join('') + '</div><p class="alc-note">Récup = au réveil le lendemain · toucher pour corriger</p>';
+  // gabarit (replié) + copie des données
   const BD = alcBody();
-  h += '<p class="alc-sec">Ton gabarit</p><div class="alc-body-f"><label>Taille <input id="alc-cm" type="number" inputmode="numeric" min="120" max="230" placeholder="cm" value="' + (BD ? BD.cm : '') + '"></label><label>Poids <input id="alc-kg" type="number" inputmode="decimal" step="0.1" min="30" max="250" placeholder="kg" value="' + (BD ? BD.kg : '') + '"></label>'
-    + '<label>Sexe <select id="alc-sex"><option value="m"' + (!BD || BD.sex === 'm' ? ' selected' : '') + '>Homme</option><option value="f"' + (BD && BD.sex === 'f' ? ' selected' : '') + '>Femme</option></select></label><button type="button" onclick="alcSaveBody()">OK</button></div>'
-    + '<p class="alc-card-n">Sert à traduire l\'échelle en verres, alcoolémie et temps d\'élimination. L\'effet sur ta récupération, lui, est mesuré directement sur tes nuits.</p>';
-  h += alcStatsHtml().replace('<button type="button" class="alc-card-b" onclick="openAlcoholInsights()">Détail et historique ›</button>', '');
-  h += '<p class="alc-sec">Tes dernières soirées</p><div class="alc-list"><div class="alc-row hd"><span>Soirée</span><b>Alcool</b><small></small><em>Récup du lendemain</em></div>' + (days.length ? days.map(function(d){
-    const e = A[d], r = rec[d], dd = _alcEve(d);
-    return '<button type="button" class="alc-row" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + d + '\'})"><span>' + dd + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10' : 'Aucun') + '</b><small>' + (e ? prEsc(alcTypesText(e.t)) : '') + '</small><em>' + (r && r.score != null ? 'récup ' + r.score + ' %' : '') + '</em></button>';
-  }).join('') : '<p class="alc-card-n">Pas encore de saisie.</p>') + '</div>';
-  h += '<p class="alc-card-n" style="margin-top:6px;">Chaque ligne = la soirée (ce que tu as bu) et ta récupération WHOOP au réveil le lendemain. Toucher une soirée pour la corriger. Le Coach, le brief du matin et la mise à jour du plan tiennent compte de ces saisies.</p>'
-    + '<button type="button" class="alc-card-b" style="align-self:stretch;text-align:center;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;margin-top:4px;" onclick="alcCopyDiag(this)">📋 Copier mes données pour analyse</button></div></div></div>';
+  h += '<details class="alc-gab"><summary>Gabarit : ' + (BD ? BD.cm + ' cm · ' + _alcN(BD.kg) + ' kg' : 'à renseigner') + '</summary><div class="alc-body-f"><label>Taille <input id="alc-cm" type="number" inputmode="numeric" min="120" max="230" placeholder="cm" value="' + (BD ? BD.cm : '') + '"></label><label>Poids <input id="alc-kg" type="number" inputmode="decimal" step="0.1" min="30" max="250" placeholder="kg" value="' + (BD ? BD.kg : '') + '"></label>'
+    + '<label>Sexe <select id="alc-sex"><option value="m"' + (!BD || BD.sex === 'm' ? ' selected' : '') + '>Homme</option><option value="f"' + (BD && BD.sex === 'f' ? ' selected' : '') + '>Femme</option></select></label><button type="button" onclick="alcSaveBody()">OK</button></div></details>'
+    + '<button type="button" class="alc-copy" onclick="alcCopyDiag(this)">📋 Copier les données</button></div></div></div>';
   ov.innerHTML = h;
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
@@ -573,6 +574,16 @@ function _alcCss(){
     + '.alc-chip.zero{border-color:#BBF7D0;background:#F0FDF4;color:#166534;}.alc-chip.zero i{color:#16A34A;}.alc-chip.ask{border-style:dashed;}.alc-chip.ask u{text-decoration:none;color:#6D28D9;}.alc-chip:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'
     + '.alc-sus{display:flex;align-items:center;gap:7px;padding:6px 8px 6px 10px;border:1px dashed #C7D2FE;border-radius:12px;background:#F8FAFF;font-size:11.5px;color:#3730A3;line-height:1.3;}.alc-sus .t{flex:1;min-width:0;}'
     + '.alc-sus button{flex-shrink:0;padding:5px 9px;border:none;border-radius:8px;background:#4338CA;color:#fff;font:inherit;font-size:11.5px;font-weight:800;cursor:pointer;}.alc-sus button.no{background:#E0E7FF;color:#3730A3;}'
+    + '.alc-k{margin:0 0 6px;font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.06em;}.alc-today .alc-k{color:#6D28D9;}'
+    + '.alc-big{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}.alc-big>div{display:flex;flex-direction:column;}.alc-big small{font-size:10.5px;font-weight:700;color:#64748B;}.alc-big b{font-size:26px;font-weight:900;line-height:1.1;color:#0F172A!important;font-variant-numeric:tabular-nums;}.alc-big .m b{color:#7C3AED!important;}.alc-big em{font-style:normal;font-size:10.5px;color:#94A3B8;}'
+    + '.alc-tab{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;}.alc-tab th{text-align:left;font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.05em;padding:2px 0;}.alc-tab td{padding:4px 0;border-top:1px solid #EDE9FE;color:#334155;}.alc-tab td:last-child{font-weight:800;color:#4C1D95;}'
+    + '.alc-meta{margin:6px 0 0!important;font-size:11.5px!important;color:#64748B!important;}.alc-meta b{color:#334155!important;}'
+    + '.alc-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;}.alc-tiles.b{grid-template-columns:repeat(3,1fr);}.alc-tiles>div{display:flex;flex-direction:column;align-items:center;padding:7px 4px;border-radius:10px;background:#F5F3FF;}.alc-tiles.b>div{background:#F0FDF4;}'
+    + '.alc-tiles b{font-size:16px;font-weight:900;color:#4C1D95;font-variant-numeric:tabular-nums;}.alc-tiles.b b{color:#166534;}.alc-tiles small{font-size:10px;font-weight:700;color:#64748B;text-align:center;}'
+    + '.alc-sec span{text-transform:none;letter-spacing:0;font-weight:600;color:#94A3B8;margin-left:4px;}.alc-note{margin:4px 2px 0;font-size:11px;color:#94A3B8;}'
+    + '.alc-row.ev{grid-template-columns:78px 1fr 44px 44px;}.alc-row.ev small,.alc-row.ev em{text-align:right;font-variant-numeric:tabular-nums;}.alc-row.ev small{font-size:12.5px;color:#334155;font-weight:700;}.alc-row.ev em{color:#94A3B8;}'
+    + '.alc-gab{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:9px 12px;font-size:12.5px;color:#475569;}.alc-gab summary{cursor:pointer;font-weight:700;}.alc-gab .alc-body-f{margin-top:8px;}'
+    + '.alc-copy{align-self:center;border:none;background:none;color:#6D28D9;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;padding:6px;}'
     + '.alc-home.back{border-color:#C7D2FE;background:#EEF2FF;color:#1E1B4B;}.alc-home.back small{color:#4338CA;}'
     + '.alc-row{display:grid;grid-template-columns:104px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
     + '.alc-split{display:flex;flex-direction:column;gap:7px;width:100%;padding:11px 13px;border:1.5px solid #DDD6FE;border-radius:16px;background:#FAF8FF;font:inherit;text-align:left;cursor:pointer;color:#2E1065;}.alc-split:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'
