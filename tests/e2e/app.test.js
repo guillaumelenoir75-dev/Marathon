@@ -598,7 +598,7 @@ test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec
   const line = await page.textContent('#home-form-card');
   // pastille compacte dans la carte « Forme du jour » : niveau, points perdus, forme sans alcool — pas de grande carte à part
   const chip = await page.textContent('#home-form-card .pd-form .alc-chip');
-  assert.match(chip, /🍺🍷 6\/10/); assert.match(chip, /−\d+ · ~\d+ sans/);
+  assert.match(chip, /6\/10 hier 🍺🍷/); assert.match(chip, /−\d+ pts · ~\d+ sans alcool/);
   assert.equal(await page.locator('#home-form-card .alc-split').count(), 0);
   assert.ok(await page.locator('#home-form-card .g-alc').count(), 'arc « sans alcool » sur la jauge');
   // bouton temporaire : 3 dernières nuits, une par une, sur le même écran

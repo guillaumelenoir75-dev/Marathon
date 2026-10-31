@@ -193,10 +193,11 @@ function alcFormSplit(F, day, M){
     const c = mk(1); if(c.score == null) return null;
     const fl = I.recRange && I.rec ? I.recRange[0] / I.rec : 0.8, fh = I.recRange && I.rec ? I.recRange[1] / I.rec : 1.2;
     const lo = mk(fl).score, hi = mk(fh).score;
-    const comps = [{ k: 'rec', lab: 'Récupération', o: n.r.score + ' %', w: Math.round(c.r.score) + ' %' }];
-    if(n.s && n.s.performance_pct != null) comps.push({ k: 'sleep', lab: 'Sommeil', o: n.s.performance_pct + ' %', w: Math.round(c.s.performance_pct) + ' %' });
-    if(n.fc != null) comps.push({ k: 'rhr', lab: 'FC repos', o: n.fc + ' bpm', w: c.fc + ' bpm' });
-    if(n.r.hrv != null) comps.push({ k: 'hrv', lab: 'VFC', o: Math.round(n.r.hrv) + ' ms', w: Math.round(c.r.hrv) + ' ms' });
+    const sg = function(x){ x = Math.round(x); return (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x); };
+    const comps = [{ k: 'rec', lab: 'Récupération', o: n.r.score + ' %', w: Math.round(c.r.score) + ' %', d: sg(c.r.score - n.r.score) }];
+    if(n.s && n.s.performance_pct != null) comps.push({ k: 'sleep', lab: 'Sommeil', o: n.s.performance_pct + ' %', w: Math.round(c.s.performance_pct) + ' %', d: sg(c.s.performance_pct - n.s.performance_pct) });
+    if(n.fc != null) comps.push({ k: 'rhr', lab: 'FC repos', o: n.fc + ' bpm', w: c.fc + ' bpm', d: sg(c.fc - n.fc) });
+    if(n.r.hrv != null) comps.push({ k: 'hrv', lab: 'VFC', o: Math.round(n.r.hrv) + ' ms', w: Math.round(c.r.hrv) + ' ms', d: sg(c.r.hrv - n.r.hrv) });
     return { day: day, I: I, M: M, obs: F.score, without: c.score, lost: Math.max(0, c.score - F.score), lo: Math.min(lo, hi), hi: Math.max(lo, hi), comps: comps };
   } catch(e) { return null; }
 }
@@ -216,8 +217,8 @@ function alcFormChip(F, S){
     if(!e) return state['_wakeup_' + day] ? '<button type="button" class="alc-chip ask" onclick="alcAsk()"><span>🌙</span><span class="t">Alcool hier soir ? <u>Répondre</u></span><i aria-hidden="true">›</i></button>' : '';
     const ico = function(t){ return (t || []).map(function(id){ const x = ALC_TYPES.find(function(y){ return y.id === id; }); return x ? x.ico : ''; }).join(''); };
     if(S && S.lost >= 3){
-      const I = S.I, what = (I.l ? (ico(I.t) || '🍷') + ' ' + I.l + '/10' : '🍷 Pas hier soir') + (I.prev ? ' <small>+ ' + I.prev + '/10 avant-hier</small>' : '');
-      return '<button type="button" class="alc-chip on" onclick="openAlcoholInsights()" aria-label="Alcool : ' + S.lost + ' points de forme perdus, environ ' + S.without + ' sans alcool"><span class="t">' + what + '</span><span class="n"><b>−' + S.lost + '</b> · ~' + S.without + ' sans</span><i aria-hidden="true">›</i></button>';
+      const I = S.I, what = (I.l ? I.l + '/10 hier ' + ico(I.t) : 'rien hier') + (I.prev ? ' · ' + I.prev + '/10 avant-hier' : '');
+      return '<button type="button" class="alc-chip on two" onclick="openAlcoholInsights()" aria-label="Alcool : ' + S.lost + ' points de forme perdus, environ ' + S.without + ' sans alcool"><span class="ic">🍷</span><span class="t"><span class="l1"><b>−' + S.lost + '</b> pts · <b>~' + S.without + '</b> sans alcool</span><span class="l2">' + what + '</span></span><i aria-hidden="true">›</i></button>';
     }
     if(!(+e.l > 0)) return '<button type="button" class="alc-chip zero" onclick="openAlcoholInsights()"><span>💧</span><span class="t">Pas d\'alcool hier soir</span><i aria-hidden="true">›</i></button>';
     return '<button type="button" class="alc-chip on" onclick="openAlcoholInsights()"><span class="t">' + (ico(e.t) || '🍷') + ' ' + e.l + '/10 hier soir</span><i aria-hidden="true">›</i></button>';
@@ -460,13 +461,14 @@ function openAlcoholInsights(){
     const F = typeof prFormScore === 'function' ? prFormScore() : null, SP = F ? alcFormSplit(F, alcDay(), M) : null, BL = alcBlood(I.l);
     h += '<div class="alc-today"><p class="alc-k">Ce matin · ' + (I.l ? I.l + '/10 hier' : '0 hier') + (I.prev ? ' · ' + I.prev + '/10 avant-hier' : '') + '</p>';
     if(SP) h += '<div class="alc-big"><div><small>Forme</small><b>' + SP.obs + '</b></div><div class="m"><small>Alcool</small><b>−' + SP.lost + '</b></div><div><small>Sans alcool</small><b>~' + SP.without + '</b>' + (SP.hi - SP.lo >= 2 ? '<em>' + SP.lo + '-' + SP.hi + '</em>' : '') + '</div></div>'
-      + '<table class="alc-tab"><thead><tr><th></th><th>Mesuré</th><th>Sans alcool</th></tr></thead><tbody>' + SP.comps.map(function(c){ return '<tr><td>' + c.lab + '</td><td>' + c.o + '</td><td>' + c.w + '</td></tr>'; }).join('') + '</tbody></table>';
+      + '<div class="alc-sp-bar alc-bigbar" aria-hidden="true"><i class="' + (SP.obs >= 67 ? 'ok' : SP.obs >= 34 ? 'mid' : 'low') + '" style="width:' + SP.obs + '%"></i><i class="alc" style="width:' + Math.max(0, SP.without - SP.obs) + '%"></i></div>'
+      + '<table class="alc-tab"><thead><tr><th></th><th>Mesuré</th><th>Sans alcool</th><th>Écart</th></tr></thead><tbody>' + SP.comps.map(function(c){ return '<tr><td>' + c.lab + '</td><td>' + c.o + '</td><td>' + c.w + '</td><td>' + c.d + '</td></tr>'; }).join('') + '</tbody></table>';
     else h += '<div class="alc-big"><div class="m"><small>Récup</small><b>' + I.rec + '</b></div><div><small>VFC</small><b>' + I.hrv + ' %</b></div><div><small>FC</small><b>+' + _alcN(I.rhr) + '</b></div></div>';
     const meta = [];
-    if(BL) meta.push('≈ ' + _alcN(BL.drinks) + ' verres · éliminé en ' + _alcN(BL.hours) + ' h');
-    if(I.prev && I.l) meta.push('dont ' + I.recPrev + ' pts d\'avant-hier');
-    meta.push('plan non allégé ✓');
-    h += '<p class="alc-meta">' + meta.join(' · ') + '</p></div>';
+    if(BL) meta.push('🥃 ≈ ' + _alcN(BL.drinks) + ' verres', '⏱ éliminé en ' + _alcN(BL.hours) + ' h');
+    if(I.prev && I.l) meta.push('−' + Math.abs(I.recPrev) + ' pts d\'avant-hier');
+    meta.push('✓ plan non allégé');
+    h += '<div class="alc-pills">' + meta.map(function(x){ return '<span>' + x + '</span>'; }).join('') + '</div></div>';
   }
   // soirées à vérifier
   if(M.suspects && M.suspects.length) h += '<p class="alc-sec">À vérifier <span>réveil type lendemain d\'alcool</span></p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="' + close + 'alcAsk({day:\'' + x.date + '\'})"><span>' + _alcEve(x.date, true) + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>' + x.rec + ' %</em></button>'; }).join('') + '</div>';
@@ -475,10 +477,23 @@ function openAlcoholInsights(){
   const bb = M.bands.filter(function(x){ return x.n && x.lab !== 'Sans alcool'; }), mx = Math.max.apply(null, [M.base.rec || 0].concat(bb.map(function(x){ return x.rec || 0; })).concat([1]));
   if(bb.length && M.base.rec != null) h += '<div class="alc-bars">' + [{ lab: 'Sans alcool', n: M.base.n, rec: M.base.rec }].concat(bb).map(function(x){ return '<div class="alc-bar"><small>' + x.lab.replace(/ \(.*\)/, '') + '</small><i style="width:' + Math.round((x.rec || 0) / mx * 100) + '%"></i><b>' + x.rec + ' %</b></div>'; }).join('') + '</div>';
   h += '</div>';
+  // 14 derniers réveils : récupération, soirées avec alcool en violet, base en pointillé
+  const days14 = []; for(let k = 13; k >= 0; k--) days14.push(prAddDays(alcDay(), -k));
+  if(days14.some(function(d){ return rec[d] && rec[d].score != null; })){
+    const W = 320, H = 96, bw = W / 14, y = function(v){ return H - 14 - (v / 100) * (H - 22); };
+    let g = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="alc-chart" role="img" aria-label="Récupération des 14 derniers réveils">';
+    days14.forEach(function(d, i){
+      const r = rec[d], e = A[d], ds = alcDose(d, M.carry) || 0, v = r && r.score != null ? +r.score : null;
+      if(v != null) g += '<rect x="' + (i * bw + 3).toFixed(1) + '" y="' + y(v).toFixed(1) + '" width="' + (bw - 6).toFixed(1) + '" height="' + (H - 14 - y(v)).toFixed(1) + '" rx="3" class="' + (ds > 0 ? (e && e.l > 0 ? 'a' : 'c') : (M.suspects || []).some(function(x){ return x.date === d; }) ? 's' : 'n') + '"/>';
+      g += '<text x="' + (i * bw + bw / 2).toFixed(1) + '" y="' + (H - 2) + '" text-anchor="middle">' + new Date(prAddDays(d, -1) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'narrow' }) + '</text>';
+    });
+    if(M.base.rec != null) g += '<line x1="0" x2="' + W + '" y1="' + y(M.base.rec).toFixed(1) + '" y2="' + y(M.base.rec).toFixed(1) + '" class="b"/>';
+    h += '<p class="alc-sec">Récup après chaque soirée <span>14 j</span></p><div class="alc-card">' + g + '</svg><div class="alc-leg"><span><i class="a"></i>alcool la veille</span><span><i class="c"></i>avant-hier</span><span><i class="n"></i>sans</span><span><i class="b"></i>ta base</span></div></div>';
+  }
   // soirées : alcool, récup mesurée au réveil, récup prévue par le modèle
   h += '<p class="alc-sec">Tes soirées</p><div class="alc-list"><div class="alc-row ev hd"><span>Soirée</span><b>Alcool</b><small>Récup</small><em>Prévu</em></div>' + days.map(function(d){
     const e = A[d], r = rec[d], c = chk[d];
-    return '<button type="button" class="alc-row ev" onclick="' + close + 'alcAsk({day:\'' + d + '\'})"><span>' + _alcEve(d, true) + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10 ' + _alcIco(e.t) : 'Aucun') + '</b><small>' + (r && r.score != null ? r.score + ' %' : '—') + '</small><em>' + (c ? c.attendu + ' %' : '') + '</em></button>';
+    return '<button type="button" class="alc-row ev" onclick="' + close + 'alcAsk({day:\'' + d + '\'})"><span>' + _alcEve(d, true) + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10 ' + _alcIco(e.t) : 'Aucun') + '</b><small class="' + (r && r.score != null ? (r.score >= 67 ? 'g' : r.score >= 34 ? 'o' : 'r') : '') + '">' + (r && r.score != null ? r.score + ' %' : '—') + '</small><em>' + (c ? c.attendu + ' %' : '') + '</em></button>';
   }).join('') + '</div><p class="alc-note">Récup = au réveil le lendemain · toucher pour corriger</p>';
   // gabarit (replié) + copie des données
   const BD = alcBody();
@@ -584,6 +599,12 @@ function _alcCss(){
     + '.alc-row.ev{grid-template-columns:78px 1fr 44px 44px;}.alc-row.ev small,.alc-row.ev em{text-align:right;font-variant-numeric:tabular-nums;}.alc-row.ev small{font-size:12.5px;color:#334155;font-weight:700;}.alc-row.ev em{color:#94A3B8;}'
     + '.alc-gab{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:9px 12px;font-size:12.5px;color:#475569;}.alc-gab summary{cursor:pointer;font-weight:700;}.alc-gab .alc-body-f{margin-top:8px;}'
     + '.alc-copy{align-self:center;border:none;background:none;color:#6D28D9;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;padding:6px;}'
+    + '.alc-chip.two{align-items:center;padding:7px 10px;}.alc-chip.two .ic{font-size:17px;}.alc-chip.two .t{display:flex;flex-direction:column;gap:1px;}.alc-chip.two .l1{font-size:12.5px;font-weight:700;color:#4C1D95;}.alc-chip.two .l1 b{display:inline;font-size:14px;font-weight:900;color:#6D28D9;}.alc-chip.two .l2{font-size:11px;font-weight:600;color:#7C6BAA;}'
+    + '.alc-bigbar{margin:-2px 0 10px;}.alc-tab td:nth-child(4),.alc-tab th:nth-child(4){text-align:right;}.alc-tab td:nth-child(4){font-weight:800;color:#7C3AED;}.alc-tab td:nth-child(3){font-weight:800;color:#4C1D95;}.alc-tab td:last-child{color:#7C3AED;}'
+    + '.alc-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}.alc-pills span{padding:3px 8px;border-radius:20px;background:#F5F3FF;color:#5B21B6;font-size:11px;font-weight:700;}.alc-pills span:last-child{background:#F0FDF4;color:#166534;}'
+    + '.alc-chart{width:100%;height:auto;display:block;}.alc-chart rect.a{fill:#7C3AED;}.alc-chart rect.c{fill:#C4B5FD;}.alc-chart rect.n{fill:#CBD5E1;}.alc-chart rect.s{fill:#FCD34D;}.alc-chart line.b{stroke:#16A34A;stroke-width:1.5;stroke-dasharray:4 3;}.alc-chart text{font-size:9px;fill:#94A3B8;font-family:inherit;}'
+    + '.alc-leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:10.5px;color:#64748B;}.alc-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px;}.alc-leg i.a{background:#7C3AED;}.alc-leg i.c{background:#C4B5FD;}.alc-leg i.n{background:#CBD5E1;}.alc-leg i.b{height:0;border-top:2px dashed #16A34A;border-radius:0;vertical-align:3px;}'
+    + '.alc-row.ev small.g{color:#16A34A;}.alc-row.ev small.o{color:#CA8A04;}.alc-row.ev small.r{color:#DC2626;}'
     + '.alc-home.back{border-color:#C7D2FE;background:#EEF2FF;color:#1E1B4B;}.alc-home.back small{color:#4338CA;}'
     + '.alc-row{display:grid;grid-template-columns:104px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
     + '.alc-split{display:flex;flex-direction:column;gap:7px;width:100%;padding:11px 13px;border:1.5px solid #DDD6FE;border-radius:16px;background:#FAF8FF;font:inherit;text-align:left;cursor:pointer;color:#2E1065;}.alc-split:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'
