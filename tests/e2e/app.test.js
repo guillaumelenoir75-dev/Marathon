@@ -47,7 +47,8 @@ async function open(dateIso, db, opts) {
   await page.goto(base + (opts.query || ''));
   await page.waitForFunction(() => typeof firebaseReady !== 'undefined' && firebaseReady, null, { timeout: 15000 });
   await page.waitForTimeout(1500);
-  await page.evaluate(() => { const w = document.getElementById('wakeup-banner'); if (w) w.remove(); });
+  // écran de réveil (6h-14h) : retiré pour ne pas gêner les tests, ou seulement masqué (opts.keepWakeup)
+  await page.evaluate((keep) => { const w = document.getElementById('wakeup-banner'); if (w) { if (keep) w.style.display = 'none'; else w.remove(); } }, !!opts.keepWakeup);
   return { ctx, page, errors };
 }
 const db = (page) => page.evaluate(() => JSON.stringify(window.__DB));
@@ -568,49 +569,70 @@ test('forme du jour sécurisée : synchro WHOOP en échec ou nuit absente → me
   await ctx.close();
 });
 
-test('alcool : question au réveil, saisie 0-10 + types, effet sur la forme du jour, carte Statistiques, question à l\'ouverture', async () => {
+test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec la forme du jour ; 3 dernières nuits ; réinitialiser ce matin', async () => {
   assert.ok(savedDb, 'dépend du test précédent');
   const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;
   const rec = [], sl = [];
   for (let i = 0; i < 20; i++) { const d = new Date('2026-10-29T12:00:00Z'); d.setUTCDate(d.getUTCDate() - i); const k = d.toISOString().slice(0, 10); rec.push({ date: k, score: i === 0 ? 41 : 70, rhr: i === 0 ? 57 : 50, hrv: i === 0 ? 52 : 68 }); sl.push({ date: k, performance_pct: i === 0 ? 66 : 86 }); }
   st.whoop_data = { updatedAt: new Date('2026-10-29T08:00:00Z').toISOString(), recoveries: rec, sleeps: sl };
   delete st.whoop_token;
-  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', JSON.stringify(D));
-  await page.evaluate(() => { showScreen('home'); onWakeup(); });
-  await page.waitForSelector('#alc-modal .alc-none');
-  await page.click('#alc-modal .alc-n:nth-child(6)');
-  await page.click('#alc-modal .alc-ty:nth-child(1)'); await page.click('#alc-modal .alc-ty:nth-child(2)');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', JSON.stringify(D), { keepWakeup: true });
+  // « Je suis réveillé » (accueil) → écran plein, étape alcool sur le fond du réveil (rien de l'accueil visible)
+  await page.evaluate(() => { showScreen('home'); wakeupStart(); });
+  await page.waitForSelector('#wakeup-banner .alc-fs .alc-fs-none');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('wakeup-banner')).position), 'fixed');
+  assert.equal(await page.evaluate(() => !!document.getElementById('alc-modal')), false, 'pas de fenêtre par-dessus l\'accueil');
+  await page.click('#wakeup-banner .alc-n:nth-child(6)');
+  await page.click('#wakeup-banner .alc-ty:nth-child(1)'); await page.click('#wakeup-banner .alc-ty:nth-child(2)');
   assert.match(await page.textContent('#alc-go'), /Enregistrer 6\/10 · bière, vin/);
   await page.click('#alc-go');
-  await page.waitForFunction(() => !document.getElementById('alc-modal'));
-  const S = JSON.parse(await db(page)).users.ADMINUID.state;
-  assert.deepEqual(S._alcohol['2026-10-29'].t, ['beer', 'wine']); assert.equal(S._alcohol['2026-10-29'].l, 6);
-  await page.evaluate(() => renderHome());
-  const line = await page.textContent('#home-form-card .alc-home');
-  assert.match(line, /Alcool hier soir : 6\/10 \(bière, vin\)/); assert.match(line, /récup -\d+ pts/); assert.match(line, /hors alcool, ta forme serait ~\d+/);
-  // détail et correction
-  await page.click('#home-form-card .alc-home'); await page.waitForSelector('#alc-ins .alc-today');
-  await page.evaluate(() => document.getElementById('alc-ins').remove());
-  await page.evaluate(() => alcAsk()); await page.click('#alc-modal .alc-none');
-  await page.waitForFunction(() => /Pas d'alcool hier soir/.test(document.getElementById('home-form-card').textContent));
+  await page.waitForFunction(() => /Réveil enregistré/.test(document.getElementById('wakeup-banner').textContent));
+  await page.waitForFunction(() => document.getElementById('wakeup-banner').style.display === 'none', null, { timeout: 6000 });
+  let S = JSON.parse(await db(page)).users.ADMINUID.state;
+  assert.deepEqual(S._alcohol['2026-10-29'].t, ['beer', 'wine']); assert.equal(S._alcohol['2026-10-29'].l, 6); assert.ok(S['_wakeup_2026-10-29']);
+  const line = await page.textContent('#home-form-card');
+  assert.match(line, /Alcool hier soir : 6\/10 \(bière, vin\)/); assert.match(line, /hors alcool, ta forme serait ~\d+/);
+  // bouton temporaire : 3 dernières nuits, une par une, sur le même écran
+  await page.click('#home-form-card .alc-home.back');
+  await page.waitForSelector('#wakeup-banner .alc-fs-step');
+  assert.match(await page.textContent('#wakeup-banner .alc-fs-step'), /Nuit 1 \/ 3/);
+  await page.click('#wakeup-banner .alc-fs-none');                                       // nuit 1 : rien
+  await page.waitForFunction(() => /Nuit 2 \/ 3/.test(document.querySelector('#wakeup-banner .alc-fs-step').textContent));
+  await page.click('#wakeup-banner .alc-n:nth-child(8)'); await page.click('#alc-go');   // nuit 2 : 8/10
+  await page.waitForFunction(() => /Nuit 3 \/ 3/.test(document.querySelector('#wakeup-banner .alc-fs-step').textContent));
+  await page.click('#wakeup-banner .alc-later');                                          // nuit 3 : passée
+  await page.waitForFunction(() => document.getElementById('wakeup-banner').style.display === 'none');
+  S = JSON.parse(await db(page)).users.ADMINUID.state;
+  assert.equal(S._alcohol['2026-10-26'].l, 0); assert.equal(S._alcohol['2026-10-27'].l, 8); assert.equal(S._alcohol['2026-10-28'], undefined);
+  assert.match(await page.textContent('#home-form-card .alc-home.back'), /1 nuit à compléter/);
   // Statistiques › Forme
-  await page.evaluate(() => { showScreen('stats'); statsTab('forme'); }); await page.waitForTimeout(600);
+  await page.evaluate(() => { showScreen('stats'); statsTab('forme'); }); await page.waitForTimeout(500);
   assert.match(await page.textContent('#alc-stats-card'), /Alcool et récupération/);
+  // Préférences › Réinitialiser ce matin : réveil, alcool d'hier soir et brief effacés ; « Je suis réveillé » revient
+  await page.evaluate(() => { window.__noReload = true; location.reload = () => {}; });
+  await page.evaluate(async () => { await wakeResetMorning(); });
+  S = JSON.parse(await db(page)).users.ADMINUID.state;
+  assert.equal(S['_wakeup_2026-10-29'], undefined); assert.equal(S._alcohol['2026-10-29'], undefined); assert.equal(S._alcohol['2026-10-27'].l, 8, 'les autres nuits gardées');
+  assert.equal(await page.evaluate(() => localStorage.getItem('pm_force_wakeup')), '1');
+  await page.evaluate(() => { showScreen('home'); checkWakeupBanner(); });
+  assert.equal(await page.evaluate(() => document.getElementById('wakeup-banner').style.display), 'flex');
+  assert.match(await page.textContent('#wakeup-banner'), /Je suis réveillé|réveill/i);
   assert.deepEqual(errors, []);
   await ctx.close();
-  // ouverture d'un autre matin : réveil déclaré, pas encore de réponse → la question s'affiche
+  // ouverture : réveil déclaré, alcool pas encore renseigné → même écran plein
   const D2 = JSON.parse(savedDb); D2.users.ADMINUID.state['_wakeup_2026-10-29'] = true;
-  const b = await open('2026-10-29T09:30:00+01:00', JSON.stringify(D2));
-  await b.page.waitForSelector('#alc-modal .alc-none', { timeout: 8000 });
-  await b.page.click('#alc-modal .alc-later');
-  assert.match(await b.page.textContent('#home-form-card'), /Alcool hier soir \?/);
-  assert.deepEqual(b.errors, []);
-  await b.ctx.close();
+  const b2 = await open('2026-10-29T09:30:00+01:00', JSON.stringify(D2), { keepWakeup: true });
+  await b2.page.waitForSelector('#wakeup-banner .alc-fs .alc-fs-none', { timeout: 8000 });
+  await b2.page.click('#wakeup-banner .alc-later');
+  await b2.page.waitForFunction(() => document.getElementById('wakeup-banner').style.display === 'none');
+  assert.match(await b2.page.textContent('#home-form-card'), /Alcool hier soir \?/);
+  assert.deepEqual(b2.errors, []);
+  await b2.ctx.close();
 });
 
 test('alcool : une nuit passée non renseignée se complète depuis l\'historique', async () => {
   assert.ok(savedDb, 'dépend du test précédent');
-  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { keepWakeup: true });
   await page.evaluate(() => openAlcoholInsights());
   await page.waitForSelector('#alc-ins .alc-row');
   assert.equal(await page.locator('#alc-ins .alc-row').count() >= 7, true);

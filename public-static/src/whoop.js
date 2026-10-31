@@ -324,7 +324,8 @@ function _setWakeupBtnDone(btn) {
 
 // Bouton "Je suis réveillé" : enregistre le réveil, sync WHOOP, déclenche le brief
 // force=true : bypass le check disabled (utilisé en mode test depuis Compte)
-async function onWakeup(force) {
+async function onWakeup(force, opts) {
+  opts = opts || {};
   const btn = document.getElementById('wakeup-btn');
   if (!force && btn && btn.disabled) return;
   if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.innerHTML = '<span style="font-size:15px;line-height:1;">⏳</span><span style="font-size:12px;font-weight:800;color:#fff;">Enregistrement…</span>'; }
@@ -343,7 +344,7 @@ async function onWakeup(force) {
     _setWakeupBtnDone(btn);
 
     // 3. Alcool hier soir : la question s'affiche tout de suite (le brief attend la réponse quelques minutes côté serveur)
-    if (typeof alcAsk === 'function' && typeof alcEntry === 'function' && !alcEntry(wakeupDate)) alcAsk({ day: wakeupDate });
+    if (!opts.noAsk && typeof alcAsk === 'function' && typeof alcEntry === 'function' && !alcEntry(wakeupDate)) alcAsk({ day: wakeupDate });
 
     // 4. Synchroniser WHOOP
     if (state.whoop_token && state.whoop_token.access_token) {
@@ -387,10 +388,15 @@ function _wakeupAlreadyDoneToday() {
 
 // Appelée par home-render après chaque rendu de l'accueil
 // forceShow=true depuis le bouton test Compte → active aussi le mode force sur onWakeup
+let _wakeupBannerHtml0 = null;
 function checkWakeupBanner(forceShow) {
   if (!isAdmin()) return;
   const banner = document.getElementById('wakeup-banner');
   if (!banner) return;
+  if (_wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
+  // « Réinitialiser ce matin » (Préférences) : la bannière revient au prochain lancement, même hors de la plage 6h-14h
+  try { if (localStorage.getItem('pm_force_wakeup') === '1') { localStorage.removeItem('pm_force_wakeup'); forceShow = true; } } catch (e) {}
+  if (forceShow && banner.style.display !== 'flex') banner.innerHTML = _wakeupBannerHtml0;
   _wakeupBannerIsTest = !!forceShow;
   const shouldShow = forceShow || (_isWakeupWindowNow() && !_wakeupAlreadyDoneToday());
   if (shouldShow) {
@@ -418,10 +424,25 @@ function dismissWakeupBanner() {
   if (banner) banner.style.display = 'none';
 }
 
+// « Je suis réveillé » depuis l'accueil : même parcours plein écran que la bannière
+function wakeupStart(isTest) {
+  const banner = document.getElementById('wakeup-banner');
+  if (!banner || !isAdmin()) { onWakeup(isTest); return; }
+  if (_wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
+  banner.style.display = 'flex';
+  _wakeupBannerIsTest = !!isTest;
+  onWakeupFromBanner();
+}
 async function onWakeupFromBanner() {
   const isTest = _wakeupBannerIsTest;
   _wakeupBannerIsTest = false;
   const banner = document.getElementById('wakeup-banner');
+  const wakeupDate = _getWakeupDate();
+  // réveil enregistré + synchro WHOOP lancés tout de suite ; pendant ce temps, l'étape alcool (même fond, plein écran)
+  const run = onWakeup(isTest, { noAsk: true });
+  if (banner && typeof alcBannerStep === 'function' && (isTest || !(typeof alcEntry === 'function' && alcEntry(wakeupDate)))) {
+    await new Promise(function (res) { alcBannerStep(banner, { day: wakeupDate, done: res }); });
+  }
   if (banner) {
     const whoopLine = isTest ? '' : '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;"><div style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:_pulseDot 1.2s ease-in-out infinite;"></div><span style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;">Sync WHOOP en cours…</span></div>';
     const testLine = isTest ? '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;"><div style="width:8px;height:8px;border-radius:50%;background:#facc15;animation:_pulseDot 1.2s ease-in-out infinite;"></div><span style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;">Mode test — brief + push en route…</span></div>' : '';
@@ -434,9 +455,9 @@ async function onWakeupFromBanner() {
       </div>
       <style>@keyframes _pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}</style>
     `;
-    setTimeout(() => dismissWakeupBanner(), 2800);
+    setTimeout(() => { dismissWakeupBanner(); try { if (typeof renderHome === 'function') renderHome(); } catch (e) {} }, 2800);
   }
-  await onWakeup(isTest);
+  await run;
 }
 
 // Auto-sync WHOOP toutes les 30 min si connecté + au retour en foreground

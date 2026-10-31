@@ -164,19 +164,82 @@ function alcPickType(id){ if(!_alcSel) return; const i = _alcSel.t.indexOf(id); 
 function alcPickNone(){ if(!_alcSel) return; alcSave(_alcSel.day, 0, []); _alcFinish('Noté : pas d\'alcool hier soir', '💧'); }
 function alcPickSave(){ if(!_alcSel || !_alcSel.l) return; alcSave(_alcSel.day, _alcSel.l, _alcSel.t); _alcFinish('Noté : ' + _alcSel.l + '/10' + (_alcSel.t.length ? ' (' + alcTypesText(_alcSel.t) + ')' : ''), '🍷'); }
 function _alcFinish(msg, ico){
-  const done = _alcSel && _alcSel.done; alcClose(true);
-  if(typeof showToast === 'function') showToast(msg, ico);
+  const done = _alcSel && _alcSel.done, fs = _alcSel && _alcSel.fs; alcClose(true);
+  if(typeof showToast === 'function' && !fs) showToast(msg, ico);
   try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); } catch(e) {}
   if(typeof done === 'function') done();
 }
 function alcClose(saved){
   const ov = document.getElementById('alc-modal'); if(ov) ov.remove();
-  if(!saved){ window._alcSkipped = alcDay(); if(_alcSel && typeof _alcSel.done === 'function') _alcSel.done(); }
-  _alcSel = null;
+  const S = _alcSel; _alcSel = null;
+  if(!saved){ if(S && S.day === alcDay()) window._alcSkipped = alcDay(); if(S && typeof S.done === 'function') S.done(); }
 }
 // à l'ouverture de l'app : réveil déclaré mais pas de réponse ce matin → on demande (une fois par ouverture)
 function alcMaybeAsk(){
-  try { if(alcShouldAsk() && window._alcSkipped !== alcDay() && !document.getElementById('alc-modal')) alcAsk(); } catch(e) {}
+  try {
+    if(!alcShouldAsk() || window._alcSkipped === alcDay() || document.getElementById('alc-modal') || document.querySelector('#wakeup-banner .alc-fs')) return;
+    // même écran plein que « Je suis réveillé », puis l'accueil
+    const banner = document.getElementById('wakeup-banner');
+    if(!banner){ alcAsk(); return; }
+    if(typeof _wakeupBannerHtml0 !== 'undefined' && _wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
+    banner.style.display = 'flex';
+    alcBannerStep(banner, { day: alcDay(), done: function(){ banner.style.display = 'none'; try { if(typeof renderHome === 'function') renderHome(); } catch(e) {} } });
+  } catch(e) {}
+}
+
+// ─── Étape plein écran (même fond que « Je suis réveillé ») : au réveil, et pour les 3 dernières nuits ───
+// container = #wakeup-banner (plein écran) ; o = { day, done, step: '1/3', title }
+function alcBannerStep(container, o){
+  o = o || {};
+  _alcCss();
+  const day = o.day || alcDay(), e = alcEntry(day), today = day === alcDay();
+  _alcSel = { day: day, l: e && e.l > 0 ? e.l : null, t: e ? (e.t || []).slice() : [], done: o.done || null, fs: true };
+  const eve = new Date(prAddDays(day, -1) + 'T12:00:00').toLocaleDateString('fr-FR', today ? { weekday: 'long' } : { weekday: 'long', day: 'numeric', month: 'long' });
+  container.innerHTML = '<div class="alc-fs" role="dialog" aria-labelledby="alc-fs-t">'
+    + (o.step ? '<p class="alc-fs-step">' + o.step + '</p>' : '')
+    + '<div class="alc-fs-ico" aria-hidden="true">🌙</div>'
+    + '<p class="alc-fs-t" id="alc-fs-t">' + (o.title || (today ? 'Alcool hier soir ?' : 'Alcool ce soir-là ?')) + '</p>'
+    + '<p class="alc-fs-sub">' + eve.charAt(0).toUpperCase() + eve.slice(1) + ' soir · pour séparer l\'effet de l\'alcool de celui de l\'entraînement sur ta récupération</p>'
+    + '<button type="button" class="alc-fs-none" onclick="alcPickNone()">🚫 Pas d\'alcool ' + (today ? 'hier soir' : 'ce soir-là') + '</button>'
+    + '<p class="alc-or"><span>ou combien</span></p><div class="alc-scale" role="radiogroup" aria-label="Quantité d\'alcool de 1 à 10" id="alc-scale"></div><p class="alc-lv" id="alc-lv"></p>'
+    + '<p class="alc-lab">Quoi ? <span>plusieurs choix possibles</span></p><div class="alc-types" id="alc-types"></div>'
+    + '<button type="button" class="alc-go" id="alc-go" onclick="alcPickSave()" disabled>Enregistrer</button>'
+    + '<button type="button" class="alc-later" onclick="alcClose()">' + (o.laterLabel || 'Plus tard') + '</button></div>';
+  _alcRender();
+}
+// bouton temporaire de l'accueil : alcool des 3 dernières nuits (avant ce matin), à combiner avec leurs nuits WHOOP
+const ALC_BACKFILL_UNTIL = '2026-11-15';
+function alcBackfillDays(){ const d = alcDay(); return [1, 2, 3].map(function(k){ return prAddDays(d, -k); }); }
+function alcBackfillMissing(){ return alcBackfillDays().filter(function(d){ return !alcEntry(d); }); }
+function alcBackfill(){
+  const banner = document.getElementById('wakeup-banner'); if(!banner) return;
+  if(typeof _wakeupBannerHtml0 !== 'undefined' && _wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
+  const days = alcBackfillDays().reverse();                       // la plus ancienne d'abord
+  let i = 0;
+  banner.style.display = 'flex';
+  const next = function(){
+    if(i >= days.length){
+      banner.style.display = 'none';
+      try { if(typeof renderHome === 'function') renderHome(); } catch(e) {}
+      if(typeof showToast === 'function') showToast('Alcool des 3 dernières nuits enregistré', '🍷');
+      return;
+    }
+    const d = days[i++];
+    alcBannerStep(banner, { day: d, step: 'Nuit ' + i + ' / ' + days.length, laterLabel: i < days.length ? 'Passer cette nuit' : 'Terminer', done: next });
+  };
+  next();
+}
+// Compte › Préférences (test) : efface le réveil et les réponses de ce matin ; au prochain lancement, « Je suis réveillé » revient
+async function wakeResetMorning(){
+  const day = alcDay(), up = {};
+  ['_wakeup_' + day, '_brief_matin_' + day, '_brief_fc_notif_' + day, '_brief_trigger', '_brief_pending'].forEach(function(k){ up[k] = null; delete state[k]; });
+  if(state._alcohol && state._alcohol[day]){ const A = Object.assign({}, state._alcohol); delete A[day]; state._alcohol = A; up['_alcohol/' + day] = null; }
+  try { if(typeof dbRef !== 'undefined' && dbRef) await dbRef.update(up); } catch(e) {}
+  if(typeof syncBaseReset === 'function') try { syncBaseReset(JSON.parse(JSON.stringify(state))); } catch(e) {}
+  try { localStorage.setItem('pm_force_wakeup', '1'); localStorage.removeItem('pm_state_' + (typeof currentUserId !== 'undefined' ? currentUserId : '')); } catch(e) {}
+  window._alcSkipped = null; window._whoopLastSync = null;
+  if(typeof showToast === 'function') showToast('Matinée réinitialisée : réouverture…', '🔄');
+  setTimeout(function(){ try { location.reload(); } catch(e) {} }, 700);
 }
 
 // ─── Accueil : ligne sous la forme du jour ───
@@ -185,6 +248,13 @@ function alcHomeLine(F){
     if(typeof _prepView !== 'undefined' && _prepView) return '';
     _alcCss();
     const day = alcDay(), e = alcEntry(day);
+    const miss = prTodayIso() <= ALC_BACKFILL_UNTIL && typeof isAdmin === 'function' && isAdmin() ? alcBackfillMissing() : [];
+    const back = miss.length ? '<button type="button" class="alc-home back" onclick="alcBackfill()"><span>🗓️</span><span><b>Renseigne l\'alcool des 3 dernières nuits</b><small>' + miss.length + ' nuit' + (miss.length > 1 ? 's' : '') + ' à compléter : avec leurs données WHOOP, ton profil se personnalise dès maintenant</small></span><span aria-hidden="true">›</span></button>' : '';
+    return back + _alcHomeMain(F, day, e);
+  } catch(err) { return ''; }
+}
+function _alcHomeMain(F, day, e){
+  try {
     if(!e) return state['_wakeup_' + day] ? '<button type="button" class="alc-home ask" onclick="alcAsk()"><span>🌙</span><span><b>Alcool hier soir ?</b><small>Réponds pour séparer son effet de celui de l\'entraînement</small></span><span aria-hidden="true">›</span></button>' : '';
     if(!(+e.l > 0)) return '<button type="button" class="alc-home zero" onclick="alcAsk()"><span>💧</span><span><b>Pas d\'alcool hier soir</b><small>Ta récupération reflète ton entraînement et ta nuit · modifier</small></span></button>';
     const M = alcModel(), I = alcImpact(day, M); if(!I) return '';
@@ -283,6 +353,17 @@ function _alcCss(){
     + '.alc-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}.alc-ibody{padding:14px 16px 24px;display:flex;flex-direction:column;gap:10px;}'
     + '.alc-today{background:#fff;border:1.5px solid #DDD6FE;border-radius:16px;padding:12px 14px;}.alc-today b{color:#4C1D95;}.alc-today p{margin:4px 0 0;font-size:13px;color:#334155;line-height:1.5;}'
     + '.alc-sec{margin:6px 2px -2px;font-size:11px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.07em;}.alc-list{display:flex;flex-direction:column;background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;}'
+    + '.alc-fs{width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px;color:#fff;max-height:100%;overflow-y:auto;padding:6px 2px;}'
+    + '.alc-fs-step{align-self:center;margin:0;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:rgba(255,255,255,.16);border-radius:20px;padding:4px 12px;}'
+    + '.alc-fs-ico{font-size:52px;line-height:1;text-align:center;}.alc-fs-t{margin:0;text-align:center;font-size:26px;font-weight:900;letter-spacing:-.4px;}.alc-fs-sub{margin:-4px 0 4px;text-align:center;font-size:13.5px;color:rgba(255,255,255,.82);line-height:1.45;}'
+    + '.alc-fs-none{width:100%;padding:20px 16px;border:none;border-radius:18px;background:#fff;color:#047857;font:inherit;font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 12px 26px -14px rgba(0,0,0,.6);}'
+    + '.alc-fs .alc-or{color:rgba(255,255,255,.65);}.alc-fs .alc-or::before,.alc-fs .alc-or::after{background:rgba(255,255,255,.25);}'
+    + '.alc-fs .alc-n{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff;}.alc-fs .alc-n.on{background:hsl(var(--h),85%,55%);border-color:#fff;color:#fff;}'
+    + '.alc-fs .alc-lv{color:rgba(255,255,255,.85);min-height:18px;}.alc-fs .alc-lab{color:rgba(255,255,255,.9);}.alc-fs .alc-lab span{color:rgba(255,255,255,.6);}'
+    + '.alc-fs .alc-ty{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff;}.alc-fs .alc-ty.on{background:#fff;border-color:#fff;color:#4C1D95;}'
+    + '.alc-fs .alc-go{background:#fff;color:#1E3A8A;}.alc-fs .alc-go:disabled{opacity:.35;}.alc-fs .alc-later{color:rgba(255,255,255,.75);}'
+    + '.alc-fs-none:focus-visible,.alc-fs .alc-n:focus-visible,.alc-fs .alc-ty:focus-visible,.alc-fs .alc-go:focus-visible,.alc-fs .alc-later:focus-visible{outline:2px solid #fff;outline-offset:2px;}'
+    + '.alc-home.back{border-color:#C7D2FE;background:#EEF2FF;color:#1E1B4B;}.alc-home.back small{color:#4338CA;}'
     + '.alc-row{display:grid;grid-template-columns:92px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
     + '.alc-row b.y{color:#7C3AED;}.alc-row b.n{color:#15803D;}.alc-row b.q{color:#94A3B8;font-weight:700;}.alc-row small{color:#64748B;font-size:11.5px;}.alc-row em{font-style:normal;font-size:11.5px;color:#475569;font-variant-numeric:tabular-nums;}';
   document.head.appendChild(st);

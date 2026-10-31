@@ -182,6 +182,13 @@ function openPrefsModal(){
             + rowN('Séances non validées','Rappel si des séances ne sont pas cochées','notif_unvalidated');
         })()}
       </div>
+      ${isAdmin()&&typeof wakeResetMorning==='function'?`<div style="margin-top:18px;">
+        <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">🧪 Tests</p>
+        <button type="button" onclick="wakeResetMorning()" style="width:100%;text-align:left;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px 14px;cursor:pointer;font:inherit;">
+          <span style="display:block;font-size:14px;font-weight:700;color:#9A3412;">🔄 Réinitialiser ce matin</span>
+          <span style="display:block;font-size:12px;color:#9A3412;opacity:.8;margin-top:2px;">Efface le réveil, l'alcool d'hier soir et le brief de ce matin, puis rouvre l'app sur « Je suis réveillé »</span>
+        </button>
+      </div>`:''}
     </div>
   </div>`;
   document.body.appendChild(ov);

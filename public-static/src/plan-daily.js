@@ -489,7 +489,7 @@ function prRenderHomeCard(){
       const C = 2 * Math.PI * 26;
       h += '<div class="pd-form wait"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><text x="32" y="38" text-anchor="middle">💤</text></svg>'
         + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>En attente du réveil</b><small>Ta récupération WHOOP de cette nuit arrive au réveil.</small></div>'
-        + (typeof onWakeup === 'function' && typeof isAdmin === 'function' && isAdmin() ? '<button type="button" class="pd-wake" onclick="onWakeup()">☀️ Je suis réveillé</button>' : '') + '</div>';
+        + (typeof onWakeup === 'function' && typeof isAdmin === 'function' && isAdmin() ? '<button type="button" class="pd-wake" onclick="wakeupStart()">☀️ Je suis réveillé</button>' : '') + '</div>';
     } else if(F){ const C = 2 * Math.PI * 26;
       h += '<div class="pd-form ' + F.tone + '"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="37" text-anchor="middle">' + F.score + '</text></svg>'
         + '<div><p class="pd-form-l">Forme du jour</p><b>' + F.label + '</b><small>' + prEsc(F.why.join(' · ')) + '</small></div></div>'; }
