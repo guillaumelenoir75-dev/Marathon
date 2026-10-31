@@ -117,26 +117,56 @@ function bsBedtime(today){
   const tomorrow = prAddDays(today, 1), st = typeof prRealState === 'function' ? prRealState() : state;
   const sess = prSessions(st).filter(function(s){ return !s.done && !s.skip && s.type !== 'rest' && s.x && s.x.sched_date === tomorrow; })
     .sort(function(a, b){ return String(a.x.sched_time || '99').localeCompare(String(b.x.sched_time || '99')); });
-  if(!sess.length) return null;
-  const s = sess[0], tm = String(s.x.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
-  const wake = sm != null && sm < 720 ? sm - 50 : 420, target = (parseFloat(st._sleep_target_h || state._sleep_target_h) || 8) * 60;
+  const s = sess[0] || null, tm = s ? String(s.x.sched_time || '').match(/^(\d{1,2}):(\d{2})/) : null, sm = tm ? +tm[1] * 60 + +tm[2] : null;
+  const wu = String(state._wake_usual || '').match(/^(\d{1,2}):(\d{2})$/), usual = wu ? +wu[1] * 60 + +wu[2] : 420;   // réveil habituel (7h par défaut)
+  const wake = sm != null && sm < 720 ? Math.min(usual, sm - 50) : usual, target = Math.round((parseFloat(st._sleep_target_h || state._sleep_target_h) || 8) * 60);
   const sleeps = ((state.whoop_data || {}).sleeps || []).filter(function(x){ return x && x.date && x.date <= today; }).slice(0, 3);
   const dur = function(t){ const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
   const debt = sleeps.reduce(function(a, x){ const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) : 0); }, 0);
-  const extra = Math.min(60, Math.round(debt / 2 / 5) * 5), key = /tempo|frac|long|race/.test(s.type) ? 15 : 0;
+  const extra = Math.min(60, Math.round(debt / 2 / 5) * 5), key = s && /tempo|frac|long|race/.test(s.type) ? 15 : 0;
   let bed = wake - target - extra - key - 15; if(bed < 0) bed += 1440;
-  const hm = function(m){ return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
-  return { bed: hm(bed), wake: hm(wake), session: s.title, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key };
+  const hm = function(m){ m = ((m % 1440) + 1440) % 1440; return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+  return { bed: hm(bed), wake: hm(wake), session: s ? s.title : null, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key,
+    target: target, sleepMin: target + extra + key, sleep: hm(target + extra + key), nights: sleeps.map(function(x){ return { date: x.date, min: dur(x.duration_hours) }; }) };
 }
-// ligne du soir sur la carte « Forme du jour » (à partir de 18h, la veille d'une séance)
-function bsBedtimeLine(){
+// accueil (toujours visible) et Statistiques › Aujourd'hui : ta nuit de ce soir en une ligne → détail au toucher
+function bsSleepChip(){
   try {
-    if(new Date().getHours() < 18) return '';
+    if(typeof _prepView !== 'undefined' && _prepView) return '';
     const B = bsBedtime(); if(!B) return '';
     _bsCss();
-    const why = B.extraMin ? ' · +' + B.extraMin + ' min de rattrapage (dette ' + Math.floor(B.debtMin / 60) + 'h' + String(B.debtMin % 60).padStart(2, '0') + ')' : B.key ? ' · séance clé' : '';
-    return '<div class="bs-bed"><span>🌙</span><div><b>Couche-toi vers ' + B.bed + '</b><small>Demain ' + (B.time ? B.time + ' · ' : '') + prEsc(B.session) + ' · réveil ' + B.wake + why + '</small></div></div>';
+    return '<button type="button" class="bs-sleep" onclick="openSleepPlan()" aria-label="Ce soir : coucher vers ' + B.bed + ', ' + B.sleep + ' de sommeil"><span>🌙</span><span class="t"><b>Ce soir : couche-toi vers ' + B.bed + '</b><small>' + B.sleep + ' de sommeil · réveil ' + B.wake + (B.session ? ' · demain ' + prEsc(B.session) : '') + '</small></span><i aria-hidden="true">›</i></button>';
   } catch(e) { return ''; }
+}
+function bsBedtimeLine(){ return ''; }   // remplacé par bsSleepChip (toujours visible)
+function openSleepPlan(){
+  _bsCss();
+  const B = bsBedtime(); if(!B) return;
+  const hm = function(m){ return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+  const old = document.getElementById('bs-sleep-m'); if(old) old.remove();
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'bs-sleep-m'; ov.style.zIndex = '510';
+  const rows = [['Besoin', hm(B.target)]];
+  if(B.extraMin) rows.push(['Rattrapage', '+' + B.extraMin + ' min', 'dette ' + hm(B.debtMin) + ' sur 3 nuits']);
+  if(B.key) rows.push(['Séance clé demain', '+15 min']);
+  rows.push(['Endormissement', '+15 min']);
+  const close = 'document.getElementById(\'bs-sleep-m\').remove()';
+  let h = '<div class="modal-box" style="max-height:90vh;"><div class="bs-sl-head"><div><p class="bs-sl-t">🌙 Ta nuit</p><p class="bs-sl-sub">' + (B.session ? 'Demain : ' + (B.time ? B.time + ' · ' : '') + prEsc(B.session) : 'Pas de séance demain') + '</p></div><button class="bs-sl-x" onclick="' + close + '" aria-label="Fermer">×</button></div><div class="modal-scroll-body"><div class="bs-sl-body">'
+    + '<div class="bs-sl-big"><div><small>Coucher</small><b>' + B.bed + '</b></div><div><small>Sommeil</small><b>' + B.sleep + '</b></div><div><small>Réveil</small><b>' + B.wake + '</b></div></div>'
+    + '<table class="bs-sl-tab"><tbody>' + rows.map(function(r){ return '<tr><td>' + r[0] + (r[2] ? '<small>' + r[2] + '</small>' : '') + '</td><td>' + r[1] + '</td></tr>'; }).join('') + '<tr class="tot"><td>Au lit</td><td>' + hm(B.sleepMin + 15) + '</td></tr></tbody></table>';
+  if(B.nights.length) h += '<p class="bs-sl-k">3 dernières nuits</p><div class="bs-sl-n">' + B.nights.map(function(n){ const d = n.min != null ? n.min - B.target : null;
+    return '<div><small>' + new Date(n.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }).replace(/\./g, '') + '</small><b>' + (n.min != null ? hm(n.min) : '—') + '</b>' + (d != null ? '<em class="' + (d >= 0 ? 'ok' : 'low') + '">' + (d >= 0 ? '+' : '−') + hm(Math.abs(d)) + '</em>' : '') + '</div>'; }).join('') + '</div>';
+  h += '<p class="bs-sl-k">Réglages</p><div class="bs-sl-set"><span>Besoin de sommeil</span><button type="button" onclick="bsSleepSet(\'need\',-15)" aria-label="Moins">−</button><b>' + hm(B.target) + '</b><button type="button" onclick="bsSleepSet(\'need\',15)" aria-label="Plus">+</button></div>'
+    + '<div class="bs-sl-set"><span>Réveil habituel</span><button type="button" onclick="bsSleepSet(\'wake\',-15)" aria-label="Plus tôt">−</button><b>' + (state._wake_usual ? state._wake_usual.replace(':', 'h') : '7h00') + '</b><button type="button" onclick="bsSleepSet(\'wake\',15)" aria-label="Plus tard">+</button></div>'
+    + '<p class="bs-sl-note">Séance le matin : réveil 50 min avant</p></div></div></div>';
+  ov.innerHTML = h; ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+function bsSleepSet(k, d){
+  if(k === 'need'){ const v = Math.max(390, Math.min(600, Math.round((parseFloat(state._sleep_target_h) || 8) * 60) + d)); state._sleep_target_h = Math.round(v / 60 * 100) / 100; }
+  else { const m = String(state._wake_usual || '07:00').match(/^(\d{1,2}):(\d{2})$/), v = Math.max(300, Math.min(600, (m ? +m[1] * 60 + +m[2] : 420) + d)); state._wake_usual = String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0'); }
+  if(typeof save === 'function') save();
+  openSleepPlan();
+  try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); if(typeof statsTodayRender === 'function') statsTodayRender(); } catch(e) {}
 }
 
 // ─── Affichage (Statistiques, accueil) ──────────────────────────────────────
@@ -446,7 +476,7 @@ function bsZonesBar(z, zp){
 function _bsCss(){
   if(document.getElementById('bs-css')) return;
   const st = document.createElement('style'); st.id = 'bs-css';
-  st.textContent = '.bs-card.bs-lv-only{padding:0;background:none;border:none;box-shadow:none;}.bs-card{background:#fff;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);border:1px solid #E2E8F0;display:flex;flex-direction:column;gap:10px;}'
+  st.textContent = '.bs-sleep{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:1px solid #C7D2FE;border-radius:14px;background:#EEF2FF;font:inherit;text-align:left;cursor:pointer;color:#1E1B4B;}.bs-sleep>span:first-child{font-size:18px;}.bs-sleep .t{flex:1;min-width:0;display:flex;flex-direction:column;}.bs-sleep b{font-size:13px;font-weight:800;}.bs-sleep small{font-size:11.5px;color:#4338CA;font-weight:600;}.bs-sleep i{font-style:normal;color:#6366F1;font-size:17px;}.bs-sleep:focus-visible{outline:2px solid #4338CA;outline-offset:2px;}.bs-sl-head{flex-shrink:0;padding:16px;border-radius:24px 24px 0 0;color:#fff;background:linear-gradient(160deg,#1E1B4B,#312E81);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}.bs-sl-t{margin:0;font-size:20px;font-weight:900;}.bs-sl-sub{margin:3px 0 0;font-size:12.5px;opacity:.85;}.bs-sl-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}.bs-sl-body{padding:14px 16px 22px;display:flex;flex-direction:column;gap:10px;}.bs-sl-big{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}.bs-sl-big>div{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:12px;background:#EEF2FF;}.bs-sl-big small{font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.05em;}.bs-sl-big b{font-size:22px;font-weight:900;color:#312E81;font-variant-numeric:tabular-nums;}.bs-sl-tab{width:100%;border-collapse:collapse;font-size:13px;}.bs-sl-tab td{padding:6px 2px;border-top:1px solid #EEF2F7;color:#334155;}.bs-sl-tab td small{display:block;font-size:11px;color:#94A3B8;}.bs-sl-tab td:last-child{text-align:right;font-weight:800;color:#312E81;font-variant-numeric:tabular-nums;}.bs-sl-tab tr.tot td{border-top:2px solid #C7D2FE;font-weight:900;color:#0F172A;}.bs-sl-k{margin:4px 0 -2px;font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.06em;}.bs-sl-n{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}.bs-sl-n>div{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1px solid #E2E8F0;border-radius:12px;}.bs-sl-n small{font-size:11px;color:#64748B;}.bs-sl-n b{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;}.bs-sl-n em{font-style:normal;font-size:11px;font-weight:800;}.bs-sl-n em.ok{color:#16A34A;}.bs-sl-n em.low{color:#DC2626;}.bs-sl-set{display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;}.bs-sl-set span{flex:1;}.bs-sl-set button{width:34px;height:34px;border-radius:10px;border:1px solid #C7D2FE;background:#fff;font:inherit;font-size:18px;font-weight:800;color:#312E81;cursor:pointer;}.bs-sl-set b{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;}.bs-sl-note{margin:0;font-size:11px;color:#94A3B8;}.bs-card.bs-lv-only{padding:0;background:none;border:none;box-shadow:none;}.bs-card{background:#fff;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);border:1px solid #E2E8F0;display:flex;flex-direction:column;gap:10px;}'
     + '.bs-t{font-size:15px;font-weight:800;color:#0F172A;margin:0;}.bs-row{border-radius:12px;background:#F8FAFC;padding:10px 12px;}.bs-row.watch{background:#FFFBEB;}.bs-row.alert{background:#FEF2F2;}'
     + '.bs-h{font-size:13px;font-weight:800;color:#1E293B;margin:0 0 4px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.bs-h span{font-weight:600;color:#64748B;font-size:12px;}'
     + '.bs-row ul{margin:2px 0 0;padding-left:18px;font-size:12.5px;color:#334155;line-height:1.45;}.bs-n{font-size:11.5px;color:#64748B;margin:4px 0 0;line-height:1.4;}.bs-a{font-size:12px;font-weight:700;color:#9A3412;margin:6px 0 0;}'

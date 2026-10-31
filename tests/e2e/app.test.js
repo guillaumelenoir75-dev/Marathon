@@ -690,6 +690,17 @@ test('Statistiques › Forme : « Aujourd\'hui » en tête (forme du jour, à re
   assert.ok(await page.locator('#st-today .st-td-m > *').count() <= 4, '4 messages au plus');
   assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('whoop-synthetic-score')).display), 'none', 'ancien score WHOOP masqué');
   assert.match(await page.textContent('#alc-stats-card .alc-line'), /Alcool et récupération/);
+  // ta nuit : toujours visible (Statistiques et accueil), détail au toucher
+  assert.match(await page.textContent('#st-today .bs-sleep'), /Ce soir : couche-toi vers \d+h\d{2}/);
+  await page.evaluate(() => showScreen('home'));
+  await page.waitForSelector('#home-form-card .bs-sleep');
+  await page.click('#home-form-card .bs-sleep');
+  await page.waitForSelector('#bs-sleep-m .bs-sl-big');
+  assert.match(await page.textContent('#bs-sleep-m'), /Coucher.*Sommeil.*Réveil/s);
+  if (process.env.SHOT) await page.locator('#bs-sleep-m .modal-box').screenshot({ path: process.env.SHOT + '-sleep.png' });
+  await page.locator('#bs-sleep-m .bs-sl-set').first().locator('button').last().click();
+  assert.equal(await page.evaluate(() => state._sleep_target_h), 8.25, 'besoin réglable (+15 min)');
+  await page.evaluate(() => { document.getElementById('bs-sleep-m').remove(); showScreen('stats'); });
   if (process.env.SHOT) { await page.setViewportSize({ width: 390, height: 1800 }); await page.locator('.st-pane[data-st="forme"]').screenshot({ path: process.env.SHOT }); }
   assert.deepEqual(errors, []);
   await ctx.close();

@@ -501,7 +501,7 @@ function prRenderHomeCard(){
     h += '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
       + '<button type="button" class="pd-bdg-btn" onclick="openBadges()">' + on.slice(-4).map(function(b){ return '<i>' + b.ico + '</i>'; }).join('') + '<span>' + on.length + '/' + B.list.length + ' badges ›</span></button></div>';
     if(typeof bsHomeLine === 'function') h += bsHomeLine();                    // foulée qui se dégrade (body-signals.js)
-    if(typeof bsBedtimeLine === 'function') h += bsBedtimeLine();              // le soir : heure de coucher conseillée
+    if(typeof bsSleepChip === 'function') h += bsSleepChip();                  // ta nuit de ce soir, toujours visible (body-signals.js)
     if(typeof apCardHtml === 'function') h += apCardHtml();                    // ajustements de la nuit (pilote automatique)
     if(typeof raHomeLine === 'function') h += raHomeLine();                    // analyse de la course (10 jours après)
     if(typeof wsHomeButton === 'function') h += wsHomeButton();                // ta semaine en image (week-share.js)

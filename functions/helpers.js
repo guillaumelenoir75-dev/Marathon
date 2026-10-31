@@ -248,7 +248,8 @@ function bedtimePlan(state, today) {
   if (!sess.length) return null;
   sess.sort((a, b) => String(a.sched_time || '99').localeCompare(String(b.sched_time || '99')));
   const s = sess[0], tm = String(s.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
-  const wake = sm != null && sm < 12 * 60 ? sm - 50 : 7 * 60;
+  const wu = String(state._wake_usual || '').match(/^(\d{1,2}):(\d{2})$/), usual = wu ? +wu[1] * 60 + +wu[2] : 7 * 60;   // réveil habituel (app : Ta nuit › Réglages)
+  const wake = sm != null && sm < 12 * 60 ? Math.min(usual, sm - 50) : usual;
   const target = (parseFloat(state._sleep_target_h) || 8) * 60;
   const sleeps = ((state.whoop_data || {}).sleeps || []).filter((x) => x && x.date && x.date <= today).slice(0, 3);
   const dur = (t) => { const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };

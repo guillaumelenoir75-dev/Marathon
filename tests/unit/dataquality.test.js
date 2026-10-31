@@ -70,5 +70,15 @@ test('heure de coucher : réveil 50 min avant la séance du matin, 8 h + moitié
   const B = JSON.parse(JSON.stringify(app.bsBedtime('2026-10-29')));
   // réveil 5h40 ; dette 90 + 60 = 150 min → +75 plafonné à 60 ; séance clé +15 ; 15 min d'endormissement → 5h40 − 8h − 1h30 = 20h10
   assert.equal(B.wake, '5h40'); assert.equal(B.extraMin, 60); assert.equal(B.key, true); assert.equal(B.bed, '20h10');
-  assert.equal(app.bsBedtime('2026-10-30'), null, 'rien de prévu le lendemain');
+  const R = JSON.parse(JSON.stringify(app.bsBedtime('2026-10-30')));
+  assert.equal(R.session, null, 'rien de prévu le lendemain : conseil quand même'); assert.equal(R.wake, '7h00'); assert.equal(R.key, false);
+  assert.equal(B.sleep, '9h15', '8 h + 60 min de rattrapage + 15 min séance clé');
+});
+
+test('ta nuit : réveil habituel et besoin de sommeil réglables, toujours un conseil', () => {
+  const s = { plan_start_date: '2026-10-26', _plan_engine: 'generated', _sleep_target_h: 7.5, _wake_usual: '06:30' };
+  const app = loadApp({ now: NOW, state: s });
+  const B = JSON.parse(JSON.stringify(app.bsBedtime('2026-10-29')));
+  // pas de séance demain, pas de dette connue : 6h30 − 7h30 − 15 min = 22h45
+  assert.equal(B.wake, '6h30'); assert.equal(B.sleep, '7h30'); assert.equal(B.bed, '22h45');
 });

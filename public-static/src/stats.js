@@ -325,7 +325,8 @@ function statsTodayRender(){
     const WS = wellnessState(), F = typeof prFormScore === 'function' ? prFormScore() : null;
     if(WS.kind !== 'ok' || !F){
       const t = { loading: ['⏳', 'Mise à jour…', 'Récupération de ta nuit WHOOP'], waiting: ['💤', 'En attente du réveil', 'La forme du jour arrive au réveil'], failed: ['⚠️', WS.auth ? 'WHOOP déconnecté' : 'Échec de la récupération WHOOP', 'Rien n\'est affiché plutôt que les chiffres d\'hier'], pending: ['⏳', 'Nuit pas encore disponible', 'Réessaie dans quelques minutes'] }[WS.kind];
-      el.innerHTML = t ? '<div class="st-today"><div class="st-td-h"><div class="st-td-sc wait">' + t[0] + '</div><div><p class="st-td-l">Aujourd\'hui</p><b>' + t[1] + '</b><small>' + t[2] + '</small></div></div></div>' : '';
+      const sl = typeof bsSleepChip === 'function' ? bsSleepChip() : '';
+      el.innerHTML = t ? '<div class="st-today"><div class="st-td-h"><div class="st-td-sc wait">' + t[0] + '</div><div><p class="st-td-l">Aujourd\'hui</p><b>' + t[1] + '</b><small>' + t[2] + '</small></div></div>' + sl + '</div>' : (sl ? '<div class="st-today">' + sl + '</div>' : '');
       return;
     }
     const AS = typeof alcFormSplit === 'function' ? alcFormSplit(F) : null, AL = AS && typeof alcFormLabel === 'function' ? alcFormLabel(F, AS) : null;
@@ -358,6 +359,7 @@ function statsTodayRender(){
     h += '<div class="st-td-t">' + tiles.map(function(t){
       const sub = w[t.k] ? '<em title="sans alcool">→ ' + w[t.k].replace(' bpm', '') + '</em>' : t.sub ? '<em>' + t.sub + '</em>' : '';
       return '<' + (admin ? 'button type="button" onclick="whoopChartOpen(\'' + t.m + '\')"' : 'div') + ' class="' + t.c + '"><small>' + t.lab + '</small><b>' + t.v + '</b>' + sub + '</' + (admin ? 'button' : 'div') + '>'; }).join('') + '</div>';
+    if(typeof bsSleepChip === 'function') h += bsSleepChip();                  // ta nuit de ce soir
     if(admin && (wd.recoveries || []).length) h += '<button type="button" class="st-td-more" onclick="whoopChartOpen(_whoopChartMode)">Évolution 7 jours ›</button>';
     el.innerHTML = h + '</div>';
   } catch(e) { console.warn('[aujourd\'hui] ', e); el.innerHTML = ''; }
