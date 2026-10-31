@@ -121,7 +121,7 @@ test('brief du matin : l\'alcool d\'hier soir est donné au Coach avec son effet
   let F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
   await F.helpers.generateMorningBriefContent('k', F.db, st, 1, d);
   const u = F.calls.ai[0].user;
-  assert.match(u, /Alcool hier soir : 7\/10 \(vin, alcool fort\)\. Effet estimé sur cette nuit \(modèle personnel \(9 soirées\)\) : récupération -21 pts, VFC -17 %, FC repos \+5\.6 bpm/);
+  assert.match(u, /Alcool hier soir : 7\/10 \(vin, alcool fort\)\. Effet estimé sur cette nuit \(modèle personnel \(9 nuits avec alcool\)\) : récupération -21 pts, VFC -17 %, FC repos \+5\.6 bpm/);
   assert.match(u, /RÈGLE ALCOOL : cette part de la baisse .* vient de l'alcool, PAS de l'entraînement/);
   st._alcohol = {};
   F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
