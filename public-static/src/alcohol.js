@@ -85,9 +85,10 @@ function alcModel(today){
   };
   let baseN = pick({}), base = _alcBase(baseN);
   // soirées probables non renseignées (et leur lendemain) : retirées de la base, puis base recalculée
-  const susp = N.filter(function(n){ return _alcSuspect(n, base); }), excl = {};
+  const ign = state._alcohol_ign || {}, susp = N.filter(function(n){ return !ign[n.date] && _alcSuspect(n, base); }), excl = {};
+  Object.keys(ign).forEach(function(d){ excl[d] = 1; });
   susp.forEach(function(n){ excl[n.date] = 1; excl[prAddDays(n.date, 1)] = 1; });
-  if(susp.length){ const b2 = pick(excl); if(b2.length >= 3){ baseN = b2; base = _alcBase(baseN); } }
+  if(Object.keys(excl).length){ const b2 = pick(excl); if(b2.length >= 3){ baseN = b2; base = _alcBase(baseN); } }
   const delta = { rec: function(n){ return base.rec != null ? n.rec - base.rec : null; }, hrv: function(n){ return n.hrv != null && base.hrv ? (n.hrv / base.hrv - 1) * 100 : null; },
     rhr: function(n){ return n.rhr != null && base.rhr != null ? n.rhr - base.rhr : null; }, sleep: function(n){ return n.sleep != null && base.sleep != null ? n.sleep - base.sleep : null; } };
   const dosed = N.filter(function(n){ return n.l != null && (n.l > 0 || n.prev > 0) && n.load < ALC_HEAVY_LOAD; });
@@ -202,10 +203,34 @@ function alcFormSplit(F, day, M){
 // libellé de la forme quand l'alcool explique la baisse : la récupération est réelle (à respecter), mais ce n'est pas de la fatigue d'entraînement
 function alcFormLabel(F, S){
   if(!F || !S || S.lost < 8) return null;
-  if(S.without >= 67 && F.score < 67) return 'Forme basse à cause de l\'alcool — sans lui : bonne forme';
-  if(S.without >= 34 && F.score < 34) return 'Forme très basse, surtout à cause de l\'alcool';
+  if(S.without >= 67 && F.score < 67) return 'Basse à cause de l\'alcool';
+  if(S.without >= 34 && F.score < 34) return 'Très basse, surtout à cause de l\'alcool';
   return null;
 }
+// pastille compacte dans la carte « Forme du jour » (une ligne) : alcool de la nuit, points perdus, forme sans alcool
+function alcFormChip(F, S){
+  try {
+    if(typeof _prepView !== 'undefined' && _prepView) return '';
+    _alcCss();
+    const day = alcDay(), e = alcEntry(day);
+    if(!e) return state['_wakeup_' + day] ? '<button type="button" class="alc-chip ask" onclick="alcAsk()"><span>🌙</span><span class="t">Alcool hier soir ? <u>Répondre</u></span><i aria-hidden="true">›</i></button>' : '';
+    const ico = function(t){ return (t || []).map(function(id){ const x = ALC_TYPES.find(function(y){ return y.id === id; }); return x ? x.ico : ''; }).join(''); };
+    if(S && S.lost >= 3){
+      const I = S.I, what = (I.l ? (ico(I.t) || '🍷') + ' ' + I.l + '/10' : '🍷 Pas hier soir') + (I.prev ? ' <small>+ ' + I.prev + '/10 avant-hier</small>' : '');
+      return '<button type="button" class="alc-chip on" onclick="openAlcoholInsights()" aria-label="Alcool : ' + S.lost + ' points de forme perdus, environ ' + S.without + ' sans alcool"><span class="t">' + what + '</span><span class="n"><b>−' + S.lost + '</b> · ~' + S.without + ' sans</span><i aria-hidden="true">›</i></button>';
+    }
+    if(!(+e.l > 0)) return '<button type="button" class="alc-chip zero" onclick="openAlcoholInsights()"><span>💧</span><span class="t">Pas d\'alcool hier soir</span><i aria-hidden="true">›</i></button>';
+    return '<button type="button" class="alc-chip on" onclick="openAlcoholInsights()"><span class="t">' + (ico(e.t) || '🍷') + ' ' + e.l + '/10 hier soir</span><i aria-hidden="true">›</i></button>';
+  } catch(err) { return ''; }
+}
+// soirée signalée « à vérifier » que tu as écartée (autre cause : maladie, nuit courte…) : plus proposée, hors de ta base
+function alcIgnore(day){
+  const G = Object.assign({}, state._alcohol_ign || {}); G[day] = new Date().toISOString().slice(0, 10); state._alcohol_ign = G;
+  alcStoreModel(true); save();
+  if(typeof prRenderHomeCard === 'function') prRenderHomeCard();
+  if(typeof showToast === 'function') showToast('Noté : autre cause, écartée du calcul', '👍');
+}
+
 // gabarit (state._body) → alcool dans le sang : verres, grammes, pic d'alcoolémie, temps d'élimination (Widmark, coefficient de Seidl)
 function alcBody(){ const b = state._body; return b && +b.kg > 30 && +b.cm > 120 ? { kg: +b.kg, cm: +b.cm, sex: b.sex === 'f' ? 'f' : 'm' } : null; }
 function alcBlood(l, body){
@@ -345,7 +370,7 @@ async function wakeResetMorning(){
 }
 
 // ─── Accueil : ligne sous la forme du jour ───
-function alcHomeLine(F){
+function alcHomeLine(F, chipShown){
   try {
     if(typeof _prepView !== 'undefined' && _prepView) return '';
     _alcCss();
@@ -353,9 +378,9 @@ function alcHomeLine(F){
     const miss = prTodayIso() <= ALC_BACKFILL_UNTIL && typeof isAdmin === 'function' && isAdmin() ? alcBackfillMissing() : [];
     const back = miss.length ? '<button type="button" class="alc-home back" onclick="alcBackfill()"><span>🗓️</span><span><b>Renseigne l\'alcool des 3 dernières nuits</b><small>' + miss.length + ' nuit' + (miss.length > 1 ? 's' : '') + ' à compléter : avec leurs données WHOOP, ton profil se personnalise dès maintenant</small></span><span aria-hidden="true">›</span></button>' : '';
     let sus = '';
-    if(e){ const M = alcModel(), S = (M.suspects || []).filter(function(x){ return prDays(x.date, prTodayIso()) <= 14 && x.date !== day; })[0];
-      if(S) sus = '<button type="button" class="alc-home back" onclick="alcAsk({day:\'' + S.date + '\'})"><span>🔎</span><span><b>' + _alcDayTxt(prAddDays(S.date, -1)) + ' soir : alcool ?</b><small>FC repos +' + S.rhrUp + ' bpm, VFC ' + S.hrvPct + ' %, récupération ' + S.rec + ' % au réveil, sans charge d\'entraînement : le profil d\'un lendemain de soirée. Ta réponse affine ta base</small></span><span aria-hidden="true">›</span></button>'; }
-    return back + _alcHomeMain(F, day, e) + sus;
+    if(e){ const M = alcModel(), S = (M.suspects || []).filter(function(x){ return prDays(x.date, prTodayIso()) <= 10 && x.date !== day; })[0];
+      if(S) sus = '<div class="alc-sus"><span>🔎</span><span class="t"><b>' + _alcEve(S.date) + '</b> : réveil type lendemain d\'alcool (FC +' + S.rhrUp + ', VFC ' + S.hrvPct + ' %)</span><button type="button" onclick="alcAsk({day:\'' + S.date + '\'})">Alcool</button><button type="button" class="no" onclick="alcIgnore(\'' + S.date + '\')">Non</button></div>'; }
+    return back + (chipShown ? '' : _alcHomeMain(F, day, e)) + sus;
   } catch(err) { return ''; }
 }
 function _alcHomeMain(F, day, e){
@@ -440,7 +465,7 @@ function openAlcoholInsights(){
     h += '</div>';
   }
   // nuits à vérifier : profil d'un lendemain de soirée sans saisie
-  if(M.suspects && M.suspects.length) h += '<p class="alc-sec">Soirées à vérifier</p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + x.date + '\'})"><span>' + _alcEve(x.date) + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>récup ' + x.rec + ' %</em></button>'; }).join('') + '</div><p class="alc-card-n">Le réveil qui a suivi ces soirées ressemble à un lendemain d\'alcool (FC repos haute, VFC basse, sans grosse séance). Elles sont écartées de ta base en attendant ta réponse.</p>';
+  if(M.suspects && M.suspects.length) h += '<p class="alc-sec">Soirées à vérifier</p><div class="alc-list">' + M.suspects.map(function(x){ return '<button type="button" class="alc-row sus" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + x.date + '\'})"><span>' + _alcEve(x.date) + '</span><b class="q">Alcool ?</b><small>FC +' + x.rhrUp + ' · VFC ' + x.hrvPct + ' %</small><em>récup ' + x.rec + ' %</em></button>'; }).join('') + '</div><p class="alc-card-n">Le réveil qui a suivi ces soirées ressemble à un lendemain d\'alcool (FC repos haute, VFC basse, sans grosse séance). Elles sont écartées de ta base en attendant ta réponse ; autre cause (maladie, nuit très courte…) : « Non » sur l\'accueil.</p>';
   // le modèle colle-t-il à tes nuits ? mesuré vs attendu
   if(M.check && M.check.length){
     const err = Math.round(_alcMean(M.check.map(function(c){ return Math.abs(c.mesure - c.attendu); })));
@@ -543,6 +568,11 @@ function _alcCss(){
     + '.alc-fs .alc-ty{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff;}.alc-fs .alc-ty.on{background:#fff;border-color:#fff;color:#4C1D95;}'
     + '.alc-fs .alc-go{background:#fff;color:#1E3A8A;}.alc-fs .alc-go:disabled{opacity:.35;}.alc-fs .alc-later{color:rgba(255,255,255,.75);}'
     + '.alc-fs-none:focus-visible,.alc-fs .alc-n:focus-visible,.alc-fs .alc-ty:focus-visible,.alc-fs .alc-go:focus-visible,.alc-fs .alc-later:focus-visible{outline:2px solid #fff;outline-offset:2px;}'
+    + '.alc-chip{display:flex;align-items:center;gap:6px;width:100%;margin-top:7px;padding:6px 9px;border:1px solid #DDD6FE;border-radius:10px;background:#F5F3FF;font:inherit;font-size:12px;line-height:1.3;color:#4C1D95;text-align:left;cursor:pointer;}'
+    + '.alc-chip .t{flex:1;min-width:0;font-weight:700;}.alc-chip .t small{display:inline;margin:0;font-weight:600;color:#7C3AED;font-size:11px;}.alc-chip .n{white-space:nowrap;font-variant-numeric:tabular-nums;color:#5B21B6;}.alc-chip .n b{display:inline;font-size:13px;color:#6D28D9;font-weight:900;}.alc-chip i{font-style:normal;color:#7C3AED;font-size:15px;line-height:1;}'
+    + '.alc-chip.zero{border-color:#BBF7D0;background:#F0FDF4;color:#166534;}.alc-chip.zero i{color:#16A34A;}.alc-chip.ask{border-style:dashed;}.alc-chip.ask u{text-decoration:none;color:#6D28D9;}.alc-chip:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'
+    + '.alc-sus{display:flex;align-items:center;gap:7px;padding:6px 8px 6px 10px;border:1px dashed #C7D2FE;border-radius:12px;background:#F8FAFF;font-size:11.5px;color:#3730A3;line-height:1.3;}.alc-sus .t{flex:1;min-width:0;}'
+    + '.alc-sus button{flex-shrink:0;padding:5px 9px;border:none;border-radius:8px;background:#4338CA;color:#fff;font:inherit;font-size:11.5px;font-weight:800;cursor:pointer;}.alc-sus button.no{background:#E0E7FF;color:#3730A3;}'
     + '.alc-home.back{border-color:#C7D2FE;background:#EEF2FF;color:#1E1B4B;}.alc-home.back small{color:#4338CA;}'
     + '.alc-row{display:grid;grid-template-columns:104px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
     + '.alc-split{display:flex;flex-direction:column;gap:7px;width:100%;padding:11px 13px;border:1.5px solid #DDD6FE;border-radius:16px;background:#FAF8FF;font:inherit;text-align:left;cursor:pointer;color:#2E1065;}.alc-split:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'

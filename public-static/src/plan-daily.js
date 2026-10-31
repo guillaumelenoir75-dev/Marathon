@@ -473,6 +473,7 @@ function prRenderHomeCard(){
     // disponible », jamais la valeur de la veille (stats.js wellnessState)
     const WS = typeof wellnessState === 'function' ? wellnessState() : { kind: 'ok' };
     const retry = '<button type="button" class="pd-wake" onclick="whoopRetry()">↻ Réessayer</button>';
+    let chip = '';                                                              // pastille alcool dans la carte (alcohol.js alcFormChip)
     if(WS.kind === 'failed' || WS.kind === 'pending'){
       h += '<div class="pd-form fail ' + WS.kind + '" role="status"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><text x="32" y="39" text-anchor="middle">' + (WS.kind === 'failed' ? '⚠️' : '⏳') + '</text></svg>'
         + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>' + (WS.kind === 'failed' ? (WS.auth ? 'WHOOP déconnecté' : 'Échec de la récupération WHOOP') : 'Nuit pas encore disponible') + '</b>'
@@ -495,8 +496,8 @@ function prRenderHomeCard(){
       const AS = typeof alcFormSplit === 'function' ? alcFormSplit(F) : null, AL = AS && typeof alcFormLabel === 'function' ? alcFormLabel(F, AS) : null;
       const ghost = AS && AS.lost >= 3 ? '<circle cx="32" cy="32" r="26" class="g-alc" stroke-dasharray="0 ' + (C * F.score / 100).toFixed(1) + ' ' + (C * AS.lost / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '';
       h += '<div class="pd-form ' + F.tone + '"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/>' + ghost + '<circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="37" text-anchor="middle">' + F.score + '</text></svg>'
-        + '<div><p class="pd-form-l">Forme du jour</p><b>' + (AL || F.label) + '</b><small>' + prEsc(F.why.join(' · ')) + (AS && AS.lost >= 3 ? ' · sans alcool ~' + AS.without : '') + '</small></div></div>'; }
-    if(typeof alcHomeLine === 'function') h += alcHomeLine(WS.kind === 'ok' ? F : null);   // alcool hier soir : effet sur ta nuit, ou question du matin
+        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>' + (AL || F.label) + '</b><small>' + prEsc(F.why.join(' · ')) + '</small>' + (chip = typeof alcFormChip === 'function' ? alcFormChip(F, AS) : '') + '</div></div>'; }
+    if(typeof alcHomeLine === 'function') h += alcHomeLine(WS.kind === 'ok' ? F : null, !!chip);   // alcool hier soir : effet sur ta nuit, ou question du matin
     h += '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
       + '<button type="button" class="pd-bdg-btn" onclick="openBadges()">' + on.slice(-4).map(function(b){ return '<i>' + b.ico + '</i>'; }).join('') + '<span>' + on.length + '/' + B.list.length + ' badges ›</span></button></div>';
     if(typeof bsHomeLine === 'function') h += bsHomeLine();                    // foulée qui se dégrade (body-signals.js)

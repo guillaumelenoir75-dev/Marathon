@@ -596,7 +596,10 @@ test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec
   let S = JSON.parse(await db(page)).users.ADMINUID.state;
   assert.deepEqual(S._alcohol['2026-10-29'].t, ['beer', 'wine']); assert.equal(S._alcohol['2026-10-29'].l, 6); assert.ok(S['_wakeup_2026-10-29']);
   const line = await page.textContent('#home-form-card');
-  assert.match(line, /Alcool hier soir : 6\/10 \(bière, vin\)/); assert.match(line, /Forme mesurée\s*\d+/); assert.match(line, /Alcool\s*−\d+/); assert.match(line, /Sans alcool\s*~\d+/);
+  // pastille compacte dans la carte « Forme du jour » : niveau, points perdus, forme sans alcool — pas de grande carte à part
+  const chip = await page.textContent('#home-form-card .pd-form .alc-chip');
+  assert.match(chip, /🍺🍷 6\/10/); assert.match(chip, /−\d+ · ~\d+ sans/);
+  assert.equal(await page.locator('#home-form-card .alc-split').count(), 0);
   assert.ok(await page.locator('#home-form-card .g-alc').count(), 'arc « sans alcool » sur la jauge');
   // bouton temporaire : 3 dernières nuits, une par une, sur le même écran
   await page.click('#home-form-card .alc-home.back');

@@ -106,3 +106,13 @@ test('forme du jour décomposée : mesurée, perdue à cause de l\'alcool, sans 
   assert.match(app.alcFormLabel(F, S), /à cause de l'alcool/);
   const B = J(app.alcBlood(8)); assert.equal(B.drinks, 9); assert.ok(B.peak > 1 && B.peak < 2, 'pic ' + B.peak); assert.ok(B.hours >= 9 && B.hours <= 14, 'élimination ' + B.hours);
 });
+
+test('soirée à vérifier écartée (« Non », autre cause) : plus proposée et hors de la base', () => {
+  const N = [['10-31', 3, 35, 57, 63], ['10-30', 8, 26, 52, 65], ['10-29', 0, 56, 74, 52], ['10-28', 7, 38, 65, 57], ['10-27', null, 48, 72, 50], ['10-26', null, 60, 79, 48], ['10-25', null, 21, 55, 63],
+    ['10-24', null, 77, 88, 53], ['10-23', null, 88, 91, 49], ['10-22', null, 90, 91, 49], ['10-21', null, 77, 88, 55], ['10-20', null, 74, 83, 45], ['10-19', null, 56, 81, 51], ['10-18', null, 90, 89, 49]];
+  const st = { _plan_engine: 'generated', plan_start_date: '2026-10-26', whoop_data: { recoveries: N.map((n) => ({ date: '2026-' + n[0], score: n[2], hrv: n[3], rhr: n[4] })) }, _alcohol: {}, _alcohol_ign: { '2026-10-25': '2026-10-31' } };
+  N.forEach((n) => { if (n[1] != null) st._alcohol['2026-' + n[0]] = { l: n[1], t: [] }; });
+  const app = loadApp({ now: '2026-10-31T09:00:00+01:00', state: st });
+  const M = J(app.alcModel('2026-10-31'));
+  assert.equal(M.suspects.length, 0); assert.ok(M.base.rec >= 76, 'nuit écartée hors base : ' + M.base.rec);
+});
