@@ -217,7 +217,7 @@ function alcFormChip(F, S){
     if(!e) return state['_wakeup_' + day] ? '<button type="button" class="alc-chip ask" onclick="alcAsk()"><span>🌙</span><span class="t">Alcool hier soir ? <u>Répondre</u></span><i aria-hidden="true">›</i></button>' : '';
     const ico = function(t){ return (t || []).map(function(id){ const x = ALC_TYPES.find(function(y){ return y.id === id; }); return x ? x.ico : ''; }).join(''); };
     if(S && S.lost >= 3){
-      const I = S.I, what = (I.l ? I.l + '/10 hier ' + ico(I.t) : 'rien hier') + (I.prev ? ' · ' + I.prev + '/10 avant-hier' : '');
+      const I = S.I, what = I.l ? I.l + '/10 hier soir ' + ico(I.t) : 'Pas d\'alcool hier soir';   // accueil : seulement la soirée d'hier
       return '<button type="button" class="alc-chip on two" onclick="openAlcoholInsights()" aria-label="Alcool : ' + S.lost + ' points de forme perdus, environ ' + S.without + ' sans alcool"><span class="ic">🍷</span><span class="t"><span class="l1"><b>−' + S.lost + '</b> pts · <b>~' + S.without + '</b> sans alcool</span><span class="l2">' + what + '</span></span><i aria-hidden="true">›</i></button>';
     }
     if(!(+e.l > 0)) return '<button type="button" class="alc-chip zero" onclick="openAlcoholInsights()"><span>💧</span><span class="t">Pas d\'alcool hier soir</span><i aria-hidden="true">›</i></button>';
