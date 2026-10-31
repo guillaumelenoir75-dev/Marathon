@@ -84,3 +84,13 @@ test('repos après un marathon (≤ 26 j) : pas de baisse ; même pause sans cou
   assert.ok(!a.why.some((w) => w.k === 'gap'), 'repos après le marathon');
   assert.ok(b.why.some((w) => w.k === 'gap'), 'même pause sans course : coupure');
 });
+
+test('séances de qualité faites le lendemain d\'une soirée arrosée : ni repère de niveau ni « séance manquée »', () => {
+  const T = (d) => ({ type: 'tempo', date: add(d), d: "Tempo 3×8 min|3 km EF · 3 × 8 min à 4'35 — 4'40 /km", perf: { blocsAllure: ['4:55', '4:56', '4:57'] } });
+  const base = fit(st(20, easy(-40, 14)));
+  const s = st(20, easy(-40, 14).concat([T(-30), T(-18), T(-6)]));
+  s._alcohol = {}; [-30, -18, -6].forEach((d) => { s._alcohol[add(d)] = { l: 7, t: ['wine'] }; });
+  const f = fit(s);
+  assert.equal(f.vdot, base.vdot, 'pas de baisse : allures du lendemain d\'alcool écartées');
+  assert.ok(!f.why.some((w) => w.k === 'miss'));
+});

@@ -24,7 +24,7 @@ function fmMinutes(s, efPace){
 // TRIMP de Banister : minutes × FCr × 0,64 × e^(1,92 FCr) (FCr = part de la FC de réserve) ; sans FC : minutes × facteur du type
 function fmTrimp(s, H, efPace){
   const min = fmMinutes(s, efPace); if(!(min > 0)) return 0;
-  const hr = parseInt((s.perf || {}).hr);
+  const hr = parseInt((s.perf || {}).hr) - (s.date && typeof alcHrCorrection === 'function' ? alcHrCorrection(s.date) : 0);   // lendemain d'alcool : FC ramenée à « sans alcool »
   if(hr >= 90 && H.max > H.rest + 20){ const r = Math.max(0, Math.min(1, (hr - H.rest) / (H.max - H.rest))); return min * r * 0.64 * Math.exp(1.92 * r); }
   return min * (FM_TYPE_K[s.type] || 1.2);
 }

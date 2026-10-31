@@ -807,6 +807,7 @@ async function generateFullBriefFromNotif(memos) {
       fc_repos_moyenne_7j: fcCtxNotif.stats_7j ? fcCtxNotif.stats_7j.moyenne : null,
       fc_repos_alerte: fcCtxNotif.alerte_fatigue || null,
       whoop_recovery_score: _whoopDataNotif ? (_whoopDataNotif.latest_recovery_score ?? null) : null,
+      alcool: typeof alcCoachContext === 'function' ? alcCoachContext() : null,   // soirée d'hier : effet sur la récup, récup « sans alcool »
       meteo: meteoCtx ? {
         temperature: meteoCtx.temperature,
         conditions: meteoCtx.conditions,
@@ -1207,6 +1208,7 @@ async function checkMorningBrief(memos, force) {
       return Math.floor(t/60)+"'"+(Math.round(t%60)+'').padStart(2,'0')+'/km';
     })(),
     heure_lecture: now.getHours(),
+    alcool: typeof alcCoachContext === 'function' ? alcCoachContext() : null,   // soirée d'hier : effet sur la récup, récup « sans alcool »
   };
   try {
     // ── Afficher le loader "Le Coach écrit" immédiatement ──

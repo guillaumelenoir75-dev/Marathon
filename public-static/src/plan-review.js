@@ -140,6 +140,7 @@ function prFitness(st, opt){
   const sess = doneAll, recent = [];
   sess.forEach(function(s){
     if(!s.done || !s.date || prDays(s.date, today) > 56 || prDays(s.date, today) < 0) return;
+    if(st === state && typeof alcRunAffected === 'function' && alcRunAffected(s.date)) return;   // lendemain d'alcool : allure / FC faussées, ni repère ni « séance manquée »
     const it = prIntent(s); if(it !== 'T' && it !== 'I' && it !== 'race') return;
     const bl = (s.perf.blocsAllure || []).map(function(b){ const m = String(b).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean);
     if(bl.length < 2) return;
@@ -203,7 +204,7 @@ function prFitness(st, opt){
     }
   }
   // endurance : allure à FC égale des footings, 3 dernières semaines vs 6-12 semaines avant (±0,5 au plus)
-  const efE = function(a, b){ const l = doneAll.filter(function(s){ const d = prDays(s.date, today); return (s.type === 'ef' || s.type === 'long') && d >= a && d <= b && s.perf && s.perf.pace && parseInt(s.perf.hr) >= 100; })
+  const efE = function(a, b){ const l = doneAll.filter(function(s){ const d = prDays(s.date, today); return (s.type === 'ef' || s.type === 'long') && d >= a && d <= b && s.perf && s.perf.pace && parseInt(s.perf.hr) >= 100 && !(st === state && typeof alcRunAffected === 'function' && alcRunAffected(s.date)); })
     .map(function(s){ const p = prPaceSec(s.perf.pace), wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(s.perf.meteo).pct : 0; return p ? 60000 / p * (1 + wx / 100) / parseInt(s.perf.hr) : null; }).filter(Boolean);
     return l.length >= 3 ? prMean(l) : null; };
   const e1 = efE(0, 21), e0 = efE(42, 84);

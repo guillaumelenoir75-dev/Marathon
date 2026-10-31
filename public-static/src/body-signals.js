@@ -27,6 +27,7 @@ function hrZonesEstimate(today){
   log.forEach(function(x){
     const s = x.s, st = (s.perf || {}).strava || {}, hr = parseInt(s.perf.hr);
     if(prDays(x.date, today) > 90) return;
+    if(typeof alcRunAffected === 'function' && alcRunAffected(x.date)) return;   // lendemain d'alcool : FC gonflée, FC seuil faussée
     if(s.type === 'race' && hr){
       if(s.km >= 9.5 && s.km <= 10.6) thr.push({ v: hr, date: x.date, src: s.title + ' (10 km)' });             // 10 km couru à fond ≈ FC seuil
       else if(s.km >= 20.5 && s.km <= 21.7) thr.push({ v: hr / 0.97, date: x.date, src: s.title + ' (semi)' });  // semi ≈ 97 % de la FC seuil

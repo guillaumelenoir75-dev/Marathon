@@ -116,3 +116,16 @@ test('soirée à vérifier écartée (« Non », autre cause) : plus proposée e
   const M = J(app.alcModel('2026-10-31'));
   assert.equal(M.suspects.length, 0); assert.ok(M.base.rec >= 76, 'nuit écartée hors base : ' + M.base.rec);
 });
+
+test('lendemain d\'alcool : séance écartée dès une dose ≥ 4 (reste d\'avant-hier compris) ; FC corrigée pour la charge d\'entraînement', () => {
+  const st = { _plan_engine: 'generated', plan_start_date: '2026-10-26', _alcohol: { '2026-10-27': { l: 8, t: [] }, '2026-10-28': { l: 0, t: [] }, '2026-10-29': { l: 6, t: [] }, '2026-10-30': { l: 0, t: [] } },
+    _alcohol_model: { rhr: 1.5, carry: 0.5 } };
+  const app = loadApp({ now: '2026-10-31T09:00:00+01:00', state: st });
+  assert.equal(app.alcRunAffected('2026-10-27'), true, '8/10 hier soir');
+  assert.equal(app.alcRunAffected('2026-10-28'), true, 'rien hier mais 8/10 avant-hier : dose 4');
+  assert.equal(app.alcRunAffected('2026-10-30'), false, 'rien hier, 6/10 avant-hier : dose 3');
+  assert.equal(app.alcHrCorrection('2026-10-27'), 12, '8 × 1,5 bpm');
+  assert.equal(app.alcHrCorrection('2026-10-26'), 0);
+  const H = { rest: 50, max: 190 }, s = (date) => ({ date: date, type: 'ef', km: 10, perf: { hr: 150, pace: '5:40', time: '56:40' } });
+  assert.ok(app.fmTrimp(s('2026-10-27'), H) < app.fmTrimp(s('2026-10-26'), H), 'même séance : moins de charge comptée le lendemain d\'alcool');
+});

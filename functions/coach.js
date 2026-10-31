@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -743,8 +743,9 @@ exports.quickBrief = onRequest(
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     try {
       const {fc_repos_today, seances_today, jour, bodyhit, renfo_today} = req.body || {};
-      let sit = null;
-      try { const _db = admin.database(); sit = await buildTrainingSituation(_db, (await _db.ref(ADMIN_STATE).once('value')).val() || {}); } catch(e) {}
+      let sit = null, alcLine = null;
+      try { const _db = admin.database(), _st = (await _db.ref(ADMIN_STATE).once('value')).val() || {}; sit = await buildTrainingSituation(_db, _st);
+        alcLine = alcoholBriefText(_st, new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })); } catch(e) {}
 
       const fcLine = fc_repos_today
         ? `FC repos ce matin : ${fc_repos_today} bpm.`
@@ -764,6 +765,7 @@ exports.quickBrief = onRequest(
         `Programme : ${seancesLine}.`,
         bodyhitLine,
         renfoLine,
+        alcLine,
         'Génère un brief matinal en 3-4 phrases. Mentionne tous les éléments fournis : séance run, bodyhit/renfo si présents, FC repos si fournie.',
         'Parle UNIQUEMENT de ce qui est fourni ci-dessus.',
         fcLine ? 'Commente brièvement la FC repos.' : 'Ne mentionne PAS la FC repos.',
@@ -874,7 +876,7 @@ RÈGLES ABSOLUES :
       const heureLecture = context.heure_lecture !== undefined ? context.heure_lecture : null;
       const userMsg = `${context.jour} ${context.date}${heureLecture !== null ? ' — heure de lecture : '+heureLecture+'h' : ''}
 
-${recovLine ? recovLine+'\n' : ''}${fcLine}
+${recovLine ? recovLine+'\n' : ''}${fcLine}${context.alcool && context.alcool.cette_nuit && typeof context.alcool.cette_nuit === 'object' ? '\nALCOOL (soirée d\'hier, effet estimé par le modèle personnel) : ' + JSON.stringify(context.alcool.cette_nuit) + '\nRÈGLE ALCOOL : la baisse de récupération / VFC / FC repos due à l\'alcool n\'est PAS de la fatigue d\'entraînement. Donne la récupération mesurée ET celle sans alcool (recup_sans_alcool_estimee) dans le bloc récupération, en une phrase, sans morale ; ne propose pas d\'alléger les jours suivants pour ça.' : ''}
 ${meteoLine}
 Séances du jour : ${seancesStr}
 Allure EF cible : ${context.allure_ef||'non renseignée'}

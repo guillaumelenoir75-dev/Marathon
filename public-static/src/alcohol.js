@@ -26,8 +26,15 @@ const ALC_LEVELS = ['Aucun', '1 verre', '2 verres', '3 verres', '3-4 verres', 'S
 function alcDay(){ return typeof wellnessDay === 'function' ? wellnessDay() : prTodayIso(); }
 function alcEntry(day){ const A = state._alcohol; return A && A[day || alcDay()] ? A[day || alcDay()] : null; }
 function alcLevel(day){ const e = alcEntry(day); return e ? +e.l || 0 : null; }
-// séance faite le lendemain d'une soirée arrosée (même jour que la saisie du matin) : FC faussée
-function alcRunAffected(date){ const l = alcLevel(date); return l != null && l >= ALC_AFFECTS_RUN; }
+// séance faite le lendemain d'une soirée arrosée (même jour que la saisie du matin) : FC faussée — dose de la nuit
+// (alcool d'hier soir + reste de celui d'avant-hier), donc aussi le surlendemain d'une très grosse soirée
+function alcRunAffected(date){ const d = alcDose(date, state._alcohol_model && state._alcohol_model.carry != null ? state._alcohol_model.carry : ALC_CARRY); return d != null && d >= ALC_AFFECTS_RUN; }
+// FC d'une séance faite sous l'effet de l'alcool, ramenée à ce qu'elle aurait été sans (effet sur la FC repos du modèle stocké)
+// — sert à la charge d'entraînement (fitness-model.js) : pas de fatigue « fantôme » gonflée par l'alcool
+function alcHrCorrection(date){
+  const m = state._alcohol_model || {}, d = alcDose(date, m.carry != null ? m.carry : ALC_CARRY);
+  return d > 0 ? Math.round((m.rhr != null ? m.rhr : ALC_PRIOR.rhr) * d * 10) / 10 : 0;
+}
 function alcTypesText(t){ return (t || []).map(function(id){ const x = ALC_TYPES.find(function(y){ return y.id === id; }); return x ? x.t.toLowerCase() : null; }).filter(Boolean).join(', '); }
 
 function alcSave(day, l, types){
