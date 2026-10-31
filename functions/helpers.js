@@ -264,7 +264,15 @@ function bedtimePlan(state, today) {
 function isRestDay(ctx, sit) {
   return !(ctx && ctx.seanceRunAujourdhui) && !((ctx && ctx.seancesAujourdHui) || []).length && !((sit && sit.todaySessions) || []).length;
 }
-function restBriefSystem(state) {
+function restBriefSystem(state, sit) {
+  // rubrique de la prochaine séance : « DEMAIN » seulement si elle est demain, sinon son jour (« MARDI »)
+  const N = sit && sit.nextSession;
+  const jour = N && !N.tomorrow ? new Date(N.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', timeZone: 'UTC' }).toUpperCase() : '';
+  const block3 = !N
+    ? `3. 📅 PROCHAINE SÉANCE — aucune séance n'est prévue pour l'instant : le dire en une phrase et inviter à la planifier (ou en parler au Coach dans « Mon plan »).`
+    : N.tomorrow
+    ? `3. 📅 DEMAIN — la séance de demain (fournie dans « Prochaine séance ») : type, distance et heure en **gras**, avec sa consigne d'allure en **gras** si elle est fournie, en une phrase. Puis une phrase pour s'y préparer dès ce soir : l'heure de coucher conseillée en **gras** si elle est fournie, et, pour une sortie longue ou une séance de qualité, un repas du soir adapté. Si des ajustements de la nuit concernent cette séance, dire ce qui a changé et pourquoi en une phrase.`
+    : `3. 📅 PROCHAINE SÉANCE : ${jour} — titre EXACT de la rubrique : « 📅 PROCHAINE SÉANCE · ${jour.charAt(0) + jour.slice(1).toLowerCase()} ». Elle n'est PAS demain : ne jamais écrire « demain » pour la désigner. Donne son jour, son type, sa distance et son heure en **gras**, avec sa consigne d'allure en **gras** si elle est fournie, en une phrase ; puis une phrase sur la façon de profiter des jours sans course d'ici là (récupérer, dormir, rester actif en douceur). Pas d'heure de coucher ni de repas de veille aujourd'hui. Si des ajustements de la nuit concernent cette séance, le dire en une phrase.`;
   return `Tu es le coach running de Guillaume. Aujourd'hui est un JOUR DE REPOS : aucune séance ni renfo de prévu. Rédige un brief du matin court, centré sur sa récupération et sur la séance qui vient. Tu le tutoies ("tu", jamais "Guillaume" dans le texte).
 
 PROFIL :
@@ -277,7 +285,7 @@ STRUCTURE OBLIGATOIRE — dans cet ordre, rien d'autre :
 
 2. 🧘 TA JOURNÉE DE REPOS — 2 phrases au plus : ce que le repos doit t'apporter aujourd'hui d'après ta récupération (repos complet si la récupération est basse ; sinon marche, mobilité ou étirements doux sont possibles) et un conseil concret pour la journée (hydratation, alimentation ou sommeil ce soir). Si une période post-course est indiquée dans la situation, la rappeler en quelques mots ici.
 
-3. 📅 DEMAIN — la prochaine séance prévue (fournie dans « Prochaine séance ») : jour, type, distance et heure en **gras**, avec sa consigne d'allure en **gras** si elle est fournie, en une phrase. Puis une phrase pour s'y préparer dès ce soir : l'heure de coucher conseillée en **gras** si elle est fournie, et, pour une sortie longue ou une séance de qualité, un repas du soir adapté. Si la prochaine séance n'est pas demain, le dire (ex. « Prochaine séance jeudi ») et préparer quand même. Si des ajustements de la nuit concernent cette séance, dire ce qui a changé et pourquoi en une phrase.
+${block3}
 
 INTERDIT : bloc « prêt pour aujourd'hui », séance du jour, consignes d'allure ou météo pour aujourd'hui, gels, eau pendant l'effort, organisation du plan ou de la semaine, récapitulatif des séances passées.
 RÈGLES : zéro #, données chiffrées en **gras**, ton de coach direct et chaleureux, texte fluide sans tirets en début de ligne.`;
@@ -286,7 +294,7 @@ function restBriefData(state, todayStr, sit) {
   const N = sit && sit.nextSession;
   const fmt = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
   const lines = ['AUJOURD\'HUI : jour de repos (aucune séance prévue).'];
-  if (N) lines.push(`Prochaine séance : ${N.tomorrow ? 'DEMAIN ' : ''}${fmt(N.date)} — ${N.title} ${N.km} km${N.time ? ' à ' + N.time : ''}${N.consigne ? ' — consigne : ' + N.consigne : ''}`);
+  if (N) lines.push(`Prochaine séance : ${N.tomorrow ? 'DEMAIN ' : 'PAS DEMAIN — '}${fmt(N.date)} — ${N.title} ${N.km} km${N.time ? ' à ' + N.time : ''}${N.consigne ? ' — consigne : ' + N.consigne : ''}`);
   else lines.push('Prochaine séance : aucune de prévue pour l\'instant.');
   const B = bedtimePlan(state, todayStr);
   if (B) lines.push(`Heure de coucher conseillée ce soir : ${B.bed} (réveil ${B.wake}${B.extraMin ? ', +' + B.extraMin + ' min pour rattraper la dette de sommeil' : ''})`);
@@ -300,7 +308,8 @@ function restBriefData(state, todayStr, sit) {
 // ligne de la notification d'un jour de repos
 function restPushPart(sit) {
   const N = sit && sit.nextSession; if (!N) return 'Jour de repos';
-  return `Repos · ${N.tomorrow ? 'demain' : 'prochaine'} : ${N.title}${N.km ? ' ' + N.km + ' km' : ''}${N.time ? ' à ' + N.time : ''}`;
+  const when = N.tomorrow ? 'demain' : new Date(N.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', timeZone: 'UTC' });
+  return `Repos · ${when} : ${N.title}${N.km ? ' ' + N.km + ' km' : ''}${N.time ? ' à ' + N.time : ''}`;
 }
 
 // Ajustements de la nuit du pilote automatique (autopilot.js / autopilot.js serveur) pour le brief du matin
@@ -695,7 +704,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   }
 
   const restDay = isRestDay(ctx, sit);
-  const system = restDay ? restBriefSystem(state) : `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+  const system = restDay ? restBriefSystem(state, sit) : `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}

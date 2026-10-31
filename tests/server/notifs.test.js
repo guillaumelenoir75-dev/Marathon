@@ -79,6 +79,18 @@ test('brief du matin un jour de repos : nuit, récupération et séance de demai
   assert.match(call.user, /Heure de coucher conseillée ce soir : \d+h\d\d/);
   assert.doesNotMatch(call.user, /Gels :|Eau :|Allure AJUSTÉE/);
   assert.match(r.pushBody, /Repos · demain : Sortie longue 14 km à 09:00/);
+  // prochaine séance dans 3 jours (samedi → mardi) : pas de rubrique « demain », son jour à la place
+  const st3 = mk(false); st3.extra_w3_s1 = JSON.stringify({ type: 'tempo', km: 10, d: "Tempo|3 × 8 min à 4'35", sched_date: add(3), sched_time: '12:00' });
+  F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  r = await F.helpers.generateMorningBriefContent('k', F.db, st3, 3, d);
+  call = F.calls.ai[0];
+  const jour = new Date(add(3) + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', timeZone: 'UTC' });
+  assert.doesNotMatch(call.system, /📅 DEMAIN/);
+  assert.match(call.system, new RegExp('📅 PROCHAINE SÉANCE · ' + jour.charAt(0).toUpperCase() + jour.slice(1)));
+  assert.match(call.system, /ne jamais écrire « demain »/);
+  assert.match(call.user, /Prochaine séance : PAS DEMAIN — /);
+  assert.doesNotMatch(call.user, /Heure de coucher conseillée/, 'pas de coucher « veille de séance » 3 jours avant');
+  assert.match(r.pushBody, new RegExp('Repos · ' + jour + ' : Tempo 10 km à 12:00'));
   // jour de séance : brief habituel
   F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
   r = await F.helpers.generateMorningBriefContent('k', F.db, mk(true), 3, d);
