@@ -290,18 +290,14 @@
 
   <!-- ═══ Onglet Forme : niveau, forme / fatigue, récupération ═══ -->
   <div class="st-pane" data-st="forme">
-  <div id="bs-level-card"></div>
-  <div id="fm-card"></div>
-  <div id="alc-stats-card"></div>
+  <!-- par priorité : aujourd'hui (forme du jour, à retenir, 4 mesures) → niveau → forme / fatigue → alcool -->
+  <div id="st-today"></div>
 
-  <!-- 1. WHOOP KPIs + chart (admin uniquement) -->
-  <div id="whoop-stats-section" style="display:none;margin-bottom:24px;">
-    <p style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">WHOOP — Récupération & Bien-être</p>
+  <!-- WHOOP : graphique 7 jours (admin), ouvert depuis « Aujourd'hui » ; anciens score et tuiles masqués -->
+  <div id="whoop-stats-section" style="display:none;margin-bottom:14px;">
     <div id="whoop-synthetic-score" style="display:none;"></div>
-    <div id="whoop-kpi-row" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;align-items:stretch;"></div>
-
-    <!-- Graphique unifié 5 onglets : ouvert en touchant le score ou une tuile -->
-    <button type="button" id="whoop-chart-link" class="st-more" onclick="whoopChartOpen(_whoopChartMode)">Voir l'évolution sur 7 jours ›</button>
+    <div id="whoop-kpi-row" style="display:none;"></div>
+    <button type="button" id="whoop-chart-link" class="st-more" style="display:none;" onclick="whoopChartOpen(_whoopChartMode)">Voir l'évolution sur 7 jours ›</button>
     <div id="whoop-chart-box" style="display:none;background:var(--bg);border-radius:14px;border:1px solid var(--border);padding:14px;margin-top:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;">
         <p style="font-size:12px;font-weight:700;color:var(--text);margin:0;white-space:nowrap;">Évolution 7 jours</p>
@@ -323,6 +319,9 @@
     </div>
   </div>
 
+  <div id="bs-level-card"></div>
+  <div id="fm-card"></div>
+  <div id="alc-stats-card"></div>
   </div>
 
   <!-- ═══ Onglet Entraînement : volume, foulée, zones, données ═══ -->
@@ -718,6 +717,19 @@
 .st-tabs button{border:none;background:transparent;border-radius:10px;padding:9px 4px;font:inherit;font-size:13px;font-weight:700;color:#475569;cursor:pointer;}
 .st-tabs button.on{background:#fff;color:#1B4FD8;box-shadow:0 1px 3px rgba(15,23,42,.12);}
 .st-tabs button:focus-visible,.ph-row:focus-visible,.st-more:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+.st-today{background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column;gap:12px;}
+.st-td-h{display:flex;align-items:center;gap:14px;}.st-td-h>div{min-width:0;display:flex;flex-direction:column;gap:2px;}.st-td-h b{font-size:16px;font-weight:850;color:#0F172A;line-height:1.25;}.st-td-h small{font-size:12px;font-weight:600;color:#64748B;}.st-td-h small .up{color:#16A34A;font-weight:800;}.st-td-h small .dn{color:#DC2626;font-weight:800;}.st-td-h small.alc{color:#7C3AED;font-weight:800;}
+.st-td-l{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748B;}
+.st-td-g{width:74px;height:74px;flex-shrink:0;transform:rotate(-90deg);}.st-td-g circle{fill:none;stroke-width:7;}.st-td-g .g-bg{stroke:#EEF2F7;}.st-td-g .g-alc{stroke:#C4B5FD;}.st-td-g .g-fg{stroke-linecap:round;}.st-td-g.ok .g-fg{stroke:#16A34A;}.st-td-g.mid .g-fg{stroke:#EAB308;}.st-td-g.low .g-fg{stroke:#DC2626;}
+.st-td-g text{transform:rotate(90deg);transform-origin:32px 32px;font-size:19px;font-weight:900;fill:#0F172A;font-family:inherit;}
+.st-td-sc.wait{width:74px;height:74px;border-radius:50%;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.st-td-m{display:flex;flex-direction:column;gap:6px;}.st-td-m>*{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:none;border-radius:11px;background:#F8FAFC;font:inherit;font-size:13px;font-weight:700;color:#334155;text-align:left;}
+.st-td-m button{cursor:pointer;}.st-td-m>* span:nth-child(2){flex:1;min-width:0;}.st-td-m i{font-style:normal;color:#94A3B8;font-size:16px;}
+.st-td-m .bad{background:#FEF2F2;color:#991B1B;}.st-td-m .good{background:#F0FDF4;color:#166534;}.st-td-m .alc{background:#F5F3FF;color:#5B21B6;}.st-td-m .act{background:#EEF2FF;color:#3730A3;}
+.st-td-t{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}.st-td-t>*{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 2px;border:1px solid #E2E8F0;border-radius:12px;background:#fff;font:inherit;cursor:pointer;}
+.st-td-t small{font-size:10px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.04em;}.st-td-t b{font-size:16px;font-weight:900;color:#0F172A;font-variant-numeric:tabular-nums;}.st-td-t .ok b{color:#16A34A;}.st-td-t .mid b{color:#CA8A04;}.st-td-t .low b{color:#DC2626;}.st-td-t em{font-style:normal;font-size:10px;font-weight:700;color:#7C3AED;text-align:center;}
+.st-td-more{align-self:center;border:none;background:none;color:#1B4FD8;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;padding:2px 6px;}
+.st-td-m>*:focus-visible,.st-td-t>*:focus-visible,.st-td-more:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
 .st-more{display:block;width:100%;margin-top:10px;padding:10px;border:1px dashed #CBD5E1;border-radius:12px;background:transparent;color:#1B4FD8;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
 .ph-row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:none;text-align:left;font:inherit;cursor:pointer;color:var(--text);}
 .ph-b{flex-shrink:0;min-width:40px;text-align:center;font-size:10px;font-weight:800;padding:3px 7px;border-radius:8px;}

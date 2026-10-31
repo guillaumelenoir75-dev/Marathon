@@ -439,8 +439,9 @@ function _alcProfileHtml(M){
 function alcStatsHtml(){
   const M = alcModel(); if(!M.n && !Object.keys(state._alcohol || {}).length) return '';
   _alcCss();
-  return '<div class="alc-card"><p class="alc-card-t">🍷 Alcool et récupération <span>' + (M.personal ? 'Perso · ' + M.nAlc + ' soirée' + (M.nAlc > 1 ? 's' : '') : 'Estimation générale') + '</span></p>'
-    + _alcProfileHtml(M) + '<button type="button" class="alc-card-b" onclick="openAlcoholInsights()">Détail ›</button></div>';
+  // Statistiques › Forme : une ligne (le détail s'ouvre au toucher)
+  const n30 = Object.keys(state._alcohol || {}).filter(function(d){ const k = prDays(d, prTodayIso()); return k >= 0 && k <= 30 && state._alcohol[d].l > 0; }).length;
+  return '<button type="button" class="alc-line" onclick="openAlcoholInsights()"><span class="ic">🍷</span><span class="t"><b>Alcool et récupération</b><small>−' + _alcN(-M.coef.rec) + ' pts récup par point' + (M.base.rec != null ? ' · base ' + M.base.rec + ' %' : '') + ' · 30 j : ' + n30 + ' soirée' + (n30 > 1 ? 's' : '') + '</small></span><i aria-hidden="true">›</i></button>';
 }
 function openAlcoholInsights(){
   _alcCss();
@@ -605,6 +606,7 @@ function _alcCss(){
     + '.alc-chart{width:100%;height:auto;display:block;}.alc-chart rect.a{fill:#7C3AED;}.alc-chart rect.c{fill:#C4B5FD;}.alc-chart rect.n{fill:#CBD5E1;}.alc-chart rect.s{fill:#FCD34D;}.alc-chart line.b{stroke:#16A34A;stroke-width:1.5;stroke-dasharray:4 3;}.alc-chart text{font-size:9px;fill:#94A3B8;font-family:inherit;}'
     + '.alc-leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:10.5px;color:#64748B;}.alc-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px;}.alc-leg i.a{background:#7C3AED;}.alc-leg i.c{background:#C4B5FD;}.alc-leg i.n{background:#CBD5E1;}.alc-leg i.b{height:0;border-top:2px dashed #16A34A;border-radius:0;vertical-align:3px;}'
     + '.alc-row.ev small.g{color:#16A34A;}.alc-row.ev small.o{color:#CA8A04;}.alc-row.ev small.r{color:#DC2626;}'
+    + '.alc-line{display:flex;align-items:center;gap:10px;width:100%;margin-bottom:14px;padding:12px 14px;border:1px solid #E2E8F0;border-radius:16px;background:#fff;font:inherit;text-align:left;cursor:pointer;box-shadow:0 1px 3px rgba(15,23,42,.06);}.alc-line .ic{font-size:20px;}.alc-line .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}.alc-line b{font-size:14px;font-weight:800;color:#0F172A;}.alc-line small{font-size:12px;font-weight:600;color:#6D28D9;}.alc-line i{font-style:normal;color:#7C3AED;font-size:18px;}.alc-line:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'
     + '.alc-home.back{border-color:#C7D2FE;background:#EEF2FF;color:#1E1B4B;}.alc-home.back small{color:#4338CA;}'
     + '.alc-row{display:grid;grid-template-columns:104px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
     + '.alc-split{display:flex;flex-direction:column;gap:7px;width:100%;padding:11px 13px;border:1.5px solid #DDD6FE;border-radius:16px;background:#FAF8FF;font:inherit;text-align:left;cursor:pointer;color:#2E1065;}.alc-split:focus-visible{outline:2px solid #7C3AED;outline-offset:2px;}'

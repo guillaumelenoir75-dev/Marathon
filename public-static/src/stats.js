@@ -6,6 +6,7 @@ function renderStats(){
   if(typeof bsRenderStatsCard === 'function') bsRenderStatsCard();         // signaux du corps : foulée, zones FC (body-signals.js)
   if(typeof fmRenderStatsCard === 'function') fmRenderStatsCard();         // forme / fatigue, jour J, affûtage (fitness-model.js)
   { const _ac = document.getElementById('alc-stats-card'); if(_ac) _ac.innerHTML = typeof alcStatsHtml === 'function' ? alcStatsHtml() : ''; }   // alcool et récupération (alcohol.js)
+  statsTodayRender();                                                        // Forme › « Aujourd'hui » : forme du jour, à retenir, 4 mesures
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
@@ -285,6 +286,79 @@ function _perfLine(row, id){
 function togglePerfRow(id){
   const el=document.getElementById('prd_'+id), a=document.getElementById('arr-prd_'+id); if(!el) return;
   const open=el.style.display==='none'; el.style.display=open?'block':'none'; if(a) a.style.transform=open?'rotate(180deg)':'';
+}
+
+// ── Forme › « Aujourd'hui » : la forme du jour en tête, les messages importants d'un coup, 4 mesures clés ──
+// même score que l'accueil (prFormScore) ; « sans alcool » d'après alcohol.js ; messages classés par priorité (4 au plus)
+function statsTodayMsgs(F, AS){
+  const today = prTodayIso(), out = [];
+  const add = function(p, ico, t, tone, act){ out.push({ p: p, ico: ico, t: t, tone: tone || '', act: act || '' }); };
+  try { const I = typeof prInternal === 'function' ? prInternal(today) : null, pain = I && I.pains[0];
+    if(pain && pain.level >= 2) add(1, '🩹', 'Douleur ' + String(pain.zone || '').toLowerCase() + ' : séances allégées', 'bad'); } catch(e) {}
+  try { const W = typeof prWhoop === 'function' ? prWhoop(today) : null;
+    if(W && W.tired) add(2, '😴', 'Fatigue sur 3 nuits (moy. ' + W.avg3 + ' %) : récup d\'abord', 'bad');
+    else if(W && W.fresh) add(7, '🟢', (W.alc ? 'Hors alcool, bien récupéré' : 'Bien récupéré') + ' sur 3 nuits', 'good'); } catch(e) {}
+  if(AS && AS.lost >= 3) add(3, '🍷', '−' + AS.lost + ' pts dus à l\'alcool · plan non allégé', 'alc', 'openAlcoholInsights()');
+  try {
+    const B = typeof fmSeries === 'function' ? fmSeries(today) : null;
+    if(B){ const t = B.last.ctl - B.last.atl, lab = fmTsbLabel(t), sg = (t >= 0 ? '+' : '−') + Math.abs(Math.round(t));
+      if(t <= -25) add(2, '🔴', 'Charge très élevée (fraîcheur ' + sg + ')', 'bad', 'statsGo(\'fm-card\')');
+      else add(6, t >= 5 ? '🔋' : '⚖️', 'Fraîcheur ' + sg + ' · ' + lab[0], t >= 5 ? 'good' : '', 'statsGo(\'fm-card\')'); }
+    const R = typeof prepRace === 'function' ? prepRace() : null, dR = R && R.date ? prDays(today, R.date) : null;
+    if(dR != null && dR >= 0 && dR <= 60){
+      let tap = false; try { if(B && dR <= 35){ const T = fmTaperBest(B, today); tap = !!(T && T.gain >= 0.5 && B.last.ctl >= 20); } } catch(e) {}
+      add(tap ? 4 : 8, '🏁', (R.name || 'Course') + ' J-' + dR + (tap ? ' · affûtage à appliquer' : ''), tap ? 'act' : '', 'statsGo(\'fm-card\')');
+    }
+  } catch(e) {}
+  try { const L = typeof bsLevelNow === 'function' ? bsLevelNow(today) : null;
+    if(L && L.delta != null && Math.abs(L.delta) >= 0.3) add(5, L.delta > 0 ? '📈' : '📉', 'Niveau ' + String(L.v).replace('.', ',') + ' (' + (L.delta > 0 ? '+' : '−') + String(Math.abs(L.delta)).replace('.', ',') + ' en 7 j)', L.delta > 0 ? 'good' : '', 'statsGo(\'bs-level-card\')'); } catch(e) {}
+  try { const S = typeof prStride === 'function' ? prStride(today) : null;
+    if(S && S.level >= 2) add(3, '🦶', 'Foulée qui se dégrade : pas de hausse de volume', 'bad', 'statsTab(\'train\')'); } catch(e) {}
+  return out.sort(function(a, b){ return a.p - b.p; }).slice(0, 4);
+}
+function statsGo(id){ const el = document.getElementById(id); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function statsTodayRender(){
+  const el = document.getElementById('st-today'); if(!el) return;
+  try {
+    const WS = wellnessState(), F = typeof prFormScore === 'function' ? prFormScore() : null;
+    if(WS.kind !== 'ok' || !F){
+      const t = { loading: ['⏳', 'Mise à jour…', 'Récupération de ta nuit WHOOP'], waiting: ['💤', 'En attente du réveil', 'La forme du jour arrive au réveil'], failed: ['⚠️', WS.auth ? 'WHOOP déconnecté' : 'Échec de la récupération WHOOP', 'Rien n\'est affiché plutôt que les chiffres d\'hier'], pending: ['⏳', 'Nuit pas encore disponible', 'Réessaie dans quelques minutes'] }[WS.kind];
+      el.innerHTML = t ? '<div class="st-today"><div class="st-td-h"><div class="st-td-sc wait">' + t[0] + '</div><div><p class="st-td-l">Aujourd\'hui</p><b>' + t[1] + '</b><small>' + t[2] + '</small></div></div></div>' : '';
+      return;
+    }
+    const AS = typeof alcFormSplit === 'function' ? alcFormSplit(F) : null, AL = AS && typeof alcFormLabel === 'function' ? alcFormLabel(F, AS) : null;
+    const tone = F.score >= 67 ? 'ok' : F.score >= 34 ? 'mid' : 'low';
+    // tendance : score de la veille et moyenne des 7 jours précédents (même calcul, nuit par nuit)
+    const wd = state.whoop_data || {}, day = wellnessDay(), sc = function(d){
+      const r = (wd.recoveries || []).find(function(x){ return x && x.date === d; }), sl = (wd.sleeps || []).find(function(x){ return x && x.date === d; }), fc = parseInt(state['fc_repos_' + d]) || null;
+      return r ? wellnessScore(r, sl || null, fc >= 30 && fc <= 100 ? fc : null) : null; };
+    const yest = sc(prAddDays(day, -1)), prev7 = []; for(let k = 1; k <= 7; k++){ const v = sc(prAddDays(day, -k)); if(v != null) prev7.push(v); }
+    const N = wellnessNight(), avg7 = prev7.length >= 3 ? Math.round(prev7.reduce(function(a, b){ return a + b; }, 0) / prev7.length) : null;
+    const trend = [];
+    if(yest != null){ const d = N.r ? wellnessScore(N.r, N.s, N.fc) - yest : null; if(d != null) trend.push('<span class="' + (d > 0 ? 'up' : d < 0 ? 'dn' : '') + '">' + (d > 0 ? '↑ +' : d < 0 ? '↓ −' : '→ ') + Math.abs(d) + ' vs hier</span>'); }
+    if(avg7 != null) trend.push('moy. 7 j ' + avg7);
+    const C = 2 * Math.PI * 26;
+    let h = '<div class="st-today"><div class="st-td-h">'
+      + '<svg viewBox="0 0 64 64" class="st-td-g ' + tone + '"><circle cx="32" cy="32" r="26" class="g-bg"/>' + (AS && AS.lost >= 3 ? '<circle cx="32" cy="32" r="26" class="g-alc" stroke-dasharray="0 ' + (C * F.score / 100).toFixed(1) + ' ' + (C * AS.lost / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '') + '<circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="38" text-anchor="middle">' + F.score + '</text></svg>'
+      + '<div><p class="st-td-l">Forme du jour</p><b>' + (AL || F.label) + '</b>' + (trend.length ? '<small>' + trend.join(' · ') + '</small>' : '') + (AS && AS.lost >= 3 ? '<small class="alc">→ ~' + AS.without + ' sans alcool</small>' : '') + '</div></div>';
+    const M = statsTodayMsgs(F, AS);
+    if(M.length) h += '<div class="st-td-m">' + M.map(function(m){ return '<' + (m.act ? 'button type="button" onclick="' + m.act + '"' : 'div') + ' class="' + m.tone + '"><span>' + m.ico + '</span><span>' + prEsc(m.t) + '</span>' + (m.act ? '<i aria-hidden="true">›</i></button>' : '</div>'); }).join('') + '</div>';
+    // 4 mesures : valeur mesurée, et « sans alcool » ou repère sous chacune
+    const w = {}; ((AS && AS.comps) || []).forEach(function(c){ w[c.k] = c.w; });
+    const col = function(v, g, o){ return v == null ? '' : v >= g ? 'ok' : v >= o ? 'mid' : 'low'; };
+    const hrv = N.r && N.r.hrv != null ? Math.round(N.r.hrv) : null, sl = N.s || {}, admin = typeof isAdmin === 'function' && isAdmin();
+    const tiles = [
+      { k: 'rec', m: 'recovery', lab: 'Récup', v: N.r && N.r.score != null ? N.r.score + ' %' : '—', c: col(N.r && N.r.score, 67, 34) },
+      { k: 'sleep', m: 'sleep', lab: 'Sommeil', v: sl.performance_pct != null ? sl.performance_pct + ' %' : '—', c: col(sl.performance_pct, 80, 60), sub: sl.duration_hours || '' },
+      { k: 'rhr', m: 'fc', lab: 'FC repos', v: N.fc != null ? N.fc : '—', c: N.fc == null ? '' : N.fc <= 50 ? 'ok' : N.fc <= 58 ? 'mid' : 'low' },
+      { k: 'hrv', m: 'hrv', lab: 'VFC', v: hrv != null ? hrv + ' ms' : '—', c: col(hrv, 80, 60) }
+    ];
+    h += '<div class="st-td-t">' + tiles.map(function(t){
+      const sub = w[t.k] ? '<em title="sans alcool">→ ' + w[t.k].replace(' bpm', '') + '</em>' : t.sub ? '<em>' + t.sub + '</em>' : '';
+      return '<' + (admin ? 'button type="button" onclick="whoopChartOpen(\'' + t.m + '\')"' : 'div') + ' class="' + t.c + '"><small>' + t.lab + '</small><b>' + t.v + '</b>' + sub + '</' + (admin ? 'button' : 'div') + '>'; }).join('') + '</div>';
+    if(admin && (wd.recoveries || []).length) h += '<button type="button" class="st-td-more" onclick="whoopChartOpen(_whoopChartMode)">Évolution 7 jours ›</button>';
+    el.innerHTML = h + '</div>';
+  } catch(e) { console.warn('[aujourd\'hui] ', e); el.innerHTML = ''; }
 }
 
 // ── Statistiques en onglets : Forme · Entraînement · Historique (dernier onglet mémorisé) ──
@@ -626,7 +700,7 @@ function renderWhoopStats() {
             ${avg7jHtml}
           </div>
         </div>`;
-      syntheticEl.style.display = 'block';
+      syntheticEl.style.display = document.getElementById('st-today') ? 'none' : 'block';   // remplacé par « Aujourd'hui » (statsTodayRender)
     } else {
       syntheticEl.style.display = 'none';
     }

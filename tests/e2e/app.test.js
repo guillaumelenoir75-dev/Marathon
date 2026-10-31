@@ -669,3 +669,28 @@ test('alcool : une nuit passée non renseignée se complète depuis l\'historiqu
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('Statistiques › Forme : « Aujourd\'hui » en tête (forme du jour, à retenir, 4 mesures), alcool sur une ligne', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  const N = [['10-31', 3, 35, 57, 63, 67], ['10-30', 8, 26, 52, 65, 57], ['10-29', 0, 56, 74, 52, 82], ['10-28', 7, 38, 65, 57, 74], ['10-27', null, 48, 72, 50, 83], ['10-26', null, 60, 79, 48, 82], ['10-25', 8, 21, 55, 63, 65],
+    ['10-24', null, 77, 88, 53, 80], ['10-23', null, 88, 91, 49, 83], ['10-22', null, 90, 91, 49, 82], ['10-21', null, 77, 88, 55, 82], ['10-20', null, 74, 83, 45, 76], ['10-19', null, 56, 81, 51, 77], ['10-18', null, 90, 89, 49, 77]];
+  S.whoop_data = { recoveries: N.map((n) => ({ date: '2026-' + n[0], score: n[2], hrv: n[3], rhr: n[4] })), sleeps: N.map((n) => ({ date: '2026-' + n[0], performance_pct: n[5], duration_hours: '7h02' })) };
+  S._alcohol = {}; N.forEach((n) => { if (n[1] != null) S._alcohol['2026-' + n[0]] = { l: n[1], t: n[1] ? ['beer', 'wine'] : [] }; });
+  N.forEach((n) => { S['fc_repos_2026-' + n[0]] = String(n[4]); });
+  S['_wakeup_2026-10-31'] = true;
+  const { ctx, page, errors } = await open('2026-10-31T19:00:00+01:00', JSON.stringify(D));
+  await page.evaluate(() => { showScreen('stats'); statsTab('forme'); });
+  await page.waitForSelector('#st-today .st-td-h');
+  const order = await page.evaluate(() => [...document.querySelectorAll('#sc-stats .st-pane[data-st="forme"] > div')].filter((e) => e.innerHTML.trim()).map((e) => e.id));
+  assert.equal(order[0], 'st-today', 'Aujourd\'hui en premier : ' + order.join(', '));
+  const t = await page.textContent('#st-today');
+  assert.match(t, /Forme du jour/); assert.match(t, /sans alcool/); assert.match(t, /dus à l'alcool/);
+  assert.equal(await page.locator('#st-today .st-td-t > *').count(), 4);
+  assert.ok(await page.locator('#st-today .st-td-m > *').count() <= 4, '4 messages au plus');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('whoop-synthetic-score')).display), 'none', 'ancien score WHOOP masqué');
+  assert.match(await page.textContent('#alc-stats-card .alc-line'), /Alcool et récupération/);
+  if (process.env.SHOT) { await page.setViewportSize({ width: 390, height: 1800 }); await page.locator('.st-pane[data-st="forme"]').screenshot({ path: process.env.SHOT }); }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

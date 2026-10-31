@@ -153,11 +153,11 @@ function fmRenderStatsCard(){
         const parts = T.weeks.map(function(w){ const f = T.best.scale[w] != null ? T.best.scale[w] : 1; return (w === T.raceW ? 'semaine de course' : 'S' + w) + ' ' + Math.round(f * 100) + ' %'; });
         h += '<div class="fm-tap"><p>💡 Affûtage conseillé : <b>' + parts.join(' · ') + '</b> du volume prévu → fraîcheur ' + (T.best.tsb >= 0 ? '+' : '') + Math.round(T.best.tsb) + ' le jour J.</p><button type="button" class="fm-btn" onclick="fmApplyTaper()">Appliquer à mon plan (annulable)</button></div>';
       } else h += '<p class="fm-n">✅ Ton affûtage prévu est déjà proche du meilleur pour toi.</p>';
-      if(nextW != null) h += '<p class="fm-sim-l">Simuler la semaine prochaine (S' + nextW + ')</p><div class="fm-seg">' + [-20, -10, 0, 10, 20].map(function(v){ return '<button type="button" class="' + (v === _fmSim ? 'on' : '') + '" onclick="_fmSim=' + v + ';fmRenderStatsCard()">' + (v > 0 ? '+' : v < 0 ? '−' : '') + (v ? Math.abs(v) + ' %' : 'prévu') + '</button>'; }).join('') + '</div>'
-        + (sim ? '<p class="fm-n">→ jour J : fraîcheur <b>' + (sim.tsb >= 0 ? '+' : '') + Math.round(sim.tsb) + '</b>, forme ' + Math.round(sim.ctl) + ' (' + (sim.perf >= P.perf ? '+' : '−') + Math.abs(Math.round((sim.perf - P.perf) * 10) / 10).toString().replace('.', ',') + ' de performance prévue)</p>' : '');
+      if(nextW != null) h += '<details class="fm-simd"' + (_fmSim ? ' open' : '') + '><summary>Simuler la semaine prochaine (S' + nextW + ')</summary><div class="fm-seg">' + [-20, -10, 0, 10, 20].map(function(v){ return '<button type="button" class="' + (v === _fmSim ? 'on' : '') + '" onclick="_fmSim=' + v + ';fmRenderStatsCard()">' + (v > 0 ? '+' : v < 0 ? '−' : '') + (v ? Math.abs(v) + ' %' : 'prévu') + '</button>'; }).join('') + '</div>'
+        + (sim ? '<p class="fm-n">→ jour J : fraîcheur <b>' + (sim.tsb >= 0 ? '+' : '') + Math.round(sim.tsb) + '</b>, forme ' + Math.round(sim.ctl) + ' (' + (sim.perf >= P.perf ? '+' : '−') + Math.abs(Math.round((sim.perf - P.perf) * 10) / 10).toString().replace('.', ',') + ' de performance prévue)</p>' : '') + '</details>';
       h += '</div>';
     }
-    h += '<p class="fm-n">Charge de chaque séance d\'après ta FC (sinon le type et la durée), sur tout ton historique. Fraîcheur idéale le jour J : +5 à +25.</p></div>';
+    h += '<p class="fm-n">Fraîcheur idéale le jour J : +5 à +25.</p></div>';
     el.innerHTML = h;
   } catch(e) { console.warn('[forme] ', e); el.innerHTML = ''; }
 }
@@ -205,6 +205,7 @@ function _fmCss(){
     + '.fm-race{background:#F8FAFC;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}.fm-race p{margin:0;font-size:13px;color:#1E293B;}'
     + '.fm-n{font-size:12px;color:#475569;margin:0;line-height:1.4;}.fm-tap{border:1.5px solid #C7D2FE;background:#EEF2FF;border-radius:12px;padding:9px 10px;margin-top:4px;}.fm-tap p{font-size:12.5px;color:#312E81;margin:0;}'
     + '.fm-btn{margin-top:7px;width:100%;padding:9px;border:none;border-radius:10px;background:#4F46E5;color:#fff;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit;}'
+    + '.fm-simd{margin-top:8px;}.fm-simd summary{cursor:pointer;font-size:12px;font-weight:800;color:#475569;}.fm-simd .fm-seg{margin-top:6px;}'
     + '.fm-sim-l{font-size:11px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin:6px 0 0;}.fm-seg{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;background:#E2E8F0;border-radius:10px;padding:3px;}'
     + '.fm-seg button{border:none;background:transparent;border-radius:8px;padding:6px 2px;font-size:12px;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;}.fm-seg button.on{background:#fff;color:#1E3A8A;box-shadow:0 1px 3px rgba(15,23,42,.15);}';
   document.head.appendChild(st);
