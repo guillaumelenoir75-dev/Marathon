@@ -607,3 +607,18 @@ test('alcool : question au réveil, saisie 0-10 + types, effet sur la forme du j
   assert.deepEqual(b.errors, []);
   await b.ctx.close();
 });
+
+test('alcool : une nuit passée non renseignée se complète depuis l\'historique', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(() => openAlcoholInsights());
+  await page.waitForSelector('#alc-ins .alc-row');
+  assert.equal(await page.locator('#alc-ins .alc-row').count() >= 7, true);
+  await page.locator('#alc-ins .alc-row').nth(2).click();                 // avant-hier
+  await page.waitForSelector('#alc-modal');
+  assert.match(await page.textContent('#alc-modal'), /Nuit passée/);
+  await page.click('#alc-modal .alc-n:nth-child(8)'); await page.click('#alc-go');
+  assert.equal(await page.evaluate(() => state._alcohol['2026-10-27'].l), 8);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

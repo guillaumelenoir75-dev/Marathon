@@ -140,10 +140,10 @@ function alcAsk(opts){
   const old = document.getElementById('alc-modal'); if(old) old.remove();
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'alc-modal'; ov.style.zIndex = '9600'; ov.style.setProperty('--_overlay-bg', 'rgba(8,15,35,0.6)');
-  const d = new Date(prAddDays(day, -1) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long' });
-  ov.innerHTML = '<div class="modal-box alc-box" role="dialog" aria-labelledby="alc-t"><div class="alc-head"><p class="alc-eb">Ce matin</p><p class="alc-t" id="alc-t">🌙 Alcool hier soir ?</p>'
+  const today = day === alcDay(), d = new Date(prAddDays(day, -1) + 'T12:00:00').toLocaleDateString('fr-FR', today ? { weekday: 'long' } : { weekday: 'long', day: 'numeric', month: 'long' });
+  ov.innerHTML = '<div class="modal-box alc-box" role="dialog" aria-labelledby="alc-t"><div class="alc-head"><p class="alc-eb">' + (today ? 'Ce matin' : 'Nuit passée') + '</p><p class="alc-t" id="alc-t">🌙 ' + (today ? 'Alcool hier soir ?' : 'Alcool ce soir-là ?') + '</p>'
     + '<p class="alc-sub">' + d.charAt(0).toUpperCase() + d.slice(1) + ' soir. Pour séparer l\'effet de l\'alcool de celui de l\'entraînement sur ta récupération.</p></div>'
-    + '<div class="alc-body"><button type="button" class="alc-none" onclick="alcPickNone()">🚫 Pas d\'alcool hier soir</button>'
+    + '<div class="alc-body"><button type="button" class="alc-none" onclick="alcPickNone()">🚫 Pas d\'alcool ' + (today ? 'hier soir' : 'ce soir-là') + '</button>'
     + '<p class="alc-or"><span>ou combien</span></p><div class="alc-scale" role="radiogroup" aria-label="Quantité d\'alcool de 1 à 10" id="alc-scale"></div><p class="alc-lv" id="alc-lv">1 = un verre · 10 = gros excès</p>'
     + '<p class="alc-lab">Quoi ? <span>plusieurs choix possibles</span></p><div class="alc-types" id="alc-types"></div>'
     + '<button type="button" class="alc-go" id="alc-go" onclick="alcPickSave()" disabled>Enregistrer</button>'
@@ -217,7 +217,10 @@ function alcStatsHtml(){
 }
 function openAlcoholInsights(){
   _alcCss();
-  const M = alcModel(), I = alcImpact(alcDay(), M), A = state._alcohol || {}, days = Object.keys(A).sort().reverse().slice(0, 21);
+  const M = alcModel(), I = alcImpact(alcDay(), M), A = state._alcohol || {};
+  // 7 dernières nuits toujours listées (même non renseignées, pour compléter après coup), puis les plus anciennes saisies
+  const last7 = []; for(let k = 0; k < 7; k++) last7.push(prAddDays(alcDay(), -k));
+  const days = last7.concat(Object.keys(A).filter(function(d){ return last7.indexOf(d) < 0; }).sort().reverse()).slice(0, 24);
   const old = document.getElementById('alc-ins'); if(old) old.remove();
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'alc-ins'; ov.style.zIndex = '510'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
@@ -229,7 +232,7 @@ function openAlcoholInsights(){
   h += alcStatsHtml().replace('<button type="button" class="alc-card-b" onclick="openAlcoholInsights()">Détail et historique ›</button>', '');
   h += '<p class="alc-sec">Tes dernières nuits</p><div class="alc-list">' + (days.length ? days.map(function(d){
     const e = A[d], r = rec[d], dd = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
-    return '<button type="button" class="alc-row" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + d + '\'})"><span>' + dd + '</span><b class="' + (e.l > 0 ? 'y' : 'n') + '">' + (e.l > 0 ? e.l + '/10' : 'Aucun') + '</b><small>' + prEsc(alcTypesText(e.t)) + '</small><em>' + (r && r.score != null ? 'récup ' + r.score + ' %' : '') + '</em></button>';
+    return '<button type="button" class="alc-row" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + d + '\'})"><span>' + dd + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10' : 'Aucun') + '</b><small>' + (e ? prEsc(alcTypesText(e.t)) : '') + '</small><em>' + (r && r.score != null ? 'récup ' + r.score + ' %' : '') + '</em></button>';
   }).join('') : '<p class="alc-card-n">Pas encore de saisie.</p>') + '</div>';
   h += '<p class="alc-card-n" style="margin-top:6px;">Toucher une nuit pour la corriger. Le Coach, le brief du matin et la mise à jour du plan tiennent compte de ces saisies.</p></div></div></div>';
   ov.innerHTML = h;
@@ -281,6 +284,6 @@ function _alcCss(){
     + '.alc-today{background:#fff;border:1.5px solid #DDD6FE;border-radius:16px;padding:12px 14px;}.alc-today b{color:#4C1D95;}.alc-today p{margin:4px 0 0;font-size:13px;color:#334155;line-height:1.5;}'
     + '.alc-sec{margin:6px 2px -2px;font-size:11px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.07em;}.alc-list{display:flex;flex-direction:column;background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;}'
     + '.alc-row{display:grid;grid-template-columns:92px 56px 1fr auto;align-items:center;gap:6px;padding:9px 12px;border:none;border-top:1px solid #F1F5F9;background:none;font:inherit;text-align:left;cursor:pointer;font-size:12.5px;color:#334155;}.alc-row:first-child{border-top:none;}'
-    + '.alc-row b.y{color:#7C3AED;}.alc-row b.n{color:#15803D;}.alc-row small{color:#64748B;font-size:11.5px;}.alc-row em{font-style:normal;font-size:11.5px;color:#475569;font-variant-numeric:tabular-nums;}';
+    + '.alc-row b.y{color:#7C3AED;}.alc-row b.n{color:#15803D;}.alc-row b.q{color:#94A3B8;font-weight:700;}.alc-row small{color:#64748B;font-size:11.5px;}.alc-row em{font-style:normal;font-size:11.5px;color:#475569;font-variant-numeric:tabular-nums;}';
   document.head.appendChild(st);
 }
