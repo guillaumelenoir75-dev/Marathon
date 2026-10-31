@@ -520,3 +520,17 @@ test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamai
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('ouverture : tout l\'historique est chargé avant le 1er affichage (forme du jour, série justes d\'emblée)', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { init: () => {
+    const t = setInterval(() => { try { if (typeof firebaseReady !== 'undefined' && firebaseReady) { window.__atReady = { pre: !!window._prPrefetchDone }; clearInterval(t); } } catch (e) {} }, 2);
+  } });
+  const r = await page.evaluate(() => ({ at: window.__atReady, old: prAllDone().filter((s) => !s.cur).length, form: document.getElementById('home-form-card').textContent, streak: prStreak() }));
+  assert.ok(r.at && r.at.pre, 'historique chargé avant que l\'app soit prête');
+  assert.ok(r.old > 0, 'séances des prépas précédentes dans les analyses');
+  await page.evaluate(async () => { await prPrefetch(); renderHome(); });
+  assert.equal(await page.evaluate(() => document.getElementById('home-form-card').textContent), r.form, 'aucune valeur provisoire : identique après rechargement de l\'historique');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

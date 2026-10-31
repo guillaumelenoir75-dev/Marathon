@@ -120,7 +120,7 @@ function initFirebase(){
               }
             }
 
-            _once(dbRef,'pm_state_'+user.uid,8000).then((snapshot)=>{
+            _once(dbRef,'pm_state_'+user.uid,8000).then(async (snapshot)=>{
               const data=snapshot.val();
               if(data) state=data;
               // base = version de la base ; écritures faites sans réseau puis app fermée : rejouées
@@ -134,6 +134,9 @@ function initFirebase(){
               if(typeof syncPlanCompat==='function') syncPlanCompat();   // semaine et plan de la prépa en cours
               if(typeof syncSave==='function'){ if(!snapshot._cached){ syncSave(); syncCacheState(true); } }   // persister les migrations (clés modifiées seulement)
               else if(dbRef) dbRef.set(state).catch(()=>{});
+              // tout l'historique (prépas précédentes, courses Strava) chargé AVANT le 1er affichage, pendant l'écran de chargement :
+              // forme du jour (charge 7 j / 28 j), série, objectif… justes d'emblée, sans valeur provisoire (6 s au plus)
+              if(typeof prPrefetch==='function'&&!snapshot._cached){ try{ await Promise.race([prPrefetch(),new Promise(r=>setTimeout(r,6000))]); }catch(e){} }
               firebaseReady=true;
               // WHOOP pas synchronisé depuis 15 min : la forme du jour attend la synchro (chargement) au lieu d'afficher la valeur d'hier
               if(typeof whoopStartupPending==='function') whoopStartupPending();
