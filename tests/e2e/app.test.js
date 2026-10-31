@@ -534,3 +534,36 @@ test('ouverture : tout l\'historique est chargé avant le 1er affichage (forme d
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('forme du jour sécurisée : synchro WHOOP en échec ou nuit absente → message clair et « Réessayer », jamais les chiffres de la veille', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;
+  st.whoop_token = { access_token: 'x' }; st['_wakeup_2026-10-29'] = true;            // « Je suis réveillé » ce matin
+  st.whoop_data = { updatedAt: '2026-10-28T20:00:00Z', recoveries: [{ date: '2026-10-28', score: 30, rhr: 60, hrv: 40 }], sleeps: [{ date: '2026-10-28', performance_pct: 50, duration_hours: '5h30' }] };
+  let mode = 'fail';
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', JSON.stringify(D), { functions: (r) => {
+    if (/whoopSync/.test(r.request().url())) {
+      if (mode === 'fail') return r.fulfill({ status: 500, contentType: 'application/json', body: '{"success":false,"error":"WHOOP indisponible"}' });
+      if (mode === 'auth') return r.fulfill({ contentType: 'application/json', body: '{"needsAuth":true}' });
+      return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  const card = () => page.textContent('#home-form-card');
+  await page.waitForFunction(() => /Échec de la récupération WHOOP/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  let t = await card();
+  assert.doesNotMatch(t, /récup 30 %|sommeil 50 %|\b3[0-9]\b.*Récupération insuffisante/, 'aucun chiffre de la veille');
+  assert.ok(await page.locator('#home-form-card button:has-text("Réessayer")').count());
+  // WHOOP déconnecté
+  mode = 'auth'; await page.click('#home-form-card button:has-text("Réessayer")');
+  await page.waitForFunction(() => /WHOOP déconnecté/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  // synchro réussie mais la nuit n'est pas encore calculée par WHOOP
+  mode = 'ok'; await page.evaluate(() => whoopRetry());
+  await page.waitForFunction(() => /Nuit pas encore disponible/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  assert.doesNotMatch(await card(), /récup 30 %/);
+  // la nuit arrive : vraie valeur du jour
+  await page.evaluate(() => { window.__DB.users.ADMINUID.state.whoop_data = { updatedAt: new Date().toISOString(), recoveries: [{ date: '2026-10-29', score: 82, rhr: 49, hrv: 70 }], sleeps: [{ date: '2026-10-29', performance_pct: 90, duration_hours: '7h50' }] }; whoopRetry(); });
+  await page.waitForFunction(() => /récup 82 %/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

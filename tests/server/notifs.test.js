@@ -97,3 +97,19 @@ test('brief du matin un jour de repos : nuit, récupération et séance de demai
   assert.match(F.calls.ai[0].system, /PRÊT POUR AUJOURD'HUI/);
   assert.doesNotMatch(r.pushBody, /Repos ·/);
 });
+
+test('brief du matin : uniquement la nuit WHOOP du jour — celle de la veille n\'est jamais présentée comme celle de ce matin', async () => {
+  const d = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  const add = (n) => { const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const st = (rec) => ({ _plan_engine: 'generated', plan_start_date: add(-14), extra_w3_s0: JSON.stringify({ type: 'ef', km: 8, d: 'Footing|x', sched_date: d, sched_time: '12:00' }),
+    whoop_data: { recoveries: [{ date: rec, score: 31, rhr: 61, hrv: 41 }], sleeps: [{ date: rec, performance_pct: 52, duration_hours: '5h40' }] } });
+  let F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  await F.helpers.generateMorningBriefContent('k', F.db, st(add(-1)), 3, d);
+  let u = F.calls.ai[0].user;
+  assert.match(u, /Données WHOOP de cette nuit : NON DISPONIBLES/);
+  assert.doesNotMatch(u, /Score de récupération WHOOP : 31|Durée de sommeil : 5h40|Score du jour \(synthétique\)/, 'aucun chiffre de la veille');
+  F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  await F.helpers.generateMorningBriefContent('k', F.db, st(d), 3, d);
+  u = F.calls.ai[0].user;
+  assert.match(u, /Score de récupération WHOOP : 31%/); assert.doesNotMatch(u, /NON DISPONIBLES/);
+});

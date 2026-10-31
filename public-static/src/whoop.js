@@ -157,6 +157,13 @@ function whoopStartupDone() {
   if (typeof prRenderHomeCard === 'function') prRenderHomeCard();
 }
 function whoopStartupLoading() { return _whoopStartup; }
+// « Réessayer » sur la carte Forme du jour (échec de synchro, nuit pas encore disponible)
+async function whoopRetry() {
+  if (_whoopSyncing) return;
+  window._whoopLastSync = null;
+  if (typeof prRenderHomeCard === 'function') { _whoopSyncing = true; prRenderHomeCard(); _whoopSyncing = false; }
+  await syncWhoop();
+}
 
 async function syncWhoop() {
   if (_whoopSyncing) return;
@@ -176,6 +183,7 @@ async function syncWhoop() {
     const data = await resp.json();
 
     if (data.needsAuth) {
+      window._whoopLastSync = { at: Date.now(), ok: false, needsAuth: true, error: 'reconnexion nécessaire' };
       const status = document.getElementById('whoop-status');
       if (status) { status.textContent = '⚠️ Reconnexion nécessaire'; status.style.color = '#f59e0b'; }
       // Afficher un bouton de reconnexion si on est sur l'écran Compte
@@ -188,15 +196,18 @@ async function syncWhoop() {
 
     // Mettre à jour l'état local depuis Firebase (whoop_data + fc_repos_today)
     await _pullWhoopStateFromFirebase();
+    window._whoopLastSync = { at: Date.now(), ok: true };
 
     if (status) { status.textContent = 'Sync à l\'instant'; status.style.color = '#22c55e'; }
 
   } catch(e) {
     console.error('whoopSync error:', e);
+    window._whoopLastSync = { at: Date.now(), ok: false, error: (e && e.message) || 'erreur' };
     if (status) { status.textContent = 'Erreur sync'; status.style.color = '#ef4444'; }
   } finally {
     _whoopSyncing = false;
     whoopStartupDone();
+    if (typeof prRenderHomeCard === 'function') prRenderHomeCard();   // forme du jour : résultat de la synchro (à jour, ou échec affiché)
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser'; btn.onclick = syncWhoop; }
   }
 }

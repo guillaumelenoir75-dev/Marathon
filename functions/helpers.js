@@ -260,6 +260,14 @@ function bedtimePlan(state, today) {
   return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type, debtMin: Math.round(debt), extraMin: extra, key: !!key };
 }
 
+// ─── Nuit WHOOP du jour UNIQUEMENT (jamais celle de la veille) : récupération et sommeil datés d'aujourd'hui ───
+function whoopNight(wd, todayStr) {
+  const r = wd && Array.isArray(wd.recoveries) ? wd.recoveries.find((x) => x && String(x.date || '').slice(0, 10) === todayStr) || null : null;
+  const s = wd && Array.isArray(wd.sleeps) ? wd.sleeps.find((x) => x && String(x.date || '').slice(0, 10) === todayStr) || null : null;
+  return { r, s };
+}
+const WHOOP_MISSING_TEXT = '\nDonnées WHOOP de cette nuit : NON DISPONIBLES (synchronisation échouée ou nuit pas encore calculée par WHOOP). N\'affiche AUCUN chiffre de récupération, de VFC ni de sommeil (ceux d\'une autre nuit seraient faux) : dis clairement en une phrase, dans le bloc nuit, que les données WHOOP de cette nuit ne sont pas disponibles.';
+
 // ─── Brief du matin d'un jour de repos (aucune séance ni renfo aujourd'hui) : nuit, récupération, séance de demain ───
 function isRestDay(ctx, sit) {
   return !(ctx && ctx.seanceRunAujourdhui) && !((ctx && ctx.seancesAujourdHui) || []).length && !((sit && sit.todaySessions) || []).length;
@@ -539,16 +547,16 @@ async function buildNotifContext(state, cw) {
 async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr) {
   const ctx = await buildNotifContext(state, cw);
   const wd = state['whoop_data'] || state.whoop_data || null;
-  const whoopRecov = wd && wd.recoveries && wd.recoveries[0] ? wd.recoveries[0] : null;
-  const whoopDate = whoopRecov && whoopRecov.date ? whoopRecov.date.slice(0,10) : null;
-  const whoopToday = (whoopDate === todayStr);
+  // nuit du jour uniquement : jamais les chiffres d'une autre nuit présentés comme ceux de ce matin
+  const _night = whoopNight(wd, todayStr);
+  const whoopRecov = _night.r;
+  const whoopToday = !!whoopRecov;
   const fcWhoopRhr = (whoopToday && whoopRecov && whoopRecov.rhr) ? whoopRecov.rhr : null;
   const fcToday = fcWhoopRhr || state['fc_repos_'+todayStr] || null;
 
-  // Score global synthétique (même calcul que stats.js) ─────────────────────
-  // Utiliser les données WHOOP les plus récentes, même si pas d'aujourd'hui (identique à stats.js)
-  const r0 = whoopRecov; // pas de garde whoopToday, comme stats.js
-  const s0 = wd && wd.sleeps ? wd.sleeps[0] : null;
+  // Score global synthétique (même calcul que stats.js) : nuit du jour uniquement
+  const r0 = whoopRecov;
+  const s0 = _night.s;
   const globalScoreComponents = [];
   if (r0?.score != null) globalScoreComponents.push(r0.score);
   if (s0?.performance_pct != null) globalScoreComponents.push(s0.performance_pct);
@@ -576,9 +584,10 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
     : globalScore>=67?'Bonne forme':globalScore>=34?'Forme moyenne':'Récupération insuffisante';
 
   let whoopBlock = '';
-  if (wd) {
+  if (wd && !whoopRecov && !_night.s) whoopBlock = WHOOP_MISSING_TEXT;
+  else if (wd) {
     const r = whoopRecov;
-    const s = wd.sleeps && wd.sleeps[0];
+    const s = _night.s;
     const cy = wd.cycles && wd.cycles[0];
     const lines = [];
     if (r) {
@@ -952,6 +961,6 @@ module.exports = {
   buildNotifContext,
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,
-  generateMorningBriefContent, isRestDay, restBriefSystem, restBriefData, restPushPart,
+  generateMorningBriefContent, whoopNight, WHOOP_MISSING_TEXT, isRestDay, restBriefSystem, restBriefData, restPushPart,
   generateWeeklyBilanContent,
 };

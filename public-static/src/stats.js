@@ -421,14 +421,34 @@ function wellnessScore(rRec, sSleep, fcV){
   return sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null;
 }
 function wellnessWaiting(){
-  const wd = state.whoop_data, r0 = wd && wd.recoveries ? wd.recoveries[0] : null;
+  const wd = state.whoop_data;
   if (!wd || typeof _getWakeupDate !== 'function') return false;
-  return !r0 || !r0.date || r0.date < _getWakeupDate();
+  return !wellnessNight().r;
+}
+// ─── Données de la nuit : UNIQUEMENT celles du jour (jamais la veille) ───
+// jour de la nuit = même règle que le bouton Réveil (_getWakeupDate, date UTC ; avant 3 h UTC = veille)
+function wellnessDay(){ return typeof _getWakeupDate === 'function' ? _getWakeupDate() : new Date().toISOString().slice(0, 10); }
+function wellnessNight(){
+  const wd = state.whoop_data || null, day = wellnessDay();
+  const r = wd && wd.recoveries ? wd.recoveries.find(x => x && x.date === day) || null : null;
+  const s = wd && wd.sleeps ? wd.sleeps.find(x => x && x.date === day) || null : null;
+  const fcv = parseInt(state['fc_repos_' + day]) || parseInt(state['fc_repos_' + (typeof prTodayIso === 'function' ? prTodayIso() : day)]) || null;
+  return { day: day, r: r, s: s, fc: fcv >= 30 && fcv <= 100 ? fcv : null, whoop: !!(wd || (state.whoop_token && state.whoop_token.access_token)) };
+}
+// état de la carte « Forme du jour » : ok | loading | waiting (avant le réveil) | failed (synchro en échec) | pending (nuit pas encore chez WHOOP)
+function wellnessState(){
+  const N = wellnessNight();
+  if(!N.whoop || N.r) return { kind: 'ok', N: N };
+  if((typeof whoopStartupLoading === 'function' && whoopStartupLoading()) || (typeof _whoopSyncing !== 'undefined' && _whoopSyncing)) return { kind: 'loading', N: N };
+  const last = typeof window !== 'undefined' ? window._whoopLastSync : null;
+  if(last && !last.ok) return { kind: 'failed', N: N, auth: !!last.needsAuth, error: last.error || '' };
+  if(!state['_wakeup_' + N.day]) return { kind: 'waiting', N: N };
+  return { kind: 'pending', N: N, at: last ? last.at : null };
 }
 function wellnessScoreToday(){
-  const wd = state.whoop_data || null, r0 = wd && wd.recoveries ? wd.recoveries[0] || null : null, s0 = wd && wd.sleeps ? wd.sleeps[0] || null : null;
-  const fc = Object.keys(state).filter(k => /^fc_repos_\d{4}-\d{2}-\d{2}$/.test(k)).map(k => ({ date: k.slice(9), val: parseInt(state[k]) })).filter(e => e.val >= 30 && e.val <= 100).sort((a, b) => a.date.localeCompare(b.date));
-  const fcToday = fc.length ? fc[fc.length - 1].val : null, score = wellnessScore(r0, s0, fcToday);
+  const N = wellnessNight();
+  if(N.whoop && !N.r) return null;                                                  // WHOOP connecté sans la nuit du jour : pas de score
+  const r0 = N.r, s0 = N.s, fcToday = N.fc, score = wellnessScore(r0, s0, fcToday);
   if (score == null) return null;
   const parts = [];
   if (r0 && r0.score != null) parts.push('récup ' + r0.score + ' %');

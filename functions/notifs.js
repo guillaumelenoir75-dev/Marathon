@@ -31,7 +31,7 @@ const {
   bedtimePlan,
   parisToday,
   autopilotBriefText,
-  isRestDay, restBriefSystem, restBriefData, restPushPart,
+  isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -268,13 +268,12 @@ exports.briefAfterFcRepos = onSchedule(
       // ── Récupérer les données WHOOP ───────────────────────────────────────────
       const wd=state['whoop_data']||(state.whoop_data)||null;
 
-      // Vérifier si les données WHOOP sont de la nuit précédente (date d'aujourd'hui OU hier —
-      // WHOOP date les recoveries à la date de DÉBUT du cycle de sommeil, donc souvent hier au matin)
-      const whoopRecov=wd&&wd.recoveries&&wd.recoveries[0]?wd.recoveries[0]:null;
-      const whoopDate=whoopRecov&&whoopRecov.date?whoopRecov.date.slice(0,10):null;
+      // Nuit WHOOP du jour UNIQUEMENT (récupération datée de ce matin — whoop.js : created_at) : jamais celle de la veille
+      const _night=whoopNight(wd,todayStr);
+      const whoopRecov=_night.r;
+      const whoopDate=whoopRecov?todayStr:null;
       const yesterdayStr=(()=>{const d=new Date(todayStr+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
-      // Les données sont valides si elles datent d'aujourd'hui OU d'hier (nuit dernière)
-      const whoopRecent=(whoopDate===todayStr||whoopDate===yesterdayStr);
+      const whoopRecent=!!whoopRecov;
 
       // Si WHOOP est connecté mais les données semblent trop anciennes (avant hier),
       // attendre au max 10 min que le client ait eu le temps de syncer WHOOP après le réveil.
@@ -296,9 +295,10 @@ exports.briefAfterFcRepos = onSchedule(
       const fcToday=fcWhoopRhr||state['fc_repos_'+todayStr]||null;
 
       let whoopBlock='';
-      if(wd){
+      if(wd&&!whoopRecov&&!_night.s)whoopBlock=WHOOP_MISSING_TEXT;
+      else if(wd){
         const r=whoopRecov;
-        const s=wd.sleeps&&wd.sleeps[0];
+        const s=_night.s;
         const cy=wd.cycles&&wd.cycles[0];
         const lines=[];
         if(r){
@@ -323,9 +323,9 @@ exports.briefAfterFcRepos = onSchedule(
         if(lines.length>0)whoopBlock='\nDonnées WHOOP du matin :\n'+lines.join('\n');
       }
 
-      // Score global synthétique (même calcul que stats.js — données les plus récentes, pas seulement aujourd'hui)
+      // Score global synthétique (même calcul que stats.js) : nuit du jour uniquement
       const r0=whoopRecov;
-      const s0=wd&&wd.sleeps?wd.sleeps[0]:null;
+      const s0=_night.s;
       const globalComps=[];
       if(r0?.score!=null)globalComps.push(r0.score);
       if(s0?.performance_pct!=null)globalComps.push(s0.performance_pct);
