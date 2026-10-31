@@ -497,3 +497,26 @@ test('Coach › « Mon plan » : je parle de ma semaine, le Coach propose, j\'ap
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamais la valeur de la veille', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;
+  st.whoop_token = { access_token: 'x' };
+  st.whoop_data = { updatedAt: '2026-10-28T20:00:00Z', recoveries: [{ date: '2026-10-29', score: 30, rhr: 60, hrv: 40 }], sleeps: [{ date: '2026-10-29', performance_pct: 50, duration_hours: '5h30' }] };
+  let release = null; const gate = new Promise((r) => { release = r; });
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', JSON.stringify(D), { functions: async (r) => {
+    if (/whoopSync/.test(r.request().url())) { await gate; return r.fulfill({ contentType: 'application/json', body: '{"success":true}' }); }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  await page.evaluate(() => { showScreen('home'); renderHome(); });
+  let txt = await page.textContent('#home-form-card');
+  assert.match(txt, /Mise à jour…/); assert.doesNotMatch(txt, /récup 30 %/, 'pas de valeur périmée');
+  // la synchro a ramené la nuit : nouvelle valeur affichée
+  await page.evaluate(() => { window.__DB.users.ADMINUID.state.whoop_data = { updatedAt: new Date().toISOString(), recoveries: [{ date: '2026-10-29', score: 82, rhr: 49, hrv: 70 }], sleeps: [{ date: '2026-10-29', performance_pct: 90, duration_hours: '7h50' }] }; });
+  release();
+  await page.waitForFunction(() => /récup 82 %/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  txt = await page.textContent('#home-form-card');
+  assert.doesNotMatch(txt, /Mise à jour…/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

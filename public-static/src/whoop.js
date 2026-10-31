@@ -139,6 +139,25 @@ async function syncWhoopFresh() {
   }
 }
 
+// À l'ouverture : données WHOOP de plus de 15 min → la carte « Forme du jour » affiche un chargement (pas l'ancienne valeur)
+// et la synchro part tout de suite ; fin de synchro (réussie ou non) ou 15 s au plus → valeur à jour
+let _whoopStartup = false;
+function whoopStartupPending() {
+  const wd = state.whoop_data, tok = state.whoop_token && state.whoop_token.access_token;
+  const at = wd && wd.updatedAt ? new Date(wd.updatedAt).getTime() : 0;
+  if (!tok || (typeof _prepView !== 'undefined' && _prepView) || (at && Date.now() - at < 15 * 60000)) return false;
+  _whoopStartup = true;
+  setTimeout(function () { if (!_whoopSyncing) syncWhoop(); }, 0);
+  setTimeout(whoopStartupDone, 15000);
+  return true;
+}
+function whoopStartupDone() {
+  if (!_whoopStartup) return;
+  _whoopStartup = false;
+  if (typeof prRenderHomeCard === 'function') prRenderHomeCard();
+}
+function whoopStartupLoading() { return _whoopStartup; }
+
 async function syncWhoop() {
   if (_whoopSyncing) return;
   _whoopSyncing = true;
@@ -177,6 +196,7 @@ async function syncWhoop() {
     if (status) { status.textContent = 'Erreur sync'; status.style.color = '#ef4444'; }
   } finally {
     _whoopSyncing = false;
+    whoopStartupDone();
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Synchroniser'; btn.onclick = syncWhoop; }
   }
 }

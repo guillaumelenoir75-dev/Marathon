@@ -135,6 +135,8 @@ function initFirebase(){
               if(typeof syncSave==='function'){ if(!snapshot._cached){ syncSave(); syncCacheState(true); } }   // persister les migrations (clés modifiées seulement)
               else if(dbRef) dbRef.set(state).catch(()=>{});
               firebaseReady=true;
+              // WHOOP pas synchronisé depuis 15 min : la forme du jour attend la synchro (chargement) au lieu d'afficher la valeur d'hier
+              if(typeof whoopStartupPending==='function') whoopStartupPending();
               hideLoginScreen();
               applyRoleUI();
               showScreen('home');

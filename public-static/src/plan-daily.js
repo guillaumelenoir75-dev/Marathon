@@ -469,8 +469,13 @@ function prRenderHomeCard(){
     } else if(!state._badges_init){ state._badges_init = true; if(dbRef) dbRef.child('_badges_init').set(true).catch(function(){}); }
     const R = typeof prepRace === 'function' ? prepRace() : null, dRace = R && R.date ? prDays(prTodayIso(), R.date) : null;
     let h = '<div class="pd-home">';
+    // ouverture de l'app : synchro WHOOP en cours → chargement (jamais la valeur de la veille)
+    if(typeof whoopStartupLoading === 'function' && whoopStartupLoading()){
+      h += '<div class="pd-form load" aria-busy="true"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-spin"/></svg>'
+        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>Mise à jour…</b><small>Récupération de ta nuit WHOOP</small></div></div>';
+    }
     // après 4h : la récupération WHOOP de la nuit n'est pas encore là → en attente du réveil (comme le bouton Réveil)
-    if(typeof wellnessWaiting === 'function' && wellnessWaiting()){
+    else if(typeof wellnessWaiting === 'function' && wellnessWaiting()){
       const C = 2 * Math.PI * 26;
       h += '<div class="pd-form wait"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><text x="32" y="38" text-anchor="middle">💤</text></svg>'
         + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>En attente du réveil</b><small>Ta récupération WHOOP de cette nuit arrive au réveil.</small></div>'
@@ -523,6 +528,7 @@ function _pdCss(){
     + '.pd-list p{margin:0;font-size:12.5px;color:#334155;line-height:1.45;display:grid;grid-template-columns:24px 1fr;column-gap:6px;}.pd-list p span{grid-row:span 2;font-size:16px;}.pd-list p b{font-size:13px;color:#0F172A;}'
     + '.pd-memo{background:#0F172A;color:#fff;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;}.pd-memo-h{margin:0;font-size:15px;font-weight:900;}.pd-memo-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}.pd-memo-g div{background:rgba(255,255,255,.08);border-radius:10px;padding:8px;display:flex;flex-direction:column;}.pd-memo-g small{font-size:10.5px;opacity:.7;font-weight:700;}.pd-memo-g b{font-size:19px;font-weight:900;font-variant-numeric:tabular-nums;}.pd-memo-f{margin:0;font-size:12px;opacity:.8;font-weight:700;}'
     + '.pd-home{display:flex;flex-direction:column;gap:8px;}.pd-form{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:10px 14px;}.pd-gauge{width:56px;height:56px;flex-shrink:0;transform:rotate(-90deg);}.pd-gauge text{transform:rotate(90deg);transform-origin:32px 32px;font-size:17px;font-weight:900;fill:#0F172A;font-family:inherit;}'
+    + '.g-spin{fill:none;stroke:#94A3B8;stroke-width:7;stroke-linecap:round;stroke-dasharray:40 124;transform-origin:32px 32px;animation:pdSpin 1s linear infinite;}@keyframes pdSpin{to{transform:rotate(360deg);}}@media (prefers-reduced-motion:reduce){.g-spin{animation:none;}}.pd-form.load b{color:#64748B;}'
     + '.g-bg{fill:none;stroke:#EEF2F7;stroke-width:7;}.g-fg{fill:none;stroke-width:7;stroke-linecap:round;}.pd-form.ok .g-fg{stroke:#16A34A;}.pd-form.mid .g-fg{stroke:#EAB308;}.pd-form.low .g-fg{stroke:#DC2626;}'
     + '.pd-form.wait{background:linear-gradient(135deg,#F5F3FF,#EEF2FF);border-color:#DDD6FE;}.pd-form.wait text{font-size:20px;}.pd-wake{flex-shrink:0;border:none;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f97316,#fbbf24);cursor:pointer;font-family:inherit;}'
     + '.pd-form-l{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748B;}.pd-form b{display:block;font-size:14.5px;font-weight:850;color:#0F172A;}.pd-form small{display:block;font-size:11.5px;color:#64748B;font-weight:600;margin-top:1px;}'
