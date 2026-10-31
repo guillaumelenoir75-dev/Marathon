@@ -80,7 +80,7 @@ function hrZonesReset(){
 // ─── Signaux de la foulée ───────────────────────────────────────────────────
 function prStride(today){
   today = today || prTodayIso();
-  const runs = prDoneLog(today).filter(function(x){ const d = prDays(x.date, today); return (x.type === 'ef' || x.type === 'long') && d >= 0 && d <= 42; }).map(function(x){
+  const runs = prDoneLog(today).filter(function(x){ const d = prDays(x.date, today); return (x.type === 'ef' || x.type === 'long') && d >= 0 && d <= 42 && !(typeof alcRunAffected === 'function' && alcRunAffected(x.date)); }).map(function(x){   // lendemain d'alcool : FC faussée
     const p = prPaceSec(x.s.perf.pace), hr = parseInt(x.s.perf.hr), cad = parseInt(((x.s.perf || {}).strava || {}).cadence) || null;
     if(!p || !hr || hr < 90 || p < 150 || p > 600) return null;
     const wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(x.s.perf.meteo).pct : 0;   // chaleur : à effort égal tu cours plus lentement

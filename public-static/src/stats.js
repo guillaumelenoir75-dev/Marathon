@@ -5,6 +5,7 @@ function renderStats(){
   if(isAdmin()){ renderWhoopStats(); _initStatsPTR(); }
   if(typeof bsRenderStatsCard === 'function') bsRenderStatsCard();         // signaux du corps : foulée, zones FC (body-signals.js)
   if(typeof fmRenderStatsCard === 'function') fmRenderStatsCard();         // forme / fatigue, jour J, affûtage (fitness-model.js)
+  { const _ac = document.getElementById('alc-stats-card'); if(_ac) _ac.innerHTML = typeof alcStatsHtml === 'function' ? alcStatsHtml() : ''; }   // alcool et récupération (alcohol.js)
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;

@@ -1,0 +1,62 @@
+// Alcool la veille : modèle personnel (corrigé de la charge d'entraînement), impact du jour, allègement WHOOP non déclenché, tendances FC
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { loadApp } = require('../helpers/frontend');
+
+const J = (o) => JSON.parse(JSON.stringify(o));
+const iso = (n) => { const d = new Date('2026-10-29T12:00:00Z'); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+// 40 nuits : récupération 72 − 3,4 × alcool ; FC repos 50 + 0,8 × alcool ; VFC 70 × (1 − 3 % × alcool)
+function world(o){
+  o = o || {};
+  const rec = [], sleeps = [], alc = {};
+  for(let i = 0; i < 40; i++){
+    const d = iso(i), l = o.lv ? o.lv(i) : (i % 5 === 0 ? 2 + (i % 8) : 0), noise = ((i * 7) % 5) - 2;
+    rec.push({ date: d, score: Math.round(72 - 3.4 * l + noise), rhr: Math.round(50 + 0.8 * l), hrv: Math.round(70 * (1 - 0.03 * l)) });
+    sleeps.push({ date: d, performance_pct: 85 - 2 * l });
+    if(!o.noEntries) alc[d] = { l: l, t: l ? ['wine'] : [] };
+  }
+  return { _plan_engine: 'generated', plan_start_date: '2026-10-26', whoop_data: { recoveries: rec, sleeps: sleeps }, _alcohol: alc, '_wakeup_2026-10-29': true };
+}
+
+test('modèle personnel : effet de l\'alcool retrouvé sur la récupération, la FC repos et la VFC', () => {
+  const st = world();
+  const app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: st });
+  const M = J(app.alcModel('2026-10-29'));
+  assert.ok(M.personal, JSON.stringify(M));
+  assert.ok(M.coef.rec < -2.8 && M.coef.rec > -3.8, 'récup / point : ' + M.coef.rec);
+  assert.ok(M.coef.rhr > 0.6 && M.coef.rhr < 0.95, 'FC repos / point : ' + M.coef.rhr);
+  assert.ok(M.coef.hrv < -2 && M.coef.hrv > -4, 'VFC % / point : ' + M.coef.hrv);
+  assert.equal(M.bands[0].lab, 'Sans alcool'); assert.ok(M.bands[0].rec > M.bands[3].rec || !M.bands[3].n);
+});
+
+test('impact du jour : points de récupération dus à l\'alcool et récupération « hors alcool »', () => {
+  const st = world(); st.whoop_data.recoveries[0] = { date: '2026-10-29', score: 45, rhr: 56, hrv: 55 }; st._alcohol['2026-10-29'] = { l: 8, t: ['beer', 'spirits'] };
+  const app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: st });
+  const I = J(app.alcImpact('2026-10-29'));
+  assert.equal(I.l, 8); assert.ok(I.rec <= -22 && I.rec >= -31, 'effet récup ' + I.rec);
+  assert.equal(I.recObs, 45); assert.ok(I.recWithout >= 67 && I.recWithout <= 76, 'hors alcool ' + I.recWithout);
+  assert.ok(I.share >= 80, 'la baisse vient surtout de l\'alcool : ' + I.share);
+  const C = J(app.alcCoachContext('2026-10-29'));
+  assert.equal(C.cette_nuit.niveau_0_10, 8); assert.match(C.regle, /PAS de l'entraînement/);
+});
+
+test('allègement WHOOP : une récupération basse due à l\'alcool ne déclenche pas d\'allègement ; sans saisie, si', () => {
+  const lv = (i) => (i <= 2 ? 10 : 0);                                    // 3 dernières nuits arrosées
+  let st = world({ lv });
+  let app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: st });
+  const W = J(app.prWhoop('2026-10-29'));
+  assert.equal(W.tired, false, JSON.stringify(W)); assert.ok(W.alc && W.alc.explained && W.alc.rawAvg3 < 45);
+  st = world({ lv, noEntries: true });
+  app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: st });
+  assert.equal(J(app.prWhoop('2026-10-29')).tired, true, 'sans saisie d\'alcool : fatigue détectée comme avant');
+});
+
+test('séance du lendemain d\'une soirée ≥ 4/10 : écartée des tendances de FC ; saisie enregistrée et modèle stocké pour le serveur', () => {
+  const st = world(); st._alcohol['2026-10-27'] = { l: 6, t: ['wine'] }; st._alcohol['2026-10-26'] = { l: 2, t: [] };
+  const app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: st });
+  assert.equal(app.alcRunAffected('2026-10-27'), true); assert.equal(app.alcRunAffected('2026-10-26'), false); assert.equal(app.alcRunAffected('2026-10-20'), false);
+  app.alcSave('2026-10-29', 3, ['beer', 'x']);
+  assert.deepEqual(J(st._alcohol['2026-10-29']).t, ['beer']); assert.equal(st._alcohol['2026-10-29'].l, 3);
+  assert.equal(st._alcohol_model.at, '2026-10-29'); assert.ok(st._alcohol_model.rec < 0);
+});

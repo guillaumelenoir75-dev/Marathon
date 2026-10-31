@@ -766,8 +766,15 @@ async function prepDailyTasks(){
       const p = getBestEfPace(), r = state._ef_ref || {}, t = _prepToday();
       if(p && (r.pace !== p || r.at !== t)){ state._ef_ref = { pace: p, at: t }; if(dbRef) dbRef.child('_ef_ref').set(state._ef_ref).catch(function(){}); }
     }
+    // effet personnel de l'alcool sur la récupération : recalculé chaque jour pour le brief du matin (serveur)
+    if(!_prepView && typeof alcStoreModel === 'function' && state._alcohol){
+      const b = JSON.stringify(state._alcohol_model || null); alcStoreModel();
+      if(JSON.stringify(state._alcohol_model) !== b && dbRef) dbRef.child('_alcohol_model').set(state._alcohol_model).catch(function(){});
+    }
   } catch(e) {}
   _prepDailyBusy = false;
+  // réveil déclaré, alcool d'hier soir pas encore renseigné : on demande
+  if(typeof alcMaybeAsk === 'function') alcMaybeAsk();
 }
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(prepDailyTasks, 1500); });
 

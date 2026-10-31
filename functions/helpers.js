@@ -268,6 +268,22 @@ function whoopNight(wd, todayStr) {
 }
 const WHOOP_MISSING_TEXT = '\nDonnées WHOOP de cette nuit : NON DISPONIBLES (synchronisation échouée ou nuit pas encore calculée par WHOOP). N\'affiche AUCUN chiffre de récupération, de VFC ni de sommeil (ceux d\'une autre nuit seraient faux) : dis clairement en une phrase, dans le bloc nuit, que les données WHOOP de cette nuit ne sont pas disponibles.';
 
+// ─── Alcool la veille (saisie du matin dans l'app, alcohol.js) : effet estimé avec le modèle personnel (_alcohol_model) ───
+const ALC_PRIOR_SRV = { rec: -2.6, hrv: -2.4, rhr: 0.7, sleep: -2.0 };
+const ALC_TYPE_TXT = { beer: 'bière', wine: 'vin', spirits: 'alcool fort' };
+function alcoholBriefText(state, todayStr) {
+  const A = (state && state._alcohol) || {}, e = A[todayStr];
+  if (!e) return 'Alcool hier soir : non renseigné (ne fais aucune supposition).';
+  if (!(+e.l > 0)) return 'Alcool hier soir : AUCUN — la récupération reflète l\'entraînement et la nuit.';
+  const M = state._alcohol_model && state._alcohol_model.rec != null ? state._alcohol_model : ALC_PRIOR_SRV, l = +e.l;
+  const types = (e.t || []).map((t) => ALC_TYPE_TXT[t]).filter(Boolean).join(', ');
+  const r = Math.round(M.rec * l), h = Math.round(M.hrv * l), f = Math.round(M.rhr * l * 10) / 10, s = Math.round(M.sleep * l);
+  const src = state._alcohol_model && state._alcohol_model.personal ? `modèle personnel (${state._alcohol_model.nAlc} soirées)` : 'estimation générale';
+  const recent = Object.keys(A).filter((d) => d < todayStr && Date.parse(todayStr) - Date.parse(d) <= 7 * 864e5 && +A[d].l > 0).length;
+  return `Alcool hier soir : ${l}/10${types ? ' (' + types + ')' : ''}. Effet estimé sur cette nuit (${src}) : récupération ${r} pts, VFC ${h} %, FC repos +${f} bpm, sommeil ${s} pts.${recent ? ' Autres soirées avec alcool sur les 7 derniers jours : ' + recent + '.' : ''}
+RÈGLE ALCOOL : cette part de la baisse (récupération, VFC, FC repos, sommeil) vient de l'alcool, PAS de l'entraînement — ne l'attribue jamais à une séance trop rapide ou à la charge, ne propose pas d'alléger les jours suivants pour ça. Dis-le simplement, sans morale, en une phrase dans le bloc nuit ; conseille hydratation et sommeil ; une séance de qualité aujourd'hui se fait aux sensations (allure plus prudente, FC plus haute que d'habitude normale).`;
+}
+
 // ─── Brief du matin d'un jour de repos (aucune séance ni renfo aujourd'hui) : nuit, récupération, séance de demain ───
 function isRestDay(ctx, sit) {
   return !(ctx && ctx.seanceRunAujourdhui) && !((ctx && ctx.seancesAujourdHui) || []).length && !((sit && sit.todaySessions) || []).length;
@@ -768,10 +784,12 @@ RÈGLES :
   const userMsg = restDay ? `${dateComplet}
 ${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
 ${restBriefData(state, todayStr, sit)}
+${alcoholBriefText(state, todayStr)}
 ${memosLine}
 
 ${sit.text}` : `${dateComplet}
 ${globalScoreLine ? globalScoreLine+'\n' : ''}${fcLine}${whoopBlock}
+${alcoholBriefText(state, todayStr)}
 Séances du jour : ${seancesStr}
 Consigne de la séance (plan) : ${consigneJour||'—'}
 ${autopilotBriefText(state, todayStr)}
@@ -961,6 +979,6 @@ module.exports = {
   buildNotifContext,
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,
-  generateMorningBriefContent, whoopNight, WHOOP_MISSING_TEXT, isRestDay, restBriefSystem, restBriefData, restPushPart,
+  generateMorningBriefContent, alcoholBriefText, whoopNight, WHOOP_MISSING_TEXT, isRestDay, restBriefSystem, restBriefData, restPushPart,
   generateWeeklyBilanContent,
 };

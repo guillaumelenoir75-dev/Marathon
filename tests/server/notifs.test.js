@@ -113,3 +113,24 @@ test('brief du matin : uniquement la nuit WHOOP du jour — celle de la veille n
   u = F.calls.ai[0].user;
   assert.match(u, /Score de récupération WHOOP : 31%/); assert.doesNotMatch(u, /NON DISPONIBLES/);
 });
+
+test('brief du matin : l\'alcool d\'hier soir est donné au Coach avec son effet estimé et la règle « pas l\'entraînement »', async () => {
+  const d = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  const st = { _plan_engine: 'generated', plan_start_date: d, extra_w1_s0: JSON.stringify({ type: 'ef', km: 8, d: 'Footing|x', sched_date: d, sched_time: '12:00' }),
+    _alcohol: { [d]: { l: 7, t: ['wine', 'spirits'] } }, _alcohol_model: { at: d, personal: true, nAlc: 9, rec: -3, hrv: -2.5, rhr: 0.8, sleep: -2 } };
+  let F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  await F.helpers.generateMorningBriefContent('k', F.db, st, 1, d);
+  const u = F.calls.ai[0].user;
+  assert.match(u, /Alcool hier soir : 7\/10 \(vin, alcool fort\)\. Effet estimé sur cette nuit \(modèle personnel \(9 soirées\)\) : récupération -21 pts, VFC -17 %, FC repos \+5\.6 bpm/);
+  assert.match(u, /RÈGLE ALCOOL : cette part de la baisse .* vient de l'alcool, PAS de l'entraînement/);
+  st._alcohol = {};
+  F = loadFunctions({ data: {}, modules: [], ai: 'brief' });
+  await F.helpers.generateMorningBriefContent('k', F.db, st, 1, d);
+  assert.match(F.calls.ai[0].user, /Alcool hier soir : non renseigné/);
+  // relecture / discussion du plan : la règle alcool fait partie des principes
+  const C = loadFunctions({ data: {}, modules: ['coach.js'], ai: '{"reply":"ok","changes":[]}' });
+  const { callHttp } = require('../helpers/functions');
+  await callHttp(C.coach.planChat, { today: d, plan: [{ w: 1, sessions: [] }], next: true, message: 'Récup basse ce matin', alcool: { cette_nuit: { niveau_0_10: 7 } } });
+  assert.match(C.calls.ai[0].system, /ALCOOL : une récupération WHOOP basse/);
+  assert.match(C.calls.ai[0].user, /Alcool \(saisi chaque matin.*niveau_0_10":7/);
+});

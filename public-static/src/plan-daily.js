@@ -493,6 +493,7 @@ function prRenderHomeCard(){
     } else if(F){ const C = 2 * Math.PI * 26;
       h += '<div class="pd-form ' + F.tone + '"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="37" text-anchor="middle">' + F.score + '</text></svg>'
         + '<div><p class="pd-form-l">Forme du jour</p><b>' + F.label + '</b><small>' + prEsc(F.why.join(' · ')) + '</small></div></div>'; }
+    if(typeof alcHomeLine === 'function') h += alcHomeLine(WS.kind === 'ok' ? F : null);   // alcool hier soir : effet sur ta nuit, ou question du matin
     h += '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
       + '<button type="button" class="pd-bdg-btn" onclick="openBadges()">' + on.slice(-4).map(function(b){ return '<i>' + b.ico + '</i>'; }).join('') + '<span>' + on.length + '/' + B.list.length + ' badges ›</span></button></div>';
     if(typeof bsHomeLine === 'function') h += bsHomeLine();                    // foulée qui se dégrade (body-signals.js)

@@ -31,7 +31,7 @@ const {
   bedtimePlan,
   parisToday,
   autopilotBriefText,
-  isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT,
+  isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT, alcoholBriefText,
 } = require('./helpers');
 
 exports.fcReposReminderWeekday = onSchedule(
@@ -282,6 +282,11 @@ exports.briefAfterFcRepos = onSchedule(
         console.log(`briefAfterFcRepos: WHOOP connecté mais données trop anciennes (${whoopDate||'aucune'}, attendu >= ${yesterdayStr}) — on attend (${Math.round(ageMin)} min / 10 min max)`);
         return; // conserver le trigger, réessayer au prochain tick (2 min)
       }
+      // alcool d'hier soir pas encore renseigné (question affichée au réveil) : attendre la réponse jusqu'à 5 min
+      if(!((state._alcohol||{})[todayStr])&&ageMin<5){
+        console.log(`briefAfterFcRepos: alcool d'hier soir pas encore renseigné — on attend (${Math.round(ageMin)} min / 5 min max)`);
+        return;
+      }
       // Si WHOOP est connecté et les données sont récentes mais le score n'est pas encore calculé
       // (WHOOP analyse le sommeil plusieurs minutes après le réveil), attendre jusqu'à 15 min
       const whoopScoreReady=!!(whoopRecent&&whoopRecov&&whoopRecov.score!=null);
@@ -508,10 +513,12 @@ RÈGLES :
       const userMsg=restDay?`${dateComplet}
 ${globalScoreLine?globalScoreLine+'\n':''}${fcLine}${whoopBlock}
 ${restBriefData(state, todayStr, sit)}
+${alcoholBriefText(state, todayStr)}
 ${memosLine}
 
 ${sit.text}`:`${dateComplet}
 ${globalScoreLine?globalScoreLine+'\n':''}${fcLine}${whoopBlock}
+${alcoholBriefText(state, todayStr)}
 Séances du jour : ${seancesStr}
 Consigne de la séance (plan) : ${consigneJour||'—'}
 ${autopilotBriefText(state, todayStr)}

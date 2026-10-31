@@ -567,3 +567,43 @@ test('forme du jour sécurisée : synchro WHOOP en échec ou nuit absente → me
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('alcool : question au réveil, saisie 0-10 + types, effet sur la forme du jour, carte Statistiques, question à l\'ouverture', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;
+  const rec = [], sl = [];
+  for (let i = 0; i < 20; i++) { const d = new Date('2026-10-29T12:00:00Z'); d.setUTCDate(d.getUTCDate() - i); const k = d.toISOString().slice(0, 10); rec.push({ date: k, score: i === 0 ? 41 : 70, rhr: i === 0 ? 57 : 50, hrv: i === 0 ? 52 : 68 }); sl.push({ date: k, performance_pct: i === 0 ? 66 : 86 }); }
+  st.whoop_data = { updatedAt: new Date('2026-10-29T08:00:00Z').toISOString(), recoveries: rec, sleeps: sl };
+  delete st.whoop_token;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', JSON.stringify(D));
+  await page.evaluate(() => { showScreen('home'); onWakeup(); });
+  await page.waitForSelector('#alc-modal .alc-none');
+  await page.click('#alc-modal .alc-n:nth-child(6)');
+  await page.click('#alc-modal .alc-ty:nth-child(1)'); await page.click('#alc-modal .alc-ty:nth-child(2)');
+  assert.match(await page.textContent('#alc-go'), /Enregistrer 6\/10 · bière, vin/);
+  await page.click('#alc-go');
+  await page.waitForFunction(() => !document.getElementById('alc-modal'));
+  const S = JSON.parse(await db(page)).users.ADMINUID.state;
+  assert.deepEqual(S._alcohol['2026-10-29'].t, ['beer', 'wine']); assert.equal(S._alcohol['2026-10-29'].l, 6);
+  await page.evaluate(() => renderHome());
+  const line = await page.textContent('#home-form-card .alc-home');
+  assert.match(line, /Alcool hier soir : 6\/10 \(bière, vin\)/); assert.match(line, /récup -\d+ pts/); assert.match(line, /hors alcool, ta forme serait ~\d+/);
+  // détail et correction
+  await page.click('#home-form-card .alc-home'); await page.waitForSelector('#alc-ins .alc-today');
+  await page.evaluate(() => document.getElementById('alc-ins').remove());
+  await page.evaluate(() => alcAsk()); await page.click('#alc-modal .alc-none');
+  await page.waitForFunction(() => /Pas d'alcool hier soir/.test(document.getElementById('home-form-card').textContent));
+  // Statistiques › Forme
+  await page.evaluate(() => { showScreen('stats'); statsTab('forme'); }); await page.waitForTimeout(600);
+  assert.match(await page.textContent('#alc-stats-card'), /Alcool et récupération/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+  // ouverture d'un autre matin : réveil déclaré, pas encore de réponse → la question s'affiche
+  const D2 = JSON.parse(savedDb); D2.users.ADMINUID.state['_wakeup_2026-10-29'] = true;
+  const b = await open('2026-10-29T09:30:00+01:00', JSON.stringify(D2));
+  await b.page.waitForSelector('#alc-modal .alc-none', { timeout: 8000 });
+  await b.page.click('#alc-modal .alc-later');
+  assert.match(await b.page.textContent('#home-form-card'), /Alcool hier soir \?/);
+  assert.deepEqual(b.errors, []);
+  await b.ctx.close();
+});

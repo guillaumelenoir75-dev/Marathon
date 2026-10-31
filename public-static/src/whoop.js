@@ -342,7 +342,10 @@ async function onWakeup(force) {
     // 2. Mettre à jour le bouton immédiatement
     _setWakeupBtnDone(btn);
 
-    // 3. Synchroniser WHOOP
+    // 3. Alcool hier soir : la question s'affiche tout de suite (le brief attend la réponse quelques minutes côté serveur)
+    if (typeof alcAsk === 'function' && typeof alcEntry === 'function' && !alcEntry(wakeupDate)) alcAsk({ day: wakeupDate });
+
+    // 4. Synchroniser WHOOP
     if (state.whoop_token && state.whoop_token.access_token) {
       await syncWhoop();
     }

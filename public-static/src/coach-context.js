@@ -614,6 +614,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     })(),
     semaine_suivante: CW < planTotalWeeks() ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:isRecoveryWeek(CW+1)?'DÉCHARGE':'CHARGE'} : null,
     historique_complet_par_mois: _ccMonthly(),
+    alcool: typeof alcCoachContext === 'function' ? alcCoachContext() : null,   // soirées et effet estimé sur la récupération (alcohol.js)
     seances_recentes_detail: (()=>{
       // 9 dernières semaines, toutes prépas confondues, la plus récente d'abord
       return _ccHist(8).reverse().slice(0,15).map(h=>{ const perf=h.perf||{}; return {date:h.date,semaine:h.cur?h.w:null,type:h.sess.type,titre:sessionTitle(h.sess),km:h.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null}; });

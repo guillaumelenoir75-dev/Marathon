@@ -316,7 +316,7 @@ function prVolumePlan(st, a){
 // ─── 5. Dérive cardiaque (splits Strava des footings et sorties longues) ────
 // efficacité = vitesse / FC ; dérive = baisse d'efficacité entre la 1re et la 2e moitié (1er km écarté)
 function prDrift(today){
-  const runs = prDoneLog(today).filter(function(x){ return (x.type === 'ef' || x.type === 'long') && prDays(x.date, today) <= 42; }).map(function(x){
+  const runs = prDoneLog(today).filter(function(x){ return (x.type === 'ef' || x.type === 'long') && prDays(x.date, today) <= 42 && !(typeof alcRunAffected === 'function' && alcRunAffected(x.date)); }).map(function(x){
     const sp = (((x.s.perf || {}).strava || {}).splits || []).filter(function(p){ return p.allure && p.fc && p.distanceKm >= 0.9; });
     if(sp.length < 6) return null;
     const body = sp.slice(1), h = Math.floor(body.length / 2);
@@ -366,14 +366,21 @@ function _prTestTimeLaps(s, ok){
 // ─── 7. WHOOP : récupération et VFC des derniers jours ──────────────────────
 function prWhoop(today){
   const wd = state.whoop_data;
-  const rec = ((wd && wd.recoveries) || []).filter(function(r){ return r && r.date && r.score != null; }).sort(function(a, b){ return b.date.localeCompare(a.date); });
+  // récupération corrigée de l'alcool de la veille (alcohol.js) : une nuit arrosée n'est pas de la fatigue d'entraînement
+  const M = typeof alcModel === 'function' && state._alcohol ? alcModel(today) : null;
+  const raw = ((wd && wd.recoveries) || []).filter(function(r){ return r && r.date && r.score != null; }).sort(function(a, b){ return b.date.localeCompare(a.date); });
+  const rec = M ? raw.map(function(r){ return alcCorrectRecovery(r, M); }) : raw;
   if(!rec.length || prDays(rec[0].date, today) > 2) return null;
   const last3 = rec.slice(0, 3), base = rec.slice(3, 14).filter(function(r){ return r.hrv; });
   const red = last3.filter(function(r){ return r.score < 34; }).length, avg3 = prMean(last3.map(function(r){ return r.score; }));
   const hrv3 = prMean(last3.filter(function(r){ return r.hrv; }).map(function(r){ return r.hrv; })), hrvB = base.length >= 5 ? prMean(base.map(function(r){ return r.hrv; })) : null;
   const hrvDrop = hrv3 && hrvB ? (hrv3 / hrvB - 1) * 100 : null;
-  return { tired: red >= 2 || avg3 < 40 || (hrvDrop != null && hrvDrop <= -15), fresh: avg3 >= 67 && (hrvDrop == null || hrvDrop >= -5),
-    avg3: Math.round(avg3), red: red, hrvDrop: hrvDrop != null ? Math.round(hrvDrop) : null, scores: last3.map(function(r){ return r.score; }) };
+  const tired = red >= 2 || avg3 < 40 || (hrvDrop != null && hrvDrop <= -15);
+  // part due à l'alcool : la récupération brute aurait signalé une fatigue que la récupération corrigée n'explique pas
+  const raw3 = raw.slice(0, 3), rawAvg = prMean(raw3.map(function(r){ return r.score; })), rawRed = raw3.filter(function(r){ return r.score < 34; }).length;
+  const alc = last3.some(function(r){ return r._alc; }) ? { nights: last3.filter(function(r){ return r._alc; }).map(function(r){ return { date: r.date, l: r._alc }; }), rawAvg3: Math.round(rawAvg), explained: !tired && (rawRed >= 2 || rawAvg < 40) } : null;
+  return { tired: tired, fresh: avg3 >= 67 && (hrvDrop == null || hrvDrop >= -5),
+    avg3: Math.round(avg3), red: red, hrvDrop: hrvDrop != null ? Math.round(hrvDrop) : null, scores: last3.map(function(r){ return Math.round(r.score); }), alc: alc };
 }
 // séances déjà allégées par une mise à jour (WHOOP / douleur) depuis une date : pas de nouvel allègement par-dessus
 function prEasedSince(st, since){

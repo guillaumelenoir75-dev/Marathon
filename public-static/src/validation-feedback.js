@@ -461,6 +461,9 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     if(_vp.rpe) _r.effort_ressenti_sur_10 = _vp.rpe;
     _r.douleur = _vp.pain && _vp.pain.level ? { niveau_0_3: _vp.pain.level, zone: _vp.pain.zone || null } : 'aucune';
     if(Object.keys(_r).length > 1 || _r.ce_que_guillaume_a_dit) analysisContext.ressenti_athlete = _r;
+    // alcool la veille de la séance (saisie du matin, alcohol.js) : FC plus haute et sensations moins bonnes à prévoir
+    const _ad = (_vp.date || '').slice(0, 10) || (typeof prTodayIso === 'function' ? prTodayIso() : ''), _ae = typeof alcEntry === 'function' ? alcEntry(_ad) : null;
+    if(_ae) analysisContext.alcool_la_veille = _ae.l > 0 ? { niveau_0_10: _ae.l, types: typeof alcTypesText === 'function' ? alcTypesText(_ae.t) : '' } : 'aucun';
     // splits Strava de la séance (déjà enregistrés) si l'import n'est plus en mémoire
     if(!window._stravaActivityData && _vp.strava && _vp.strava.splits) analysisContext.strava = { cadence: _vp.strava.cadence || null, fcMax: _vp.strava.fcMax || null, splits: _vp.strava.splits.filter(sp => !sp.distanceKm || sp.distanceKm >= 0.5).map(sp => ({ km: sp.km, allure: sp.allure, fc: sp.fc })) };
   }

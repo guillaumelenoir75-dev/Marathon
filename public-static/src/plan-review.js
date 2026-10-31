@@ -411,7 +411,7 @@ async function prHistory(today){
 // allure EF réelle : médiane des 5 dernières sorties EF / longues à FC ≤ plafond EF (148 ou zones recalées, hrEfMax) (6 dernières semaines,
 // toutes prépas confondues pour la prépa en cours)
 function prObservedEf(st, today){
-  const v = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st)).filter(function(s){ return s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= hrEfMax(st); })
+  const v = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st)).filter(function(s){ return !(st === state && typeof alcRunAffected === 'function' && alcRunAffected(s.date)) && s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= hrEfMax(st); })
     .sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 5)
     .map(function(s){ const m = String(s.perf.pace).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean).sort(function(a, b){ return a - b; });
   return v.length >= 2 ? v[Math.floor(v.length / 2)] : null;
@@ -857,6 +857,7 @@ function _prRender(){
   if(a.opt.habitual) pills.push('<span class="pr-pill base">🏋️ Ta base : ~' + a.opt.habitual + ' km/sem (' + prEsc(a.opt.habitualFrom) + ')</span>');
   if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) pills.push('<span class="pr-pill rest">🛌 Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées jusqu\'au ' + prFmtDate(a.opt.noFasterUntil, { day: 'numeric', month: 'short' }) : '') + '</span>');
   if(a.load && a.load.chronic) pills.push('<span class="pr-pill base">📈 Charge : ' + a.load.k7 + ' km / 7 j · ~' + a.load.chronic + ' km/sem sur 28 j' + (a.load.acwr ? ' · ratio ' + prV(a.load.acwr) : '') + '</span>');
+  if(a.whoop && a.whoop.alc && a.whoop.alc.explained) pills.push('<span class="pr-pill ok">🍷 Récupération basse expliquée par l\'alcool (' + a.whoop.alc.rawAvg3 + ' % brut) : pas d\'allègement du plan</span>');
   if(a.whoop) pills.push('<span class="pr-pill ' + (a.whoop.tired ? 'rest' : 'ok') + '">' + (a.whoop.tired ? '😮‍💨 WHOOP : récupération basse (' + a.whoop.avg3 + ' %)' : a.whoop.fresh ? '💚 WHOOP : bien récupéré (' + a.whoop.avg3 + ' %)' : '💛 WHOOP : récupération moyenne (' + a.whoop.avg3 + ' %)') + (a.whoop.hrvDrop != null ? ' · VFC ' + (a.whoop.hrvDrop > 0 ? '+' : '') + a.whoop.hrvDrop + ' %' : '') + '</span>');
   const pn = a.internal && a.internal.pains[0];
   if(pn) pills.push('<span class="pr-pill ' + (pn.level >= 2 ? 'rest' : 'base') + '">🩹 Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' (' + prEsc(pn.zone.toLowerCase()) + ') le ' + prFmtDate(pn.date) + (pn.level >= 2 ? ' → jours suivants allégés' : ' : surveille') + '</span>');
@@ -1035,7 +1036,8 @@ async function prCoachBody(a, R, force){
     effort_ressenti: a.internal && a.internal.rpes.length ? { seances_14j: a.internal.rpes, charge_ressentie_ratio_7j_28j: a.internal.ratio ? Math.round(a.internal.ratio * 100) / 100 : null } : null,
     douleurs: a.internal && a.internal.pains.length ? a.internal.pains : null,
     derive_cardiaque: a.drift ? { moyenne_pct: Math.round(a.drift.avg * 10) / 10, sorties: a.drift.n, endurance: a.drift.label } : null,
-    whoop: a.whoop ? { recup_3j: a.whoop.scores, moyenne: a.whoop.avg3, vfc_vs_moyenne_pct: a.whoop.hrvDrop, fatigue: a.whoop.tired } : null,
+    whoop: a.whoop ? { recup_3j_corrigee_alcool: a.whoop.scores, moyenne_corrigee: a.whoop.avg3, vfc_vs_moyenne_pct: a.whoop.hrvDrop, fatigue_entrainement: a.whoop.tired, alcool: a.whoop.alc || null } : null,
+    alcool: typeof alcCoachContext === 'function' ? alcCoachContext(today) : null,
     allures_tenues: a.calib && a.calib.n ? { tenues: a.calib.k, total: a.calib.n, detail: a.calib.list.map(function(r){ return { seance: r.title, date: r.date, cible: r.target, realise: prPace(r.real), tenue: r.ok }; }) } : null,
     trajectoire: a.trajectory && a.trajectory.race ? { niveau: a.fit.vdot, tendance_par_semaine: Math.round(a.trajectory.slope * 70) / 10, projection_jour_j: Math.round(a.trajectory.race.v * 10) / 10, fourchette: prTime(a.trajectory.race.lo) + ' – ' + prTime(a.trajectory.race.hi), niveau_objectif: a.trajectory.need ? Math.round(a.trajectory.need * 10) / 10 : null, verdict: a.trajectory.verdict || null } : null,
     lastCoachReview: state._coach_review ? { date: state._coach_review.date, avis: state._coach_review.assessment } : null,
