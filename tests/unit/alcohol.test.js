@@ -60,3 +60,11 @@ test('séance du lendemain d\'une soirée ≥ 4/10 : écartée des tendances de 
   assert.deepEqual(J(st._alcohol['2026-10-29']).t, ['beer']); assert.equal(st._alcohol['2026-10-29'].l, 3);
   assert.equal(st._alcohol_model.at, '2026-10-29'); assert.ok(st._alcohol_model.rec < 0);
 });
+
+test('diagnostic à copier : saisies, nuits WHOOP, charge, modèle et effet du matin', () => {
+  const st = world(); st.whoop_data.recoveries[0] = { date: '2026-10-29', score: 45, rhr: 56, hrv: 55 }; st._alcohol['2026-10-29'] = { l: 6, t: ['wine'] };
+  const app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: st });
+  const D = JSON.parse(app.alcDiagText('2026-10-29'));
+  assert.equal(D.nuits_14j.length, 14); assert.equal(D.nuits_14j[0].matin, '2026-10-29'); assert.equal(D.nuits_14j[0].alcool, 6); assert.equal(D.nuits_14j[0].recup, 45);
+  assert.ok(D.nuits_14j[0].alcool_corrige > 45); assert.equal(D.ce_matin.niveau, 6); assert.ok(D.modele.par_point.rec < 0);
+});

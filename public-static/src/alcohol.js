@@ -307,10 +307,36 @@ function openAlcoholInsights(){
     const e = A[d], r = rec[d], dd = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
     return '<button type="button" class="alc-row" onclick="document.getElementById(\'alc-ins\').remove();alcAsk({day:\'' + d + '\'})"><span>' + dd + '</span><b class="' + (!e ? 'q' : e.l > 0 ? 'y' : 'n') + '">' + (!e ? 'À remplir' : e.l > 0 ? e.l + '/10' : 'Aucun') + '</b><small>' + (e ? prEsc(alcTypesText(e.t)) : '') + '</small><em>' + (r && r.score != null ? 'récup ' + r.score + ' %' : '') + '</em></button>';
   }).join('') : '<p class="alc-card-n">Pas encore de saisie.</p>') + '</div>';
-  h += '<p class="alc-card-n" style="margin-top:6px;">Toucher une nuit pour la corriger. Le Coach, le brief du matin et la mise à jour du plan tiennent compte de ces saisies.</p></div></div></div>';
+  h += '<p class="alc-card-n" style="margin-top:6px;">Toucher une nuit pour la corriger. Le Coach, le brief du matin et la mise à jour du plan tiennent compte de ces saisies.</p>'
+    + '<button type="button" class="alc-card-b" style="align-self:stretch;text-align:center;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px;margin-top:4px;" onclick="alcCopyDiag(this)">📋 Copier mes données pour analyse</button></div></div></div>';
   ov.innerHTML = h;
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
+}
+
+// ─── Diagnostic à copier (vérifier les saisies et ce que le modèle en a tiré) ───
+function alcDiagText(today){
+  today = today || prTodayIso();
+  const A = state._alcohol || {}, wd = state.whoop_data || {}, M = alcModel(today), I = alcImpact(alcDay(), M);
+  let L = {}; try { if(typeof fmLoads === 'function') L = fmLoads(today) || {}; } catch(e) {}
+  const days = []; for(let k = 0; k < 14; k++) days.push(prAddDays(alcDay(), -k));
+  const rec = {}, sl = {}; (wd.recoveries || []).forEach(function(r){ if(r && r.date) rec[r.date] = r; }); (wd.sleeps || []).forEach(function(s){ if(s && s.date) sl[s.date] = s; });
+  const nights = days.map(function(d){ const e = A[d], r = rec[d], s = sl[d];
+    return { matin: d, alcool: e ? e.l : null, types: e ? (e.t || []) : null, saisi_le: e ? e.at : null, recup: r ? r.score : null, vfc: r ? r.hrv : null, fc_repos: r ? r.rhr : null, sommeil_pct: s ? s.performance_pct : null, sommeil: s ? s.duration_hours : null,
+      charge_veille_trimp: Math.round(L[prAddDays(d, -1)] || 0), alcool_corrige: r && e && e.l > 0 ? Math.round(alcCorrectRecovery(r, M).score) : null }; });
+  return JSON.stringify({ genere: new Date().toISOString(), jour_reveil: alcDay(), saisies_total: Object.keys(A).length, nuits_14j: nights,
+    modele: { personnel: M.personal, nuits: M.n, soirees: M.nAlc, sans_alcool: M.nFree, par_point: M.coef, charge_par_100trimp: M.loadCoef, vfc_base: M.hrvBase, groupes: M.bands },
+    modele_stocke_pour_serveur: state._alcohol_model || null, ce_matin: I ? { niveau: I.l, effet_recup: I.rec, effet_vfc_pct: I.hrv, effet_fc: I.rhr, effet_sommeil: I.sleep, recup_mesuree: I.recObs, recup_sans_alcool: I.recWithout, part_alcool_pct: I.share } : null,
+    whoop_fatigue: typeof prWhoop === 'function' ? (function(){ try { return prWhoop(today); } catch(e) { return null; } })() : null }, null, 1);
+}
+async function alcCopyDiag(btn){
+  const t = alcDiagText();
+  let ok = false;
+  try { if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(t); ok = true; } } catch(e) {}
+  if(!ok){ try { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch(e) {} }
+  if(btn) btn.textContent = ok ? '✅ Copié — colle-le dans la conversation' : 'Copie impossible';
+  if(typeof showToast === 'function') showToast(ok ? 'Données copiées' : 'Copie impossible', ok ? '📋' : '⚠️');
+  return ok;
 }
 
 // ─── Pour le Coach (chat, analyse de séance, relecture / discussion du plan) ───
