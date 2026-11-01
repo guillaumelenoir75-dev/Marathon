@@ -91,7 +91,8 @@ function avDecide(st, act, opts){
   opts = opts || {};
   const now = opts.nowMs || Date.now(), missing = [];
   if(!act) return { ok: false, missing: ['strava'], reason: 'pas de sortie' };
-  if(now - act.endMs < AV_SETTLE_MIN * 60000) return { ok: false, wait: true, missing: [], reason: 'sortie trop récente' };
+  const settle = opts.settleMin != null ? opts.settleMin : AV_SETTLE_MIN;      // bouton « J'ai fini » : pas d'attente
+  if(now - act.endMs < settle * 60000) return { ok: false, wait: true, missing: [], reason: 'sortie trop récente' };
   const m = avMatch(st, act, opts.today);
   if(!m.s) return { ok: false, skip: true, already: !!m.already, missing: [], reason: m.reason };
   if(!opts.detail) missing.push('strava');
@@ -180,6 +181,7 @@ function avOpenSettings(){
     + '<div class="modal-scroll-body" style="background:#F5F7FB;"><div style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:10px;">'
     + '<button type="button" class="av-opt' + (on ? ' on' : '') + '" onclick="avSet(\'on\')"><b>Activée</b><span>Validée dès que les 3 sources concordent</span></button>'
     + '<button type="button" class="av-opt' + (!on ? ' on' : '') + '" onclick="avSet(\'off\')"><b>Désactivée</b><span>Tu valides toi-même chaque séance</span></button>'
+    + (on ? '<button type="button" class="av-save" onclick="document.getElementById(\'av-set\').remove();avFinish()">🏁 J\'ai fini ma séance : vérifier maintenant</button>' : '')
     + '<div class="av-rules"><p>Validée seulement si :</p><ul><li>🟠 <b>Strava</b> · une course rattachée à une seule séance du plan</li><li>💚 <b>WHOOP</b> · l\'entraînement de cette sortie (mêmes horaires)</li><li>🌡️ <b>Météo</b> · au lieu et à l\'heure de la sortie</li></ul><p>Sinon : rien n\'est validé, tu reçois une notification pour valider à la main.</p></div>'
     + (log.length ? '<div class="av-rules"><p>Dernières sorties</p><ul>' + log.map(row).join('') + '</ul></div>' : '') + '</div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
@@ -200,6 +202,86 @@ function _avCss(){
     + '.av-save{padding:13px;border:none;border-radius:14px;background:#047857;color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;}.av-skip{padding:8px;border:none;background:none;color:#64748B;font-weight:700;cursor:pointer;font-family:inherit;}'
     + '.av-opt{display:flex;flex-direction:column;gap:2px;text-align:left;padding:12px 14px;border-radius:14px;border:1.5px solid #E2E8F0;background:#fff;cursor:pointer;font-family:inherit;}.av-opt b{font-size:14.5px;color:#0F172A;}.av-opt span{font-size:12.5px;color:#64748B;}.av-opt.on{border-color:#047857;background:#ECFDF5;}'
     + '.av-rules{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:11px 13px;font-size:13px;color:#334155;}.av-rules p{margin:0 0 4px;font-weight:800;}.av-rules ul{margin:0;padding-left:18px;}.av-rules li{margin:3px 0;}'
+    + '.av-rows{display:flex;flex-direction:column;gap:6px;}.av-src{display:grid;grid-template-columns:28px 64px 1fr auto;align-items:center;gap:8px;background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px;font-size:13.5px;}'
+    + '.av-src b{color:#0F172A;}.av-src-i{font-size:18px;}.av-src-t{color:#64748B;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.av-src-s{font-size:16px;}.av-src.ok{border-color:#A7F3D0;background:#F0FDF4;}.av-src.ko{border-color:#FECACA;background:#FEF2F2;}'
+    + '.av-msg{margin:2px 0 0;text-align:center;font-weight:900;font-size:15px;color:#334155;}.av-msg.ok,.av-msg.done{color:#047857;}.av-note{margin:0;text-align:center;font-size:12px;color:#64748B;}'
+    + '.hn-fin{background:#047857;color:#fff;border:none;border-radius:20px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit;}'
     + '.hs-feel{border:none;background:#ECFDF5;color:#047857;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}';
   document.head.appendChild(st);
+}
+
+// ─── Bouton « 🏁 J'ai fini » : la vérification tout de suite (fonction autoValidateNow), état de chaque source ──────
+// avNowView(r) : réponse du serveur → { phase: ok | done | wait | manual | off | error, key, title, rows: [strava, whoop, meteo], msg }
+function avNowView(r){
+  const row = function(k, ico, lbl, st, t){ return { k: k, ico: ico, lbl: lbl, st: st, t: t }; };
+  const all = function(st, t){ return [row('strava', '🟠', 'Strava', st, t), row('whoop', '💚', 'WHOOP', st, t), row('meteo', '🌡️', 'Météo', st, t)]; };
+  if(!r || r.success === false) return { phase: 'error', rows: all('wait', '—'), msg: (r && r.error) || 'Serveur injoignable' };
+  if(r.skip) return { phase: r.skip === 'désactivée' ? 'off' : 'error', rows: all('wait', '—'), msg: r.skip === 'désactivée' ? 'Validation automatique désactivée' : r.skip };
+  const L = (r.out || []).slice(), rank = { ok: 0, done: 1, pending: 2, manual: 3, skip: 4 };
+  L.sort(function(a, b){ return (rank[a.st] - rank[b.st]) || String(b.date || '').localeCompare(String(a.date || '')); });
+  const x = L[0];
+  if(!x) return { phase: 'wait', rows: [row('strava', '🟠', 'Strava', 'wait', 'sortie pas encore arrivée'), row('whoop', '💚', 'WHOOP', 'wait', 'après Strava'), row('meteo', '🌡️', 'Météo', 'wait', 'après Strava')], msg: 'Ta sortie n\'est pas encore sur Strava' };
+  const km = x.km != null ? String(x.km).replace('.', ',') + ' km' : '';
+  if(x.st === 'ok') return { phase: 'ok', key: x.key, title: x.title, rows: [row('strava', '🟠', 'Strava', 'ok', km + (x.pace ? ' · ' + String(x.pace).replace(':', "'") + '/km' : '')), row('whoop', '💚', 'WHOOP', 'ok', 'effort ' + String(Math.round((x.strain || 0) * 10) / 10).replace('.', ',')), row('meteo', '🌡️', 'Météo', 'ok', Math.round(x.temp) + '°')], msg: (x.title || 'Séance') + ' validée' };
+  if(x.st === 'done') return { phase: 'done', key: x.key, title: x.title, rows: all('ok', 'déjà fait'), msg: (x.title || 'Ta séance') + ' est déjà validée' };
+  if(x.st === 'pending'){
+    const m = x.missing || [];
+    return { phase: 'wait', title: x.title, rows: [
+      row('strava', '🟠', 'Strava', m.indexOf('strava') >= 0 ? 'wait' : 'ok', m.indexOf('strava') >= 0 ? 'détail en cours' : km),
+      row('whoop', '💚', 'WHOOP', m.indexOf('whoop') >= 0 ? 'wait' : 'ok', m.indexOf('whoop') >= 0 ? 'entraînement pas encore calculé' : 'trouvé'),
+      row('meteo', '🌡️', 'Météo', m.indexOf('gps') >= 0 ? 'ko' : m.indexOf('meteo') >= 0 ? 'wait' : 'ok', m.indexOf('gps') >= 0 ? 'sortie sans GPS' : m.indexOf('meteo') >= 0 ? 'relevé en attente' : 'trouvée')],
+      msg: m.indexOf('gps') >= 0 ? 'Sans GPS, pas de météo : valide à la main' : 'Encore un peu de patience' };
+  }
+  return { phase: 'manual', rows: [row('strava', '🟠', 'Strava', 'ok', km), row('whoop', '💚', 'WHOOP', 'wait', '—'), row('meteo', '🌡️', 'Météo', 'wait', '—')], msg: x.reason || 'À valider à la main' };
+}
+let _avFin = null;
+async function _avNowCall(){
+  const u = typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null;
+  const tok = u ? await u.getIdToken() : '';
+  const r = await fetch(FUNCTIONS_BASE + '/autoValidateNow', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: '{}' });
+  return r.json();
+}
+function avFinish(){
+  _avCss();
+  const old = document.getElementById('av-fin'); if(old) old.remove();
+  const mc = document.getElementById('modal-container'), ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'av-fin'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
+  ov.innerHTML = '<div class="modal-box" style="max-height:90vh;"><div class="av-head"><div><p class="av-eb">Séance terminée</p><p class="av-title">🏁 Je cherche tout</p><p class="av-sub">Strava, l\'entraînement WHOOP et la météo de ta sortie</p></div>'
+    + '<button class="av-x" onclick="avFinishClose()" aria-label="Fermer">×</button></div><div class="modal-scroll-body" style="background:#F5F7FB;"><div id="av-fin-b" style="padding:14px 16px 22px;display:flex;flex-direction:column;gap:10px;"></div></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) avFinishClose(); });
+  mc.appendChild(ov);
+  _avFin = { tries: 0, timer: null };
+  _avFinRender(avNowView({ success: true, out: [] }), true);
+  _avFinRun();
+}
+function avFinishClose(){ if(_avFin && _avFin.timer) clearInterval(_avFin.timer); _avFin = null; const ov = document.getElementById('av-fin'); if(ov) ov.remove(); }
+async function _avFinRun(){
+  if(!_avFin) return;
+  _avFin.tries++;
+  let r = null; try { r = await _avNowCall(); } catch(e) { r = { success: false, error: 'Connexion impossible' }; }
+  if(!_avFin) return;
+  const V = avNowView(r);
+  if(V.phase === 'ok' && typeof apRefreshIfServerChanged === 'function') await apRefreshIfServerChanged();
+  _avFinRender(V, false);
+  if(V.phase === 'wait' && !/GPS/.test(V.msg) && _avFin.tries < 10){
+    let left = 60; const el = function(){ return document.getElementById('av-fin-cd'); };
+    if(_avFin.timer) clearInterval(_avFin.timer);
+    _avFin.timer = setInterval(function(){ left--; const e = el(); if(e) e.textContent = left + ' s'; if(left <= 0){ clearInterval(_avFin.timer); _avFin.timer = null; _avFinRun(); } }, 1000);
+  }
+}
+function _avFinRender(V, loading){
+  const b = document.getElementById('av-fin-b'); if(!b) return;
+  const ic = { ok: '✅', wait: loading ? '⏳' : '⏳', ko: '⛔' };
+  let h = '<div class="av-rows">' + V.rows.map(function(x){ return '<div class="av-src ' + x.st + '"><span class="av-src-i">' + x.ico + '</span><b>' + x.lbl + '</b><span class="av-src-t">' + (loading ? 'recherche…' : prEsc(x.t || '')) + '</span><span class="av-src-s">' + ic[x.st] + '</span></div>'; }).join('') + '</div>';
+  if(!loading) h += '<p class="av-msg ' + V.phase + '">' + prEsc(V.msg || '') + '</p>';
+  if(V.phase === 'ok' || V.phase === 'done'){
+    const pend = avPendingFeel().some(function(s){ return s.key === V.key; });
+    h += pend ? '<button type="button" class="av-save" onclick="avFinishClose();avFeelOpen(\'' + V.key + '\')">Mon ressenti</button>' : '<button type="button" class="av-save" onclick="avFinishClose()">Fermer</button>';
+  } else if(V.phase === 'wait' && !loading){
+    h += /GPS/.test(V.msg) ? '<button type="button" class="av-save" onclick="avFinishClose();quickValidate()">Valider à la main</button>'
+      : '<p class="av-note">Nouvel essai dans <b id="av-fin-cd">60 s</b> · tu peux fermer : je continue tout seul et je te préviens</p><button type="button" class="av-skip" onclick="avFinishClose();quickValidate()">Valider à la main maintenant</button>';
+  } else if(!loading){
+    h += '<button type="button" class="av-save" onclick="avFinishClose();quickValidate()">Valider à la main</button>' + (V.phase === 'off' ? '<button type="button" class="av-skip" onclick="avFinishClose();avOpenSettings()">Réactiver</button>' : '');
+  }
+  b.innerHTML = h;
 }

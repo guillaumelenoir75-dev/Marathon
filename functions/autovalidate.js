@@ -5,10 +5,12 @@
 // « à valider toi-même ». Journal par sortie : state._autoval_log/<id> {st: ok | pending | manual | skip, …}.
 'use strict';
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 if (!admin.apps.length) admin.initializeApp();
-const { ADMIN_UID, fetchWithTimeout, sendPush, parisToday } = require('./helpers');
+const helpers = require('./helpers');
+const { ADMIN_UID, fetchWithTimeout, sendPush, parisToday } = helpers;
 const { loadEngine } = require('./engine');
 const strava = require('./strava');
 const whoop = require('./whoop');
@@ -46,30 +48,35 @@ function realDeps(db, secrets) {
   };
 }
 
-async function runAutoValidate(db, uid, nowMs, deps) {
+// opts.manual (bouton « 🏁 J'ai fini ») : pas d'attente de 15 min, sorties « à valider toi-même » retentées, aucune
+// notification (l'app affiche le résultat), sorties déjà validées aujourd'hui signalées ({ st: 'done' })
+async function runAutoValidate(db, uid, nowMs, deps, opts) {
+  opts = opts || {};
   const base = `users/${uid}/state`;
   const state = (await db.ref(base).once('value')).val() || {};
   if (!state._plan_engine) return { skip: 'plan Seine-Eure écrit en dur' };
   if ((state._autoval || 'on') === 'off') return { skip: 'désactivée' };
   const list = await deps.runs(uid, Math.floor(nowMs / 1000) - 36 * 3600);
   if (!list) return { skip: 'Strava indisponible' };
-  const log = state._autoval_log || {}, today = parisToday();
+  const log = state._autoval_log || {}, today = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date(nowMs));
   const E = loadEngine({ state, now: new Date(nowMs).toISOString(), admin: uid === ADMIN_UID });
   const acts = list.map(E.avActFromStrava).filter(Boolean).filter((a) => ['Run', 'TrailRun', 'VirtualRun'].includes(a.sp)).sort((a, b) => a.startMs - b.startMs);
   const out = [];
   for (const act of acts) {
     const prev = log[act.id];
-    if (prev && (prev.st === 'ok' || prev.st === 'manual' || prev.st === 'skip')) continue;
+    if (prev && prev.st === 'ok') { if (opts.manual && act.date === today) out.push({ id: act.id, st: 'done', key: prev.key, title: prev.title, km: act.km }); continue; }
+    if (prev && (prev.st === 'skip' || (prev.st === 'manual' && !opts.manual))) continue;
     // 1er tri sans réseau : trop récente, déjà rattachée, aucune séance correspondante
-    let D = E.avDecide(state, act, { nowMs, today, detail: {}, workouts: [], meteo: null });
+    const settleMin = opts.manual ? 0 : undefined;
+    let D = E.avDecide(state, act, { nowMs, today, detail: {}, workouts: [], meteo: null, settleMin });
     if (D.wait) continue;
     const entry = { at: new Date(nowMs).toISOString(), date: act.date, km: act.km, tries: ((prev && prev.tries) || 0) + 1 };
     if (D.skip) {
       const ambiguous = /deux séances/.test(D.reason || '');
       Object.assign(entry, { st: ambiguous ? 'manual' : 'skip', reason: D.reason });
       await db.ref(`${base}/_autoval_log/${act.id}`).set(entry);
-      if (ambiguous) await deps.push('🟠 Sortie à valider', `${String(act.km).replace('.', ',')} km le ${act.date.slice(8)}/${act.date.slice(5, 7)} : ${D.reason}`, 'autoval-manual', '/?action=validate');
-      out.push({ id: act.id, st: entry.st, reason: D.reason }); continue;
+      if (ambiguous && !opts.manual) await deps.push('🟠 Sortie à valider', `${String(act.km).replace('.', ',')} km le ${act.date.slice(8)}/${act.date.slice(5, 7)} : ${D.reason}`, 'autoval-manual', '/?action=validate');
+      out.push({ id: act.id, st: entry.st, reason: D.reason, km: act.km, date: act.date }); continue;
     }
     // les 3 sources, toutes obligatoires
     const pad = 2 * 3600 * 1000;
@@ -79,16 +86,16 @@ async function runAutoValidate(db, uid, nowMs, deps) {
       act.lat != null && act.lng != null ? deps.hourly(act, nowMs).catch(() => null) : Promise.resolve(null),
     ]);
     const meteo = hourly ? E.avMeteoFromHourly(hourly, act) : null;
-    D = E.avDecide(state, act, { nowMs, today, detail, workouts: workouts || [], meteo });
+    D = E.avDecide(state, act, { nowMs, today, detail, workouts: workouts || [], meteo, settleMin });
     if (!D.ok) {
-      const late = nowMs - act.endMs >= AV_GIVEUP_MS;
+      const late = !opts.manual && nowMs - act.endMs >= AV_GIVEUP_MS;
       Object.assign(entry, { st: late ? 'manual' : 'pending', reason: D.reason, missing: [...(D.missing || [])], title: D.s ? D.s.title : null });
       await db.ref(`${base}/_autoval_log/${act.id}`).set(entry);
       if (late) {
         const why = (D.missing || []).map((m) => ({ strava: 'détail Strava', whoop: 'entraînement WHOOP', meteo: 'météo', gps: 'position GPS' }[m] || m)).join(', ');
         await deps.push('🟠 Séance à valider toi-même', `${D.s ? D.s.title + ' · ' : ''}${String(act.km).replace('.', ',')} km : ${why} introuvable`, 'autoval-manual', '/?action=validate');
       }
-      out.push({ id: act.id, st: entry.st, missing: D.missing }); continue;
+      out.push({ id: act.id, st: entry.st, missing: [...(D.missing || [])], title: entry.title, km: act.km, date: act.date, gps: act.lat != null }); continue;
     }
     // validation : seulement les clés de la séance + journal + révision serveur (l'app recharge avant d'écrire)
     const up = E.avUpdates(state, D);
@@ -99,8 +106,8 @@ async function runAutoValidate(db, uid, nowMs, deps) {
     await db.ref(base).update(up);
     Object.keys(up).forEach((k) => { if (!k.includes('/')) state[k] = up[k]; });
     const S = D.summary;
-    await deps.push(`✅ ${S.title} validé`, `${String(S.km).replace('.', ',')} km · ${String(S.pace || '').replace(':', "'")}/km · ${Math.round(S.temp)}° · WHOOP ${String(Math.round(S.strain * 10) / 10).replace('.', ',')} — Ton ressenti ?`, 'autoval-ok', `/?action=feel&k=${D.key}`);
-    out.push({ id: act.id, st: 'ok', key: D.key });
+    if (!opts.manual) await deps.push(`✅ ${S.title} validé`, `${String(S.km).replace('.', ',')} km · ${String(S.pace || '').replace(':', "'")}/km · ${Math.round(S.temp)}° · WHOOP ${String(Math.round(S.strain * 10) / 10).replace('.', ',')} — Ton ressenti ?`, 'autoval-ok', `/?action=feel&k=${D.key}`);
+    out.push({ id: act.id, st: 'ok', key: D.key, title: S.title, km: S.km, pace: S.pace, temp: S.temp, strain: S.strain });
   }
   return { n: acts.length, out };
 }
@@ -118,3 +125,24 @@ exports.autoValidateScan = onSchedule(
     } catch (e) { console.error('autoValidateScan:', e.message); }
   }
 );
+
+// bouton « 🏁 J'ai fini » de l'app (compte admin) : la même vérification, tout de suite, résultat détaillé par sortie
+exports.autoValidateNow = onRequest(
+  { secrets: [...strava.STRAVA_SECRETS, ...whoop.WHOOP_SECRETS], timeoutSeconds: 60, memory: '512MiB', cors: true },
+  async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    let uid;
+    try { uid = await helpers.verifyUser(req); } catch (e) { res.status(401).json({ success: false, error: 'Non authentifié' }); return; }
+    if (uid !== ADMIN_UID) { res.status(403).json({ success: false, error: 'Réservé au compte relié à WHOOP' }); return; }
+    try {
+      const db = admin.database();
+      const [sid, ssec] = strava.STRAVA_SECRETS;
+      const r = await runAutoValidate(db, uid, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }), { manual: true });
+      res.json(Object.assign({ success: true }, r));
+    } catch (e) { console.error('autoValidateNow:', e.message); res.status(500).json({ success: false, error: e.message }); }
+  }
+);
+

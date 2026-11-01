@@ -900,3 +900,34 @@ test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débor
   }
 });
 
+
+test('bouton « 🏁 J\'ai fini » : recherche Strava + WHOOP + météo, état de chaque source, puis ressenti', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  S.whoop_token = { access_token: 'x', refresh_token: 'y', expires_at: 9999999999 };
+  let calls = 0;
+  const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D), { functions: (r) => {
+    if (/autoValidateNow/.test(r.request().url())) {
+      calls++;
+      const body = calls === 1 ? { success: true, out: [] }
+        : { success: true, out: [{ st: 'ok', key: 'extra_w2_s0', title: 'Footing EF', km: 8.1, pace: '5:43', temp: 12.4, strain: 9.4, date: '2026-11-03' }] };
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+    }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  await page.evaluate(() => showScreen('home'));
+  await page.waitForSelector('#home-next-card .hn-fin');
+  await page.click('#home-next-card .hn-fin');
+  // 1er essai : la sortie n'est pas encore sur Strava → nouvel essai programmé
+  await page.waitForSelector('#av-fin .av-msg');
+  assert.match(await page.textContent('#av-fin'), /pas encore sur Strava.*Nouvel essai dans/s);
+  // essai suivant (accéléré) : validée, les 3 sources cochées
+  await page.evaluate(() => _avFinRun());
+  await page.waitForSelector('#av-fin .av-msg.ok');
+  assert.equal(await page.locator('#av-fin .av-src.ok').count(), 3);
+  assert.match(await page.textContent('#av-fin'), /Footing EF validée.*Mon ressenti|Footing EF validée.*Fermer/s);
+  assert.equal(calls, 2);
+  await page.evaluate(() => avFinishClose());
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

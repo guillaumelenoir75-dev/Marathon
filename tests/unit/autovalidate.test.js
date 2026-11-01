@@ -70,3 +70,18 @@ test('Strava : séance unique et cohérente, sinon rien (ambiguïté, km incohé
   const used = setup({ state: { extra_w1_s1_done: true, extra_w1_s1_km: 10, extra_w1_s1_perf: JSON.stringify({ date: '2026-11-04', strava_id: '9001' }) } });
   assert.equal(used.app.avDecide(used.st, used.app.avActFromStrava(raw()), ctx(used.app)).already, true);
 });
+
+test('bouton « J\'ai fini » : état de chaque source lisible', () => {
+  const { app } = setup();
+  let V = app.avNowView({ success: true, out: [] });
+  assert.equal(V.phase, 'wait'); assert.match(V.msg, /pas encore sur Strava/);
+  V = app.avNowView({ success: true, out: [{ st: 'pending', missing: ['whoop'], km: 8.1, title: 'Footing EF', date: '2026-11-03' }] });
+  assert.equal(V.phase, 'wait');
+  assert.deepEqual(JSON.parse(JSON.stringify(V.rows.map((r) => r.st))), ['ok', 'wait', 'ok']);
+  V = app.avNowView({ success: true, out: [{ st: 'pending', missing: ['gps'], km: 8.1 }] });
+  assert.equal(V.rows[2].st, 'ko'); assert.match(V.msg, /GPS/);
+  V = app.avNowView({ success: true, out: [{ st: 'skip', reason: 'aucune séance' }, { st: 'ok', key: 'extra_w1_s0', title: 'Footing EF', km: 8.1, pace: '5:43', temp: 12.4, strain: 9.4, date: '2026-11-03' }] });
+  assert.equal(V.phase, 'ok'); assert.equal(V.key, 'extra_w1_s0'); assert.match(V.rows[0].t, /8,1 km · 5'43\/km/);
+  assert.equal(app.avNowView({ success: true, skip: 'désactivée' }).phase, 'off');
+  assert.equal(app.avNowView({ success: false, error: 'x' }).phase, 'error');
+});

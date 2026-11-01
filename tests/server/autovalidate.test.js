@@ -64,3 +64,23 @@ test('météo ou détail Strava indisponibles : pas de validation ; désactivée
   r = await s.F.autovalidate.runAutoValidate(s.F.db, UID, T('2026-11-03T13:00:00Z'), s.deps());
   assert.equal(r.skip, 'désactivée'); assert.ok(!s.S().extra_w1_s0_done);
 });
+
+test('bouton « J\'ai fini » : sans attendre 15 min, sans notification, puis « déjà validée » ; une sortie « à la main » est retentée', async () => {
+  const { F, deps, pushes, S } = setup();
+  // 3 min après la fin de la sortie (11h47:30 UTC)
+  let r = await F.autovalidate.runAutoValidate(F.db, UID, T('2026-11-03T11:51:00Z'), deps(), { manual: true });
+  assert.equal(r.out[0].st, 'ok'); assert.equal(r.out[0].title, 'Footing EF'); assert.equal(r.out[0].strain, 9.4);
+  assert.ok(S().extra_w1_s0_done); assert.equal(pushes.length, 0, 'l\'app affiche le résultat : pas de notification');
+  r = await F.autovalidate.runAutoValidate(F.db, UID, T('2026-11-03T11:55:00Z'), deps(), { manual: true });
+  assert.equal(r.out[0].st, 'done');
+  // planifié : rien avant 15 min
+  const s2 = setup();
+  r = await s2.F.autovalidate.runAutoValidate(s2.F.db, UID, T('2026-11-03T11:51:00Z'), s2.deps());
+  assert.equal(r.out.length, 0); assert.ok(!s2.S().extra_w1_s0_done);
+  // sortie passée « à la main » (4 h sans WHOOP) : le bouton la retente
+  const s3 = setup();
+  await s3.F.autovalidate.runAutoValidate(s3.F.db, UID, T('2026-11-03T16:00:00Z'), s3.deps({ workouts: async () => [] }));
+  assert.equal(s3.S()._autoval_log['9001'].st, 'manual');
+  r = await s3.F.autovalidate.runAutoValidate(s3.F.db, UID, T('2026-11-03T16:05:00Z'), s3.deps(), { manual: true });
+  assert.equal(r.out[0].st, 'ok'); assert.ok(s3.S().extra_w1_s0_done);
+});

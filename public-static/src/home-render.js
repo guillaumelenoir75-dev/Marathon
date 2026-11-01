@@ -991,7 +991,9 @@ function homeNextCard(){
       + '<span class="hn-ico">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[s.type]) || '🏃') + '</span>'
       + '<div class="hn-txt"><p class="hn-eb">Prochaine · <b>' + when + '</b></p><p class="hn-t">' + title + '</p>' + (info ? '<p class="hn-i">' + info + '</p>' : '')
       + (typeof prWeatherLine === 'function' ? prWeatherLine(s.x) : '') + '</div>'
-      + (canValidate ? '<button type="button" class="hn-val" onclick="event.stopPropagation();toggleDoneExtra(' + s.w + ',' + s.ei + ')">✓ Valider</button>' : '<span class="hn-go" aria-hidden="true">›</span>')
+      + (canValidate && typeof avFinish === 'function' && typeof avOn === 'function' && avOn() && typeof isAdmin === 'function' && isAdmin() && state.whoop_token
+        ? '<button type="button" class="hn-fin" onclick="event.stopPropagation();avFinish()">🏁 J\'ai fini</button>'                     // Strava + WHOOP + météo cherchés tout seuls
+        : canValidate ? '<button type="button" class="hn-val" onclick="event.stopPropagation();toggleDoneExtra(' + s.w + ',' + s.ei + ')">✓ Valider</button>' : '<span class="hn-go" aria-hidden="true">›</span>')
       + '</div>';
     _homeCss();
   } catch(e) { el.innerHTML = ''; }
