@@ -271,7 +271,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await openReview(page);
   const hasTj = await page.evaluate(() => !!(_prReview.a.trajectory && _prReview.a.trajectory.race));
   if (hasTj) {
-    await page.click('#pr-content .pr-whatif-b'); await page.waitForSelector('#wi-res .wi-big');
+    await page.click('#pr-more-tj > summary'); await page.click('#pr-content .pr-whatif-b'); await page.waitForSelector('#wi-res .wi-big');
     const t0 = await page.textContent('#wi-res .wi-big');
     await page.click('#pr-whatif .wi-seg[data-k="skipWeeks"] button:nth-child(3)'); await page.waitForTimeout(200);
     assert.notEqual(await page.textContent('#wi-res .wi-big'), t0, 'scénario « 2 semaines sautées » recalculé');

@@ -944,10 +944,12 @@ function _prRender(){
     const gap = a.planVdot ? f.vdot - a.planVdot : 0;
     tiles.push({ ico: gap > 0.4 ? '📈' : gap < -0.4 ? '🧭' : '👌', v: prV(f.vdot), l: a.planVdot ? 'niveau · plan ' + prV(a.planVdot) : 'ton niveau', c: gap > 0.4 ? 'ok' : gap < -0.4 ? 'mid' : 'ok' });
   }
-  if(TJ && TJ.race) tiles.push({ ico: '🏁', v: prTime(TJ.race.lo) + '–' + prTime(TJ.race.hi), l: 'prévu · objectif ' + prEsc(a.race.objectif || prTime(a.opt.goalSec)), c: TJ.verdict === 'atteignable' ? 'ok' : TJ.verdict === 'à portée' ? 'mid' : 'low', sm: true });
+  const tq = function(sec){ return prTime(sec).replace(/:(\d\d)$/, "'$1").replace(/^(\d+):(\d\d)'/, '$1h$2\''); };
+  if(TJ && TJ.race) tiles.push({ ico: '🏁', v: tq(TJ.race.lo) + '–' + tq(TJ.race.hi), l: 'prévu · objectif ' + (a.opt.goalSec ? tq(a.opt.goalSec) : prEsc(a.race.objectif || '')), c: TJ.verdict === 'atteignable' ? 'ok' : TJ.verdict === 'à portée' ? 'mid' : 'low', sm: true });
   else if(goal && f.vdot && a.opt.raceCat) tiles.push({ ico: '🎯', v: prTime(f.preds[a.opt.raceCat]), l: 'aujourd\'hui · objectif ' + prTime(a.opt.goalSec), c: 'mid' });
   if(a.load && a.load.k7 != null) tiles.push({ ico: '📊', v: a.load.k7 + ' km', l: '7 jours' + (a.load.acwr ? ' · ratio ' + prV(a.load.acwr) : ''), c: a.load.acwr > 1.5 ? 'low' : a.load.acwr > 1.3 ? 'mid' : 'ok' });
-  if(a.whoop) tiles.push({ ico: a.whoop.tired ? '😮‍💨' : '💚', v: a.whoop.avg3 + ' %', l: 'récup WHOOP 3 j' + (a.whoop.alc && a.whoop.alc.explained ? ' · alcool' : ''), c: a.whoop.tired ? 'low' : a.whoop.fresh ? 'ok' : 'mid' });
+  const alcX = a.whoop && a.whoop.alc && a.whoop.alc.explained;              // récup basse due à l'alcool : valeur « hors alcool » + mesurée, plan non allégé
+  if(a.whoop) tiles.push({ ico: alcX ? '🍷' : a.whoop.tired ? '😮‍💨' : '💚', v: a.whoop.avg3 + ' %', l: alcX ? 'hors alcool · ' + a.whoop.alc.rawAvg3 + ' % mesuré' : 'récup WHOOP 3 j', c: a.whoop.tired ? 'low' : a.whoop.fresh ? 'ok' : 'mid' });
   if(tiles.length) h += '<div class="pr-keys">' + tiles.slice(0, 4).map(function(t){ return '<div class="pr-key ' + t.c + '"><span class="pr-key-i">' + t.ico + '</span><b' + (t.sm ? ' class="sm"' : '') + '>' + t.v + '</b><small>' + t.l + '</small></div>'; }).join('') + '</div>';
   if(!f.vdot) h += '<button class="pr-btn sec" onclick="' + prReload + '">🏆 Saisir mes records pour calculer ton niveau</button>';
 
@@ -957,7 +959,6 @@ function _prRender(){
   if(pn && pn.level >= 2) alerts.push(['🩹', 'Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' · ' + pn.zone.toLowerCase() + ' → allégé', 'low']);
   if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) alerts.push(['🛌', 'Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées' : ''), 'mid']);
   if(a.stride && a.stride.level >= 2) alerts.push(['⚠️', 'Foulée fatiguée → pas de hausse de volume', 'low']);
-  if(a.whoop && a.whoop.alc && a.whoop.alc.explained) alerts.push(['🍷', 'Récup basse due à l\'alcool · plan non allégé', 'mid']);
   a.warnings.filter(function(x){ return !x.goal && x.level === 'warn'; }).forEach(function(x){ alerts.push(['⚠️', x.short || x.text, 'low']); });
   if(alerts.length) h += '<div class="pr-alerts">' + alerts.slice(0, 3).map(function(x){ return '<p class="' + x[2] + '"><i>' + x[0] + '</i><span>' + prEsc(x[1]) + '</span></p>'; }).join('') + '</div>';
 
@@ -975,11 +976,11 @@ function _prRender(){
   // ── 5. Détails, repliés
   h += '<p class="pr-sec"><span>Détails</span></p>';
   if(TJ && TJ.race){
-    h += fold('tj', '📈', 'Trajectoire', prTime(TJ.race.lo) + '–' + prTime(TJ.race.hi) + (TJ.verdict ? ' · ' + TJ.verdict : ''),
+    h += fold('tj', '📈', 'Trajectoire', tq(TJ.race.lo) + '–' + tq(TJ.race.hi) + (TJ.verdict ? ' · ' + TJ.verdict : '') + ' · et si… ?',
       prTrajectorySvg(TJ) + '<p class="pr-tj-leg"><span><i class="lg-race"></i>courses</span><span><i class="lg-ses"></i>séances</span><span><i class="lg-proj"></i>projection</span></p>'
-      + '<p class="pr-mini">' + (TJ.assumed ? 'Progression type : +0,1 / sem.' : 'Tendance 4 mois : ' + (TJ.slope >= 0 ? '+' : '') + prV(TJ.slope * 7) + ' / sem.') + ' · ± 0,6</p>');
+      + '<p class="pr-mini">' + (TJ.assumed ? 'Progression type : +0,1 / sem.' : 'Tendance 4 mois : ' + (TJ.slope >= 0 ? '+' : '') + prV(TJ.slope * 7) + ' / sem.') + ' · ± 0,6</p>'
+      + (typeof openWhatIf === 'function' ? '<button type="button" class="pr-btn sec pr-whatif-b" onclick="openWhatIf()">🔮 Et si… ? Teste un scénario</button>' : ''));
   }
-  if(typeof openWhatIf === 'function' && TJ && TJ.race) h += '<button type="button" class="pr-btn sec pr-whatif-b" onclick="openWhatIf()">🔮 Et si… ?</button>';
   if(wk.length){
     let wb = a.volume ? _prVolChart(a.volume) : '';
     wb += '<div class="pr-strip">' + wk.map(function(o){
@@ -993,7 +994,7 @@ function _prRender(){
       wb += '<div class="pr-vig" id="pr-wk-' + o.w + '"><p class="pr-vig-h">S' + o.w + ' · ' + PR_KIND[o.kind][1] + ' ' + PR_KIND[o.kind][0] + '</p>' + ws.map(function(x){ return '<p><i>' + (x.level === 'warn' ? '⚠️' : '💡') + '</i><span>' + prEsc(x.short || x.text) + '</span></p>'; }).join('') + '</div>';
     });
     const nV = Object.keys(warnW).reduce(function(n, k){ return n + warnW[k].length; }, 0);
-    h += fold('wk', '📅', 'Semaine par semaine', wk.length + ' sem.' + (nV ? ' · ' + nV + ' vigilance' + (nV > 1 ? 's' : '') : ''), wb);
+    h += fold('wk', '🗂️', 'Semaine par semaine', wk.length + ' sem.' + (nV ? ' · ' + nV + ' vigilance' + (nV > 1 ? 's' : '') : ''), wb);
   }
   const pills = [];
   if(a.opt.habitual) pills.push('🏋️ Base ~' + a.opt.habitual + ' km/sem (' + prEsc(a.opt.habitualFrom) + ')');
@@ -1007,7 +1008,7 @@ function _prRender(){
   if(a.calib && a.calib.n) pills.push('🎯 Allures tenues ' + a.calib.k + '/' + a.calib.n + (a.calib.mode ? ' · ' + a.calib.mode : ''));
   if(pills.length) h += fold('sig', '🔎', 'Tous les signaux', pills.length + ' repères', '<div class="pr-pills">' + pills.map(function(t){ return '<span class="pr-pill base">' + t + '</span>'; }).join('') + '</div>');
   if(f.vdot){
-    h += fold('lvl', '🧮', 'Ton niveau', prV(f.vdot) + ' · d\'après tes ' + prEsc(f.basis),
+    h += fold('lvl', '🎚️', 'Ton niveau', prV(f.vdot) + ' · d\'après tes ' + prEsc(f.basis),
       '<table class="pr-tab"><thead><tr><th></th><th>Record</th><th>À ton niveau</th></tr></thead><tbody>'
       + PR_CATS.map(function(c){
           const rec = state[PR_RECORD_KEY[c]], rs = prTimeSec(rec), rv = rs ? prResultVdot(c, rs, ((state._records || {})[c] || {}).date || null) : null;
