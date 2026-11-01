@@ -147,17 +147,20 @@
         </div>
         </div>
         <div id="home-race-date" style="display:none;font-size:10px;opacity:0.65;text-align:right;margin-top:2px;"></div>
-        <div id="home-weather-strip" onclick="openHomeWeatherModal()" style="display:none;align-items:center;gap:4px;justify-content:flex-end;margin-top:3px;cursor:pointer;">
+        <!-- ligne : partager + météo -->
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:3px;">
+          <!-- Ta semaine en image : toujours accessible (week-share.js wsHeaderBtn) → fenêtre « Semaine faite / À venir » ; sur la ligne de la météo -->
+          <button id="home-share-btn" type="button" onclick="openWeekShare()" aria-label="Partager ma semaine en image" title="Partager ma semaine" style="display:none;align-items:center;gap:4px;background:linear-gradient(90deg,rgba(52,211,153,0.28),rgba(244,114,182,0.30));border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:3px 9px 3px 7px;cursor:pointer;color:#fff;font:inherit;font-size:10.5px;font-weight:800;white-space:nowrap;"><span style="font-size:12px;line-height:1;">📸</span>Partager</button>
+          <div id="home-weather-strip" onclick="openHomeWeatherModal()" style="display:none;align-items:center;gap:4px;justify-content:flex-end;cursor:pointer;">
           <span id="home-weather-icon" style="font-size:15px;line-height:1;"></span>
           <span id="home-weather-temp" style="font-size:12px;font-weight:700;color:#fff;opacity:0.9;"></span>
-        </div>
-        <div id="home-weather-loading" style="display:none;justify-content:flex-end;margin-top:3px;">
+          </div>
+          <div id="home-weather-loading" style="display:none;justify-content:flex-end;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round" style="animation:_spin 1s linear infinite;">
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
           </svg>
+          </div>
         </div>
-        <!-- Ta semaine en image : toujours accessible (week-share.js wsHeaderBtn) → fenêtre « Semaine faite / À venir » -->
-        <button id="home-share-btn" type="button" onclick="openWeekShare()" aria-label="Partager ma semaine en image" style="display:none;align-items:center;gap:5px;margin-top:2px;background:linear-gradient(90deg,rgba(52,211,153,0.28),rgba(244,114,182,0.30));border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:4px 10px 4px 8px;cursor:pointer;color:#fff;font:inherit;font-size:11px;font-weight:800;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.15);"><span style="font-size:13px;line-height:1;">📸</span>Partager ma semaine</button>
         <style>@keyframes _spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
         <span id="kpi-am-ref" style="display:none;">5'30</span>
       </div>

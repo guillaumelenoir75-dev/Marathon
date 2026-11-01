@@ -225,7 +225,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   await page.waitForSelector('#home-share-btn', { state: 'visible' });
   assert.equal(await page.locator('#home-form-card .ws-home').count(), 0, 'plus de bandeau dans la forme du jour');
-  assert.match(await page.textContent('#home-share-btn'), /Partager ma semaine/);
+  assert.match(await page.textContent('#home-share-btn'), /^📸\s*Partager$/);
   await page.click('#home-share-btn'); await page.waitForSelector('#ws-share .ws-img');
   assert.ok(await page.evaluate(() => document.querySelector('#ws-share .ws-img').src.startsWith('data:image/png') && document.querySelector('#ws-share .ws-img').naturalWidth === 1080 && document.querySelector('#ws-share .ws-img').naturalHeight === 1920));
   if (process.env.SHOT_WS) fs.writeFileSync(process.env.SHOT_WS, Buffer.from((await page.evaluate(() => document.querySelector('#ws-share .ws-img').src)).split(',')[1], 'base64'));
@@ -787,6 +787,7 @@ test('accueil compact : objectif sur une ligne, en-tête sans débordement, proc
   // semaine sur une ligne
   assert.equal(await page.textContent('#home-week-label'), 'Semaine 2');
   assert.match(await page.textContent('#home-week-dates'), /^· 2 – 8 nov\.$/);
+  if (process.env.SHOT_HOME) await page.evaluate(() => { const s = document.getElementById('home-weather-strip'); s.style.display = 'flex'; document.getElementById('home-weather-icon').textContent = '🌙'; document.getElementById('home-weather-temp').textContent = '12°'; });
   if (process.env.SHOT_HOME) { await page.setViewportSize({ width: 390, height: 2200 }); await page.locator('#sc-home').screenshot({ path: process.env.SHOT_HOME }); }
   assert.deepEqual(errors, []);
   await ctx.close();
