@@ -165,6 +165,12 @@ function initFirebase(){
                   if (typeof quickValidate === 'function') setTimeout(quickValidate, 1200);
                   return;
                 }
+                // ?action=sleep (notification de 21h « Couche-toi vers … ») : ouvre le détail « Ta nuit »
+                if (window.location.search.includes('action=sleep')) {
+                  try { history.replaceState({}, '', '/'); } catch(e) {}
+                  if (typeof openSleepPlan === 'function') setTimeout(openSleepPlan, 1200);
+                  return;
+                }
                 // ?action=review (notification « Relecture de ta semaine ») : prioritaire, retirée de l'URL tout de suite
                 if (window.location.search.includes('action=review')) {
                   try { history.replaceState({}, '', '/'); } catch(e) {}

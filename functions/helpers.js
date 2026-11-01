@@ -235,8 +235,7 @@ function raceCategory(dist, km) {
 }
 function parisToday() { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); }
 // Heure de coucher conseillée (même calcul que l'app, body-signals.js bsBedtime) : séance du lendemain (réveil 50 min avant
-// si elle est le matin, sinon 7h), besoin de sommeil (_sleep_target_h, 8 h par défaut), moitié de la dette des 3 dernières
-// nuits WHOOP (1 h au plus), +15 min avant une séance clé, 15 min pour s'endormir. null sans séance demain.
+// si elle est le matin, sinon réveil habituel), besoin de sommeil (manuel, appris ou 8 h), dette, journée, récup, lendemain. Toujours un conseil (sans séance demain : réveil habituel).
 function bedtimePlan(state, today) {
   state = state || {};
   const add = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -245,14 +244,15 @@ function bedtimePlan(state, today) {
     let x = {}; try { x = JSON.parse(state[`extra_w${w}_s${ei}`]) || {}; } catch (e) {}
     if (x.sched_date === tomorrow && x.type !== 'rest' && !state[`extra_w${w}_s${ei}_done`] && !state[`extra_w${w}_s${ei}_skip`]) sess.push(x);
   }
-  if (!sess.length) return null;
   sess.sort((a, b) => String(a.sched_time || '99').localeCompare(String(b.sched_time || '99')));
-  const s = sess[0], tm = String(s.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
+  const s = sess[0] || {}, tm = String(s.sched_time || '').match(/^(\d{1,2}):(\d{2})/), sm = tm ? +tm[1] * 60 + +tm[2] : null;
   // réveil habituel du lendemain (app : Ta nuit › Réglages) : lun-ven _wake_week (7h), sam-dim _wake_weekend (9h)
   const wp = (v) => { const m = String(v || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
   const twd = new Date(tomorrow + 'T12:00:00Z').getUTCDay(), usual = twd === 0 || twd === 6 ? (wp(state._wake_weekend) || 9 * 60) : (wp(state._wake_week) || wp(state._wake_usual) || 7 * 60);
   const wake = sm != null && sm < 12 * 60 ? Math.min(usual, sm - 50) : usual;
-  const target = (parseFloat(state._sleep_target_h) || 8) * 60;
+  // besoin : réglé à la main dans l'app, sinon appris sur tes nuits (_sleep_need_auto, calculé par l'app chaque jour), sinon 8 h
+  const manual = state._sleep_target_h != null && state._sleep_need_mode !== 'auto';
+  const target = manual ? Math.round(parseFloat(state._sleep_target_h) * 60) || 480 : (state._sleep_need_auto && +state._sleep_need_auto.min) || 480;
   const sleeps = ((state.whoop_data || {}).sleeps || []).filter((x) => x && x.date && x.date <= today).slice(0, 3);
   const dur = (t) => { const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
   // même calcul que l'app (body-signals.js bsBedtime) : dette pondérée 50/30/20 % (1 h max), effort WHOOP du jour, récup basse, séance de demain
@@ -266,8 +266,9 @@ function bedtimePlan(state, today) {
   const plus = Math.min(90, extra + loadMin + lowMin + key);
   let bed = wake - target - plus - 15; if (bed < 0) bed += 1440;
   const hm = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
-  const title = String(s.d || '').split('|')[0] || 'séance';
-  return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type, debtMin: Math.round(debt), extraMin: extra, key: !!key };
+  const title = s.d ? String(s.d).split('|')[0] || 'séance' : null;
+  return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type || null, debtMin: Math.round(debt), extraMin: extra, key: !!key,
+    target, sleep: hm(target + plus), loadMin, lowMin, needSrc: manual ? 'manual' : state._sleep_need_auto ? 'auto' : 'default' };
 }
 
 // ─── Nuit WHOOP du jour UNIQUEMENT (jamais celle de la veille) : récupération et sommeil datés d'aujourd'hui ───
@@ -339,7 +340,7 @@ function restBriefData(state, todayStr, sit) {
   if (N) lines.push(`Prochaine séance : ${N.tomorrow ? 'DEMAIN ' : 'PAS DEMAIN — '}${fmt(N.date)} — ${N.title} ${N.km} km${N.time ? ' à ' + N.time : ''}${N.consigne ? ' — consigne : ' + N.consigne : ''}`);
   else lines.push('Prochaine séance : aucune de prévue pour l\'instant.');
   const B = bedtimePlan(state, todayStr);
-  if (B) lines.push(`Heure de coucher conseillée ce soir : ${B.bed} (réveil ${B.wake}${B.extraMin ? ', +' + B.extraMin + ' min pour rattraper la dette de sommeil' : ''})`);
+  if (B && B.session) lines.push(`Heure de coucher conseillée ce soir : ${B.bed} (réveil ${B.wake}${B.extraMin ? ', +' + B.extraMin + ' min pour rattraper la dette de sommeil' : ''})`);
   const L = state && state._autopilot_last;
   if (N && L && L.date === todayStr && !L.undone && Array.isArray(L.changes)) {
     const ch = L.changes.filter((c) => c.date === N.date);

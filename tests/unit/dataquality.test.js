@@ -99,3 +99,17 @@ test('ta nuit : besoin adapté à la journée (effort WHOOP), à la récup du ma
   assert.deepEqual(B.parts.map((p) => p.k), ['need', 'debt', 'load', 'low', 'key', 'cap']);
   assert.equal(B.sleep, '9h30'); assert.equal(B.bed, '21h15');   // 7h00 − 9h30 − 15 min
 });
+
+test('besoin de sommeil appris : médiane des nuits bien récupérées sans alcool, rapprochée de 8 h ; manuel prioritaire, retour en auto', () => {
+  const add = (n) => { const d = new Date('2026-10-29T12:00:00Z'); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+  const sleeps = [], recs = [];
+  for (let i = 0; i < 12; i++) { sleeps.push({ date: add(i), duration_hours: i % 2 ? '7h00' : '7h30' }); recs.push({ date: add(i), score: 75 }); }
+  sleeps.push({ date: add(12), duration_hours: '9h30' }); recs.push({ date: add(12), score: 80 });                 // nuit après alcool : écartée
+  const s = { plan_start_date: '2026-10-26', _plan_engine: 'generated', whoop_data: { sleeps, recoveries: recs }, _alcohol: { [add(12)]: { l: 7, t: [] } } };
+  const app = loadApp({ now: NOW, state: s });
+  const N = JSON.parse(JSON.stringify(app.ctx.bsSleepNeed('2026-10-29')));
+  // 12 nuits vertes : médiane 7h30 (450) ; 12/18 × 450 + 6/18 × 480 = 460
+  assert.equal(N.src, 'auto'); assert.equal(N.n, 12); assert.equal(N.min, 460);
+  s._sleep_target_h = 8.5; assert.equal(app.ctx.bsSleepNeed('2026-10-29').src, 'manual');
+  s._sleep_need_mode = 'auto'; assert.equal(app.ctx.bsSleepNeed('2026-10-29').min, 460);
+});

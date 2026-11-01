@@ -758,6 +758,7 @@ async function prepDailyTasks(){
       Object.assign(state, up); if(dbRef) dbRef.update(up).catch(function(){});
     }
   } catch(e) {}
+  if(typeof bsSleepDaily === 'function') bsSleepDaily();   // historique des nuits + besoin de sommeil appris (rappel de 21h)
   if(_prepDailyBusy || typeof firebaseReady === 'undefined' || !firebaseReady) return;
   _prepDailyBusy = true;
   try { await _prepSeedNext(); } catch(e) { console.warn('[prépa] à venir', e); }

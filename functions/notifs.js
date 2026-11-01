@@ -970,10 +970,10 @@ exports.cleanupPushSubscribers = onSchedule(
   }
 );
 
-// Heure de coucher conseillée (20h30) : séance demain → « couche-toi vers 22h10 » d'après la dette de sommeil WHOOP (bedtimePlan).
-// Une fois par jour (_bedtime_push), désactivable (_prefs.notif_bedtime).
+// Heure de coucher conseillée (21h, tous les soirs) : « couche-toi vers 23h15 » — besoin de sommeil personnel, dette, journée,
+// récup du matin, séance de demain (bedtimePlan, même calcul que l'app). Une fois par jour (_bedtime_push), désactivable (_prefs.notif_bedtime).
 exports.bedtimeReminder = onSchedule(
-  { schedule: '30 20 * * *', timeZone: 'Europe/Paris', secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
+  { schedule: '0 21 * * *', timeZone: 'Europe/Paris', secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
   async () => {
     try {
       const db = admin.database(), today = parisToday();
@@ -981,9 +981,10 @@ exports.bedtimeReminder = onSchedule(
       const state = (await db.ref(ADMIN_STATE).once('value')).val() || {};
       if (state._bedtime_push === today) return;
       const B = bedtimePlan(state, today); if (!B) return;
-      const why = B.extraMin ? ` (+${B.extraMin} min pour rattraper ta dette de sommeil)` : B.key ? ' (séance clé : un quart d\'heure de plus)' : '';
+      const why = [B.extraMin ? `+${B.extraMin} min de dette` : '', B.loadMin ? `+${B.loadMin} min journée chargée` : '', B.lowMin ? `+${B.lowMin} min récup basse` : ''].filter(Boolean).join(', ');
+      const demain = B.session ? `Demain ${B.time ? B.time + ' : ' : ''}${B.session}. ` : 'Pas de séance demain. ';
       await sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), `🌙 Couche-toi vers ${B.bed}`,
-        `Demain ${B.time ? B.time + ' : ' : ''}${B.session}. Réveil ${B.wake}${why}.`, 'bedtime', '/');
+        `${demain}${B.sleep} de sommeil, réveil ${B.wake}${why ? ' (' + why + ')' : ''}.`, 'bedtime', '/?action=sleep');
       await db.ref(`${ADMIN_STATE}/_bedtime_push`).set(today);
     } catch (e) { console.error('bedtimeReminder:', e.message); }
   }

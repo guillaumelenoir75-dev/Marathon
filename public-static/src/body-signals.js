@@ -119,7 +119,7 @@ function bsBedtime(today){
     .sort(function(a, b){ return String(a.x.sched_time || '99').localeCompare(String(b.x.sched_time || '99')); });
   const s = sess[0] || null, tm = s ? String(s.x.sched_time || '').match(/^(\d{1,2}):(\d{2})/) : null, sm = tm ? +tm[1] * 60 + +tm[2] : null;
   const usual = bsWakeUsual(tomorrow);                                         // réveil habituel du jour (semaine / week-end)
-  const wake = sm != null && sm < 720 ? Math.min(usual, sm - 50) : usual, target = Math.round((parseFloat(st._sleep_target_h || state._sleep_target_h) || 8) * 60);
+  const NEED = bsSleepNeed(today), wake = sm != null && sm < 720 ? Math.min(usual, sm - 50) : usual, target = NEED.min;
   const wd = state.whoop_data || {}, sleeps = (wd.sleeps || []).filter(function(x){ return x && x.date && x.date <= today; }).slice(0, 3);
   const dur = function(t){ const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
   const r5 = function(x){ return Math.round(x / 5) * 5; };
@@ -138,14 +138,44 @@ function bsBedtime(today){
   const plus = Math.min(90, extra + loadMin + lowMin + key);
   let bed = wake - target - plus - 15; if(bed < 0) bed += 1440;
   const hm = function(m){ m = ((m % 1440) + 1440) % 1440; return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
-  const parts = [{ k: 'need', lab: 'Besoin', min: target }];
+  const parts = [{ k: 'need', lab: 'Besoin', min: target, why: NEED.src === 'auto' ? 'appris sur ' + NEED.n + ' nuits bien récupérées' : NEED.src === 'manual' ? 'réglé à la main' : 'par défaut (8h)' }];
   if(extra) parts.push({ k: 'debt', lab: 'Dette de sommeil', min: extra, why: 'manque ' + hm(Math.round(debt)) + ' sur 3 nuits' });
   if(loadMin) parts.push({ k: 'load', lab: 'Journée chargée', min: loadMin, why: loadWhy });
   if(lowMin) parts.push({ k: 'low', lab: 'Récup basse ce matin', min: lowMin, why: rc.score + ' %' });
   if(key) parts.push({ k: 'key', lab: s.type === 'race' ? 'Course demain' : 'Séance clé demain', min: key });
   if(plus < extra + loadMin + lowMin + key) parts.push({ k: 'cap', lab: 'Plafond', min: plus - (extra + loadMin + lowMin + key), why: '+1h30 au plus' });
-  return { bed: hm(bed), wake: hm(wake), session: s ? s.title : null, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key, loadMin: loadMin, lowMin: lowMin, parts: parts,
+  return { needSrc: NEED.src, needN: NEED.n || 0, bed: hm(bed), wake: hm(wake), session: s ? s.title : null, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key, loadMin: loadMin, lowMin: lowMin, parts: parts,
     target: target, sleepMin: target + plus, sleep: hm(target + plus), nights: sleeps.map(function(x){ return { date: x.date, min: dur(x.duration_hours) }; }) };
+}
+// ─── Besoin de sommeil personnel ───
+// historique des nuits (au-delà des 14 nuits WHOOP) : state._sleep_hist {date: {d: minutes, r: récupération}}, 150 nuits
+const _bsDur = function(t){ const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+function bsSleepNights(today){
+  const wd = state.whoop_data || {}, H = Object.assign({}, state._sleep_hist || {}), rec = {};
+  (wd.recoveries || []).forEach(function(r){ if(r && r.date && r.score != null) rec[r.date] = +r.score; });
+  (wd.sleeps || []).forEach(function(x){ const d = x && _bsDur(x.duration_hours); if(x && x.date && d != null) H[x.date] = { d: d, r: rec[x.date] != null ? rec[x.date] : (H[x.date] || {}).r != null ? H[x.date].r : null }; });
+  return Object.keys(H).filter(function(k){ return !today || (k <= today && prDays(k, today) <= 150); }).sort().map(function(k){ return { date: k, d: H[k].d, r: H[k].r }; });
+}
+// besoin : réglé à la main (_sleep_target_h, mode manuel) ; sinon appris = durée médiane des nuits bien récupérées (≥ 67 %),
+// sans alcool la veille, rapprochée de 8 h tant qu'il y en a peu (poids n / (n + 6)) ; 7h-9h30
+function bsSleepNeed(today){
+  today = today || prTodayIso();
+  if(state._sleep_target_h != null && state._sleep_need_mode !== 'auto') return { min: Math.round(parseFloat(state._sleep_target_h) * 60) || 480, src: 'manual' };
+  const ok = bsSleepNights(today).filter(function(n){ return n.r != null && n.r >= 67 && n.d >= 300 && n.d <= 720 && !(typeof alcDose === 'function' && (alcDose(n.date) || 0) > 0); }).map(function(n){ return n.d; }).sort(function(a, b){ return a - b; });
+  if(ok.length < 6) return { min: 480, src: 'default', n: ok.length };
+  const med = ok[Math.floor(ok.length / 2)], w = ok.length / (ok.length + 6);
+  return { min: Math.max(420, Math.min(570, Math.round((w * med + (1 - w) * 480) / 5) * 5)), src: 'auto', n: ok.length };
+}
+// tâche du jour (prepDailyTasks) : historique des nuits + besoin appris, pour le serveur (rappel de 21h)
+function bsSleepDaily(){
+  try {
+    if(typeof _prepView !== 'undefined' && _prepView) return;
+    const N = bsSleepNights(null), H = {}; N.slice(-150).forEach(function(n){ H[n.date] = { d: n.d, r: n.r }; });
+    const need = bsSleepNeed(), auto = need.src === 'manual' ? state._sleep_need_auto || null : { min: need.min, n: need.n || 0, src: need.src, at: prTodayIso() }, up = {};
+    if(JSON.stringify(H) !== JSON.stringify(state._sleep_hist || {})){ state._sleep_hist = H; up._sleep_hist = H; }
+    if(auto && JSON.stringify(auto) !== JSON.stringify(state._sleep_need_auto || null)){ state._sleep_need_auto = auto; up._sleep_need_auto = auto; }
+    if(Object.keys(up).length && typeof dbRef !== 'undefined' && dbRef) dbRef.update(up).catch(function(){});
+  } catch(e) {}
 }
 // réveil habituel (minutes) du matin `day` : semaine (lun-ven, _wake_week, 7h par défaut) / week-end (sam-dim, _wake_weekend, 9h par défaut)
 function bsWakeParse(v){ const m = String(v || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; }
@@ -187,15 +217,16 @@ function openSleepPlan(){
     + '<table class="bs-sl-tab"><tbody>' + rows.map(function(r){ return '<tr><td>' + r[0] + (r[2] ? '<small>' + r[2] + '</small>' : '') + '</td><td>' + r[1] + '</td></tr>'; }).join('') + '<tr class="tot"><td>Au lit</td><td>' + hm(B.sleepMin + 15) + '</td></tr></tbody></table>';
   if(B.nights.length) h += '<p class="bs-sl-k">3 dernières nuits</p><div class="bs-sl-n">' + B.nights.map(function(n){ const d = n.min != null ? n.min - B.target : null;
     return '<div><small>' + new Date(n.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }).replace(/\./g, '') + '</small><b>' + (n.min != null ? hm(n.min) : '—') + '</b>' + (d != null ? '<em class="' + (d >= 0 ? 'ok' : 'low') + '">' + (d >= 0 ? '+' : '−') + hm(Math.abs(d)) + '</em>' : '') + '</div>'; }).join('') + '</div>';
-  h += '<p class="bs-sl-k">Réglages</p><div class="bs-sl-set"><span>Besoin de sommeil</span><button type="button" onclick="bsSleepSet(\'need\',-15)" aria-label="Moins">−</button><b>' + hm(B.target) + '</b><button type="button" onclick="bsSleepSet(\'need\',15)" aria-label="Plus">+</button></div>'
+  h += '<p class="bs-sl-k">Réglages</p><div class="bs-sl-set"><span>Besoin de sommeil<small class="bs-sl-src">' + (B.needSrc === 'auto' ? 'auto · ' + B.needN + ' nuits' : B.needSrc === 'manual' ? 'manuel' : 'auto · 8h par défaut') + '</small></span>' + (B.needSrc === 'manual' ? '<button type="button" class="bs-sl-auto" onclick="bsSleepSet(\'auto\',0)">Auto</button>' : '') + '<button type="button" onclick="bsSleepSet(\'need\',-15)" aria-label="Moins">−</button><b>' + hm(B.target) + '</b><button type="button" onclick="bsSleepSet(\'need\',15)" aria-label="Plus">+</button></div>'
     + [['wk', 'Réveil lun-ven', 420], ['we', 'Réveil sam-dim', 540]].map(function(r){ const v = r[0] === 'wk' ? (bsWakeParse(state._wake_week) || bsWakeParse(state._wake_usual) || r[2]) : (bsWakeParse(state._wake_weekend) || r[2]);
       return '<div class="bs-sl-set"><span>' + r[1] + '</span><button type="button" onclick="bsSleepSet(\'' + r[0] + '\',-15)" aria-label="Plus tôt">−</button><b>' + hm(v) + '</b><button type="button" onclick="bsSleepSet(\'' + r[0] + '\',15)" aria-label="Plus tard">+</button></div>'; }).join('')
-    + '<p class="bs-sl-note">Séance le matin : réveil 50 min avant</p></div></div></div>';
+    + '<p class="bs-sl-note">Auto : appris sur tes nuits bien récupérées, sans alcool · séance le matin : réveil 50 min avant · rappel à 21h</p></div></div></div>';
   ov.innerHTML = h; ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
 }
 function bsSleepSet(k, d){
-  if(k === 'need'){ const v = Math.max(390, Math.min(600, Math.round((parseFloat(state._sleep_target_h) || 8) * 60) + d)); state._sleep_target_h = Math.round(v / 60 * 100) / 100; }
+  if(k === 'auto'){ state._sleep_need_mode = 'auto'; }
+  else if(k === 'need'){ const v = Math.max(390, Math.min(600, bsSleepNeed().min + d)); state._sleep_target_h = Math.round(v / 60 * 100) / 100; state._sleep_need_mode = 'manual'; }
   else {
     const key = k === 'we' ? '_wake_weekend' : '_wake_week', cur = k === 'we' ? (bsWakeParse(state._wake_weekend) || 540) : (bsWakeParse(state._wake_week) || bsWakeParse(state._wake_usual) || 420);
     const v = Math.max(300, Math.min(780, cur + d)); state[key] = String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
@@ -512,7 +543,7 @@ function bsZonesBar(z, zp){
 function _bsCss(){
   if(document.getElementById('bs-css')) return;
   const st = document.createElement('style'); st.id = 'bs-css';
-  st.textContent = '.bs-sleep{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:1px solid #C7D2FE;border-radius:14px;background:#EEF2FF;font:inherit;text-align:left;cursor:pointer;color:#1E1B4B;}.bs-sleep>span:first-child{font-size:18px;}.bs-sleep .t{flex:1;min-width:0;display:flex;flex-direction:column;}.bs-sleep b{font-size:13px;font-weight:800;}.bs-sleep small{font-size:11.5px;color:#4338CA;font-weight:600;}.bs-sleep i{font-style:normal;color:#6366F1;font-size:17px;}.bs-sleep:focus-visible{outline:2px solid #4338CA;outline-offset:2px;}.bs-sl-head{flex-shrink:0;padding:16px;border-radius:24px 24px 0 0;color:#fff;background:linear-gradient(160deg,#1E1B4B,#312E81);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}.bs-sl-t{margin:0;font-size:20px;font-weight:900;}.bs-sl-sub{margin:3px 0 0;font-size:12.5px;opacity:.85;}.bs-sl-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}.bs-sl-body{padding:14px 16px 22px;display:flex;flex-direction:column;gap:10px;}.bs-sl-big{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}.bs-sl-big>div{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:12px;background:#EEF2FF;}.bs-sl-big small{font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.05em;}.bs-sl-big b{font-size:22px;font-weight:900;color:#312E81;font-variant-numeric:tabular-nums;}.bs-sl-tab{width:100%;border-collapse:collapse;font-size:13px;}.bs-sl-tab td{padding:6px 2px;border-top:1px solid #EEF2F7;color:#334155;}.bs-sl-tab td small{display:block;font-size:11px;color:#94A3B8;}.bs-sl-tab td:last-child{text-align:right;font-weight:800;color:#312E81;font-variant-numeric:tabular-nums;}.bs-sl-tab tr.tot td{border-top:2px solid #C7D2FE;font-weight:900;color:#0F172A;}.bs-sl-k{margin:4px 0 -2px;font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.06em;}.bs-sl-n{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}.bs-sl-n>div{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1px solid #E2E8F0;border-radius:12px;}.bs-sl-n small{font-size:11px;color:#64748B;}.bs-sl-n b{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;}.bs-sl-n em{font-style:normal;font-size:11px;font-weight:800;}.bs-sl-n em.ok{color:#16A34A;}.bs-sl-n em.low{color:#DC2626;}.bs-sl-set{display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;}.bs-sl-set span{flex:1;}.bs-sl-set button{width:34px;height:34px;border-radius:10px;border:1px solid #C7D2FE;background:#fff;font:inherit;font-size:18px;font-weight:800;color:#312E81;cursor:pointer;}.bs-sl-set b{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;}.bs-sl-note{margin:0;font-size:11px;color:#94A3B8;}.bs-card.bs-lv-only{padding:0;background:none;border:none;box-shadow:none;}.bs-card{background:#fff;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);border:1px solid #E2E8F0;display:flex;flex-direction:column;gap:10px;}'
+  st.textContent = '.bs-sleep{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:1px solid #C7D2FE;border-radius:14px;background:#EEF2FF;font:inherit;text-align:left;cursor:pointer;color:#1E1B4B;}.bs-sleep>span:first-child{font-size:18px;}.bs-sleep .t{flex:1;min-width:0;display:flex;flex-direction:column;}.bs-sleep b{font-size:13px;font-weight:800;}.bs-sleep small{font-size:11.5px;color:#4338CA;font-weight:600;}.bs-sleep i{font-style:normal;color:#6366F1;font-size:17px;}.bs-sleep:focus-visible{outline:2px solid #4338CA;outline-offset:2px;}.bs-sl-head{flex-shrink:0;padding:16px;border-radius:24px 24px 0 0;color:#fff;background:linear-gradient(160deg,#1E1B4B,#312E81);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}.bs-sl-t{margin:0;font-size:20px;font-weight:900;}.bs-sl-sub{margin:3px 0 0;font-size:12.5px;opacity:.85;}.bs-sl-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}.bs-sl-body{padding:14px 16px 22px;display:flex;flex-direction:column;gap:10px;}.bs-sl-big{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}.bs-sl-big>div{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:12px;background:#EEF2FF;}.bs-sl-big small{font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.05em;}.bs-sl-big b{font-size:22px;font-weight:900;color:#312E81;font-variant-numeric:tabular-nums;}.bs-sl-tab{width:100%;border-collapse:collapse;font-size:13px;}.bs-sl-tab td{padding:6px 2px;border-top:1px solid #EEF2F7;color:#334155;}.bs-sl-tab td small{display:block;font-size:11px;color:#94A3B8;}.bs-sl-tab td:last-child{text-align:right;font-weight:800;color:#312E81;font-variant-numeric:tabular-nums;}.bs-sl-tab tr.tot td{border-top:2px solid #C7D2FE;font-weight:900;color:#0F172A;}.bs-sl-k{margin:4px 0 -2px;font-size:10.5px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.06em;}.bs-sl-n{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}.bs-sl-n>div{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1px solid #E2E8F0;border-radius:12px;}.bs-sl-n small{font-size:11px;color:#64748B;}.bs-sl-n b{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;}.bs-sl-n em{font-style:normal;font-size:11px;font-weight:800;}.bs-sl-n em.ok{color:#16A34A;}.bs-sl-n em.low{color:#DC2626;}.bs-sl-set{display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;}.bs-sl-set span{flex:1;}.bs-sl-set button{width:34px;height:34px;border-radius:10px;border:1px solid #C7D2FE;background:#fff;font:inherit;font-size:18px;font-weight:800;color:#312E81;cursor:pointer;}.bs-sl-set b{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;}.bs-sl-note{margin:0;font-size:11px;color:#94A3B8;}.bs-sl-src{display:block;font-size:10.5px;color:#94A3B8;font-weight:600;}.bs-sl-set .bs-sl-auto{width:auto;padding:0 10px;font-size:12px;}.bs-card.bs-lv-only{padding:0;background:none;border:none;box-shadow:none;}.bs-card{background:#fff;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);border:1px solid #E2E8F0;display:flex;flex-direction:column;gap:10px;}'
     + '.bs-t{font-size:15px;font-weight:800;color:#0F172A;margin:0;}.bs-row{border-radius:12px;background:#F8FAFC;padding:10px 12px;}.bs-row.watch{background:#FFFBEB;}.bs-row.alert{background:#FEF2F2;}'
     + '.bs-h{font-size:13px;font-weight:800;color:#1E293B;margin:0 0 4px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.bs-h span{font-weight:600;color:#64748B;font-size:12px;}'
     + '.bs-row ul{margin:2px 0 0;padding-left:18px;font-size:12.5px;color:#334155;line-height:1.45;}.bs-n{font-size:11.5px;color:#64748B;margin:4px 0 0;line-height:1.4;}.bs-a{font-size:12px;font-weight:700;color:#9A3412;margin:6px 0 0;}'

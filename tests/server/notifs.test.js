@@ -44,7 +44,7 @@ test('situation envoyée au Coach : récupération post-course nuancée pour la 
   assert.match(t2, /aucune intensité tant que/);
 });
 
-test('heure de coucher (20h30) : push la veille d\'une séance, une fois par jour, même calcul que l\'app', async () => {
+test('heure de coucher (21h) : push tous les soirs, une fois par jour, même calcul que l\'app', async () => {
   const { loadFunctions: lf } = require('../helpers/functions');
   const d = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
   const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); const tomorrow = t.toISOString().slice(0, 10);
@@ -55,9 +55,15 @@ test('heure de coucher (20h30) : push la veille d\'une séance, une fois par jou
   await F.notifs.bedtimeReminder();
   assert.equal(F.calls.push.length, 1);
   assert.match(F.calls.push[0].title, /Couche-toi vers 21h35/);          // réveil 6h10 − 8 h − 20 min (dette 40) − 15 min d'endormissement
-  assert.match(F.calls.push[0].body, /Demain 7h00 : Footing EF/);
+  assert.match(F.calls.push[0].body, /Demain 7h00 : Footing EF/); assert.match(F.calls.push[0].body, /8h20 de sommeil/);
   await F.notifs.bedtimeReminder();
   assert.equal(F.calls.push.length, 1, 'une seule fois par jour');
+  // sans séance demain : rappel quand même, avec le besoin appris par l'app et le réveil habituel
+  const F2 = lf({ data: { users: { WkEWrmnYWuUNkGLrwXf9HhaJWfh1: { state: { _plan_engine: 'generated', _sleep_need_auto: { min: 450, n: 10, src: 'auto' }, _wake_week: '07:30', _wake_weekend: '07:30' } } } } });
+  await F2.notifs.bedtimeReminder();
+  assert.equal(F2.calls.push.length, 1);
+  assert.match(F2.calls.push[0].title, /Couche-toi vers 23h45/);           // 7h30 − 7h30 − 15 min
+  assert.match(F2.calls.push[0].body, /Pas de séance demain/);
 });
 
 test('brief du matin un jour de repos : nuit, récupération et séance de demain — sans « prêt pour aujourd\'hui » ni organisation du plan', async () => {

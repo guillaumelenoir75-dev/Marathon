@@ -703,8 +703,12 @@ test('Statistiques › Forme : « Aujourd\'hui » en tête (forme du jour, à re
   await page.waitForSelector('#bs-sleep-m .bs-sl-big');
   assert.match(await page.textContent('#bs-sleep-m'), /Coucher.*Sommeil.*Réveil/s);
   if (process.env.SHOT) await page.locator('#bs-sleep-m .modal-box').screenshot({ path: process.env.SHOT + '-sleep.png' });
+  const need0 = await page.evaluate(() => bsSleepNeed().min);
   await page.locator('#bs-sleep-m .bs-sl-set').first().locator('button').last().click();
-  assert.equal(await page.evaluate(() => state._sleep_target_h), 8.25, 'besoin réglable (+15 min)');
+  assert.equal(await page.evaluate(() => state._sleep_target_h), Math.round((need0 + 15) / 60 * 100) / 100, 'besoin réglable (+15 min), passe en manuel');
+  assert.equal(await page.evaluate(() => bsSleepNeed().src), 'manual');
+  await page.click('#bs-sleep-m .bs-sl-auto');
+  assert.equal(await page.evaluate(() => bsSleepNeed().min), need0, 'retour en auto');
   await page.evaluate(() => { document.getElementById('bs-sleep-m').remove(); showScreen('stats'); });
   if (process.env.SHOT) { await page.setViewportSize({ width: 390, height: 1800 }); await page.locator('.st-pane[data-st="forme"]').screenshot({ path: process.env.SHOT }); }
   assert.deepEqual(errors, []);
