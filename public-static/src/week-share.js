@@ -1,6 +1,6 @@
 // « Ta semaine en image » : une carte (image PNG portrait plein écran iPhone 1080 × 1920) qui récapitule la semaine — km faits / prévus, km par jour,
 // séances, séance phare, série, forme, J-x — à partager (feuille de partage du téléphone) ou à télécharger.
-// Bouton sur l'accueil le dimanche après-midi et le lundi / mardi (semaine écoulée) : wsHomeButton() dans la carte « Forme du jour ».
+// Bouton « 📸 Partager ma semaine » toujours visible dans l'en-tête de l'accueil, sous la météo : wsHeaderBtn().
 // weekShareData(w, today) : données de la carte (testable) ; openWeekShare(w) : aperçu + partage.
 
 const WS_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -296,16 +296,12 @@ function wsDownload(){
   const a = document.createElement('a'); a.download = _wsName(); a.href = href; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
   if(rev) setTimeout(function(){ URL.revokeObjectURL(rev); }, 4000);
 }
-// bouton de l'accueil : dimanche après 12h, lundi et mardi (semaine écoulée)
-function wsHomeButton(){
-  try {
-    const now = new Date(), wd = now.getDay();
-    if(!(wd === 0 && now.getHours() >= 12) && wd !== 1 && wd !== 2) return '';
-    const w = wsPickWeek(); if(w == null) return '';
-    const D = weekShareData(w); if(!D || !D.nDone) return '';
-    _wsCss();
-    return '<button type="button" class="ws-home" onclick="openWeekShare(' + w + ')">📸 <b>Ta semaine ' + D.w + ' en image</b> · ' + _wsKm(D.kmDone) + ' km · à partager ›</button>';
-  } catch(e) { return ''; }
+// bouton de l'en-tête de l'accueil (sous la météo) : toujours visible dès qu'il y a une semaine faite ou prévue à partager
+function wsHeaderBtn(){
+  const b = typeof document !== 'undefined' ? document.getElementById('home-share-btn') : null; if(!b) return;
+  let ok = false;
+  try { const PW = wsPickWeeks(); const D = PW.done != null ? weekShareData(PW.done) : null; ok = !!((D && D.nDone) || PW.plan != null); } catch(e) {}
+  b.style.display = ok ? 'inline-flex' : 'none';
 }
 function _wsCss(){
   if(document.getElementById('ws-css')) return;

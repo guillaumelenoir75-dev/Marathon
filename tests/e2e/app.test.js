@@ -223,8 +223,10 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.evaluate(() => document.getElementById('bs-lc').remove());
   // accueil du dimanche : bouton « ta semaine en image » → aperçu PNG
   await page.evaluate(() => { showScreen('home'); renderHome(); });
-  await page.waitForSelector('.ws-home');
-  await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-img');
+  await page.waitForSelector('#home-share-btn', { state: 'visible' });
+  assert.equal(await page.locator('#home-form-card .ws-home').count(), 0, 'plus de bandeau dans la forme du jour');
+  assert.match(await page.textContent('#home-share-btn'), /Partager ma semaine/);
+  await page.click('#home-share-btn'); await page.waitForSelector('#ws-share .ws-img');
   assert.ok(await page.evaluate(() => document.querySelector('#ws-share .ws-img').src.startsWith('data:image/png') && document.querySelector('#ws-share .ws-img').naturalWidth === 1080 && document.querySelector('#ws-share .ws-img').naturalHeight === 1920));
   if (process.env.SHOT_WS) fs.writeFileSync(process.env.SHOT_WS, Buffer.from((await page.evaluate(() => document.querySelector('#ws-share .ws-img').src)).split(',')[1], 'base64'));
   // Télécharger (ordinateur) : un vrai fichier semaine-N.png
@@ -233,7 +235,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.evaluate(() => document.getElementById('ws-share').remove());
   assert.equal(await page.evaluate(() => planBrand()), 'Plan 10 km', 'signature de l\'image : la course préparée');
   // dans la fenêtre : « Semaine faite » ou « À venir » (semaine prévue suivante), même place, nouvelle image
-  await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-seg');
+  await page.click('#home-share-btn'); await page.waitForSelector('#ws-share .ws-seg');
   assert.equal(await page.getAttribute('#ws-share .ws-seg [data-m="done"]', 'aria-selected'), 'true');
   const srcDone = await page.getAttribute('#ws-share .ws-img', 'src');
   await page.click('#ws-share .ws-seg [data-m="plan"]');
@@ -245,7 +247,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.evaluate(() => document.getElementById('ws-share').remove());
   // Partager (téléphone) : la feuille de partage reçoit le fichier PNG directement depuis le toucher (exigé par iOS)
   await page.evaluate(() => { window.__shared = null; navigator.canShare = (d) => !!(d && d.files && d.files.length); navigator.share = (d) => { window.__shared = { sync: true, type: d.files[0].type, size: d.files[0].size, name: d.files[0].name }; return Promise.resolve(); }; });
-  await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-b.main');
+  await page.click('#home-share-btn'); await page.waitForSelector('#ws-share .ws-b.main');
   assert.equal(await page.textContent('#ws-share .ws-b.main'), 'Partager');
   await page.click('#ws-share .ws-b.main');
   const sh = await page.evaluate(() => window.__shared);
@@ -761,6 +763,8 @@ test('accueil compact : objectif sur une ligne, en-tête sans débordement, proc
   // rien ne dépasse du bord droit de l'écran
   const over = await page.evaluate(() => [...document.querySelectorAll('#home-header-main-row *, #home-progression-block *')].filter((e) => e.offsetParent && e.getBoundingClientRect().right > window.innerWidth + 0.5).map((e) => e.id || e.className || e.tagName));
   assert.deepEqual(over, []);
+  // « Partager ma semaine » : dans l'en-tête, sous la météo, visible tous les jours (ici un mardi)
+  assert.equal(await page.locator('#home-share-btn').isVisible(), true);
   // une seule barre de progression, plus de doublon « séances de la semaine »
   assert.equal(await page.locator('#home-progression-block #h-week-row').isVisible(), false);
   // prochaine séance : la 1re non faite à venir (jeudi), libellé du jour

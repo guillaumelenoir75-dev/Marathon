@@ -506,7 +506,7 @@ function prRenderHomeCard(){
     if(typeof bsSleepPill === 'function') bsSleepPill();                       // ta nuit : pastille de l'en-tête (body-signals.js)
     if(typeof apCardHtml === 'function') h += apCardHtml();                    // ajustements de la nuit (pilote automatique)
     if(typeof raHomeLine === 'function') h += raHomeLine();                    // analyse de la course (10 jours après)
-    if(typeof wsHomeButton === 'function') h += wsHomeButton();                // ta semaine en image (week-share.js)
+    if(typeof wsHeaderBtn === 'function') wsHeaderBtn();                       // ta semaine en image : bouton de l'en-tête (week-share.js)
     if(dRace != null && dRace >= 0 && dRace <= 6) h += '<button type="button" class="pd-raceb" onclick="openRacePlan()">🏁 <b>' + prEsc(R.name) + '</b> dans ' + dRace + ' jour' + (dRace > 1 ? 's' : '') + ' · ton plan de course ›</button>';
     el.innerHTML = h + '</div>';
   } catch(e) { el.innerHTML = ''; }
