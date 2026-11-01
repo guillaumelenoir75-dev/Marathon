@@ -255,9 +255,16 @@ function bedtimePlan(state, today) {
   const target = (parseFloat(state._sleep_target_h) || 8) * 60;
   const sleeps = ((state.whoop_data || {}).sleeps || []).filter((x) => x && x.date && x.date <= today).slice(0, 3);
   const dur = (t) => { const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+  // même calcul que l'app (body-signals.js bsBedtime) : dette pondérée 50/30/20 % (1 h max), effort WHOOP du jour, récup basse, séance de demain
+  const W3 = [0.5, 0.3, 0.2], r5 = (x) => Math.round(x / 5) * 5;
   const debt = sleeps.reduce((a, x) => { const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) : 0); }, 0);
-  const extra = Math.min(60, Math.round(debt / 2 / 5) * 5), key = /tempo|frac|long|race/.test(s.type) ? 15 : 0;
-  let bed = wake - target - extra - key - 15; if (bed < 0) bed += 1440;
+  const extra = Math.min(60, r5(sleeps.reduce((a, x, i) => { const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) * W3[i] : 0); }, 0)));
+  const wd = state.whoop_data || {}, cy = (wd.cycles || []).find((c) => c && c.date === today && c.strain != null);
+  const loadMin = cy ? (+cy.strain >= 18 ? 45 : +cy.strain >= 14 ? 30 : +cy.strain >= 10 ? 15 : 0) : 0;
+  const rc = (wd.recoveries || []).find((r) => r && r.date === today && r.score != null), lowMin = rc && rc.score < 34 ? 15 : 0;
+  const key = s.type === 'race' ? 30 : /tempo|frac|long/.test(s.type) ? 15 : 0;
+  const plus = Math.min(90, extra + loadMin + lowMin + key);
+  let bed = wake - target - plus - 15; if (bed < 0) bed += 1440;
   const hm = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
   const title = String(s.d || '').split('|')[0] || 'séance';
   return { bed: hm(bed), bedMin: bed, wake: hm(wake), session: title, time: tm ? hm(sm) : null, type: s.type, debtMin: Math.round(debt), extraMin: extra, key: !!key };

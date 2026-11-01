@@ -120,14 +120,32 @@ function bsBedtime(today){
   const s = sess[0] || null, tm = s ? String(s.x.sched_time || '').match(/^(\d{1,2}):(\d{2})/) : null, sm = tm ? +tm[1] * 60 + +tm[2] : null;
   const usual = bsWakeUsual(tomorrow);                                         // réveil habituel du jour (semaine / week-end)
   const wake = sm != null && sm < 720 ? Math.min(usual, sm - 50) : usual, target = Math.round((parseFloat(st._sleep_target_h || state._sleep_target_h) || 8) * 60);
-  const sleeps = ((state.whoop_data || {}).sleeps || []).filter(function(x){ return x && x.date && x.date <= today; }).slice(0, 3);
+  const wd = state.whoop_data || {}, sleeps = (wd.sleeps || []).filter(function(x){ return x && x.date && x.date <= today; }).slice(0, 3);
   const dur = function(t){ const m = String(t || '').match(/(\d+)h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
-  const debt = sleeps.reduce(function(a, x){ const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) : 0); }, 0);
-  const extra = Math.min(60, Math.round(debt / 2 / 5) * 5), key = s && /tempo|frac|long|race/.test(s.type) ? 15 : 0;
-  let bed = wake - target - extra - key - 15; if(bed < 0) bed += 1440;
+  const r5 = function(x){ return Math.round(x / 5) * 5; };
+  // dette de sommeil : manque des 3 dernières nuits, la plus récente compte le plus (50 / 30 / 20 %), 1 h au plus
+  const W3 = [0.5, 0.3, 0.2], debt = sleeps.reduce(function(a, x){ const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) : 0); }, 0);
+  const extra = Math.min(60, r5(sleeps.reduce(function(a, x, i){ const d = dur(x.duration_hours); return a + (d != null ? Math.max(0, target - d) * W3[i] : 0); }, 0)));
+  // effort de la journée : effort WHOOP du jour (≥ 10 : +15, ≥ 14 : +30, ≥ 18 : +45), sinon charge des séances faites aujourd'hui
+  const cy = (wd.cycles || []).find(function(c){ return c && c.date === today && c.strain != null; });
+  let loadMin = 0, loadWhy = '';
+  if(cy){ const sv = +cy.strain; loadMin = sv >= 18 ? 45 : sv >= 14 ? 30 : sv >= 10 ? 15 : 0; loadWhy = 'effort WHOOP ' + String(Math.round(sv * 10) / 10).replace('.', ','); }
+  else { let L = 0; try { if(typeof fmLoads === 'function') L = (fmLoads(today) || {})[today] || 0; } catch(e) {} loadMin = L >= 150 ? 30 : L >= 80 ? 15 : 0; loadWhy = 'charge ' + Math.round(L); }
+  // récupération basse ce matin : +15 min
+  const rc = (wd.recoveries || []).find(function(r){ return r && r.date === today && r.score != null; }), lowMin = rc && rc.score < 34 ? 15 : 0;
+  // demain : course +30, séance clé +15
+  const key = s ? (s.type === 'race' ? 30 : /tempo|frac|long/.test(s.type) ? 15 : 0) : 0;
+  const plus = Math.min(90, extra + loadMin + lowMin + key);
+  let bed = wake - target - plus - 15; if(bed < 0) bed += 1440;
   const hm = function(m){ m = ((m % 1440) + 1440) % 1440; return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
-  return { bed: hm(bed), wake: hm(wake), session: s ? s.title : null, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key,
-    target: target, sleepMin: target + extra + key, sleep: hm(target + extra + key), nights: sleeps.map(function(x){ return { date: x.date, min: dur(x.duration_hours) }; }) };
+  const parts = [{ k: 'need', lab: 'Besoin', min: target }];
+  if(extra) parts.push({ k: 'debt', lab: 'Dette de sommeil', min: extra, why: 'manque ' + hm(Math.round(debt)) + ' sur 3 nuits' });
+  if(loadMin) parts.push({ k: 'load', lab: 'Journée chargée', min: loadMin, why: loadWhy });
+  if(lowMin) parts.push({ k: 'low', lab: 'Récup basse ce matin', min: lowMin, why: rc.score + ' %' });
+  if(key) parts.push({ k: 'key', lab: s.type === 'race' ? 'Course demain' : 'Séance clé demain', min: key });
+  if(plus < extra + loadMin + lowMin + key) parts.push({ k: 'cap', lab: 'Plafond', min: plus - (extra + loadMin + lowMin + key), why: '+1h30 au plus' });
+  return { bed: hm(bed), wake: hm(wake), session: s ? s.title : null, time: tm ? hm(sm) : null, debtMin: Math.round(debt), extraMin: extra, key: !!key, loadMin: loadMin, lowMin: lowMin, parts: parts,
+    target: target, sleepMin: target + plus, sleep: hm(target + plus), nights: sleeps.map(function(x){ return { date: x.date, min: dur(x.duration_hours) }; }) };
 }
 // réveil habituel (minutes) du matin `day` : semaine (lun-ven, _wake_week, 7h par défaut) / week-end (sam-dim, _wake_weekend, 9h par défaut)
 function bsWakeParse(v){ const m = String(v || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; }
@@ -161,9 +179,7 @@ function openSleepPlan(){
   const hm = function(m){ return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
   const old = document.getElementById('bs-sleep-m'); if(old) old.remove();
   const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'bs-sleep-m'; ov.style.zIndex = '510';
-  const rows = [['Besoin', hm(B.target)]];
-  if(B.extraMin) rows.push(['Rattrapage', '+' + B.extraMin + ' min', 'dette ' + hm(B.debtMin) + ' sur 3 nuits']);
-  if(B.key) rows.push(['Séance clé demain', '+15 min']);
+  const rows = B.parts.map(function(p){ return [p.lab, p.k === 'need' ? hm(p.min) : (p.min > 0 ? '+' : '−') + Math.abs(p.min) + ' min', p.why]; });
   rows.push(['Endormissement', '+15 min']);
   const close = 'document.getElementById(\'bs-sleep-m\').remove()';
   let h = '<div class="modal-box" style="max-height:90vh;"><div class="bs-sl-head"><div><p class="bs-sl-t">🌙 Ta nuit</p><p class="bs-sl-sub">' + (B.session ? 'Demain : ' + (B.time ? B.time + ' · ' : '') + prEsc(B.session) : 'Pas de séance demain') + '</p></div><button class="bs-sl-x" onclick="' + close + '" aria-label="Fermer">×</button></div><div class="modal-scroll-body"><div class="bs-sl-body">'

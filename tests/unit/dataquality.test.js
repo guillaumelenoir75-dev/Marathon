@@ -86,3 +86,16 @@ test('ta nuit : réveil habituel et besoin de sommeil réglables, toujours un co
   const F = JSON.parse(JSON.stringify(app.bsBedtime('2026-11-01')));   // dimanche soir → lundi : semaine
   assert.equal(F.wake, '6h30');
 });
+
+test('ta nuit : besoin adapté à la journée (effort WHOOP), à la récup du matin et à la course du lendemain ; plafond +1h30', () => {
+  const s = { plan_start_date: '2026-10-26', _plan_engine: 'generated', _wake_week: '07:00',
+    extra_w1_s0: JSON.stringify({ type: 'race', km: 10, d: 'Course|x', sched_date: '2026-10-30', sched_time: '10:00' }),
+    whoop_data: { cycles: [{ date: '2026-10-29', strain: 15.2 }], recoveries: [{ date: '2026-10-29', score: 30 }],
+      sleeps: [{ date: '2026-10-29', duration_hours: '7h00' }, { date: '2026-10-28', duration_hours: '8h00' }, { date: '2026-10-27', duration_hours: '8h00' }] } };
+  const app = loadApp({ now: NOW, state: s });
+  const B = JSON.parse(JSON.stringify(app.bsBedtime('2026-10-29')));
+  // dette 0,5 × 60 = 30 ; effort 15,2 → +30 ; récup 30 % → +15 ; course demain → +30 = 105 → plafonné à 90
+  assert.equal(B.extraMin, 30); assert.equal(B.loadMin, 30); assert.equal(B.lowMin, 15);
+  assert.deepEqual(B.parts.map((p) => p.k), ['need', 'debt', 'load', 'low', 'key', 'cap']);
+  assert.equal(B.sleep, '9h30'); assert.equal(B.bed, '21h15');   // 7h00 − 9h30 − 15 min
+});
