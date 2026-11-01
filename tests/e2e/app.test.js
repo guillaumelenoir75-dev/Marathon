@@ -226,6 +226,17 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.waitForSelector('.ws-home');
   await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-img');
   assert.ok(await page.evaluate(() => document.querySelector('#ws-share .ws-img').src.startsWith('data:image/png') && document.querySelector('#ws-share .ws-img').naturalWidth === 1080));
+  // Télécharger (ordinateur) : un vrai fichier semaine-N.png
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#ws-share .ws-b:has-text("Télécharger")')]);
+  assert.match(dl.suggestedFilename(), /^semaine-\d+\.png$/);
+  await page.evaluate(() => document.getElementById('ws-share').remove());
+  // Partager (téléphone) : la feuille de partage reçoit le fichier PNG directement depuis le toucher (exigé par iOS)
+  await page.evaluate(() => { window.__shared = null; navigator.canShare = (d) => !!(d && d.files && d.files.length); navigator.share = (d) => { window.__shared = { sync: true, type: d.files[0].type, size: d.files[0].size, name: d.files[0].name }; return Promise.resolve(); }; });
+  await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-b.main');
+  assert.equal(await page.textContent('#ws-share .ws-b.main'), 'Partager');
+  await page.click('#ws-share .ws-b.main');
+  const sh = await page.evaluate(() => window.__shared);
+  assert.ok(sh && sh.type === 'image/png' && sh.size > 10000 && /^semaine-\d+\.png$/.test(sh.name), JSON.stringify(sh));
   await page.evaluate(() => document.getElementById('ws-share').remove());
   // chaussure du jour : conseil affiché sans erreur, « Prendre » change la paire de la séance
   const shoe = await page.evaluate(() => { const st = Object.keys(state).filter((k) => /^extra_w\d+_s\d+$/.test(k)).map((k) => [k, JSON.parse(state[k])]).find(([, x]) => x.type === 'ef' && x.sched_date >= '2026-11-02');

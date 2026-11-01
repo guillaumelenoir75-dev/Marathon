@@ -90,7 +90,11 @@ function wsDraw(D){
   }
   // pied : série, forme, J-x
   const foot = [D.streak ? D.streak + (D.streak > 1 ? ' séances d\'affilée' : ' séance d\'affilée') : '', D.form != null ? 'forme ' + D.form + '/100' : '', D.race ? 'J-' + D.race.days + ' ' + D.race.name : ''].filter(Boolean).join('   ·   ');
-  txt(foot, 80, 1290, 28, 'rgba(255,255,255,0.8)', 700);
+  g.font = '700 26px ' + F; const room = 1000 - 80 - g.measureText('Plan Marathon').width - 36;
+  let fs = 28, ft = foot; g.font = '700 ' + fs + 'px ' + F;
+  while(g.measureText(ft).width > room && fs > 22){ fs--; g.font = '700 ' + fs + 'px ' + F; }
+  while(g.measureText(ft).width > room && ft.length > 8){ ft = ft.slice(0, -2) + '…'; ft = ft.replace(/.…$/, '…'); }
+  txt(ft, 80, 1290, fs, 'rgba(255,255,255,0.8)', 700);
   txt('Plan Marathon', 1000, 1290, 26, 'rgba(255,255,255,0.45)', 700, 'right');
   return c;
 }
@@ -104,32 +108,50 @@ function openWeekShare(w){
   w = w != null ? w : wsPickWeek();
   const D = w != null ? weekShareData(w) : null;
   if(!D || !D.nDone){ if(typeof showToast === 'function') showToast('Valide au moins une séance de la semaine pour créer ta carte', '📸'); return; }
-  _wsData = D; _wsCanvas = wsDraw(D);
+  _wsData = D; _wsCanvas = wsDraw(D); _wsUrl = _wsCanvas.toDataURL('image/png'); _wsFile = _wsFileOf(_wsUrl);
   const mc = document.getElementById('modal-container'), ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'ws-share'; ov.style.zIndex = '740'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.6)');
-  const can = typeof navigator !== 'undefined' && navigator.share && navigator.canShare;
+  const can = _wsCanShare(), ios = _wsIos();
   ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="ws-head"><p>📸 Ta semaine en image</p><button class="ws-x" onclick="document.getElementById(\'ws-share\').remove()" aria-label="Fermer">×</button></div>'
     + '<div class="modal-scroll-body" style="background:#0F172A;"><div style="padding:14px 16px 22px;display:flex;flex-direction:column;gap:12px;align-items:center;">'
-    + '<img class="ws-img" alt="Récapitulatif de la semaine ' + D.w + ' : ' + D.kmDone + ' km sur ' + D.kmPlan + ' prévus" src="' + _wsCanvas.toDataURL('image/png') + '">'
-    + '<div class="ws-btns">' + (can ? '<button class="ws-b main" onclick="wsShare()">Partager</button>' : '') + '<button class="ws-b' + (can ? '' : ' main') + '" onclick="wsDownload()">Télécharger</button></div>'
+    + '<img class="ws-img" alt="Récapitulatif de la semaine ' + D.w + ' : ' + D.kmDone + ' km sur ' + D.kmPlan + ' prévus" src="' + _wsUrl + '">'
+    + '<div class="ws-btns">' + (can ? '<button class="ws-b main" onclick="wsShare()">Partager</button>' : '') + '<button class="ws-b' + (can ? '' : ' main') + '" onclick="wsDownload()">' + (ios ? 'Enregistrer' : 'Télécharger') + '</button></div>'
+    + (ios ? '<p class="ws-n">Ou appui long sur l\'image › « Enregistrer dans Photos »</p>' : '')
     + '<p class="ws-n">Pour ta famille, tes amis ou ton club : l\'image ne contient ni ta position ni tes données de santé détaillées.</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
 }
+let _wsUrl = null, _wsFile = null;
 function _wsName(){ return 'semaine-' + (_wsData ? _wsData.w : '') + '.png'; }
-function wsShare(){
-  if(!_wsCanvas) return;
-  _wsCanvas.toBlob(function(b){
-    try {
-      const f = new File([b], _wsName(), { type: 'image/png' });
-      if(navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: 'Ma semaine', text: 'Semaine ' + _wsData.w + ' : ' + _wsKm(_wsData.kmDone) + ' km 🏃' }).catch(function(){});
-      else wsDownload();
-    } catch(e) { wsDownload(); }
-  }, 'image/png');
+// image → fichier, sans attente (data URL décodée sur place)
+function _wsFileOf(url){
+  try {
+    const bin = atob(String(url).split(',')[1] || ''), u = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new File([u], _wsName(), { type: 'image/png' });
+  } catch(e) { return null; }
 }
+function _wsIos(){ return typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)); }
+function _wsCanShare(){ try { return !!(_wsFile && navigator.share && navigator.canShare && navigator.canShare({ files: [_wsFile] })); } catch(e) { return false; } }
+// Partager : appelé directement dans le toucher (iOS refuse un partage lancé après une attente)
+function wsShare(){
+  if(!_wsFile) return wsDownload();
+  if(!_wsCanShare()) return wsDownload();
+  navigator.share({ files: [_wsFile], title: 'Ma semaine', text: 'Semaine ' + _wsData.w + ' : ' + _wsKm(_wsData.kmDone) + ' km 🏃' })
+    .catch(function(e){ if(e && e.name !== 'AbortError' && typeof showToast === 'function') showToast('Partage impossible : appui long sur l\'image pour l\'enregistrer', '📸'); });
+}
+// Télécharger / Enregistrer : sur iPhone, la feuille de partage (« Enregistrer l'image » → Photos) ; ailleurs, fichier téléchargé
 function wsDownload(){
-  if(!_wsCanvas) return;
-  const a = document.createElement('a'); a.download = _wsName(); a.href = _wsCanvas.toDataURL('image/png'); document.body.appendChild(a); a.click(); a.remove();
+  if(!_wsUrl) return;
+  if(_wsIos()){
+    if(_wsCanShare()) return wsShare();
+    if(typeof showToast === 'function') showToast('Appui long sur l\'image › « Enregistrer dans Photos »', '📸');
+    return;
+  }
+  let href = _wsUrl, rev = null;
+  try { if(_wsFile && typeof URL !== 'undefined' && URL.createObjectURL){ href = rev = URL.createObjectURL(_wsFile); } } catch(e) {}
+  const a = document.createElement('a'); a.download = _wsName(); a.href = href; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+  if(rev) setTimeout(function(){ URL.revokeObjectURL(rev); }, 4000);
 }
 // bouton de l'accueil : dimanche après 12h, lundi et mardi (semaine écoulée)
 function wsHomeButton(){
@@ -147,7 +169,7 @@ function _wsCss(){
   const st = document.createElement('style'); st.id = 'ws-css';
   st.textContent = '.ws-head{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#0F172A;color:#fff;border-radius:24px 24px 0 0;}.ws-head p{margin:0;font-size:16px;font-weight:800;}'
     + '.ws-x{background:rgba(255,255,255,.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;}'
-    + '.ws-img{width:100%;max-width:420px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.4);}.ws-btns{display:flex;gap:8px;width:100%;max-width:420px;}'
+    + '.ws-img{width:100%;max-width:420px;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}.ws-btns{display:flex;gap:8px;width:100%;max-width:420px;}'
     + '.ws-b{flex:1;padding:12px;border-radius:14px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}.ws-b.main{background:#6366F1;border-color:#6366F1;}'
     + '.ws-n{font-size:11px;color:rgba(255,255,255,.55);text-align:center;margin:0;max-width:420px;}'
     + '.ws-home{display:block;width:100%;text-align:left;margin-top:8px;border-radius:12px;padding:9px 12px;font-size:12.5px;border:1px solid #C7D2FE;background:linear-gradient(90deg,#EEF2FF,#F5F3FF);color:#3730A3;cursor:pointer;font-family:inherit;}';
