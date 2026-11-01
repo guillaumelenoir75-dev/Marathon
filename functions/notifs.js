@@ -862,16 +862,23 @@ exports.weeklyBilanNotif = onSchedule(
       // Anti-doublon : ne pas regenerer si deja fait aujourd'hui
       if(state[`_bilan_semaine_${today}`])return;
 
-      const {bilanContent,pushBody}=await generateWeeklyBilanContent(ANTHROPIC_API_KEY.value(),db,state,cw);
-
-      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:bilanContent,date:today,type:'weekly_bilan'});
-      await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+      // résumé chiffré (proactive.js weekDigest) : la notification tient en une ligne et ouvre « Ta semaine en image » ;
+      // le bilan détaillé du Coach reste dans l'onglet Coach
+      let dg=null;try{dg=require('./proactive').weekDigest(state,parisToday());}catch(eD){console.warn('weekDigest:',eD.message);}
+      let pushBody=null;
+      try{
+        const r=await generateWeeklyBilanContent(ANTHROPIC_API_KEY.value(),db,state,cw);
+        pushBody=r.pushBody;
+        await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:r.bilanContent,date:today,type:'weekly_bilan'});
+        await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+      }catch(eB){console.warn('weeklyBilanNotif bilan:',eB.message);}
       await db.ref(`${ADMIN_STATE}/_bilan_semaine_${today}`).set(true);
+      if(dg)await db.ref(`${ADMIN_STATE}/_week_digest`).set(dg.digest);
 
       try{
         const subSnap=await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
-        if(subSnap.val()){
-          await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`📊 Bilan S${cw} — dimanche`,pushBody,'bilan-semaine','/');
+        if(subSnap.val()&&(dg||pushBody)){
+          await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),dg?dg.title:`📊 Bilan S${cw} — dimanche`,dg?dg.body:pushBody,'bilan-semaine',dg?'/?action=week':'/');
         }
       }catch(ePush){console.warn('weeklyBilanNotif push:',ePush.message);}
     }catch(e){console.error('weeklyBilanNotif:',e.message);}

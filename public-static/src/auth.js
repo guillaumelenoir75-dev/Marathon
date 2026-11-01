@@ -173,7 +173,8 @@ function openPrefsModal(){
           return ctaBanner
             + rowN('Brief du matin','Résumé chaque matin avant de courir','notif_brief_matin')
             + rowN('Rappel 1h avant séance','Notification avant chaque entraînement','notif_seance')
-            + (isAdmin()?rowN('Bilan de semaine','Résumé dimanche 17h — récup + séances + ressenti','notif_bilan_semaine'):'')
+            + (isAdmin()?rowN('Bilan de semaine','Dimanche 17h — km, séances, récup → semaine suivante · image à partager','notif_bilan_semaine'):'')
+            + (isAdmin()?rowN('Séance clé manquée','20h45 le lendemain — proposition de la caser plus tard dans la semaine','notif_missed'):'')
             + (isAdmin()&&!usesHardPlan()?rowN('Relecture du plan','Dimanche 18h30 — le Coach ajuste la semaine suivante','notif_plan_review'):'')
             + rowN('Planification semaine','Rappel de planification le dimanche','notif_planif')
             + rowN('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')

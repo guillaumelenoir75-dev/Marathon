@@ -172,6 +172,17 @@ function initFirebase(){
                   if (typeof avFeelOpen === 'function') setTimeout(function(){ avFeelOpen(_fk); }, 1200);
                   return;
                 }
+                // ?action=week (bilan du dimanche) : « Ta semaine en image » ; ?action=imprevu (séance clé manquée) : réorganiser
+                if (window.location.search.includes('action=week')) {
+                  try { history.replaceState({}, '', '/'); } catch(e) {}
+                  if (typeof openWeekShare === 'function') setTimeout(function(){ openWeekShare(); }, 1400);
+                  return;
+                }
+                if (window.location.search.includes('action=imprevu')) {
+                  try { history.replaceState({}, '', '/'); } catch(e) {}
+                  if (typeof openImprevu === 'function') setTimeout(openImprevu, 1400);
+                  return;
+                }
                 // ?action=sleep (notification de 21h « Couche-toi vers … ») : ouvre le détail « Ta nuit »
                 if (window.location.search.includes('action=sleep')) {
                   try { history.replaceState({}, '', '/'); } catch(e) {}
