@@ -184,6 +184,63 @@ exports.stravaFetch = onRequest(
   }
 );
 
+// détail d'une activité Strava → { calories, best_400m, splits, laps, zones_fc } (import manuel et validation automatique)
+function stravaDetailMap(detail) {
+  detail = detail || {};
+  const result = { calories: null, best_400m: null, splits: null, laps: null, zones_fc: null };
+
+  if (detail.calories) result.calories = Math.round(detail.calories);
+
+  if (detail.best_efforts && detail.best_efforts.length > 0) {
+    const effort400 = detail.best_efforts.find(e => e.distance === 400);
+    if (effort400 && effort400.moving_time > 0) {
+      const paceSecPerKm = effort400.moving_time / 0.4;
+      result.best_400m = `${Math.floor(paceSecPerKm/60)}:${String(Math.round(paceSecPerKm%60)).padStart(2,'0')}`;
+    }
+  }
+
+  if (detail.splits_metric && detail.splits_metric.length > 0) {
+    result.splits = detail.splits_metric.map((sp, i) => {
+      const distKmSp = Math.round((sp.distance / 1000) * 100) / 100;
+      const movSec = sp.moving_time || 0;
+      let allure = null;
+      if (distKmSp > 0.1 && movSec > 0) {
+    const secPerKm = movSec / distKmSp;
+    allure = `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
+      }
+      return { km: i + 1, distanceKm: distKmSp, allure, fc: sp.average_heartrate ? Math.round(sp.average_heartrate) : null };
+    }).filter(sp => sp.distanceKm >= 0.5);
+  }
+
+  if (detail.laps && detail.laps.length > 0) {
+    result.laps = detail.laps.map((lap, i) => {
+      const distKmLap = Math.round((lap.distance / 1000) * 100) / 100;
+      const movSec = lap.moving_time || 0;
+      let allure = null;
+      if (distKmLap > 0.05 && movSec > 0) {
+    const secPerKm = movSec / distKmLap;
+    allure = `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
+      }
+      return { index: i + 1, distanceKm: distKmLap, duree_sec: movSec, allure, fc: lap.average_heartrate ? Math.round(lap.average_heartrate) : null };
+    });
+  }
+
+  if (detail.heart_rate_zones || detail.zones) {
+    const zones = detail.heart_rate_zones || detail.zones;
+    if (zones && Array.isArray(zones)) {
+      result.zones_fc = zones.map((z, i) => ({
+    zone: i + 1, nom: z.name || `Zone ${i+1}`,
+    temps_sec: Math.round(z.time || 0), pourcentage: null,
+      })).filter(z => z.temps_sec > 0);
+    }
+  }
+
+  return result;
+}
+exports.stravaDetailMap = stravaDetailMap;
+exports.getValidAccessToken = getValidAccessToken;
+exports.STRAVA_SECRETS = [STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET];
+
 exports.stravaFetchDetail = onRequest(
   { secrets: [STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET], timeoutSeconds: 30, memory: '256MiB', cors: true },
   async (req, res) => {
@@ -210,53 +267,7 @@ exports.stravaFetchDetail = onRequest(
       );
       const detail = detailRes.ok ? await detailRes.json() : {};
 
-      const result = { calories: null, best_400m: null, splits: null, laps: null, zones_fc: null };
-
-      if (detail.calories) result.calories = Math.round(detail.calories);
-
-      if (detail.best_efforts && detail.best_efforts.length > 0) {
-        const effort400 = detail.best_efforts.find(e => e.distance === 400);
-        if (effort400 && effort400.moving_time > 0) {
-          const paceSecPerKm = effort400.moving_time / 0.4;
-          result.best_400m = `${Math.floor(paceSecPerKm/60)}:${String(Math.round(paceSecPerKm%60)).padStart(2,'0')}`;
-        }
-      }
-
-      if (detail.splits_metric && detail.splits_metric.length > 0) {
-        result.splits = detail.splits_metric.map((sp, i) => {
-          const distKmSp = Math.round((sp.distance / 1000) * 100) / 100;
-          const movSec = sp.moving_time || 0;
-          let allure = null;
-          if (distKmSp > 0.1 && movSec > 0) {
-            const secPerKm = movSec / distKmSp;
-            allure = `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
-          }
-          return { km: i + 1, distanceKm: distKmSp, allure, fc: sp.average_heartrate ? Math.round(sp.average_heartrate) : null };
-        }).filter(sp => sp.distanceKm >= 0.5);
-      }
-
-      if (detail.laps && detail.laps.length > 0) {
-        result.laps = detail.laps.map((lap, i) => {
-          const distKmLap = Math.round((lap.distance / 1000) * 100) / 100;
-          const movSec = lap.moving_time || 0;
-          let allure = null;
-          if (distKmLap > 0.05 && movSec > 0) {
-            const secPerKm = movSec / distKmLap;
-            allure = `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
-          }
-          return { index: i + 1, distanceKm: distKmLap, duree_sec: movSec, allure, fc: lap.average_heartrate ? Math.round(lap.average_heartrate) : null };
-        });
-      }
-
-      if (detail.heart_rate_zones || detail.zones) {
-        const zones = detail.heart_rate_zones || detail.zones;
-        if (zones && Array.isArray(zones)) {
-          result.zones_fc = zones.map((z, i) => ({
-            zone: i + 1, nom: z.name || `Zone ${i+1}`,
-            temps_sec: Math.round(z.time || 0), pourcentage: null,
-          })).filter(z => z.temps_sec > 0);
-        }
-      }
+      const result = stravaDetailMap(detail);
 
       res.json({ success: true, detail: result });
 

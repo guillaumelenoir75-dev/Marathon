@@ -802,3 +802,31 @@ test('accueil compact : objectif sur une ligne, en-tête sans débordement, proc
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('validation automatique : pastille « ressenti ? » sur l\'accueil, ressenti enregistré, réglage dans Compte', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  S.extra_w2_s0_done = true; S.extra_w2_s0_km = 8.1;
+  S.extra_w2_s0_perf = JSON.stringify({ date: '2026-11-03', pace: '5:43', dur: '46:20', hr: 141, strava_id: '9001', auto: { at: '2026-11-03T13:00:00Z', src: ['strava', 'whoop', 'meteo'] },
+    whoop: { workout_strain: 9.4 }, meteo: { temperature: 12.4, date: '2026-11-03', heure_cible: '12h00' } });
+  S._autoval_log = { 9001: { st: 'ok', date: '2026-11-03', km: 8.1, title: 'Footing EF', at: '2026-11-03T13:00:00Z' } };
+  const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D), { query: '?action=feel&k=extra_w2_s0' });
+  // la notification ouvre directement le ressenti de la séance
+  await page.waitForSelector('#av-feel .av-chips', { timeout: 6000 });
+  assert.match(await page.textContent('#av-feel .av-chips'), /8,1 km · 5'43\/km.*WHOOP 9,4.*12°/s);
+  await page.evaluate(() => { prRpePick(4); });
+  await page.click('#av-feel .av-save'); await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => JSON.parse(state.extra_w2_s0_perf).rpe), 4);
+  assert.equal(await page.evaluate(() => JSON.parse(state.extra_w2_s0_perf).strava_id), '9001', 'données de la validation automatique gardées');
+  await page.evaluate(() => document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()));
+  assert.equal(await page.locator('#home-sessions .hs-feel').count(), 0, 'plus de pastille une fois le ressenti donné');
+  // réglage : les 3 sources expliquées, désactivation
+  await page.evaluate(() => { showScreen('compte'); avOpenSettings(); });
+  await page.waitForSelector('#av-set .av-rules');
+  assert.match(await page.textContent('#av-set'), /Strava.*WHOOP.*Météo/s);
+  await page.click('#av-set .av-opt:not(.on)');
+  assert.equal(await page.evaluate(() => state._autoval), 'off');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+

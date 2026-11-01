@@ -165,6 +165,13 @@ function initFirebase(){
                   if (typeof quickValidate === 'function') setTimeout(quickValidate, 1200);
                   return;
                 }
+                // ?action=feel&k=… (notification « ✅ … validé — Ton ressenti ? ») : ressenti de la séance validée automatiquement
+                if (window.location.search.includes('action=feel')) {
+                  const _fk = (window.location.search.match(/[?&]k=([\w-]+)/) || [])[1] || null;
+                  try { history.replaceState({}, '', '/'); } catch(e) {}
+                  if (typeof avFeelOpen === 'function') setTimeout(function(){ avFeelOpen(_fk); }, 1200);
+                  return;
+                }
                 // ?action=sleep (notification de 21h « Couche-toi vers … ») : ouvre le détail « Ta nuit »
                 if (window.location.search.includes('action=sleep')) {
                   try { history.replaceState({}, '', '/'); } catch(e) {}

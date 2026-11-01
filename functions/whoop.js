@@ -404,3 +404,21 @@ exports.whoopTokenKeepAlive = onSchedule(
     }
   }
 );
+
+// entraînements WHOOP d'une plage horaire (validation automatique) : id, début / fin ISO, sport, effort, FC, kcal, zones
+async function whoopWorkoutsBetween(db, startIso, endIso) {
+  const accessToken = await getValidWhoopToken(db);
+  if (!accessToken) return null;
+  const r = await fetchWithTimeout(`${WHOOP_API_V2}/activity/workout?limit=10&start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`,
+    { headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' } }, 20000);
+  if (!r.ok) return null;
+  const j = await r.json();
+  return (j.records || []).filter(w => w.score_state === 'SCORED' && w.start && w.end && w.score).map(w => ({
+    id: String(w.id), start: w.start, end: w.end, sport: w.sport_name || (w.sport_id === 0 ? 'running' : w.sport_id === -1 ? 'activity' : String(w.sport_id)),
+    strain: w.score.strain ?? null, avg_hr: w.score.average_heart_rate ?? null, max_hr: w.score.max_heart_rate ?? null,
+    kcal: w.score.kilojoule ? Math.round(w.score.kilojoule * 0.239) : null, zones: w.score.zone_durations || w.score.zone_duration || null
+  }));
+}
+exports.whoopWorkoutsBetween = whoopWorkoutsBetween;
+exports.WHOOP_SECRETS = [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET];
+

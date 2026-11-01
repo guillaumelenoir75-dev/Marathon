@@ -903,7 +903,7 @@ function renderHome(){
       row.className='hs-row'+(skip?' skip':''); row.style.setProperty('--c',skip?'#C0392B':typeC);
       row.setAttribute('role','button'); row.setAttribute('aria-expanded','false');
       row.onclick=()=>{homeSessToggle(row);row.setAttribute('aria-expanded',row.classList.contains('open')?'true':'false');};
-      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km':'')))+'</span>'+(dd?'<span class="hs-d">'+dd+'</span>':'')+'<span class="hs-ch">›</span>';
+      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km':'')))+'</span>'+(pf.auto&&!pf.rpe&&!pf.feelSkip?'<button type="button" class="hs-feel" onclick="event.stopPropagation();avFeelOpen(\'extra_w'+w+'_s'+ei+'\')">🤖 ressenti ?</button>':pf.auto?'<span class="hs-d" title="Validée automatiquement">🤖</span>':'')+(dd?'<span class="hs-d">'+dd+'</span>':'')+'<span class="hs-ch">›</span>';
       div.style.display='none';
       el.appendChild(row);
     }
@@ -1039,6 +1039,7 @@ function _homeCss(){
     + '@media (prefers-reduced-motion:reduce){.hs-flash{animation:none;}.hs-row .hs-ch{transition:none;}}';
   document.head.appendChild(st);
   homeSafeTop();
+  if(typeof _avCss === 'function') _avCss();
 }
 
 function _checkWhoopTokenAlert() {
