@@ -127,6 +127,16 @@ test('mise à jour du plan : analyse, application, historique, annulation', asyn
   await openReview(page);
   const n = await page.evaluate(() => _prReview.items.length);
   assert.ok(n > 0, 'des propositions');
+  // écran clair : les changements d'abord, points clés courts, détails repliés
+  const order = await page.evaluate(() => [...document.querySelectorAll('#pr-content > *')].filter((e) => e.offsetParent).map((e) => e.className.split(' ')[0]));
+  assert.equal(order[0], 'pr-top', 'les changements en premier : ' + order.join(','));
+  assert.equal(order[1], 'pr-chg');
+  assert.ok(await page.locator('#pr-content .pr-key').count() <= 4, '4 points clés au plus');
+  assert.ok(await page.locator('#pr-content > .pr-chg').count() <= 4, '4 changements visibles, les autres repliés');
+  assert.equal(await page.locator('#pr-content .pr-chg').count(), n);
+  assert.equal(await page.locator('#pr-content details.pr-more[open]').count(), 0, 'détails repliés');
+  assert.ok(await page.evaluate(() => [...document.querySelectorAll('#pr-content .pr-why-t')].every((e) => e.textContent.length <= 72)), 'raisons courtes');
+  if (process.env.SHOT_PR) { await page.setViewportSize({ width: 390, height: 2000 }); await page.waitForTimeout(300); await page.locator('#plan-review .modal-box').screenshot({ path: process.env.SHOT_PR }); }
   const before = await page.evaluate(() => JSON.stringify(Object.fromEntries(Object.keys(state).filter((k) => /^extra_w\d+_s\d+$/.test(k)).map((k) => [k, state[k]]))));
   await page.click('#pr-apply'); await page.waitForTimeout(800);
   const hist = await page.evaluate(() => state._plan_reviews.slice(-1)[0]);
@@ -261,7 +271,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await openReview(page);
   const hasTj = await page.evaluate(() => !!(_prReview.a.trajectory && _prReview.a.trajectory.race));
   if (hasTj) {
-    await page.click('text=Et si… ? Teste un scénario'); await page.waitForSelector('#wi-res .wi-big');
+    await page.click('#pr-content .pr-whatif-b'); await page.waitForSelector('#wi-res .wi-big');
     const t0 = await page.textContent('#wi-res .wi-big');
     await page.click('#pr-whatif .wi-seg[data-k="skipWeeks"] button:nth-child(3)'); await page.waitForTimeout(200);
     assert.notEqual(await page.textContent('#wi-res .wi-big'), t0, 'scénario « 2 semaines sautées » recalculé');
