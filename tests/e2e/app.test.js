@@ -750,6 +750,12 @@ test('accueil compact : objectif sur une ligne, en-tête sans débordement, proc
   // forme du jour : 4 mini-valeurs colorées
   assert.equal(await page.locator('#home-form-card .pd-mini > span').count(), 4);
   assert.match(await page.textContent('#home-form-card .pd-mini'), /Récup\s*58 %.*Sommeil\s*79 %.*FC repos\s*54.*VFC\s*66 ms/s);
+  // séance à faire : 3 lignes (jour + titre, consigne, km), Éditer en icône
+  const card = page.locator('#hs-2-1');
+  assert.match(await card.locator('.hs-h').textContent(), /^Jeu 06:30\s*Footing EF$/);
+  assert.match(await card.locator('.hs-km').textContent(), /9 km/);
+  assert.equal(await card.locator('.hs-ed').count(), 1);
+  assert.match(await page.textContent('#week-total-km'), /^8,1 \/ \d+ km$/);
   // semaine sur une ligne
   assert.equal(await page.textContent('#home-week-label'), 'Semaine 2');
   assert.match(await page.textContent('#home-week-dates'), /^· 2 – 8 nov\.$/);

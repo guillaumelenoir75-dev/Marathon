@@ -202,7 +202,7 @@ async function _updateHomeWeather() {
     const tempEl = document.getElementById('home-weather-temp');
     if (!strip || !iconEl || !tempEl) return;
     iconEl.textContent = meteo.conditions?.split(' ').pop() || '🌤️';
-    tempEl.textContent = meteo.temperature.toFixed(1) + '°';
+    tempEl.textContent = Math.round(meteo.temperature) + '°';
     strip.style.opacity = '0';
     strip.style.transition = 'opacity 0.5s ease';
     strip.style.display = 'flex';
