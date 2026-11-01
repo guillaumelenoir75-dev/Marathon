@@ -194,3 +194,15 @@ select {
 .th-opt{display:flex;flex-direction:column;gap:2px;text-align:left;padding:13px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);cursor:pointer;font-family:inherit;}
 .th-opt b{font-size:15px;color:var(--ink);}.th-opt span{font-size:12.5px;color:var(--muted-2);}.th-opt.on{border-color:var(--brand);background:#EEF3FF;}
 html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark] select{color-scheme:dark;}
+
+/* Diagnostic (diag.js) */
+.dg-head{flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px;border-radius:24px 24px 0 0;color:#fff;background:linear-gradient(135deg,#7F1D1D,#B91C1C);}
+.dg-eb{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85;}.dg-title{margin:2px 0 0;font-size:20px;font-weight:900;}
+.dg-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}
+.dg-body{padding:14px 16px 24px;display:flex;flex-direction:column;gap:10px;background:var(--card-2);}
+.dg-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}.dg-tiles div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px;text-align:center;}
+.dg-tiles b{display:block;font-size:17px;color:var(--ink);}.dg-tiles small{font-size:10.5px;color:var(--muted-2);font-weight:600;}
+.dg-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}.dg-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 11px;}
+.dg-list b{display:block;font-size:12.5px;color:var(--bad);word-break:break-word;}.dg-list small{font-size:11px;color:var(--muted-2);}
+.dg-ok{margin:0;text-align:center;font-weight:800;color:var(--ok);padding:10px;}
+.dg-btns{display:flex;gap:8px;}.dg-btns button{flex:1;padding:11px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);font-weight:800;font-family:inherit;cursor:pointer;color:var(--ink);}

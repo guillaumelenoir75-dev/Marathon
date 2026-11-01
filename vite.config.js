@@ -4,13 +4,13 @@ import { resolve } from 'path';
 
 // Ordre de chargement exact des scripts classiques (dépendances respectées)
 const scriptFiles = [
-  'theme.js', 'config.js', 'firebase.js', 'sync.js', 'auth.js', 'onboarding.js',
+  'theme.js', 'diag.js', 'config.js', 'firebase.js', 'sync.js', 'auth.js', 'onboarding.js',
   'plan-generate.js', 'plan-admin.js', 'race-live.js', 'plan-state.js', 'plan-predict.js',
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
   'coach-memos.js', 'coach-ui.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
-  'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js', 'next-race.js', 'plan-chat.js', 'alcohol.js', 'auto-validate.js',
+  'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js', 'alcohol.js', 'auto-validate.js',
 ];
 
 // Écrans rares chargés à la demande (lazyLoad dans config.js) : un fichier minifié par groupe, nom unique par version
@@ -18,6 +18,8 @@ const lazyGroups = {
   course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'],   // carte « Organisation course »
   progress: ['prep-progress.js'],                              // Mes prépas › Comparer mes prépas
   whatif: ['plan-whatif.js'],                                  // MAJ le plan › Et si… ?
+  nextrace: ['next-race.js'],                                  // Ta prochaine course
+  planchat: ['plan-chat.js'],                                  // Coach › Mon plan
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

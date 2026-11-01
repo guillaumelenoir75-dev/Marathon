@@ -305,6 +305,7 @@ test('démarrage allégé : carte, comparaison des prépas et simulateur chargé
   const loaded = () => page.evaluate(() => [...document.querySelectorAll('script[src*="/src/lazy-"]')].map((s) => s.src.replace(/.*lazy-(\w+)-.*/, '$1')).sort());
   assert.deepEqual(await loaded(), [], 'rien de chargé au démarrage');
   assert.ok(await page.evaluate(() => window.LAZY_BUNDLES && typeof _wiPick === 'undefined' && typeof PROG_COLORS === 'undefined' && typeof RaceNav === 'undefined'));
+  assert.ok(await page.evaluate(() => typeof nrOptions === 'undefined' && typeof pcRender === 'undefined'), 'prochaine course et « Mon plan » pas chargés au démarrage');
   // Mes prépas › Comparer mes prépas
   await page.evaluate(() => openProgress()); await page.waitForSelector('#prog-panel');
   await page.evaluate(() => document.getElementById('prog-panel').remove());
@@ -863,3 +864,39 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   assert.equal(await page.locator('style[data-th]').count(), 0, 'aucune règle sombre en mode clair');
   await o.ctx.close();
 });
+
+test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débordement (clair et sombre), diagnostic', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  // poids : budget du bundle de démarrage (gzip)
+  const zlib = require('zlib');
+  const bundle = fs.readdirSync(path.join(DIST, 'src')).find((f) => /^bundle-\d+\.js$/.test(f));
+  const gz = zlib.gzipSync(fs.readFileSync(path.join(DIST, 'src', bundle))).length;
+  assert.ok(gz < 440 * 1024, 'bundle ' + Math.round(gz / 1024) + ' Ko gzip (budget 440 Ko)');
+  for (const theme of ['light', 'dark']) {
+    const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', savedDb, { init: (t) => { localStorage.setItem('pm_theme', t); }, initArg: theme });
+    // démarrage mesuré jusqu'au 1er affichage de l'accueil
+    const boot = await page.evaluate(() => window._bootMs);
+    assert.ok(boot > 0 && boot < 8000, 'démarrage ' + boot + ' ms');
+    // aucun débordement horizontal sur les écrans principaux
+    const over = async (name) => page.evaluate((n) => {
+      const W = window.innerWidth, bad = [];
+      if (document.documentElement.scrollWidth > W + 1) bad.push(n + ' : page ' + document.documentElement.scrollWidth);
+      document.querySelectorAll('#sc-' + n + ' *').forEach((e) => {
+        if (!e.offsetParent || e.closest('[style*="overflow-x"],[style*="overflow:auto"],[style*="overflow:hidden"],.pr-strip,.lv-scroll,svg')) return;
+        const r = e.getBoundingClientRect(); if (r.width && r.right > W + 1) bad.push(n + ' : ' + (e.id || e.className || e.tagName) + ' → ' + Math.round(r.right));
+      });
+      return bad.slice(0, 5);
+    }, name);
+    for (const sc of ['home', 'plan', 'stats', 'compte']) {
+      await page.evaluate((n) => showScreen(n), sc); await page.waitForTimeout(350);
+      assert.deepEqual(await over(sc), [], theme + ' / ' + sc);
+    }
+    // Diagnostic : démarrage enregistré, une erreur journalisée une seule fois avec son compteur
+    await page.evaluate(() => { diagLog('test erreur', 'x.js:1'); diagLog('test erreur', 'x.js:1'); diagOpen(); });
+    await page.waitForSelector('#dg-modal .dg-tiles');
+    assert.match(await page.textContent('#dg-modal'), /démarrage.*test erreur.*×2/s);
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  }
+});
+

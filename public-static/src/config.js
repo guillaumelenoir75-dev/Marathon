@@ -348,7 +348,7 @@ function onPaceInput(el){
 // En production, window.LAZY_BUNDLES (injecté par vite.config.js) donne le fichier minifié de chaque groupe ;
 // en développement, les fichiers sources sont chargés un par un. Les points d'entrée ci-dessous sont remplacés par
 // les vraies fonctions dès que le module est chargé (déclarations globales du même nom).
-const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'] };
+const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'] };
 const _lazyP = {};
 function lazyLoad(g){
   if(_lazyP[g]) return _lazyP[g];
@@ -364,3 +364,8 @@ function _lazyCall(g, name, stub, args){
 function initRaceOrgMap(){ return _lazyCall('course', 'initRaceOrgMap', initRaceOrgMap, arguments); }
 function openProgress(){ return _lazyCall('progress', 'openProgress', openProgress, arguments); }
 function openWhatIf(){ return _lazyCall('whatif', 'openWhatIf', openWhatIf, arguments); }
+function openNextRace(){ return _lazyCall('nextrace', 'openNextRace', openNextRace, arguments); }
+function coachMode(){ return _lazyCall('planchat', 'coachMode', coachMode, arguments); }
+function coachModeInit(){ return _lazyCall('planchat', 'coachModeInit', coachModeInit, arguments); }
+function openPlanChat(){ return _lazyCall('planchat', 'openPlanChat', openPlanChat, arguments); }
+function pcSend(){ return _lazyCall('planchat', 'pcSend', pcSend, arguments); }
