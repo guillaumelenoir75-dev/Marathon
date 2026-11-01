@@ -101,6 +101,9 @@ test('carte de la semaine : km faits / prévus, km par jour, séance phare (bloc
   assert.equal(D.days[0].km, 9); assert.equal(D.days[2].km, 10); assert.equal(D.days[6].today, true);
   assert.equal(D.star.kind, 'q'); assert.match(D.star.line, /4'31 \/km/);
   assert.equal(D.rpe, 7);
+  // carte « faite » : séance phare repérée, allure au format 5'50, type de chaque jour (couleur des barres)
+  assert.equal(D.sessions.filter((x) => x.star).length, 1); assert.equal(D.sessions[0].pace, "5'50");
+  assert.equal(D.days[0].type, 'ef'); assert.equal(D.days[6].plan > 0, true);
   // lundi sans séance faite : on résume la semaine écoulée
   assert.equal(loadApp({ now: '2026-11-02T08:00:00+01:00', state: st }).wsPickWeek('2026-11-02'), 1);
   // deux images au choix : semaine faite (terminée) et semaine prévue qui suit
@@ -116,7 +119,7 @@ test('carte de la semaine : km faits / prévus, km par jour, séance phare (bloc
   const P = app.weekShareData(2, '2026-11-01', 'plan');
   assert.equal(P.mode, 'plan'); assert.equal(P.kmPlan, 34); assert.equal(P.nPlan, 3); assert.equal(P.longest, 12);
   assert.equal(P.days[0].km, 12); assert.equal(P.days[2].km, 10); assert.equal(P.days[6].km, 12);
-  assert.match(P.sessions[0].when, /^Lun/); assert.equal(P.star.title, 'Tempo 3×8 min'); assert.match(P.star.line, /^10 km/);
+  assert.match(P.sessions[0].when, /^Lun/); assert.equal(P.sessions.filter((x) => x.star).length, 1); assert.ok(P.sec > 0, 'durée prévue'); assert.equal(P.star.title, 'Tempo 3×8 min'); assert.match(P.star.line, /^10 km/);
 });
 
 test('chaussure du jour : rotation, fin de vie, paire de course préservée', () => {
