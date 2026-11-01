@@ -109,6 +109,10 @@ test('carte de la semaine : km faits / prévus, km par jour, séance phare (bloc
   done('extra_w2_s0', 12);
   const tue = loadApp({ now: '2026-11-03T20:00:00+01:00', state: st });
   assert.deepEqual(JSON.parse(JSON.stringify(tue.wsPickWeeks('2026-11-03'))), { done: 1, plan: 2 });
+  // signature adaptée à la course préparée (pas « Plan Marathon » pour un 10 km)
+  assert.equal(app.planBrand(10), 'Plan 10 km'); assert.equal(app.planBrand(21.1), 'Plan semi-marathon');
+  assert.equal(app.planBrand(42.195), 'Plan marathon'); assert.equal(app.planBrand(5), 'Plan 5 km');
+  assert.equal(app.planBrand(null, 'Semi-marathon'), 'Plan semi-marathon');
   const P = app.weekShareData(2, '2026-11-01', 'plan');
   assert.equal(P.mode, 'plan'); assert.equal(P.kmPlan, 34); assert.equal(P.nPlan, 3); assert.equal(P.longest, 12);
   assert.equal(P.days[0].km, 12); assert.equal(P.days[2].km, 10); assert.equal(P.days[6].km, 12);

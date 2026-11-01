@@ -231,6 +231,7 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#ws-share .ws-b:has-text("Télécharger")')]);
   assert.match(dl.suggestedFilename(), /^semaine-\d+\.png$/);
   await page.evaluate(() => document.getElementById('ws-share').remove());
+  assert.equal(await page.evaluate(() => planBrand()), 'Plan 10 km', 'signature de l\'image : la course préparée');
   // dans la fenêtre : « Semaine faite » ou « À venir » (semaine prévue suivante), même place, nouvelle image
   await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-seg');
   assert.equal(await page.getAttribute('#ws-share .ws-seg [data-m="done"]', 'aria-selected'), 'true');

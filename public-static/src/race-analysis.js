@@ -191,7 +191,7 @@ function raDraw(A, cv){
   if(A.drift) facts.push('dérive cardio ' + String(A.drift.pct).replace('.', ',') + ' %');
   if(A.heat) facts.push(A.heat.why);
   c.fillText(facts.join('   ·   ').slice(0, 60), 80, 1150);
-  c.fillStyle = 'rgba(255,255,255,.55)'; c.font = '600 28px system-ui, -apple-system, sans-serif'; c.fillText('Plan Marathon', 80, 1270);
+  c.fillStyle = 'rgba(255,255,255,.55)'; c.font = '600 28px system-ui, -apple-system, sans-serif'; c.fillText(typeof planBrand === 'function' ? planBrand(A.dist, A.cat) : 'Plan course', 80, 1270);
   return cv;
 }
 function raShare(){

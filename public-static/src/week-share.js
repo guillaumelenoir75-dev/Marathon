@@ -39,7 +39,7 @@ function weekShareData(w, today, mode){
     const q = done.filter(function(s){ return (s.type === 'tempo' || s.type === 'frac') && (s.perf.blocsAllure || []).some(Boolean); })[0];
     if(q){ const p = mean((q.perf.blocsAllure || []).map(prPaceSec).filter(Boolean)); star = { title: q.title, line: (p ? prPace(p) + ' /km en moyenne sur les blocs' : _wsKm(q.km) + ' km'), kind: 'q' }; }
   }
-  if(!star && done.length){ const l = done.slice().sort(function(a, b){ return b.km - a.km; })[0]; star = { title: l.title, line: _wsKm(l.km) + ' km' + (l.perf.pace ? ' à ' + l.perf.pace + ' /km' : ''), kind: 'long' }; }
+  if(!star && done.length){ const l = done.slice().sort(function(a, b){ return b.km - a.km; })[0]; star = { title: l.title, line: _wsKm(l.km) + ' km' + (l.perf.pace ? ' à ' + String(l.perf.pace).replace(':', "'") + ' /km' : ''), kind: 'long' }; }
   const R = typeof prepRace === 'function' ? prepRace() : null;
   const end = o.to && o.to < today ? o.to : today, dR = R && R.date ? prDays(end, R.date) : null;
   const F = o.now && typeof prFormScore === 'function' ? prFormScore() : null;
@@ -72,6 +72,14 @@ function weekPlanData(w, today){
     race: R && R.date && dR != null && dR >= 0 ? { name: R.name, days: dR } : null, prep: R && R.name ? R.name : '' };
 }
 
+// signature des images partagées selon la course préparée : « Plan 10 km », « Plan semi-marathon », « Plan marathon »…
+function planBrand(km, course){
+  if(km == null && course == null){ const R = (typeof prepRace === 'function' ? prepRace() : null) || {}; km = R.km; course = R.course; }
+  km = parseFloat(km);
+  if(!(km > 0)) km = ({ '5 km': 5, '10 km': 10, 'Semi-marathon': 21.1, 'Semi': 21.1, 'Marathon': 42.195 })[course] || null;
+  if(!km) return 'Plan course';
+  return km < 7 ? 'Plan 5 km' : km < 15 ? 'Plan 10 km' : km < 30 ? 'Plan semi-marathon' : 'Plan marathon';
+}
 // ─── Dessin (canvas) ────────────────────────────────────────────────────────
 const WS_TYPE_COL = { ef: '#4ADE80', long: '#A78BFA', tempo: '#FB923C', frac: '#F87171', race: '#FACC15' };
 // format portrait plein écran iPhone (9:16, 1080 × 1920) : en-tête, km, barre, km par jour, séances, séance phare, 3 tuiles, signature
@@ -151,7 +159,7 @@ function wsDraw(D){
       txt(fit(t.l, 26, 700, tw - 30), x + tw / 2, ty + 106, 26, 'rgba(255,255,255,0.7)', 700, 'center');
     });
   }
-  txt('Plan Marathon', WS_W / 2, 1878, 28, 'rgba(255,255,255,0.45)', 700, 'center');
+  txt(typeof planBrand === 'function' ? planBrand() : 'Plan course', WS_W / 2, 1878, 28, 'rgba(255,255,255,0.45)', 700, 'center');
   return c;
 }
 function _wsKm(v){ return String(Math.round((+v || 0) * 10) / 10).replace('.', ','); }
