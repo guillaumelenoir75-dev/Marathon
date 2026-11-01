@@ -103,6 +103,16 @@ test('carte de la semaine : km faits / prévus, km par jour, séance phare (bloc
   assert.equal(D.rpe, 7);
   // lundi sans séance faite : on résume la semaine écoulée
   assert.equal(loadApp({ now: '2026-11-02T08:00:00+01:00', state: st }).wsPickWeek('2026-11-02'), 1);
+  // deux images au choix : semaine faite (terminée) et semaine prévue qui suit
+  assert.deepEqual(JSON.parse(JSON.stringify(app.wsPickWeeks('2026-11-01'))), { done: 1, plan: 2 });
+  // mardi avec déjà une séance faite dans la nouvelle semaine : la semaine faite reste celle qui est terminée
+  done('extra_w2_s0', 12);
+  const tue = loadApp({ now: '2026-11-03T20:00:00+01:00', state: st });
+  assert.deepEqual(JSON.parse(JSON.stringify(tue.wsPickWeeks('2026-11-03'))), { done: 1, plan: 2 });
+  const P = app.weekShareData(2, '2026-11-01', 'plan');
+  assert.equal(P.mode, 'plan'); assert.equal(P.kmPlan, 34); assert.equal(P.nPlan, 3); assert.equal(P.longest, 12);
+  assert.equal(P.days[0].km, 12); assert.equal(P.days[2].km, 10); assert.equal(P.days[6].km, 12);
+  assert.match(P.sessions[0].when, /^Lun/); assert.equal(P.star.title, 'Tempo 3×8 min'); assert.match(P.star.line, /^10 km/);
 });
 
 test('chaussure du jour : rotation, fin de vie, paire de course préservée', () => {
