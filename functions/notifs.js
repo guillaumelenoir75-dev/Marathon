@@ -980,6 +980,8 @@ exports.bedtimeReminder = onSchedule(
       if (!(await getUserPref(db, ADMIN_STATE, 'notif_bedtime'))) return;
       const state = (await db.ref(ADMIN_STATE).once('value')).val() || {};
       if (state._bedtime_push === today) return;
+      // jamais un conseil calculé sur la nuit de la veille : WHOOP connecté sans la nuit d'aujourd'hui → pas de rappel
+      const wd = state.whoop_data; if (wd && !(wd.sleeps || []).some((x) => x && x.date === today && x.duration_hours)) return;
       const B = bedtimePlan(state, today); if (!B) return;
       const why = [B.extraMin ? `+${B.extraMin} min de dette` : '', B.loadMin ? `+${B.loadMin} min journée chargée` : '', B.lowMin ? `+${B.lowMin} min récup basse` : ''].filter(Boolean).join(', ');
       const demain = B.session ? `Demain ${B.time ? B.time + ' : ' : ''}${B.session}. ` : 'Pas de séance demain. ';

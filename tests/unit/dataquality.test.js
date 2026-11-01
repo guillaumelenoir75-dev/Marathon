@@ -113,3 +113,14 @@ test('besoin de sommeil appris : médiane des nuits bien récupérées sans alco
   s._sleep_target_h = 8.5; assert.equal(app.ctx.bsSleepNeed('2026-10-29').src, 'manual');
   s._sleep_need_mode = 'auto'; assert.equal(app.ctx.bsSleepNeed('2026-10-29').min, 460);
 });
+
+test('heure de coucher de ce soir : « à venir » tant que la nuit WHOOP du jour ou la séance du jour manquent', () => {
+  const s = { plan_start_date: '2026-10-26', _plan_engine: 'generated', whoop_data: { sleeps: [{ date: '2026-10-28', duration_hours: '7h00' }] },
+    extra_w1_s0: JSON.stringify({ type: 'ef', km: 8, d: 'Footing EF|x', sched_date: '2026-10-29' }) };
+  const app = loadApp({ now: '2026-10-29T09:00:00+01:00', state: s });
+  assert.deepEqual(J(app.ctx.bsBedtimeStatus('2026-10-29')), { ready: false, why: 'night', label: 'après ton réveil' }, 'nuit de la veille seulement');
+  s.whoop_data.sleeps.unshift({ date: '2026-10-29', duration_hours: '7h30' });
+  assert.equal(app.ctx.bsBedtimeStatus('2026-10-29').why, 'session', 'séance du jour pas encore faite (avant 20h)');
+  s.extra_w1_s0_done = true; s.extra_w1_s0_km = 8; app.ctx.prHistoryChanged && app.ctx.prHistoryChanged();
+  assert.equal(app.ctx.bsBedtimeStatus('2026-10-29').ready, true);
+});

@@ -64,6 +64,11 @@ test('heure de coucher (21h) : push tous les soirs, une fois par jour, même cal
   assert.equal(F2.calls.push.length, 1);
   assert.match(F2.calls.push[0].title, /Couche-toi vers 23h45/);           // 7h30 − 7h30 − 15 min
   assert.match(F2.calls.push[0].body, /Pas de séance demain/);
+  // WHOOP connecté mais nuit d'aujourd'hui absente : pas de rappel (jamais l'heure calculée sur la veille)
+  const yest = new Date(d + 'T12:00:00Z'); yest.setUTCDate(yest.getUTCDate() - 1);
+  const F3 = lf({ data: { users: { WkEWrmnYWuUNkGLrwXf9HhaJWfh1: { state: { _plan_engine: 'generated', whoop_data: { sleeps: [{ date: yest.toISOString().slice(0, 10), duration_hours: '7h00' }] } } } } } });
+  await F3.notifs.bedtimeReminder();
+  assert.equal(F3.calls.push.length, 0);
 });
 
 test('brief du matin un jour de repos : nuit, récupération et séance de demain — sans « prêt pour aujourd\'hui » ni organisation du plan', async () => {
