@@ -28,8 +28,7 @@ function renderHome(){
   // ── Bandeau navigation ──────────────────────────────────────────────────────
   const navLabel = document.getElementById('home-week-label');
   if(navLabel){
-    const tag = isCurrent ? ' — Semaine en cours' : isPast ? ' — Semaine passée' : ' — Semaine à venir';
-    navLabel.textContent = 'S' + w + tag;
+    navLabel.textContent = 'Semaine ' + w;
     navLabel.style.color = isCurrent ? '#0C447C' : isPast ? '#3B6D11' : '#E8530A';
   }
   // Dates de la semaine
@@ -48,9 +47,10 @@ function renderHome(){
     if(d0){
       const d1 = new Date(d0); d1.setDate(d0.getDate()+6);
       const fmt = d => d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-      navDates.textContent = fmt(d0) + ' – ' + fmt(d1);
+      const tag = isCurrent ? '' : isPast ? ' · passée' : ' · à venir';
+      navDates.textContent = '· ' + (d0.getMonth()===d1.getMonth() ? d0.getDate() : fmt(d0)) + ' – ' + fmt(d1) + tag;
     } else {
-      navDates.textContent = '';
+      navDates.textContent = isCurrent ? '' : isPast ? '· passée' : '· à venir';
     }
   }
   // Flèches : grisées aux extrêmes
@@ -88,7 +88,7 @@ function renderHome(){
       const step=td<100?50:100;
       const pct=Math.min(100,Math.round((td%step)/step*100));
       if(barEl) barEl.style.width=pct+'%';
-      const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Km parcourus';
+      const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='courus';
       const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
     }
     const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent='';
@@ -99,6 +99,7 @@ function renderHome(){
     // Restaurer les éléments potentiellement cachés par un rendu Plaisir précédent
     const progLabelRow=document.getElementById('h-prog-label')?.closest('div');
     if(progLabelRow) progLabelRow.style.display='flex';
+    const pctEl0=document.getElementById('h-pct'); if(pctEl0) pctEl0.style.display='';
     const barContainerEl=document.getElementById('h-bar');
     if(barContainerEl) barContainerEl.parentElement.style.display='block';
     const kmRowEl=document.getElementById('h-done-km')?.closest('div[style*="justify-content"]');
@@ -107,8 +108,8 @@ function renderHome(){
     const pct=gt>0?Math.round(td/gt*100):0;
     const pctEl=document.getElementById('h-pct'); if(pctEl) pctEl.textContent=gt>0?(pct+'%'):'0%';
     const barEl=document.getElementById('h-bar'); if(barEl) barEl.style.width=pct+'%';
-    const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='Progression du plan';
-    const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+' km';
+    const progLabel=document.getElementById('h-prog-label'); if(progLabel) progLabel.textContent='';
+    const doneKmEl=document.getElementById('h-done-km'); if(doneKmEl) doneKmEl.textContent=td.toLocaleString('fr-FR')+(gt>0?'':' km');
     const gtEl=document.getElementById('h-grand-total'); if(gtEl) gtEl.textContent=gt>0?gt.toLocaleString('fr-FR')+' km':'—';
     const gtLabel=document.getElementById('h-grand-total-label'); if(gtLabel) gtLabel.textContent='plan complet';
   }
@@ -204,7 +205,7 @@ function renderHome(){
   }
   // KPI cartes KM restants / Semaines restantes : masquées si pas de course
   const extraStatsRow=document.getElementById('h-extra-stats-row');
-  if(extraStatsRow) extraStatsRow.style.display=isPlaisir?'none':'flex';
+  if(extraStatsRow) extraStatsRow.style.display=isPlaisir?'none':'inline';
   // Bloc KPI course : masqué si Plaisir ou pas de course
   const raceKpiBlock=document.getElementById('home-race-kpi-block');
   const noRaceBtn=document.getElementById('home-no-race-btn');
@@ -257,7 +258,7 @@ function renderHome(){
       }
     }
     // Extra stats row : séances totales / km cette semaine (labels mis à jour pour Plaisir)
-    if(extraStatsRow) extraStatsRow.style.display='flex';
+    if(extraStatsRow) extraStatsRow.style.display='inline';
     const kpiRestElP=document.getElementById('kpi-rest');
     if(kpiRestElP) kpiRestElP.textContent=totalSessDone+' séance'+(totalSessDone!==1?'s':'');
     const kpiRestLblP=document.getElementById('kpi-rest-label');
@@ -364,7 +365,7 @@ function renderHome(){
         // Prédiction dynamique identique à l'admin
         const pred=buildMarathonPrediction();
         if(pred.tempsStr){
-          if(predLabelEl) predLabelEl.textContent='/km · voir →';
+          if(predLabelEl) predLabelEl.textContent='/km ›';
           if(mtEl) mtEl.textContent=pred.tempsStr;
           if(amPredElU) amPredElU.textContent=pred.amPaceRecoStr||'—';
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openMarathonPredModal();}
@@ -395,7 +396,7 @@ function renderHome(){
         const pred=buildDistancePrediction(userCourse);
         const shortCourse={'10 km':'10km','Semi-marathon':'semi','5 km':'5km'}[userCourse]||'course';
         if(pred.tempsStr){
-          if(predLabelEl) predLabelEl.textContent='/km · voir →';
+          if(predLabelEl) predLabelEl.textContent='/km ›';
           if(mtEl) mtEl.textContent=pred.tempsStr;
           if(amPredElU) amPredElU.textContent=pred.paceStr||'—';
           if(_htb){_htb.style.cursor='pointer';_htb.onclick=()=>openDistancePredModal(userCourse);}
@@ -464,7 +465,7 @@ function renderHome(){
       const amTrainBtnNP=document.getElementById('home-am-train-btn');
       if(amTrainBtnNP){amTrainBtnNP.style.cursor='pointer';amTrainBtnNP.onclick=()=>showOnboarding(true);}
     } else {
-      if(predLabelEl) predLabelEl.textContent='/km · voir →';
+      if(predLabelEl) predLabelEl.textContent='/km ›';
       if(amTrainLabelEl) amTrainLabelEl.textContent='/km entraînement';
       // Garantir onclick admin (peut avoir été effacé par un render plaisir/no-plan)
       const predBtnAdmin=document.getElementById('home-pred-btn');
@@ -523,6 +524,8 @@ function renderHome(){
       }
     }
   }
+  if(!isPlaisir) homeGoalLine(ob, userCourse);
+  homeNextCard();
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
   const vo2El = document.getElementById('kpi-vo2max');
@@ -877,8 +880,22 @@ function renderHome(){
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"/><line x1="7" y1="7" x2="17" y2="17"/></svg>
         </div>`:isPast&&!done&&!skip?`<button onclick="openValidationModalExtra(${w},${ei})" style="background:transparent;color:#6B8DB5;border:1.5px solid #d0dff5;border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Valider →</button>`:''}
       </div>`;
+    div.id='hs-'+w+'-'+ei;
+    if(done||skip){
+      // ligne compacte : ✓ Footing EF · 5 km · 5'43 /km — la carte complète s'ouvre au toucher
+      let pf={};try{pf=JSON.parse(state[`extra_w${w}_s${ei}_perf`]||'{}')||{};}catch(e){}
+      const dd=pf.date&&/^\d{4}-\d{2}-\d{2}/.test(pf.date)?new Date(String(pf.date).slice(0,10)+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short'}):(s2.sched_day?_schedDays[s2.sched_day]:'');
+      const row=document.createElement('div');
+      row.className='hs-row'+(skip?' skip':''); row.style.setProperty('--c',skip?'#C0392B':typeC);
+      row.setAttribute('role','button'); row.setAttribute('aria-expanded','false');
+      row.onclick=()=>{homeSessToggle(row);row.setAttribute('aria-expanded',row.classList.contains('open')?'true':'false');};
+      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+pf.pace+'/km':'')))+'</span>'+(dd?'<span class="hs-d">'+dd+'</span>':'')+'<span class="hs-ch">›</span>';
+      div.style.display='none';
+      el.appendChild(row);
+    }
     el.appendChild(div);
   });
+  _homeCss();
 
   if(el.children.length===0){
     const empty=document.createElement('div');
@@ -906,6 +923,93 @@ function renderHome(){
   if (typeof checkWakeupBanner === 'function') checkWakeupBanner();
   // Alerte token WHOOP expiré — délai 25s pour laisser la sync rafraîchir le token (1 seul timer par session)
   if (!_whoopAlertScheduled) { _whoopAlertScheduled = true; setTimeout(_checkWhoopTokenAlert, 25000); }
+}
+
+// ── En-tête : objectif sur une ligne « 🎯 10 km · 41'40 · 22 nov. · J-21 » (la date n'est plus répétée ailleurs) ──
+function homeGoalLine(ob, userCourse){
+  const lbl = document.getElementById('home-goal-label'), sub = document.getElementById('today-date');
+  const raceDateEl = document.getElementById('home-race-date'); if(raceDateEl) raceDateEl.style.display = 'none';
+  if(!lbl || (!usesHardPlan() && !userCourse)) return;                              // pas de plan : libellés d'incitation déjà posés
+  const R = typeof prepRace === 'function' ? prepRace() : {}, tt = usesHardPlan() ? '' : (ob.target_time || state.target_time || '');
+  const name = usesHardPlan() ? 'Marathon' : ({ '5 km': '5 km', '10 km': '10 km', 'Semi-marathon': 'Semi', 'Marathon': 'Marathon' })[userCourse] || 'Course';
+  const mt = document.getElementById('kpi-marathon-time'), shown = mt ? mt.textContent.trim() : '';
+  const tgt = tt ? homeTimeTxt(tt) : '', bigIsTarget = !!tt && (shown === formatTargetTime(tt) || shown === tgt);
+  const parts = ['🎯 ' + name];
+  if(tgt && !bigIsTarget) parts.push(tgt);                                         // objectif déclaré, quand le grand chiffre est la prédiction
+  if(R.date){
+    parts.push(new Date(R.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }));
+    const d = typeof prDays === 'function' && typeof prTodayIso === 'function' ? prDays(prTodayIso(), R.date) : null;
+    if(d != null && d >= 0) parts.push(d === 0 ? 'Jour J' : 'J-' + d);
+  }
+  lbl.textContent = parts.join(' · ');
+  if(sub && shown && shown !== '—') sub.textContent = bigIsTarget ? 'ton objectif' : 'temps prédit';
+}
+
+// temps « 41'40 » / « 3h29'45 » (comme le grand chiffre de l'en-tête)
+function homeTimeTxt(t){
+  const p = String(t).split(':').map(Number); if(p.some(isNaN)) return String(t);
+  const sec = p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : p[0];
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), ss = sec % 60;
+  return (h ? h + 'h' + String(m).padStart(2, '0') : m) + "'" + String(ss).padStart(2, '0');
+}
+// ── Carte « Prochaine séance » sous la Forme du jour : jour, heure, séance, km, allure ; « Valider » le jour même ──
+function homeNextCard(){
+  const el = document.getElementById('home-next-card'); if(!el) return;
+  el.innerHTML = '';
+  try {
+    if(typeof prSessions !== 'function' || typeof prTodayIso !== 'function' || isPlaisirMode()) return;
+    if(typeof _prepView !== 'undefined' && _prepView && !_prepView.next) return;    // copie en lecture seule
+    const today = prTodayIso();
+    const time = function(s){ let sc = {}; try { sc = JSON.parse(state[s.key + '_sched'] || '{}') || {}; } catch(e) {} return sc.time || s.x.sched_time || ''; };
+    const L = prSessions(state).filter(function(s){ return !s.done && !s.skip && s.type !== 'rest' && s.date && s.date >= today; })
+      .map(function(s){ s.t = time(s); return s; })
+      .sort(function(a, b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.t || '99') < (b.t || '99') ? -1 : 1; });
+    const s = L[0]; if(!s) return;
+    const d = prDays(today, s.date), C = typeColor[s.type] || '#1B4FD8', bg = typeBg[s.type] || '#EEF2FD';
+    const day = d === 0 ? 'Aujourd\'hui' : d === 1 ? 'Demain' : new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' });
+    const when = day.charAt(0).toUpperCase() + day.slice(1) + (s.t ? ' · ' + s.t.replace(/^0(\d)/, '$1').replace(':', 'h') : '');
+    const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(s.title, s.type, s.detail) : s.title;
+    const dur = typeof estimateDuration === 'function' ? estimateDuration(s.x) : '';
+    const info = [s.kmPlan ? s.kmPlan + ' km' : '', s.pace ? s.pace.text.replace(/\s+/g, ' ') : (dur ? '~' + dur : '')].filter(Boolean).join(' · ');
+    const canValidate = d === 0 && s.w === getEffectiveCW();
+    el.innerHTML = '<div class="hn-card" style="--c:' + C + ';--bg:' + bg + ';" role="button" tabindex="0" onclick="homeNextGo(' + s.w + ',' + s.ei + ')">'
+      + '<span class="hn-ico">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[s.type]) || '🏃') + '</span>'
+      + '<div class="hn-txt"><p class="hn-eb">Prochaine · <b>' + when + '</b></p><p class="hn-t">' + title + '</p>' + (info ? '<p class="hn-i">' + info + '</p>' : '')
+      + (typeof prWeatherLine === 'function' ? prWeatherLine(s.x) : '') + '</div>'
+      + (canValidate ? '<button type="button" class="hn-val" onclick="event.stopPropagation();toggleDoneExtra(' + s.w + ',' + s.ei + ')">✓ Valider</button>' : '<span class="hn-go" aria-hidden="true">›</span>')
+      + '</div>';
+    _homeCss();
+  } catch(e) { el.innerHTML = ''; }
+}
+// toucher la carte : la séance dans la liste de la semaine, mise en évidence
+function homeNextGo(w, ei){
+  if(homeViewWeek !== w){ homeViewWeek = w; rendered.home = false; renderHome(); }
+  const c = document.getElementById('hs-' + w + '-' + ei); if(!c) return;
+  if(c.style.display === 'none'){ const r = c.previousElementSibling; if(r && r.classList.contains('hs-row')) homeSessToggle(r); }
+  c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  c.classList.remove('hs-flash'); void c.offsetWidth; c.classList.add('hs-flash');
+}
+// séance faite / retirée : ligne compacte d'une ligne, carte complète au toucher
+function homeSessToggle(row){
+  const c = row.nextElementSibling; if(!c) return;
+  const open = c.style.display === 'none';
+  c.style.display = open ? 'flex' : 'none'; row.classList.toggle('open', open);
+}
+function _homeCss(){
+  if(document.getElementById('home-css')) return;
+  const st = document.createElement('style'); st.id = 'home-css';
+  st.textContent = '.hn-card{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #DCE6F5;border-radius:16px;padding:11px 12px;box-shadow:inset 3px 0 0 var(--c),0 1px 3px rgba(12,52,122,.06);cursor:pointer;-webkit-tap-highlight-color:transparent;}'
+    + '.hn-ico{width:38px;height:38px;border-radius:11px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}'
+    + '.hn-txt{flex:1;min-width:0;}.hn-txt p{margin:0;}.hn-eb{font-size:10.5px;font-weight:700;color:#6B8DB5;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hn-eb b{color:var(--c);font-weight:800;}'
+    + '.hn-t{font-size:14.5px;font-weight:800;color:#0F172A;margin-top:1px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hn-i{font-size:12px;font-weight:600;color:#475569;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '.hn-val{background:var(--c);color:#fff;border:none;border-radius:20px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit;}.hn-go{font-size:20px;color:#9BB0CF;flex-shrink:0;}'
+    + '.hs-row{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E3EAF5;border-radius:12px;padding:8px 12px;font-size:12.5px;color:#334155;cursor:pointer;box-shadow:inset 3px 0 0 var(--c);-webkit-tap-highlight-color:transparent;white-space:nowrap;}'
+    + '.hs-row .hs-ck{width:18px;height:18px;border-radius:50%;background:var(--c);color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.hs-row.skip .hs-ck{background:#C0392B;}'
+    + '.hs-row .hs-tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}.hs-row b{color:#0F172A;font-weight:750;}.hs-row .hs-d{font-size:11px;color:#8AA0BF;font-weight:600;}'
+    + '.hs-row .hs-ch{color:#9BB0CF;font-size:14px;transition:transform .2s;}.hs-row.open .hs-ch{transform:rotate(90deg);}'
+    + '@keyframes hsFlash{0%{box-shadow:0 0 0 0 rgba(27,79,216,.45);}100%{box-shadow:0 0 0 10px rgba(27,79,216,0);}}.hs-flash{animation:hsFlash 1s ease-out 2;}'
+    + '@media (prefers-reduced-motion:reduce){.hs-flash{animation:none;}.hs-row .hs-ch{transition:none;}}';
+  document.head.appendChild(st);
 }
 
 function _checkWhoopTokenAlert() {

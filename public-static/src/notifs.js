@@ -123,6 +123,9 @@ function updateNotifBtnState() {
   const badge = document.getElementById('notif-badge');
   if (!btn) return;
   const perm = ('Notification' in window) ? Notification.permission : 'unavailable';
+  // notifications actives : pastille masquée (rien à faire) ; réaffichée si l'état change
+  if (perm === 'granted') { btn.style.display = 'none'; btn.dataset.okHide = '1'; }
+  else if (btn.dataset.okHide) { btn.style.display = 'inline-flex'; delete btn.dataset.okHide; }
   if (perm === 'granted') {
     btn.style.background = 'rgba(127,212,168,0.25)';
     if (label) label.textContent = '✓ Actives';

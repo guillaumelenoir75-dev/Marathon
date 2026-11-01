@@ -348,14 +348,7 @@ function statsTodayRender(){
     if(M.length) h += '<div class="st-td-m">' + M.map(function(m){ return '<' + (m.act ? 'button type="button" onclick="' + m.act + '"' : 'div') + ' class="' + m.tone + '"><span>' + m.ico + '</span><span>' + prEsc(m.t) + '</span>' + (m.act ? '<i aria-hidden="true">›</i></button>' : '</div>'); }).join('') + '</div>';
     // 4 mesures : valeur mesurée, et « sans alcool » ou repère sous chacune
     const w = {}; ((AS && AS.comps) || []).forEach(function(c){ w[c.k] = c.w; });
-    const col = function(v, g, o){ return v == null ? '' : v >= g ? 'ok' : v >= o ? 'mid' : 'low'; };
-    const hrv = N.r && N.r.hrv != null ? Math.round(N.r.hrv) : null, sl = N.s || {}, admin = typeof isAdmin === 'function' && isAdmin();
-    const tiles = [
-      { k: 'rec', m: 'recovery', lab: 'Récup', v: N.r && N.r.score != null ? N.r.score + ' %' : '—', c: col(N.r && N.r.score, 67, 34) },
-      { k: 'sleep', m: 'sleep', lab: 'Sommeil', v: sl.performance_pct != null ? sl.performance_pct + ' %' : '—', c: col(sl.performance_pct, 80, 60), sub: sl.duration_hours || '' },
-      { k: 'rhr', m: 'fc', lab: 'FC repos', v: N.fc != null ? N.fc : '—', c: N.fc == null ? '' : N.fc <= 50 ? 'ok' : N.fc <= 58 ? 'mid' : 'low' },
-      { k: 'hrv', m: 'hrv', lab: 'VFC', v: hrv != null ? hrv + ' ms' : '—', c: col(hrv, 80, 60) }
-    ];
+    const admin = typeof isAdmin === 'function' && isAdmin(), tiles = wellnessTiles(N);
     h += '<div class="st-td-t">' + tiles.map(function(t){
       const sub = w[t.k] ? '<em title="sans alcool">→ ' + w[t.k].replace(' bpm', '') + '</em>' : t.sub ? '<em>' + t.sub + '</em>' : '';
       return '<' + (admin ? 'button type="button" onclick="whoopChartOpen(\'' + t.m + '\')"' : 'div') + ' class="' + t.c + '"><small>' + t.lab + '</small><b>' + t.v + '</b>' + sub + '</' + (admin ? 'button' : 'div') + '>'; }).join('') + '</div>';
@@ -523,6 +516,18 @@ function wellnessState(){
   if(last && !last.ok) return { kind: 'failed', N: N, auth: !!last.needsAuth, error: last.error || '' };
   if(!state['_wakeup_' + N.day]) return { kind: 'waiting', N: N };
   return { kind: 'pending', N: N, at: last ? last.at : null };
+}
+// 4 mesures de la nuit du jour (récup, sommeil, FC repos, VFC) avec leur couleur : Statistiques › Aujourd'hui et accueil
+function wellnessTiles(N){
+  N = N || wellnessNight();
+  const col = function(v, g, o){ return v == null ? '' : v >= g ? 'ok' : v >= o ? 'mid' : 'low'; };
+  const hrv = N.r && N.r.hrv != null ? Math.round(N.r.hrv) : null, sl = N.s || {};
+  return [
+    { k: 'rec', m: 'recovery', lab: 'Récup', v: N.r && N.r.score != null ? N.r.score + ' %' : '—', c: col(N.r && N.r.score, 67, 34) },
+    { k: 'sleep', m: 'sleep', lab: 'Sommeil', v: sl.performance_pct != null ? sl.performance_pct + ' %' : '—', c: col(sl.performance_pct, 80, 60), sub: sl.duration_hours || '' },
+    { k: 'rhr', m: 'fc', lab: 'FC repos', v: N.fc != null ? N.fc : '—', c: N.fc == null ? '' : N.fc <= 50 ? 'ok' : N.fc <= 58 ? 'mid' : 'low' },
+    { k: 'hrv', m: 'hrv', lab: 'VFC', v: hrv != null ? hrv + ' ms' : '—', c: col(hrv, 80, 60) }
+  ];
 }
 function wellnessScoreToday(){
   const N = wellnessNight();

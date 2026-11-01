@@ -496,7 +496,7 @@ function prRenderHomeCard(){
       const AS = typeof alcFormSplit === 'function' ? alcFormSplit(F) : null, AL = AS && typeof alcFormLabel === 'function' ? alcFormLabel(F, AS) : null;
       const ghost = AS && AS.lost >= 3 ? '<circle cx="32" cy="32" r="26" class="g-alc" stroke-dasharray="0 ' + (C * F.score / 100).toFixed(1) + ' ' + (C * AS.lost / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '';
       h += '<div class="pd-form ' + F.tone + '"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/>' + ghost + '<circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="' + (C * F.score / 100).toFixed(1) + ' ' + C.toFixed(1) + '"/><text x="32" y="37" text-anchor="middle">' + F.score + '</text></svg>'
-        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>' + (AL || F.label) + '</b><small>' + prEsc(F.why.join(' · ')) + '</small>' + (chip = typeof alcFormChip === 'function' ? alcFormChip(F, AS) : '') + '</div></div>'; }
+        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>' + (AL || F.label) + '</b>' + _pdFormMinis(F) + (chip = typeof alcFormChip === 'function' ? alcFormChip(F, AS) : '') + '</div></div>'; }
     if(typeof alcHomeLine === 'function') h += alcHomeLine(WS.kind === 'ok' ? F : null, !!chip);   // alcool hier soir : effet sur ta nuit, ou question du matin
     // série et badges : sous les séances (#home-form-extra), pour garder le plan de la semaine haut sur l'écran
     const strip = '<div class="pd-strip"><span class="pd-streak">🔥 <b>' + B.c.streak + '</b> séance' + (B.c.streak > 1 ? 's' : '') + ' d\'affilée</span>'
@@ -510,6 +510,15 @@ function prRenderHomeCard(){
     if(dRace != null && dRace >= 0 && dRace <= 6) h += '<button type="button" class="pd-raceb" onclick="openRacePlan()">🏁 <b>' + prEsc(R.name) + '</b> dans ' + dRace + ' jour' + (dRace > 1 ? 's' : '') + ' · ton plan de course ›</button>';
     el.innerHTML = h + '</div>';
   } catch(e) { el.innerHTML = ''; }
+}
+// Forme du jour : 4 mini-valeurs colorées (récup, sommeil, FC repos, VFC — stats.js wellnessTiles) au lieu d'une ligne de texte ;
+// les ajustements (charge, effort ressenti, douleur) restent en petit dessous
+function _pdFormMinis(F){
+  const meas = /^(récup|sommeil|FC repos|VFC) /, extra = (F.why || []).filter(function(x){ return !meas.test(x); });
+  const T = typeof wellnessTiles === 'function' ? wellnessTiles().filter(function(t){ return t.v !== '—'; }) : [];
+  if(!T.length) return '<small>' + prEsc((F.why || []).join(' · ')) + '</small>';
+  return '<div class="pd-mini">' + T.map(function(t){ return '<span class="' + t.c + '"><i>' + t.lab + '</i>' + t.v + '</span>'; }).join('') + '</div>'
+    + (extra.length ? '<small>' + prEsc(extra.join(' · ')) + '</small>' : '');
 }
 function openBadges(){
   _pdCss(); const B = prBadges(), got = state._badges || {};
@@ -550,6 +559,8 @@ function _pdCss(){
     + '.g-bg{fill:none;stroke:#EEF2F7;stroke-width:7;}.g-fg{fill:none;stroke-width:7;stroke-linecap:round;}.pd-form.ok .g-fg{stroke:#16A34A;}.pd-form.mid .g-fg{stroke:#EAB308;}.pd-form.low .g-fg{stroke:#DC2626;}.g-alc{fill:none;stroke:#C4B5FD;stroke-width:7;}'
     + '.pd-form.wait{background:linear-gradient(135deg,#F5F3FF,#EEF2FF);border-color:#DDD6FE;}.pd-form.wait text{font-size:20px;}.pd-wake{flex-shrink:0;border:none;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f97316,#fbbf24);cursor:pointer;font-family:inherit;}'
     + '.pd-form-l{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748B;}.pd-form b{display:block;font-size:14.5px;font-weight:850;color:#0F172A;}.pd-form small{display:block;font-size:11.5px;color:#64748B;font-weight:600;margin-top:1px;}'
+    + '.pd-mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:6px;}.pd-mini span{display:block;border-radius:8px;padding:3px 0 4px;text-align:center;font-size:12.5px;font-weight:850;color:#334155;background:#F1F5F9;font-variant-numeric:tabular-nums;white-space:nowrap;}'
+    + '.pd-mini i{display:block;font-style:normal;font-size:9px;font-weight:700;letter-spacing:.02em;color:#64748B;opacity:.9;}.pd-mini .ok{background:#ECFDF5;color:#047857;}.pd-mini .mid{background:#FFFBEB;color:#B45309;}.pd-mini .low{background:#FEF2F2;color:#B91C1C;}'
     + '.pd-strip{display:flex;gap:8px;align-items:center;}.pd-streak{flex-shrink:0;background:#FFF7ED;color:#9A3412;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;}.pd-bdg-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:2px;background:#F5F3FF;border:none;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit;}.pd-bdg-btn i{font-style:normal;font-size:15px;}.pd-bdg-btn span{font-size:12px;font-weight:800;color:#5B21B6;margin-left:4px;white-space:nowrap;}'
     + '.pd-raceb{width:100%;text-align:left;background:linear-gradient(135deg,#FFFBEB,#FEF3C7);border:1px solid #FDE68A;border-radius:14px;padding:10px 14px;font-size:13px;color:#78350F;cursor:pointer;font-family:inherit;}'
     + '.pd-bgrid{padding:14px 16px 24px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}.pd-b{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;opacity:.5;filter:grayscale(1);}.pd-b.on{opacity:1;filter:none;border-color:#DDD6FE;box-shadow:0 6px 16px -10px rgba(91,33,182,.5);}.pd-b span{font-size:30px;}.pd-b b{font-size:13px;font-weight:850;color:#0F172A;}.pd-b small{font-size:11px;color:#64748B;font-weight:700;}';

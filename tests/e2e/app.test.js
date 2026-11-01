@@ -511,11 +511,11 @@ test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamai
   } });
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   let txt = await page.textContent('#home-form-card');
-  assert.match(txt, /Mise à jour…/); assert.doesNotMatch(txt, /récup 30 %/, 'pas de valeur périmée');
+  assert.match(txt, /Mise à jour…/); assert.doesNotMatch(txt, /récup\s*30 %/i, 'pas de valeur périmée');
   // la synchro a ramené la nuit : nouvelle valeur affichée
   await page.evaluate(() => { window.__DB.users.ADMINUID.state.whoop_data = { updatedAt: new Date().toISOString(), recoveries: [{ date: '2026-10-29', score: 82, rhr: 49, hrv: 70 }], sleeps: [{ date: '2026-10-29', performance_pct: 90, duration_hours: '7h50' }] }; });
   release();
-  await page.waitForFunction(() => /récup 82 %/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  await page.waitForFunction(() => /récup\s*82 %/i.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
   txt = await page.textContent('#home-form-card');
   assert.doesNotMatch(txt, /Mise à jour…/);
   assert.deepEqual(errors, []);
@@ -553,7 +553,7 @@ test('forme du jour sécurisée : synchro WHOOP en échec ou nuit absente → me
   const card = () => page.textContent('#home-form-card');
   await page.waitForFunction(() => /Échec de la récupération WHOOP/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
   let t = await card();
-  assert.doesNotMatch(t, /récup 30 %|sommeil 50 %|\b3[0-9]\b.*Récupération insuffisante/, 'aucun chiffre de la veille');
+  assert.doesNotMatch(t, /récup\s*30 %|sommeil\s*50 %|\b3[0-9]\b.*Récupération insuffisante/i, 'aucun chiffre de la veille');
   assert.ok(await page.locator('#home-form-card button:has-text("Réessayer")').count());
   // WHOOP déconnecté
   mode = 'auth'; await page.click('#home-form-card button:has-text("Réessayer")');
@@ -561,10 +561,10 @@ test('forme du jour sécurisée : synchro WHOOP en échec ou nuit absente → me
   // synchro réussie mais la nuit n'est pas encore calculée par WHOOP
   mode = 'ok'; await page.evaluate(() => whoopRetry());
   await page.waitForFunction(() => /Nuit pas encore disponible/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
-  assert.doesNotMatch(await card(), /récup 30 %/);
+  assert.doesNotMatch(await card(), /récup\s*30 %/i);
   // la nuit arrive : vraie valeur du jour
   await page.evaluate(() => { window.__DB.users.ADMINUID.state.whoop_data = { updatedAt: new Date().toISOString(), recoveries: [{ date: '2026-10-29', score: 82, rhr: 49, hrv: 70 }], sleeps: [{ date: '2026-10-29', performance_pct: 90, duration_hours: '7h50' }] }; whoopRetry(); });
-  await page.waitForFunction(() => /récup 82 %/.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
+  await page.waitForFunction(() => /récup\s*82 %/i.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
   assert.deepEqual(errors, []);
   await ctx.close();
 });
@@ -715,6 +715,45 @@ test('Statistiques › Forme : « Aujourd\'hui » en tête (forme du jour, à re
   assert.equal(await page.evaluate(() => bsSleepNeed().min), need0, 'retour en auto');
   await page.evaluate(() => { document.getElementById('bs-sleep-m').remove(); showScreen('stats'); });
   if (process.env.SHOT) { await page.setViewportSize({ width: 390, height: 1800 }); await page.locator('.st-pane[data-st="forme"]').screenshot({ path: process.env.SHOT }); }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('accueil compact : objectif sur une ligne, en-tête sans débordement, prochaine séance, séance faite repliée, forme en 4 valeurs', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  const N = [['11-03', 2, 58, 66, 54, 79], ['11-02', 0, 70, 75, 50, 85], ['11-01', 0, 62, 70, 52, 82], ['10-31', 3, 35, 57, 63, 67], ['10-30', 8, 26, 52, 65, 57], ['10-29', 0, 56, 74, 52, 82], ['10-28', 7, 38, 65, 57, 74]];
+  S.whoop_data = { recoveries: N.map((n) => ({ date: '2026-' + n[0], score: n[2], hrv: n[3], rhr: n[4] })), sleeps: N.map((n) => ({ date: '2026-' + n[0], performance_pct: n[5], duration_hours: '7h02' })) };
+  S._alcohol = {}; N.forEach((n) => { S._alcohol['2026-' + n[0]] = { l: n[1], t: [] }; });
+  N.forEach((n) => { S['fc_repos_2026-' + n[0]] = String(n[4]); });
+  S['_wakeup_2026-11-03'] = true;
+  S.extra_w2_s0_done = true; S.extra_w2_s0_km = '8.1'; S.extra_w2_s0_perf = JSON.stringify({ pace: "5'43", dur: "46'20", date: '2026-11-03' });
+  const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D));
+  await page.evaluate(() => showScreen('home'));
+  await page.waitForSelector('#home-next-card .hn-card');
+  // objectif sur une ligne avec J-x ; date de course plus répétée à droite
+  assert.match(await page.textContent('#home-goal-label'), /^🎯 10 km · .*22 nov\. · J-19$/);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('home-race-date')).display), 'none');
+  // rien ne dépasse du bord droit de l'écran
+  const over = await page.evaluate(() => [...document.querySelectorAll('#home-header-main-row *, #home-progression-block *')].filter((e) => e.offsetParent && e.getBoundingClientRect().right > window.innerWidth + 0.5).map((e) => e.id || e.className || e.tagName));
+  assert.deepEqual(over, []);
+  // une seule barre de progression, plus de doublon « séances de la semaine »
+  assert.equal(await page.locator('#home-progression-block #h-week-row').isVisible(), false);
+  // prochaine séance : la 1re non faite à venir (jeudi), libellé du jour
+  assert.match(await page.textContent('#home-next-card'), /Prochaine · Jeudi 5 · 6h30.*Footing EF.*9 km/s);
+  // séance faite : une ligne compacte, carte complète au toucher
+  const row = page.locator('#home-sessions .hs-row').first();
+  assert.match(await row.textContent(), /✓\s*Footing EF · 8,1 km · 5'43\/km/);
+  assert.equal(await page.locator('#hs-2-0').isVisible(), false);
+  await row.click();
+  assert.equal(await page.locator('#hs-2-0').isVisible(), true);
+  // forme du jour : 4 mini-valeurs colorées
+  assert.equal(await page.locator('#home-form-card .pd-mini > span').count(), 4);
+  assert.match(await page.textContent('#home-form-card .pd-mini'), /Récup\s*58 %.*Sommeil\s*79 %.*FC repos\s*54.*VFC\s*66 ms/s);
+  // semaine sur une ligne
+  assert.equal(await page.textContent('#home-week-label'), 'Semaine 2');
+  assert.match(await page.textContent('#home-week-dates'), /^· 2 – 8 nov\.$/);
+  if (process.env.SHOT_HOME) { await page.setViewportSize({ width: 390, height: 2200 }); await page.locator('#sc-home').screenshot({ path: process.env.SHOT_HOME }); }
   assert.deepEqual(errors, []);
   await ctx.close();
 });
