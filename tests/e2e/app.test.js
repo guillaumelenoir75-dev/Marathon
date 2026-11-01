@@ -700,6 +700,9 @@ test('Statistiques › Forme : « Aujourd\'hui » en tête (forme du jour, à re
   assert.equal(await page.locator('#home-form-card .bs-sleep').count(), 0, 'plus de grande ligne sur l\'accueil');
   assert.equal(await page.locator('#home-form-extra .pd-strip').count(), 1);
   assert.equal(await page.locator('#home-form-card .pd-strip').count(), 0);
+  // plan de course : seulement dans la semaine de la course (J-6 au jour J)
+  const dRace = await page.evaluate(() => { const R = prepRace(); return R && R.date ? prDays(prTodayIso(), R.date) : null; });
+  assert.equal(await page.locator('#home-form-card .pd-raceb').count(), dRace != null && dRace >= 0 && dRace <= 6 ? 1 : 0, 'J-' + dRace);
   await page.click('#home-sleep-btn');
   await page.waitForSelector('#bs-sleep-m .bs-sl-big');
   assert.match(await page.textContent('#bs-sleep-m'), ready ? /Coucher.*Sommeil.*Réveil/s : /Heure de coucher à venir/);
