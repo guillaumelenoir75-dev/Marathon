@@ -1,4 +1,4 @@
-// « Ta semaine en image » : une carte (image PNG 1080 × 1350) qui récapitule la semaine — km faits / prévus, km par jour,
+// « Ta semaine en image » : une carte (image PNG portrait plein écran iPhone 1080 × 1920) qui récapitule la semaine — km faits / prévus, km par jour,
 // séances, séance phare, série, forme, J-x — à partager (feuille de partage du téléphone) ou à télécharger.
 // Bouton sur l'accueil le dimanche après-midi et le lundi / mardi (semaine écoulée) : wsHomeButton() dans la carte « Forme du jour ».
 // weekShareData(w, today) : données de la carte (testable) ; openWeekShare(w) : aperçu + partage.
@@ -45,57 +45,68 @@ function weekShareData(w, today){
 
 // ─── Dessin (canvas) ────────────────────────────────────────────────────────
 const WS_TYPE_COL = { ef: '#4ADE80', long: '#A78BFA', tempo: '#FB923C', frac: '#F87171', race: '#FACC15' };
+// format portrait plein écran iPhone (9:16, 1080 × 1920) : en-tête, km, barre, km par jour, séances, séance phare, 3 tuiles, signature
+const WS_W = 1080, WS_H = 1920;
 function wsDraw(D){
-  const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+  const c = document.createElement('canvas'); c.width = WS_W; c.height = WS_H;
   const g = c.getContext('2d'), F = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-  const bg = g.createLinearGradient(0, 0, 1080, 1350); bg.addColorStop(0, '#0B1739'); bg.addColorStop(1, '#2A1B6E'); g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
-  // halo
-  const hl = g.createRadialGradient(900, 160, 10, 900, 160, 520); hl.addColorStop(0, 'rgba(129,140,248,0.35)'); hl.addColorStop(1, 'rgba(129,140,248,0)'); g.fillStyle = hl; g.fillRect(0, 0, 1080, 800);
+  const bg = g.createLinearGradient(0, 0, WS_W * 0.4, WS_H); bg.addColorStop(0, '#0B1739'); bg.addColorStop(0.55, '#1E1B5E'); bg.addColorStop(1, '#2E1A6E'); g.fillStyle = bg; g.fillRect(0, 0, WS_W, WS_H);
+  // halos
+  const hl = g.createRadialGradient(900, 300, 10, 900, 300, 640); hl.addColorStop(0, 'rgba(129,140,248,0.38)'); hl.addColorStop(1, 'rgba(129,140,248,0)'); g.fillStyle = hl; g.fillRect(0, 0, WS_W, 1000);
+  const h2 = g.createRadialGradient(120, 1650, 10, 120, 1650, 560); h2.addColorStop(0, 'rgba(52,211,153,0.16)'); h2.addColorStop(1, 'rgba(52,211,153,0)'); g.fillStyle = h2; g.fillRect(0, 1000, WS_W, 920);
   const txt = function(t, x, y, size, col, w, align){ g.font = (w || 600) + ' ' + size + 'px ' + F; g.fillStyle = col; g.textAlign = align || 'left'; g.fillText(t, x, y); };
+  const fit = function(t, size, w, max){ g.font = w + ' ' + size + 'px ' + F; while(g.measureText(t).width > max && t.length > 4) t = t.slice(0, -2) + '…'; return t; };
   const fmtD = function(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''; };
-  txt(('Semaine ' + D.w + (D.total ? ' / ' + D.total : '') + (D.prep ? '  ·  ' + D.prep : '')).toUpperCase(), 80, 120, 30, 'rgba(255,255,255,0.72)', 800);
-  txt(fmtD(D.from) + ' – ' + fmtD(D.to), 80, 168, 34, 'rgba(255,255,255,0.9)', 600);
+  // en-tête
+  txt(fit(('Semaine ' + D.w + (D.total ? ' / ' + D.total : '') + (D.prep ? '  ·  ' + D.prep : '')).toUpperCase(), 32, 800, 920), 80, 230, 32, 'rgba(255,255,255,0.72)', 800);
+  txt(fmtD(D.from) + ' – ' + fmtD(D.to), 80, 290, 40, 'rgba(255,255,255,0.92)', 600);
   // km
-  txt(_wsKm(D.kmDone), 80, 360, 190, '#FFFFFF', 900);
-  g.font = '900 190px ' + F; const wKm = g.measureText(_wsKm(D.kmDone)).width;
-  txt('km', 100 + wKm, 360, 64, 'rgba(255,255,255,0.85)', 800);
-  txt('sur ' + _wsKm(D.kmPlan) + ' km prévus  ·  ' + D.nDone + '/' + D.nPlan + ' séances', 84, 425, 34, 'rgba(255,255,255,0.75)', 600);
+  txt(_wsKm(D.kmDone), 76, 560, 250, '#FFFFFF', 900);
+  g.font = '900 250px ' + F; const wKm = g.measureText(_wsKm(D.kmDone)).width;
+  txt('km', 100 + wKm, 560, 80, 'rgba(255,255,255,0.85)', 800);
+  txt('sur ' + _wsKm(D.kmPlan) + ' km prévus  ·  ' + D.nDone + '/' + D.nPlan + ' séances', 84, 640, 38, 'rgba(255,255,255,0.78)', 600);
   // barre de réalisation
   const bw = 920, pct = Math.min(1, D.pct || 0);
-  g.fillStyle = 'rgba(255,255,255,0.14)'; _wsRound(g, 80, 460, bw, 22, 11); g.fill();
-  const pg = g.createLinearGradient(80, 0, 80 + bw, 0); pg.addColorStop(0, '#34D399'); pg.addColorStop(1, '#818CF8'); g.fillStyle = pg; _wsRound(g, 80, 460, Math.max(22, bw * pct), 22, 11); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.14)'; _wsRound(g, 80, 685, bw, 26, 13); g.fill();
+  const pg = g.createLinearGradient(80, 0, 80 + bw, 0); pg.addColorStop(0, '#34D399'); pg.addColorStop(1, '#818CF8'); g.fillStyle = pg; _wsRound(g, 80, 685, Math.max(26, bw * pct), 26, 13); g.fill();
   // km par jour
-  const mx = Math.max.apply(null, D.days.map(function(d){ return d.km; }).concat([1])), x0 = 80, colW = 920 / 7;
+  const mx = Math.max.apply(null, D.days.map(function(d){ return d.km; }).concat([1])), x0 = 80, colW = 920 / 7, base = 1090;
   D.days.forEach(function(d, i){
-    const h = d.km ? Math.max(14, d.km / mx * 230) : 6, x = x0 + i * colW + colW * 0.2, w = colW * 0.6, y = 790 - h;
-    g.fillStyle = d.km ? '#A5B4FC' : 'rgba(255,255,255,0.18)'; _wsRound(g, x, y, w, h, 14); g.fill();
-    if(d.km) txt(_wsKm(d.km), x + w / 2, y - 14, 28, '#E0E7FF', 800, 'center');
-    txt(d.l, x + w / 2, 840, 30, d.today ? '#FFFFFF' : 'rgba(255,255,255,0.6)', 800, 'center');
+    const h = d.km ? Math.max(16, d.km / mx * 270) : 7, x = x0 + i * colW + colW * 0.2, w = colW * 0.6, y = base - h;
+    g.fillStyle = d.km ? '#A5B4FC' : 'rgba(255,255,255,0.18)'; _wsRound(g, x, y, w, h, 16); g.fill();
+    if(d.km) txt(_wsKm(d.km), x + w / 2, y - 16, 32, '#E0E7FF', 800, 'center');
+    txt(d.l, x + w / 2, base + 56, 34, d.today ? '#FFFFFF' : 'rgba(255,255,255,0.6)', 800, 'center');
   });
   // séances
-  let y = 920;
+  let y = 1260;
   D.sessions.slice(0, 5).forEach(function(s){
-    g.fillStyle = WS_TYPE_COL[s.type] || '#CBD5E1'; g.beginPath(); g.arc(98, y - 11, 11, 0, Math.PI * 2); g.fill();
-    const t = s.title.length > 34 ? s.title.slice(0, 33) + '…' : s.title;
-    txt(t, 128, y, 34, s.done ? '#FFFFFF' : 'rgba(255,255,255,0.45)', s.done ? 700 : 500);
-    txt((s.done ? '✓ ' : '') + _wsKm(s.km) + ' km', 1000, y, 32, s.done ? '#A7F3D0' : 'rgba(255,255,255,0.45)', 700, 'right');
-    y += 56;
+    g.fillStyle = WS_TYPE_COL[s.type] || '#CBD5E1'; g.beginPath(); g.arc(100, y - 13, 13, 0, Math.PI * 2); g.fill();
+    txt(fit(s.title, 38, s.done ? 700 : 500, 640), 134, y, 38, s.done ? '#FFFFFF' : 'rgba(255,255,255,0.45)', s.done ? 700 : 500);
+    txt((s.done ? '✓ ' : '') + _wsKm(s.km) + ' km', 1000, y, 36, s.done ? '#A7F3D0' : 'rgba(255,255,255,0.45)', 700, 'right');
+    y += 64;
   });
   // séance phare
   if(D.star){
-    const top = Math.max(y + 10, 1140);
-    g.fillStyle = 'rgba(255,255,255,0.10)'; _wsRound(g, 64, top - 52, 952, 104, 26); g.fill();
-    txt('★  ' + (D.star.title.length > 30 ? D.star.title.slice(0, 29) + '…' : D.star.title), 96, top - 6, 32, '#FDE68A', 800);
-    txt(D.star.line, 96, top + 34, 28, 'rgba(255,255,255,0.8)', 600);
+    const top = y + 6;
+    g.fillStyle = 'rgba(255,255,255,0.10)'; _wsRound(g, 64, top, 952, 124, 30); g.fill();
+    txt('★  ' + fit(D.star.title, 36, 800, 820), 100, top + 54, 36, '#FDE68A', 800);
+    txt(fit(D.star.line, 31, 600, 860), 100, top + 100, 31, 'rgba(255,255,255,0.82)', 600);
   }
-  // pied : série, forme, J-x
-  const foot = [D.streak ? D.streak + (D.streak > 1 ? ' séances d\'affilée' : ' séance d\'affilée') : '', D.form != null ? 'forme ' + D.form + '/100' : '', D.race ? 'J-' + D.race.days + ' ' + D.race.name : ''].filter(Boolean).join('   ·   ');
-  g.font = '700 26px ' + F; const room = 1000 - 80 - g.measureText('Plan Marathon').width - 36;
-  let fs = 28, ft = foot; g.font = '700 ' + fs + 'px ' + F;
-  while(g.measureText(ft).width > room && fs > 22){ fs--; g.font = '700 ' + fs + 'px ' + F; }
-  while(g.measureText(ft).width > room && ft.length > 8){ ft = ft.slice(0, -2) + '…'; ft = ft.replace(/.…$/, '…'); }
-  txt(ft, 80, 1290, fs, 'rgba(255,255,255,0.8)', 700);
-  txt('Plan Marathon', 1000, 1290, 26, 'rgba(255,255,255,0.45)', 700, 'right');
+  // tuiles : série, forme, J-x
+  const T = [];
+  if(D.streak) T.push({ v: String(D.streak), l: D.streak > 1 ? 'séances d\'affilée' : 'séance d\'affilée', c: '#FDBA74' });
+  if(D.form != null) T.push({ v: String(D.form), l: 'forme /100', c: D.form >= 67 ? '#6EE7B7' : D.form >= 34 ? '#FCD34D' : '#FCA5A5' });
+  if(D.race) T.push({ v: D.race.days === 0 ? 'Jour J' : 'J-' + D.race.days, l: D.race.name, c: '#C4B5FD' });
+  if(T.length){
+    const gap = 20, tw = (920 - gap * (T.length - 1)) / T.length, ty = 1690;
+    T.forEach(function(t, i){
+      const x = 80 + i * (tw + gap);
+      g.fillStyle = 'rgba(255,255,255,0.09)'; _wsRound(g, x, ty, tw, 130, 26); g.fill();
+      txt(t.v, x + tw / 2, ty + 66, 54, t.c, 900, 'center');
+      txt(fit(t.l, 26, 700, tw - 30), x + tw / 2, ty + 106, 26, 'rgba(255,255,255,0.7)', 700, 'center');
+    });
+  }
+  txt('Plan Marathon', WS_W / 2, 1878, 28, 'rgba(255,255,255,0.45)', 700, 'center');
   return c;
 }
 function _wsKm(v){ return String(Math.round((+v || 0) * 10) / 10).replace('.', ','); }
@@ -169,7 +180,7 @@ function _wsCss(){
   const st = document.createElement('style'); st.id = 'ws-css';
   st.textContent = '.ws-head{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#0F172A;color:#fff;border-radius:24px 24px 0 0;}.ws-head p{margin:0;font-size:16px;font-weight:800;}'
     + '.ws-x{background:rgba(255,255,255,.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;}'
-    + '.ws-img{width:100%;max-width:420px;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}.ws-btns{display:flex;gap:8px;width:100%;max-width:420px;}'
+    + '.ws-img{display:block;width:auto;max-width:100%;max-height:66vh;aspect-ratio:9/16;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}.ws-btns{display:flex;gap:8px;width:100%;max-width:420px;}'
     + '.ws-b{flex:1;padding:12px;border-radius:14px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}.ws-b.main{background:#6366F1;border-color:#6366F1;}'
     + '.ws-n{font-size:11px;color:rgba(255,255,255,.55);text-align:center;margin:0;max-width:420px;}'
     + '.ws-home{display:block;width:100%;text-align:left;margin-top:8px;border-radius:12px;padding:9px 12px;font-size:12.5px;border:1px solid #C7D2FE;background:linear-gradient(90deg,#EEF2FF,#F5F3FF);color:#3730A3;cursor:pointer;font-family:inherit;}';

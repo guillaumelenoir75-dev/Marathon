@@ -225,7 +225,8 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   await page.waitForSelector('.ws-home');
   await page.click('.ws-home'); await page.waitForSelector('#ws-share .ws-img');
-  assert.ok(await page.evaluate(() => document.querySelector('#ws-share .ws-img').src.startsWith('data:image/png') && document.querySelector('#ws-share .ws-img').naturalWidth === 1080));
+  assert.ok(await page.evaluate(() => document.querySelector('#ws-share .ws-img').src.startsWith('data:image/png') && document.querySelector('#ws-share .ws-img').naturalWidth === 1080 && document.querySelector('#ws-share .ws-img').naturalHeight === 1920));
+  if (process.env.SHOT_WS) fs.writeFileSync(process.env.SHOT_WS, Buffer.from((await page.evaluate(() => document.querySelector('#ws-share .ws-img').src)).split(',')[1], 'base64'));
   // Télécharger (ordinateur) : un vrai fichier semaine-N.png
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#ws-share .ws-b:has-text("Télécharger")')]);
   assert.match(dl.suggestedFilename(), /^semaine-\d+\.png$/);
