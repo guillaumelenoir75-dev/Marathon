@@ -830,3 +830,36 @@ test('validation automatique : pastille « ressenti ? » sur l\'accueil, ressent
   await ctx.close();
 });
 
+
+test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches intacts ; clair par défaut inchangé', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const lum = (c) => { const m = c.match(/\d+(\.\d+)?/g).map(Number); return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; };
+  let o = await open('2026-11-03T15:00:00+01:00', savedDb, { init: () => { localStorage.setItem('pm_theme', 'dark'); } });
+  let page = o.page;
+  await page.evaluate(() => showScreen('home')); await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  const C = await page.evaluate(() => { const g = (sel, p) => { const e = document.querySelector(sel); return e ? getComputedStyle(e)[p] : null; };
+    return { body: g('body', 'backgroundColor'), card: g('#home-next-card .hn-card', 'backgroundColor'), title: g('#home-next-card .hn-t', 'color'), head: g('#sc-home > div', 'backgroundImage') }; });
+  assert.ok(lum(C.body) < 0.2, 'page sombre ' + C.body);
+  if (C.card) { assert.ok(lum(C.card) < 0.25, 'carte sombre ' + C.card); assert.ok(lum(C.title) > 0.7, 'titre clair ' + C.title); }
+  assert.match(C.head, /linear-gradient/, 'en-tête en dégradé gardé');
+  // contraste : texte du Compte lisible
+  await page.evaluate(() => showScreen('compte')); await page.waitForTimeout(300);
+  assert.ok(await page.evaluate(() => { const r = document.querySelector('.cp-row b'); return r && getComputedStyle(r).color; }).then((c) => lum(c) > 0.7));
+  // coche cochée de « MAJ le plan » : reste bleue avec la coche blanche
+  await page.evaluate(() => { showScreen('plan'); openPlanReview(); });
+  await page.waitForFunction(() => typeof _prReview !== 'undefined' && _prReview && document.querySelector('#pr-content .pr-card, #pr-content .pr-top'), null, { timeout: 15000 });
+  const tick = await page.evaluate(() => { const t = document.querySelector('.pr-tick[aria-pressed=true]'); return t ? getComputedStyle(t).backgroundColor : null; });
+  if (tick) assert.match(tick, /rgb\(27, 79, 216\)/, 'coche bleue');
+  // réglage
+  await page.evaluate(() => { closePlanReview(); themeOpen(); });
+  assert.equal(await page.locator('#th-set .th-opt').count(), 3);
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
+  // clair par défaut : couleurs d'origine
+  o = await open('2026-11-03T15:00:00+01:00', savedDb); page = o.page;
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(237, 242, 251)');
+  assert.equal(await page.locator('style[data-th]').count(), 0, 'aucune règle sombre en mode clair');
+  await o.ctx.close();
+});
