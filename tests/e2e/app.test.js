@@ -1006,7 +1006,8 @@ test('fenêtre « Valider la séance » : WHOOP ou météo d\'une autre sortie r
   assert.match(await page.textContent('#avf-msg'), /Il manque encore : WHOOP \(donnée d'une autre sortie refusée\) · météo/);
   // aucune sortie ce jour-là : message + date à changer, rien d'importé
   await page.evaluate(() => { _stravaActivityData = null; window._stravaActivityData = null; });
-  await page.click('.avf-retry'); await page.waitForSelector('#avf-msg.ko');
+  await page.click('.avf-retry');
+  await page.waitForFunction(() => /aucune sortie Strava/.test(document.getElementById('avf-msg').textContent), null, { timeout: 10000 });   // la nouvelle réponse, pas le message du 1er essai
   assert.match(await page.textContent('#avf-msg'), /aucune sortie Strava le mar\. 3 nov\..*Change la date/s);
   // date changée après un import : données retirées
   await page.evaluate(() => { window._stravaActivityData = { activityId: '9001', date: '2026-11-03' }; window._whoopChargeData = { workout_strain: 9 }; const d = document.getElementById('val-date'); d.value = '2026-11-02'; d.dispatchEvent(new Event('change')); });
