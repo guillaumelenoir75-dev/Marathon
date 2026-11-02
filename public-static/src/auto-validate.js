@@ -200,13 +200,21 @@ function _avfSet(k, st, t){
 // message selon le résultat : ce qui est importé, ce qui manque encore et pourquoi (texte court)
 function avFillMsg(F, admin){
   const N = { strava: 'Strava', whoop: 'WHOOP', meteo: 'météo' };
-  if(!F || !F.activity) return { st: 'ko', ok: [], lines: [(F && F.reason) || 'Aucune sortie Strava trouvée', 'Change la date si tu as couru un autre jour'] };
-  const miss = (F.missing || []).filter(function(k){ return k !== 'whoop' || admin; });
-  const ok = ['strava', 'whoop', 'meteo'].filter(function(k){ return (k !== 'whoop' || admin) && (k === 'strava' || miss.indexOf(k) < 0); });
+  F = F || {};
+  const A = !!F.activity, why = F.why || {}, miss0 = F.missing || [];
+  const keys = ['strava'].concat(admin ? ['whoop'] : []).concat(['meteo']);
+  const has = { strava: A, whoop: !!F.whoop, meteo: !!F.meteo };
+  const ok = keys.filter(function(k){ return has[k]; });
+  const miss = keys.filter(function(k){ return k === 'strava' ? (!A || miss0.indexOf('strava') >= 0) : !has[k]; });
+  const reason = function(k){ return k === 'strava' ? (A ? why.strava : F.reason) : k === 'whoop' && !A ? 'après Strava' : why[k]; };
   const list = function(a){ return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1]; };
-  if(!miss.length) return { st: 'ok', ok: ok, lines: ['✓ ' + list(ok.map(function(k){ return N[k]; })) + ' importés', 'Raconte ta séance et note ton effort'] };
-  return { st: 'ko', ok: ok, lines: ['✓ ' + list(ok.map(function(k){ return N[k]; })) + (ok.length > 1 ? ' importés' : ' importé'),
-    'Il manque encore : ' + miss.map(function(k){ return N[k] + ((F.why || {})[k] ? ' (' + F.why[k] + ')' : ''); }).join(' · ')] };
+  const hint = 'Change la date si tu as couru un autre jour';
+  if(!ok.length) return { st: 'ko', ok: [], lines: [F.reason || 'Aucune sortie Strava trouvée', hint] };
+  const head = '✓ ' + list(ok.map(function(k){ return N[k]; })).replace(/^m/, ok[0] === 'meteo' ? 'M' : 'm') + (ok.length > 1 ? ' importés' : ok[0] === 'meteo' ? ' importée' : ' importé');
+  if(!miss.length) return { st: 'ok', ok: ok, lines: [head, 'Raconte ta séance et note ton effort'] };
+  const lines = [head, 'Il manque encore : ' + miss.map(function(k){ const r = reason(k); return N[k] + (r ? ' (' + r + ')' : ''); }).join(' · ')];
+  if(!A) lines.push(hint);
+  return { st: 'ko', ok: ok, lines: lines };
 }
 // date changée après un import : les données d'une autre journée ne sont jamais gardées
 function avFillDateChanged(){
@@ -262,13 +270,20 @@ async function avFill(w, ei, activityId){
   const drop = function(k){ F[k] = null; if(F.missing.indexOf(k) < 0) F.missing.push(k); F.why[k] = 'donnée d\'une autre sortie refusée'; };
   if(F.whoop && (!A || String(F.whoop.actId) !== String(A.activityId))) drop('whoop');
   if(F.meteo && (!A || String(F.meteo.actId) !== String(A.activityId))) drop('meteo');
+  if(!A && pos && typeof meteoAt === 'function'){
+    let hour = null; try { hour = JSON.parse(state[k] || '{}').sched_time || null; } catch(e) {}
+    const n = new Date(), today = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    const m = await meteoAt(pos.lat, pos.lng, date || today, hour || String(n.getHours()) + ':00');
+    if(m){ m.source = 'telephone'; F.meteo = m; F.missing = F.missing.filter(function(x){ return x !== 'meteo'; }); delete F.why.meteo; }
+    if(!document.getElementById('avf-btn')) return;
+  }
   if(A){
     // même sortie qu'au 1er essai : les champs (peut-être corrigés à la main) ne sont pas réécrits
     if(!(prevAct && String(prevAct.activityId) === String(A.activityId)) && typeof _applyStravaToValidation === 'function') _applyStravaToValidation(A);
     else window._stravaActivityData = prevAct;
     avManualShow(false);
     _avfSet('strava', (F.missing || []).indexOf('strava') >= 0 ? 'ko' : 'ok', String(A.distanceKm).replace('.', ',') + ' km');
-  } else { window._stravaActivityData = null; _avfSet('strava', 'ko', 'introuvable'); }
+  } else { window._stravaActivityData = null; _avfSet('strava', 'ko', 'absente'); }
   if(admin){
     if(F.whoop){ window._whoopChargeData = F.whoop; _avfSet('whoop', 'ok', 'effort ' + String(Math.round(F.whoop.workout_strain * 10) / 10).replace('.', ',')); }
     else _avfSet('whoop', 'ko', A ? 'manquant' : '—');
@@ -277,7 +292,7 @@ async function avFill(w, ei, activityId){
     window._meteoValidationData = F.meteo; _avfSet('meteo', 'ok', Math.round(F.meteo.temperature) + '°');
     if(pos && F.meteo.source === 'telephone' && typeof _getCityFromCoords === 'function') _getCityFromCoords(pos.lat, pos.lng).then(function(c){ if(c && window._meteoValidationData === F.meteo) F.meteo.ville = c; }).catch(function(){});
   }
-  else _avfSet('meteo', 'ko', A ? 'manquante' : '—');
+  else _avfSet('meteo', 'ko', 'manquante');
   const M = avFillMsg(F, admin);
   msg(M.st, M.lines, M.st !== 'ok');
   if(M.st === 'ok'){ const j = document.getElementById('jv-text') || document.querySelector('.jv'); if(j && j.scrollIntoView) setTimeout(function(){ try { j.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e) {} }, 250); }

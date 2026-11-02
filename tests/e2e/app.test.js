@@ -1089,3 +1089,30 @@ test('localisation du téléphone prise à chaque validation (auto et manuelle) 
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('pas de sortie Strava : la météo est quand même relevée à la position du téléphone, à l\'heure de la séance', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  S.whoop_token = { access_token: 'x', refresh_token: 'y', expires_at: 9999999999 };
+  const { ctx, page, errors } = await open('2026-11-03T13:48:00+01:00', JSON.stringify(D), { functions: (r) => {
+    if (/autoValidateNow/.test(r.request().url())) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, fill: { missing: ['strava'], reason: 'aucune sortie Strava le mar. 3 nov.' } }) });
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  const hours = Array.from({ length: 24 }, (_, h) => '2026-11-03T' + String(h).padStart(2, '0') + ':00');
+  let asked = '';
+  await page.route(/open-meteo\.com/, (r) => { asked = r.request().url(); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ hourly: { time: hours, temperature_2m: hours.map((_, h) => h), relative_humidity_2m: hours.map(() => 70), apparent_temperature: hours.map(() => 8), weather_code: hours.map(() => 3), wind_speed_10m: hours.map(() => 10) } }) }); });
+  await page.route(/nominatim|bigdatacloud/, (r) => r.fulfill({ contentType: 'application/json', body: '{}' }));
+  await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
+  await page.click('#avf-btn');
+  await page.waitForFunction(() => /Météo importée/.test(document.getElementById('avf-msg').textContent), null, { timeout: 10000 });
+  const txt = await page.textContent('#avf-msg');
+  assert.match(txt, /✓ Météo importée/); assert.match(txt, /Il manque encore : Strava \(aucune sortie Strava le mar\. 3 nov\.\) · WHOOP \(après Strava\)/);
+  assert.equal(await page.locator('#avf-s-meteo.ok').count(), 1);
+  assert.match(asked, /latitude=48\.84&longitude=2\.29/, 'position du téléphone');
+  const m = await page.evaluate(() => window._meteoValidationData);
+  const sched = await page.evaluate(() => JSON.parse(state.extra_w2_s0).sched_time || '');
+  assert.equal(m.source, 'telephone'); assert.equal(m.date, '2026-11-03');
+  if (sched) assert.equal(m.heure_cible, parseInt(sched, 10) + 'h00', 'heure prévue de la séance');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

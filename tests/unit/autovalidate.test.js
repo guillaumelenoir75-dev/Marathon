@@ -142,6 +142,10 @@ test('message : ce qui est importé et ce qui manque encore (avec la raison)', (
   // athlète : WHOOP jamais demandé
   M = app.avFillMsg(app.avFillResult(act, {}, null, meteo, { whoop: false }), false);
   assert.equal(M.st, 'ok'); assert.equal(M.lines[0], '✓ Strava et météo importés');
+  // pas de sortie Strava mais météo relevée à la position du téléphone : dit clairement
+  M = app.avFillMsg({ missing: ['strava'], reason: 'aucune sortie Strava le mar. 3 nov.', meteo }, true);
+  assert.equal(M.st, 'ko');
+  assert.deepEqual([...M.lines], ['✓ Météo importée', 'Il manque encore : Strava (aucune sortie Strava le mar. 3 nov.) · WHOOP (après Strava)', 'Change la date si tu as couru un autre jour']);
   M = app.avFillMsg({ missing: ['strava'], reason: 'aucune sortie Strava le mar. 3 nov.' }, true);
   assert.equal(M.st, 'ko'); assert.deepEqual([...M.lines], ['aucune sortie Strava le mar. 3 nov.', 'Change la date si tu as couru un autre jour']);
 });
