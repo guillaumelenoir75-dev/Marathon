@@ -158,6 +158,26 @@ async function meteoPosition(maxAgeH, opts) {
   if (saved && age < 30 * 24 * 3600000) return { lat: saved.lat, lng: saved.lng, src: 'saved' };
   return null;
 }
+// Position du téléphone, demandée à CHAQUE validation de séance (manuelle ou automatique) : GPS frais (≤ 5 min),
+// gardée en mémoire et en base (_last_location) ; null si refusée ou indisponible (10 s)
+function phoneGps() {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { resolve(null); return; }
+    let done = false; const fin = (v) => { if (!done) { done = true; resolve(v); } };
+    const to = setTimeout(() => fin(null), 12000);
+    try {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        clearTimeout(to);
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        _posCache = { lat: lat, lng: lng }; _posCacheTs = Date.now();
+        const loc = { lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000, ts: Date.now() };
+        if (typeof state !== 'undefined' && state) state._last_location = loc;
+        if (typeof dbRef !== 'undefined' && dbRef) { dbRef.child('_geo_granted').set(true).catch(() => {}); dbRef.child('_last_location').set(loc).catch(() => {}); }
+        fin({ lat: lat, lng: lng, src: 'telephone' });
+      }, () => { clearTimeout(to); fin(null); }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+    } catch (e) { clearTimeout(to); fin(null); }
+  });
+}
 // météo d'un lieu à une date et une heure données (« 12:30 ») : relevé horaire Open-Meteo, même forme que perf.meteo
 async function meteoAt(lat, lng, date, hour) {
   if (lat == null || lng == null || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;

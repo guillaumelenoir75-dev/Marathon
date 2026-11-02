@@ -1429,6 +1429,7 @@ async function saveValidationExtra(w,ei){
     if(typeof showToast==='function') showToast('Lance 🤖 Validation automatique ou remplis à la main','✏️');
     return;
   }
+  const _valStravaAct=window._stravaActivityData;   // sortie importée (lue plus bas pour la météo, après remise à zéro)
   const km=parseFloat(document.getElementById('val-km').value);
   const dur=(document.getElementById('val-dur').value||'').trim();
   const pace=(document.getElementById('val-pace').value||'').trim();
@@ -1551,8 +1552,9 @@ async function saveValidationExtra(w,ei){
   let meteoSeance=window._meteoValidationData||null;
   window._meteoValidationData=null;
   if(!meteoSeance&&typeof meteoForSession==='function'){
-    // rien d'importé : météo de la séance (date + heure prévue) à la position enregistrée — jamais de demande de localisation
-    try{ meteoSeance=await meteoForSession({ date:dateVal||null, hour:sExtra.sched_time||null, noPrompt:true }); }catch(e){ meteoSeance=null; }
+    // pas encore de météo : position du téléphone (demandée à chaque validation), relevé à la date et l'heure de la séance
+    const _sa=_valStravaAct;
+    try{ meteoSeance=await meteoForSession({ key:k, date:dateVal||null, hour:(_sa&&_sa.start)||sExtra.sched_time||null, activityId:_sa&&_sa.activityId }); }catch(e){ meteoSeance=null; }
   }
   // Sauvegarder la météo dans perf pour l'affichage dans Stats
   if(meteoSeance){

@@ -123,3 +123,22 @@ test('sécurité : « J\'ai fini » ignore la sortie de la veille ; une sortie c
   r = await s.F.autovalidate.runAutoFill(s.F.db, UID, T('2026-11-03T12:30:00Z'), s.deps({ workouts: async () => null }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
   assert.deepEqual(r.fill.missing, ['whoop']); assert.equal(r.fill.why.whoop, 'WHOOP injoignable');
 });
+
+test('position du téléphone envoyée par l\'app : météo relevée à cet endroit ; position invalide ignorée ; scan planifié = point de départ Strava', async () => {
+  let at = null;
+  const s = setup();
+  const hourlyAt = async (a) => { at = [a.lat, a.lng]; return hourly; };
+  let r = await s.F.autovalidate.runAutoFill(s.F.db, UID, T('2026-11-03T12:30:00Z'), s.deps({ hourly: hourlyAt }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03', lat: 48.9, lng: 2.4 });
+  assert.deepEqual(at, [48.9, 2.4]); assert.equal(r.fill.meteo.source, 'telephone'); assert.deepEqual(r.fill.meteo.coordonnees, { lat: 48.9, lng: 2.4 });
+  r = await s.F.autovalidate.runAutoFill(s.F.db, UID, T('2026-11-03T12:30:00Z'), s.deps({ hourly: hourlyAt }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03', lat: 'x', lng: 999 });
+  assert.deepEqual(at, [48.84, 2.29]); assert.equal(r.fill.meteo.source, 'strava_gps');
+  assert.equal(s.F.autovalidate.phonePos({ lat: 0, lng: 0 }), null);
+  // « J'ai fini » avec la position du téléphone : séance validée, météo à cet endroit
+  r = await s.F.autovalidate.runAutoValidate(s.F.db, UID, T('2026-11-03T11:51:00Z'), s.deps({ hourly: hourlyAt }), { manual: true, pos: { lat: 48.9, lng: 2.4 } });
+  assert.equal(r.out[0].st, 'ok'); assert.deepEqual(at, [48.9, 2.4]);
+  assert.equal(JSON.parse(s.S().extra_w1_s0_perf).meteo.source, 'telephone');
+  // scan planifié (app fermée) : point de départ Strava
+  const s2 = setup();
+  await s2.F.autovalidate.runAutoValidate(s2.F.db, UID, T('2026-11-03T13:00:00Z'), s2.deps({ hourly: hourlyAt }));
+  assert.deepEqual(at, [48.84, 2.29]); assert.equal(JSON.parse(s2.S().extra_w1_s0_perf).meteo.source, 'strava_gps');
+});

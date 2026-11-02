@@ -194,14 +194,22 @@ async function _getCityFromCoords(lat, lng) {
   }
 }
 
-// météo d'une séance, sans demander la localisation quand c'est possible :
-// 1. sortie Strava connue → relevé au point de départ GPS de la sortie, à son heure (fonction autoValidateNow, mode fill,
-//    même contrôle que la validation automatique : la météo doit porter l'identifiant de CETTE sortie) ;
-// 2. sinon position enregistrée (< 12 h, ou GPS du téléphone une fois ; o.noPrompt : jamais) à la date et l'heure de la séance
+// météo d'une séance : la position du TÉLÉPHONE est demandée à chaque validation (o.pos = déjà obtenue), relevé à la
+// date et à l'heure de la séance (pas celle de maintenant) ; position refusée → point de départ Strava de la sortie
+// rattachée (serveur, contrôle actId), sinon dernière position enregistrée. o.noPrompt : pas de demande de position.
 async function meteoForSession(o) {
   o = o || {};
   const n = new Date(), today = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
-  const date = o.date || today;
+  const date = o.date || today, hour = o.hour || (date === today ? String(n.getHours()) + ':00' : '12:00');
+  const pos = o.pos || (!o.noPrompt && typeof phoneGps === 'function' ? await phoneGps() : null);
+  if (pos && typeof meteoAt === 'function') {
+    const m = await meteoAt(pos.lat, pos.lng, date, hour);
+    if (m) {
+      m.source = 'telephone';
+      try { m.ville = await _getCityFromCoords(pos.lat, pos.lng); } catch(e) {}
+      return m;
+    }
+  }
   if (o.activityId && o.key && typeof _avFillCall === 'function') {
     try {
       const r = await _avFillCall({ fill: true, key: o.key, date: date, activityId: String(o.activityId) });
@@ -210,10 +218,10 @@ async function meteoForSession(o) {
     } catch(e) {}
   }
   if (typeof meteoPosition !== 'function' || typeof meteoAt !== 'function') return null;
-  const pos = await meteoPosition(12, { noPrompt: !!o.noPrompt });
-  if (!pos) return null;
-  const m = await meteoAt(pos.lat, pos.lng, date, o.hour || (date === today ? String(n.getHours()) + ':00' : '12:00'));
-  if (m) { try { m.ville = await _getCityFromCoords(pos.lat, pos.lng); } catch(e) {} }
+  const sp = await meteoPosition(12, { noPrompt: true });
+  if (!sp) return null;
+  const m = await meteoAt(sp.lat, sp.lng, date, hour);
+  if (m) { try { m.ville = await _getCityFromCoords(sp.lat, sp.lng); } catch(e) {} }
   return m;
 }
 

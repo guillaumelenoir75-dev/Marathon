@@ -48,6 +48,15 @@ function realDeps(db, secrets) {
   };
 }
 
+// position envoyée par le téléphone (prise à chaque validation depuis l'app) : nombres plausibles seulement
+function phonePos(o) {
+  const lat = o && +o.lat, lng = o && +o.lng;
+  return o && o.lat != null && o.lng != null && isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && (lat || lng) ? { lat, lng } : null;
+}
+exports.phonePos = phonePos;
+// même sortie, point de relevé météo = position du téléphone
+const atPhone = (act, pos) => (pos ? Object.assign({}, act, { lat: pos.lat, lng: pos.lng }) : act);
+
 // opts.manual (bouton « 🏁 J'ai fini ») : pas d'attente de 15 min, sorties « à valider toi-même » retentées, aucune
 // notification (l'app affiche le résultat), sorties déjà validées aujourd'hui signalées ({ st: 'done' })
 async function runAutoValidate(db, uid, nowMs, deps, opts) {
@@ -69,7 +78,8 @@ async function runAutoValidate(db, uid, nowMs, deps, opts) {
     if (prev && (prev.st === 'skip' || (prev.st === 'manual' && !opts.manual))) continue;
     // 1er tri sans réseau : trop récente, déjà rattachée, aucune séance correspondante
     const settleMin = opts.manual ? 0 : undefined;
-    let D = E.avDecide(state, act, { nowMs, today, detail: {}, workouts: [], meteo: null, settleMin });
+    const actM = atPhone(act, opts.pos);   // « J'ai fini » : météo à la position du téléphone ; scan planifié : point de départ Strava
+    let D = E.avDecide(state, actM, { nowMs, today, detail: {}, workouts: [], meteo: null, settleMin });
     if (D.wait) continue;
     const entry = { at: new Date(nowMs).toISOString(), date: act.date, km: act.km, tries: ((prev && prev.tries) || 0) + 1 };
     if (D.skip) {
@@ -84,10 +94,11 @@ async function runAutoValidate(db, uid, nowMs, deps, opts) {
     const [detail, workouts, hourly] = await Promise.all([
       deps.detail(uid, act.id).catch(() => null),
       deps.workouts(new Date(act.startMs - pad).toISOString(), new Date(act.endMs + pad).toISOString()).catch(() => null),
-      act.lat != null && act.lng != null ? deps.hourly(act, nowMs).catch(() => null) : Promise.resolve(null),
+      actM.lat != null && actM.lng != null ? deps.hourly(actM, nowMs).catch(() => null) : Promise.resolve(null),
     ]);
-    const meteo = hourly ? E.avMeteoFromHourly(hourly, act) : null;
-    D = E.avDecide(state, act, { nowMs, today, detail, workouts: workouts || [], meteo, settleMin });
+    const meteo = hourly ? E.avMeteoFromHourly(hourly, actM) : null;
+    if (meteo) meteo.source = opts.pos ? 'telephone' : 'strava_gps';
+    D = E.avDecide(state, actM, { nowMs, today, detail, workouts: workouts || [], meteo, settleMin });
     if (!D.ok) {
       const late = !opts.manual && nowMs - act.endMs >= AV_GIVEUP_MS;
       Object.assign(entry, { st: late ? 'manual' : 'pending', reason: D.reason, missing: [...(D.missing || [])], title: D.s ? D.s.title : null });
@@ -140,13 +151,15 @@ async function runAutoFill(db, uid, nowMs, deps, body) {
     act = P.act;
   }
   const withWhoop = uid === ADMIN_UID, pad = 2 * 3600 * 1000;
+  const pos = phonePos(body), actM = atPhone(act, pos);   // météo à la position du téléphone, sinon point de départ Strava
   const [detail, workouts, hourly] = await Promise.all([
     deps.detail(uid, act.id).catch(() => null),
     withWhoop ? deps.workouts(new Date(act.startMs - pad).toISOString(), new Date(act.endMs + pad).toISOString()).catch(() => null) : Promise.resolve(null),
-    act.lat != null && act.lng != null ? deps.hourly(act, nowMs).catch(() => null) : Promise.resolve(null),
+    actM.lat != null && actM.lng != null ? deps.hourly(actM, nowMs).catch(() => null) : Promise.resolve(null),
   ]);
-  const meteo = hourly ? E.avMeteoFromHourly(hourly, act) : null;
-  const F = E.avFillResult(act, detail, workouts, meteo, { whoop: withWhoop });   // workouts null = WHOOP injoignable
+  const meteo = hourly ? E.avMeteoFromHourly(hourly, actM) : null;
+  if (meteo) meteo.source = pos ? 'telephone' : 'strava_gps';
+  const F = E.avFillResult(actM, detail, workouts, meteo, { whoop: withWhoop });   // workouts null = WHOOP injoignable
   return { fill: JSON.parse(JSON.stringify(F)) };
 }
 exports.runAutoFill = runAutoFill;
@@ -180,7 +193,7 @@ exports.autoValidateNow = onRequest(
       const db = admin.database();
       const [sid, ssec] = strava.STRAVA_SECRETS;
       if (body.fill) { res.json(Object.assign({ success: true }, await runAutoFill(db, uid, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }), body))); return; }
-      const r = await runAutoValidate(db, uid, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }), { manual: true });
+      const r = await runAutoValidate(db, uid, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }), { manual: true, pos: phonePos(body) });
       res.json(Object.assign({ success: true }, r));
     } catch (e) { console.error('autoValidateNow:', e.message); res.status(500).json({ success: false, error: e.message }); }
   }

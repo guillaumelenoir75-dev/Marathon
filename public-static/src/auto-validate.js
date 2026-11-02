@@ -233,8 +233,12 @@ async function avFill(w, ei, activityId){
   // une recherche repart de zéro : rien de l'essai précédent n'est gardé tant qu'il n'est pas confirmé
   const prevAct = window._stravaActivityData;
   window._whoopChargeData = null; window._meteoValidationData = null;
+  // position du téléphone, prise à chaque validation : la météo est relevée à cet endroit, à l'heure de la sortie
+  if(btn) btn.firstChild.textContent = '📍 Ta position…';
+  const pos = typeof phoneGps === 'function' ? await phoneGps() : null;
+  if(btn) btn.firstChild.textContent = '⏳ Je cherche ta sortie…';
   let r = null;
-  try { r = await _avFillCall({ fill: true, key: k, date: date, activityId: activityId || null }); } catch(e) { r = { success: false, error: 'Connexion impossible' }; }
+  try { r = await _avFillCall({ fill: true, key: k, date: date, activityId: activityId || null, lat: pos ? pos.lat : null, lng: pos ? pos.lng : null }); } catch(e) { r = { success: false, error: 'Connexion impossible' }; }
   if(btn){ btn.disabled = false; btn.firstChild.textContent = '🤖 Validation automatique'; }
   if(!document.getElementById('avf-btn')) return;   // fenêtre fermée entre-temps
   const F = r && r.fill;
@@ -269,7 +273,10 @@ async function avFill(w, ei, activityId){
     if(F.whoop){ window._whoopChargeData = F.whoop; _avfSet('whoop', 'ok', 'effort ' + String(Math.round(F.whoop.workout_strain * 10) / 10).replace('.', ',')); }
     else _avfSet('whoop', 'ko', A ? 'manquant' : '—');
   }
-  if(F.meteo){ window._meteoValidationData = F.meteo; _avfSet('meteo', 'ok', Math.round(F.meteo.temperature) + '°'); }
+  if(F.meteo){
+    window._meteoValidationData = F.meteo; _avfSet('meteo', 'ok', Math.round(F.meteo.temperature) + '°');
+    if(pos && F.meteo.source === 'telephone' && typeof _getCityFromCoords === 'function') _getCityFromCoords(pos.lat, pos.lng).then(function(c){ if(c && window._meteoValidationData === F.meteo) F.meteo.ville = c; }).catch(function(){});
+  }
   else _avfSet('meteo', 'ko', A ? 'manquante' : '—');
   const M = avFillMsg(F, admin);
   msg(M.st, M.lines, M.st !== 'ok');
@@ -398,10 +405,10 @@ function avNowView(r){
   return { phase: 'manual', rows: [row('strava', '🟠', 'Strava', 'ok', km), row('whoop', '💚', 'WHOOP', 'wait', '—'), row('meteo', '🌡️', 'Météo', 'wait', '—')], msg: x.reason || 'À valider à la main' };
 }
 let _avFin = null;
-async function _avNowCall(){
+async function _avNowCall(pos){
   const u = typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null;
   const tok = u ? await u.getIdToken() : '';
-  const r = await fetch(FUNCTIONS_BASE + '/autoValidateNow', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: '{}' });
+  const r = await fetch(FUNCTIONS_BASE + '/autoValidateNow', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify(pos ? { lat: pos.lat, lng: pos.lng } : {}) });
   return r.json();
 }
 function avFinish(){
@@ -421,7 +428,10 @@ function avFinishClose(){ if(_avFin && _avFin.timer) clearInterval(_avFin.timer)
 async function _avFinRun(){
   if(!_avFin) return;
   _avFin.tries++;
-  let r = null; try { r = await _avNowCall(); } catch(e) { r = { success: false, error: 'Connexion impossible' }; }
+  // position du téléphone : demandée une fois à l'ouverture, réutilisée aux essais suivants
+  if(_avFin.pos === undefined) _avFin.pos = typeof phoneGps === 'function' ? await phoneGps() : null;
+  if(!_avFin) return;
+  let r = null; try { r = await _avNowCall(_avFin.pos); } catch(e) { r = { success: false, error: 'Connexion impossible' }; }
   if(!_avFin) return;
   const V = avNowView(r);
   if(V.phase === 'ok' && typeof apRefreshIfServerChanged === 'function') await apRefreshIfServerChanged();

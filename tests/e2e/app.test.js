@@ -31,7 +31,7 @@ test.after(async () => { if (browser) await browser.close(); if (server) server.
 // nouvelle page à une date donnée, avec une base (JSON) éventuelle
 async function open(dateIso, db, opts) {
   opts = opts || {};
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris' });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris', geolocation: { latitude: 48.84, longitude: 2.29 }, permissions: ['geolocation'] });
   await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
   await ctx.route(/cloudfunctions\.net/, (r) => (opts.functions ? opts.functions(r) : r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"ok","reply":"ok","text":"ok"}' })));
   await ctx.route(/firebase-app-compat/, (r) => r.fulfill({ contentType: 'text/javascript', path: MOCK }));
@@ -906,10 +906,10 @@ test('bouton « 🏁 J\'ai fini » : recherche Strava + WHOOP + météo, état d
   assert.ok(savedDb, 'dépend du premier test');
   const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
   S.whoop_token = { access_token: 'x', refresh_token: 'y', expires_at: 9999999999 };
-  let calls = 0;
+  let calls = 0; const finBodies = [];
   const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D), { functions: (r) => {
     if (/autoValidateNow/.test(r.request().url())) {
-      calls++;
+      calls++; finBodies.push(JSON.parse(r.request().postData() || '{}'));
       const body = calls === 1 ? { success: true, out: [] }
         : { success: true, out: [{ st: 'ok', key: 'extra_w2_s0', title: 'Footing EF', km: 8.1, pace: '5:43', temp: 12.4, strain: 9.4, date: '2026-11-03' }] };
       return r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
@@ -928,6 +928,7 @@ test('bouton « 🏁 J\'ai fini » : recherche Strava + WHOOP + météo, état d
   assert.equal(await page.locator('#av-fin .av-src.ok').count(), 3);
   assert.match(await page.textContent('#av-fin'), /Footing EF validée.*Mon ressenti|Footing EF validée.*Fermer/s);
   assert.equal(calls, 2);
+  assert.deepEqual(finBodies.map((b) => [b.lat, b.lng]), [[48.84, 2.29], [48.84, 2.29]], 'position du téléphone envoyée, demandée une seule fois');
   await page.evaluate(() => avFinishClose());
   assert.deepEqual(errors, []);
   await ctx.close();
@@ -1043,50 +1044,48 @@ test('notification du brief : ouvre le fil du Coach même si « Mon plan » éta
   await ctx.close();
 });
 
-test('météo sans redemander la localisation : point de départ Strava, sinon position enregistrée, à l\'heure de la séance', async () => {
+test('localisation du téléphone prise à chaque validation (auto et manuelle) : météo à cet endroit, à l\'heure de la séance', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
   const NOW = Date.parse('2026-11-03T13:30:00+01:00');
-  S._last_location = { lat: 48.85, lng: 2.35, ts: NOW - 2 * 3600000 };   // enregistrée il y a 2 h
-  const fillMeteo = { date: '2026-11-03', heure_cible: '12h00', temperature: 12.4, ressenti: 11, humidite: 76, vent_kmh: 11, conditions: 'Partiellement nuageux ⛅', actId: '9001' };
+  S._last_location = { lat: 48.85, lng: 2.35, ts: NOW - 2 * 3600000 };
+  const fillMeteo = { date: '2026-11-03', heure_cible: '12h00', temperature: 12.4, ressenti: 11, humidite: 76, vent_kmh: 11, conditions: 'Partiellement nuageux ⛅', actId: '9001', source: 'telephone' };
   const fills = [];
   const { ctx, page, errors } = await open('2026-11-03T13:30:00+01:00', JSON.stringify(D), {
-    init: () => { window.__geo = 0; try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok) => { window.__geo++; ok({ coords: { latitude: 48.86, longitude: 2.34 } }); } }, configurable: true }); } catch (e) {} },
+    init: () => { window.__geo = 0; window.__geoDeny = false; try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok, ko) => { window.__geo++; if (window.__geoDeny) ko({ code: 1 }); else ok({ coords: { latitude: 48.86, longitude: 2.34 } }); } }, configurable: true }); } catch (e) {} },
     functions: (r) => {
-      if (/autoValidateNow/.test(r.request().url())) { const b = JSON.parse(r.request().postData() || '{}'); fills.push(b); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, fill: { activity: { activityId: '9001', date: '2026-11-03', distanceKm: 8.1, duree: '46:20', allure: '5:43', start: '12:00' }, meteo: fillMeteo, whoop: null, missing: ['whoop'], why: {} } }) }); }
+      if (/autoValidateNow/.test(r.request().url())) { const b = JSON.parse(r.request().postData() || '{}'); fills.push(b); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, fill: { activity: { activityId: '9001', date: '2026-11-03', distanceKm: 8.1, duree: '46:20', allure: '5:43', start: '12:00' }, meteo: Object.assign({}, fillMeteo, { source: b.lat != null ? 'telephone' : 'strava_gps' }), whoop: null, missing: ['whoop'], why: {} } }) }); }
       return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
     } });
-  // relevé horaire Open-Meteo : 12h → 9,5 °C (≠ maintenant)
   const hours = Array.from({ length: 24 }, (_, h) => '2026-11-03T' + String(h).padStart(2, '0') + ':00');
-  await page.route(/open-meteo\.com/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ hourly: { time: hours, temperature_2m: hours.map((_, h) => (h === 12 ? 9.5 : 5)), relative_humidity_2m: hours.map(() => 70), apparent_temperature: hours.map(() => 8), weather_code: hours.map(() => 3), wind_speed_10m: hours.map(() => 10) } }) }));
+  const meteoAsked = [];
+  await page.route(/open-meteo\.com/, (r) => { meteoAsked.push(r.request().url()); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ hourly: { time: hours, temperature_2m: hours.map((_, h) => (h === 12 ? 9.5 : 5)), relative_humidity_2m: hours.map(() => 70), apparent_temperature: hours.map(() => 8), weather_code: hours.map(() => 3), wind_speed_10m: hours.map(() => 10) } }) }); });
   await page.route(/nominatim|bigdatacloud/, (r) => r.fulfill({ contentType: 'application/json', body: '{}' }));
   const geo = () => page.evaluate(() => window.__geo);
   await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
-  // 1. validation automatique : la météo vient du serveur (GPS Strava), aucune demande de localisation
+  // 1. « Validation automatique » : la position du téléphone est prise et envoyée (météo relevée à cet endroit par le serveur)
   await page.click('#avf-btn'); await page.waitForSelector('#avf-msg.ok, #avf-msg.ko');
-  assert.equal(await page.evaluate(() => window._meteoValidationData && window._meteoValidationData.temperature), 12.4);
-  assert.equal(await geo(), 0);
-  // 2. bouton Météo à la main avec une sortie Strava rattachée : météo du point de départ Strava (serveur), toujours sans GPS
-  await page.click('#avf-man'); await page.evaluate(() => { window._meteoValidationData = null; });
-  await page.evaluate(() => importMeteoValidation()); await page.waitForTimeout(600);
-  assert.equal(fills[fills.length - 1].activityId, '9001');
-  assert.equal(await page.evaluate(() => window._meteoValidationData.temperature), 12.4);
-  assert.equal(await geo(), 0);
-  // 3. sans sortie Strava : position enregistrée (< 12 h), relevé à l'heure de la séance (12h), pas maintenant
-  await page.evaluate(() => { window._stravaActivityData = null; window._meteoValidationData = null; });
-  const sched = await page.evaluate(() => JSON.parse(state.extra_w2_s0).sched_time || '');
-  await page.evaluate(() => importMeteoValidation()); await page.waitForTimeout(600);
-  const m = await page.evaluate(() => window._meteoValidationData);
-  assert.equal(m.date, '2026-11-03'); if (/^12/.test(sched)) { assert.equal(m.temperature, 9.5); assert.equal(m.heure_cible, '12h00'); }
-  assert.equal(await geo(), 0, 'position récente : pas de nouvelle demande');
-  // 4. position enregistrée trop ancienne : UNE demande, puis plus aucune (gardée en mémoire)
-  await page.evaluate((t) => { state._last_location = { lat: 48.85, lng: 2.35, ts: t - 20 * 3600000 }; _posCache = null; }, NOW);
-  await page.evaluate(() => meteoPosition(12)); assert.equal(await geo(), 1);
-  await page.evaluate(() => { _posCache = null; }); await page.evaluate(() => meteoPosition(12)); assert.equal(await geo(), 1);
-  // 5. météo de l'accueil et du Coach : position enregistrée récente → aucune demande
-  await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); _posCache = null; });
-  await page.evaluate(() => openHomeWeatherModal()); await page.waitForTimeout(500);
   assert.equal(await geo(), 1);
+  assert.equal(fills[0].lat, 48.86); assert.equal(fills[0].lng, 2.34);
+  assert.equal(await page.evaluate(() => window._meteoValidationData.source), 'telephone');
+  // 2. bouton Météo à la main : position reprise de nouveau, relevé à l'heure de la séance (pas maintenant)
+  await page.click('#avf-man'); await page.evaluate(() => { window._meteoValidationData = null; });
+  await page.evaluate(() => importMeteoValidation()); await page.waitForTimeout(700);
+  assert.equal(await geo(), 2);
+  const m = await page.evaluate(() => window._meteoValidationData);
+  assert.equal(m.source, 'telephone'); assert.equal(m.date, '2026-11-03'); assert.equal(m.temperature, 9.5, 'relevé de 12h, heure de la sortie Strava'); assert.equal(m.heure_cible, '12h00');
+  assert.match(meteoAsked[meteoAsked.length - 1], /latitude=48\.86&longitude=2\.34/);
+  // 3. localisation refusée : météo au point de départ Strava (serveur), jamais rien d'inventé
+  await page.evaluate(() => { window.__geoDeny = true; window._meteoValidationData = null; });
+  await page.evaluate(() => importMeteoValidation()); await page.waitForTimeout(700);
+  assert.equal(await geo(), 3);
+  assert.equal(fills[fills.length - 1].activityId, '9001');
+  assert.equal(await page.evaluate(() => window._meteoValidationData.source), 'strava_gps');
+  // 4. enregistrement : météo déjà là, pas de nouvelle demande
+  await page.evaluate(() => { window.__geoDeny = false; });
+  await page.evaluate(async () => { prRpePick(5); await saveValidationExtra(2, 0); }); await page.waitForTimeout(600);
+  assert.equal(await geo(), 3);
+  assert.equal(await page.evaluate(() => JSON.parse(state.extra_w2_s0_perf).meteo.source), 'strava_gps');
   assert.deepEqual(errors, []);
   await ctx.close();
 });
