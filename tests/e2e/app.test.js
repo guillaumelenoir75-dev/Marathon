@@ -191,7 +191,7 @@ test('validation : effort ressenti et douleur enregistrés, effacés à la reval
   const save = async (rpe, pain) => {
     await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); showScreen('home'); openValidationModalExtra(2, 0); });
     await page.waitForTimeout(300);
-    await page.evaluate(([r, p]) => { if (r) prRpePick(r); prPainPick(p); }, [rpe, pain]);   // toucher la valeur déjà choisie la désélectionne
+    await page.evaluate(([r, p]) => { avManualOpen(); if (r) prRpePick(r); prPainPick(p); }, [rpe, pain]);   // toucher la valeur déjà choisie la désélectionne
     await page.evaluate(() => saveValidationExtra(2, 0)); await page.waitForTimeout(1200);
     return page.evaluate(() => JSON.parse(state.extra_w2_s0_perf));
   };
@@ -483,6 +483,7 @@ test('analyse du Coach après validation : ton ressenti et l\'écart à la consi
   await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
   await page.waitForTimeout(300);
   const det = await page.evaluate(() => JSON.parse(state.extra_w2_s0).d);
+  await page.click('#avf-man');   // champs cachés tant que rien n'est importé : « Remplir à la main »
   await page.fill('#val-km', '8'); await page.fill('#val-pace', '4:53'); await page.fill('#val-hr', '157');
   await page.fill('#jv-text', 'Super séance, après le premier km je me sentais bien alors j\'ai accéléré, très content');
   await page.evaluate(() => { prRpePick(6); saveValidationExtra(2, 0); });
@@ -932,34 +933,88 @@ test('bouton « 🏁 J\'ai fini » : recherche Strava + WHOOP + météo, état d
   await ctx.close();
 });
 
-test('fenêtre « Valider la séance » : un seul bouton « Validation automatique » remplit Strava + WHOOP + météo', async () => {
+test('fenêtre « Valider la séance » : un appui importe tout ; ce qui manque est dit, « Réessayer » ; champs cachés tant qu\'ils sont vides', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
   S.whoop_token = { access_token: 'x', refresh_token: 'y', expires_at: 9999999999 };
-  let sent = null;
-  const fill = { activity: { activityId: '9001', date: '2026-11-03', nom: 'Footing', distanceKm: 8.1, duree: '46:20', allure: '5:43', fcMoyenne: 141, fcMax: 158, laps: [{ index: 1, distanceKm: 8.1, duree_sec: 2780, allure: '5:43', fc: 141 }] },
-    whoop: { workout_strain: 9.4, workout_calories: 610, avg_hr: 142, overlap: 96 },
-    meteo: { date: '2026-11-03', heure_cible: '12h00', temperature: 12.4, ressenti: 11, humidite: 76, vent_kmh: 11, conditions: 'Partiellement nuageux ⛅', source: 'auto' }, missing: [] };
+  const sent = [];
+  const activity = { activityId: '9001', date: '2026-11-03', nom: 'Footing', distanceKm: 8.1, duree: '46:20', allure: '5:43', fcMoyenne: 141, fcMax: 158, laps: [{ index: 1, distanceKm: 8.1, duree_sec: 2780, allure: '5:43', fc: 141 }] };
+  const meteo = { date: '2026-11-03', heure_cible: '12h00', temperature: 12.4, ressenti: 11, humidite: 76, vent_kmh: 11, conditions: 'Partiellement nuageux ⛅', source: 'auto', actId: '9001' };
+  const whoop = { workout_strain: 9.4, workout_calories: 610, avg_hr: 142, overlap: 96, actId: '9001' };
+  const answers = [
+    { activity, whoop: null, meteo, missing: ['whoop'], why: { whoop: 'effort WHOOP en cours de calcul' } },   // 1er essai : WHOOP pas encore prêt
+    { activity, whoop, meteo, missing: [], why: {} },                                                         // « Réessayer » : tout est là
+  ];
   const { ctx, page, errors } = await open('2026-11-03T13:30:00+01:00', JSON.stringify(D), { functions: (r) => {
-    if (/autoValidateNow/.test(r.request().url())) { sent = JSON.parse(r.request().postData() || '{}'); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, fill }) }); }
+    if (/autoValidateNow/.test(r.request().url())) { sent.push(JSON.parse(r.request().postData() || '{}')); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, fill: answers[Math.min(sent.length - 1, answers.length - 1)] }) }); }
     return r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"ok"}' });
   } });
   await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
-  // plus les 3 boutons séparés : un seul bouton, les 3 sources en dessous
+  // un seul bouton ; champs km / durée / allure / FC cachés tant qu'ils sont vides ; ressenti visible
   assert.equal(await page.locator('text=Remplis automatiquement').count(), 0);
   assert.equal(await page.locator('#avf-btn').count(), 1);
-  assert.equal(await page.locator('.avf-src').count(), 3);
+  assert.equal(await page.isVisible('#val-km'), false); assert.equal(await page.isVisible('#val-hr'), false);
+  assert.equal(await page.isVisible('.jv'), true); assert.equal(await page.isVisible('#pd-rpe'), true);
+  // Valider sans rien importer : rien n'est enregistré, les champs s'ouvrent
+  await page.evaluate(() => saveValidationExtra(2, 0)); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => !!state.extra_w2_s0_done), false);
+  assert.equal(await page.isVisible('#val-km'), true, 'panneau ouvert pour remplir à la main');
+  await page.evaluate(() => { document.getElementById('val-manual').style.display = 'none'; document.getElementById('val-manual-imp').style.display = 'none'; });
+  // 1er essai : Strava et météo importés, WHOOP manquant → dit clairement, « Réessayer »
   await page.click('#avf-btn');
+  await page.waitForSelector('#avf-msg.ko');
+  assert.equal(sent[0].fill, true); assert.equal(sent[0].key, 'extra_w2_s0'); assert.equal(sent[0].date, '2026-11-03');
+  const t1 = await page.textContent('#avf-msg');
+  assert.match(t1, /✓ Strava et météo importés/); assert.match(t1, /Il manque encore : WHOOP \(effort WHOOP en cours de calcul\)/);
+  assert.equal(await page.isVisible('.avf-retry'), true);
+  assert.equal(await page.isVisible('#val-km'), true, 'champs affichés une fois remplis par Strava');
+  assert.equal(await page.inputValue('#val-km'), '8.1'); assert.equal(await page.inputValue('#val-dur'), '46:20'); assert.equal(await page.inputValue('#val-hr'), '141');
+  assert.equal(await page.isVisible('#strava-val-btn'), false, 'imports à la main seulement via « Remplir à la main »');
+  // je corrige les km à la main : « Réessayer » ne les réécrit pas (même sortie)
+  await page.fill('#val-km', '8.2');
+  await page.click('.avf-retry');
   await page.waitForSelector('#avf-msg.ok');
-  assert.equal(sent.fill, true); assert.equal(sent.key, 'extra_w2_s0'); assert.equal(sent.date, '2026-11-03');
-  assert.equal(await page.inputValue('#val-km'), '8.1'); assert.equal(await page.inputValue('#val-dur'), '46:20');
+  assert.match(await page.textContent('#avf-msg'), /✓ Strava, WHOOP et météo importés/);
   assert.equal(await page.locator('.avf-src.ok').count(), 3);
-  assert.match(await page.textContent('.avf'), /8,1 km.*effort 9,4.*12°/s);
-  await page.evaluate(async () => { const b = document.querySelector('#pd-rpe [data-v="6"], #pd-rpe button'); if (b) b.click(); await saveValidationExtra(2, 0); });
+  assert.equal(await page.inputValue('#val-km'), '8.2');
+  // il ne reste que le ressenti
+  await page.fill('#jv-text', 'Bonnes jambes, facile');
+  await page.evaluate(async () => { prRpePick(4); await saveValidationExtra(2, 0); });
   await page.waitForTimeout(600);
   const p = await page.evaluate(() => JSON.parse(state.extra_w2_s0_perf));
-  assert.equal(p.strava_id, '9001', 'sortie rattachée : jamais reprise par la validation automatique');
-  assert.equal(p.whoop.workout_strain, 9.4); assert.equal(p.meteo.temperature, 12.4); assert.ok(p.strava.laps);
+  assert.equal(p.strava_id, '9001'); assert.equal(p.whoop.workout_strain, 9.4); assert.equal(p.meteo.temperature, 12.4); assert.ok(p.strava.laps);
+  assert.equal(p.rpe, 4); assert.match(p.journal, /Bonnes jambes/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('fenêtre « Valider la séance » : WHOOP ou météo d\'une autre sortie refusés ; « Remplir à la main » rouvre le panneau', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  S.whoop_token = { access_token: 'x', refresh_token: 'y', expires_at: 9999999999 };
+  const fill = { activity: { activityId: '9001', date: '2026-11-03', distanceKm: 8.1, duree: '46:20', allure: '5:43' },
+    whoop: { workout_strain: 12, actId: '7777' }, meteo: { date: '2026-11-03', heure_cible: '12h00', temperature: 30, actId: '7777' }, missing: [], why: {} };
+  let n = 0;
+  const { ctx, page, errors } = await open('2026-11-03T13:30:00+01:00', JSON.stringify(D), { functions: (r) => {
+    if (/autoValidateNow/.test(r.request().url())) { n++; return r.fulfill({ contentType: 'application/json', body: JSON.stringify(n === 1 ? { success: true, fill } : { success: true, fill: { missing: ['strava'], reason: 'aucune sortie Strava le mar. 3 nov.' } }) }); }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
+  await page.click('#avf-btn'); await page.waitForSelector('#avf-msg.ko');
+  assert.equal(await page.evaluate(() => window._whoopChargeData), null, 'WHOOP d\'une autre sortie jamais gardé');
+  assert.equal(await page.evaluate(() => window._meteoValidationData), null);
+  assert.match(await page.textContent('#avf-msg'), /Il manque encore : WHOOP \(donnée d'une autre sortie refusée\) · météo/);
+  // aucune sortie ce jour-là : message + date à changer, rien d'importé
+  await page.evaluate(() => { _stravaActivityData = null; window._stravaActivityData = null; });
+  await page.click('.avf-retry'); await page.waitForSelector('#avf-msg.ko');
+  assert.match(await page.textContent('#avf-msg'), /aucune sortie Strava le mar\. 3 nov\..*Change la date/s);
+  // date changée après un import : données retirées
+  await page.evaluate(() => { window._stravaActivityData = { activityId: '9001', date: '2026-11-03' }; window._whoopChargeData = { workout_strain: 9 }; const d = document.getElementById('val-date'); d.value = '2026-11-02'; d.dispatchEvent(new Event('change')); });
+  assert.deepEqual(await page.evaluate(() => [window._stravaActivityData, window._whoopChargeData]), [null, null]);
+  assert.match(await page.textContent('#avf-msg'), /Date changée/);
+  // « Remplir à la main » : panneau et imports à la main
+  await page.click('#avf-man');
+  assert.equal(await page.isVisible('#val-km'), true); assert.equal(await page.isVisible('#strava-val-btn'), true);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

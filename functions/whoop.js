@@ -413,11 +413,13 @@ async function whoopWorkoutsBetween(db, startIso, endIso) {
     { headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' } }, 20000);
   if (!r.ok) return null;
   const j = await r.json();
-  return (j.records || []).filter(w => w.score_state === 'SCORED' && w.start && w.end && w.score).map(w => ({
-    id: String(w.id), start: w.start, end: w.end, sport: w.sport_name || (w.sport_id === 0 ? 'running' : w.sport_id === -1 ? 'activity' : String(w.sport_id)),
-    strain: w.score.strain ?? null, avg_hr: w.score.average_heart_rate ?? null, max_hr: w.score.max_heart_rate ?? null,
-    kcal: w.score.kilojoule ? Math.round(w.score.kilojoule * 0.239) : null, zones: w.score.zone_durations || w.score.zone_duration || null
-  }));
+  // entraînement pas encore calculé par WHOOP : gardé avec strain null (jamais utilisé, sert à dire « en cours de calcul »)
+  return (j.records || []).filter(w => w.start && w.end).map(w => {
+    const sc = w.score_state === 'SCORED' && w.score ? w.score : null;
+    return { id: String(w.id), start: w.start, end: w.end, sport: w.sport_name || (w.sport_id === 0 ? 'running' : w.sport_id === -1 ? 'activity' : String(w.sport_id)),
+      strain: sc ? (sc.strain ?? null) : null, avg_hr: sc ? (sc.average_heart_rate ?? null) : null, max_hr: sc ? (sc.max_heart_rate ?? null) : null,
+      kcal: sc && sc.kilojoule ? Math.round(sc.kilojoule * 0.239) : null, zones: sc ? (sc.zone_durations || sc.zone_duration || null) : null };
+  });
 }
 exports.whoopWorkoutsBetween = whoopWorkoutsBetween;
 exports.WHOOP_SECRETS = [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET];

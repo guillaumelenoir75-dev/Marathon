@@ -472,6 +472,7 @@ async function _fetchAndApplyStravaDetail(activity, mode, ws, si) {
 function _applyStravaToValidation(activity) {
   // Stocker l'activité complète pour le coach IA
   window._stravaActivityData = activity;
+  if (typeof avManualShow === 'function') avManualShow(false);   // champs cachés tant que rien n'est rempli
 
   // KM réels
   const kmEl = document.getElementById('val-km');

@@ -63,6 +63,7 @@ async function runAutoValidate(db, uid, nowMs, deps, opts) {
   const acts = list.map(E.avActFromStrava).filter(Boolean).filter((a) => ['Run', 'TrailRun', 'VirtualRun'].includes(a.sp)).sort((a, b) => a.startMs - b.startMs);
   const out = [];
   for (const act of acts) {
+    if (opts.manual && act.date !== today) continue;   // « J'ai fini » : la sortie du jour seulement, jamais celle de la veille
     const prev = log[act.id];
     if (prev && prev.st === 'ok') { if (opts.manual && act.date === today) out.push({ id: act.id, st: 'done', key: prev.key, title: prev.title, km: act.km }); continue; }
     if (prev && (prev.st === 'skip' || (prev.st === 'manual' && !opts.manual))) continue;
@@ -120,14 +121,20 @@ async function runAutoFill(db, uid, nowMs, deps, body) {
   const key = String(body.key || ''), date = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : null;
   if (!/^extra_w\d+_s\d+$/.test(key) || state[key] === undefined) return { fill: { missing: ['strava'], reason: 'séance introuvable' } };
   const E = loadEngine({ state, now: new Date(nowMs).toISOString(), admin: uid === ADMIN_UID });
-  const ref = Date.parse((date || new Date(nowMs).toISOString().slice(0, 10)) + 'T12:00:00Z');
+  const day = date || new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date(nowMs));
+  const ref = Date.parse(day + 'T12:00:00Z');
   const list = await deps.runs(uid, Math.floor((ref - 2.5 * 86400000) / 1000));
   if (!list) return { fill: { missing: ['strava'], reason: 'Strava non connecté ou indisponible' } };
   const acts = list.map(E.avActFromStrava).filter(Boolean).filter((a) => a.endMs <= nowMs);
   let act = null;
-  if (body.activityId) act = acts.find((a) => a.id === String(body.activityId)) || null;
+  if (body.activityId) {
+    // sortie choisie dans la liste : elle doit passer les mêmes contrôles (jour, pas rattachée ailleurs)
+    const P = E.avFillPick(state, key, acts.filter((a) => a.id === String(body.activityId)), day);
+    if (!P.act) return { fill: { missing: ['strava'], reason: P.reason || 'sortie refusée' } };
+    act = P.act;
+  }
   if (!act) {
-    const P = E.avFillPick(state, key, acts, date);
+    const P = E.avFillPick(state, key, acts, day);
     if (P.choices) return { fill: { choices: P.choices.map((a) => ({ id: a.id, km: a.km, t: a.t, name: a.name, pace: E.avPace(a.mv, a.km) })) } };
     if (!P.act) return { fill: { missing: ['strava'], reason: P.reason } };
     act = P.act;
@@ -139,7 +146,7 @@ async function runAutoFill(db, uid, nowMs, deps, body) {
     act.lat != null && act.lng != null ? deps.hourly(act, nowMs).catch(() => null) : Promise.resolve(null),
   ]);
   const meteo = hourly ? E.avMeteoFromHourly(hourly, act) : null;
-  const F = E.avFillResult(act, detail, workouts || [], meteo, { whoop: withWhoop });
+  const F = E.avFillResult(act, detail, workouts, meteo, { whoop: withWhoop });   // workouts null = WHOOP injoignable
   return { fill: JSON.parse(JSON.stringify(F)) };
 }
 exports.runAutoFill = runAutoFill;

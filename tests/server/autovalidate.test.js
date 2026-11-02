@@ -106,3 +106,20 @@ test('fenêtre « Valider la séance » (mode fill) : les 3 sources de cette sé
   r = await F.autovalidate.runAutoFill(F.db, other, T('2026-11-03T12:30:00Z'), deps({ workouts: async () => { asked = true; return [workout]; } }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
   assert.equal(asked, false); assert.equal(r.fill.whoop, null); assert.deepEqual(r.fill.missing, []);
 });
+
+test('sécurité : « J\'ai fini » ignore la sortie de la veille ; une sortie choisie d\'un autre jour est refusée ; WHOOP injoignable signalé', async () => {
+  // sortie de la veille (lundi 2 nov.) non validée : le bouton du mardi ne la prend pas
+  const veille = Object.assign({}, act, { id: 9100, start_date: '2026-11-02T11:00:00Z', start_date_local: '2026-11-02T12:00:00Z' });
+  let s = setup();
+  let r = await s.F.autovalidate.runAutoValidate(s.F.db, UID, T('2026-11-03T08:00:00Z'), s.deps({ runs: async () => [veille] }), { manual: true });
+  assert.equal(r.out.length, 0); assert.ok(!s.S().extra_w1_s0_done);
+  // fenêtre de validation : la sortie de la veille passée en « activityId » est refusée pour le mardi
+  r = await s.F.autovalidate.runAutoFill(s.F.db, UID, T('2026-11-03T12:30:00Z'), s.deps({ runs: async () => [veille, act] }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03', activityId: '9100' });
+  assert.equal(r.fill.activity, undefined); assert.match(r.fill.reason, /aucune sortie Strava le mar\. 3 nov\./);
+  // sans activityId : la sortie du mardi, pas celle de la veille
+  r = await s.F.autovalidate.runAutoFill(s.F.db, UID, T('2026-11-03T12:30:00Z'), s.deps({ runs: async () => [veille, act] }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
+  assert.equal(r.fill.activity.activityId, '9001');
+  // WHOOP injoignable (null) ≠ aucun entraînement
+  r = await s.F.autovalidate.runAutoFill(s.F.db, UID, T('2026-11-03T12:30:00Z'), s.deps({ workouts: async () => null }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
+  assert.deepEqual(r.fill.missing, ['whoop']); assert.equal(r.fill.why.whoop, 'WHOOP injoignable');
+});

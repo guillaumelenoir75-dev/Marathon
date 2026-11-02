@@ -1178,13 +1178,10 @@ function openValidationModalExtra(w,ei){
     <div style="padding:16px 16px 0;">
     <!-- Bannière import -->
     ${avFillHtml(w,ei,isAdmin()&&!!state.whoop_token)}
-    <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
-    <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
-    <div style="background:#F0F4FF;border:1px solid #C0CDF5;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#2B4AAA;margin-bottom:10px;">💡 Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan s'adapte automatiquement.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <p style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">📅 Date</p>
-        <input type="date" id="val-date" value="${(()=>{const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')})()}"
+        <input type="date" id="val-date" onchange="if(typeof avFillDateChanged==='function')avFillDateChanged()" value="${prev.date&&/^\d{4}-\d{2}-\d{2}/.test(prev.date)?String(prev.date).slice(0,10):(()=>{const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')})()}"
           style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-weight:600;color:var(--text);width:100%;outline:none;">
       </div>
       ${s.type==='race'?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;">
@@ -1193,6 +1190,18 @@ function openValidationModalExtra(w,ei){
           style="background:#fff;border:2px solid #FDE68A;border-radius:10px;padding:10px;font-size:22px;font-weight:900;color:#92400E;width:100%;outline:none;text-align:center;font-variant-numeric:tabular-nums;">
         <p style="font-size:11px;color:#92400E;margin-top:5px;line-height:1.35;">Sur ${prepRace().km||''} km, sans l'échauffement : il est enregistré dans ta prépa et compare tes records.</p>
       </div>`:''}
+      <!-- champs : affichés une fois remplis par Strava (validation automatique) ou par « Remplir à la main » -->
+      <div id="val-manual" style="display:${prev.dur||state[`extra_w${w}_s${ei}_done`]?'flex':'none'};flex-direction:column;gap:12px;">
+      <div id="val-manual-imp" style="display:none;">
+        <div class="avf-imp">
+          <button type="button" id="strava-val-btn" onclick="importFromStrava()" style="background:#FC4C02;">🟠 Strava</button>
+          <button type="button" id="meteo-val-btn" onclick="importMeteoValidation()" style="background:#1B4FD8;">🌤 Météo</button>
+          ${isAdmin()?`<button type="button" id="whoop-val-btn" onclick="importWhoopForPerfEditExtra(${w},${ei})" style="background:#000;">⚫ WHOOP</button>`:''}
+        </div>
+        <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
+        <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
+      </div>
+      <div style="background:#F0F4FF;border:1px solid #C0CDF5;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#2B4AAA;">💡 Couru <b>moins que prévu</b> ? Corrige les km : le plan s'adapte.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">KM réels</p>
@@ -1242,6 +1251,7 @@ function openValidationModalExtra(w,ei){
         html+='</div>';
         return html;
       })()}
+      </div><!-- /val-manual -->
       ${s.type!=='race'&&typeof jvHtml==='function'?jvHtml(prev,{title:(s.d||'').split('|')[0],type:s.type,km:s.km}):''}
       ${s.type!=='race'&&typeof prRpeHtml==='function'?prRpeHtml(prev):''}
     </div>
@@ -1412,6 +1422,13 @@ async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
 }
 
 async function saveValidationExtra(w,ei){
+  // champs encore cachés et rien d'importé : on n'enregistre pas les km prévus en silence
+  const _vm=document.getElementById('val-manual');
+  if(_vm&&_vm.style.display==='none'&&!window._stravaActivityData){
+    if(typeof avManualShow==='function') avManualShow(true);
+    if(typeof showToast==='function') showToast('Lance 🤖 Validation automatique ou remplis à la main','✏️');
+    return;
+  }
   const km=parseFloat(document.getElementById('val-km').value);
   const dur=(document.getElementById('val-dur').value||'').trim();
   const pace=(document.getElementById('val-pace').value||'').trim();

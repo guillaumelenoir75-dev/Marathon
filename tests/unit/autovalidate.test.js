@@ -86,32 +86,62 @@ test('bouton « J\'ai fini » : état de chaque source lisible', () => {
   assert.equal(app.avNowView({ success: false, error: 'x' }).phase, 'error');
 });
 
-test('fenêtre « Valider la séance » : la sortie de CETTE séance, jamais une sortie rattachée ailleurs ; choix si deux sorties voisines', () => {
+test('fenêtre « Valider la séance » : la sortie du JOUR choisi, jamais la veille, jamais une sortie rattachée ou validée ailleurs', () => {
   const { app, st } = setup({ state: { extra_w1_s1_done: true, extra_w1_s1_km: 7, extra_w1_s1_perf: JSON.stringify({ date: '2026-11-03', strava_id: '9002' }) } });
-  const a1 = app.avActFromStrava(raw()), a2 = app.avActFromStrava(raw({ id: 9002, distance: 7000 })), old = app.avActFromStrava(raw({ id: 9003, start_date: '2026-10-30T11:00:00Z', start_date_local: '2026-10-30T12:00:00Z' }));
-  let P = app.avFillPick(st, 'extra_w1_s0', [old, a2, a1], '2026-11-03');
-  assert.equal(P.act.id, '9001', 'la 9002 appartient déjà à une autre séance, la 9003 est trop ancienne');
-  // date choisie la veille : la sortie du lendemain reste acceptée (± 1 jour)
-  assert.equal(app.avFillPick(st, 'extra_w1_s0', [a1], '2026-11-02').act.id, '9001');
-  assert.match(app.avFillPick(st, 'extra_w1_s0', [old], '2026-11-03').reason, /aucune sortie Strava/);
-  // deux sorties le même jour aux km voisins : on demande laquelle
+  const a1 = app.avActFromStrava(raw()), a2 = app.avActFromStrava(raw({ id: 9002, distance: 7000 }));
+  const veille = app.avActFromStrava(raw({ id: 9003, start_date: '2026-11-02T11:00:00Z', start_date_local: '2026-11-02T12:00:00Z' }));
+  let P = app.avFillPick(st, 'extra_w1_s0', [veille, a2, a1], '2026-11-03');
+  assert.equal(P.act.id, '9001', 'la 9002 appartient déjà à une autre séance, la 9003 est de la veille');
+  // seule une sortie de la veille : refusée, message avec la date cherchée
+  P = app.avFillPick(st, 'extra_w1_s0', [veille], '2026-11-03');
+  assert.equal(P.act, undefined); assert.match(P.reason, /aucune sortie Strava le mar\. 3 nov\./);
+  // sortie du lendemain : refusée aussi
+  assert.equal(app.avFillPick(st, 'extra_w1_s0', [a1], '2026-11-02').act, undefined);
+  // validée à la main pour une autre séance ce jour-là (sans identifiant Strava) : jamais reprise
+  const { app: app2, st: st2 } = setup({ state: { extra_w1_s1_done: true, extra_w1_s1_km: 8.1, extra_w1_s1_perf: JSON.stringify({ date: '2026-11-03' }) } });
+  assert.equal(app2.avFillPick(st2, 'extra_w1_s0', [app2.avActFromStrava(raw())], '2026-11-03').act, undefined);
+  // trop courte (< 8 min) : ignorée
+  assert.equal(app.avFillPick(st, 'extra_w1_s0', [app.avActFromStrava(raw({ moving_time: 300, elapsed_time: 300 }))], '2026-11-03').act, undefined);
+  // deux sorties le même jour aux km voisins : on demande laquelle, jamais deviné
   const b = app.avActFromStrava(raw({ id: 9004, distance: 7900, start_date: '2026-11-03T17:00:00Z', start_date_local: '2026-11-03T18:00:00Z' }));
   P = app.avFillPick(st, 'extra_w1_s0', [a1, b], '2026-11-03');
   assert.deepEqual(Array.from(P.choices, (x) => x.id).sort(), ['9001', '9004']);
 });
 
-test('fenêtre « Valider la séance » : formulaire rempli (Strava, WHOOP de la même sortie, météo du lieu et de l\'heure)', () => {
+test('fenêtre « Valider la séance » : sources de CETTE sortie, et ce qui manque avec la raison', () => {
   const { app } = setup(), act = app.avActFromStrava(raw());
   const meteo = app.avMeteoFromHourly(hourly, act);
   let F = app.avFillResult(act, { laps: [{ index: 1, distanceKm: 8.1 }], calories: 600 }, [wk()], meteo);
   assert.deepEqual([...F.missing], []);
   assert.equal(F.activity.distanceKm, 8.1); assert.equal(F.activity.duree, '46:20'); assert.equal(F.activity.allure, '5:43'); assert.equal(F.activity.fcMoyenne, 141);
   assert.equal(F.activity.activityId, '9001'); assert.equal(F.activity.calories, 600);
-  assert.equal(F.whoop.workout_strain, 9.4); assert.equal(F.meteo.temperature, 12.4);
-  // WHOOP de la veille : refusé ; sans détail Strava : signalé ; sans GPS : pas de météo
-  F = app.avFillResult(act, null, [wk({ start: '2026-11-02T11:01:00Z', end: '2026-11-02T11:48:00Z' })], meteo);
-  assert.equal(F.whoop, null); assert.deepEqual([...F.missing], ['strava', 'whoop']);
-  const noGps = app.avActFromStrava(raw({ start_latlng: [] }));
-  F = app.avFillResult(noGps, {}, [], null, { whoop: false });
-  assert.deepEqual([...F.missing], ['gps']); assert.equal(F.meteo, null);
+  assert.equal(F.whoop.workout_strain, 9.4); assert.equal(F.whoop.actId, '9001'); assert.equal(F.meteo.temperature, 12.4); assert.equal(F.meteo.actId, '9001');
+  // WHOOP de la veille : refusé ; WHOOP injoignable ; entraînement de la sortie pas encore calculé
+  F = app.avFillResult(act, {}, [wk({ start: '2026-11-02T11:01:00Z', end: '2026-11-02T11:48:00Z' })], meteo);
+  assert.equal(F.whoop, null); assert.deepEqual([...F.missing], ['whoop']); assert.equal(F.why.whoop, 'aucun entraînement WHOOP pendant ta sortie');
+  assert.equal(app.avFillResult(act, {}, null, meteo).why.whoop, 'WHOOP injoignable');
+  assert.equal(app.avFillResult(act, {}, [wk({ strain: null })], meteo).why.whoop, 'effort WHOOP en cours de calcul');
+  // météo d'une autre heure / d'un autre jour : refusée
+  assert.deepEqual([...app.avFillResult(act, {}, [wk()], Object.assign({}, meteo, { heure_cible: '18h00' })).missing], ['meteo']);
+  assert.deepEqual([...app.avFillResult(act, {}, [wk()], Object.assign({}, meteo, { date: '2026-11-02' })).missing], ['meteo']);
+  // sans détail Strava ; sans GPS (athlète : pas de WHOOP)
+  F = app.avFillResult(act, null, [wk()], meteo);
+  assert.deepEqual([...F.missing], ['strava']); assert.match(F.why.strava, /tours/);
+  F = app.avFillResult(app.avActFromStrava(raw({ start_latlng: [] })), {}, [], null, { whoop: false });
+  assert.deepEqual([...F.missing], ['meteo']); assert.equal(F.why.meteo, 'sortie sans GPS'); assert.equal(F.meteo, null);
+});
+
+test('message : ce qui est importé et ce qui manque encore (avec la raison)', () => {
+  const { app } = setup(), act = app.avActFromStrava(raw()), meteo = app.avMeteoFromHourly(hourly, act);
+  let M = app.avFillMsg(app.avFillResult(act, {}, [wk()], meteo), true);
+  assert.equal(M.st, 'ok'); assert.equal(M.lines[0], '✓ Strava, WHOOP et météo importés');
+  M = app.avFillMsg(app.avFillResult(act, {}, [wk({ strain: null })], meteo), true);
+  assert.equal(M.st, 'ko'); assert.equal(M.lines[0], '✓ Strava et météo importés'); assert.equal(M.lines[1], 'Il manque encore : WHOOP (effort WHOOP en cours de calcul)');
+  M = app.avFillMsg(app.avFillResult(act, {}, [], null), true);
+  assert.equal(M.lines[0], '✓ Strava importé'); assert.match(M.lines[1], /WHOOP \(aucun entraînement.*\) · météo \(relevé météo indisponible\)/);
+  // athlète : WHOOP jamais demandé
+  M = app.avFillMsg(app.avFillResult(act, {}, null, meteo, { whoop: false }), false);
+  assert.equal(M.st, 'ok'); assert.equal(M.lines[0], '✓ Strava et météo importés');
+  M = app.avFillMsg({ missing: ['strava'], reason: 'aucune sortie Strava le mar. 3 nov.' }, true);
+  assert.equal(M.st, 'ko'); assert.deepEqual([...M.lines], ['aucune sortie Strava le mar. 3 nov.', 'Change la date si tu as couru un autre jour']);
 });
