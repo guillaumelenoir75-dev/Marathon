@@ -451,20 +451,19 @@ function ssDraw(D){
     txt(fit(D.detail || D.title, 34, 800, S - 2 * M - 60), S / 2, top + 50, 34, '#FFFFFF', 800, 'center');
     txt(D.kmPlan ? 'prévu ' + _wsKm(D.kmPlan) + ' km · fait ' + _wsKm(D.km) + ' km' : '', S / 2, top + 100, 26, 'rgba(255,255,255,0.6)', 600, 'center');
   }
-  // pastilles : météo, effort WHOOP, ressenti, cadence, dénivelé
+  // pastilles : météo, ressenti, cadence, dénivelé (pas de donnée WHOOP sur l'image)
   const chips = [];
   if(D.temp != null) chips.push('🌡 ' + D.temp + '°');
-  if(D.strain != null) chips.push('⚡ WHOOP ' + String(D.strain).replace('.', ','));
   if(D.rpe) chips.push('💪 effort ' + D.rpe + '/10');
-  if(D.cad) chips.push('👟 ' + D.cad + ' pas/min');
+  if(D.cad) chips.push('👟 cadence ' + D.cad);
   if(D.up != null && D.up >= 20) chips.push('⛰ ' + D.up + ' m D+');
   if(chips.length){
     const L = chips.slice(0, 4), ws = L.map(function(t){ return width(t, 24, 700) + 40; }), gap = 12, tot = ws.reduce(function(a, b){ return a + b; }, 0) + gap * (L.length - 1);
     let x = Math.max(M, (S - tot) / 2); const y = 878;
     L.forEach(function(t, i){ g.fillStyle = 'rgba(255,255,255,0.08)'; _wsRound(g, x, y, ws[i], 54, 27); g.fill(); txt(t, x + ws[i] / 2, y + 36, 24, 'rgba(255,255,255,0.92)', 700, 'center'); x += ws[i] + gap; });
   }
-  // pied : course visée + signature
-  if(D.race) txt(fit((D.race.days === 0 ? 'Jour J' : 'J-' + D.race.days) + '  ·  ' + D.race.name + (D.goal ? '  ·  objectif ' + D.goal : ''), 26, 700, S - 2 * M - 260), M, 1010, 26, 'rgba(255,255,255,0.75)', 700);
+  // pied : course visée (sans l'objectif de temps) + signature
+  if(D.race) txt(fit((D.race.days === 0 ? 'Jour J' : 'J-' + D.race.days) + '  ·  ' + D.race.name, 26, 700, S - 2 * M - 260), M, 1010, 26, 'rgba(255,255,255,0.75)', 700);
   txt((typeof planBrand === 'function' ? planBrand() : 'Plan course').toUpperCase(), S - M, 1010, 22, 'rgba(255,255,255,0.42)', 800, 'right', 5);
   return c;
 }
