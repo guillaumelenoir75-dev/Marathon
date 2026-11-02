@@ -85,3 +85,33 @@ test('bouton « J\'ai fini » : état de chaque source lisible', () => {
   assert.equal(app.avNowView({ success: true, skip: 'désactivée' }).phase, 'off');
   assert.equal(app.avNowView({ success: false, error: 'x' }).phase, 'error');
 });
+
+test('fenêtre « Valider la séance » : la sortie de CETTE séance, jamais une sortie rattachée ailleurs ; choix si deux sorties voisines', () => {
+  const { app, st } = setup({ state: { extra_w1_s1_done: true, extra_w1_s1_km: 7, extra_w1_s1_perf: JSON.stringify({ date: '2026-11-03', strava_id: '9002' }) } });
+  const a1 = app.avActFromStrava(raw()), a2 = app.avActFromStrava(raw({ id: 9002, distance: 7000 })), old = app.avActFromStrava(raw({ id: 9003, start_date: '2026-10-30T11:00:00Z', start_date_local: '2026-10-30T12:00:00Z' }));
+  let P = app.avFillPick(st, 'extra_w1_s0', [old, a2, a1], '2026-11-03');
+  assert.equal(P.act.id, '9001', 'la 9002 appartient déjà à une autre séance, la 9003 est trop ancienne');
+  // date choisie la veille : la sortie du lendemain reste acceptée (± 1 jour)
+  assert.equal(app.avFillPick(st, 'extra_w1_s0', [a1], '2026-11-02').act.id, '9001');
+  assert.match(app.avFillPick(st, 'extra_w1_s0', [old], '2026-11-03').reason, /aucune sortie Strava/);
+  // deux sorties le même jour aux km voisins : on demande laquelle
+  const b = app.avActFromStrava(raw({ id: 9004, distance: 7900, start_date: '2026-11-03T17:00:00Z', start_date_local: '2026-11-03T18:00:00Z' }));
+  P = app.avFillPick(st, 'extra_w1_s0', [a1, b], '2026-11-03');
+  assert.deepEqual(Array.from(P.choices, (x) => x.id).sort(), ['9001', '9004']);
+});
+
+test('fenêtre « Valider la séance » : formulaire rempli (Strava, WHOOP de la même sortie, météo du lieu et de l\'heure)', () => {
+  const { app } = setup(), act = app.avActFromStrava(raw());
+  const meteo = app.avMeteoFromHourly(hourly, act);
+  let F = app.avFillResult(act, { laps: [{ index: 1, distanceKm: 8.1 }], calories: 600 }, [wk()], meteo);
+  assert.deepEqual([...F.missing], []);
+  assert.equal(F.activity.distanceKm, 8.1); assert.equal(F.activity.duree, '46:20'); assert.equal(F.activity.allure, '5:43'); assert.equal(F.activity.fcMoyenne, 141);
+  assert.equal(F.activity.activityId, '9001'); assert.equal(F.activity.calories, 600);
+  assert.equal(F.whoop.workout_strain, 9.4); assert.equal(F.meteo.temperature, 12.4);
+  // WHOOP de la veille : refusé ; sans détail Strava : signalé ; sans GPS : pas de météo
+  F = app.avFillResult(act, null, [wk({ start: '2026-11-02T11:01:00Z', end: '2026-11-02T11:48:00Z' })], meteo);
+  assert.equal(F.whoop, null); assert.deepEqual([...F.missing], ['strava', 'whoop']);
+  const noGps = app.avActFromStrava(raw({ start_latlng: [] }));
+  F = app.avFillResult(noGps, {}, [], null, { whoop: false });
+  assert.deepEqual([...F.missing], ['gps']); assert.equal(F.meteo, null);
+});

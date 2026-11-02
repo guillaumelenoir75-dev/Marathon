@@ -113,6 +113,37 @@ async function runAutoValidate(db, uid, nowMs, deps, opts) {
 }
 exports.runAutoValidate = runAutoValidate;
 
+// fenêtre « Valider la séance », bouton « 🤖 Validation automatique » : les 3 sources de la sortie de CETTE séance, sans rien
+// écrire (le formulaire est rempli, l'athlète ajoute son ressenti et valide). WHOOP : compte admin seulement.
+async function runAutoFill(db, uid, nowMs, deps, body) {
+  const state = (await db.ref(`users/${uid}/state`).once('value')).val() || {};
+  const key = String(body.key || ''), date = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : null;
+  if (!/^extra_w\d+_s\d+$/.test(key) || state[key] === undefined) return { fill: { missing: ['strava'], reason: 'séance introuvable' } };
+  const E = loadEngine({ state, now: new Date(nowMs).toISOString(), admin: uid === ADMIN_UID });
+  const ref = Date.parse((date || new Date(nowMs).toISOString().slice(0, 10)) + 'T12:00:00Z');
+  const list = await deps.runs(uid, Math.floor((ref - 2.5 * 86400000) / 1000));
+  if (!list) return { fill: { missing: ['strava'], reason: 'Strava non connecté ou indisponible' } };
+  const acts = list.map(E.avActFromStrava).filter(Boolean).filter((a) => a.endMs <= nowMs);
+  let act = null;
+  if (body.activityId) act = acts.find((a) => a.id === String(body.activityId)) || null;
+  if (!act) {
+    const P = E.avFillPick(state, key, acts, date);
+    if (P.choices) return { fill: { choices: P.choices.map((a) => ({ id: a.id, km: a.km, t: a.t, name: a.name, pace: E.avPace(a.mv, a.km) })) } };
+    if (!P.act) return { fill: { missing: ['strava'], reason: P.reason } };
+    act = P.act;
+  }
+  const withWhoop = uid === ADMIN_UID, pad = 2 * 3600 * 1000;
+  const [detail, workouts, hourly] = await Promise.all([
+    deps.detail(uid, act.id).catch(() => null),
+    withWhoop ? deps.workouts(new Date(act.startMs - pad).toISOString(), new Date(act.endMs + pad).toISOString()).catch(() => null) : Promise.resolve(null),
+    act.lat != null && act.lng != null ? deps.hourly(act, nowMs).catch(() => null) : Promise.resolve(null),
+  ]);
+  const meteo = hourly ? E.avMeteoFromHourly(hourly, act) : null;
+  const F = E.avFillResult(act, detail, workouts || [], meteo, { whoop: withWhoop });
+  return { fill: JSON.parse(JSON.stringify(F)) };
+}
+exports.runAutoFill = runAutoFill;
+
 exports.autoValidateScan = onSchedule(
   { schedule: '*/15 6-23 * * *', timeZone: 'Europe/Paris', timeoutSeconds: 120, memory: '512MiB',
     secrets: [...strava.STRAVA_SECRETS, ...whoop.WHOOP_SECRETS, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
@@ -136,10 +167,12 @@ exports.autoValidateNow = onRequest(
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     let uid;
     try { uid = await helpers.verifyUser(req); } catch (e) { res.status(401).json({ success: false, error: 'Non authentifié' }); return; }
-    if (uid !== ADMIN_UID) { res.status(403).json({ success: false, error: 'Réservé au compte relié à WHOOP' }); return; }
+    const body = req.body || {};
+    if (uid !== ADMIN_UID && !body.fill) { res.status(403).json({ success: false, error: 'Réservé au compte relié à WHOOP' }); return; }
     try {
       const db = admin.database();
       const [sid, ssec] = strava.STRAVA_SECRETS;
+      if (body.fill) { res.json(Object.assign({ success: true }, await runAutoFill(db, uid, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }), body))); return; }
       const r = await runAutoValidate(db, uid, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }), { manual: true });
       res.json(Object.assign({ success: true }, r));
     } catch (e) { console.error('autoValidateNow:', e.message); res.status(500).json({ success: false, error: e.message }); }

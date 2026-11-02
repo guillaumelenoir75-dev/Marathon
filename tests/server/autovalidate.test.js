@@ -84,3 +84,25 @@ test('bouton « J\'ai fini » : sans attendre 15 min, sans notification, puis «
   r = await s3.F.autovalidate.runAutoValidate(s3.F.db, UID, T('2026-11-03T16:05:00Z'), s3.deps(), { manual: true });
   assert.equal(r.out[0].st, 'ok'); assert.ok(s3.S().extra_w1_s0_done);
 });
+
+test('fenêtre « Valider la séance » (mode fill) : les 3 sources de cette séance, RIEN n\'est écrit ; athlète : sans WHOOP', async () => {
+  const { F, deps, pushes, S } = setup();
+  const before = JSON.stringify(S());
+  let r = await F.autovalidate.runAutoFill(F.db, UID, T('2026-11-03T12:30:00Z'), deps(), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
+  assert.equal(r.fill.activity.distanceKm, 8.1); assert.equal(r.fill.activity.allure, '5:43');
+  assert.equal(r.fill.whoop.workout_strain, 9.4); assert.equal(r.fill.meteo.temperature, 12.4); assert.deepEqual(r.fill.missing, []);
+  assert.equal(JSON.stringify(S()), before, 'aucune écriture'); assert.equal(pushes.length, 0);
+  // WHOOP absent : signalé, le reste rempli
+  r = await F.autovalidate.runAutoFill(F.db, UID, T('2026-11-03T12:30:00Z'), deps({ workouts: async () => [] }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
+  assert.deepEqual(r.fill.missing, ['whoop']); assert.equal(r.fill.activity.distanceKm, 8.1);
+  // pas de sortie ce jour-là / séance inconnue
+  r = await F.autovalidate.runAutoFill(F.db, UID, T('2026-11-03T12:30:00Z'), deps({ runs: async () => [] }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
+  assert.match(r.fill.reason, /aucune sortie Strava/);
+  r = await F.autovalidate.runAutoFill(F.db, UID, T('2026-11-03T12:30:00Z'), deps(), { fill: true, key: 'extra_w9_s9' });
+  assert.match(r.fill.reason, /introuvable/);
+  // un autre compte : jamais le WHOOP de l'admin
+  const other = 'athlete1'; F.db.data.users[other] = { state: JSON.parse(before) };
+  let asked = false;
+  r = await F.autovalidate.runAutoFill(F.db, other, T('2026-11-03T12:30:00Z'), deps({ workouts: async () => { asked = true; return [workout]; } }), { fill: true, key: 'extra_w1_s0', date: '2026-11-03' });
+  assert.equal(asked, false); assert.equal(r.fill.whoop, null); assert.deepEqual(r.fill.missing, []);
+});

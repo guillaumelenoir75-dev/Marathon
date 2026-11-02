@@ -159,42 +159,8 @@ function initFirebase(){
               }, 3000);
               // Vérifier _open_coach au démarrage (app rouverte depuis notif quand elle était fermée)
               (async () => {
-                // ?action=validate (raccourci « Valider ma séance ») : dernière sortie Strava → validation pré-remplie
-                if (window.location.search.includes('action=validate')) {
-                  try { history.replaceState({}, '', '/'); } catch(e) {}
-                  if (typeof quickValidate === 'function') setTimeout(quickValidate, 1200);
-                  return;
-                }
-                // ?action=feel&k=… (notification « ✅ … validé — Ton ressenti ? ») : ressenti de la séance validée automatiquement
-                if (window.location.search.includes('action=feel')) {
-                  const _fk = (window.location.search.match(/[?&]k=([\w-]+)/) || [])[1] || null;
-                  try { history.replaceState({}, '', '/'); } catch(e) {}
-                  if (typeof avFeelOpen === 'function') setTimeout(function(){ avFeelOpen(_fk); }, 1200);
-                  return;
-                }
-                // ?action=week (bilan du dimanche) : « Ta semaine en image » ; ?action=imprevu (séance clé manquée) : réorganiser
-                if (window.location.search.includes('action=week')) {
-                  try { history.replaceState({}, '', '/'); } catch(e) {}
-                  if (typeof openWeekShare === 'function') setTimeout(function(){ openWeekShare(); }, 1400);
-                  return;
-                }
-                if (window.location.search.includes('action=imprevu')) {
-                  try { history.replaceState({}, '', '/'); } catch(e) {}
-                  if (typeof openImprevu === 'function') setTimeout(openImprevu, 1400);
-                  return;
-                }
-                // ?action=sleep (notification de 21h « Couche-toi vers … ») : ouvre le détail « Ta nuit »
-                if (window.location.search.includes('action=sleep')) {
-                  try { history.replaceState({}, '', '/'); } catch(e) {}
-                  if (typeof openSleepPlan === 'function') setTimeout(openSleepPlan, 1200);
-                  return;
-                }
-                // ?action=review (notification « Relecture de ta semaine ») : prioritaire, retirée de l'URL tout de suite
-                if (window.location.search.includes('action=review')) {
-                  try { history.replaceState({}, '', '/'); } catch(e) {}
-                  if (typeof prOpenFromNotif === 'function') setTimeout(prOpenFromNotif, 1200);
-                  return;
-                }
+                // ?action=… (notifications, raccourcis) : validate, feel, week, imprevu, sleep, review
+                if (notifRunAction(window.location.search, 1200)) { try { history.replaceState({}, '', '/'); } catch(e) {} return; }
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
                   if (snap.val()) { await dbRef.child('_open_coach').remove(); await openCoachFromNotif(); return; }
@@ -284,6 +250,28 @@ function initFirebase(){
 }
 
 
+// Action d'une notification ou d'un raccourci (?action=…) : au lancement (délai pour laisser l'accueil s'afficher) ou
+// app déjà ouverte (message du service worker « open_url »). true = action reconnue.
+function notifRunAction(search, delay){
+  const q = String(search || ''), a = (q.match(/[?&]action=([\w-]+)/) || [])[1];
+  if (!a || a === 'brief') return false;
+  const later = function(fn){ setTimeout(fn, delay || 0); };
+  if (a === 'validate') { if (typeof quickValidate === 'function') later(quickValidate); return true; }       // dernière sortie Strava → validation pré-remplie
+  if (a === 'feel') { const k = (q.match(/[?&]k=([\w-]+)/) || [])[1] || null; if (typeof avFeelOpen === 'function') later(function(){ avFeelOpen(k); }); return true; }   // ressenti après une validation automatique
+  if (a === 'week') { if (typeof openWeekShare === 'function') later(function(){ openWeekShare(); }); return true; }   // bilan du dimanche : ta semaine en image
+  if (a === 'imprevu') { if (typeof openImprevu === 'function') later(openImprevu); return true; }   // séance clé manquée : réorganiser
+  if (a === 'sleep') { if (typeof openSleepPlan === 'function') later(openSleepPlan); return true; }   // 21h « Couche-toi vers … » : ta nuit
+  if (a === 'review') { if (typeof prOpenFromNotif === 'function') later(prOpenFromNotif); return true; }   // relecture de ta semaine
+  return false;
+}
+// Brief / bilan : toujours le fil du Coach (jamais caché derrière « Mon plan », plan-chat.js)
+function coachChatModeForBrief(){
+  try { localStorage.setItem('coach_mode', 'chat'); } catch(e) {}
+  const show = function(id, d){ const el = document.getElementById(id); if (el) el.style.display = d; };
+  show('coach-messages', 'flex'); show('coach-chat-foot', ''); show('pc-panel', 'none');
+  document.querySelectorAll('#coach-mode button').forEach(function(b){ const on = b.dataset.m === 'chat'; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+}
+
 // Guard : évite la double invocation concurrente (visibilitychange + postMessage)
 let _openCoachFromNotifActive = false;
 
@@ -314,6 +302,7 @@ async function openCoachFromNotif() {
     const btn = document.getElementById('nav-'+s);
     if (btn) btn.className = 'nav-btn' + (s === 'coach' ? ' active' : '');
   });
+  coachChatModeForBrief();
   const badge = document.getElementById('coach-alert-badge');
   if (badge) badge.style.display = 'none';
   window._coachHasUnread = false;
@@ -347,6 +336,10 @@ async function openCoachFromNotif() {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', function(ev) {
     if (ev.data && ev.data.action === 'open_review') { if (typeof prOpenFromNotif === 'function' && typeof firebaseReady !== 'undefined' && firebaseReady) prOpenFromNotif(); return; }
+    if (ev.data && ev.data.action === 'open_url') {   // notification touchée, app déjà ouverte : son action sans rechargement
+      if (typeof firebaseReady !== 'undefined' && firebaseReady) notifRunAction(ev.data.url, 300);
+      return;
+    }
     if (!ev.data || ev.data.action !== 'open_coach') return;
     window._pendingNotifTag = ev.data.tag || '';
     if (dbRef && firebaseReady) {

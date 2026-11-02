@@ -123,6 +123,100 @@ function avUpdates(st, D){
   return up;
 }
 
+// ─── Fenêtre « Valider la séance » : bouton « 🤖 Validation automatique » (fonction autoValidateNow, mode fill) ───
+// la sortie Strava de CETTE séance (± 1 jour de la date choisie, la plus proche puis km les plus proches), jamais une
+// sortie déjà rattachée à une autre séance ; plusieurs sorties le même jour aux km voisins → choix proposé
+function avFillPick(st, key, acts, date){
+  const all = prSessions(st), s = all.find(function(x){ return x.key === key; });
+  if(!s) return { reason: 'séance introuvable' };
+  const used = {}; all.forEach(function(x){ if(x.key !== key && x.perf && x.perf.strava_id) used[String(x.perf.strava_id)] = 1; });
+  const d0 = date || s.date;
+  const c = (acts || []).filter(function(a){ return a && AV_RUN_TYPES.indexOf(a.sp) >= 0 && a.km >= AV_MIN_KM && !used[a.id] && d0 && Math.abs(prDays(d0, a.date)) <= 1; })
+    .map(function(a){ return { a: a, dd: Math.abs(prDays(d0, a.date)), dk: Math.abs((s.kmPlan || a.km) - a.km) }; })
+    .sort(function(x, y){ return (x.dd - y.dd) || (x.dk - y.dk); });
+  if(!c.length) return { s: s, reason: 'aucune sortie Strava ' + (d0 === s.date ? 'ce jour-là' : 'à cette date') };
+  const same = c.filter(function(x){ return x.dd === c[0].dd; });
+  if(same.length > 1 && same[1].dk - same[0].dk < 1) return { s: s, choices: same.map(function(x){ return x.a; }) };
+  return { s: s, act: c[0].a };
+}
+// sources trouvées → ce que le formulaire attend : activité au format de l'import Strava, WHOOP (perf.whoop), météo (perf.meteo)
+function avFillResult(act, detail, workouts, meteo, opts){
+  opts = opts || {};
+  const d = detail || {}, missing = [];
+  const activity = { activityId: act.id, date: act.date, nom: act.name, distanceKm: act.km, duree: avDur(act.mv), allure: avPace(act.mv, act.km),
+    fcMoyenne: act.hr, fcMax: act.mx, cadence: act.cad, denivele_pos: act.up, gearId: act.gearId, start: act.t };
+  ['calories', 'best_400m', 'splits', 'laps', 'zones_fc'].forEach(function(k){ if(d[k] != null && (!Array.isArray(d[k]) || d[k].length)) activity[k] = d[k]; });
+  if(!detail) missing.push('strava');
+  let whoop = null;
+  if(opts.whoop !== false){
+    const W = avWhoop(act, workouts);
+    if(W) whoop = { workout_strain: W.w.strain, workout_calories: W.w.kcal != null ? W.w.kcal : null, avg_hr: W.w.avg_hr || null, max_hr: W.w.max_hr || null, zones: W.w.zones || null, id: W.w.id || null, overlap: W.pct };
+    else missing.push('whoop');
+  }
+  const m = avMeteoOk(meteo, act) ? meteo : null;
+  if(act.lat == null || act.lng == null) missing.push('gps'); else if(!m) missing.push('meteo');
+  return { activity: activity, whoop: whoop, meteo: m, missing: missing };
+}
+let _avfCtx = null;
+async function _avFillCall(body){
+  const u = typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null;
+  const tok = u ? await u.getIdToken() : '';
+  const r = await fetch(FUNCTIONS_BASE + '/autoValidateNow', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify(body) });
+  return r.json();
+}
+function avFillHtml(w, ei, admin){
+  _avCss();
+  const src = function(id, ico, lbl, fn){ return '<button type="button" class="avf-src" id="' + id + '" onclick="' + fn + '"><span>' + ico + '</span><b>' + lbl + '</b></button>'; };
+  return '<div class="avf"><button type="button" class="avf-btn" id="avf-btn" onclick="avFill(' + w + ',' + ei + ')">🤖 Validation automatique<small>Strava · ' + (admin ? 'WHOOP · ' : '') + 'Météo de ta sortie</small></button>'
+    + '<div class="avf-row">' + src('strava-val-btn', '🟠', 'Strava', 'importFromStrava()') + (admin ? src('whoop-val-btn', '💚', 'WHOOP', 'importWhoopForPerfEditExtra(' + w + ',' + ei + ')') : '') + src('meteo-val-btn', '🌡️', 'Météo', 'importMeteoValidation()') + '</div>'
+    + '<p class="avf-msg" id="avf-msg">Un appui : tout est rempli, il reste ton ressenti</p></div>';
+}
+function _avfSet(id, st, t){
+  const b = document.getElementById(id); if(!b) return;
+  b.classList.remove('ok', 'ko', 'wait'); b.classList.add(st); b.removeAttribute('style');
+  const ico = { 'strava-val-btn': '🟠', 'whoop-val-btn': '💚', 'meteo-val-btn': '🌡️' }[id];
+  b.innerHTML = '<span>' + ico + '</span><b>' + prEsc(t) + '</b>' + (st === 'ok' ? '<i>✓</i>' : st === 'ko' ? '<i>↻</i>' : '');
+}
+async function avFill(w, ei, activityId){
+  const k = 'extra_w' + w + '_s' + ei, btn = document.getElementById('avf-btn'), msg = document.getElementById('avf-msg');
+  const dEl = document.getElementById('val-date'), date = dEl && dEl.value ? dEl.value : null;
+  const ids = ['strava-val-btn', 'whoop-val-btn', 'meteo-val-btn'];
+  ids.forEach(function(id){ _avfSet(id, 'wait', 'recherche…'); });
+  if(btn){ btn.disabled = true; btn.firstChild.textContent = '⏳ Je cherche ta sortie…'; }
+  const pk = document.getElementById('avf-pick'); if(pk) pk.remove();
+  let r = null;
+  try { r = await _avFillCall({ fill: true, key: k, date: date, activityId: activityId || null }); } catch(e) { r = { success: false, error: 'Connexion impossible' }; }
+  if(btn){ btn.disabled = false; btn.firstChild.textContent = '🤖 Validation automatique'; }
+  if(!document.getElementById('avf-btn')) return;   // fenêtre fermée entre-temps
+  const F = r && r.fill;
+  if(!r || r.success === false || !F){
+    ids.forEach(function(id){ _avfSet(id, 'ko', 'à la main'); });
+    if(msg){ msg.className = 'avf-msg ko'; msg.textContent = (r && r.error) || 'Serveur injoignable : touche une source pour la remplir à la main'; }
+    return;
+  }
+  if(F.choices && F.choices.length){
+    ids.forEach(function(id){ _avfSet(id, 'wait', '—'); });
+    if(msg){ msg.className = 'avf-msg'; msg.textContent = 'Plusieurs sorties ce jour-là : laquelle ?'; }
+    const box = document.createElement('div'); box.id = 'avf-pick'; box.className = 'avf-pick';
+    box.innerHTML = F.choices.map(function(a){ return '<button type="button" onclick="avFill(' + w + ',' + ei + ',\'' + prEsc(a.id) + '\')"><b>' + String(a.km).replace('.', ',') + ' km</b><span>' + prEsc(a.t || '') + ' · ' + prEsc(String(a.pace || '').replace(':', "'")) + '/km · ' + prEsc(a.name || '') + '</span></button>'; }).join('');
+    if(msg) msg.after(box);
+    return;
+  }
+  const miss = F.missing || [];
+  if(F.activity){
+    if(typeof _applyStravaToValidation === 'function') _applyStravaToValidation(F.activity);
+    _avfSet('strava-val-btn', 'ok', String(F.activity.distanceKm).replace('.', ',') + ' km');
+  } else _avfSet('strava-val-btn', 'ko', F.reason || 'introuvable');
+  if(document.getElementById('whoop-val-btn')){
+    if(F.whoop){ window._whoopChargeData = F.whoop; _avfSet('whoop-val-btn', 'ok', 'effort ' + String(Math.round(F.whoop.workout_strain * 10) / 10).replace('.', ',')); }
+    else _avfSet('whoop-val-btn', 'ko', F.activity ? 'pas trouvé' : '—');
+  }
+  if(F.meteo){ window._meteoValidationData = F.meteo; _avfSet('meteo-val-btn', 'ok', Math.round(F.meteo.temperature) + '°'); }
+  else _avfSet('meteo-val-btn', 'ko', miss.indexOf('gps') >= 0 ? 'sans GPS' : F.activity ? 'pas trouvée' : '—');
+  const nKo = document.querySelectorAll('.avf-src.ko').length;
+  if(msg){ msg.className = 'avf-msg' + (nKo ? ' ko' : ' ok'); msg.textContent = !F.activity ? (F.reason || 'Aucune sortie Strava') + ' · touche une source pour la remplir à la main' : nKo ? 'Touche ↻ pour compléter à la main' : '✓ Tout est rempli : ajoute ton ressenti et valide'; }
+}
+
 // ─── App : ressenti après une validation automatique, pastille, réglage ──────────
 function avPendingFeel(){
   if(typeof prSessions !== 'function') return [];
@@ -206,6 +300,13 @@ function _avCss(){
     + '.av-src b{color:#0F172A;}.av-src-i{font-size:18px;}.av-src-t{color:#64748B;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.av-src-s{font-size:16px;}.av-src.ok{border-color:#A7F3D0;background:#F0FDF4;}.av-src.ko{border-color:#FECACA;background:#FEF2F2;}'
     + '.av-msg{margin:2px 0 0;text-align:center;font-weight:900;font-size:15px;color:#334155;}.av-msg.ok,.av-msg.done{color:#047857;}.av-note{margin:0;text-align:center;font-size:12px;color:#64748B;}'
     + '.hn-fin{background:#047857;color:#fff;border:none;border-radius:20px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit;}'
+    + '.avf{background:#F0FDF4;border:1px solid #A7F3D0;border-radius:14px;padding:10px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;}'
+    + '.avf-btn{display:flex;flex-direction:column;align-items:center;gap:1px;width:100%;padding:11px 10px;border:none;border-radius:12px;background:linear-gradient(135deg,#047857,#2563EB);color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;}'
+    + '.avf-btn small{font-size:11.5px;font-weight:700;opacity:.85;}.avf-btn:disabled{opacity:.75;}'
+    + '.avf-row{display:flex;gap:6px;}.avf-src{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 6px;border-radius:10px;border:1px solid #E2E8F0;background:#fff;color:#334155;font-size:12px;cursor:pointer;font-family:inherit;}'
+    + '.avf-src b{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.avf-src i{font-style:normal;font-weight:900;}.avf-src.ok{border-color:#A7F3D0;background:#DCFCE7;color:#065F46;}.avf-src.ko{border-color:#FECACA;background:#FEF2F2;color:#991B1B;}.avf-src.wait{color:#64748B;}.avf-src[style*="background"]{color:#fff;border-color:transparent;}'
+    + '.avf-msg{margin:0;text-align:center;font-size:12px;font-weight:700;color:#475569;}.avf-msg.ok{color:#047857;}.avf-msg.ko{color:#B45309;}'
+    + '.avf-pick{display:flex;flex-direction:column;gap:6px;}.avf-pick button{display:flex;flex-direction:column;align-items:flex-start;padding:9px 12px;border-radius:10px;border:1.5px solid #FC4C02;background:#fff;cursor:pointer;font-family:inherit;text-align:left;}.avf-pick b{font-size:14px;color:#0F172A;}.avf-pick span{font-size:12px;color:#64748B;}'
     + '.hs-feel{border:none;background:#ECFDF5;color:#047857;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}';
   document.head.appendChild(st);
 }

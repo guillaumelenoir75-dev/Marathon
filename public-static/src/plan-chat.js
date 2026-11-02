@@ -27,7 +27,12 @@ function coachMode(m){
     if(typeof prPrefetch === 'function') prPrefetch().then(function(){ if(!_pcBusy){ _pcAnalysis(); pcRender(false); } }).catch(function(){});   // historique complet : résumé à jour
   }
 }
-function coachModeInit(){ let m = 'chat'; try { m = localStorage.getItem('coach_mode') || 'chat'; } catch(e) {} coachMode(m); }
+function coachModeInit(){
+  let m = 'chat'; try { m = localStorage.getItem('coach_mode') || 'chat'; } catch(e) {}
+  const bp = typeof state !== 'undefined' && state ? state._brief_pending : null;
+  if(bp && (bp.content || bp.needs_full_brief || bp.needs_weekly_bilan)) m = 'chat';   // brief du matin / bilan en attente : le fil du Coach d'abord
+  coachMode(m);
+}
 // depuis « MAJ le plan », la carte du pilote automatique… : ouvre « Mon plan », message pré-rempli
 function openPlanChat(prefill){
   try { if(typeof closePlanReview === 'function' && document.getElementById('plan-review')) closePlanReview(); } catch(e) {}

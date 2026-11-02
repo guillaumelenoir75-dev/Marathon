@@ -349,10 +349,11 @@ function restBriefData(state, todayStr, sit) {
   return lines.join('\n');
 }
 // ligne de la notification d'un jour de repos
+// « Repos aujourd'hui · demain 12:00 : Footing EF 8 km » — le jour est dit avant la séance (jamais lue comme celle du jour)
 function restPushPart(sit) {
-  const N = sit && sit.nextSession; if (!N) return 'Jour de repos';
+  const N = sit && sit.nextSession; if (!N) return 'Repos aujourd\'hui';
   const when = N.tomorrow ? 'demain' : new Date(N.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', timeZone: 'UTC' });
-  return `Repos · ${when} : ${N.title}${N.km ? ' ' + N.km + ' km' : ''}${N.time ? ' à ' + N.time : ''}`;
+  return `Repos aujourd'hui · ${when}${N.time ? ' ' + N.time : ''} : ${N.title}${N.km ? ' ' + String(N.km).replace('.', ',') + ' km' : ''}`;
 }
 
 // Ajustements de la nuit du pilote automatique (autopilot.js / autopilot.js serveur) pour le brief du matin

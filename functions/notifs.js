@@ -870,7 +870,7 @@ exports.weeklyBilanNotif = onSchedule(
         const r=await generateWeeklyBilanContent(ANTHROPIC_API_KEY.value(),db,state,cw);
         pushBody=r.pushBody;
         await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:r.bilanContent,date:today,type:'weekly_bilan'});
-        await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+        if(!dg)await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);   // avec le résumé, la notification ouvre « Ta semaine en image » ; le bilan attend dans le Coach
       }catch(eB){console.warn('weeklyBilanNotif bilan:',eB.message);}
       await db.ref(`${ADMIN_STATE}/_bilan_semaine_${today}`).set(true);
       if(dg)await db.ref(`${ADMIN_STATE}/_week_digest`).set(dg.digest);

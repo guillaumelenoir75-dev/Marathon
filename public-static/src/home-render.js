@@ -1177,20 +1177,7 @@ function openValidationModalExtra(w,ei){
     <div class="modal-scroll-body">
     <div style="padding:16px 16px 0;">
     <!-- Bannière import -->
-    <div style="background:#FFF8F0;border:1px solid #F0A070;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;color:#7A3B00;margin:0 0 8px;">⚡ Remplis automatiquement</p>
-      <div style="display:flex;gap:7px;">
-        <div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;">
-          <button id="strava-val-btn" onclick="importFromStrava()" style="padding:8px 6px;background:#FC4C02;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🔶 Strava</button>
-          <span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">Remplit km, durée<br>et allure auto</span>
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;">
-          <button id="meteo-val-btn" onclick="importMeteoValidation()" style="padding:8px 6px;background:#1B4FD8;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🌤 Météo</button>
-          <span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">Ajoute météo pour<br>analyser la séance</span>
-        </div>
-        ${isAdmin()?`<div style="flex:1;display:flex;flex-direction:column;align-items:stretch;gap:3px;"><button id="whoop-val-btn" onclick="importWhoopForPerfEditExtra(${w},${ei})" style="padding:8px 6px;background:#000;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">⚫ WHOOP</button><span style="font-size:9px;color:#7A3B00;text-align:center;line-height:1.2;">FC & récupération<br>depuis WHOOP</span></div>`:''}
-      </div>
-    </div>
+    ${avFillHtml(w,ei,isAdmin()&&!!state.whoop_token)}
     <div id="meteo-val-preview" style="display:none;background:linear-gradient(135deg,#EDF2FB,#dce8f8);border:1px solid rgba(12,68,124,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
     <div id="whoop-val-preview" style="display:none;margin-bottom:12px;"></div>
     <div style="background:#F0F4FF;border:1px solid #C0CDF5;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:#2B4AAA;margin-bottom:10px;">💡 Si tu as couru <b>moins que prévu</b>, modifie le champ km — le plan s'adapte automatiquement.</div>
@@ -1480,6 +1467,7 @@ async function saveValidationExtra(w,ei){
       Object.assign(perf,ex,_keep);
       perf.strava=stravaData;
     }
+    if(g.activityId) perf.strava_id=String(g.activityId);   // sortie rattachée : jamais reprise par la validation automatique
     // blocs non saisis : lus depuis les tours Strava
     if((sExtra.type==='tempo'||sExtra.type==='frac')&&!(perf.blocsAllure||[]).some(Boolean)&&stravaData.laps&&typeof prBlocsFromLaps==='function'){
       const _p=(sExtra.d||'').split('|'), _bl=prBlocsFromLaps(_p[0],_p.slice(1).join('|'),stravaData.laps);

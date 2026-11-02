@@ -57,25 +57,31 @@ self.addEventListener('push', event => {
       icon: '/icon-512-v3.png',
       badge: '/icon-192-v3.png',
       tag: data.tag || 'marathon-notif',
-      data: { tag: data.tag || '' },
+      data: { tag: data.tag || '', url: data.url || '/' },
       requireInteraction: false
     })
   );
 });
 
-// Tap → ouvrir le coach si c'est un brief, sinon juste focus l'app
+// Tap → l'écran de la notification : brief / bilan = Coach, sinon l'adresse envoyée avec la notification (/?action=…)
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const tag = (event.notification.data && event.notification.data.tag) || '';
+  const d = event.notification.data || {}, tag = d.tag || '';
   const isBrief = tag.includes('brief');
-  const targetUrl = isBrief ? '/?action=brief' : /plan[-_]review/.test(tag) ? '/?action=review' : '/';
+  const isReview = /plan[-_]review/.test(tag);
+  const url = d.url && d.url !== '/' && d.url.indexOf('/?action=') === 0 ? d.url : null;
+  const targetUrl = isBrief ? '/?action=brief' : isReview ? '/?action=review' : url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async function(list) {
       for (const c of list) {
         if (c.url.startsWith(self.location.origin)) {
-          // relecture du plan, app déjà ouverte : message à la page (pas de rechargement ni de saisie perdue)
-          if (/plan[-_]review/.test(tag)) { try { c.postMessage({ action: 'open_review' }); return c.focus(); } catch(e) {} }
-          try { await c.navigate(targetUrl); } catch(e) {}
+          // app déjà ouverte : message à la page (pas de rechargement ni de saisie perdue) ; le Coach lit aussi
+          // _open_coach au retour au premier plan (visibilitychange) — l'ouverture n'a lieu qu'une fois
+          try {
+            if (isReview) c.postMessage({ action: 'open_review' });
+            else if (isBrief) c.postMessage({ action: 'open_coach', tag: tag });
+            else if (url) c.postMessage({ action: 'open_url', url: url });
+          } catch(e) {}
           return c.focus();
         }
       }

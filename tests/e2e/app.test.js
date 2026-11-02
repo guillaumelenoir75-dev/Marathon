@@ -931,3 +931,58 @@ test('bouton « 🏁 J\'ai fini » : recherche Strava + WHOOP + météo, état d
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('fenêtre « Valider la séance » : un seul bouton « Validation automatique » remplit Strava + WHOOP + météo', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  S.whoop_token = { access_token: 'x', refresh_token: 'y', expires_at: 9999999999 };
+  let sent = null;
+  const fill = { activity: { activityId: '9001', date: '2026-11-03', nom: 'Footing', distanceKm: 8.1, duree: '46:20', allure: '5:43', fcMoyenne: 141, fcMax: 158, laps: [{ index: 1, distanceKm: 8.1, duree_sec: 2780, allure: '5:43', fc: 141 }] },
+    whoop: { workout_strain: 9.4, workout_calories: 610, avg_hr: 142, overlap: 96 },
+    meteo: { date: '2026-11-03', heure_cible: '12h00', temperature: 12.4, ressenti: 11, humidite: 76, vent_kmh: 11, conditions: 'Partiellement nuageux ⛅', source: 'auto' }, missing: [] };
+  const { ctx, page, errors } = await open('2026-11-03T13:30:00+01:00', JSON.stringify(D), { functions: (r) => {
+    if (/autoValidateNow/.test(r.request().url())) { sent = JSON.parse(r.request().postData() || '{}'); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, fill }) }); }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"ok"}' });
+  } });
+  await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); });
+  // plus les 3 boutons séparés : un seul bouton, les 3 sources en dessous
+  assert.equal(await page.locator('text=Remplis automatiquement').count(), 0);
+  assert.equal(await page.locator('#avf-btn').count(), 1);
+  assert.equal(await page.locator('.avf-src').count(), 3);
+  await page.click('#avf-btn');
+  await page.waitForSelector('#avf-msg.ok');
+  assert.equal(sent.fill, true); assert.equal(sent.key, 'extra_w2_s0'); assert.equal(sent.date, '2026-11-03');
+  assert.equal(await page.inputValue('#val-km'), '8.1'); assert.equal(await page.inputValue('#val-dur'), '46:20');
+  assert.equal(await page.locator('.avf-src.ok').count(), 3);
+  assert.match(await page.textContent('.avf'), /8,1 km.*effort 9,4.*12°/s);
+  await page.evaluate(async () => { const b = document.querySelector('#pd-rpe [data-v="6"], #pd-rpe button'); if (b) b.click(); await saveValidationExtra(2, 0); });
+  await page.waitForTimeout(600);
+  const p = await page.evaluate(() => JSON.parse(state.extra_w2_s0_perf));
+  assert.equal(p.strava_id, '9001', 'sortie rattachée : jamais reprise par la validation automatique');
+  assert.equal(p.whoop.workout_strain, 9.4); assert.equal(p.meteo.temperature, 12.4); assert.ok(p.strava.laps);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('notification du brief : ouvre le fil du Coach même si « Mon plan » était affiché ; autres notifications : leur écran', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  S._brief_pending = { content: '😴 NUIT & RÉCUPÉRATION\nScore du jour : **79%**\n📅 DEMAIN — Footing EF 8 km', date: '2026-11-02', type: 'morning_brief' };
+  S._open_coach = true;
+  const { ctx, page, errors } = await open('2026-11-02T08:10:00+01:00', JSON.stringify(D), { query: '?action=brief', init: () => { try { localStorage.setItem('coach_mode', 'plan'); } catch (e) {} } });
+  await page.waitForFunction(() => /NUIT & RÉCUPÉRATION/.test((document.getElementById('coach-messages') || {}).textContent || ''), null, { timeout: 10000 });
+  assert.equal(await page.evaluate(() => document.getElementById('sc-coach').style.display), 'flex');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('coach-messages')).display), 'flex', 'le brief est visible, pas caché derrière « Mon plan »');
+  assert.equal(await page.evaluate(() => localStorage.getItem('coach_mode')), 'chat');
+  // en revenant sur l'onglet Coach : toujours le fil
+  await page.evaluate(() => { showScreen('home'); showScreen('coach'); });
+  await page.waitForTimeout(800);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('coach-messages')).display), 'flex');
+  // app déjà ouverte : l'adresse de la notification ouvre son écran (ici « Ta nuit »)
+  assert.equal(await page.evaluate(() => { window.openSleepPlan = () => { window.__sleep = true; }; window.avFeelOpen = (k) => { window.__feel = k; }; return notifRunAction('/?action=sleep', 0) && notifRunAction('/?action=feel&k=extra_w2_s0', 0); }), true);
+  await page.waitForTimeout(300);
+  assert.deepEqual(await page.evaluate(() => [window.__sleep, window.__feel]), [true, 'extra_w2_s0'], 'écran « Ta nuit », ressenti de la bonne séance');
+  assert.equal(await page.evaluate(() => notifRunAction('/?action=brief', 0)), false);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
