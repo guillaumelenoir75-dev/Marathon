@@ -23,15 +23,16 @@ function loadFunctions(opts) {
     'firebase-functions/v2/https': { onRequest: (o, h) => (typeof o === 'function' ? o : h) },
     'firebase-functions/v2/scheduler': { onSchedule: (o, h) => (typeof o === 'function' ? o : h) },
     'firebase-functions/params': { defineSecret: () => ({ value: () => 'test-secret' }) },
-    'firebase-admin': { apps: [1], initializeApp() {}, database: () => db, auth: () => ({ verifyIdToken: async () => ({ uid: 'ADMIN', email: 'admin@test' }) }), messaging: () => ({}) },
+    'firebase-admin': { apps: [1], initializeApp() {}, database: () => db, auth: () => ({ verifyIdToken: async () => (opts.athlete ? { uid: 'ATHLETE', email: 'athlete@test' } : { uid: 'ADMIN', email: 'admin@test' }) }), messaging: () => ({}) },
     'web-push': { setVapidDetails() {}, sendNotification: async () => {} },
   };
   const load0 = Module._load;
   Module._load = function (req) { return mocks[req] || load0.apply(this, arguments); };
   Object.keys(require.cache).forEach((k) => { if (k.startsWith(ROOT)) delete require.cache[k]; });
   const helpers = require(path.join(ROOT, 'helpers.js'));
-  helpers.verifyAdmin = async () => 'ADMIN';
-  helpers.verifyUser = async () => opts.uid || 'ADMIN';
+  // opts.athlete : la VRAIE vérification de l'admin (e-mail du jeton) est gardée, avec un compte athlète
+  if (!opts.athlete) helpers.verifyAdmin = async () => 'ADMIN';
+  helpers.verifyUser = async () => opts.uid || (opts.athlete ? 'ATHLETE' : 'ADMIN');
   if (opts.fetch) helpers.fetchWithTimeout = async (url, o) => { calls.fetch = (calls.fetch || []).concat(url); return opts.fetch(url, o); };
   helpers.sendPush = async (a, b, title, body, tag, url) => { calls.push.push({ title, body, tag, url }); };
   helpers.callAnthropic = async (key, system, msgs, maxTokens, model, o) => {

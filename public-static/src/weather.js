@@ -424,14 +424,14 @@ async function openHomeWeatherModal() {
     +   fcBlock
     + '</div>'
     + moraBlock
-    + '<div id="weather-coach-section" style="border-radius:14px;overflow:hidden;">'
+    + (typeof coachAI === 'function' && !coachAI() ? '' : '<div id="weather-coach-section" style="border-radius:14px;overflow:hidden;">'
     +   '<button onclick="_triggerWeatherCoachAdvice()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:' + impactColor + '12;border:1.5px solid ' + impactColor + '30;border-radius:14px;cursor:pointer;">'
     +     '<span style="font-size:16px;">🤖</span>'
     +     '<span style="font-size:13px;font-weight:600;color:' + impactColor + ';">Conseils Coach IA</span>'
     +     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + impactColor + '" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
     +   '</button>'
     +   '<div id="weather-coach-advice" style="display:none;"></div>'
-    + '</div>'
+    + '</div>')
     + '</div>' // ferme padding wrapper
     + '</div>'; // ferme modal-box
 
@@ -446,6 +446,7 @@ async function openHomeWeatherModal() {
 }
 
 function _triggerWeatherCoachAdvice() {
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const btn = document.querySelector('#weather-coach-section button');
   const div = document.getElementById('weather-coach-advice');
   if (!div || !btn) return;
@@ -461,6 +462,7 @@ function _triggerWeatherCoachAdvice() {
 }
 
 async function _fetchWeatherCoachAdvice(meteo, impactColor) {
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const adviceEl = document.getElementById('weather-coach-advice');
   if (!adviceEl) return;
 

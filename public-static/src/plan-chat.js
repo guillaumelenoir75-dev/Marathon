@@ -35,6 +35,7 @@ function coachModeInit(){
 }
 // depuis « MAJ le plan », la carte du pilote automatique… : ouvre « Mon plan », message pré-rempli
 function openPlanChat(prefill){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   try { if(typeof closePlanReview === 'function' && document.getElementById('plan-review')) closePlanReview(); } catch(e) {}
   if(typeof showScreen === 'function') showScreen('coach');
   setTimeout(function(){
@@ -107,6 +108,7 @@ function pcChip(b){ const ta = document.getElementById('pc-input'); const t = b.
 
 // ─── Envoi ───
 async function pcSend(text){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const ta = document.getElementById('pc-input');
   text = String(text != null ? text : (ta ? ta.value : '')).trim();
   if(!text || _pcBusy) return;

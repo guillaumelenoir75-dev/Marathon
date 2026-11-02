@@ -117,7 +117,7 @@ Chargés dans cet ordre (dépendances respectées) :
 - Modifications backend : vérifier la syntaxe avant de committer (`node --check`).
 - Privilégier des commits petits et clairs, directement sur `main`.
 - Ne pas committer `node_modules/` ni aucun fichier de secret.
-- Le Coach IA est réservé au compte admin — pas besoin de rate limiting côté users.
+- Le Coach IA est réservé au compte admin — pas besoin de rate limiting côté users. **Aucune consommation d'IA pour un athlète** : côté serveur, toutes les fonctions qui appellent l'IA (`analyzeSession`, `coachChat`, `quickBrief`, `morningBrief`, `addMemo`, `extractMemos`, `adminTestNotif`, `adminTriggerBrief`, `planReview`, `planChat`, `sessionJournal`) commencent par `verifyAdmin` (e-mail du jeton) et les tâches planifiées à IA (brief du matin `briefAfterFcRepos`, bilan du dimanche, félicitations par IA) ne lisent que `ADMIN_STATE` — les athlètes reçoivent des textes fixes ; côté app, `coachAI()` (config.js) en tête de chaque fonction qui appelle l'IA, onglet Coach, « Brief du matin » (préférences), écran de réveil, déclencheur du brief, « Conseils Coach IA » de la météo masqués ; débrief après validation des athlètes = `showAthleteFeedback` (règles locales, sans IA). Vérifié par `tests/server/ai-access.test.js` et le test e2e « compte athlète ». Toute nouvelle fonction d'IA : `verifyAdmin` côté serveur + `coachAI()` côté app.
 
 ## Suivi de déploiement (OBLIGATOIRE après chaque push sur main)
 C'est TOUJOURS à Claude de surveiller et rapporter le statut du déploiement. Ne JAMAIS demander à l'utilisateur de vérifier GitHub Actions lui-même. C'est la responsabilité exclusive de Claude.

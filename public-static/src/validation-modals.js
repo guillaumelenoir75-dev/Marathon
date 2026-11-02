@@ -370,7 +370,7 @@ function openFcReposModal(dateParam){
   const whoopConnected = state.whoop_token && state.whoop_token.access_token;
 
   // WHOOP connecté + aujourd'hui : pas de modal, juste lancer le processus directement
-  if (isToday && whoopConnected) {
+  if (isToday && whoopConnected && isAdmin()) {   // brief du matin : compte admin seulement
     _showBriefPreparationToast();
     _waitAndTriggerMorningBrief(null, today);
     return;
@@ -488,6 +488,7 @@ function saveFcRepos(dateParam){
   // WHOOP connecté + aujourd'hui : fermer le modal et lancer le processus asynchrone
   // La FC repos sera enregistrée après récupération des données WHOOP fraîches
   closeModal();
+  if (!isAdmin()) { state['fc_repos_'+targetDate] = val; if(isToday) state['fc_repos'] = val; save(); renderHome(); return; }   // athlète : pas de brief
   _showBriefPreparationToast();
   _waitAndTriggerMorningBrief(val, today);
 }
@@ -584,8 +585,8 @@ async function _waitAndTriggerMorningBrief(fcVal, today) {
     _removeBriefToast();
   }
 
-  // Déclencher le brief matin — toujours, que le Coach soit ouvert ou non
-  if (typeof checkMorningBrief === 'function') {
+  // Déclencher le brief matin — toujours, que le Coach soit ouvert ou non (compte admin seulement)
+  if (typeof checkMorningBrief === 'function' && isAdmin()) {
     const memos = typeof _coachMemos !== 'undefined' ? _coachMemos : [];
     checkMorningBrief(memos, true);
   }

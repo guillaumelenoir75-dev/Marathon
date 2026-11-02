@@ -365,6 +365,8 @@ function initRaceOrgMap(){ return _lazyCall('course', 'initRaceOrgMap', initRace
 function openProgress(){ return _lazyCall('progress', 'openProgress', openProgress, arguments); }
 function openWhatIf(){ return _lazyCall('whatif', 'openWhatIf', openWhatIf, arguments); }
 function openNextRace(){ return _lazyCall('nextrace', 'openNextRace', openNextRace, arguments); }
+// Coach IA (et toute consommation de tokens) : réservé au compte admin — l'app n'appelle jamais l'IA pour un athlète
+function coachAI(){ return typeof isAdmin === 'function' && isAdmin(); }
 function coachMode(){ return _lazyCall('planchat', 'coachMode', coachMode, arguments); }
 function coachModeInit(){ return _lazyCall('planchat', 'coachModeInit', coachModeInit, arguments); }
 function openPlanChat(){ return _lazyCall('planchat', 'openPlanChat', openPlanChat, arguments); }

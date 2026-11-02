@@ -436,6 +436,7 @@ function showAthleteFeedback(s, km, pace, hr, perf, meteo){
 }
 
 function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
 
   // Calcul du contexte enrichi pour l'IA
   const analysisContext = {};

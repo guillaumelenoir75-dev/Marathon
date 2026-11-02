@@ -1,4 +1,5 @@
 async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData) {
+  if(typeof coachAI === 'function' && !coachAI()) return  null;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   try {
     let coachMemos = '';
     try { const ms = await dbRef.child('_coach_memos').once('value'); coachMemos = ms.val()||''; } catch(e){}

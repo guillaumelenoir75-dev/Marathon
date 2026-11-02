@@ -357,7 +357,7 @@ async function onWakeup(force, opts) {
     }
 
     // 5. Déclencher le brief côté serveur (génération IA + push notif)
-    if (dbRef) {
+    if (dbRef && isAdmin()) {   // brief du matin : compte admin seulement
       // En mode test : réinitialiser les clés "déjà fait" pour forcer la régénération complète
       if (force) {
         await dbRef.child('_brief_matin_' + wakeupDate).remove();
@@ -514,6 +514,7 @@ function closeNotifTestModal() {
 }
 
 async function adminTestNotif(type, btn) {
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   if (!btn) return;
   const labelEl = btn.querySelector('div > div:first-child');
   const subEl = btn.querySelector('div > div:last-child');

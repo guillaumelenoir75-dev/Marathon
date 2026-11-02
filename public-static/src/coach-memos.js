@@ -135,6 +135,7 @@ function _parseMemos(raw) {
 }
 
 async function memorizeCoachNote(){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const input = document.getElementById('coach-input');
   const note = input.value.trim();
   if(!note) {

@@ -1040,6 +1040,7 @@ function _prFoot(){
 
 // Coach IA : relecture complète du plan (fonction planReview)
 async function askCoachPlanReview(force){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   if(!_prReview) return;
   const a = _prReview.a, today = a.opt.today, R = _prReview;
   force = !!force || !!(state._coach_review && state._coach_review.sig === prDataSig());   // redemande sans donnée nouvelle

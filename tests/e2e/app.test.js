@@ -1155,3 +1155,34 @@ test('image carrée de la séance : bouton 📸 sur la séance faite de l\'accue
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('compte athlète : pas de Coach IA ni de brief du matin, débrief automatique sans IA après la validation', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = JSON.parse(JSON.stringify(D.users.ADMINUID.state));
+  delete S.whoop_token; S.onboarding = S.onboarding || { done: true };
+  D.users.ATH1 = { role: 'athlete', state: S };
+  const ai = [];
+  const AI = /(analyzeSession|coachChat|quickBrief|morningBrief|addMemo|extractMemos|planReview|planChat|sessionJournal|adminTestNotif|adminTriggerBrief)/;
+  const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D), {
+    init: () => { window.__UID = 'ATH1'; window.__EMAIL = 'athlete@test'; },
+    functions: (r) => { if (AI.test(r.request().url())) ai.push(r.request().url()); return r.fulfill({ contentType: 'application/json', body: '{"success":true}' }); } });
+  assert.equal(await page.evaluate(() => isAdmin()), false);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('nav-coach')).display), 'none', 'onglet Coach masqué');
+  // les fonctions du Coach ne partent jamais, même appelées directement
+  await page.evaluate(async () => { try { await checkMorningBrief([], true); } catch (e) {} try { await sendCoachMessage('test'); } catch (e) {} try { await askCoachPlanReview(); } catch (e) {} try { await fetchCoachAnalysis({ type: 'ef' }, 8, '5:43', 141, {}, null); } catch (e) {} });
+  // validation : débrief automatique (règles de l'app), aucun appel à l'IA
+  await page.evaluate(() => { showScreen('home'); openValidationModalExtra(2, 0); avManualOpen(); });
+  await page.fill('#val-km', '8'); await page.fill('#val-dur', '46:00'); await page.fill('#val-hr', '140');
+  await page.evaluate(async () => { prRpePick(4); await saveValidationExtra(2, 0); });
+  await page.waitForTimeout(1200);
+  assert.ok(await page.evaluate(() => state.extra_w2_s0_done), 'séance validée');
+  assert.ok(await page.evaluate(() => !!document.querySelector('#modal-container .modal-overlay')), 'débrief affiché');
+  // météo de l'accueil : pas de « Conseils Coach IA »
+  await page.evaluate(() => { document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()); state._last_location = { lat: 48.85, lng: 2.35, ts: Date.now() }; });
+  await page.route(/open-meteo\.com/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ current: { temperature_2m: 12, relative_humidity_2m: 70, apparent_temperature: 11, weather_code: 3, wind_speed_10m: 10, is_day: 1 } }) }));
+  await page.evaluate(() => openHomeWeatherModal()); await page.waitForTimeout(800);
+  assert.equal(await page.locator('#weather-coach-section').count(), 0, 'pas de conseil du Coach IA');
+  assert.deepEqual(ai, [], 'aucun appel à une fonction d\'IA');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

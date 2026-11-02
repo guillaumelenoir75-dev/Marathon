@@ -171,7 +171,7 @@ function openPrefsModal(){
             ${tog(key,defVal)}
           </div>`;
           return ctaBanner
-            + rowN('Brief du matin','Résumé chaque matin avant de courir','notif_brief_matin')
+            + (isAdmin()?rowN('Brief du matin','Résumé chaque matin avant de courir','notif_brief_matin'):'')
             + rowN('Rappel 1h avant séance','Notification avant chaque entraînement','notif_seance')
             + (isAdmin()?rowN('Bilan de semaine','Dimanche 17h — km, séances, récup → semaine suivante · image à partager','notif_bilan_semaine'):'')
             + (isAdmin()?rowN('Séance clé manquée','20h45 le lendemain — proposition de la caser plus tard dans la semaine','notif_missed'):'')

@@ -162,6 +162,7 @@ function sendNextRun(){
 }
 
 async function sendCoachMeteo() {
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const chip = document.getElementById('coach-meteo-chip');
   function resetChip() {
     if (chip) { chip.textContent = '🌤️ Météo'; chip.style.opacity = '1'; chip.disabled = false; }
@@ -215,6 +216,7 @@ function isAtBottom(el){ return el.scrollHeight - el.scrollTop - el.clientHeight
 function smartScroll(el){ if(isAtBottom(el)) el.scrollTo({top:el.scrollHeight,behavior:"smooth"}); }
 
 async function sendCoachMessage(retryMsg){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const input = document.getElementById('coach-input');
   const msg = retryMsg || (input ? input.value.trim() : '');
   if(!msg) return;
@@ -597,6 +599,7 @@ function saveCoachHistory(){
 }
 
 async function extractAndSaveMemosWithContext(extraMessages) {
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   // Appelé après un débrief de séance — force la mise à jour des mémos
   // même si le seuil de 6 messages n'est pas atteint
   const existingMemos = await _loadMemos();
@@ -634,6 +637,7 @@ async function extractAndSaveMemosWithContext(extraMessages) {
 }
 
 async function extractAndSaveMemos(){
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   try {
     // Vérifier si les derniers échanges contiennent des infos importantes
     const lastMessages = coachHistory.slice(-6);
@@ -743,6 +747,7 @@ function _meteoEmoji(conditions){
 }
 // Génère le brief complet après affichage du teaser de notification
 async function generateFullBriefFromNotif(memos) {
+  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const container = document.getElementById('coach-messages');
 
   // Guard : si state est vide (race condition depuis notification), recharger Firebase
@@ -1007,6 +1012,7 @@ async function generateAndShowWeeklyBilan() {
 }
 
 async function checkMorningBrief(memos, force) {
+  if(typeof coachAI === 'function' && !coachAI()) return  false;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   if(_briefShownToday) return false;
   // force=true (depuis notif) : on génère le brief même si la préf est désactivée côté client
   if(!force && !getPref('notif_brief_matin')) return false;
