@@ -21,6 +21,26 @@ function wsPickWeeks(today){
   const W = prWeeks(state, today), nx = W[done + 1];
   return { done: done, plan: nx && nx.sess.some(function(s){ return s.type !== 'rest' && !s.done; }) ? done + 1 : null };
 }
+// semaines de la prépa qui ont des séances ; semaine en cours (avant le début : la 1re, après la fin : la dernière)
+function wsWeekList(today){
+  today = today || prTodayIso();
+  const W = prWeeks(state, today);
+  return Object.keys(W).map(Number).filter(function(w){ return W[w].sess.some(function(s){ return s.type !== 'rest'; }); }).sort(function(a, b){ return a - b; });
+}
+function wsCurrentWeek(today){
+  today = today || prTodayIso();
+  const W = prWeeks(state, today), L = wsWeekList(today); if(!L.length) return null;
+  const cur = L.find(function(w){ return W[w].now; }); if(cur != null) return cur;
+  return W[L[0]].from && today < W[L[0]].from ? L[0] : L[L.length - 1];
+}
+// vue d'une semaine : passée = faite, à venir = programme, en cours = faite dès qu'une séance est validée, sinon programme
+function wsModeFor(w, today){
+  today = today || prTodayIso();
+  const o = prWeeks(state, today)[w]; if(!o) return null;
+  if(o.now) return o.sess.some(function(s){ return s.done; }) ? 'done' : 'plan';
+  return o.to && o.to < today ? 'done' : 'plan';
+}
+function wsDataFor(w, today){ today = today || prTodayIso(); const m = wsModeFor(w, today); return m ? weekShareData(w, today, m) : null; }
 function weekShareData(w, today, mode){
   today = today || prTodayIso();
   if(mode === 'plan') return weekPlanData(w, today);
@@ -46,7 +66,7 @@ function weekShareData(w, today, mode){
   const F = o.now && typeof prFormScore === 'function' ? prFormScore() : null;
   const rpes = done.map(function(s){ return s.perf.rpe; }).filter(Boolean);
   const total = Object.keys(W).map(Number).reduce(function(a, b){ return Math.max(a, b); }, 0);
-  return { w: w, total: total, from: o.from, to: o.to, kind: _wsKind(o.kind), now: o.now, kmDone: kmDone, kmPlan: kmPlan, pct: kmPlan ? Math.min(1.5, kmDone / kmPlan) : null,
+  return { mode: 'done', today: today, w: w, total: total, from: o.from, to: o.to, kind: _wsKind(o.kind), now: o.now, kmDone: kmDone, kmPlan: kmPlan, pct: kmPlan ? Math.min(1.5, kmDone / kmPlan) : null,
     nDone: done.length, nPlan: sess.length, sessions: sess.map(function(s){ const sec = s.done && s.perf && typeof prTimeSec === 'function' ? prTimeSec(s.perf.dur) : null;
       return { title: s.title, type: s.type, km: s.done ? s.km : s.kmPlan, done: s.done, date: s.date, star: !!(star && star.key === s.key), sec: sec,
         pace: s.done && s.perf && s.perf.pace ? String(s.perf.pace).replace(':', "'") : '', when: _wsDay(s.date) }; }),
@@ -85,7 +105,7 @@ function weekPlanData(w, today){
   const known = sess.filter(function(s){ return s.pace && s.kmPlan; }), kKm = known.reduce(function(a, s){ return a + s.kmPlan; }, 0);
   const avgP = kKm ? known.reduce(function(a, s){ return a + (s.pace.lo + s.pace.hi) / 2 * s.kmPlan; }, 0) / kKm : null;
   const secT = avgP ? Math.round(sess.reduce(function(a, s){ return a + (s.pace ? (s.pace.lo + s.pace.hi) / 2 : avgP) * (s.kmPlan || 0); }, 0)) : null;
-  return { mode: 'plan', sec: secT, w: w, total: total, from: o.from, to: o.to, kind: kindLbl, kmPlan: kmPlan, kmDone: 0, nPlan: sess.length, nDone: 0, days: days, longest: longest,
+  return { mode: 'plan', now: !!o.now, today: today, sec: secT, w: w, total: total, from: o.from, to: o.to, kind: kindLbl, kmPlan: kmPlan, kmDone: 0, nPlan: sess.length, nDone: 0, days: days, longest: longest,
     sessions: sess.map(function(s){ const t = time(s); return { title: s.title, type: s.type, km: s.kmPlan, done: s.done, date: s.date, star: s === key, pace: s.pace ? s.pace.text.replace(/\s+/g, ' ') : '',
       sec: s.pace && s.kmPlan ? Math.round((s.pace.lo + s.pace.hi) / 2 * s.kmPlan) : null, when: (dayLbl(s.date) + (t ? ' ' + t.replace(/^0(\d)/, '$1').replace(':', 'h') : '')).trim() }; }),
     star: key ? { title: key.title, line: line(key) || (key.detail || ''), kind: 'key' } : null, who: _wsAthlete(), goal: _wsGoal(R),
@@ -137,7 +157,8 @@ function wsDraw(D){
     g.fillStyle = fill; _wsRound(g, x0, y, w, 54, 27); g.fill(); if(stroke){ g.strokeStyle = stroke; g.lineWidth = 2; _wsRound(g, x0 + 1, y + 1, w - 2, 52, 26); g.stroke(); }
     txt(t, x0 + w / 2, y + 37, 26, color, 800, 'center', 3); return w; };
   pill(('Semaine ' + D.w + (D.total ? ' / ' + D.total : '')).toUpperCase(), M, 120, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.18)', '#E2E8F0');
-  pill(P ? 'À VENIR' : (D.nDone >= D.nPlan && D.nPlan ? '✓ BOUCLÉE' : '✓ RÉALISÉE'), WS_W - M, 120, grad(WS_W - 360, 0, WS_W - M, 0), null, '#0B1020', 'right');
+  const full = D.nDone >= D.nPlan && D.nPlan;
+  pill(P ? (D.now ? 'CETTE SEMAINE' : 'À VENIR') : full ? '✓ BOUCLÉE' : D.now ? 'EN COURS' : '✓ RÉALISÉE', WS_W - M, 120, grad(WS_W - 360, 0, WS_W - M, 0), null, '#0B1020', 'right');
   if(D.prep) txt(fit(D.prep.toUpperCase(), 26, 700, 936), M, 252, 26, 'rgba(255,255,255,0.55)', 700, 'left', 4);
   const title = P ? 'Au programme' : D.nDone >= D.nPlan && D.nPlan ? 'Semaine bouclée' : 'Ma semaine';
   txt(title, M, 330, 68, '#FFFFFF', 900);
@@ -182,7 +203,7 @@ function wsDraw(D){
   // ── séances en cartes (4 au plus), séance phare marquée
   const list = D.sessions.slice(0, 4); let y = 1196 + (4 - list.length) * 40;
   list.forEach(function(s){
-    const h = 94, tc = col(s.type), on = P || s.done;
+    const h = 94, tc = col(s.type), on = P || s.done || !!(D.today && s.date && s.date >= D.today);
     g.fillStyle = s.star ? alpha(A2, 0.14) : 'rgba(255,255,255,0.06)'; _wsRound(g, M, y, WS_W - 2 * M, h, 26); g.fill();
     if(s.star){ g.strokeStyle = alpha(A2, 0.7); g.lineWidth = 2.5; _wsRound(g, M + 1, y + 1, WS_W - 2 * M - 2, h - 2, 25); g.stroke(); }
     g.fillStyle = on ? tc : alpha(tc, 0.35); _wsRound(g, M + 16, y + 20, 8, h - 40, 4); g.fill();
@@ -190,7 +211,7 @@ function wsDraw(D){
     g.fillStyle = alpha(tc, on ? 0.22 : 0.1); _wsRound(g, M + 44, y + 16, cw, 34, 17); g.fill(); txt(chip, M + 44 + cw / 2, y + 40, 22, on ? tc : alpha(tc, 0.6), 800, 'center', 1);
     const kmT = _wsKm(s.km) + ' km', kmW = width(kmT, 40, 900);
     txt((s.star ? '★ ' : '') + fit(s.title, 34, 800, WS_W - 2 * M - 44 - cw - 30 - kmW - 40), M + 44 + cw + 16, y + 44, 34, on ? '#FFFFFF' : 'rgba(255,255,255,0.45)', 800);
-    const meta = P ? [s.when, s.pace].filter(Boolean).join('  ·  ') : s.done ? ['✓ ' + (s.when || ''), s.sec ? _wsDur(s.sec, true) : '', s.pace ? s.pace + ' /km' : ''].filter(Boolean).join('  ·  ') : (s.when ? s.when + '  ·  ' : '') + 'non faite';
+    const meta = P ? [s.when, s.pace].filter(Boolean).join('  ·  ') : s.done ? ['✓ ' + (s.when || ''), s.sec ? _wsDur(s.sec, true) : '', s.pace ? s.pace + ' /km' : ''].filter(Boolean).join('  ·  ') : (s.when ? s.when + '  ·  ' : '') + (D.today && s.date && s.date >= D.today ? 'à venir' : 'non faite');
     txt(fit(meta, 26, 600, WS_W - 2 * M - 44 - kmW - 60), M + 44, y + 80, 26, on ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.38)', 600);
     txt(kmT, WS_W - M - 26, y + 60, 40, on ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 900, 'right');
     y += h + 14;
@@ -226,46 +247,62 @@ function _wsRound(g, x, y, w, h, r){ r = Math.min(r, h / 2, w / 2); g.beginPath(
 
 // ─── Aperçu et partage ──────────────────────────────────────────────────────
 let _wsCanvas = null, _wsData = null;
-let _wsWeeks = null;
-function openWeekShare(w, mode){
+let _wsNav = null;
+// fenêtre : la semaine EN COURS d'abord ; ‹ › pour les semaines précédentes et à venir (w = semaine voulue, sinon en cours)
+function openWeekShare(w){
   _wsCss();
-  const PW = wsPickWeeks();
-  _wsWeeks = { done: w != null ? w : PW.done, plan: w != null ? (PW.plan != null && PW.plan === w + 1 ? PW.plan : (prWeeks(state, prTodayIso())[w + 1] ? w + 1 : null)) : PW.plan };
-  const Dd = _wsWeeks.done != null ? weekShareData(_wsWeeks.done) : null, okDone = !!(Dd && Dd.nDone);
-  const Dp = _wsWeeks.plan != null ? weekShareData(_wsWeeks.plan, null, 'plan') : null;
-  mode = mode === 'plan' && Dp ? 'plan' : okDone ? 'done' : Dp ? 'plan' : null;
-  if(!mode){ if(typeof showToast === 'function') showToast('Valide au moins une séance de la semaine pour créer ta carte', '📸'); return; }
-  _wsSet(mode === 'plan' ? Dp : Dd);
+  const today = prTodayIso(), L = wsWeekList(today);
+  const cur = wsCurrentWeek(today);
+  let target = w != null && L.indexOf(+w) >= 0 ? +w : cur;
+  if(target == null || !wsDataFor(target, today)){ if(typeof showToast === 'function') showToast('Aucune semaine à partager pour l\'instant', '📸'); return; }
+  _wsNav = { list: L, i: L.indexOf(target), cur: cur, today: today };
+  _wsSet(wsDataFor(target, today));
   const D = _wsData;
+  const old = document.getElementById('ws-share'); if(old) old.remove();
   const mc = document.getElementById('modal-container'), ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'ws-share'; ov.style.zIndex = '740'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.6)');
   const can = _wsCanShare(), ios = _wsIos();
-  const seg = '<div class="ws-seg" role="tablist" aria-label="Semaine à partager">'
-    + '<button type="button" role="tab" data-m="done"' + (okDone ? '' : ' disabled') + ' aria-selected="' + (mode === 'done') + '" class="' + (mode === 'done' ? 'on' : '') + '" onclick="wsSwitch(\'done\')">✅ Semaine faite</button>'
-    + '<button type="button" role="tab" data-m="plan"' + (Dp ? '' : ' disabled') + ' aria-selected="' + (mode === 'plan') + '" class="' + (mode === 'plan' ? 'on' : '') + '" onclick="wsSwitch(\'plan\')">📅 À venir</button></div>';
-  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="ws-head">' + seg + '<button class="ws-x" onclick="document.getElementById(\'ws-share\').remove()" aria-label="Fermer">×</button></div>'
+  const nav = '<div class="ws-nav"><button type="button" class="ws-arr" data-d="-1" onclick="wsGo(-1)" aria-label="Semaine précédente">‹</button>'
+    + '<div class="ws-lbl" aria-live="polite"><b></b><span></span></div>'
+    + '<button type="button" class="ws-arr" data-d="1" onclick="wsGo(1)" aria-label="Semaine suivante">›</button></div>';
+  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="ws-head">' + nav + '<button class="ws-x" onclick="document.getElementById(\'ws-share\').remove()" aria-label="Fermer">×</button></div>'
     + '<div class="modal-scroll-body" style="background:#0F172A;"><div style="padding:14px 16px 22px;display:flex;flex-direction:column;gap:12px;align-items:center;">'
     + '<img class="ws-img" alt="' + _wsAlt(D) + '" src="' + _wsUrl + '">'
+    + '<button type="button" class="ws-today" onclick="wsGoCurrent()" hidden>↩ Semaine en cours</button>'
     + '<div class="ws-btns">' + (can ? '<button class="ws-b main" onclick="wsShare()">Partager</button>' : '') + '<button class="ws-b' + (can ? '' : ' main') + '" onclick="wsDownload()">' + (ios ? 'Enregistrer' : 'Télécharger') + '</button></div>'
     + (ios ? '<p class="ws-n">Ou appui long sur l\'image › « Enregistrer dans Photos »</p>' : '')
     + '<p class="ws-n">Pour ta famille, tes amis ou ton club : l\'image ne contient ni ta position ni tes données de santé détaillées.</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
+  _wsNavRender();
 }
 let _wsUrl = null, _wsFile = null;
-function _wsAlt(D){ return D.mode === 'plan' ? 'Semaine ' + D.w + ' à venir : ' + D.kmPlan + ' km prévus' : 'Récapitulatif de la semaine ' + D.w + ' : ' + D.kmDone + ' km sur ' + D.kmPlan + ' prévus'; }
+function _wsAlt(D){ return D.mode === 'plan' ? 'Semaine ' + D.w + (D.now ? ' en cours' : ' à venir') + ' : ' + D.kmPlan + ' km prévus' : 'Récapitulatif de la semaine ' + D.w + ' : ' + D.kmDone + ' km sur ' + D.kmPlan + ' prévus'; }
 function _wsSet(D){ _wsData = D; _wsCanvas = wsDraw(D); _wsUrl = _wsCanvas.toDataURL('image/png'); _wsFile = _wsFileOf(_wsUrl); }
-// bascule « Semaine faite » / « À venir » dans la fenêtre : nouvelle image, mêmes boutons
-function wsSwitch(mode){
-  if(!_wsWeeks) return;
-  const D = mode === 'plan' ? (_wsWeeks.plan != null ? weekShareData(_wsWeeks.plan, null, 'plan') : null) : (_wsWeeks.done != null ? weekShareData(_wsWeeks.done) : null);
-  if(!D) return;
-  _wsSet(D);
-  const ov = document.getElementById('ws-share'); if(!ov) return;
+// libellé « Semaine 2 · en cours · 2 – 8 nov. », flèches grisées aux bouts, retour à la semaine en cours
+function _wsNavRender(){
+  const ov = document.getElementById('ws-share'); if(!ov || !_wsNav || !_wsData) return;
+  const D = _wsData, w = _wsNav.list[_wsNav.i];
+  const fmt = function(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '') : ''; };
+  const st = w === _wsNav.cur ? 'en cours' : w < _wsNav.cur ? (D.nDone >= D.nPlan && D.nPlan ? 'bouclée' : 'faite') : 'à venir';
+  ov.querySelector('.ws-lbl b').textContent = 'Semaine ' + w;
+  ov.querySelector('.ws-lbl span').textContent = st + (D.from ? ' · ' + fmt(D.from) + ' – ' + fmt(D.to) : '');
+  ov.querySelector('.ws-lbl').className = 'ws-lbl' + (w === _wsNav.cur ? ' cur' : '');
+  ov.querySelector('.ws-arr[data-d="-1"]').disabled = _wsNav.i <= 0;
+  ov.querySelector('.ws-arr[data-d="1"]').disabled = _wsNav.i >= _wsNav.list.length - 1;
+  const b = ov.querySelector('.ws-today'); if(b) b.hidden = w === _wsNav.cur;
   const im = ov.querySelector('.ws-img'); if(im){ im.src = _wsUrl; im.alt = _wsAlt(D); }
-  ov.querySelectorAll('.ws-seg button').forEach(function(b){ const on = b.getAttribute('data-m') === mode; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
 }
-function _wsName(){ return 'semaine-' + (_wsData ? _wsData.w : '') + (_wsData && _wsData.mode === 'plan' ? '-a-venir' : '') + '.png'; }
+// semaine précédente (-1) / suivante (+1) : nouvelle image, mêmes boutons
+function wsGo(d){
+  if(!_wsNav) return;
+  let i = _wsNav.i + d;
+  while(i >= 0 && i < _wsNav.list.length && !wsDataFor(_wsNav.list[i], _wsNav.today)) i += d;
+  if(i < 0 || i >= _wsNav.list.length) return;
+  _wsNav.i = i; _wsSet(wsDataFor(_wsNav.list[i], _wsNav.today)); _wsNavRender();
+}
+function wsGoCurrent(){ if(!_wsNav) return; const i = _wsNav.list.indexOf(_wsNav.cur); if(i < 0) return; _wsNav.i = i; _wsSet(wsDataFor(_wsNav.cur, _wsNav.today)); _wsNavRender(); }
+function _wsName(){ return 'semaine-' + (_wsData ? _wsData.w : '') + (_wsData && _wsData.mode === 'plan' && !_wsData.now ? '-a-venir' : '') + '.png'; }
 // image → fichier, sans attente (data URL décodée sur place)
 function _wsFileOf(url){
   try {
@@ -280,7 +317,7 @@ function _wsCanShare(){ try { return !!(_wsFile && navigator.share && navigator.
 function wsShare(){
   if(!_wsFile) return wsDownload();
   if(!_wsCanShare()) return wsDownload();
-  navigator.share({ files: [_wsFile], title: 'Ma semaine', text: _wsData.mode === 'plan' ? 'Semaine ' + _wsData.w + ' à venir : ' + _wsKm(_wsData.kmPlan) + ' km au programme 🏃' : 'Semaine ' + _wsData.w + ' : ' + _wsKm(_wsData.kmDone) + ' km 🏃' })
+  navigator.share({ files: [_wsFile], title: 'Ma semaine', text: _wsData.mode === 'plan' ? 'Semaine ' + _wsData.w + (_wsData.now ? '' : ' à venir') + ' : ' + _wsKm(_wsData.kmPlan) + ' km au programme 🏃' : 'Semaine ' + _wsData.w + ' : ' + _wsKm(_wsData.kmDone) + ' km 🏃' })
     .catch(function(e){ if(e && e.name !== 'AbortError' && typeof showToast === 'function') showToast('Partage impossible : appui long sur l\'image pour l\'enregistrer', '📸'); });
 }
 // Télécharger / Enregistrer : sur iPhone, la feuille de partage (« Enregistrer l'image » → Photos) ; ailleurs, fichier téléchargé
@@ -300,15 +337,16 @@ function wsDownload(){
 function wsHeaderBtn(){
   const b = typeof document !== 'undefined' ? document.getElementById('home-share-btn') : null; if(!b) return;
   let ok = false;
-  try { const PW = wsPickWeeks(); const D = PW.done != null ? weekShareData(PW.done) : null; ok = !!((D && D.nDone) || PW.plan != null); } catch(e) {}
+  try { const w = wsCurrentWeek(); ok = w != null && !!wsDataFor(w); } catch(e) {}
   b.style.display = ok ? 'inline-flex' : 'none';
 }
 function _wsCss(){
   if(document.getElementById('ws-css')) return;
   const st = document.createElement('style'); st.id = 'ws-css';
-  st.textContent = '.ws-head{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#0F172A;color:#fff;border-radius:24px 24px 0 0;}.ws-head p{margin:0;font-size:16px;font-weight:800;}'
-    + '.ws-seg{display:flex;gap:3px;background:rgba(255,255,255,.1);border-radius:12px;padding:3px;}.ws-seg button{border:none;background:transparent;color:rgba(255,255,255,.7);font:inherit;font-size:13px;font-weight:800;padding:7px 11px;border-radius:9px;cursor:pointer;white-space:nowrap;}'
-    + '.ws-seg button.on{background:#6366F1;color:#fff;}.ws-seg button:disabled{opacity:.35;cursor:default;}'
+  st.textContent = '.ws-head{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;background:#0F172A;color:#fff;border-radius:24px 24px 0 0;}.ws-head p{margin:0;font-size:16px;font-weight:800;}'
+    + '.ws-nav{display:flex;align-items:center;gap:6px;min-width:0;flex:1;}.ws-arr{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:24px;font-weight:700;line-height:1;cursor:pointer;font-family:inherit;}.ws-arr:disabled{opacity:.25;cursor:default;}'
+    + '.ws-lbl{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;}.ws-lbl b{font-size:16px;font-weight:900;}.ws-lbl span{font-size:12px;font-weight:700;color:rgba(255,255,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}.ws-lbl.cur span{color:#A5B4FC;}'
+    + '.ws-today{border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;}.ws-today[hidden]{display:none;}'
     + '.ws-x{background:rgba(255,255,255,.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;}'
     + '.ws-img{display:block;width:auto;max-width:100%;max-height:66vh;aspect-ratio:9/16;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}.ws-btns{display:flex;gap:8px;width:100%;max-width:420px;}'
     + '.ws-b{flex:1;padding:12px;border-radius:14px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}.ws-b.main{background:#6366F1;border-color:#6366F1;}'

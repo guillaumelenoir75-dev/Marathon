@@ -244,16 +244,24 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   assert.match(dl.suggestedFilename(), /^semaine-\d+\.png$/);
   await page.evaluate(() => document.getElementById('ws-share').remove());
   assert.equal(await page.evaluate(() => planBrand()), 'Plan 10 km', 'signature de l\'image : la course préparée');
-  // dans la fenêtre : « Semaine faite » ou « À venir » (semaine prévue suivante), même place, nouvelle image
-  await page.click('#home-share-btn'); await page.waitForSelector('#ws-share .ws-seg');
-  assert.equal(await page.getAttribute('#ws-share .ws-seg [data-m="done"]', 'aria-selected'), 'true');
-  const srcDone = await page.getAttribute('#ws-share .ws-img', 'src');
-  await page.click('#ws-share .ws-seg [data-m="plan"]');
-  assert.equal(await page.getAttribute('#ws-share .ws-seg [data-m="plan"]', 'aria-selected'), 'true');
-  assert.notEqual(await page.getAttribute('#ws-share .ws-img', 'src'), srcDone);
-  assert.match(await page.getAttribute('#ws-share .ws-img', 'alt'), /à venir : [\d.]+ km prévus/);
+  // dans la fenêtre : la semaine EN COURS d'abord, ‹ › vers les semaines passées et à venir, retour à la semaine en cours
+  await page.click('#home-share-btn'); await page.waitForSelector('#ws-share .ws-nav');
+  assert.equal(await page.textContent('#ws-share .ws-lbl b'), 'Semaine 1');
+  assert.match(await page.textContent('#ws-share .ws-lbl span'), /^en cours · /);
+  assert.equal(await page.isDisabled('#ws-share .ws-arr[data-d="-1"]'), true, '1re semaine : pas de précédente');
+  assert.equal(await page.isVisible('#ws-share .ws-today'), false);
+  const srcCur = await page.getAttribute('#ws-share .ws-img', 'src');
+  await page.click('#ws-share .ws-arr[data-d="1"]');
+  assert.equal(await page.textContent('#ws-share .ws-lbl b'), 'Semaine 2');
+  assert.match(await page.textContent('#ws-share .ws-lbl span'), /^à venir · /);
+  assert.notEqual(await page.getAttribute('#ws-share .ws-img', 'src'), srcCur);
+  assert.match(await page.getAttribute('#ws-share .ws-img', 'alt'), /Semaine 2 à venir : [\d.]+ km prévus/);
+  assert.equal(await page.isVisible('#ws-share .ws-today'), true);
   if (process.env.SHOT_WS) await page.locator('#ws-share .modal-box').screenshot({ path: process.env.SHOT_WS.replace(/\.png$/, '-modal.png') });
   if (process.env.SHOT_WS) fs.writeFileSync(process.env.SHOT_WS.replace(/\.png$/, '-plan.png'), Buffer.from((await page.evaluate(() => document.querySelector('#ws-share .ws-img').src)).split(',')[1], 'base64'));
+  await page.click('#ws-share .ws-today');
+  assert.equal(await page.textContent('#ws-share .ws-lbl b'), 'Semaine 1');
+  assert.equal(await page.getAttribute('#ws-share .ws-img', 'src'), srcCur);
   await page.evaluate(() => document.getElementById('ws-share').remove());
   // Partager (téléphone) : la feuille de partage reçoit le fichier PNG directement depuis le toucher (exigé par iOS)
   await page.evaluate(() => { window.__shared = null; navigator.canShare = (d) => !!(d && d.files && d.files.length); navigator.share = (d) => { window.__shared = { sync: true, type: d.files[0].type, size: d.files[0].size, name: d.files[0].name }; return Promise.resolve(); }; });

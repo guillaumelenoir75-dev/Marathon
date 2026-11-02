@@ -173,3 +173,24 @@ test('zones : allures par zone d\'après le niveau, EF d\'après les sorties ré
   assert.equal(P.efObs, 340); assert.equal(P.z[1].lo, 330); assert.equal(P.z[1].hi, 355);
   assert.equal(P.z[2].hi, 329, 'le tempo commence juste sous l\'EF réelle : allure marathon couverte');
 });
+
+test('carte de la semaine : ouverte sur la semaine EN COURS (programme le lundi, faite dès une séance validée) ; semaines passées et à venir', () => {
+  const st = synthPlan();
+  const done = (k, km) => { st[k + '_done'] = true; st[k + '_km'] = km; st[k + '_perf'] = JSON.stringify({ date: JSON.parse(st[k]).sched_date }); };
+  done('extra_w1_s0', 9); done('extra_w1_s1', 10);
+  // lundi 2 nov. : semaine 2 en cours, rien de fait → son programme
+  let app = loadApp({ now: '2026-11-02T13:00:00+01:00', state: st });
+  assert.equal(app.wsCurrentWeek('2026-11-02'), 2);
+  assert.equal(app.wsModeFor(2, '2026-11-02'), 'plan');
+  let D = app.wsDataFor(2, '2026-11-02');
+  assert.equal(D.mode, 'plan'); assert.equal(D.now, true); assert.equal(D.w, 2);
+  // semaine précédente = faite, suivante = à venir
+  assert.equal(app.wsModeFor(1, '2026-11-02'), 'done'); assert.equal(app.wsDataFor(1, '2026-11-02').kmDone, 19);
+  assert.equal(app.wsModeFor(3, '2026-11-02'), 'plan'); assert.equal(app.wsDataFor(3, '2026-11-02').now, false);
+  assert.ok(Array.from(app.wsWeekList('2026-11-02')).length >= 3);
+  // mardi avec une séance faite : la semaine en cours passe en « faite » (réalisé + reste à venir)
+  done('extra_w2_s0', 12);
+  app = loadApp({ now: '2026-11-03T20:00:00+01:00', state: st });
+  D = app.wsDataFor(2, '2026-11-03');
+  assert.equal(D.mode, 'done'); assert.equal(D.now, true); assert.equal(D.kmDone, 12); assert.equal(D.today, '2026-11-03');
+});
