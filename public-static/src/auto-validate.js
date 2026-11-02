@@ -337,6 +337,7 @@ function avFeelSave(){
   if(typeof renderHome === 'function'){ rendered.home = false; renderHome(); }
   if(typeof isAdmin === 'function' && isAdmin() && typeof showCoachFeedback === 'function'){ window._lastValidatedPerf = p; try { showCoachFeedback(x, parseFloat(state[k + '_km']) || 0, p.pace || '', p.hr || null, false, null, p.meteo || null, p.whoop || null); } catch(e) {} }
   if(typeof prAfterValidation === 'function') prAfterValidation();
+  if(typeof ssOffer === 'function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance »
 }
 function avFeelSkip(){
   const ov = document.getElementById('av-feel'); if(!ov) return; const k = ov.dataset.key;

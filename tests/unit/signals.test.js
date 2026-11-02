@@ -194,3 +194,22 @@ test('carte de la semaine : ouverte sur la semaine EN COURS (programme le lundi,
   D = app.wsDataFor(2, '2026-11-03');
   assert.equal(D.mode, 'done'); assert.equal(D.now, true); assert.equal(D.kmDone, 12); assert.equal(D.today, '2026-11-03');
 });
+
+test('image de la séance : seulement une séance validée ; km, durée, allure, FC, allure par km, météo, WHOOP, ressenti', () => {
+  const st = synthPlan();
+  const app0 = loadApp({ now: '2026-11-03T15:00:00+01:00', state: st });
+  assert.equal(app0.sessionShareData('extra_w1_s0', '2026-11-03'), null, 'pas validée : pas d\'image');
+  st.extra_w1_s0_done = true; st.extra_w1_s0_km = 8.1;
+  st.extra_w1_s0_perf = JSON.stringify({ date: '2026-10-27', dur: '46:20', pace: '5:43', hr: 141, rpe: 4,
+    strava: { cadence: 172, fcMax: 158, denivele_pos: 35, splits: [{ km: 1, distanceKm: 1, allure: '5:50', fc: 135 }, { km: 2, distanceKm: 1, allure: '5:40', fc: 141 }, { km: 9, distanceKm: 0.1, allure: '5:00' }] },
+    meteo: { temperature: 12.4, conditions: 'Couvert ☁️' }, whoop: { workout_strain: 9.44 } });
+  const app = loadApp({ now: '2026-11-03T15:00:00+01:00', state: st });
+  const D = app.sessionShareData('extra_w1_s0', '2026-11-03');
+  assert.equal(D.km, 8.1); assert.equal(D.dur, 2780); assert.equal(D.pace, "5'43"); assert.equal(D.hr, 141); assert.equal(D.hrMax, 158);
+  assert.equal(D.splits.length, 2, 'bout de km < 0,5 écarté'); assert.equal(D.splits[1].sec, 340);
+  assert.equal(D.temp, 12); assert.equal(D.strain, 9.4); assert.equal(D.rpe, 4); assert.equal(D.cad, 172); assert.equal(D.up, 35);
+  assert.equal(D.w, 1); assert.equal(D.date, '2026-10-27'); assert.ok(D.title);
+  // séance retirée (non réalisée) : pas d'image
+  st.extra_w1_s1_skip = true;
+  assert.equal(loadApp({ now: '2026-11-03T15:00:00+01:00', state: st }).sessionShareData('extra_w1_s1', '2026-11-03'), null);
+});

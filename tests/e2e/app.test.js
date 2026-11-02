@@ -1124,3 +1124,34 @@ test('pas de sortie Strava : la météo est quand même relevée à la position 
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('image carrée de la séance : bouton 📸 sur la séance faite de l\'accueil, proposée après la validation, seulement si validée', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D));
+  await page.evaluate(() => { showScreen('home'); renderHome(); });
+  // séance pas encore validée : pas d'image
+  assert.equal(await page.evaluate(() => sessionShareData('extra_w2_s0')), null);
+  // validation (Strava importé) → proposition « 📸 Image de ta séance »
+  await page.evaluate(() => { openValidationModalExtra(2, 0); _applyStravaToValidation({ activityId: '9001', date: '2026-11-03', distanceKm: 8.1, duree: '46:20', allure: '5:43', fcMoyenne: 141, fcMax: 158, splits: Array.from({ length: 8 }, (_, i) => ({ km: i + 1, distanceKm: 1, allure: '5:' + String(35 + (i * 3) % 14).padStart(2, '0'), fc: 135 + i })) }); window._meteoValidationData = { temperature: 12.4, date: '2026-11-03' }; });
+  await page.evaluate(async () => { prRpePick(4); await saveValidationExtra(2, 0); });
+  await page.waitForSelector('#ss-offer', { timeout: 5000 });
+  await page.evaluate(() => document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()));
+  await page.click('#ss-offer .ss-go');
+  await page.waitForSelector('#ss-share .ss-img');
+  assert.ok(await page.evaluate(() => { const i = document.querySelector('#ss-share .ss-img'); return i.src.startsWith('data:image/png') && i.naturalWidth === 1080 && i.naturalHeight === 1080; }), 'image carrée 1080 × 1080');
+  assert.match(await page.getAttribute('#ss-share .ss-img', 'alt'), /8,1 km à 5'43 \/km/);
+  if (process.env.SHOT_SS) { fs.writeFileSync(process.env.SHOT_SS, Buffer.from((await page.evaluate(() => document.querySelector('#ss-share .ss-img').src)).split(',')[1], 'base64')); await page.locator('#ss-share .modal-box').screenshot({ path: process.env.SHOT_SS.replace(/\.png$/, '-modal.png') }); }
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#ss-share .ws-b:has-text("Télécharger")')]);
+  assert.equal(dl.suggestedFilename(), 'seance-2026-11-03.png');
+  await page.evaluate(() => document.getElementById('ss-share').remove());
+  // accueil : bouton 📸 sur la ligne de la séance faite
+  await page.evaluate(() => { showScreen('home'); renderHome(); });
+  await page.waitForSelector('.hs-row .hs-share');
+  if (process.env.SHOT_SS) await page.locator('.hs-row:has(.hs-share)').first().screenshot({ path: process.env.SHOT_SS.replace(/\.png$/, '-row.png') });
+  await page.click('.hs-row .hs-share');
+  await page.waitForSelector('#ss-share .ss-img');
+  assert.equal(await page.locator('.hs-row.open').count(), 0, 'le bouton n\'ouvre pas la carte de la séance');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

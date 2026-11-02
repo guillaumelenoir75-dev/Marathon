@@ -903,7 +903,8 @@ function renderHome(){
       row.className='hs-row'+(skip?' skip':''); row.style.setProperty('--c',skip?'#C0392B':typeC);
       row.setAttribute('role','button'); row.setAttribute('aria-expanded','false');
       row.onclick=()=>{homeSessToggle(row);row.setAttribute('aria-expanded',row.classList.contains('open')?'true':'false');};
-      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km':'')))+'</span>'+(pf.auto&&!pf.rpe&&!pf.feelSkip?'<button type="button" class="hs-feel" onclick="event.stopPropagation();avFeelOpen(\'extra_w'+w+'_s'+ei+'\')">🤖 ressenti ?</button>':pf.auto?'<span class="hs-d" title="Validée automatiquement">🤖</span>':'')+(dd?'<span class="hs-d">'+dd+'</span>':'')+'<span class="hs-ch">›</span>';
+      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km':'')))+'</span>'+(pf.auto&&!pf.rpe&&!pf.feelSkip?'<button type="button" class="hs-feel" onclick="event.stopPropagation();avFeelOpen(\'extra_w'+w+'_s'+ei+'\')">🤖 ressenti ?</button>':pf.auto?'<span class="hs-d" title="Validée automatiquement">🤖</span>':'')+(dd?'<span class="hs-d">'+dd+'</span>':'')+(!skip&&typeof openSessionShare==='function'?'<button type="button" class="hs-share" aria-label="Image de la séance à partager" title="Partager la séance" onclick="event.stopPropagation();openSessionShare(\'extra_w'+w+'_s'+ei+'\')">📸</button>':'')+'<span class="hs-ch">›</span>';
+      if(!skip&&typeof _wsCss==='function') _wsCss();
       div.style.display='none';
       el.appendChild(row);
     }
@@ -1579,6 +1580,7 @@ async function saveValidationExtra(w,ei){
   if(isAdmin()){ closeModal(); window._lastValidatedPerf=(()=>{try{return JSON.parse(state[k+'_perf']||'{}');}catch(e){return perf;}})(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
   if(typeof prAfterValidation==='function') prAfterValidation();   // ajustements du plan proposés (plan-optim.js)
+  if(typeof ssOffer==='function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance » (week-share.js)
 }
 
 // ── MODIFICATION MANUELLE DE L'ALLURE EF ─────────────────────────────────────

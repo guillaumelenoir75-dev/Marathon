@@ -304,11 +304,11 @@ function wsGo(d){
 function wsGoCurrent(){ if(!_wsNav) return; const i = _wsNav.list.indexOf(_wsNav.cur); if(i < 0) return; _wsNav.i = i; _wsSet(wsDataFor(_wsNav.cur, _wsNav.today)); _wsNavRender(); }
 function _wsName(){ return 'semaine-' + (_wsData ? _wsData.w : '') + (_wsData && _wsData.mode === 'plan' && !_wsData.now ? '-a-venir' : '') + '.png'; }
 // image → fichier, sans attente (data URL décodée sur place)
-function _wsFileOf(url){
+function _wsFileOf(url, name){
   try {
     const bin = atob(String(url).split(',')[1] || ''), u = new Uint8Array(bin.length);
     for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    return new File([u], _wsName(), { type: 'image/png' });
+    return new File([u], name || _wsName(), { type: 'image/png' });
   } catch(e) { return null; }
 }
 function _wsIos(){ return typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)); }
@@ -351,6 +351,170 @@ function _wsCss(){
     + '.ws-img{display:block;width:auto;max-width:100%;max-height:66vh;aspect-ratio:9/16;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}.ws-btns{display:flex;gap:8px;width:100%;max-width:420px;}'
     + '.ws-b{flex:1;padding:12px;border-radius:14px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}.ws-b.main{background:#6366F1;border-color:#6366F1;}'
     + '.ws-n{font-size:11px;color:rgba(255,255,255,.55);text-align:center;margin:0;max-width:420px;}'
+    + '.ss-img{display:block;width:100%;max-width:420px;aspect-ratio:1/1;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}'
+    + '#ss-offer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:10050;display:flex;align-items:center;gap:4px;background:#0F172A;border-radius:24px;padding:4px 4px 4px 4px;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:calc(100vw - 32px);}'
+    + '#ss-offer .ss-go{border:none;background:linear-gradient(90deg,#10B981,#6366F1);color:#fff;font:inherit;font-size:14px;font-weight:800;padding:10px 16px;border-radius:20px;cursor:pointer;white-space:nowrap;}#ss-offer .ss-go span{opacity:.8;}'
+    + '#ss-offer .ss-no{border:none;background:transparent;color:rgba(255,255,255,.7);font-size:20px;width:34px;height:34px;cursor:pointer;}'
+    + '.hs-share{border:none;background:#EEF2FF;color:#4338CA;border-radius:20px;padding:3px 8px;font-size:12px;line-height:1.2;cursor:pointer;flex-shrink:0;font-family:inherit;}'
     + '.ws-home{display:block;width:100%;text-align:left;margin-top:8px;border-radius:12px;padding:9px 12px;font-size:12.5px;border:1px solid #C7D2FE;background:linear-gradient(90deg,#EEF2FF,#F5F3FF);color:#3730A3;cursor:pointer;font-family:inherit;}';
   document.head.appendChild(st);
+}
+
+
+// ─── « 📸 Ta séance en image » : image CARRÉE (1080 × 1080, à publier sur Strava) d'une séance VALIDÉE, même style que la semaine ───
+// sessionShareData(key) : données (testable, null si la séance n'est pas faite) ; openSessionShare(key) : aperçu + partage ;
+// bouton 📸 sur la ligne de la séance faite (accueil) ; proposition « 📸 Image de ta séance » juste après chaque validation (ssOffer)
+function sessionShareData(key, today){
+  today = today || prTodayIso();
+  const s = prSessions(typeof prRealState === 'function' ? prRealState() : state).find(function(x){ return x.key === key; });
+  if(!s || !s.done || s.skip) return null;
+  const p = s.perf || {}, sv = p.strava || {};
+  const W = prWeeks(state, today), total = Object.keys(W).map(Number).reduce(function(a, b){ return Math.max(a, b); }, 0);
+  const splits = (sv.splits || []).filter(function(x){ return x && x.allure && (!x.distanceKm || x.distanceKm >= 0.5); })
+    .map(function(x){ return { km: x.km, sec: prPaceSec(x.allure), fc: x.fc || null, part: x.distanceKm && x.distanceKm < 0.95 ? x.distanceKm : null }; }).filter(function(x){ return x.sec; });
+  const blocs = (p.blocsAllure || []).filter(Boolean).map(function(b){ return String(b).replace(':', "'"); });
+  const R = typeof prepRace === 'function' ? prepRace() : null, dR = R && R.date && s.date ? prDays(s.date, R.date) : null;
+  const r1 = function(v){ return v != null && isFinite(v) ? Math.round(v * 10) / 10 : null; };
+  let title = s.title; try { if(typeof normalizeSessionTitle === 'function') title = normalizeSessionTitle(s.title, s.type, s.detail) || s.title; } catch(e) {}   // même nom que l'accueil
+  return { key: key, w: s.w, total: total, type: s.type, title: title, detail: String(s.detail || '').trim(), date: s.date, km: s.km, kmPlan: s.kmPlan,
+    dur: p.dur && typeof prTimeSec === 'function' ? prTimeSec(p.dur) : null, pace: p.pace ? String(p.pace).replace(':', "'") : null, hr: p.hr || null, hrMax: sv.fcMax || null,
+    cad: sv.cadence || null, up: sv.denivele_pos != null ? sv.denivele_pos : null, temp: p.meteo && typeof p.meteo.temperature === 'number' ? Math.round(p.meteo.temperature) : null,
+    cond: p.meteo ? String(p.meteo.conditions || '') : '', strain: p.whoop && p.whoop.workout_strain != null ? r1(p.whoop.workout_strain) : null,
+    rpe: p.rpe || null, splits: splits, blocs: blocs, official: p.official || null, who: _wsAthlete(), goal: _wsGoal(R),
+    race: R && R.date && dR != null && dR >= 0 ? { name: R.name, days: dR } : null, prep: R && R.name ? R.name : '' };
+}
+const SS_TYPE_LBL = { ef: 'FOOTING EF', long: 'SORTIE LONGUE', tempo: 'TEMPO', frac: 'FRACTIONNÉ', race: 'COURSE' };
+function ssDraw(D){
+  const S = 1080, c = document.createElement('canvas'); c.width = S; c.height = S;
+  const g = c.getContext('2d'), F = 'system-ui, -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif', M = 64;
+  const A1 = WS_TYPE_COL[D.type] || '#34D399', A2 = '#818CF8';
+  const sp = function(px){ try { g.letterSpacing = px + 'px'; } catch(e) {} };
+  const txt = function(t, x, y, size, col, w, align, ls){ sp(ls || 0); g.font = (w || 600) + ' ' + size + 'px ' + F; g.fillStyle = col; g.textAlign = align || 'left'; g.fillText(t, x, y); sp(0); };
+  const fit = function(t, size, w, max){ t = String(t || ''); g.font = w + ' ' + size + 'px ' + F; while(g.measureText(t).width > max && t.length > 4) t = t.slice(0, -2) + '…'; return t; };
+  const width = function(t, size, w, ls){ sp(ls || 0); g.font = w + ' ' + size + 'px ' + F; const v = g.measureText(t).width; sp(0); return v; };
+  const alpha = function(hex, a){ const n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; };
+  const grad = function(x0, y0, x1, y1){ const q = g.createLinearGradient(x0, y0, x1, y1); q.addColorStop(0, A1); q.addColorStop(1, A2); return q; };
+  const pace = function(sec){ return Math.floor(sec / 60) + "'" + String(Math.round(sec % 60)).padStart(2, '0'); };
+  // fond : nuit, halos, lignes de niveau (comme la carte de la semaine)
+  const bg = g.createLinearGradient(0, 0, S * 0.4, S); bg.addColorStop(0, '#070D24'); bg.addColorStop(0.55, '#121A44'); bg.addColorStop(1, '#1D1240'); g.fillStyle = bg; g.fillRect(0, 0, S, S);
+  const halo = function(x, y, r, hex, a){ const h = g.createRadialGradient(x, y, 10, x, y, r); h.addColorStop(0, alpha(hex, a)); h.addColorStop(1, alpha(hex, 0)); g.fillStyle = h; g.fillRect(0, 0, S, S); };
+  halo(960, 160, 560, A1, 0.26); halo(80, 980, 600, A2, 0.20);
+  g.lineWidth = 2; const seed = (D.w || 1) * 2.3 + (D.km || 0);
+  for(let i = 0; i < 13; i++){
+    const y0 = -40 + i * 90, ph = seed + i * 0.77, amp = 22 + (i % 4) * 8;
+    g.strokeStyle = 'rgba(255,255,255,' + (i % 4 === 0 ? 0.07 : 0.035) + ')'; g.beginPath();
+    for(let x = -20; x <= S + 20; x += 18){ const y = y0 + amp * Math.sin(x / 200 + ph) + 14 * Math.sin(x / 79 + ph * 1.7); if(x === -20) g.moveTo(x, y); else g.lineTo(x, y); }
+    g.stroke();
+  }
+  // en-tête : semaine + type de séance
+  const pill = function(t, x, y, fill, stroke, color, align){ const w = width(t, 24, 800, 3) + 40, x0 = align === 'right' ? x - w : x;
+    g.fillStyle = fill; _wsRound(g, x0, y, w, 50, 25); g.fill(); if(stroke){ g.strokeStyle = stroke; g.lineWidth = 2; _wsRound(g, x0 + 1, y + 1, w - 2, 48, 24); g.stroke(); }
+    txt(t, x0 + w / 2, y + 34, 24, color, 800, 'center', 3); };
+  pill(('Semaine ' + D.w + (D.total ? ' / ' + D.total : '')).toUpperCase(), M, 60, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.18)', '#E2E8F0');
+  pill('✓ ' + (SS_TYPE_LBL[D.type] || 'SÉANCE'), S - M, 60, grad(S - 380, 0, S - M, 0), null, '#0B1020', 'right');
+  if(D.prep) txt(fit(D.prep.toUpperCase(), 24, 700, S - 2 * M), M, 160, 24, 'rgba(255,255,255,0.55)', 700, 'left', 4);
+  txt(fit(D.title, 62, 900, S - 2 * M), M, 230, 62, '#FFFFFF', 900);
+  const dTxt = D.date ? new Date(D.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  txt(fit([D.who, dTxt].filter(Boolean).join('  ·  '), 30, 600, S - 2 * M), M + 2, 278, 30, 'rgba(255,255,255,0.72)', 600);
+  if(D.detail) txt(fit('Consigne : ' + D.detail, 26, 600, S - 2 * M), M + 2, 320, 26, 'rgba(255,255,255,0.5)', 600);
+  // héros : km en dégradé ; à droite durée, allure, FC (ou temps officiel d'une course)
+  const big = _wsKm(D.km), bigW = Math.min(470, width(big, 190, 900));
+  g.save(); g.font = '900 190px ' + F; g.textAlign = 'left'; g.fillStyle = grad(M, 360, M + bigW, 540); g.shadowColor = alpha(A1, 0.45); g.shadowBlur = 36; g.fillText(big, M - 4, 520); g.restore();
+  txt('km', M + bigW + 12, 520, 56, 'rgba(255,255,255,0.9)', 800);
+  const stats = [];
+  if(D.official) stats.push(['TEMPS OFFICIEL', D.official]);
+  if(D.dur) stats.push(['DURÉE', _wsDur(D.dur, true)]);
+  if(D.pace) stats.push(['ALLURE', D.pace + ' /km']);
+  if(D.hr) stats.push(['FC MOY.', D.hr + ' bpm']);
+  stats.slice(0, 3).forEach(function(st, i){ const y = 400 + i * 62; txt(st[0], S - M, y - 30, 18, 'rgba(255,255,255,0.5)', 800, 'right', 3); txt(st[1], S - M, y + 4, 36, '#FFFFFF', 800, 'right'); });
+  // détail : blocs (fractionné, tempo) ou allure kilomètre par kilomètre
+  const top = 600, bot = 820;
+  if(D.blocs.length){
+    txt('BLOCS', M, top, 22, 'rgba(255,255,255,0.5)', 800, 'left', 4);
+    const n = Math.min(D.blocs.length, 8), cols = n > 4 ? 4 : n, rows = Math.ceil(n / cols), gw = 14, bw = (S - 2 * M - gw * (cols - 1)) / cols, bh = rows > 1 ? 86 : 120;
+    D.blocs.slice(0, 8).forEach(function(b, i){ const r = Math.floor(i / cols), k = i % cols, x = M + k * (bw + gw), y = top + 22 + r * (bh + 14);
+      g.fillStyle = alpha(A1, 0.16); _wsRound(g, x, y, bw, bh, 22); g.fill(); g.strokeStyle = alpha(A1, 0.55); g.lineWidth = 2; _wsRound(g, x + 1, y + 1, bw - 2, bh - 2, 21); g.stroke();
+      txt('Bloc ' + (i + 1), x + bw / 2, y + (rows > 1 ? 30 : 40), 20, 'rgba(255,255,255,0.6)', 700, 'center');
+      txt(b + ' /km', x + bw / 2, y + (rows > 1 ? 68 : 88), rows > 1 ? 32 : 38, '#FFFFFF', 900, 'center'); });
+  } else if(D.splits.length >= 2){
+    txt('ALLURE PAR KM', M, top, 22, 'rgba(255,255,255,0.5)', 800, 'left', 4);
+    const L = D.splits.slice(0, 30), n = L.length, gw = n > 20 ? 4 : 8, bw = (S - 2 * M - gw * (n - 1)) / n;
+    const secs = L.map(function(x){ return x.sec; }), mn = Math.min.apply(null, secs), mx = Math.max.apply(null, secs), base = bot, hMax = 170;
+    const best = secs.indexOf(mn);
+    L.forEach(function(x, i){ const h = 36 + (mx > mn ? (mx - x.sec) / (mx - mn) : 0.6) * (hMax - 36), xx = M + i * (bw + gw);
+      const q = g.createLinearGradient(0, base - h, 0, base); q.addColorStop(0, i === best ? A1 : alpha(A1, 0.85)); q.addColorStop(1, alpha(A2, 0.55));
+      g.fillStyle = x.part ? alpha(A1, 0.3) : q; _wsRound(g, xx, base - h, bw, h, Math.min(14, bw / 2)); g.fill();
+      if(n <= 12 || i === best) txt(pace(x.sec), xx + bw / 2, base - h - 12, n <= 12 ? 22 : 24, i === best ? '#FFFFFF' : 'rgba(255,255,255,0.7)', 800, 'center');
+      if(n <= 15 || (i + 1) % 5 === 0) txt(String(x.km || i + 1), xx + bw / 2, base + 30, 20, 'rgba(255,255,255,0.5)', 700, 'center'); });
+  } else {
+    g.fillStyle = 'rgba(255,255,255,0.06)'; _wsRound(g, M, top - 20, S - 2 * M, 160, 28); g.fill();
+    txt(fit(D.detail || D.title, 34, 800, S - 2 * M - 60), S / 2, top + 50, 34, '#FFFFFF', 800, 'center');
+    txt(D.kmPlan ? 'prévu ' + _wsKm(D.kmPlan) + ' km · fait ' + _wsKm(D.km) + ' km' : '', S / 2, top + 100, 26, 'rgba(255,255,255,0.6)', 600, 'center');
+  }
+  // pastilles : météo, effort WHOOP, ressenti, cadence, dénivelé
+  const chips = [];
+  if(D.temp != null) chips.push('🌡 ' + D.temp + '°');
+  if(D.strain != null) chips.push('⚡ WHOOP ' + String(D.strain).replace('.', ','));
+  if(D.rpe) chips.push('💪 effort ' + D.rpe + '/10');
+  if(D.cad) chips.push('👟 ' + D.cad + ' pas/min');
+  if(D.up != null && D.up >= 20) chips.push('⛰ ' + D.up + ' m D+');
+  if(chips.length){
+    const L = chips.slice(0, 4), ws = L.map(function(t){ return width(t, 24, 700) + 40; }), gap = 12, tot = ws.reduce(function(a, b){ return a + b; }, 0) + gap * (L.length - 1);
+    let x = Math.max(M, (S - tot) / 2); const y = 878;
+    L.forEach(function(t, i){ g.fillStyle = 'rgba(255,255,255,0.08)'; _wsRound(g, x, y, ws[i], 54, 27); g.fill(); txt(t, x + ws[i] / 2, y + 36, 24, 'rgba(255,255,255,0.92)', 700, 'center'); x += ws[i] + gap; });
+  }
+  // pied : course visée + signature
+  if(D.race) txt(fit((D.race.days === 0 ? 'Jour J' : 'J-' + D.race.days) + '  ·  ' + D.race.name + (D.goal ? '  ·  objectif ' + D.goal : ''), 26, 700, S - 2 * M - 260), M, 1010, 26, 'rgba(255,255,255,0.75)', 700);
+  txt((typeof planBrand === 'function' ? planBrand() : 'Plan course').toUpperCase(), S - M, 1010, 22, 'rgba(255,255,255,0.42)', 800, 'right', 5);
+  return c;
+}
+let _ssData = null, _ssUrl = null, _ssFile = null;
+function _ssName(){ return 'seance-' + (_ssData && _ssData.date ? _ssData.date : '') + '.png'; }
+function openSessionShare(key){
+  _wsCss();
+  const D = sessionShareData(key);
+  if(!D){ if(typeof showToast === 'function') showToast('Valide la séance pour créer son image', '📸'); return; }
+  _ssData = D; _ssUrl = ssDraw(D).toDataURL('image/png'); _ssFile = _wsFileOf(_ssUrl, _ssName());
+  const old = document.getElementById('ss-share'); if(old) old.remove();
+  const off = document.getElementById('ss-offer'); if(off) off.remove();
+  const can = (function(){ try { return !!(_ssFile && navigator.share && navigator.canShare && navigator.canShare({ files: [_ssFile] })); } catch(e) { return false; } })(), ios = _wsIos();
+  const mc = document.getElementById('modal-container'), ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ss-share'; ov.style.zIndex = '760'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.6)');
+  const dTxt = D.date ? new Date(D.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="ws-head"><div class="ws-lbl" style="align-items:flex-start;"><b>📸 Ta séance en image</b><span>' + prEsc(D.title) + (dTxt ? ' · ' + prEsc(dTxt) : '') + '</span></div>'
+    + '<button class="ws-x" onclick="document.getElementById(\'ss-share\').remove()" aria-label="Fermer">×</button></div>'
+    + '<div class="modal-scroll-body" style="background:#0F172A;"><div style="padding:14px 16px 22px;display:flex;flex-direction:column;gap:12px;align-items:center;">'
+    + '<img class="ss-img" alt="' + prEsc(D.title + ' : ' + _wsKm(D.km) + ' km' + (D.pace ? ' à ' + D.pace + ' /km' : '')) + '" src="' + _ssUrl + '">'
+    + '<div class="ws-btns">' + (can ? '<button class="ws-b main" onclick="ssShare()">Partager</button>' : '') + '<button class="ws-b' + (can ? '' : ' main') + '" onclick="ssDownload()">' + (ios ? 'Enregistrer' : 'Télécharger') + '</button></div>'
+    + '<p class="ws-n">Format carré, prêt pour Strava' + (ios ? ' · ou appui long sur l\'image › « Enregistrer dans Photos »' : '') + '</p></div></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+  mc.appendChild(ov);
+}
+function ssShare(){
+  const ok = (function(){ try { return !!(_ssFile && navigator.share && navigator.canShare && navigator.canShare({ files: [_ssFile] })); } catch(e) { return false; } })();
+  if(!ok) return ssDownload();
+  navigator.share({ files: [_ssFile], title: _ssData.title, text: _ssData.title + ' : ' + _wsKm(_ssData.km) + ' km 🏃' })
+    .catch(function(e){ if(e && e.name !== 'AbortError' && typeof showToast === 'function') showToast('Partage impossible : appui long sur l\'image pour l\'enregistrer', '📸'); });
+}
+function ssDownload(){
+  if(!_ssUrl) return;
+  if(_wsIos()){
+    try { if(_ssFile && navigator.share && navigator.canShare && navigator.canShare({ files: [_ssFile] })) return ssShare(); } catch(e) {}
+    if(typeof showToast === 'function') showToast('Appui long sur l\'image › « Enregistrer dans Photos »', '📸');
+    return;
+  }
+  let href = _ssUrl, rev = null;
+  try { if(_ssFile && URL.createObjectURL){ href = rev = URL.createObjectURL(_ssFile); } } catch(e) {}
+  const a = document.createElement('a'); a.download = _ssName(); a.href = href; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+  if(rev) setTimeout(function(){ URL.revokeObjectURL(rev); }, 4000);
+}
+// juste après une validation : petite proposition en bas de l'écran (15 s), seulement si la séance est bien validée
+function ssOffer(key){
+  if(typeof document === 'undefined' || !sessionShareData(key)) return;
+  _wsCss();
+  const old = document.getElementById('ss-offer'); if(old) old.remove();
+  const b = document.createElement('div'); b.id = 'ss-offer'; b.setAttribute('role', 'status');
+  b.innerHTML = '<button type="button" class="ss-go" onclick="openSessionShare(\'' + key + '\')">📸 Image de ta séance <span>›</span></button><button type="button" class="ss-no" aria-label="Fermer" onclick="this.parentNode.remove()">×</button>';
+  document.body.appendChild(b);
+  setTimeout(function(){ if(b.parentNode) b.remove(); }, 15000);
 }
