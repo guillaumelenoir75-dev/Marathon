@@ -1550,13 +1550,9 @@ async function saveValidationExtra(w,ei){
   // Météo — identique à saveValidation : await + sched_time de la séance extra
   let meteoSeance=window._meteoValidationData||null;
   window._meteoValidationData=null;
-  if(!meteoSeance){
-    if(_weatherCache&&Date.now()-_weatherCacheTs<2*60*60*1000){
-      meteoSeance=_weatherCache;
-    } else {
-      const _seanceHeure=sExtra.sched_time||null;
-      meteoSeance=await fetchWeatherIfGranted(_seanceHeure,dateVal||null);
-    }
+  if(!meteoSeance&&typeof meteoForSession==='function'){
+    // rien d'importé : météo de la séance (date + heure prévue) à la position enregistrée — jamais de demande de localisation
+    try{ meteoSeance=await meteoForSession({ date:dateVal||null, hour:sExtra.sched_time||null, noPrompt:true }); }catch(e){ meteoSeance=null; }
   }
   // Sauvegarder la météo dans perf pour l'affichage dans Stats
   if(meteoSeance){

@@ -194,6 +194,29 @@ async function _getCityFromCoords(lat, lng) {
   }
 }
 
+// météo d'une séance, sans demander la localisation quand c'est possible :
+// 1. sortie Strava connue → relevé au point de départ GPS de la sortie, à son heure (fonction autoValidateNow, mode fill,
+//    même contrôle que la validation automatique : la météo doit porter l'identifiant de CETTE sortie) ;
+// 2. sinon position enregistrée (< 12 h, ou GPS du téléphone une fois ; o.noPrompt : jamais) à la date et l'heure de la séance
+async function meteoForSession(o) {
+  o = o || {};
+  const n = new Date(), today = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+  const date = o.date || today;
+  if (o.activityId && o.key && typeof _avFillCall === 'function') {
+    try {
+      const r = await _avFillCall({ fill: true, key: o.key, date: date, activityId: String(o.activityId) });
+      const m = r && r.fill && r.fill.meteo;
+      if (m && String(m.actId) === String(o.activityId)) { m.source = 'strava_gps'; return m; }
+    } catch(e) {}
+  }
+  if (typeof meteoPosition !== 'function' || typeof meteoAt !== 'function') return null;
+  const pos = await meteoPosition(12, { noPrompt: !!o.noPrompt });
+  if (!pos) return null;
+  const m = await meteoAt(pos.lat, pos.lng, date, o.hour || (date === today ? String(n.getHours()) + ':00' : '12:00'));
+  if (m) { try { m.ville = await _getCityFromCoords(pos.lat, pos.lng); } catch(e) {} }
+  return m;
+}
+
 async function importMeteoValidation() {
   const btn = document.getElementById('meteo-val-btn');
   const preview = document.getElementById('meteo-val-preview');
@@ -229,7 +252,7 @@ async function importMeteoValidation() {
           <div style="${pulseStyle}width:80px;height:22px;"></div>
           <div style="${pulseStyle}width:120px;height:22px;"></div>
         </div>
-        <div style="margin-top:8px;font-size:10px;color:#888;">📍 Localisation en cours…</div>`;
+        <div style="margin-top:8px;font-size:10px;color:#888;">🌡️ Météo de ta sortie…</div>`;
     } else if (step === 2) {
       preview.innerHTML = preview.innerHTML.replace(
         '📍 Localisation en cours…',
@@ -239,45 +262,28 @@ async function importMeteoValidation() {
   }
 
   // ── Démarrer ──────────────────────────────────────────────────────────────
-  btn.innerHTML = SVG_SUN + ' <span style="opacity:0.7">Localisation…</span>';
+  btn.innerHTML = SVG_SUN + ' <span style="opacity:0.7">Météo…</span>';
   btn.disabled = true;
   showSkeleton(1);
 
   try {
-    const pos = await _getPosition();
-    if (!pos) {
-      if (preview) {
-        preview.innerHTML = '<div style="text-align:center;padding:10px;color:#999;font-size:12px;">📍 Géolocalisation refusée — autorise-la dans les réglages du navigateur</div>';
-      }
-      btn.innerHTML = SVG_SUN + ' Météo';
-      btn.style.background = '#0C447C';
-      btn.disabled = false;
-      return;
-    }
-
-    // Étape 2 : on a la position, on fetch météo + ville
-    btn.innerHTML = SVG_SUN + ' <span style="opacity:0.7">Météo…</span>';
-    showSkeleton(2);
-
-    const { lat, lng } = pos;
-    const [city, meteo] = await Promise.all([
-      _getCityFromCoords(lat, lng),
-      fetchWeatherForContext(lat, lng)
-    ]);
-
+    // météo de la SÉANCE (pas celle de maintenant ici) : point de départ Strava (serveur), sinon position enregistrée
+    // — le GPS du téléphone n'est demandé que si aucune position récente n'est connue
+    const ctx = window._currentValidationSession || {}, A = window._stravaActivityData;
+    const dEl = document.getElementById('val-date');
+    const meteo = await meteoForSession({ key: ctx.isExtra ? 'extra_w' + ctx.ws + '_s' + ctx.ei : null, date: dEl && dEl.value ? dEl.value : null,
+      hour: (A && A.start) || (ctx.s && ctx.s.sched_time) || null, activityId: A && A.activityId });
     if (!meteo) {
       if (preview) {
         preview.style.display = 'block';
-        preview.innerHTML = '<div style="text-align:center;padding:10px;color:#999;font-size:12px;">📡 Réseau indisponible — <span onclick="importMeteoValidation()" style="color:#0C447C;cursor:pointer;text-decoration:underline;font-weight:600;">Réessayer ↺</span></div>';
+        preview.innerHTML = '<div style="text-align:center;padding:10px;color:#999;font-size:12px;">📡 Météo indisponible — <span onclick="importMeteoValidation()" style="color:#0C447C;cursor:pointer;text-decoration:underline;font-weight:600;">Réessayer ↺</span></div>';
       }
       btn.innerHTML = SVG_SUN + ' Météo';
       btn.style.background = '#0C447C';
       btn.disabled = false;
       return;
     }
-
-    meteo.ville = city;
-    meteo.coordonnees = { lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000 };
+    const city = meteo.ville || 'Lieu de ta sortie';
     window._meteoValidationData = meteo;
 
     // ── Couleurs & labels impact ────────────────────────────────────────────
@@ -726,15 +732,14 @@ async function importMeteoForPerfEditExtra(ws, ei) {
   const btn = document.getElementById('meteo-pedit-btn');
   if (btn) { btn.textContent = '⏳ Météo…'; btn.disabled = true; }
   try {
-    const pos = await _getPosition();
-    if (!pos) { if (btn) { btn.textContent = 'Météo'; btn.disabled = false; } return; }
-    const { lat, lng } = pos;
-    const [city, meteo] = await Promise.all([_getCityFromCoords(lat, lng), fetchWeatherForContext(lat, lng)]);
-    if (!meteo) { if (btn) { btn.textContent = 'Météo'; btn.disabled = false; } return; }
-    meteo.ville = city;
-    meteo.coordonnees = { lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000 };
     const ek = `extra_w${ws}_s${ei}`;
     let existing = {}; try { existing = state[ek+'_perf'] ? JSON.parse(state[ek+'_perf']) : {}; } catch(e) {}
+    let x = {}; try { x = JSON.parse(state[ek] || '{}'); } catch(e) {}
+    const dEl = document.getElementById('pedit-date');
+    // météo de la séance : point de départ Strava de la sortie rattachée, sinon position enregistrée, à l'heure de la séance
+    const meteo = await meteoForSession({ key: ek, date: (dEl && dEl.value) || String(existing.date || '').slice(0, 10) || null, hour: x.sched_time || null, activityId: existing.strava_id || null });
+    if (!meteo) { if (btn) { btn.textContent = 'Météo'; btn.disabled = false; } return; }
+    const city = meteo.ville || 'Lieu de ta sortie';
     existing.meteo = meteo;
     state[ek+'_perf'] = JSON.stringify(existing);
     if (dbRef) dbRef.child(ek+'_perf').set(state[ek+'_perf']).catch(()=>{});

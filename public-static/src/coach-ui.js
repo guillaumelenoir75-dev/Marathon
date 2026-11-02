@@ -169,7 +169,7 @@ async function sendCoachMeteo() {
   if (chip) { chip.textContent = '📍…'; chip.style.opacity = '0.6'; chip.disabled = true; }
 
   try {
-    const pos = await _getPosition();
+    const pos = await meteoPosition(12);   // position enregistrée < 12 h : pas de nouvelle demande de localisation
     if (!pos) {
       resetChip();
       const inp = document.getElementById('coach-input');
@@ -181,7 +181,7 @@ async function sendCoachMeteo() {
     const { lat, lng } = pos;
     const [city, meteo] = await Promise.all([
       _getCityFromCoords(lat, lng),
-      fetchWeatherForContext(lat, lng)
+      meteoAt(lat, lng, (() => { const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0'); })(), String(new Date().getHours()) + ':00')
     ]);
     resetChip();
 

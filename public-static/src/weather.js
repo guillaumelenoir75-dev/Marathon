@@ -85,13 +85,11 @@ async function _getPosition() {
         _posCache = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         _posCacheTs = Date.now();
         // Persister dans Firebase avec timestamp — valable 30 jours
+        const _loc = { lat: Math.round(pos.coords.latitude*1000)/1000, lng: Math.round(pos.coords.longitude*1000)/1000, ts: Date.now() };
+        if (typeof state !== 'undefined' && state) state._last_location = _loc;   // gardée en mémoire : pas de nouvelle demande avant 12 h (meteoPosition)
         if (typeof dbRef !== 'undefined' && dbRef) {
           dbRef.child('_geo_granted').set(true).catch(()=>{});
-          dbRef.child('_last_location').set({
-            lat: Math.round(pos.coords.latitude*1000)/1000,
-            lng: Math.round(pos.coords.longitude*1000)/1000,
-            ts: Date.now()
-          }).catch(()=>{});
+          dbRef.child('_last_location').set(_loc).catch(()=>{});
         }
         resolve(_posCache);
       },
@@ -137,6 +135,48 @@ async function _getPosition() {
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 1800000 }
     );
   });
+}
+
+// ── Position pour la météo SANS redemander la localisation à chaque appui ───────────────────────────────
+// (dans l'app installée, iOS redemande l'autorisation à CHAQUE appel au GPS) : mémoire 30 min → dernière position
+// enregistrée si elle a moins de maxAgeH heures → GPS du téléphone (une seule demande, position enregistrée) →
+// dernière position connue (30 j). opts.noPrompt : jamais de GPS (position enregistrée seulement). → {lat, lng, src}
+function _savedLocation() {
+  try {
+    const r = typeof state !== 'undefined' && state ? state._last_location : null;
+    const l = typeof r === 'string' ? JSON.parse(r) : r;
+    if (l && l.lat && l.lng && l.ts) return l;
+  } catch(e) {}
+  return null;
+}
+async function meteoPosition(maxAgeH, opts) {
+  opts = opts || {};
+  if (_posCache && Date.now() - _posCacheTs < 30 * 60 * 1000) return Object.assign({ src: 'cache' }, _posCache);
+  const saved = _savedLocation(), age = saved ? Date.now() - saved.ts : Infinity;
+  if (saved && age < (maxAgeH || 12) * 3600000) return { lat: saved.lat, lng: saved.lng, src: 'saved' };
+  if (!opts.noPrompt) { const p = await _getPosition(); if (p) return Object.assign({ src: 'gps' }, p); }
+  if (saved && age < 30 * 24 * 3600000) return { lat: saved.lat, lng: saved.lng, src: 'saved' };
+  return null;
+}
+// météo d'un lieu à une date et une heure données (« 12:30 ») : relevé horaire Open-Meteo, même forme que perf.meteo
+async function meteoAt(lat, lng, date, hour) {
+  if (lat == null || lng == null || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
+  const hm = String(hour || '').match(/^(\d{1,2})[:h](\d{2})?/);
+  const t = hm ? String(Math.min(23, +hm[1])).padStart(2, '0') + ':00' : String(new Date().getHours()).padStart(2, '0') + ':00';
+  const today = new Date(), iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  const diff = Math.round((Date.parse(iso + 'T12:00:00Z') - Date.parse(date + 'T12:00:00Z')) / 86400000);
+  const q = `latitude=${lat}&longitude=${lng}&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`;
+  const url = diff >= -1 && diff <= 80 ? `https://api.open-meteo.com/v1/forecast?${q}&past_days=${Math.max(1, Math.min(92, diff + 1))}&forecast_days=2`
+    : `https://archive-api.open-meteo.com/v1/archive?${q}&start_date=${date}&end_date=${date}`;
+  try {
+    let toId; const to = new Promise((_, rej) => { toId = setTimeout(() => rej(new Error('timeout')), 15000); });
+    const r = await Promise.race([fetch(url, { credentials: 'omit', cache: 'no-store', mode: 'cors' }), to]); clearTimeout(toId);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const m = typeof avMeteoFromHourly === 'function' ? avMeteoFromHourly(j.hourly, { date: date, t: t, lat: lat, lng: lng }) : null;
+    if (m) m.source = 'position';
+    return m;
+  } catch(e) { return null; }
 }
 
 async function _isGeolocationGranted() {
@@ -224,9 +264,9 @@ async function openHomeWeatherModal() {
   tmpOverlay.innerHTML = '<div class="modal-box" style="padding:32px 16px;text-align:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2" stroke-linecap="round" style="animation:_spin 1s linear infinite;margin:0 auto 12px;display:block;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg><p style="font-size:13px;color:#666;margin:0;">Récupération météo…</p></div>';
   mc.appendChild(tmpOverlay);
 
-  // Tenter d'obtenir position réelle (met à jour Firebase automatiquement)
-  const freshPos = await _getPosition();
-  if (freshPos && dbRef) {
+  // Position : celle enregistrée si elle a moins de 12 h (iOS redemanderait l'autorisation à chaque appui), sinon le GPS
+  const freshPos = await meteoPosition(12);
+  if (freshPos && freshPos.src === 'gps' && dbRef) {
     try {
       const city = await _getCityFromCoords(freshPos.lat, freshPos.lng);
       await dbRef.child('_last_location').set({
