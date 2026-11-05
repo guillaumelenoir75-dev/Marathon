@@ -451,10 +451,9 @@ function ssDraw(D){
     txt(fit(D.detail || D.title, 34, 800, S - 2 * M - 60), S / 2, top + 50, 34, '#FFFFFF', 800, 'center');
     txt(D.kmPlan ? 'prévu ' + _wsKm(D.kmPlan) + ' km · fait ' + _wsKm(D.km) + ' km' : '', S / 2, top + 100, 26, 'rgba(255,255,255,0.6)', 600, 'center');
   }
-  // pastilles : météo, ressenti, cadence, dénivelé (pas de donnée WHOOP sur l'image)
+  // pastilles : météo, cadence, dénivelé (ni donnée WHOOP ni effort ressenti sur l'image)
   const chips = [];
   if(D.temp != null) chips.push('🌡 ' + D.temp + '°');
-  if(D.rpe) chips.push('💪 effort ' + D.rpe + '/10');
   if(D.cad) chips.push('👟 cadence ' + D.cad);
   if(D.up != null && D.up >= 20) chips.push('⛰ ' + D.up + ' m D+');
   if(chips.length){
