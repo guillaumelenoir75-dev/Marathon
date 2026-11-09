@@ -574,6 +574,31 @@ test('Coach › « Mon plan » : plusieurs changements sur la même séance (con
   await ctx.close();
 });
 
+test('Compte › Calendrier : adresse + abonnement iPhone, contenu comparé au plan (identique, puis séance manquante signalée)', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  let drop = false, ev = [];
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: async (r) => {
+    const u = r.request().url();
+    if (/calendarToken/.test(u)) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ url: 'https://us-central1-prepa-marathon.cloudfunctions.net/calendar?token=abc' }) });
+    if (/\/calendar\?debug=1/.test(u)) {
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ count: ev.length, events: drop ? ev.slice(1) : ev, dups: [] }) });
+    }
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  } });
+  ev = await page.evaluate(() => prSessions(state).filter((s) => s.type !== 'rest' && !s.skip && s.date).map((s) => ({ key: s.key, date: s.date, time: s.x.sched_time || '09:00', title: s.title })));
+  assert.ok(ev.length > 3);
+  await page.evaluate(() => showCalendarUrl());
+  await page.waitForSelector('#cal-check :text("Identique à ton plan")', { timeout: 8000 });
+  assert.equal(await page.getAttribute('#cal-link a', 'href'), 'webcal://us-central1-prepa-marathon.cloudfunctions.net/calendar?token=abc');
+  assert.match(await page.textContent('#cal-check'), /À venir dans le calendrier/);
+  drop = true;
+  await page.evaluate(() => showCalendarUrl());
+  await page.waitForSelector('#cal-check :text("Écarts avec ton plan")', { timeout: 8000 });
+  assert.match(await page.textContent('#cal-check'), /Manquante : /);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamais la valeur de la veille', async () => {
   assert.ok(savedDb, 'dépend du test précédent');
   const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;

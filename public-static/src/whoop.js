@@ -483,25 +483,80 @@ async function onWakeupFromBanner() {
   });
 })();
 
+// Compte › « Abonnement calendrier » : adresse à copier (au toucher : l'iPhone refuse une copie lancée après une attente),
+// abonnement en un geste sur l'iPhone (webcal://) et contrôle du contenu réel du calendrier (fonction calendar ?debug=1),
+// comparé aux séances de l'app (prSessions) : séance manquante, en trop, date différente ou doublon signalés.
+let _calUrl = null;
 async function showCalendarUrl() {
-  const btn = document.getElementById('cal-url-btn');
-  const sub = btn ? btn.querySelector('p:last-child') : null;
-  if (sub) sub.textContent = 'Chargement…';
+  const mc = document.getElementById('modal-container'); if(!mc) return;
+  const old = document.getElementById('cal-modal'); if(old) old.remove();
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'cal-modal'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
+  ov.innerHTML = '<div class="modal-box" style="max-height:90vh;"><div style="flex-shrink:0;padding:16px;border-radius:24px 24px 0 0;color:#fff;background:linear-gradient(135deg,#15803D,#22C55E);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    + '<div><p style="font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8;margin:0;">Compte</p><p style="font-size:20px;font-weight:900;margin:2px 0;">📅 Calendrier</p><p style="font-size:12.5px;margin:0;opacity:.9;">Tes séances dans Calendrier, Google ou Outlook</p></div>'
+    + '<button onclick="document.getElementById(\'cal-modal\').remove()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;">×</button></div>'
+    + '<div class="modal-scroll-body" style="background:#F6FBF7;"><div style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px;font-size:13.5px;color:#14532D;line-height:1.45;">'
+    + '<div id="cal-link" style="background:#fff;border:1px solid #BBF7D0;border-radius:14px;padding:12px 14px;">⏳ Chargement de l\'adresse…</div>'
+    + '<div id="cal-check" style="background:#fff;border:1px solid #BBF7D0;border-radius:14px;padding:12px 14px;">⏳ Vérification du calendrier…</div>'
+    + '</div></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+  mc.appendChild(ov);
+  const token = await firebase.auth().currentUser.getIdToken();
+  const link = document.getElementById('cal-link'), chk = document.getElementById('cal-check');
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
-    const resp = await fetch(FUNCTIONS_BASE + '/calendarToken', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
+    const resp = await fetch(FUNCTIONS_BASE + '/calendarToken', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
     const data = await resp.json();
-    if (!data.url) throw new Error('Pas d\'URL');
-    await navigator.clipboard.writeText(data.url);
-    if (sub) sub.textContent = '✅ URL copiée !';
-    setTimeout(() => { if (sub) sub.textContent = 'Copier l\'URL pour Outlook / Google'; }, 3000);
-  } catch(e) {
-    if (sub) sub.textContent = 'Erreur : ' + e.message;
-    setTimeout(() => { if (sub) sub.textContent = 'Copier l\'URL pour Outlook / Google'; }, 3000);
+    if(!data.url) throw new Error(data.error || 'pas d\'adresse');
+    _calUrl = data.url;
+    if(link) link.innerHTML = '<p style="margin:0 0 8px;font-weight:800;">Adresse d\'abonnement</p>'
+      + '<p id="cal-url-txt" style="margin:0 0 10px;font-size:11.5px;word-break:break-all;color:#166534;background:#F0FDF4;border-radius:8px;padding:8px;">' + escHtmlCal(data.url) + '</p>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      + '<a href="' + escHtmlCal(data.url.replace(/^https:/, 'webcal:')) + '" style="flex:1;min-width:140px;text-align:center;padding:11px;border-radius:12px;background:#16A34A;color:#fff;font-weight:900;text-decoration:none;">📱 S\'abonner sur l\'iPhone</a>'
+      + '<button type="button" id="cal-copy" onclick="calCopyUrl(this)" style="flex:1;min-width:120px;padding:11px;border-radius:12px;border:1.5px solid #16A34A;background:#fff;color:#15803D;font-weight:900;font:inherit;cursor:pointer;">📋 Copier</button></div>'
+      + '<p style="margin:8px 0 0;font-size:11.5px;color:#4D7C0F;">Google / Outlook : « Ajouter par URL ». Mise à jour par ton agenda (Google : jusqu\'à 24 h).</p>';
+  } catch(e) { if(link) link.textContent = '❌ Adresse indisponible : ' + e.message; }
+  try {
+    const r = await fetch(FUNCTIONS_BASE + '/calendar?debug=1', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await r.json();
+    if(chk) chk.innerHTML = calCheckHtml(j, typeof prSessions === 'function' && !(typeof usesHardPlan === 'function' && usesHardPlan()) ? prSessions(state) : null, typeof prTodayIso === 'function' ? prTodayIso() : new Date().toISOString().slice(0, 10));
+  } catch(e) { if(chk) chk.textContent = '❌ Vérification impossible : ' + e.message; }
+}
+function escHtmlCal(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function calCopyUrl(btn){
+  if(!_calUrl) return;
+  const done = function(ok){ if(btn) btn.textContent = ok ? '✅ Copiée' : 'Appui long sur l\'adresse'; };
+  try { navigator.clipboard.writeText(_calUrl).then(function(){ done(true); }, function(){ done(false); }); } catch(e) { done(false); }
+}
+// comparaison calendrier (serveur) ↔ séances de l'app : même liste, mêmes dates
+function calCompare(cal, sessions){
+  const evs = (cal && cal.events || []).filter(function(e){ return e.key && /^extra_w/.test(e.key); });
+  const byKey = {}; evs.forEach(function(e){ byKey[e.key] = e; });
+  const want = (sessions || []).filter(function(s){ return s.type !== 'rest' && !s.skip && s.date; });
+  const dupSet = {}; (cal && cal.dups || []).forEach(function(d){ dupSet[d.key] = 1; });
+  const missing = [], moved = [];
+  want.forEach(function(s){ const e = byKey[s.key]; if(!e){ if(!dupSet[s.key]) missing.push(s); } else if(e.date !== s.date) moved.push({ s: s, e: e }); });
+  const keys = {}; want.forEach(function(s){ keys[s.key] = 1; });
+  const extra = evs.filter(function(e){ return !keys[e.key]; });
+  return { missing: missing, moved: moved, extra: extra, dups: (cal && cal.dups) || [], n: evs.length };
+}
+function calCheckHtml(cal, sessions, today){
+  if(!cal || !Array.isArray(cal.events)) return '❌ Réponse inattendue du calendrier.';
+  const day = function(d){ return new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }); };
+  const C = sessions ? calCompare(cal, sessions) : null;
+  const pb = C ? C.missing.length + C.moved.length + C.extra.length : 0;
+  let h = '<p style="margin:0 0 6px;font-weight:800;">' + (C && !pb ? '✅ Identique à ton plan' : C ? '⚠️ Écarts avec ton plan' : 'Contenu du calendrier') + ' · ' + cal.count + ' entrées</p>';
+  if(C){
+    C.missing.forEach(function(s){ h += '<p style="margin:2px 0;color:#B45309;">Manquante : ' + escHtmlCal(day(s.date) + ' · ' + s.title) + '</p>'; });
+    C.moved.forEach(function(x){ h += '<p style="margin:2px 0;color:#B45309;">Date différente : ' + escHtmlCal(x.s.title + ' · ' + day(x.e.date) + ' au lieu de ' + day(x.s.date)) + '</p>'; });
+    C.extra.forEach(function(e){ h += '<p style="margin:2px 0;color:#B45309;">En trop : ' + escHtmlCal(day(e.date) + ' · ' + e.title) + '</p>'; });
   }
+  (cal.dups || []).forEach(function(d){ h += '<p style="margin:2px 0;color:#B45309;">Doublon dans ton plan (affiché une fois) : ' + escHtmlCal(day(d.date) + ' · ' + d.title) + '</p>'; });
+  const next = cal.events.filter(function(e){ return e.date >= today; }).slice(0, 8);
+  if(next.length){
+    h += '<p style="margin:10px 0 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#4D7C0F;">À venir dans le calendrier</p>';
+    next.forEach(function(e){ h += '<p style="margin:2px 0;display:flex;gap:8px;"><span style="min-width:88px;color:#166534;font-variant-numeric:tabular-nums;">' + escHtmlCal(day(e.date) + ' ' + e.time) + '</span><span>' + escHtmlCal(e.title) + '</span></p>'; });
+  }
+  return h;
 }
 
 function openNotifTestModal() {
