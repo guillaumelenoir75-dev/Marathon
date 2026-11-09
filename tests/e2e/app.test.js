@@ -599,6 +599,26 @@ test('Compte › Calendrier : adresse + abonnement iPhone, contenu comparé au p
   await ctx.close();
 });
 
+test('Plan : séance faite un autre jour que prévu → jour réel affiché et rangée à ce jour', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  const { ctx, page, errors } = await open('2026-10-29T20:00:00+01:00', savedDb);
+  const r = await page.evaluate(() => {
+    const s = prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.type !== 'rest' && x.w === CW)[0];
+    const x = JSON.parse(state[s.key]);
+    x.sched_day = 5; x.sched_date = '2026-10-30'; x.sched_time = '12:00';   // prévue vendredi
+    state[s.key] = JSON.stringify(x); state[s.key + '_done'] = true; state[s.key + '_km'] = 6;
+    state[s.key + '_perf'] = JSON.stringify({ date: '2026-10-29', dur: '34:00', pace: "5'40" });     // faite jeudi
+    save(); openWeeks.add(CW); rendered.plan = false; showScreen('plan'); renderPlan();
+    const el = [...document.querySelectorAll('#plan-list *')].filter((e) => e.children.length === 0 && /34:00/.test(e.textContent))[0];
+    let card = el; for (let i = 0; i < 8 && card && !/12:00/.test(card.textContent); i++) card = card.parentElement;
+    return { txt: card ? card.textContent.replace(/\s+/g, ' ') : '', day: _sessDayOf(s.w, s.ei, x) };
+  });
+  assert.equal(r.day, 4, 'rangée au jeudi');
+  assert.match(r.txt, /Jeu 12:00/); assert.doesNotMatch(r.txt, /Ven 12:00/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamais la valeur de la veille', async () => {
   assert.ok(savedDb, 'dépend du test précédent');
   const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;

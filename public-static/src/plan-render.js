@@ -843,9 +843,12 @@ function renderAthletePlan(el){
         return dur?`<span style="font-size:10px;color:var(--muted);font-weight:500;">⏱ ~${dur}</span>`:'';
       })();
       const schedHtml=(()=>{
-        if(s.sched_day||s.sched_time){
+        // séance faite : jour RÉEL (perf.date) au lieu du jour prévu
+        const _pd=done&&perf&&perf.date&&/^\d{4}-\d{2}-\d{2}/.test(perf.date)?String(perf.date).slice(0,10):null;
+        const _sd=_pd?(function(){const d=new Date(_pd+'T12:00:00').getDay();return d===0?7:d;})():s.sched_day;
+        if(_sd||s.sched_time){
           const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-          return `<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[s.sched_day?days[s.sched_day]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
+          return `<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[_sd?days[_sd]:'',s.sched_time||''].filter(Boolean).join(' ')}</span>`;
         }
         // Afficher la date de l'onboarding si disponible
         const dateKey=state[`extra_w${ws}_s${eid}_date`];
@@ -1198,9 +1201,12 @@ function renderPlan(){
 
       // Horaire planifié
       let schedHtml='';
-      if(s2.sched_day||s2.sched_time){
+      // séance faite : jour RÉEL (perf.date), pas le jour prévu — faite lundi au lieu de mardi = « Lun »
+      let doneDay=null;
+      if(isDone){ try{ const pf=JSON.parse(state[`extra_w${w.s}_s${eid}_perf`]||'{}')||{}; if(pf.date&&/^\d{4}-\d{2}-\d{2}/.test(pf.date)&&typeof prWeekday==='function') doneDay=prWeekday(String(pf.date).slice(0,10)); }catch(e){} }
+      if(doneDay||s2.sched_day||s2.sched_time){
         const days=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-        const dayStr=s2.sched_day?days[s2.sched_day]:'';
+        const dayStr=doneDay?days[doneDay]:(s2.sched_day?days[s2.sched_day]:'');
         const timeStr=s2.sched_time||'';
         if(s2._src==='plan'){
           schedHtml=`<span style="font-size:10px;color:${typeC};font-weight:700;background:${typeBgC};padding:2px 8px;border-radius:10px;border:1px solid ${typeC}22;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>${[dayStr,timeStr].filter(Boolean).join(' ')}</span>`;

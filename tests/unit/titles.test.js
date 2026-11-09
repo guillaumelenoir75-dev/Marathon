@@ -42,15 +42,16 @@ test('Coach / MAJ du plan : consigne « sans accélération » → titre corrig�
   assert.equal(JSON.parse(st.extra_w2_s1).d, 'Footing EF|footing facile');
 });
 
-test('plan en cours : titres incohérents corrigés au lancement (séances à venir seulement), rien sinon', () => {
+test('plan en cours : titres incohérents corrigés au lancement (séances faites comprises, données intactes), rien sinon', () => {
   const st = synthPlan({ start: '2026-11-02', km: [24, 28] });
   st.extra_w2_s0 = JSON.stringify({ type: 'ef', km: 6, d: "Footing EF + accélérations|5'45 — 6'10 /km · très facile, sans accélération", sched_date: '2026-11-09', sched_day: 1 });
   st.extra_w1_s0 = JSON.stringify({ type: 'ef', km: 6, d: 'Footing EF + accélérations|sans accélération', sched_date: '2026-11-02', sched_day: 1 });
   st.extra_w1_s0_done = true; st.extra_w1_s0_km = 6;
   const app = loadApp({ now: NOW, state: st });
-  assert.equal(app.prTitlesCoherent(st), 1);
+  assert.equal(app.prTitlesCoherent(st), 2);
   assert.match(JSON.parse(st.extra_w2_s0).d, /^Footing EF\|/);
-  assert.match(JSON.parse(st.extra_w1_s0).d, /^Footing EF \+ accélérations\|/, 'séance faite : historique intact');
+  assert.match(JSON.parse(st.extra_w1_s0).d, /^Footing EF\|sans accélération$/, 'séance faite : titre accordé');
+  assert.equal(st.extra_w1_s0_km, 6, 'données de la séance faite intactes');
   assert.equal(app.prTitlesCoherent(st), 0, 'déjà cohérent');
 });
 

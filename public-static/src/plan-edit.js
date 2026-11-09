@@ -24,6 +24,11 @@ function getWeekTotalKm(ws){
   return Math.round(total*10)/10;
 }
 
+// jour de la séance dans la semaine (1 = lundi) : séance faite = jour RÉEL (perf.date), sinon jour prévu
+function _sessDayOf(ws, ei, s){
+  if(state[`extra_w${ws}_s${ei}_done`]){ try{ const pf=JSON.parse(state[`extra_w${ws}_s${ei}_perf`]||'{}')||{}; if(pf.date&&/^\d{4}-\d{2}-\d{2}/.test(pf.date)){ const d=new Date(String(pf.date).slice(0,10)+'T12:00:00').getDay(); return d===0?7:d; } }catch(e){} }
+  return (s&&+s.sched_day)||99;
+}
 function getOrderedWeekSessions(ws){
   {
     // Toutes les séances dans extra_w, triées par sched_day (ou ordre sauvegardé)
@@ -33,7 +38,7 @@ function getOrderedWeekSessions(ws){
     let savedOrd=null;try{const r=state[`order_w${ws}`];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
     let ordEis;
     if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
-    else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
+    else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return _sessDayOf(ws,a,sa)-_sessDayOf(ws,b,sb);});}
     const res=[];
     for(const eiV of ordEis){
       let s;try{s=JSON.parse(state[`extra_w${ws}_s${eiV}`]);}catch(e){continue;}
@@ -51,7 +56,7 @@ function moveSession(ws, rowIdx, dir){
   let savedOrd=null;try{const r=state[orderKey];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
   let ordEis;
   if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
-  else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return (sa.sched_day||99)-(sb.sched_day||99);});}
+  else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return _sessDayOf(ws,a,sa)-_sessDayOf(ws,b,sb);});}
   const swapIdx=rowIdx+dir;
   if(swapIdx<0||swapIdx>=ordEis.length) return;
   [ordEis[rowIdx],ordEis[swapIdx]]=[ordEis[swapIdx],ordEis[rowIdx]];
