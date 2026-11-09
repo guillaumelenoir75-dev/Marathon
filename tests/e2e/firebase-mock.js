@@ -11,6 +11,14 @@
     let o = DB; for (let i = 0; i < ks.length - 1; i++) { if (o[ks[i]] == null || typeof o[ks[i]] !== 'object') o[ks[i]] = {}; o = o[ks[i]]; }
     if (v == null) delete o[ks[ks.length - 1]]; else o[ks[ks.length - 1]] = clone(v);
   }
+  // même contrôle que la vraie base (Firebase 9 : validateFirebaseData) : undefined, NaN / Infinity et clés interdites refusés tout de suite
+  function check(fn, v, path) {
+    if (v === undefined) throw new Error(fn + ' failed: contains undefined in property \'' + path + '\'');
+    if (typeof v === 'number' && !isFinite(v)) throw new Error(fn + ' failed: contains ' + v + ' in property \'' + path + '\'');
+    if (v && typeof v === 'object') Object.keys(v).forEach((k) => { if (/[.#$\[\]\/]/.test(k) && !(Array.isArray(v))) throw new Error(fn + ' failed: invalid key \'' + k + '\' in \'' + path + '\''); check(fn, v[k], path + '.' + k); });
+  }
+  window.__DB_ERRORS = [];
+  const guard = (fn, v, path) => { try { check(fn, v, path); } catch (e) { window.__DB_ERRORS.push(e.message); throw e; } };
   function snap(p) { const v = clone(get(p)), ks = split(p); return { val: () => v, exists: () => v != null, key: ks[ks.length - 1] || null, forEach(fn) { if (v && typeof v === 'object') Object.keys(v).forEach((k) => fn(snap(p + '/' + k))); }, child: (c) => snap(p + '/' + c) }; }
   function notify(p) { listeners.slice().forEach((l) => { if (l.path === p || p.startsWith(l.path + '/') || l.path.startsWith(p + '/')) { try { l.cb(snap(l.path)); } catch (e) {} } }); }
   let pushN = 0;
@@ -27,8 +35,8 @@
       once: (ev, cb) => { if (window.__NO_NET) return new Promise(() => {}); const s = snap(p); if (typeof cb === 'function') cb(s); return Promise.resolve(s); },
       on: (ev, cb) => { listeners.push({ path: p, cb }); setTimeout(() => cb(snap(p)), 0); return cb; },
       off: (ev, cb) => { for (let i = listeners.length - 1; i >= 0; i--) if (listeners[i].path === p && (!cb || listeners[i].cb === cb)) listeners.splice(i, 1); },
-      set: (v) => write(() => { setAt(p, v); notify(p); }),
-      update: (o) => write(() => { Object.keys(o || {}).forEach((k) => setAt(p + '/' + k, o[k])); notify(p); }),
+      set: (v) => { guard('Reference.set', v, p); return write(() => { setAt(p, v); notify(p); }); },
+      update: (o) => { Object.keys(o || {}).forEach((k) => guard('Reference.update', o[k], p + '/' + k)); return write(() => { Object.keys(o || {}).forEach((k) => setAt(p + '/' + k, o[k])); notify(p); }); },
       remove: () => { setAt(p, null); notify(p); return Promise.resolve(); },
       push: (v) => { const c = ref(p + '/k' + String(++pushN).padStart(6, '0')); if (v !== undefined) c.set(v); return c; },
       transaction: (fn) => { const nv = fn(clone(get(p))); if (nv !== undefined) setAt(p, nv); notify(p); return Promise.resolve({ committed: true, snapshot: snap(p) }); },

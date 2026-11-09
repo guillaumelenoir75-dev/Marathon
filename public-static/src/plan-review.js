@@ -1182,13 +1182,15 @@ function applyPlanReview(){
 function prApplyChanges(sel, meta){
   meta = meta || {};
   let n = 0; const touched = {};
+  // consigne déjà réécrite pour cette séance (Coach : consigne + km ensemble) : les km ne la retouchent pas
+  const newDet = {}; sel.forEach(function(p){ if(p.field === 'detail' || p.field === 'session') newDet[p.key] = 1; });
   sel.forEach(function(p){
     let x; try { x = JSON.parse(state[p.key]); } catch(e) { return; }
     if(!x || state[p.key + '_done']) return;
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');
     if(p.field === 'detail') x.d = title + '|' + p.after;
     else if(p.field === 'title') x.d = p.after + (det ? '|' + det : '');
-    else if(p.field === 'km'){ const nd = prKmDetail(det, x.type, x.km, p.after); x.km = +p.after; if(nd !== det){ x.d = title + '|' + nd; p.detBefore = det; p.detAfter = nd; } }
+    else if(p.field === 'km'){ const nd = newDet[p.key] ? det : prKmDetail(det, x.type, x.km, p.after); x.km = +p.after; if(nd !== det){ x.d = title + '|' + nd; p.detBefore = det; p.detAfter = nd; } }
     else if(p.field === 'type' && ['ef', 'long', 'tempo', 'frac'].indexOf(p.after) >= 0) x.type = p.after;
     else if(p.field === 'session' && p.after && p.after.t){ x.d = p.after.t + '|' + p.after.d; x.km = +p.after.km; if(['ef', 'long', 'tempo', 'frac', 'rest'].indexOf(p.after.type) >= 0) x.type = p.after.type; }
     else return;

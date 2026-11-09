@@ -545,6 +545,35 @@ test('Coach › « Mon plan » : je parle de ma semaine, le Coach propose, j\'ap
   await ctx.close();
 });
 
+test('Coach › « Mon plan » : plusieurs changements sur la même séance (consigne, km, type) appliqués ensemble', async () => {
+  assert.ok(savedDb, 'dépend du test précédent');
+  let T = null;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: (r) => {
+    if (/planChat/.test(r.request().url())) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, reply: 'On allège.', auto: [], changes: [
+      { ref: T[0].key, detail: 'Footing EF tranquille, sans accélérations', km: Math.max(3, T[0].km - 3), reason: 'fatigue' },
+      { ref: T[1].key, detail: 'Footing EF à la place du fractionné', km: Math.max(3, T[1].km - 2), type: T[1].type === 'ef' ? 'tempo' : 'ef', reason: 'fatigue' },
+      { ref: T[2].key, detail: 'Sortie longue en EF', km: T[2].km + 2, reason: 'volume' }] }) });
+    return r.fulfill({ contentType: 'application/json', body: '{"success":true,"reply":"ok","text":"ok"}' });
+  } });
+  T = await page.evaluate(() => prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.date > prTodayIso()).slice(0, 3).map((s) => ({ key: s.key, km: s.kmPlan, type: s.type, d: s.detail })));
+  await page.evaluate(() => showScreen('coach')); await page.waitForTimeout(300);
+  await page.click('#coach-mode button[data-m="plan"]');
+  await page.waitForSelector('#pc-panel .pc-sum');
+  await page.fill('#pc-input', 'Je suis fatigué, on allège ?');
+  await page.click('#pc-send');
+  await page.waitForSelector('#pc-messages .pc-card.pending .pc-go');
+  const n = await page.evaluate(() => state._plan_chat.msgs.slice(-1)[0].ch.length);
+  assert.ok(n >= 6, 'changements proposés : ' + n);
+  await page.click('#pc-messages .pc-go');
+  await page.waitForSelector('#pc-messages .pc-card.applied', { timeout: 3000 });
+  const S = await page.evaluate((T) => T.map((t) => JSON.parse(state[t.key])), T);
+  assert.equal(S[0].km, Math.max(3, T[0].km - 3)); assert.match(S[0].d, /sans accélérations/);
+  assert.equal(S[1].km, Math.max(3, T[1].km - 2)); assert.equal(S[1].type, T[1].type === 'ef' ? 'tempo' : 'ef'); assert.match(S[1].d, /à la place du fractionné/);
+  assert.equal(S[2].km, T[2].km + 2); assert.match(S[2].d, /Sortie longue en EF/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamais la valeur de la veille', async () => {
   assert.ok(savedDb, 'dépend du test précédent');
   const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;

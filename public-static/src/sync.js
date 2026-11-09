@@ -7,6 +7,11 @@
 //   démarrer sans réseau (syncOfflineOnce), puis rechargement depuis la base au retour du réseau (syncOnReconnect).
 let _syncBases = {}, _syncSeq = 0, _syncCacheAt = 0, _syncFromCache = false;
 const _sj = function(v){ return v === undefined ? undefined : JSON.stringify(v); };
+// valeur acceptée par la base : Firebase refuse (en levant une erreur) undefined, NaN ou Infinity, même au fond d'un objet
+// → même nettoyage que JSON (propriété undefined retirée, NaN → null), donc identique à ce que la base renverra
+function _syncClean(v){ if(typeof v === 'number') return isFinite(v) ? v : null; return v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v; }
+// écriture qui ne lève jamais : une valeur refusée devient un échec de la promesse (l'écran appelant continue)
+function _syncWrite(fn){ return new Promise(function(res){ res(fn()); }); }
 function _syncRefKey(r){ try { return r && typeof r.toString === 'function' ? String(r.toString()) : ''; } catch(e) { return ''; } }
 function _syncLs(){ try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch(e) { return null; } }
 function _syncUid(){ return typeof currentUserId !== 'undefined' && currentUserId ? currentUserId : 'anon'; }
@@ -21,7 +26,7 @@ function syncBaseReset(data){
 // clés à écrire : modifiées, ajoutées, ou retirées (null)
 function syncDiff(){
   const b = _syncBases[_syncRefKey(typeof dbRef !== 'undefined' ? dbRef : null)], up = {}, B = (b && b.obj === state && b.map) || {};
-  Object.keys(state).forEach(function(k){ const v = state[k]; if(v === undefined){ if(B[k] !== undefined) up[k] = null; return; } if(_sj(v) !== B[k]) up[k] = v; });
+  Object.keys(state).forEach(function(k){ const v = state[k]; if(v === undefined){ if(B[k] !== undefined) up[k] = null; return; } if(_sj(v) !== B[k]) up[k] = _syncClean(v); });
   Object.keys(B).forEach(function(k){ if(!(k in state)) up[k] = null; });
   return up;
 }
@@ -32,7 +37,7 @@ function syncSave(){
   if(!base || base.obj !== state){
     // état remplacé (copie consultée, vue d'un athlète, prépa à venir) : écriture complète, puis calage
     syncBaseReset(state);
-    return Promise.resolve(dbRef.set(state)).catch(function(e){ console.error('Firebase save error:', e); });
+    return _syncWrite(function(){ return dbRef.set(_syncClean(state)); }).catch(function(e){ console.error('Firebase save error:', e); });
   }
   const up = syncDiff(), keys = Object.keys(up);
   if(!keys.length) return Promise.resolve();
@@ -40,7 +45,7 @@ function syncSave(){
   keys.forEach(function(k){ before[k] = B[k]; if(up[k] === null) delete B[k]; else B[k] = _sj(up[k]); });
   const seq = ++_syncSeq, own = _syncOwn();
   if(own) syncPendingAdd(up, seq);
-  return Promise.resolve(dbRef.update(up)).then(function(){
+  return _syncWrite(function(){ return dbRef.update(up); }).then(function(){
     if(own){ syncPendingDone(seq); syncCacheState(false); }
   }).catch(function(e){
     // refusée par la base (pas un manque de réseau) : pas rejouée au lancement ; ces clés repartiront à la prochaine sauvegarde

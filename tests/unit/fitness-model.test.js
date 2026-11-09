@@ -58,3 +58,17 @@ test('jour J : projection avec les séances prévues ; affûtage conseillé appl
     assert.equal(JSON.parse(st[ch[0].key]).km, ch[0].before, 'affûtage annulé');
   }
 });
+
+test('Coach : consigne et km changés ensemble sur une séance → la nouvelle consigne n\'est pas retouchée par les km ; historique sans valeur vide', () => {
+  const st = { plan_start_date: '2026-10-26', _plan_engine: 'generated', extra_w1_s0: JSON.stringify({ type: 'ef', km: 8, d: 'Footing + accélérations|8 km EF + 6 lignes droites', sched_date: '2026-11-03' }) };
+  const app = loadApp({ now: NOW, state: st });
+  const r = app.prApplyChanges([
+    { key: 'extra_w1_s0', field: 'detail', before: '8 km EF + 6 lignes droites', after: '5 km EF tranquille', title: 'Footing + accélérations' },
+    { key: 'extra_w1_s0', field: 'km', before: 8, after: 5, title: 'Footing + accélérations' }], { coach: true, kind: 'chat' });
+  assert.equal(r.n, 1);
+  const x = JSON.parse(st.extra_w1_s0);
+  assert.equal(x.km, 5); assert.equal(x.d, 'Footing + accélérations|5 km EF tranquille', 'pas « 2 km EF »');
+  // seul, le changement de km ajuste toujours la consigne
+  app.prApplyChanges([{ key: 'extra_w1_s0', field: 'km', before: 5, after: 7 }], {});
+  assert.equal(JSON.parse(st.extra_w1_s0).d, 'Footing + accélérations|7 km EF tranquille');
+});

@@ -152,7 +152,10 @@ function pcApply(id){
     .map(function(c){ return Object.assign({}, c); });
   if(!sel.length){ alert('Ces séances ont changé depuis (faites ou déjà modifiées) : demande au Coach de refaire sa proposition.'); return; }
   const at = new Date().toISOString();
-  const r = prApplyChanges(sel, { coach: true, kind: 'chat', at: at, vdot: _pcA && _pcA.fit ? _pcA.fit.vdot || null : null });
+  let r = null;
+  try { r = prApplyChanges(sel, { coach: true, kind: 'chat', at: at, vdot: _pcA && _pcA.fit ? _pcA.fit.vdot || null : null }); }
+  catch(e) { if(typeof diagLog === 'function') try { diagLog(e.message, 'pcApply'); } catch(x) {} alert('Le plan n\'a pas pu être modifié (' + e.message + '). Réessaie.'); return; }
+  if(!r || !r.n){ alert('Aucune séance modifiée : demande au Coach de refaire sa proposition.'); return; }
   m.st = 'applied'; m.applyAt = at;
   _pcPush({ r: 's', t: '✅ Plan mis à jour : ' + r.n + ' séance' + (r.n > 1 ? 's' : '') + (sel.length < m.ch.filter(function(c){ return !c.off; }).length ? ' (les autres avaient déjà changé)' : '') + '.' });
   save();

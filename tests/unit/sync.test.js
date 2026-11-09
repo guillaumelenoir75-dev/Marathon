@@ -54,3 +54,18 @@ test('hors ligne : en attente sur le téléphone, rejouée sur l\'état chargé 
   await ctx.syncSave();
   assert.deepEqual(calls.slice(-1)[0], ['set', 'users/ATHLETE/state', 1]);
 });
+
+test('valeur refusée par Firebase (undefined au fond d\'un objet, NaN) : nettoyée avant l\'envoi, jamais d\'erreur qui casse l\'écran', async () => {
+  const { ctx, calls } = load();
+  // comme la vraie base : update() lève tout de suite sur undefined / NaN, à n'importe quelle profondeur
+  const bad = (v) => v === undefined || (typeof v === 'number' && !isFinite(v)) || (v && typeof v === 'object' && Object.keys(v).some((k) => bad(v[k])));
+  ctx.dbRef.update = (o) => { if (Object.keys(o).some((k) => bad(o[k]))) throw new Error('contains undefined'); calls.push(['update', JSON.parse(JSON.stringify(o))]); return Promise.resolve(); };
+  vm.runInContext('state = { a: 1 }; syncBaseReset({ a: 1 });', ctx);
+  vm.runInContext('state._plan_reviews = [{ n: 1, changes: [{ ref: "k", detBefore: undefined, src: undefined, km: NaN, l: [1, undefined] }] }]; state.x = NaN;', ctx);
+  await ctx.syncSave();
+  assert.deepEqual(calls, [['update', { _plan_reviews: [{ n: 1, changes: [{ ref: 'k', km: null, l: [1, null] }] }], x: null }]]);
+  // même une écriture qui lève quand même : promesse rejetée, pas d'exception pour l'appelant
+  ctx.dbRef.update = () => { throw new Error('refus immédiat'); };
+  vm.runInContext('state.a = 2;', ctx);
+  await assert.doesNotReject(() => ctx.syncSave());
+});
