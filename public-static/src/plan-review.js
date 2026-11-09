@@ -56,6 +56,25 @@ function prKmDetail(det, type, from, to){
   if(t && Math.abs(parseFloat(t[1].replace(',', '.')) - from) < 0.6) return det.replace(t[0], String(to).replace('.', ',') + ' km');
   return det;
 }
+// Titre cohérent avec la consigne et le type (génération, MAJ du plan, Coach, pilote, plan en cours) :
+// « + accélérations / lignes droites / strides / éducatifs » retiré du titre quand la consigne dit « sans … » (ou « sans intensité »),
+// ou quand une nouvelle consigne (oldDet = l'ancienne) ne les mentionne plus ; séance devenue facile avec un titre de séance de
+// qualité (fractionné, tempo, 6×1000…) → « Footing EF » / « Sortie longue » ; l'inverse → « Fractionné » / « Tempo ». Course : inchangée.
+const PR_ACC_RE = /acc[ée]l[ée]rations?|lignes?\s+droites?|strides?|[ée]ducatifs?/i;
+const PR_NOACC_RE = /\b(sans|aucune?|pas\s+d['’e]?|ni)\s*(les\s+|d['’]\s*)?(acc[ée]l[ée]ration|ligne|stride|[ée]ducatif|intensit)/i;
+function prTitleFor(title, det, type, oldDet){
+  let t = String(title || '').trim(); const d = String(det || '');
+  if(type === 'race' || type === 'rest') return t;
+  const def = type === 'long' ? 'Sortie longue' : type === 'frac' ? 'Fractionné' : type === 'tempo' ? 'Tempo' : 'Footing EF';
+  if(PR_ACC_RE.test(t) && (PR_NOACC_RE.test(d) || (oldDet != null && PR_ACC_RE.test(String(oldDet)) && !PR_ACC_RE.test(d.replace(PR_NOACC_RE, ''))))){
+    t = t.replace(/\s*(\+|&|avec|et)\s*(quelques\s+|\d+\s*[×x]?\s*)?(acc[ée]l[ée]rations?|lignes?\s+droites?|strides?|[ée]ducatifs?)(\s+(progressives|légères|courtes))?/ig, '').trim();
+    if(PR_ACC_RE.test(t)) t = def;
+    if(/^ef$/i.test(t) || (type === 'ef' && /^footing$/i.test(t))) t = 'Footing EF';
+  }
+  if((type === 'ef' || type === 'long') && /fractionn|tempo|seuil|\bvma\b|\d+\s*[×x]\s*\d|allure\s+(course|semi|marathon|10)/i.test(t)) t = def;
+  if((type === 'frac' || type === 'tempo') && /^(footing|sortie longue|ef\b|récup)/i.test(t)) t = def;
+  return t || def;
+}
 const PR_PACE_RE = /(\d{1,2})['’:](\d{2})(?:\s*[—–-]\s*(\d{1,2})['’:](\d{2}))?\s*\/\s*km/;
 function prSessions(st, opt){
   opt = opt || {};
@@ -1198,6 +1217,18 @@ function prApplyChanges(sel, meta){
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;
   });
   if(!n) return { n: 0, touched: touched, index: null };
+  // titre remis en cohérence avec la nouvelle consigne / le nouveau type (annulable comme le reste)
+  const detBefore = {}; sel.forEach(function(p){ if(p.field === 'detail' && detBefore[p.key] === undefined) detBefore[p.key] = p.before; });
+  const fixes = [];
+  Object.keys(touched).forEach(function(k){
+    let x; try { x = JSON.parse(state[k]); } catch(e) { return; }
+    const parts = String(x.d || '').split('|'), t0 = parts[0], det = parts.slice(1).join('|'), t1 = prTitleFor(t0, det, x.type, detBefore[k]);
+    if(t1 === t0) return;
+    x.d = t1 + (det ? '|' + det : ''); state[k] = JSON.stringify(x);
+    const p0 = sel.find(function(p){ return p.key === k; }) || {};
+    fixes.push({ key: k, field: 'title', before: t0, after: t1, title: t0, type: x.type, date: p0.date || null, kind: 'coherence', reason: 'Titre accordé à la consigne' });
+  });
+  sel = sel.concat(fixes);
   const hist = (state._plan_reviews || []).slice(-5);
   const entry = { date: prTodayIso(), n: Object.keys(touched).length, coach: !!meta.coach, vdot: meta.vdot || null, sig: prDataSig() };
   if(meta.auto) entry.auto = true; if(meta.kind) entry.kind = meta.kind; if(meta.at) entry.at = meta.at;

@@ -38,6 +38,21 @@ function prFillBlocsFromStrava(activity){
   box.appendChild(msg);
 }
 
+// ─── Titres accordés aux consignes sur le plan en cours (à chaque lancement, sans effet si tout est cohérent) ───
+// séances à venir non faites d'une prépa générée : « Footing EF + accélérations » avec « sans accélération » → « Footing EF »
+function prTitlesCoherent(st){
+  st = st || state;
+  if(!st || !st._plan_engine || (st === state && typeof _prepView !== 'undefined' && _prepView && !_prepView.next)) return 0;
+  let n = 0;
+  prSessions(st).forEach(function(s){
+    if(s.done || s.type === 'race' || s.type === 'rest') return;
+    const t = prTitleFor(s.title, s.detail, s.type);
+    if(t === s.title) return;
+    const x = Object.assign({}, s.x); x.d = t + (s.detail ? '|' + s.detail : ''); x._seq = (x._seq || 0) + 1;
+    st[s.key] = JSON.stringify(x); n++;
+  });
+  return n;
+}
 // ─── Migration unique : dates des plans générés décalées d'un jour (toISOString en France) ───
 // une séance dont la date tombe exactement la veille de son jour prévu (sched_day, 1 = lundi) est recalée
 function prFixSchedDatesV1(){

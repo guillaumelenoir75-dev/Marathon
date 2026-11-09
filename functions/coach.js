@@ -1116,6 +1116,7 @@ PRINCIPES :
 - Post-marathon : l'intensité revient progressivement (lignes droites puis fractionné court dès ~J+14-18 si les sensations sont bonnes) ; une course de 10 km à ~5 semaines d'un marathon se prépare avec du seuil et de la VMA, pas seulement du footing.
 - Allures : suivent le niveau ACTUEL (VDOT fourni). L'allure course peut viser l'objectif s'il est à moins de ~3 % du niveau actuel, sinon s'en rapprocher.
 - Respecte l'intention de chaque séance et la structure de la semaine (jours, nombre de séances).
+- TITRE ET CONSIGNE COHÉRENTS : si ta consigne retire les accélérations / lignes droites / éducatifs, ou si tu changes le type de séance, renvoie aussi un « title » qui correspond (« Footing EF », pas « Footing EF + accélérations » avec « sans accélération »). Jamais un titre qui contredit la consigne.
 - Séances trop dures (FC élevée, allures non tenues) → alléger ; trop faciles (allures dépassées à FC basse) → durcir.
 - Les « propositions automatiques » sont CONSERVÉES par défaut et s'ajoutent à tes changements : ne les recopie pas. Chacune a un "champ" : detail (allure / consigne), km, ou session (remplacement de la séance entière : footing à la place d'une séance de qualité si fatigue ou douleur, test 5 km…) ; "retenue": false = décochée par l'athlète. Pour en modifier une, renvoie un changement sur la même ref et le même champ (pour une proposition "session", ton "detail" s'applique à la nouvelle séance) ; pour l'écarter, mets "ref:champ" (ou "ref" pour toutes celles de la séance) dans "rejected". Les « contrôles automatiques » sont indicatifs : dis-le si une alerte n'est pas pertinente vu son historique.
 - RECETTE PERSONNELLE : elle résume ce que ses prépas précédentes ont montré (hausse de volume encaissée, affûtage qui a marché, allures tenues). Respecte-la sauf raison claire, et dis-le quand tu t'en écartes.
@@ -1168,6 +1169,9 @@ PLAN COMPLET :
 ${JSON.stringify(compact)}`;
 }
 // changements du Coach validés : séances modifiables seulement, champs nettoyés, km bornés autour du plan
+// moteur de l'app (titres cohérents), chargé une fois par instance
+let _planEngine = null;
+function planEngine(){ if (!_planEngine) _planEngine = require('./engine').loadEngine({}); return _planEngine; }
 function planCleanChanges(list, editable){
   const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
   const clean = (v, n) => { const x = str(v, n); return x ? x.replace(/\|/g, '·').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ') : undefined; };
@@ -1180,6 +1184,14 @@ function planCleanChanges(list, editable){
     const km = parseFloat(c.km); if (isFinite(km) && km > 0 && !race){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
     // type : seulement avec une nouvelle consigne qui va avec
     if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && c.type !== s.type && !race && o.detail) o.type = c.type;
+    // titre accordé à la consigne et au type (même règle que l'app, prTitleFor du moteur)
+    if (!race && (o.detail || o.type || o.title)) {
+      try {
+        const t0 = o.title || s.title || '', t1 = planEngine().prTitleFor(t0, o.detail || s.detail, o.type || s.type, o.detail ? s.detail : undefined);
+        if (t1 && t1 !== t0) o.title = t1;
+        if (o.title && o.title === s.title) delete o.title;
+      } catch (e) {}
+    }
     return o;
   }).filter((o) => o.detail || o.title || o.km || o.type);
 }

@@ -121,6 +121,7 @@ function generateDecouvertePlan(ob){
         sessionDate.setDate(weekMonday.getDate()+dayOfWeek);
         s.sched_date=sessionDate.getFullYear()+'-'+String(sessionDate.getMonth()+1).padStart(2,'0')+'-'+String(sessionDate.getDate()).padStart(2,'0');   // date locale (toISOString = veille en France)
       }
+      if(typeof prTitleFor==='function'&&s.d){const pp=String(s.d).split('|'),dt=pp.slice(1).join('|'),tt=prTitleFor(pp[0],dt,s.type);if(tt!==pp[0])s.d=tt+(pp.length>1?'|'+dt:'');}   // titre accordé à la consigne
       updates[`extra_w${w}_s${si}`]=JSON.stringify(s);
     }
   }
@@ -867,6 +868,7 @@ function generateAthletePlan(ob){
         sessionDate.setDate(weekMonday.getDate()+dayOfWeek);
         s.sched_date=sessionDate.getFullYear()+'-'+String(sessionDate.getMonth()+1).padStart(2,'0')+'-'+String(sessionDate.getDate()).padStart(2,'0');   // date locale (toISOString = veille en France)
       }
+      if(typeof prTitleFor==='function'&&s.d){const pp=String(s.d).split('|'),dt=pp.slice(1).join('|'),tt=prTitleFor(pp[0],dt,s.type);if(tt!==pp[0])s.d=tt+(pp.length>1?'|'+dt:'');}   // titre accordé à la consigne
       updates[`extra_w${w}_s${i}`]=JSON.stringify(s);
     });
   }

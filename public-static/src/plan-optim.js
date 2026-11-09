@@ -491,7 +491,7 @@ function prCalib(st){
 function prUndoReview(i){
   const hist = state._plan_reviews || [], h = hist[i]; if(!h || h.undone) return;
   let ok = 0, skip = 0;
-  (h.changes || []).forEach(function(c){
+  (h.changes || []).slice().reverse().forEach(function(c){   // dernier appliqué, premier annulé (titre accordé après la consigne)
     let x; try { x = JSON.parse(state[c.ref]); } catch(e) { skip++; return; }
     if(!x || state[c.ref + '_done'] || state[c.ref + '_km'] != null){ skip++; return; }
     if(c.field === 'skip'){ if(state[c.ref + '_skip'] && state[c.ref + '_skip_reason'] === c.after){ delete state[c.ref + '_skip']; delete state[c.ref + '_skip_reason']; ok++; } else skip++; return; }

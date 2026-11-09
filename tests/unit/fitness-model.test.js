@@ -67,8 +67,8 @@ test('Coach : consigne et km changés ensemble sur une séance → la nouvelle c
     { key: 'extra_w1_s0', field: 'km', before: 8, after: 5, title: 'Footing + accélérations' }], { coach: true, kind: 'chat' });
   assert.equal(r.n, 1);
   const x = JSON.parse(st.extra_w1_s0);
-  assert.equal(x.km, 5); assert.equal(x.d, 'Footing + accélérations|5 km EF tranquille', 'pas « 2 km EF »');
+  assert.equal(x.km, 5); assert.equal(x.d, 'Footing EF|5 km EF tranquille', 'pas « 2 km EF » ; plus de lignes droites → titre accordé');
   // seul, le changement de km ajuste toujours la consigne
   app.prApplyChanges([{ key: 'extra_w1_s0', field: 'km', before: 5, after: 7 }], {});
-  assert.equal(JSON.parse(st.extra_w1_s0).d, 'Footing + accélérations|7 km EF tranquille');
+  assert.equal(JSON.parse(st.extra_w1_s0).d, 'Footing EF|7 km EF tranquille');
 });

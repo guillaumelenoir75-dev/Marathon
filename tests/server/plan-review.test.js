@@ -42,3 +42,20 @@ test('planReview : réponse coupée → erreur claire ; consignes et données bo
   const line = user.split('\n').find((l) => l.startsWith('Contrôles automatiques'));
   assert.equal(JSON.parse(line.slice(line.indexOf(':') + 1)).length, 20);
 });
+
+test('planChat / planReview : titre accordé à la consigne (accélérations retirées, séance devenue facile)', async () => {
+  const p2 = [{ w: 1, sessions: [
+    { ref: 'extra_w1_s0', date: '2026-11-02', type: 'ef', title: 'Footing EF + accélérations', detail: "5'45 — 6'10 /km · finir par 6 × 80 m accélérations", km: 8, done: false },
+    { ref: 'extra_w1_s2', date: '2026-11-04', type: 'frac', title: '4×1000 m', detail: "3 km EF · 4 × 1000 m à 4'12 /km", km: 10, done: false },
+    { ref: 'extra_w1_s3', date: '2026-11-06', type: 'ef', title: 'Footing EF', detail: "5'45 — 6'10 /km", km: 6, done: false } ] }];
+  const F = loadFunctions({ ai: JSON.stringify({ reply: 'On allège.', changes: [
+    { ref: 'extra_w1_s0', detail: "5'45 — 6'10 /km · très facile, sans accélération", km: 5 },
+    { ref: 'extra_w1_s2', detail: "5'45 — 6'10 /km · footing facile", type: 'ef', km: 8 },
+    { ref: 'extra_w1_s3', km: 7 }] }) });
+  const r = (await callHttp(F.coach.planChat, { today: '2026-11-01', plan: p2, message: 'Je suis fatigué' })).out;
+  assert.equal(r.success, true);
+  const by = {}; r.changes.forEach((c) => { by[c.ref] = c; });
+  assert.equal(by.extra_w1_s0.title, 'Footing EF', 'plus d\'accélérations dans le titre');
+  assert.equal(by.extra_w1_s2.title, 'Footing EF', 'fractionné devenu footing');
+  assert.equal(by.extra_w1_s3.title, undefined, 'titre déjà juste : pas de changement');
+});
