@@ -940,6 +940,13 @@ async function checkPendingBrief() {
 
   if (!p || !p.content) return false;
 
+  // Brief du matin ouvert l'après-midi (12h en semaine, 13h le week-end) : abandonné, le suivant arrive demain matin
+  if ((p.type || 'morning_brief') === 'morning_brief' && !p.test && typeof briefTooLate === 'function' && briefTooLate()) {
+    try { await dbRef.child('_brief_pending').remove(); } catch(e) {}
+    delete state['_brief_pending'];
+    return false;
+  }
+
   // Vérifier que le brief n'est pas trop vieux
   // morning_brief : jour même ; weekly_bilan : valable 2 jours (dimanche → lundi)
   if (p.date) {
@@ -1014,6 +1021,8 @@ async function generateAndShowWeeklyBilan() {
 async function checkMorningBrief(memos, force) {
   if(typeof coachAI === 'function' && !coachAI()) return  false;   // Coach IA : compte admin seulement (le serveur refuse aussi)
   if(_briefShownToday) return false;
+  // l'après-midi (12h en semaine, 13h le week-end), même depuis une notification : pas de brief, reporté au lendemain
+  if(typeof briefTooLate === 'function' && briefTooLate()) return false;
   // force=true (depuis notif) : on génère le brief même si la préf est désactivée côté client
   if(!force && !getPref('notif_brief_matin')) return false;
   const now = new Date();

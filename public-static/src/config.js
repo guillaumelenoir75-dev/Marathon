@@ -367,6 +367,21 @@ function openWhatIf(){ return _lazyCall('whatif', 'openWhatIf', openWhatIf, argu
 function openNextRace(){ return _lazyCall('nextrace', 'openNextRace', openNextRace, arguments); }
 // Coach IA (et toute consommation de tokens) : réservé au compte admin — l'app n'appelle jamais l'IA pour un athlète
 function coachAI(){ return typeof isAdmin === 'function' && isAdmin(); }
+// Brief du matin : plus d'intérêt l'après-midi — dès 12h en semaine, 13h le week-end, il ne s'ouvre plus (reporté au lendemain)
+function briefTooLate(d){ d = d || new Date(); const dow = d.getDay(); return d.getHours() >= (dow === 0 || dow === 6 ? 13 : 12); }
+// Ouverture du Coach par une notification / au lancement, l'après-midi : le brief du matin en attente est abandonné
+// (le prochain arrive demain matin) ; le bilan du dimanche, « semaine complète » et les essais restent ouverts.
+async function briefLateSkip(){
+  if(!briefTooLate()) return false;
+  if(/bilan|week|test/i.test(String(window._pendingNotifTag || ''))) return false;
+  let p = typeof state !== 'undefined' && state ? state._brief_pending : null;
+  if(!p && typeof dbRef !== 'undefined' && dbRef){ try { const sn = await Promise.race([dbRef.child('_brief_pending').once('value'), new Promise(function(r){ setTimeout(function(){ r(null); }, 2500); })]); p = sn && sn.val ? sn.val() : null; } catch(e) {} }
+  if(typeof p === 'string'){ try { p = JSON.parse(p); } catch(e) { p = null; } }
+  if(p && (p.test || p.type === 'weekly_bilan' || p.type === 'week_complete' || p.needs_weekly_bilan)) return false;
+  try { if(dbRef) await dbRef.child('_open_coach').remove(); } catch(e) {}
+  if(p && (!p.type || p.type === 'morning_brief' || p.needs_full_brief)){ try { if(dbRef) await dbRef.child('_brief_pending').remove(); } catch(e) {} if(state) delete state._brief_pending; }
+  return true;
+}
 function coachMode(){ return _lazyCall('planchat', 'coachMode', coachMode, arguments); }
 function coachModeInit(){ return _lazyCall('planchat', 'coachModeInit', coachModeInit, arguments); }
 function openPlanChat(){ return _lazyCall('planchat', 'openPlanChat', openPlanChat, arguments); }

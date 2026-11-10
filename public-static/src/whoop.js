@@ -357,13 +357,13 @@ async function onWakeup(force, opts) {
     }
 
     // 5. Déclencher le brief côté serveur (génération IA + push notif)
-    if (dbRef && isAdmin()) {   // brief du matin : compte admin seulement
+    if (dbRef && isAdmin() && (force || typeof briefTooLate !== 'function' || !briefTooLate())) {   // brief du matin : compte admin seulement, jamais l'après-midi (sauf test)
       // En mode test : réinitialiser les clés "déjà fait" pour forcer la régénération complète
       if (force) {
         await dbRef.child('_brief_matin_' + wakeupDate).remove();
         await dbRef.child('_brief_fc_notif_' + wakeupDate).remove();
       }
-      await dbRef.child('_brief_trigger').set({ ts: Date.now(), date: wakeupDate });
+      await dbRef.child('_brief_trigger').set(Object.assign({ ts: Date.now(), date: wakeupDate }, force ? { test: true } : {}));
     }
 
   } catch(e) {

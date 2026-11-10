@@ -1126,6 +1126,36 @@ test('notification du brief : ouvre le fil du Coach même si « Mon plan » éta
   await ctx.close();
 });
 
+test('brief du matin ouvert l\'après-midi (12h en semaine, 13h le week-end) : ne s\'ouvre plus, reporté au lendemain ; bilan du dimanche toujours ouvert', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const run = async (when, pending) => {
+    const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+    S._brief_pending = pending; S._open_coach = true;
+    const o = await open(when, JSON.stringify(D));
+    await o.page.waitForTimeout(3500);
+    const r = await o.page.evaluate(() => ({ coach: document.getElementById('sc-coach').style.display, txt: (document.getElementById('coach-messages') || {}).textContent || '',
+      db: JSON.parse(JSON.stringify(window.__DB.users.ADMINUID.state)) }));
+    return Object.assign(r, o);
+  };
+  const brief = (d) => ({ content: '😴 NUIT & RÉCUPÉRATION — brief du matin', date: d, type: 'morning_brief' });
+  // mardi 15h : rien ne s'ouvre, le brief est abandonné
+  let r = await run('2026-11-03T15:00:00+01:00', brief('2026-11-03'));
+  assert.notEqual(r.coach, 'flex', 'le Coach ne s\'ouvre pas');
+  assert.ok(!r.db._brief_pending && !r.db._open_coach, 'brief abandonné');
+  await r.page.evaluate(() => showScreen('coach')); await r.page.waitForTimeout(1500);
+  assert.doesNotMatch(await r.page.evaluate(() => document.getElementById('coach-messages').textContent), /NUIT & RÉCUPÉRATION/, 'ni en ouvrant le Coach');
+  assert.equal(await r.page.evaluate(() => briefTooLate(new Date('2026-11-03T11:59:00+01:00'))), false);
+  assert.deepEqual(r.errors, []); await r.ctx.close();
+  // samedi 12h30 : encore le matin le week-end
+  r = await run('2026-11-07T12:30:00+01:00', brief('2026-11-07'));
+  await r.page.waitForFunction(() => /NUIT & RÉCUPÉRATION/.test((document.getElementById('coach-messages') || {}).textContent || ''), null, { timeout: 8000 });
+  assert.deepEqual(r.errors, []); await r.ctx.close();
+  // dimanche 18h : le bilan de la semaine s'ouvre toujours
+  r = await run('2026-11-08T18:00:00+01:00', { content: '📊 BILAN DE LA SEMAINE S2', date: '2026-11-08', type: 'weekly_bilan' });
+  await r.page.waitForFunction(() => /BILAN DE LA SEMAINE/.test((document.getElementById('coach-messages') || {}).textContent || ''), null, { timeout: 8000 });
+  assert.deepEqual(r.errors, []); await r.ctx.close();
+});
+
 test('localisation du téléphone prise à chaque validation (auto et manuelle) : météo à cet endroit, à l\'heure de la séance', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;

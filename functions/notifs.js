@@ -29,7 +29,7 @@ const {
   efMaxOf,
   efRefOf,
   bedtimePlan,
-  parisToday,
+  parisToday, briefTooLateParis,
   autopilotBriefText,
   isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT, alcoholBriefText,
 } = require('./helpers');
@@ -231,6 +231,8 @@ exports.briefAfterFcRepos = onSchedule(
 
       const ageMin=(Date.now()-trigger.ts)/60000;
       if(ageMin>60){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); return; }
+      // l'après-midi (12h en semaine, 13h le week-end) : plus de brief du matin, le prochain arrive demain
+      if(!trigger.test&&briefTooLateParis()){ await db.ref(`${ADMIN_STATE}/_brief_trigger`).remove(); console.log('briefAfterFcRepos: trop tard, reporté au lendemain'); return; }
 
       const todayStr=trigger.date||new Date().toISOString().slice(0,10);
       const fcNotifKey='_brief_fc_notif_'+todayStr;
@@ -584,7 +586,7 @@ ${sit.text}`;
       if(pushBody.length>180)pushBody=pushBody.slice(0,177)+'...';
 
       // Stocker brief COMPLET → affichage instantané au clic notif ou à la prochaine ouverture
-      await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content:briefContent,date:todayStr,type:'morning_brief'});
+      await db.ref(`${ADMIN_STATE}/_brief_pending`).set(Object.assign({content:briefContent,date:todayStr,type:'morning_brief'},trigger.test?{test:true}:{}));
       await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
       // Marquer fait et nettoyer le trigger AVANT d'envoyer la push.

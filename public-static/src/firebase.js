@@ -282,6 +282,8 @@ async function openCoachFromNotif() {
   if (!dbRef || !firebaseReady) return;
   if (_openCoachFromNotifActive) return;
   _openCoachFromNotifActive = true;
+  // l'après-midi (12h en semaine, 13h le week-end) : le brief du matin ne s'ouvre plus, reporté au lendemain
+  try { if (typeof briefLateSkip === 'function' && await briefLateSkip()) { _openCoachFromNotifActive = false; return; } } catch(e) {}
   // Sécurité : libérer le guard après 30s max (évite un blocage permanent si Firebase ne répond pas)
   const _guardTimeout = setTimeout(() => { _openCoachFromNotifActive = false; }, 30000);
 

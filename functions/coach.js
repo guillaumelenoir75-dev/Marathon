@@ -1034,7 +1034,7 @@ exports.adminTestNotif = onRequest(
         // Stocker le brief pour que le Coach l'affiche au tap de la notif
         // Ne PAS poser _brief_matin_today : c'est un test, il ne doit pas bloquer le flux réel du matin
         if (briefContent) {
-          await db.ref(`${ADMIN_STATE}/_brief_pending`).set({ content: briefContent, date: today, type: 'morning_brief' });
+          await db.ref(`${ADMIN_STATE}/_brief_pending`).set({ content: briefContent, date: today, type: 'morning_brief', test: true });   // essai : ouvert même l'après-midi
         }
         await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
 
@@ -1092,7 +1092,7 @@ exports.adminTriggerBrief = onRequest(
       const today = new Date().toISOString().slice(0, 10);
       await db.ref(`${ADMIN_STATE}/_brief_fc_notif_${today}`).remove();
       await db.ref(`${ADMIN_STATE}/_brief_matin_${today}`).remove();
-      await db.ref(`${ADMIN_STATE}/_brief_trigger`).set({ ts: Date.now(), date: today });
+      await db.ref(`${ADMIN_STATE}/_brief_trigger`).set({ ts: Date.now(), date: today, test: true });   // essai : envoyé même l'après-midi
       res.json({ success: true });
     } catch(e) {
       res.status(500).json({ error: e.message });

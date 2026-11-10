@@ -233,6 +233,12 @@ function raceCategory(dist, km) {
   if (/^5|5 km/.test(d) || (k > 4.5 && k < 5.5)) return '5 km';
   return null;
 }
+// Brief du matin : plus envoyé l'après-midi à Paris (12h en semaine, 13h le week-end) — même règle que briefTooLate (config.js)
+function briefTooLateParis(d) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(d || new Date());
+  const h = +parts.find((x) => x.type === 'hour').value, wd = parts.find((x) => x.type === 'weekday').value;
+  return h >= (wd === 'Sat' || wd === 'Sun' ? 13 : 12);
+}
 function parisToday() { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); }
 // Heure de coucher conseillée (même calcul que l'app, body-signals.js bsBedtime) : séance du lendemain (réveil 50 min avant
 // si elle est le matin, sinon réveil habituel), besoin de sommeil (manuel, appris ou 8 h), dette, journée, récup, lendemain. Toujours un conseil (sans séance demain : réveil habituel).
@@ -979,7 +985,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  buildTrainingSituation, parisToday, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
+  buildTrainingSituation, parisToday, briefTooLateParis, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,
