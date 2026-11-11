@@ -2,9 +2,14 @@
 // doublon : compteur + dernière fois, localStorage pm_errors) et temps de démarrage (jusqu'au 1er affichage de l'accueil,
 // 10 derniers, pm_boot). Compte › « 🩺 Diagnostic » (diagOpen) : version, démarrage, erreurs, copier / effacer.
 const DIAG_ERR = 'pm_errors', DIAG_BOOT = 'pm_boot';
-function _diagGet(k){ try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch(e) { return []; } }
+function _diagGet(k){ try { const a = JSON.parse(localStorage.getItem(k) || '[]') || []; return k === DIAG_ERR ? a.filter(function(e){ return !(typeof diagNoise === 'function' && diagNoise(e && e.m)); }) : a; } catch(e) { return []; } }
 function _diagPut(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+// bruit connu, hors de l'app : erreur d'un script d'un autre site (Firebase, Chart.js) dont le navigateur masque le détail,
+// et bug de Safari iOS sur la base locale du SDK Firebase au retour de l'arrière-plan (Firebase réessaie seul)
+const DIAG_NOISE = [/^Script error\.?$/i, /without an in-progress transaction/i, /The database connection is closing/i];
+function diagNoise(msg){ msg = String(msg || '').replace(/^Promesse rejetée : /, ''); return DIAG_NOISE.some(function(r){ return r.test(msg); }); }
 function diagLog(msg, where){
+  if(diagNoise(msg)) return;
   msg = String(msg || 'Erreur inconnue').slice(0, 200); where = String(where || '').slice(0, 80);
   const L = _diagGet(DIAG_ERR), now = new Date().toISOString(), x = L.find(function(e){ return e.m === msg && e.w === where; });
   if(x){ x.n = (x.n || 1) + 1; x.at = now; } else L.unshift({ m: msg, w: where, n: 1, at: now, first: now });
