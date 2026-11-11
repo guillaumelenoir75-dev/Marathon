@@ -107,6 +107,37 @@ function prWxAdj(m){
 }
 // météo enregistrée avec une séance validée (perf.meteo : temperature, humidite, vent_kmh)
 function prWxAdjFromMeteo(me){ return me && me.temperature != null ? prWxAdj({ t: me.temperature, h: me.humidite, w: me.vent_kmh }) : { pct: 0, why: '' }; }
+// ─── Allure équivalente « plat et frais » d'une séance faite ─────────────────
+// 1) terrain : allure ajustée à la pente de Strava km par km (splits[].gap, s/km) si connue ; sinon dénivelé positif total en
+//    boucle (on redescend ce qu'on monte) : ~0,38 s par mètre gravi (montée ≈ +0,85 s/m, descente en rend ~55 %), ignoré sous
+//    5 m/km (terrain plat, bruit GPS), 10 % au plus ; 2) météo : ralentissement prWxAdj (chaleur, humidité, vent, froid).
+// Utilisée par le niveau (prRunVdot), l'allure EF réelle (prObservedEf), la foulée (prStride), l'écart à la consigne envoyé au
+// Coach et l'affichage « ≈ 4'58 sur plat » (accueil, historique). perf = perf d'une séance (pace, meteo, strava), km = km faits.
+const PR_UPHILL_S_PER_M = 0.38;
+function prEqPace(perf, km){
+  perf = perf || {};
+  const raw = prPaceSec(perf.pace); if(!raw || raw < 150 || raw > 900) return null;
+  const st = perf.strava || {}, why = [];
+  let afterTerrain = raw, src = null;
+  const sp = (st.splits || []).filter(function(x){ const p = prPaceSec(x.allure); return x && +x.gap >= 120 && +x.gap <= 900 && p && +x.distanceKm >= 0.5; });
+  if(sp.length >= Math.max(2, Math.floor((st.splits || []).length * 0.6))){
+    let w = 0, g = 0, a = 0;
+    sp.forEach(function(x){ const d = +x.distanceKm; w += d; g += +x.gap * d; a += prPaceSec(x.allure) * d; });
+    const ratio = g / a;   // allure ajustée à la pente / allure réelle, km par km
+    if(ratio > 0.85 && ratio < 1.15) afterTerrain = raw * ratio, src = 'strava';
+  } else {
+    const up = +st.denivele_pos, k = +km || 0;
+    if(up > 0 && k >= 1 && up / k >= 5){ afterTerrain = raw - Math.min(raw * 0.10, PR_UPHILL_S_PER_M * up / k); src = 'dplus'; }
+  }
+  const terrain = Math.round(raw - afterTerrain);
+  if(Math.abs(terrain) >= 2) why.push((terrain > 0 ? 'côtes ' : 'descente ') + (terrain > 0 ? '−' : '+') + Math.abs(terrain) + ' s');
+  const wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(perf.meteo) : { pct: 0, why: '' };
+  const eq = afterTerrain / (1 + (wx.pct || 0) / 100), weather = Math.round(afterTerrain - eq);
+  if(weather >= 2) why.push((wx.why || 'météo') + ' −' + weather + ' s');
+  return { raw: raw, eq: Math.round(eq), terrain: terrain, weather: weather, diff: Math.round(raw - eq), src: src, why: why.join(' · ') };
+}
+// « ≈ 4'58 sur plat » quand la correction atteint 4 s/km
+function prEqPaceLabel(perf, km){ const E = prEqPace(perf, km); return E && Math.abs(E.diff) >= 4 ? '≈ ' + prPace(E.eq) + ' sur plat' : ''; }
 // ligne affichée sous une séance à venir (Plan, Accueil) : allure corrigée si la météo prévue la ralentit
 function prWeatherLine(x){
   try {

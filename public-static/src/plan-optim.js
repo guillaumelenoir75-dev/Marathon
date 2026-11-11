@@ -320,7 +320,8 @@ function prDrift(today){
     const sp = (((x.s.perf || {}).strava || {}).splits || []).filter(function(p){ return p.allure && p.fc && p.distanceKm >= 0.9; });
     if(sp.length < 6) return null;
     const body = sp.slice(1), h = Math.floor(body.length / 2);
-    const eff = function(arr){ return prMean(arr.map(function(p){ const s = prPaceSec(p.allure); return s ? (1000 / s) / p.fc : null; }).filter(Boolean)); };
+    // allure ajustée à la pente (Strava) si connue : une côte en 2e moitié n'est pas prise pour une dérive
+    const eff = function(arr){ return prMean(arr.map(function(p){ const s = +p.gap >= 120 && +p.gap <= 900 ? +p.gap : prPaceSec(p.allure); return s ? (1000 / s) / p.fc : null; }).filter(Boolean)); };
     const e1 = eff(body.slice(0, h)), e2 = eff(body.slice(h));
     return e1 && e2 ? { date: x.date, km: x.km, type: x.type, drift: (e1 - e2) / e1 * 100 } : null;
   }).filter(Boolean).sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 5);

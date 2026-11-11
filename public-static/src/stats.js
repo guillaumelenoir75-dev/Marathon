@@ -245,6 +245,8 @@ function renderStats(){
               const ex = [];
               if(st.cadence) ex.push(`<div style="text-align:center;"><p style="font-size:9px;color:#6B8DB5;margin-bottom:1px;">Cadence</p><p style="font-size:12px;font-weight:700;color:#1a2e4a;">${st.cadence}<span style="font-size:9px;"> spm</span></p></div>`);
               if(st.fcMax) ex.push(`<div style="text-align:center;"><p style="font-size:9px;color:#6B8DB5;margin-bottom:1px;">FC max</p><p style="font-size:12px;font-weight:700;color:#E24B4A;">${st.fcMax}<span style="font-size:9px;"> bpm</span></p></div>`);
+              const _eq = typeof prEqPace==='function' ? prEqPace(row.perf, row.km) : null;   // allure sur plat et au frais
+              if(_eq && Math.abs(_eq.diff) >= 4) ex.push(`<div style="text-align:center;" title="${_eq.why}"><p style="font-size:9px;color:#6B8DB5;margin-bottom:1px;">Sur plat</p><p style="font-size:12px;font-weight:700;color:#0F766E;">${prPace(_eq.eq)}<span style="font-size:9px;">/km</span></p></div>`);
               if(st.denivele_pos != null) ex.push(`<div style="text-align:center;"><p style="font-size:9px;color:#6B8DB5;margin-bottom:1px;">D+</p><p style="font-size:12px;font-weight:700;color:#3B6D11;">${st.denivele_pos}<span style="font-size:9px;"> m</span></p></div>`);
               if(st.calories) ex.push(`<div style="text-align:center;"><p style="font-size:9px;color:#6B8DB5;margin-bottom:1px;">Calories</p><p style="font-size:12px;font-weight:700;color:#E8530A;">${st.calories}<span style="font-size:9px;"> kcal</span></p></div>`);
               if(st.best_400m) ex.push(`<div style="text-align:center;"><p style="font-size:8px;color:#6B8DB5;margin-bottom:1px;white-space:nowrap;">Meilleur 400m</p><p style="font-size:12px;font-weight:700;color:#1B4FD8;">${st.best_400m}<span style="font-size:9px;"> /km</span></p></div>`);
@@ -277,7 +279,7 @@ function _perfLine(row, id){
   const sc=strain==null?'':strain>=18?'#dc2626':strain>=14?'#f59e0b':strain>=8?'#16a34a':strain>=4?'#3b82f6':'#6b7280';
   const dt=p.date?new Date(p.date+'T12:00:00'):null;
   const d=dt?['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][dt.getDay()]+' '+dt.getDate()+' '+['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'][dt.getMonth()]:(row.wl||'S'+row.ws);
-  const meta=[d, row.km+' km']; if(p.pace) meta.push(p.pace+'/km'); if(p.hr) meta.push('FC '+p.hr);
+  const meta=[d, row.km+' km']; if(p.pace){ meta.push(p.pace+'/km'); const L=typeof prEqPaceLabel==='function'?prEqPaceLabel(p,row.km):''; if(L) meta.push(L); } if(p.hr) meta.push('FC '+p.hr);
   return `<button type="button" class="ph-row" onclick="togglePerfRow('${id}')"><span class="ph-b" style="color:${row.c};background:${row.bg};">${_PERF_SHORT[row.type]||(typeLabel[row.type]||'EF')}</span>`
     +`<span class="ph-m"><b>${row.title}</b><small>${meta.join(' · ')}</small></span>`
     +(strain!=null?`<span class="ph-e"><small>Effort</small><b style="color:${sc};">${strain.toFixed(1)}</b></span>`:'')

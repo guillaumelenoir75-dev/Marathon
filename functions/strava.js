@@ -211,7 +211,10 @@ function stravaDetailMap(detail) {
     const secPerKm = movSec / distKmSp;
     allure = `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
       }
-      return { km: i + 1, distanceKm: distKmSp, allure, fc: sp.average_heartrate ? Math.round(sp.average_heartrate) : null };
+      // allure ajustée à la pente (Strava, s/km) et dénivelé du km : allure équivalente sur plat (prEqPace)
+      const gap = sp.average_grade_adjusted_speed > 0.5 ? Math.round(1000 / sp.average_grade_adjusted_speed) : null;
+      return { km: i + 1, distanceKm: distKmSp, allure, fc: sp.average_heartrate ? Math.round(sp.average_heartrate) : null,
+        gap, dz: sp.elevation_difference != null ? Math.round(sp.elevation_difference) : null };
     }).filter(sp => sp.distanceKm >= 0.5);
   }
 

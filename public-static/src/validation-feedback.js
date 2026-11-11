@@ -466,12 +466,13 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     const _ad = (_vp.date || '').slice(0, 10) || (typeof prTodayIso === 'function' ? prTodayIso() : ''), _ae = typeof alcEntry === 'function' ? alcEntry(_ad) : null;
     if(_ae) analysisContext.alcool_la_veille = _ae.l > 0 ? { niveau_0_10: _ae.l, types: typeof alcTypesText === 'function' ? alcTypesText(_ae.t) : '' } : 'aucun';
     // splits Strava de la séance (déjà enregistrés) si l'import n'est plus en mémoire
-    if(!window._stravaActivityData && _vp.strava && _vp.strava.splits) analysisContext.strava = { cadence: _vp.strava.cadence || null, fcMax: _vp.strava.fcMax || null, splits: _vp.strava.splits.filter(sp => !sp.distanceKm || sp.distanceKm >= 0.5).map(sp => ({ km: sp.km, allure: sp.allure, fc: sp.fc })) };
+    if(!window._stravaActivityData && _vp.strava && _vp.strava.splits) analysisContext.strava = { cadence: _vp.strava.cadence || null, fcMax: _vp.strava.fcMax || null, splits: _vp.strava.splits.filter(sp => !sp.distanceKm || sp.distanceKm >= 0.5).map(sp => ({ km: sp.km, allure: sp.allure, fc: sp.fc, allure_sur_plat: sp.gap ? prPace(sp.gap) : null, gap: sp.gap || null, denivele: sp.dz != null ? sp.dz : null })) };
   }
   (function(){
     const sp = ((analysisContext.strava || {}).splits || []).filter(x => x.allure && x.fc && (!x.distanceKm || x.distanceKm >= 0.9));
     if(sp.length < 5) return;
-    const sec = x => { const m = String(x.allure).match(/(\d{1,2})['’:](\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+    const sec = x => { if(+x.gap >= 120 && +x.gap <= 900) return +x.gap;   // allure ajustée à la pente (Strava) si connue
+      const m = String(x.allure).match(/(\d{1,2})['’:](\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
     const body = sp.slice(1), h = Math.floor(body.length / 2), a = body.slice(0, h), b = body.slice(h);
     const mean = arr => arr.reduce((t, v) => t + v, 0) / arr.length;
     const p1 = mean(a.map(sec)), p2 = mean(b.map(sec)), f1 = mean(a.map(x => +x.fc)), f2 = mean(b.map(x => +x.fc));
@@ -486,8 +487,12 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     let m = det.match(/(\d{1,2})['’:](\d{2})/);
     if(!m && (s.type === 'ef' || s.type === 'long')){ const ep = (state._ef_ref && state._ef_ref.pace) || (typeof getBestEfPace === 'function' ? getBestEfPace() : null); m = ep ? String(ep).match(/(\d{1,2})['’:](\d{2})/) : null; }
     if(!m || !r || s.type === 'tempo' || s.type === 'frac' || s.type === 'race') return;
-    const tgt = +m[1] * 60 + +m[2], real = +r[1] * 60 + +r[2], d = real - tgt;
+    // allure comparée SUR PLAT ET AU FRAIS (prEqPace : dénivelé + météo) : une EF vallonnée ou par 25 °C n'est pas « trop lente »
+    const E = typeof prEqPace === 'function' ? prEqPace(Object.assign({}, _vp || {}, { pace: pace, meteo: (_vp && _vp.meteo) || meteo || null }), km) : null;
+    const tgt = +m[1] * 60 + +m[2], real = +r[1] * 60 + +r[2], cmp = E && Math.abs(E.diff) >= 4 ? E.eq : real, d = cmp - tgt;
+    if(E && Math.abs(E.diff) >= 4) analysisContext.allure_equivalente_plat = { allure: prPace(E.eq), correction: E.why, note: 'allure réelle ramenée sur plat et au frais (dénivelé, météo) : c\'est elle qui se compare à la consigne' };
     if(Math.abs(d) >= 15) analysisContext.ecart_consigne = { allure_prevue: m[1] + "'" + m[2], allure_realisee: r[1] + "'" + r[2], ecart_sec: Math.abs(d), sens: d < 0 ? 'plus rapide que prévu' : 'plus lent que prévu' };
+    if(Math.abs(d) >= 15 && E && Math.abs(E.diff) >= 4) analysisContext.ecart_consigne.allure_sur_plat = prPace(E.eq);
   })();
 
   // Données WHOOP si importées (paramètre direct ou perf sauvegardé)
@@ -862,7 +867,9 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         km: sp.km,
         allure: sp.allure,
         fc: sp.fc,
-        denivele: sp.denivele || null
+        denivele: sp.dz != null ? sp.dz : (sp.denivele || null),
+        gap: sp.gap || null,
+        allure_sur_plat: sp.gap ? prPace(sp.gap) : null
       })) : null,
       note_coach: [
         g.cadence ? `Cadence moyenne : ${g.cadence} spm (foulées/min)${g.cadence < 165 ? ' — trop basse, foulée trop longue' : g.cadence >= 175 ? ' — bonne cadence' : ' — correct'}` : null,

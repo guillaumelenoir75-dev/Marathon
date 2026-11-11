@@ -161,8 +161,10 @@ function prRunVdot(s, H, useAlc){
   const hr = parseInt(s.perf.hr), p = prPaceSec(s.perf.pace); if(!hr || !p || p < 180 || p > 540) return null;
   const min = (s.km || 0) * p / 60; if(min < 20 || min > 110) return null;
   const r = (hr - H.rest) / (H.max - H.rest); if(r < 0.55 || r > 0.92) return null;
+  // allure équivalente plat et frais (dénivelé + météo, prEqPace) ; à défaut, chaleur seule
+  const E = typeof prEqPace === 'function' ? prEqPace(s.perf, s.km) : null;
   const wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(s.perf.meteo).pct : 0;
-  return 3.5 + (prVo2(p / (1 + wx / 100)) - 3.5) / r;
+  return 3.5 + (prVo2(E ? E.eq : p / (1 + wx / 100)) - 3.5) / r;
 }
 
 // sources : records datés (state._records), résultats des prépas enregistrées, course de la prépa en cours,
@@ -488,7 +490,8 @@ async function prHistory(today){
 function prObservedEf(st, today){
   const v = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st)).filter(function(s){ return !(st === state && typeof alcRunAffected === 'function' && alcRunAffected(s.date)) && s.done && (s.type === 'ef' || s.type === 'long') && s.date && prDays(s.date, today) <= 42 && s.perf.pace && parseInt(s.perf.hr) && parseInt(s.perf.hr) <= hrEfMax(st); })
     .sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 5)
-    .map(function(s){ const m = String(s.perf.pace).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean).sort(function(a, b){ return a - b; });
+    .map(function(s){ const E = typeof prEqPace === 'function' ? prEqPace(s.perf, s.km) : null; if(E) return E.eq;   // sur plat, par temps frais
+      const m = String(s.perf.pace).match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; }).filter(Boolean).sort(function(a, b){ return a - b; });
   return v.length >= 2 ? v[Math.floor(v.length / 2)] : null;
 }
 // analyse complète de la prépa affichée (en cours, ou à venir ouverte avec « Voir et modifier »)

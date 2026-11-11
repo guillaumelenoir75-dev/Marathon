@@ -110,8 +110,9 @@ function prStride(today){
   const runs = prDoneLog(today).filter(function(x){ const d = prDays(x.date, today); return (x.type === 'ef' || x.type === 'long') && d >= 0 && d <= 42 && !(typeof alcRunAffected === 'function' && alcRunAffected(x.date)); }).map(function(x){   // lendemain d'alcool : FC faussée
     const p = prPaceSec(x.s.perf.pace), hr = parseInt(x.s.perf.hr), cad = parseInt(((x.s.perf || {}).strava || {}).cadence) || null;
     if(!p || !hr || hr < 90 || p < 150 || p > 600) return null;
-    const wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(x.s.perf.meteo).pct : 0;   // chaleur : à effort égal tu cours plus lentement
-    return { date: x.date, d: prDays(x.date, today), pace: p, hr: hr, cad: cad >= 120 && cad <= 230 ? cad : null, ei: 60000 / p * (1 + wx / 100) / hr };
+    // allure équivalente plat et frais (dénivelé + chaleur, prEqPace) : à effort égal, côtes et chaleur ralentissent
+    const E = typeof prEqPace === 'function' ? prEqPace(x.s.perf, x.s.km) : null, wx = typeof prWxAdjFromMeteo === 'function' ? prWxAdjFromMeteo(x.s.perf.meteo).pct : 0;
+    return { date: x.date, d: prDays(x.date, today), pace: p, hr: hr, cad: cad >= 120 && cad <= 230 ? cad : null, ei: (E ? 60000 / E.eq : 60000 / p * (1 + wx / 100)) / hr };
   }).filter(Boolean);
   const rec = runs.filter(function(r){ return r.d <= 14; }), base = runs.filter(function(r){ return r.d > 14; });
   if(rec.length < 2 || base.length < 3) return null;
