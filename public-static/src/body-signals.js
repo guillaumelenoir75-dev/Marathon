@@ -15,13 +15,21 @@ function hrEfMax(st){
 const _bsMed = function(a){ a = a.slice().sort(function(x, y){ return x - y; }); return a.length ? (a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
 
 // ─── Zones FC ───────────────────────────────────────────────────────────────
+// FC max saisie à la main (Compte › FC max, carte des zones) : prioritaire sur la FC max relevée dans Strava
+function hrManualMax(st){
+  st = st || (typeof state !== 'undefined' ? state : null);
+  const m = st && st._fc_max_manual, v = m && +m.v;
+  return v >= 140 && v <= 225 ? { v: v, at: m.at || null } : null;
+}
 function hrZonesEstimate(today){
   today = today || prTodayIso();
   const log = prDoneLog(today).filter(function(x){ return prDays(x.date, today) <= 365; });
   // FC max observée : pic isolé (capteur) écarté s'il dépasse de plus de 4 bpm la 2e meilleure séance
   const maxes = log.map(function(x){ const v = parseInt(((x.s.perf || {}).strava || {}).fcMax) || 0; return v >= 120 && v <= 225 ? { v: v, date: x.date, t: x.s.title } : null; })
     .filter(Boolean).sort(function(a, b){ return b.v - a.v; });
-  const fcMax = maxes.length ? (maxes.length > 1 && maxes[0].v - maxes[1].v > 4 ? maxes[1] : maxes[0]) : null;
+  const obs = maxes.length ? (maxes.length > 1 && maxes[0].v - maxes[1].v > 4 ? maxes[1] : maxes[0]) : null;
+  const manual = hrManualMax();
+  const fcMax = manual ? { v: manual.v, date: manual.at, manual: true } : obs;
   // FC au seuil (90 derniers jours)
   const thr = [];
   log.forEach(function(x){
@@ -46,10 +54,11 @@ function hrZonesEstimate(today){
   const declared = parseInt((typeof state !== 'undefined' && state && state.fc_max) || 0) || null;
   const cur = hrEfMax();
   let efMax = null, conf = null;
-  if(lthr){ efMax = Math.round(lthr * 0.89); conf = 'seuil'; }                        // haut de la zone 2 (Friel)
+  if(manual){ efMax = Math.round(manual.v * 0.755); conf = 'manuelle'; }             // FC max saisie : zones en % de cette FC max
+  else if(lthr){ efMax = Math.round(lthr * 0.89); conf = 'seuil'; }                  // haut de la zone 2 (Friel)
   else if(fcMax && (!declared || fcMax.v > declared)){ efMax = Math.round(fcMax.v * 0.755); conf = 'fcmax'; }
-  if(efMax) efMax = Math.max(cur - 8, Math.min(cur + 8, efMax));                     // ±8 bpm au plus par recalage
-  const zones = lthr ? [
+  if(efMax && !manual) efMax = Math.max(cur - 8, Math.min(cur + 8, efMax));         // ±8 bpm au plus par recalage automatique
+  const zones = lthr && !manual ? [
     { z: 1, t: 'Récupération', lo: null, hi: Math.round(lthr * 0.84) }, { z: 2, t: 'Endurance (EF)', lo: Math.round(lthr * 0.85), hi: Math.round(lthr * 0.89) },
     { z: 3, t: 'Tempo', lo: Math.round(lthr * 0.90), hi: Math.round(lthr * 0.94) }, { z: 4, t: 'Seuil', lo: Math.round(lthr * 0.95), hi: Math.round(lthr * 0.99) },
     { z: 5, t: 'VMA', lo: Math.round(lthr * 1.00), hi: fcMax ? fcMax.v : null }]
@@ -57,18 +66,35 @@ function hrZonesEstimate(today){
     { z: 1, t: 'Récupération', lo: null, hi: Math.round(fcMax.v * 0.70) }, { z: 2, t: 'Endurance (EF)', lo: Math.round(fcMax.v * 0.71), hi: Math.round(fcMax.v * 0.755) },
     { z: 3, t: 'Tempo', lo: Math.round(fcMax.v * 0.76), hi: Math.round(fcMax.v * 0.84) }, { z: 4, t: 'Seuil', lo: Math.round(fcMax.v * 0.85), hi: Math.round(fcMax.v * 0.91) },
     { z: 5, t: 'VMA', lo: Math.round(fcMax.v * 0.92), hi: fcMax.v }] : null;
-  const propose = !!efMax && Math.abs(efMax - cur) >= 3 && (conf === 'seuil' || (fcMax && declared && fcMax.v > declared + 2));
-  return { fcMax: fcMax, declared: declared, lthr: lthr, thr: thr.sort(function(a, b){ return b.date.localeCompare(a.date); }), efMax: efMax, cur: cur, conf: conf, zones: zones,
-    propose: propose, raiseFcMax: !!(fcMax && declared && fcMax.v > declared + 2) };
+  // FC max relevée plus haute que celle enregistrée (saisie ou non) : proposée
+  const raise = !!(obs && declared && obs.v > declared + 2);
+  const propose = manual ? raise : !!efMax && Math.abs(efMax - cur) >= 3 && (conf === 'seuil' || raise);
+  return { fcMax: fcMax, obs: obs, manual: manual, declared: declared, lthr: lthr, thr: thr.sort(function(a, b){ return b.date.localeCompare(a.date); }), efMax: efMax, cur: cur, conf: conf, zones: zones,
+    propose: propose, raiseFcMax: raise };
 }
 function hrZonesApply(){
-  const E = hrZonesEstimate(); if(!E.efMax) return;
+  const E0 = hrZonesEstimate();
+  if(E0.manual && E0.raiseFcMax){ hrFcMaxSet(E0.obs.v); return; }   // FC max saisie dépassée en séance : la nouvelle devient la référence
+  const E = E0; if(!E.efMax) return;
   const z = { applied: true, at: prTodayIso(), efMax: E.efMax, lthr: E.lthr, fcMax: E.fcMax ? E.fcMax.v : null, prev: E.cur, conf: E.conf, zones: E.zones };
   const up = { _hr_zones: z }; state._hr_zones = z;
-  if(E.raiseFcMax){ state.fc_max = String(E.fcMax.v); up.fc_max = state.fc_max; }
+  if(E.raiseFcMax){ state.fc_max = String(E.obs.v); up.fc_max = state.fc_max; }
   if(typeof dbRef !== 'undefined' && dbRef) dbRef.update(up).catch(function(){});
   if(typeof showToast === 'function') showToast('Zones FC recalées : endurance jusqu\'à ' + E.efMax + ' bpm', '❤️');
   bsRefresh();
+}
+// FC max saisie : enregistrée comme référence, zones et plafond d'endurance recalculés et appliqués tout de suite
+// (allure EF réelle, allures par zone, niveau → allures proposées par « MAJ le plan » / pilote de nuit)
+function hrFcMaxSet(v){
+  v = parseInt(v);
+  if(!(v >= 140 && v <= 225)) return { error: 'FC max entre 140 et 225 bpm' };
+  const at = prTodayIso(), prev = hrEfMax();
+  state.fc_max = String(v); state._fc_max_manual = { v: v, at: at };
+  const E = hrZonesEstimate();
+  state._hr_zones = { applied: true, at: at, efMax: E.efMax, lthr: E.lthr, fcMax: v, prev: prev, conf: 'manuelle', zones: E.zones, manual: true };
+  if(typeof save === 'function') save();
+  if(typeof bsRefresh === 'function') try { bsRefresh(); } catch(e) {}
+  return { v: v, efMax: E.efMax, prev: prev, zones: E.zones };
 }
 function hrZonesReset(){
   if(!state._hr_zones) return;
@@ -305,11 +331,13 @@ function bsRenderStatsCard(){
     else if(zp) h += bsZonesBar([1, 2, 3, 4, 5].map(function(i){ return { z: i, t: '', lo: null, hi: null }; }), zp);
     const src = [];
     if(E.lthr) src.push('FC seuil ~' + E.lthr + ' (' + E.thr.length + ' séance' + (E.thr.length > 1 ? 's' : '') + ')');
-    if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ', saisie ' + E.declared : ''));
+    if(E.manual) src.push('FC max ' + E.manual.v + ' (saisie' + (E.manual.at ? ' le ' + prFmtDate(E.manual.at) : '') + ')' + (E.obs && E.obs.v !== E.manual.v ? ' · relevée ' + E.obs.v : ''));
+    else if(E.fcMax) src.push('FC max ' + E.fcMax.v + ' (' + prFmtDate(E.fcMax.date) + ')' + (E.declared && E.declared !== E.fcMax.v ? ', saisie ' + E.declared : ''));
     const notes = [src.length ? src.join(' · ') : 'Valide des séances de seuil avec Strava (tours) pour recaler tes zones'];
     if(zp) notes.push('allures en min/km' + (zp.efObs ? ', EF d\'après tes sorties' : '') + (zp.arrows ? ' · ↑↓ depuis 7 jours' : ''));
     h += '<p class="bs-n">' + notes.join(' · ') + '</p>';
-    if(E.propose) h += '<div class="bs-prop"><p>Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.fcMax.v : '') + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
+    h += '<button type="button" class="bs-link" onclick="openFcMaxEdit()">✏️ Modifier ma FC max</button>';
+    if(E.propose) h += '<div class="bs-prop"><p>' + (E.manual ? 'FC max relevée en séance : <b>' + E.declared + ' → ' + E.obs.v + ' bpm</b>' : 'Nouveau plafond d\'endurance : <b>' + E.cur + ' → ' + E.efMax + ' bpm</b>' + (E.raiseFcMax ? ' · FC max ' + E.declared + ' → ' + E.obs.v : '')) + '</p><p class="bs-n">Utilisé pour ton allure EF réelle, les conseils de validation et le Coach.</p><button type="button" class="bs-btn" onclick="hrZonesApply()">Appliquer</button></div>';
     else if(Z) h += '<button type="button" class="bs-link" onclick="hrZonesReset()">Revenir à ' + BS_EF_DEFAULT + ' bpm</button>';
     h += '</div>';
     // nettoyage des données : valeurs suspectes écartées des analyses

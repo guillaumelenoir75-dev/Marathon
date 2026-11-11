@@ -1156,6 +1156,26 @@ test('brief du matin ouvert l\'après-midi (12h en semaine, 13h le week-end) : n
   assert.deepEqual(r.errors, []); await r.ctx.close();
 });
 
+test('compte admin : Compte › « Ma FC max » → saisie, zones et plafond d\'endurance recalculés, enregistrés, « Mettre à jour mon plan »', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(() => showScreen('compte')); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('fcmax-row')).display), 'flex', 'ligne visible pour l\'admin');
+  await page.click('#fcmax-row');
+  await page.fill('#fcmax-edit-val', '192');
+  await page.click('#fcmax-overlay button:has-text("Enregistrer")');
+  await page.waitForSelector('#fcmax-res');
+  const txt = (await page.textContent('#fcmax-res')).replace(/\s+/g, ' ');
+  assert.match(txt, /FC max 192 bpm/); assert.match(txt, /Endurance jusqu'à 145 bpm/); assert.match(txt, /Z5 · VMA/);
+  const S = await page.evaluate(() => { const s = window.__DB.users.ADMINUID.state; return { fc: s.fc_max, man: s._fc_max_manual, z: s._hr_zones, ef: hrEfMax() }; });
+  assert.equal(S.fc, '192'); assert.equal(S.man.v, 192); assert.equal(S.z.efMax, 145); assert.equal(S.ef, 145);
+  await page.click('#fcmax-res button:has-text("Mettre à jour mon plan")');
+  await page.waitForTimeout(800);
+  assert.notEqual(await page.evaluate(() => document.getElementById('sc-plan').style.display), 'none', 'écran Plan + MAJ du plan ouverts');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('localisation du téléphone prise à chaque validation (auto et manuelle) : météo à cet endroit, à l\'heure de la séance', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;

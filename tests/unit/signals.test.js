@@ -39,6 +39,30 @@ test('zones FC : plafond EF 148 par défaut, FC seuil lue dans les blocs tempo, 
   st._hr_zones.applied = false; assert.equal(app.hrEfMax(), 148);
 });
 
+test('FC max saisie : référence des zones, du plafond d\'endurance et du niveau ; FC max relevée plus haute proposée', () => {
+  const T = (date, fc) => ({ type: 'tempo', date, km: 10, d: "Tempo 3×8 min|3 km EF · 3 × 8 min à 4'35 — 4'40 /km", pace: 290, hr: 160,
+    strava: { fcMax: 0, laps: [{ allure: '5:50', duree_sec: 900, fc: 135 }, { allure: '4:31', duree_sec: 480, fc: fc }, { allure: '4:33', duree_sec: 480, fc: fc + 1 }, { allure: '6:30', duree_sec: 120, fc: 150 }] } });
+  const st = runs([T('2026-10-01', 170), T('2026-10-08', 171), T('2026-10-15', 169), { date: '2026-10-21', type: 'frac', pace: 270, hr: 168, strava: { fcMax: 190 } }], { fc_max: '186' });
+  for (let k = 0; k < 10; k++) st['fc_repos_' + addDays('2026-10-29', -k)] = 50;
+  const app = loadApp({ now: NOW, state: st });
+  const before = app.prHrRef(st, app.prAllDone('2026-10-29'), '2026-10-29');
+  assert.equal(before.max, 190, 'sans saisie : FC max relevée');
+  const r = J(app.hrFcMaxSet(196));
+  assert.equal(r.v, 196); assert.equal(r.efMax, Math.round(196 * 0.755), 'endurance = 75,5 % de la FC max saisie, sans limite de ±8');
+  assert.equal(st.fc_max, '196'); assert.equal(app.hrEfMax(), r.efMax, 'plafond EF appliqué tout de suite');
+  assert.deepEqual(r.zones.map((z) => z.hi), [137, 148, 165, 178, 196], 'zones en % de la FC max saisie');
+  assert.equal(app.prHrRef(st, app.prAllDone('2026-10-29'), '2026-10-29').max, 196, 'niveau (FC de réserve) calculé sur la FC max saisie');
+  let E = app.hrZonesEstimate('2026-10-29');
+  assert.equal(E.conf, 'manuelle'); assert.equal(E.propose, false, 'rien à proposer : relevée 190 < saisie 196');
+  // plus bas que ce qu'on relève en séance : la FC max relevée est proposée, et l'accepter la rend référence
+  app.hrFcMaxSet(185);
+  E = app.hrZonesEstimate('2026-10-29');
+  assert.ok(E.propose && E.raiseFcMax && E.obs.v === 190);
+  app.hrZonesApply();
+  assert.equal(st.fc_max, '190'); assert.equal(app.hrEfMax(), Math.round(190 * 0.755));
+  assert.equal(J(app.hrFcMaxSet(120)).error, 'FC max entre 140 et 225 bpm');
+});
+
 test('foulée : FC plus haute à allure égale + cadence en baisse → alerte ; stable → rien', () => {
   const mk = (recentHr, recentCad) => {
     const L = [];

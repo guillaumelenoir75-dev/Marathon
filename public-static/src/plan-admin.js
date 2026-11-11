@@ -923,7 +923,8 @@ function renderAthletePanel(){
 }
 
 function openFcMaxEdit(){
-  const cur=state.fc_max||'';
+  let cur=state.fc_max||'';
+  if(!cur&&typeof hrZonesEstimate==='function'){ try{ const E=hrZonesEstimate(); if(E.obs) cur=E.obs.v; }catch(e){} }
   const overlay=document.createElement('div');
   overlay.id='fcmax-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center;';
@@ -931,7 +932,7 @@ function openFcMaxEdit(){
     <p style="font-size:17px;font-weight:800;margin:0;">Modifier la FC max</p>
     <div>
       <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">FC max connue (bpm)</p>
-      <input id="fcmax-edit-val" type="number" min="140" max="220" value="${cur}" placeholder="185" style="width:100%;padding:12px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;box-sizing:border-box;">
+      <input id="fcmax-edit-val" type="number" min="140" max="220" value="${cur}" placeholder="185" min="140" max="225" style="width:100%;padding:12px;border:1.5px solid #d0dff5;border-radius:10px;font-size:20px;font-weight:700;text-align:center;box-sizing:border-box;">
     </div>
     <p style="font-size:12px;color:#888;margin:0;">Ou calcul automatique : <b>220 − âge</b></p>
     <div>
@@ -954,10 +955,36 @@ async function saveRenfoProg(slot,progId){
 }
 
 async function saveFcMax(fc){
-  if(!fc||fc<100||fc>220){alert('Valeur invalide (100–220 bpm).');return;}
-  state.fc_max=fc;
-  if(dbRef) await dbRef.child('fc_max').set(fc).catch(()=>{});
+  if(!fc||fc<140||fc>225){alert('Valeur invalide (140–225 bpm).');return;}
+  // FC max saisie = référence : zones, plafond d'endurance (allure EF réelle) et niveau recalculés tout de suite (body-signals.js)
+  const r=typeof hrFcMaxSet==='function'?hrFcMaxSet(fc):null;
+  if(!r){ state.fc_max=fc; if(dbRef) await dbRef.child('fc_max').set(fc).catch(()=>{}); }
   renderAthletePanel();
+  if(r&&!r.error) fcMaxResult(r);
+}
+// récapitulatif après la saisie : zones FC et allures recalculées, mise à jour du plan en un geste
+function fcMaxResult(r){
+  const zp=typeof bsZonePaces==='function'?bsZonePaces():null, P=function(x){return Math.floor(x/60)+"'"+String(Math.round(x%60)).padStart(2,'0');};
+  const names=['','Récup','Endurance','Tempo','Seuil','VMA'];
+  const rows=(r.zones||[]).map(function(z,i){
+    const bpm=z.lo==null?'< '+(z.hi+1):z.hi==null?'> '+(z.lo-1):z.lo+'–'+z.hi;
+    const pz=zp&&zp.z&&zp.z[i];
+    const pace=!pz?'':pz.lo==null?'< '+P(pz.hi+1):pz.hi==null?'> '+P(pz.lo-1):P(pz.lo)+'–'+P(pz.hi);
+    return '<tr><td>Z'+z.z+' · '+names[z.z]+'</td><td>'+bpm+'</td><td>'+(pace?pace+'/km':'')+'</td></tr>';
+  }).join('');
+  const ov=document.createElement('div');
+  ov.id='fcmax-res';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML='<div style="background:#fff;border-radius:20px;padding:20px;width:min(360px,92vw);display:flex;flex-direction:column;gap:12px;">'
+    +'<p style="font-size:17px;font-weight:800;margin:0;">❤️ FC max '+r.v+' bpm</p>'
+    +'<p style="font-size:13px;margin:0;color:#334155;">Endurance jusqu\'à <b>'+r.efMax+' bpm</b>'+(r.prev&&r.prev!==r.efMax?' (avant '+r.prev+')':'')+'</p>'
+    +(rows?'<table style="width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;"><tr style="color:#64748B;font-size:11px;text-align:left;"><th>Zone</th><th>FC</th><th>Allure</th></tr>'+rows+'</table>':'')
+    +'<p style="font-size:11.5px;margin:0;color:#64748B;">Allures du plan : à valider dans « MAJ le plan ».</p>'
+    +'<div style="display:flex;gap:10px;"><button type="button" onclick="document.getElementById(\'fcmax-res\').remove()" style="flex:1;padding:12px;background:#f5f5f5;border:none;border-radius:12px;font-weight:600;font:inherit;cursor:pointer;">Fermer</button>'
+    +'<button type="button" onclick="document.getElementById(\'fcmax-res\').remove();showScreen(\'plan\');openPlanReview();" style="flex:1;padding:12px;background:#1B4FD8;color:#fff;border:none;border-radius:12px;font-weight:700;font:inherit;cursor:pointer;">🔄 Mettre à jour mon plan</button></div></div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+  if(typeof showToast==='function') showToast('FC max '+r.v+' · zones recalculées','❤️');
 }
 
 async function deleteAthletePlan(){

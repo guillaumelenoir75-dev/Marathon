@@ -140,7 +140,8 @@ function prResultVdot(cat, sec, date, today){
 // Sortie retenue : EF / longue de 20 à 110 min, 55-92 % de la FC de réserve, allure corrigée de la chaleur, pas un lendemain d'alcool.
 // FC max : zones recalées, sinon la plus haute observée (pic isolé écarté), sinon déclarée ; FC repos : médiane des 30 jours avant la date.
 function prHrRef(st, done, today){
-  let max = st._hr_zones && +st._hr_zones.fcMax ? +st._hr_zones.fcMax : null;
+  const man = typeof hrManualMax === 'function' ? hrManualMax(st) : null;   // FC max saisie : la référence
+  let max = man ? man.v : st._hr_zones && +st._hr_zones.fcMax ? +st._hr_zones.fcMax : null;
   if(!max){
     const m = done.filter(function(s){ return s.date && prDays(s.date, today) <= 365 && prDays(s.date, today) >= 0; })
       .map(function(s){ return parseInt(((s.perf || {}).strava || {}).fcMax) || 0; }).filter(function(v){ return v >= 150 && v <= 220; }).sort(function(a, b){ return b - a; });
