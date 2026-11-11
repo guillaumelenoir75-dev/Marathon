@@ -69,3 +69,12 @@ test('valeur refusée par Firebase (undefined au fond d\'un objet, NaN) : nettoy
   vm.runInContext('state.a = 2;', ctx);
   await assert.doesNotReject(() => ctx.syncSave());
 });
+
+test('écriture refusée par la base : gardée sur le téléphone pour « Santé de l\'app » (pm_sync_err)', async () => {
+  const { ctx, calls, store } = load();
+  vm.runInContext('state = { a: 1 }; syncBaseReset({ a: 1 });', ctx);
+  calls.fail = true; vm.runInContext('state.a = 2; state.b = 3;', ctx);
+  await ctx.syncSave();
+  const L = JSON.parse(store.pm_sync_err);
+  assert.equal(L.length, 1); assert.equal(L[0].m, 'refus'); assert.deepEqual(L[0].keys, ['a', 'b']);
+});

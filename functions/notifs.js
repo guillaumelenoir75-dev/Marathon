@@ -29,7 +29,7 @@ const {
   efMaxOf,
   efRefOf,
   bedtimePlan,
-  parisToday, briefTooLateParis,
+  parisToday, briefTooLateParis, healthMark,
   autopilotBriefText,
   isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT, alcoholBriefText,
 } = require('./helpers');
@@ -606,7 +606,8 @@ ${sit.text}`;
       }catch(ePush){
         console.warn('briefAfterFcRepos: push échouée (erreur technique) — brief disponible dans l\'app:',ePush.message);
       }
-    }catch(e){console.error('briefAfterFcRepos:',e.message);}
+      await healthMark('brief',true,'généré');
+    }catch(e){console.error('briefAfterFcRepos:',e.message);await healthMark('brief',false,e.message);}
   }
 );
 

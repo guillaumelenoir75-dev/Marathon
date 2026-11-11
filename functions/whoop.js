@@ -371,11 +371,15 @@ exports.whoopAutoSync = onSchedule(
       const result = await _whoopFetchAndSave(db);
       if (!result) {
         console.log('whoopAutoSync: pas de token valide — sync ignorée');
+        const t = (await db.ref(`users/${ADMIN_UID}/state/whoop_token`).once('value')).val();
+        if (t && t.refresh_token) await require('./helpers').healthMark('whoop', false, 'jeton refusé', db);
         return;
       }
+      await require('./helpers').healthMark('whoop', true, 'synchro OK', db);
       console.log(`whoopAutoSync: sync OK — recovery ${result.latestRecovery?.score ?? 'N/A'}% RHR ${result.rhr ?? 'N/A'} bpm`);
     } catch(e) {
       console.error('whoopAutoSync error:', e.message);
+      await require('./helpers').healthMark('whoop', false, e.message);
     }
   }
 );

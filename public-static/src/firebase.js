@@ -264,6 +264,7 @@ function notifRunAction(search, delay){
   if (a === 'imprevu') { if (typeof openImprevu === 'function') later(openImprevu); return true; }   // séance clé manquée : réorganiser
   if (a === 'sleep') { if (typeof openSleepPlan === 'function') later(openSleepPlan); return true; }   // 21h « Couche-toi vers … » : ta nuit
   if (a === 'review') { if (typeof prOpenFromNotif === 'function') later(prOpenFromNotif); return true; }   // relecture de ta semaine
+  if (a === 'health') { if (typeof openHealth === 'function') later(openHealth); return true; }   // panne d'un branchement / d'une tâche : santé de l'app
   return false;
 }
 // Brief / bilan : toujours le fil du Coach (jamais caché derrière « Mon plan », plan-chat.js)

@@ -273,6 +273,8 @@ function renderCompteScreen(){
   if(wakeupTestBtn) wakeupTestBtn.style.display=isAdmin()?'flex':'none';
   const fcMaxRow=document.getElementById('fcmax-row');   // FC max : compte admin (les athlètes l'ont dans « Mon profil »)
   if(fcMaxRow){ fcMaxRow.style.display=isAdmin()?'flex':'none'; const sub=document.getElementById('fcmax-sub'); if(sub) sub.textContent=state&&state.fc_max?state.fc_max+' bpm · zones FC et allures':'Zones FC et allures'; }
+  const healthRow=document.getElementById('health-row');   // santé de l'app : compte admin
+  if(healthRow) healthRow.style.display=isAdmin()?'flex':'none';
   const calUrlBtn=document.getElementById('cal-url-btn');
   if(calUrlBtn) calUrlBtn.style.display=isAdmin()?'flex':'none';
   const exportPlanBtn=document.getElementById('export-plan-btn');

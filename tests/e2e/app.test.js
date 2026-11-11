@@ -1176,6 +1176,31 @@ test('compte admin : Compte › « Ma FC max » → saisie, zones et plafond d\'
   await ctx.close();
 });
 
+test('compte admin : Compte › « Santé de l\'app » (pannes en tête, réparer), ouverte aussi par la notification (?action=health)', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const items = [
+    { key: 'strava', icon: '🟠', label: 'Strava', status: 'ok', detail: 'Dernier accès il y a 1 h' },
+    { key: 'whoop', icon: '⌚', label: 'WHOOP', status: 'bad', detail: 'Données il y a 30 h', fix: 'whoop' },
+    { key: 'calendar', icon: '📅', label: 'Calendrier', status: 'warn', detail: 'Lu par ton agenda il y a 40 h' }];
+  const fn = (r) => /appHealth/.test(r.request().url()) ? r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, items }) }) : r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+  let { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: fn });
+  await page.evaluate(() => { localStorage.setItem('pm_sync_err', JSON.stringify([{ at: new Date().toISOString(), m: 'Reference.update failed: contains undefined', keys: ['_plan_reviews'] }])); showScreen('compte'); });
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('health-row')).display), 'flex');
+  await page.click('#health-row');
+  await page.waitForSelector('#hl-body .hl-sum');
+  const keys = await page.evaluate(() => [...document.querySelectorAll('#hl-body .hl-it')].map((e) => e.dataset.k));
+  assert.deepEqual(keys.slice(0, 2).sort(), ['save', 'whoop'], 'pannes en tête : ' + keys.join(','));
+  const txt = (await page.textContent('#hl-body')).replace(/\s+/g, ' ');
+  assert.match(txt, /2 pannes · 1 à surveiller/); assert.match(txt, /Enregistrement ?1 refusé en 7 j/); assert.match(txt, /Données il y a 30 h/);
+  assert.equal(await page.evaluate(() => !!document.querySelector('#hl-body .hl-it[data-k="whoop"] .hl-fx')), true, 'bouton « Reconnecter »');
+  assert.equal(await page.textContent('#health-sub'), '2 pannes · 1 à surveiller');
+  assert.deepEqual(errors, []); await ctx.close();
+  ({ ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: fn, query: '?action=health' }));
+  await page.waitForSelector('#hl-modal #hl-body .hl-sum', { timeout: 8000 });
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
 test('localisation du téléphone prise à chaque validation (auto et manuelle) : météo à cet endroit, à l\'heure de la séance', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;

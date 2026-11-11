@@ -83,23 +83,35 @@ async function getUserPref(db, statePath, key, defaultVal = true) {
   }
 }
 
+// « Santé de l'app » : relevé du dernier succès / échec d'un branchement ou d'une tâche (_health/<clé>) ; ne lève jamais
+async function healthMark(key, ok, msg, db) {
+  try {
+    db = db || admin.database();
+    const at = Date.now(), up = { at, ok: !!ok };
+    if (ok) { up.lastOk = at; up.msg = String(msg || '').slice(0, 120); } else { up.lastErr = at; up.err = String(msg || 'erreur').slice(0, 120); }
+    await db.ref('_health/' + key).update(up);
+  } catch (e) { console.warn('healthMark ' + key + ':', e.message); }
+}
+
 async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   const webpush = require('web-push');
   webpush.setVapidDetails('mailto:guillaumelenoir75@gmail.com', vapidPublic, vapidPrivate);
   const db = admin.database();
   const snap = await db.ref(`${ADMIN_STATE}/_push_sub`).once('value');
   const sub = snap.val();
-  if (!sub) { console.log('Pas de subscription push — skip'); return false; }
+  if (!sub) { console.log('Pas de subscription push — skip'); await healthMark('push', false, 'pas d\'abonnement', db); return false; }
   try {
     await webpush.sendNotification(sub, JSON.stringify({ title, body, tag, url: url || '/' }));
     console.log(`Push envoyé : [${tag}] ${title}`);
+    await healthMark('push', true, tag, db);
     return true;
   } catch (err) {
     if (err.statusCode === 410 || err.statusCode === 404) {
       console.log(`Push subscription expirée (${err.statusCode}) — supprimée`);
       await db.ref(`${ADMIN_STATE}/_push_sub`).remove();
+      await healthMark('push', false, 'abonnement expiré', db);
       return false;
-    } else { throw err; }
+    } else { await healthMark('push', false, err.statusCode ? 'HTTP ' + err.statusCode : err.message, db); throw err; }
   }
 }
 
@@ -985,7 +997,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  buildTrainingSituation, parisToday, briefTooLateParis, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
+  buildTrainingSituation, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,

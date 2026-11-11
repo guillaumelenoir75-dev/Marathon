@@ -13,8 +13,9 @@ async function getValidAccessToken(db, uid, clientId, clientSecret) {
   const tokenSnap = await db.ref(`users/${uid}/state/strava_token`).once('value');
   const tokenData = tokenSnap.val();
   if (!tokenData) return null;
+  const _admin = uid === require('./helpers').ADMIN_UID, _mark = (ok, m) => (_admin ? require('./helpers').healthMark('strava', ok, m, db) : null);
 
-  if (Date.now() / 1000 <= tokenData.expires_at - 300) return tokenData.access_token;
+  if (Date.now() / 1000 <= tokenData.expires_at - 300) { await _mark(true, 'jeton valide'); return tokenData.access_token; }
 
   const refreshRes = await fetchWithTimeout('https://www.strava.com/oauth/token', {
     method: 'POST',
@@ -28,10 +29,12 @@ async function getValidAccessToken(db, uid, clientId, clientSecret) {
   }, 15000);
   if (!refreshRes.ok) {
     console.error('Strava token refresh failed:', refreshRes.status);
+    await _mark(false, 'renouvellement refusé (HTTP ' + refreshRes.status + ')');
     return null;
   }
   const refreshed = await refreshRes.json();
-  if (!refreshed.access_token) { console.error('Strava refresh: no access_token in response'); return null; }
+  if (!refreshed.access_token) { console.error('Strava refresh: no access_token in response'); await _mark(false, 'renouvellement sans jeton'); return null; }
+  await _mark(true, 'jeton renouvelé');
   await db.ref(`users/${uid}/state/strava_token`).update({
     access_token: refreshed.access_token,
     expires_at: refreshed.expires_at,

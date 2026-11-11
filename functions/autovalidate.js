@@ -173,7 +173,8 @@ exports.autoValidateScan = onSchedule(
       const [sid, ssec] = strava.STRAVA_SECRETS;
       const r = await runAutoValidate(db, ADMIN_UID, Date.now(), realDeps(db, { stravaId: sid.value(), stravaSecret: ssec.value() }));
       console.log('[validation auto] ', JSON.stringify(r));
-    } catch (e) { console.error('autoValidateScan:', e.message); }
+      await helpers.healthMark('autoval', true, (r && r.skip) || 'passage OK', db);
+    } catch (e) { console.error('autoValidateScan:', e.message); await helpers.healthMark('autoval', false, e.message); }
   }
 );
 

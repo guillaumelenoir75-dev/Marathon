@@ -12,6 +12,11 @@ const _sj = function(v){ return v === undefined ? undefined : JSON.stringify(v);
 function _syncClean(v){ if(typeof v === 'number') return isFinite(v) ? v : null; return v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v; }
 // écriture qui ne lève jamais : une valeur refusée devient un échec de la promesse (l'écran appelant continue)
 function _syncWrite(fn){ return new Promise(function(res){ res(fn()); }); }
+// écriture refusée par la base : gardée sur le téléphone (10 dernières) pour « Santé de l'app » (health.js)
+function _syncErrLog(e, keys){
+  const L = _syncLs(); if(!L) return;
+  try { const a = JSON.parse(L.getItem('pm_sync_err') || '[]') || []; a.unshift({ at: new Date().toISOString(), m: String((e && e.message) || e).slice(0, 160), keys: (keys || []).slice(0, 5) }); L.setItem('pm_sync_err', JSON.stringify(a.slice(0, 10))); } catch(x) {}
+}
 function _syncRefKey(r){ try { return r && typeof r.toString === 'function' ? String(r.toString()) : ''; } catch(e) { return ''; } }
 function _syncLs(){ try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch(e) { return null; } }
 function _syncUid(){ return typeof currentUserId !== 'undefined' && currentUserId ? currentUserId : 'anon'; }
@@ -37,7 +42,7 @@ function syncSave(){
   if(!base || base.obj !== state){
     // état remplacé (copie consultée, vue d'un athlète, prépa à venir) : écriture complète, puis calage
     syncBaseReset(state);
-    return _syncWrite(function(){ return dbRef.set(_syncClean(state)); }).catch(function(e){ console.error('Firebase save error:', e); });
+    return _syncWrite(function(){ return dbRef.set(_syncClean(state)); }).catch(function(e){ console.error('Firebase save error:', e); _syncErrLog(e, ['(état complet)']); });
   }
   const up = syncDiff(), keys = Object.keys(up);
   if(!keys.length) return Promise.resolve();
@@ -50,6 +55,7 @@ function syncSave(){
   }).catch(function(e){
     // refusée par la base (pas un manque de réseau) : pas rejouée au lancement ; ces clés repartiront à la prochaine sauvegarde
     console.error('Firebase save error:', e);
+    _syncErrLog(e, keys);
     if(own) syncPendingDone(seq);
     keys.forEach(function(k){ B[k] = '\u0000' + (before[k] || ''); });
   });

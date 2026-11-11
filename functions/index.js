@@ -11,3 +11,4 @@ Object.assign(exports, require('./live'));
 Object.assign(exports, require('./autopilot'));
 Object.assign(exports, require('./autovalidate'));
 Object.assign(exports, require('./proactive'));
+Object.assign(exports, require('./health'));

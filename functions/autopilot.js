@@ -6,7 +6,7 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 if (!admin.apps.length) admin.initializeApp();
-const { ADMIN_UID, parisToday } = require('./helpers');
+const { ADMIN_UID, parisToday, healthMark } = require('./helpers');
 const { loadEngine } = require('./engine');
 
 async function runAutopilot(db, uid, today) {
@@ -38,7 +38,8 @@ exports.runAutopilot = runAutopilot;
 exports.autopilotNightly = onSchedule(
   { schedule: '15 4 * * *', timeZone: 'Europe/Paris', timeoutSeconds: 120, memory: '512MiB' },
   async () => {
-    try { const r = await runAutopilot(admin.database(), ADMIN_UID, parisToday()); console.log('[pilote] ', JSON.stringify(r)); }
-    catch (e) { console.error('autopilotNightly:', e.message); }
+    try { const r = await runAutopilot(admin.database(), ADMIN_UID, parisToday()); console.log('[pilote] ', JSON.stringify(r));
+      await healthMark('autopilot', true, r.skip || (r.applied ? r.n + ' ajustement(s)' : 'rien à ajuster')); }
+    catch (e) { console.error('autopilotNightly:', e.message); await healthMark('autopilot', false, e.message); }
   }
 );

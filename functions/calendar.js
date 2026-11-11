@@ -198,6 +198,7 @@ exports.calendar = onRequest({ cors: true, memory: '512MiB', timeoutSeconds: 60 
     return;
   }
   const ics = calendarIcs(C.events);
+  if (queryToken) await require('./helpers').healthMark('calendar', true, C.events.length + ' entrées', db);   // agenda abonné : il lit toujours le calendrier
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="prepa-marathon.ics"');
   res.setHeader('Cache-Control', 'no-cache, no-store');
