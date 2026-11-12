@@ -972,6 +972,7 @@ function homeTimeTxt(t){
 function homeNextCard(){
   const el = document.getElementById('home-next-card'); if(!el) return;
   el.innerHTML = '';
+  if(typeof mjRender === 'function' && mjRender()) return;     // « Ma journée » (my-day.js) montre déjà la séance du jour et la suivante
   try {
     if(typeof prSessions !== 'function' || typeof prTodayIso !== 'function' || isPlaisirMode()) return;
     if(typeof _prepView !== 'undefined' && _prepView && !_prepView.next) return;    // copie en lecture seule

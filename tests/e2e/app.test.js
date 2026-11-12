@@ -859,7 +859,7 @@ test('accueil compact : objectif sur une ligne, en-tête sans débordement, proc
   S.extra_w2_s0_done = true; S.extra_w2_s0_km = '8.1'; S.extra_w2_s0_perf = JSON.stringify({ pace: "5'43", dur: "46'20", date: '2026-11-03' });
   const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', JSON.stringify(D));
   await page.evaluate(() => showScreen('home'));
-  await page.waitForSelector('#home-next-card .hn-card');
+  await page.waitForSelector('#home-day-card .mj');
   // objectif sur une ligne avec J-x ; date de course plus répétée à droite
   assert.match(await page.textContent('#home-goal-label'), /^🎯 10 km · .*22 nov\. · J-19$/);
   assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('home-race-date')).display), 'none');
@@ -870,8 +870,10 @@ test('accueil compact : objectif sur une ligne, en-tête sans débordement, proc
   assert.equal(await page.locator('#home-share-btn').isVisible(), true);
   // une seule barre de progression, plus de doublon « séances de la semaine »
   assert.equal(await page.locator('#home-progression-block #h-week-row').isVisible(), false);
-  // prochaine séance : la 1re non faite à venir (jeudi), libellé du jour
-  assert.match(await page.textContent('#home-next-card'), /Prochaine · Jeudi 5 · 6h30.*Footing EF.*9 km/s);
+  // « Ma journée » : la séance faite repliée (✓) et la prochaine (jeudi), pas de carte « Prochaine séance » en double
+  assert.match(await page.textContent('#home-day-card .mj-done'), /Footing EF.*8,1 km/s);
+  assert.match(await page.textContent('#home-day-card'), /Jeu 5 6h30 · Footing EF.*9 km/s);
+  assert.equal((await page.innerHTML('#home-next-card')).trim(), '');
   // séance faite : une ligne compacte, carte complète au toucher
   const row = page.locator('#home-sessions .hs-row').first();
   assert.match(await row.textContent(), /✓\s*Footing EF · 8,1 km · 5'43\/km/);
@@ -932,7 +934,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   await page.evaluate(() => showScreen('home')); await page.waitForTimeout(500);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
   const C = await page.evaluate(() => { const g = (sel, p) => { const e = document.querySelector(sel); return e ? getComputedStyle(e)[p] : null; };
-    return { body: g('body', 'backgroundColor'), card: g('#home-next-card .hn-card', 'backgroundColor'), title: g('#home-next-card .hn-t', 'color'), head: g('#sc-home > div', 'backgroundImage') }; });
+    return { body: g('body', 'backgroundColor'), card: g('#home-day-card .mj', 'backgroundColor'), title: g('#home-day-card .mj-l b', 'color'), head: g('#sc-home > div', 'backgroundImage') }; });
   assert.ok(lum(C.body) < 0.2, 'page sombre ' + C.body);
   if (C.card) { assert.ok(lum(C.card) < 0.25, 'carte sombre ' + C.card); assert.ok(lum(C.title) > 0.7, 'titre clair ' + C.title); }
   assert.match(C.head, /linear-gradient/, 'en-tête en dégradé gardé');
@@ -1008,8 +1010,8 @@ test('bouton « 🏁 J\'ai fini » : recherche Strava + WHOOP + météo, état d
     return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
   } });
   await page.evaluate(() => showScreen('home'));
-  await page.waitForSelector('#home-next-card .hn-fin');
-  await page.click('#home-next-card .hn-fin');
+  await page.waitForSelector('#home-day-card .mj-go:has-text("J\'ai fini")');
+  await page.click('#home-day-card .mj-go:has-text("J\'ai fini")');
   // 1er essai : la sortie n'est pas encore sur Strava → nouvel essai programmé
   await page.waitForSelector('#av-fin .av-msg');
   assert.match(await page.textContent('#av-fin'), /pas encore sur Strava.*Nouvel essai dans/s);
@@ -1425,3 +1427,90 @@ test('Signaux du corps : valeur suspecte confirmée → bandeau retiré ; évolu
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('Ma journée : le matin le réveil d\'abord ; l\'après-midi la séance « à valider » ; pas de doublon avec « Prochaine séance »', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  let { ctx, page, errors } = await open('2026-10-29T07:40:00+01:00', savedDb);
+  await page.waitForSelector('#home-day-card .mj-now');
+  assert.match(await page.textContent('#home-day-card .mj-hd'), /Ce matin/);
+  assert.match(await page.textContent('#home-day-card .mj-now'), /Je suis réveillé/);
+  assert.match(await page.textContent('#home-day-card .mj-later'), /Footing EF/);
+  assert.equal((await page.innerHTML('#home-next-card')).trim(), '', 'pas de doublon');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj-matin.png', clip: { x: 0, y: 200, width: 390, height: 420 } });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+  ({ ctx, page, errors } = await open('2026-10-29T15:00:00+01:00', savedDb));
+  await page.waitForSelector('#home-day-card .mj-now');
+  assert.match(await page.textContent('#home-day-card .mj-hd'), /Aujourd'hui/);
+  assert.match(await page.textContent('#home-day-card .mj-now'), /À valider[\s\S]*Footing EF/);
+  assert.match(await page.textContent('#home-day-card .mj-go'), /Valider/);
+  // toucher la ligne « plus tard » de demain : la séance dans la liste de la semaine
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Navigation : adresse de l\'onglet, retour = ferme la fenêtre du dessus puis revient à l\'Accueil, glisser depuis le bord', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  await page.click('#nav-stats'); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => location.hash), '#/stats');
+  await page.evaluate(() => openShoesPanel()); await page.waitForSelector('#shoes-panel');
+  await page.goBack(); await page.waitForTimeout(400);
+  assert.equal(await page.$('#shoes-panel'), null, 'retour : fenêtre fermée');
+  assert.equal(await page.evaluate(() => document.getElementById('sc-stats').style.display), 'block', 'toujours sur Statistiques');
+  await page.goBack(); await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => document.getElementById('sc-home').style.display), 'block', 'retour : Accueil');
+  assert.equal(await page.evaluate(() => location.hash), '');
+  // deux fenêtres empilées : le retour ferme celle du dessus seulement
+  await page.evaluate(() => { showScreen('compte'); openShoesPanel(); openRecordsModal(); }); await page.waitForSelector('#records-modal');
+  await page.goBack(); await page.waitForTimeout(400);
+  assert.equal(await page.$('#records-modal'), null); assert.ok(await page.$('#shoes-panel'), 'celle du dessous reste');
+  // glisser depuis le bord gauche (app installée)
+  const swipe = (x0, x1) => page.evaluate(([a, b]) => {
+    window._navSwipeForce = true;
+    const T = (x) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: 400 });
+    document.dispatchEvent(new TouchEvent('touchstart', { touches: [T(a)], bubbles: true }));
+    for (let x = a; x <= b; x += 20) document.dispatchEvent(new TouchEvent('touchmove', { touches: [T(x)], bubbles: true }));
+    document.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true }));
+  }, [x0, x1]);
+  await swipe(8, 60); await page.waitForTimeout(500);
+  assert.ok(await page.$('#shoes-panel'), 'geste trop court : rien');
+  await swipe(8, 230); await page.waitForTimeout(600);
+  assert.equal(await page.$('#shoes-panel'), null, 'glisser : fenêtre fermée');
+  await swipe(8, 230); await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => document.getElementById('sc-home').style.display), 'block', 'glisser sans fenêtre : Accueil');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Recherche : loupe de l\'accueil, « chaussures » → Mes chaussures ; récents ; adresse #/go/records', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  let { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  await page.click('#home-search-btn'); await page.waitForSelector('#sr-ov #sr-q');
+  assert.match(await page.textContent('#sr-res'), /Suggestions/);
+  await page.fill('#sr-q', 'chaussures');
+  assert.match(await page.textContent('#sr-res .sr-r'), /Mes chaussures/);
+  await page.press('#sr-q', 'Enter');
+  await page.waitForSelector('#shoes-panel');
+  assert.equal(await page.$('#sr-ov'), null, 'recherche fermée');
+  await page.evaluate(() => closeShoesPanel());
+  await page.fill('#sr-q', '').catch(() => {});
+  await page.click('#home-search-btn'); await page.waitForSelector('#sr-ov');
+  assert.match(await page.textContent('#sr-res'), /Récents[\s\S]*Mes chaussures/);
+  await page.fill('#sr-q', 'malade');
+  assert.match(await page.textContent('#sr-res .sr-r'), /Imprévu/);
+  await page.fill('#sr-q', 'zzzz');
+  assert.match(await page.textContent('#sr-res'), /Rien trouvé/);
+  await page.goBack(); await page.waitForTimeout(300);
+  assert.equal(await page.$('#sr-ov'), null, 'retour : recherche fermée');
+  // champ du Compte
+  await page.evaluate(() => showScreen('compte')); await page.click('#compte-search'); await page.waitForSelector('#sr-ov');
+  if (process.env.SHOTS) { await page.fill('#sr-q', 'allure'); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/search.png' }); }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+  ({ ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb, { query: '#/go/records' }));
+  await page.waitForSelector('#records-modal', { timeout: 5000 });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+

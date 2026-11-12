@@ -40,6 +40,8 @@
     <!-- Badge semaine + notifs + allure EF sur une seule ligne -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+        <!-- Recherche « Que veux-tu faire ? » (search.js) -->
+        <button id="home-search-btn" type="button" onclick="searchOpen()" aria-label="Rechercher une fonction" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.13);border:none;border-radius:20px;padding:0;cursor:pointer;color:#fff;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
         <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.13);border-radius:20px;padding:3px 10px 3px 7px;">
           <div style="width:5px;height:5px;border-radius:50%;background:#7FD4A8;flex-shrink:0;"></div>
           <span style="font-size:10px;opacity:0.85;letter-spacing:0.03em;">Sem.</span>
@@ -187,7 +189,9 @@
   </div>
   <!-- Forme du jour, série, badges, plan de course (plan-daily.js) -->
   <div id="home-form-card" style="background:#EDF2FB;padding:12px 16px 0;"></div>
-  <!-- Prochaine séance (home-render.js homeNextCard) -->
+  <!-- Ma journée : le fil du jour selon l'heure (my-day.js mjRender) -->
+  <div id="home-day-card" style="background:#EDF2FB;padding:8px 16px 0;"></div>
+  <!-- Prochaine séance (home-render.js homeNextCard ; vide quand « Ma journée » est affichée) -->
   <div id="home-next-card" style="background:#EDF2FB;padding:8px 16px 0;"></div>
   <!-- Bandeau navigation semaine -->
   <div id="home-week-nav" style="background:#EDF2FB;padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -441,6 +445,7 @@
     </div>
     <div id="compte-hero-meta" class="cp-hero-meta" hidden></div>
   </div>
+  <button type="button" class="cp-search" id="compte-search" onclick="searchOpen()"><span aria-hidden="true">🔍</span>Rechercher : FC max, chaussures, malade…</button>
   <!-- Compte : sections par thème (5 lignes au plus), identifiants conservés pour le code -->
   <p class="cp-sec">Mes courses</p>
   <div class="cp-group">
@@ -1054,5 +1059,9 @@
 <script defer src="/src/race-analysis.js?v=1"></script>
 <script defer src="/src/alcohol.js?v=1"></script>
 <script defer src="/src/auto-validate.js?v=1"></script>
+<script defer src="/src/health.js?v=1"></script>
+<script defer src="/src/my-day.js?v=1"></script>
+<script defer src="/src/search.js?v=1"></script>
+<script defer src="/src/nav.js?v=1"></script>
 </body>
 </html>

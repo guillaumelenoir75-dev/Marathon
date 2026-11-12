@@ -161,6 +161,8 @@ function initFirebase(){
               // Vérifier _open_coach au démarrage (app rouverte depuis notif quand elle était fermée)
               (async () => {
                 // ?action=… (notifications, raccourcis) : validate, feel, week, imprevu, sleep, review
+                // adresse d'écran : #/stats, #/go/<recherche> (nav.js)
+                if (typeof navDeepLink === 'function' && navDeepLink(window.location.hash, 900)) return;
                 if (notifRunAction(window.location.search, 1200)) { try { history.replaceState({}, '', '/'); } catch(e) {} return; }
                 try {
                   const snap = await dbRef.child('_open_coach').once('value');
