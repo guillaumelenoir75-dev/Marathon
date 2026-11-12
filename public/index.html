@@ -441,31 +441,22 @@
     </div>
     <div id="compte-hero-meta" class="cp-hero-meta" hidden></div>
   </div>
-  <!-- Compte : sections rangées (lignes groupées), identifiants conservés pour le code -->
-  <p class="cp-sec">Mon compte</p>
+  <!-- Compte : sections par thème (5 lignes au plus), identifiants conservés pour le code -->
+  <p class="cp-sec">Mes courses</p>
   <div class="cp-group">
-    <button type="button" class="cp-row" onclick="openProfileModal()"><span class="cp-ic" style="background:#EBF0FF;">👤</span><span class="cp-txt"><b>Mes informations</b><span id="info-subtitle">Prénom, email, genre, mot de passe</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="themeOpen()"><span class="cp-ic" style="background:#E0E7FF;">🌗</span><span class="cp-txt"><b>Thème</b><span>Auto, clair ou sombre</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openPrefsModal()"><span class="cp-ic" style="background:#F5F0FF;">🔔</span><span class="cp-txt"><b>Préférences</b><span>Affichage et notifications</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="health-row" onclick="openHealth()" style="display:none;"><span class="cp-ic" style="background:#CCFBF1;">🛰️</span><span class="cp-txt"><b>Santé de l'app</b><span id="health-sub">Strava, WHOOP, notifications, tâches de nuit</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="diagOpen()"><span class="cp-ic" style="background:#FEE2E2;">🩺</span><span class="cp-txt"><b>Diagnostic</b><span>Démarrage, erreurs récentes de l'app</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="season-row" onclick="openSeason()"><span class="cp-ic" style="background:#DBEAFE;">🗓️</span><span class="cp-txt"><b>Ma saison</b><span>Courses, phases et volume de l'année</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openNextRace()"><span class="cp-ic" style="background:#CCFBF1;">🧭</span><span class="cp-txt"><b>Ma prochaine course</b><span>Quelle course, quand, en quel temps</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="preps-row" onclick="openPrepsPanel()"><span class="cp-ic" style="background:#FEF3C7;">🏅</span><span class="cp-txt"><b>Mes prépas</b><span id="preps-subtitle">Prépa en cours et prépas archivées</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="records-row" onclick="openRecordsModal()"><span class="cp-ic" style="background:#FEF3C7;">🏆</span><span class="cp-txt"><b>Mes records</b><span id="records-sub">5 km, 10 km, semi, marathon</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
 
-  <p class="cp-sec">Entraînement</p>
+  <p class="cp-sec">Mon entraînement</p>
   <div class="cp-group">
-    <button type="button" class="cp-row" id="preps-row" onclick="openPrepsPanel()"><span class="cp-ic" style="background:#FEF3C7;">🏅</span><span class="cp-txt"><b>Mes prépas</b><span id="preps-subtitle">Prépa en cours et prépas archivées</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="avOpenSettings()"><span class="cp-ic" style="background:#D1FAE5;">✅</span><span class="cp-txt"><b>Validation automatique</b><span>Strava + WHOOP + météo concordent → validée seule</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openAutopilotSettings()"><span class="cp-ic" style="background:#E0E7FF;">🤖</span><span class="cp-txt"><b>Pilote automatique</b><span>Le plan s'ajuste chaque nuit, expliqué dans le brief</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openStravaHistory()"><span class="cp-ic" style="background:#FFEDD5;">🟠</span><span class="cp-txt"><b>Historique Strava</b><span>Toutes tes courses depuis le début, dans les analyses</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openQuickValidateHelp()"><span class="cp-ic" style="background:#FFEDD5;">⚡</span><span class="cp-txt"><b>Validation express</b><span>Ta dernière sortie Strava en un geste · raccourci iPhone</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openNextRace()"><span class="cp-ic" style="background:#CCFBF1;">🧭</span><span class="cp-txt"><b>Ma prochaine course</b><span>Quelle course, quand, en quel temps</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openShoesPanel()"><span class="cp-ic" style="background:#FFF1EA;">👟</span><span class="cp-txt"><b>Mes chaussures</b><span>Km par paire, ajout, liaison Strava</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="season-row" onclick="openSeason()"><span class="cp-ic" style="background:#DBEAFE;">🗓️</span><span class="cp-txt"><b>Ma saison</b><span>Toutes tes courses, phases et volume</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="records-row" onclick="openRecordsModal()"><span class="cp-ic" style="background:#FEF3C7;">🏆</span><span class="cp-txt"><b>Mes records</b><span id="records-sub">5 km, 10 km, semi, marathon</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" id="fcmax-row" onclick="openFcMaxEdit()" style="display:none;"><span class="cp-ic" style="background:#FDECEF;">❤️</span><span class="cp-txt"><b>Ma FC max</b><span id="fcmax-sub">Zones FC et allures</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="export-plan-btn" onclick="exportPlanDocument()" style="display:none;"><span class="cp-ic" style="background:#FFF7ED;">📋</span><span class="cp-txt"><b>Exporter le plan complet</b><span>Document HTML, toutes les séances</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="cal-url-btn" onclick="showCalendarUrl()" style="display:none;"><span class="cp-ic" style="background:#F0FFF4;">📅</span><span class="cp-txt"><b>Abonnement calendrier</b><span>URL pour Outlook ou Google</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openGlossary()"><span class="cp-ic" style="background:#EEF2FD;">📖</span><span class="cp-txt"><b>Glossaire</b><span>EF, FC, VO₂max, affûtage… tout comprendre</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openShoesPanel()"><span class="cp-ic" style="background:#FFF1EA;">👟</span><span class="cp-txt"><b>Mes chaussures</b><span>Km par paire, liaison Strava</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openAutopilotSettings()"><span class="cp-ic" style="background:#E0E7FF;">🤖</span><span class="cp-txt"><b>Pilote automatique</b><span>Le plan s'ajuste chaque nuit</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="avOpenSettings()"><span class="cp-ic" style="background:#D1FAE5;">✅</span><span class="cp-txt"><b>Validation automatique</b><span>Strava + WHOOP + météo</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openQuickValidateHelp()"><span class="cp-ic" style="background:#FFEDD5;">⚡</span><span class="cp-txt"><b>Validation express</b><span>Raccourci iPhone</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
   <div id="athlete-panel" style="display:none;margin:-4px 0 18px;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
@@ -482,15 +473,8 @@
     </div>
   </div>
 
-  <div class="cp-admin" style="display:none;">
-  <p class="cp-sec">Suivi de course</p>
-  <div class="cp-group">
-    <button type="button" class="cp-row" id="live-row" onclick="openLivePanel()" style="display:none;"><span class="cp-ic" style="background:#DCFCE7;">🏁</span><span class="cp-txt"><b>Course en direct</b><span id="live-row-sub">Démarrer le suivi, pointages, page des amis</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" id="se-org-row" onclick="openRaceOrgSheet()"><span class="cp-ic" style="background:#E0F2E9;">🗺️</span><span class="cp-txt"><b>Marathon Seine-Eure</b><span>18 oct. 2026 · parcours et trajets</span></span><span class="cp-chip">3:37:05</span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-  </div>
-  </div>
 
-  <p class="cp-sec">Intégrations</p>
+  <p class="cp-sec">Applis connectées</p>
   <div class="cp-group" id="user-integrations" style="display:none;">
     <div class="cp-row cp-static cp-int"><span class="cp-ic" style="background:#FFF0EB;">🟠</span><span class="cp-txt"><b>Strava</b><span id="strava-status-label">Vérification…</span></span>
       <div class="cp-act">
@@ -508,6 +492,31 @@
           Synchroniser
         </button>
       </div></div></div>
+    <button type="button" class="cp-row" onclick="openStravaHistory()"><span class="cp-ic" style="background:#FFEDD5;">🟠</span><span class="cp-txt"><b>Historique Strava</b><span>Toutes tes courses, dans les analyses</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="cal-url-btn" onclick="showCalendarUrl()" style="display:none;"><span class="cp-ic" style="background:#F0FFF4;">📅</span><span class="cp-txt"><b>Abonnement calendrier</b><span>Séances dans ton agenda</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+
+  <div class="cp-admin" style="display:none;">
+  <p class="cp-sec">Suivi de course</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" id="live-row" onclick="openLivePanel()" style="display:none;"><span class="cp-ic" style="background:#DCFCE7;">🏁</span><span class="cp-txt"><b>Course en direct</b><span id="live-row-sub">Démarrer le suivi, pointages, page des amis</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="se-org-row" onclick="openRaceOrgSheet()"><span class="cp-ic" style="background:#E0F2E9;">🗺️</span><span class="cp-txt"><b>Marathon Seine-Eure</b><span>18 oct. 2026 · parcours et trajets</span></span><span class="cp-chip">3:37:05</span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+  </div>
+
+  <p class="cp-sec">Réglages</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" onclick="openProfileModal()"><span class="cp-ic" style="background:#EBF0FF;">👤</span><span class="cp-txt"><b>Mes informations</b><span id="info-subtitle">Prénom, email, genre, mot de passe</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="openPrefsModal()"><span class="cp-ic" style="background:#F5F0FF;">🔔</span><span class="cp-txt"><b>Préférences</b><span>Affichage et notifications</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="themeOpen()"><span class="cp-ic" style="background:#E0E7FF;">🌗</span><span class="cp-txt"><b>Thème</b><span>Auto, clair ou sombre</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+
+  <p class="cp-sec">Aide et outils</p>
+  <div class="cp-group">
+    <button type="button" class="cp-row" onclick="openGlossary()"><span class="cp-ic" style="background:#EEF2FD;">📖</span><span class="cp-txt"><b>Glossaire</b><span>EF, FC, VO₂max, affûtage…</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="export-plan-btn" onclick="exportPlanDocument()" style="display:none;"><span class="cp-ic" style="background:#FFF7ED;">📋</span><span class="cp-txt"><b>Exporter le plan</b><span>Document avec toutes les séances</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="health-row" onclick="openHealth()" style="display:none;"><span class="cp-ic" style="background:#CCFBF1;">🛰️</span><span class="cp-txt"><b>Santé de l'app</b><span id="health-sub">Branchements et tâches de nuit</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="diagOpen()"><span class="cp-ic" style="background:#FEE2E2;">🩺</span><span class="cp-txt"><b>Diagnostic</b><span>Démarrage et erreurs récentes</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
 
   <div class="cp-admin" id="admin-panel" style="display:none;">

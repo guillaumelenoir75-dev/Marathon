@@ -79,6 +79,15 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
   for (const s of ['home', 'plan', 'stats', 'compte']) { await page.evaluate((x) => showScreen(x), s); await page.waitForTimeout(400); }
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   assert.ok(await page.evaluate(() => !!document.getElementById('home-form-card')));
+  // Compte rangé par thème : sections dans l'ordre, 5 lignes visibles au plus par section, rien de vide
+  await page.evaluate(() => showScreen('compte')); await page.waitForTimeout(300);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/compte.png', fullPage: true });
+  const cp = await page.evaluate(() => [...document.querySelectorAll('#sc-compte .cp-sec')].filter((p) => p.offsetParent).map((p) => {
+    const g = p.nextElementSibling; return { t: p.textContent, n: [...g.querySelectorAll('.cp-row')].filter((r) => r.offsetParent).length };
+  }));
+  assert.deepEqual(cp.map((x) => x.t), ['Mes courses', 'Mon entraînement', 'Applis connectées', 'Suivi de course', 'Réglages', 'Aide et outils', 'Administration']);
+  assert.ok(cp.every((x) => x.n >= 1 && x.n <= 5), JSON.stringify(cp));
+  assert.ok(await page.evaluate(() => !!document.querySelector('#season-row').offsetParent && !!document.querySelector('#health-row').offsetParent && !!document.querySelector('#fcmax-row').offsetParent));
   assert.deepEqual(errors, []);
   await ctx.close();
 });
