@@ -597,8 +597,28 @@ async function applyPlanModif(){
   const savedSi = _selectedModifSi;
   // séance du programme (extra_w) : modifiée directement ; sinon ancien format edit_w
   const _key = _cmExtra(modifWS, savedSi) ? 'extra_w'+modifWS+'_s'+savedSi : 'edit_w'+modifWS+'_s'+savedSi;
-  if(_key.startsWith('extra_w')){ ed._modified = true; ed._seq = (ed._seq||0) + 1; }
-  state[_key] = JSON.stringify(ed);
+  let _undoAt = null;
+  if(_key.startsWith('extra_w') && typeof prApplyChanges === 'function'){
+    // séance du programme : via prApplyChanges (plan-review.js) → historique _plan_reviews, annulable (MAJ le plan › dernières mises à jour)
+    let x0 = {}; try { x0 = JSON.parse(state[_key] || '{}'); } catch(e) {}
+    const p0 = String(x0.d || '').split('|'), p1 = String(ed.d || '').split('|');
+    const before = { t: p0[0], d: p0.slice(1).join('|'), km: x0.km, type: x0.type }, after = { t: p1[0], d: p1.slice(1).join('|'), km: ed.km, type: ed.type };
+    _undoAt = Date.now();
+    const r = prApplyChanges([{ key: _key, field: 'session', before: before, after: after, title: p0[0], type: x0.type, date: x0.sched_date || null, kind: 'coach', reason: reason || 'Modification proposée par le Coach' }], { coach: true, kind: 'coach', at: _undoAt });
+    // jour / heure : la date suit dans la même semaine (le changement de date s'annule aussi)
+    let x = {}; try { x = JSON.parse(state[_key] || '{}'); } catch(e) {}
+    if(ed.sched_date && ed.sched_date !== x.sched_date){
+      if(r && r.entry) r.entry.changes.push({ ref: _key, field: 'date', before: x.sched_date, after: ed.sched_date, title: after.t, kind: 'coach' });
+      x.sched_date = ed.sched_date;
+    }
+    if(ed.sched_day) x.sched_day = ed.sched_day;
+    if(ed.sched_time) x.sched_time = ed.sched_time;
+    x._modified = true; x._seq = (x._seq || 0) + 1;
+    state[_key] = JSON.stringify(x);
+  } else {
+    if(_key.startsWith('extra_w')){ ed._modified = true; ed._seq = (ed._seq||0) + 1; }
+    state[_key] = JSON.stringify(ed);
+  }
   save();
   rendered.plan=false;
   rendered.stats=false;
@@ -617,6 +637,6 @@ async function applyPlanModif(){
     dbRef.child('_coach_memos').set(updated);
     if(typeof _currentMemos !== 'undefined') _currentMemos = updated;
   }
-  addCoachMessage('coach', 'Modification appliquée. La séance a été mise à jour dans ton plan.');
+  addCoachMessage('coach', 'Modification appliquée. La séance a été mise à jour dans ton plan.' + (_undoAt ? ' Tu peux l\'annuler dans Plan › MAJ le plan › Dernières mises à jour.' : ''));
 }
 

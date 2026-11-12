@@ -5,7 +5,7 @@ function _ppGwNow(){ const h=_ppHist(); if(!h.length||typeof prMonday!=='functio
 function _ppGwDate(gw){ const h=_ppHist(); if(!h.length||typeof prMonday!=='function') return null; const d=prMonday(h[0].date); d.setDate(d.getDate()+(gw-1)*7); return prIso(d); }
 // libellé d'une séance / semaine de l'historique : date courte (« 12 mars »), sinon S + n° de semaine
 function _ppWk(h){ return h&&h.date?new Date(h.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'S'+(h&&h.ws); }
-function buildMarathonPrediction() {
+function _buildMarathonPredictionLegacy() {
   // Pour les athlètes sans données : retourner vide
   if(!usesHardPlan()){
     // Vérifier s'ils ont des séances validées avec perf
@@ -436,6 +436,7 @@ function openMarathonPredModal() {
     <div style="text-align:center;margin-bottom:20px;padding:8px 0;">
       <div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
       ${pred.tempsStrBase ? `<div style="font-size:12px;color:var(--muted);margin-top:6px;">Modèle entraînement · <strong style="color:var(--text);">${pred.tempsStrBase}</strong></div>` : ''}
+      ${typeof predExplainHtml==='function'?predExplainHtml(pred):''}
       ${vsObjectifHtml}
       ${sub4 ? `<div style="font-size:13px;font-weight:700;color:${sub4Color};margin-top:8px;padding:6px 14px;background:${sub4Color}18;border-radius:20px;display:inline-block;">${sub4Text}</div>` : ''}
     </div>
@@ -1215,7 +1216,7 @@ function buildShortDistancePrediction(course) {
 // 10km : blocs directs, fallback Riegel si pas de blocs
 // 5km  : blocs directs uniquement (Riegel trop indirect)
 // ─────────────────────────────────────────────────────────────
-function buildDistancePrediction(course) {
+function _buildDistancePredictionLegacy(course) {
   const distMap = {'Semi-marathon':21.097,'10 km':10,'5 km':5};
   const dist = distMap[course];
   if(!dist) return {tempsStr:null,paceStr:null,confiance:0};
@@ -1357,6 +1358,7 @@ function openDistancePredModal(course) {
         ${pred.tempsStr
           ? `<div style="font-size:60px;font-weight:900;letter-spacing:-3px;color:var(--text);line-height:1;">${pred.tempsStr}</div>
              <div style="font-size:13px;color:var(--muted);margin-top:6px;">${pred.paceStr}/km · ${distKm} km</div>
+             ${typeof predExplainHtml==='function'?predExplainHtml(pred):''}
              ${vsObjHtml}`
           : `<div style="font-size:24px;font-weight:700;color:var(--muted);margin:20px 0;">Pas encore assez de données</div>
              <p style="font-size:13px;color:var(--muted);">${pred._method==='blocs_directs'?'Valide des séances frac ou tempo avec des blocs d\'allure renseignés pour débloquer la prédiction.':'Valide quelques séances EF ou tempo pour débloquer la prédiction.'}</p>`
@@ -1431,4 +1433,44 @@ function openDistancePredModal(course) {
   </div>`;
   mc.appendChild(overlay);
   overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+}
+
+// ─── Prédiction unique : le même temps partout (en-tête, fenêtres, Coach, Statistiques, MAJ le plan) ──────────
+// L'ancien modèle (EF / tempo / longues / record 10 km, blocs directs) ne sert plus que s'il n'y a pas encore de niveau
+// (aucune course, record ni séance de qualité) ou pour le plan Seine-Eure écrit en dur. Sinon : predRace (plan-optim.js).
+function buildMarathonPrediction(){ return predUnify(_buildMarathonPredictionLegacy(), 'Marathon'); }
+function buildDistancePrediction(course){ return predUnify(_buildDistancePredictionLegacy(course), course); }
+function predUnify(L, cat){
+  L = L || {};
+  if((typeof usesHardPlan === 'function' && usesHardPlan()) || typeof predRace !== 'function') return L;
+  const P = predRace(cat); if(!P) return L;
+  const fT = function(s){ s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + "'" + String(x).padStart(2, '0'); };
+  const fP = function(s){ s = Math.round(s); return Math.floor(s / 60) + "'" + String(s % 60).padStart(2, '0'); };
+  const reco = Math.round(P.pace / 5) * 5;
+  const out = Object.assign({}, L, {
+    tempsSec: P.sec, tempsStr: fT(P.sec), paceSec: Math.round(P.pace), paceStr: fP(P.pace),
+    amPaceReco: reco, amPaceRecoStr: fP(reco), methode: 'niveau', _method: 'niveau', vdot: P.vdot,
+    predNow: P.now, predNowStr: fT(P.now), predRace: P.race, predDate: P.date,
+    intervalMin: P.lo || L.intervalMin, intervalMax: P.hi || L.intervalMax,
+    intervalMinStr: P.lo ? fT(P.lo) : L.intervalMinStr, intervalMaxStr: P.hi ? fT(P.hi) : L.intervalMaxStr,
+    // anciens sous-modèles : plus affichés (ils donnaient d'autres temps dans la même fenêtre)
+    tempsStrBase: null, tempsStrR10: null, tempsSecR10: null,
+    confiance: Math.max(L.confiance || 0, 60), sub4hEcartSec: P.sec - 14400,
+  });
+  // courbe : le niveau semaine par semaine (même calcul qu'à chaque date), converti en temps — calculée seulement si on la lit
+  let _h = null;
+  Object.defineProperty(out, 'historique', { enumerable: true, get: function(){
+    if(_h) return _h;
+    try { _h = typeof bsLevelHistory === 'function' ? bsLevelHistory().map(function(p, i){ return { ws: i + 1, date: p.date, tempsSec: Math.round(raceTimeFromVdot(p.v, P.m)) }; }) : (L.historique || []); }
+    catch(e) { _h = L.historique || []; }
+    return _h;
+  } });
+  return out;
+}
+// d'où vient le temps : niveau du moment, projection au jour J et temps équivalent aujourd'hui (fenêtres de prédiction)
+function predExplainHtml(pred){
+  if(!pred || pred.methode !== 'niveau') return '';
+  const v = String(Math.round(pred.vdot * 10) / 10).replace('.', ','), d = pred.predRace ? new Date(pred.predRace.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : null;
+  return '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45;">' + (d ? 'Prévu le ' + d + ' (' + pred.intervalMinStr + ' – ' + pred.intervalMaxStr + ')' : 'À ton niveau d\'aujourd\'hui')
+    + ' · niveau ' + v + (d ? ' · aujourd\'hui : <b style="color:var(--text);">' + pred.predNowStr + '</b>' : '') + '<br>Même calcul que Statistiques › Niveau et « MAJ le plan »</div>';
 }

@@ -427,6 +427,34 @@ function prSessionVdot(s, hrMax){
   const hr = parseInt(s.perf.hr); if(hr && hr > 0.93 * hrMax) v -= 0.8;
   return v;
 }
+// ─── Prédiction unique du temps de course (accueil, fenêtres de prédiction, Coach, Statistiques, MAJ le plan) ───
+// niveau du moment (prFitness, mêmes entrées que prAnalyze) → temps équivalent aujourd'hui (raceTimeFromVdot) ;
+// course objectif datée de cette distance : projection au jour J (prTrajectory, le « prévu » de MAJ le plan, ±0,6 de niveau)
+let _predCache = null;
+function predRaceCat(R){
+  R = R || {};
+  if(PR_RACE_M[R.course]) return R.course;
+  const k = R.km; return k ? (Math.abs(k - 21.1) < 0.6 ? 'Semi-marathon' : Math.abs(k - 42.2) < 0.6 ? 'Marathon' : Math.abs(k - 10) < 0.6 ? '10 km' : Math.abs(k - 5) < 0.6 ? '5 km' : null) : null;
+}
+function predRace(cat, today){
+  today = today || prTodayIso();
+  const m = PR_RACE_M[cat]; if(!m || typeof prFitness !== 'function') return null;
+  const key = cat + '|' + today;
+  if(_predCache && _predCache.key === key && Date.now() - _predCache.t < 3000) return _predCache.v;
+  let out = null;
+  try {
+    const fit = prFitness(state, { today: today, races: typeof prKnownRaces === 'function' ? prKnownRaces() : [] });
+    if(fit && fit.vdot){
+      const R = typeof prepRace === 'function' ? (prepRace() || {}) : {}, now = raceTimeFromVdot(fit.vdot, m);
+      let race = null;
+      if(predRaceCat(R) === cat && R.date && R.date > today){ const T = prTrajectory({ fit: fit, opt: { today: today, raceCat: cat }, race: R }); if(T && T.race) race = T.race; }
+      const sec = Math.round(race ? race.mid : now);
+      out = { cat: cat, m: m, vdot: fit.vdot, now: Math.round(now), race: race, sec: sec, pace: sec / (m / 1000), lo: race ? Math.round(race.lo) : null, hi: race ? Math.round(race.hi) : null, date: race ? race.date : today };
+    }
+  } catch(e) { out = null; }
+  _predCache = { key: key, t: Date.now(), v: out };
+  return out;
+}
 function prTrajectory(a){
   const f = a.fit, today = a.opt.today, R = a.race || {}; if(!f || !f.vdot) return null;
   const pts = [];

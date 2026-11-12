@@ -1534,3 +1534,40 @@ test('Circulation de la donnée : un changement de séance met à jour l\'allure
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('Prédiction unique : en-tête de l\'accueil et fenêtre de prédiction = niveau du moment (même temps que MAJ le plan)', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  const R = await page.evaluate(() => { const c = predRaceCat(prepRace()); const P = predRace(c); return { c, P, head: document.getElementById('kpi-marathon-time').textContent.trim(), pace: document.getElementById('h-am-pred').textContent.trim() }; });
+  assert.ok(R.P, 'niveau connu (prépa Seine-Eure enregistrée avec son temps)');
+  const fT = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + "'" + String(x).padStart(2, '0'); };
+  assert.equal(R.head, fT(R.P.sec), 'en-tête = prédiction unique');
+  await page.evaluate((c) => openDistancePredModal(c), R.c); await page.waitForTimeout(400);
+  const txt = await page.evaluate(() => document.body.innerText);
+  assert.ok(txt.indexOf(fT(R.P.sec)) >= 0, 'fenêtre : même temps');
+  assert.match(txt, /Même calcul que Statistiques › Niveau et « MAJ le plan »/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Allègement après une séance écourtée : passé dans l\'historique du plan, « ↩ Annuler » sur le bandeau rétablit les séances', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  const before = await page.evaluate(async () => {
+    state.plan_version = 'v-test';   // prépa importée (« import-… ») : jamais allégée automatiquement
+    const L = prSessions(state).filter((x) => !x.done && x.w === getEffectiveCW() && x.kmPlan > 0), s = L[0];
+    const snap = {}; Object.keys(state).filter((k) => /^extra_w\d+_s\d+$/.test(k)).forEach((k) => { snap[k] = JSON.parse(state[k]).km; });
+    state[s.key + '_done'] = true; state[s.key + '_km'] = 2;
+    await adaptPlanAfterSession(s.w, s.ei, 2, s.kmPlan); renderHome();
+    return { snap, key: s.key };
+  });
+  const A = await page.evaluate(() => { const h = state._plan_reviews[state._plan_reviews.length - 1]; return { kind: h.kind, n: h.n, banner: document.getElementById('home-adapted-msg').textContent }; });
+  assert.equal(A.kind, 'adapt'); assert.ok(A.n >= 1); assert.match(A.banner, /Annuler/);
+  await page.click('#home-adapted-msg button');
+  await page.waitForTimeout(300);
+  const after = await page.evaluate((k) => { const o = {}; Object.keys(state).filter((x) => /^extra_w\d+_s\d+$/.test(x) && x !== k).forEach((x) => { o[x] = JSON.parse(state[x]).km; }); return { o, adapted: state._plan_adapted || null }; }, before.key);
+  Object.keys(after.o).forEach((k) => assert.equal(after.o[k], before.snap[k], 'km rétablis : ' + k));
+  assert.equal(after.adapted, null);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

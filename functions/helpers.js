@@ -93,6 +93,13 @@ async function healthMark(key, ok, msg, db) {
   } catch (e) { console.warn('healthMark ' + key + ':', e.message); }
 }
 
+// notifications « de confort » : pas envoyées si une autre notification est partie il y a moins de PUSH_GAP_MIN minutes
+// (le brief, « séance dans 1h », le coucher, le bilan, la relecture, la validation automatique et la santé de l'app passent toujours)
+const PUSH_SOFT = /^(unvalidated-reminder|week-complete|planif-reminder|shaker|fc-repos|missed-key)/;
+const PUSH_GAP_MIN = 25;
+function pushTooClose(last, tag, nowMs) {
+  return !!(PUSH_SOFT.test(String(tag || '')) && last && last.at && (nowMs || Date.now()) - last.at < PUSH_GAP_MIN * 60000);
+}
 async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   const webpush = require('web-push');
   webpush.setVapidDetails('mailto:guillaumelenoir75@gmail.com', vapidPublic, vapidPrivate);
@@ -101,7 +108,12 @@ async function sendPush(vapidPublic, vapidPrivate, title, body, tag, url) {
   const sub = snap.val();
   if (!sub) { console.log('Pas de subscription push — skip'); await healthMark('push', false, 'pas d\'abonnement', db); return false; }
   try {
+    const last = (await db.ref(`${ADMIN_STATE}/_push_last`).once('value')).val();
+    if (pushTooClose(last, tag)) { console.log(`Push [${tag}] non envoyé : une autre notification il y a moins de ${PUSH_GAP_MIN} min (${last.tag})`); return false; }
+  } catch (e) {}
+  try {
     await webpush.sendNotification(sub, JSON.stringify({ title, body, tag, url: url || '/' }));
+    try { await db.ref(`${ADMIN_STATE}/_push_last`).set({ at: Date.now(), tag: tag || '' }); } catch (e) {}
     console.log(`Push envoyé : [${tag}] ${title}`);
     await healthMark('push', true, tag, db);
     return true;
@@ -997,6 +1009,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
+  pushTooClose, PUSH_GAP_MIN,
   buildTrainingSituation, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,

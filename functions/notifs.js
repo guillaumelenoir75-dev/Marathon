@@ -45,12 +45,12 @@ exports.fcReposReminderWeekend = onSchedule(
 );
 
 exports.fcReposReminder14hWeekday = onSchedule(
-  {schedule:'0 14 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
+  {schedule:'30 12 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},   // juste après la fin du brief (12h), plus en même temps que le shaker de 14h
   async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Réveil pas encore déclaré',"Déclare-le pour ta forme du jour et la synchro WHOOP (le brief du matin, lui, est passé) 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Rappel FC repos',"Pense à rentrer ta FC avant la fin de journée ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
 );
 
 exports.fcReposReminder14hWeekend = onSchedule(
-  {schedule:'0 14 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
+  {schedule:'30 13 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},   // week-end : brief jusqu'à 13h
   async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Réveil pas encore déclaré',"Déclare-le pour ta forme du jour et la synchro WHOOP (le brief du matin, lui, est passé) 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Rappel FC repos',"Pense à rentrer ta FC avant la fin de journée ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
 );
 
@@ -708,7 +708,10 @@ exports.weekCompleteCongrats = onSchedule(
       if(await getUserPref(db,ADMIN_STATE,'notif_congrats')){
         const state=(await db.ref(`${ADMIN_STATE}`).once('value')).val()||{};
         const congratsKey=`_congrats_sent_w${cw}`;
-        if(!state[congratsKey]){
+        // dimanche : le bilan de 17h dit déjà « Semaine bouclée » → pas de notification en plus
+        const _sunday=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Paris',weekday:'short'}).format(new Date())==='Sun';
+        const _bilanToday=_sunday&&await getUserPref(db,ADMIN_STATE,'notif_bilan_semaine');
+        if(!state[congratsKey]&&!_bilanToday){
           let totalRun=0, doneRun=0;
           if(!state._plan_migrated){
             for(let si=0;si<5;si++){
@@ -752,8 +755,12 @@ exports.weekCompleteCongrats = onSchedule(
             const lastPunct = Math.max(body.lastIndexOf('.'), body.lastIndexOf('!'), body.lastIndexOf('?'));
             if (lastPunct > 0 && lastPunct < body.length - 1) body = body.slice(0, lastPunct + 1);
             const today = new Date().toISOString().slice(0,10);
-            await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content: body, date: today, type: 'week_complete'});
-            await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+            // un brief du matin pas encore lu (encore ouvert le matin) n'est jamais écrasé par ce message
+            const _pend=state._brief_pending;
+            if(!(_pend&&_pend.type==='morning_brief'&&_pend.date===parisToday()&&!briefTooLateParis())){
+              await db.ref(`${ADMIN_STATE}/_brief_pending`).set({content: body, date: today, type: 'week_complete'});
+              await db.ref(`${ADMIN_STATE}/_open_coach`).set(true);
+            }
             await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),`🎉 Semaine S${cw} complète !`,body,'week-complete','/');
             await db.ref(`${ADMIN_STATE}/${congratsKey}`).set(true);
           }

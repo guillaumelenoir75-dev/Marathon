@@ -61,7 +61,8 @@ async function runMissedNudge(db, uid, today, push) {
 exports.runMissedNudge = runMissedNudge;
 
 exports.missedKeySessionNudge = onSchedule(
-  { schedule: '45 20 * * *', timeZone: 'Europe/Paris', timeoutSeconds: 60, memory: '512MiB', secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
+  { schedule: '45 11 * * *',   // le lendemain avant midi (plus collée au rappel de 20h30 et au coucher de 21h)
+    timeZone: 'Europe/Paris', timeoutSeconds: 60, memory: '512MiB', secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] },
   async () => {
     try {
       const r = await runMissedNudge(admin.database(), helpers.ADMIN_UID, helpers.parisToday(),

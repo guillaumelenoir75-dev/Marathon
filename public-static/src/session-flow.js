@@ -23,6 +23,7 @@ async function _sfRun(){
   try { if(typeof prHistoryChanged === 'function') prHistoryChanged(); } catch(e) {}
   try { if(typeof updateMarathonPace === 'function') updateMarathonPace(); } catch(e) { console.warn('[données] allure marathon', e); }
   try { sfStoreDerived(); } catch(e) { console.warn('[données] dérivées', e); }
+  try { sfAdaptAuto(); } catch(e) { console.warn('[données] allègement', e); }
   try { const r = sfSyncRecords(); if(r.length && typeof showToast === 'function') showToast('🏆 Record ' + r[0].cat + ' : ' + r[0].time + ' (' + r[0].src + ')'); } catch(e) {}
   try { if(o.race && typeof raStore === 'function') raStore(); } catch(e) {}
   try { if(typeof state !== 'undefined' && state.strava_token && typeof shoesStravaFetch === 'function' && typeof getShoes === 'function' && getShoes().some(function(s){ return s.strava_id; })) shoesStravaFetch(true).catch(function(){}); } catch(e) {}
@@ -60,4 +61,17 @@ function sfRefreshScreens(){
   try { if(typeof renderHome === 'function') renderHome(); } catch(e) {}
   try { if(vis('sc-plan') && typeof renderPlan === 'function'){ rendered.plan = true; renderPlan(); } } catch(e) {}
   try { if(vis('sc-stats') && typeof renderStats === 'function'){ rendered.stats = true; renderStats(); } } catch(e) {}
+}
+// séance validée automatiquement (serveur) nettement plus courte que prévu : même allègement annulable qu'une validation à la main
+// (adaptPlanAfterSession, home-render.js) — une seule fois par séance (perf._adapt), séances des 3 derniers jours
+function sfAdaptAuto(){
+  if(typeof adaptPlanAfterSession !== 'function' || typeof prSessions !== 'function' || (typeof _prepView !== 'undefined' && _prepView)) return;
+  const today = prTodayIso(); let changed = false;
+  prSessions(state).forEach(function(s){
+    if(!s.done || !s.perf || !s.perf.auto || s.perf._adapt || !s.date || prDays(s.date, today) > 3) return;
+    let raw = {}; try { raw = JSON.parse(state[s.key + '_perf'] || '{}'); } catch(e) { return; }
+    raw._adapt = 1; state[s.key + '_perf'] = JSON.stringify(raw); changed = true;
+    adaptPlanAfterSession(s.w, s.ei, parseFloat(s.km) || 0, s.kmPlan || 0);
+  });
+  if(changed && typeof save === 'function') save();
 }

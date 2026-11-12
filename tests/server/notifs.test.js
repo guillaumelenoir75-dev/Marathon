@@ -145,3 +145,27 @@ test('brief du matin : l\'alcool d\'hier soir est donné au Coach avec son effet
   assert.match(C.calls.ai[0].system, /ALCOOL : une récupération WHOOP basse/);
   assert.match(C.calls.ai[0].user, /Alcool \(saisi chaque matin.*niveau_0_10":7/);
 });
+
+test('notifications « de confort » : pas envoyées à moins de 25 min d\'une autre ; les importantes passent toujours', () => {
+  const F = loadFunctions({ data: {} });
+  const now = Date.now(), last = { at: now - 10 * 60000, tag: 'unvalidated-reminder' };
+  assert.equal(F.helpers.pushTooClose(last, 'missed-key', now), true, 'séance clé manquée 10 min après un rappel : bloquée');
+  assert.equal(F.helpers.pushTooClose(last, 'shaker-noon', now), true);
+  assert.equal(F.helpers.pushTooClose(last, 'fc-repos-14h', now), true);
+  assert.equal(F.helpers.pushTooClose(last, 'bedtime', now), false, 'coucher : toujours');
+  assert.equal(F.helpers.pushTooClose(last, 'brief-matinal', now), false, 'brief : toujours');
+  assert.equal(F.helpers.pushTooClose(last, 'session-reminder', now), false, 'séance dans 1h : toujours');
+  assert.equal(F.helpers.pushTooClose({ at: now - 30 * 60000, tag: 'bilan-semaine' }, 'week-complete', now), false, 'plus de 25 min après : envoyée');
+  assert.equal(F.helpers.pushTooClose(null, 'unvalidated-reminder', now), false);
+});
+
+test('semaine complète : pas de notification le dimanche (le bilan de 17h la dit déjà)', async () => {
+  const sunday = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', weekday: 'short' }).format(new Date()) === 'Sun';
+  const st = { _plan_engine: 'generated', plan_start_date: day(3), _last_validation_w1: Date.now(), rf1r1done: true, rf1r2done: true };
+  st.extra_w1_s0 = JSON.stringify({ type: 'ef', km: 8, d: 'Footing EF|x', sched_date: day(1) }); st.extra_w1_s0_done = true;
+  const data = {}; setState(data, st);
+  const F = loadFunctions({ data });
+  await F.notifs.weekCompleteCongrats();
+  const sent = F.calls.push.some((p) => p.tag === 'week-complete');
+  if (sunday) assert.equal(sent, false, 'dimanche : rien'); else assert.ok(true, 'pas dimanche : règle non applicable aujourd\'hui');
+});

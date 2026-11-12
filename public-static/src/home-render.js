@@ -772,7 +772,7 @@ function renderHome(){
     if(adapted&&!adapted.seen&&adaptedEl){
       adaptedEl.style.display='flex';
       const msgEl=document.getElementById('home-adapted-msg');
-      if(msgEl) msgEl.textContent=adapted.msg||'Plan ajusté suite à ta dernière séance.';
+      if(msgEl) msgEl.innerHTML=_esc0(adapted.msg||'Plan ajusté suite à ta dernière séance.')+(adapted.at?' <button type="button" onclick="undoPlanAdapted()" style="margin-left:4px;background:#fff;border:1.5px solid #E8530A;color:#9A3412;border-radius:16px;padding:3px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;">↩ Annuler</button>':'');
     } else if(adaptedEl){
       adaptedEl.style.display='none';
     }
@@ -1091,7 +1091,8 @@ function toggleDoneExtra(w,ei){
     if(state._plan_adapted){
       try{
         const a=JSON.parse(state._plan_adapted);
-        if(a.week===w){ delete state._plan_adapted; if(dbRef) dbRef.child('_plan_adapted').remove().catch(()=>{}); }
+        if(a.key===k&&a.at) undoPlanAdapted();   // l'allègement déclenché par cette séance est annulé avec elle
+        else if(a.week===w){ delete state._plan_adapted; if(dbRef) dbRef.child('_plan_adapted').remove().catch(()=>{}); }
       }catch(e){}
     }
     save();
@@ -1384,46 +1385,32 @@ async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
   }[level];
 
   const maxWeek=getAthleteMaxWeek();
-  const updates={};
-
-  // Séances non-validées de la semaine en cours
-  const wStr=`extra_w${w}_s`;
-  Object.keys(state).filter(k=>/^extra_w\d+_s\d+$/.test(k)&&k.startsWith(wStr)).forEach(k=>{
-    const eiOther=parseInt(k.replace(wStr,''));
-    if(eiOther===ei) return;
-    if(state[`extra_w${w}_s${eiOther}_done`]) return;
-    try{
-      const s=JSON.parse(state[k]||'{}');
-      if(s.km>0){
-        s.km=Math.max(2,Math.round(s.km*factors.cw*2)/2);
-        updates[k]=JSON.stringify(s);
-        state[k]=updates[k];
-      }
-    }catch(e){}
-  });
-
-  // Semaines +1 et +2
-  [[w+1, factors.n1],[w+2, factors.n2]].forEach(([wn, factor])=>{
-    if(factor>=1||wn>maxWeek) return;
-    Object.keys(state).filter(k=>k.startsWith(`extra_w${wn}_s`)&&!k.includes('_done')&&!k.includes('_km')&&!k.includes('_perf')).forEach(k=>{
-      const eiN=parseInt(k.replace(`extra_w${wn}_s`,''));
-      if(state[`extra_w${wn}_s${eiN}_done`]) return;
-      try{
-        const s=JSON.parse(state[k]||'{}');
-        if(s.km>0){
-          s.km=Math.max(2,Math.round(s.km*factor*2)/2);
-          updates[k]=JSON.stringify(s);
-          state[k]=updates[k];
-        }
-      }catch(e){}
-    });
-  });
-
-  const adapted={msg,ts:Date.now(),seen:false,week:w,level};
-  state._plan_adapted=JSON.stringify(adapted);
-  updates['_plan_adapted']=state._plan_adapted;
-
-  if(dbRef) await dbRef.update(updates).catch(e=>console.warn('adaptPlan update:',e));
+  // changements passés par prApplyChanges (plan-review.js) : historique _plan_reviews (kind 'adapt'), annulable comme les autres
+  const sel=[], why='Séance écourtée ('+kmActual+'/'+kmPlanned+' km) : allègement '+level;
+  const take=(k,factor)=>{
+    if(state[k+'_done']||factor>=1) return;
+    let s; try{ s=JSON.parse(state[k]||'{}'); }catch(e){ return; }
+    if(!(s.km>0)||s.type==='race') return;
+    const after=Math.max(2,Math.round(s.km*factor*2)/2); if(after>=s.km) return;
+    sel.push({ key:k, field:'km', before:s.km, after:after, title:(String(s.d||'').split('|')[0]||''), type:s.type, date:s.sched_date||null, kind:'adapt', reason:why });
+  };
+  Object.keys(state).filter(k=>new RegExp('^extra_w'+w+'_s\\d+$').test(k)&&k!==`extra_w${w}_s${ei}`).forEach(k=>take(k,factors.cw));
+  [[w+1,factors.n1],[w+2,factors.n2]].forEach(([wn,factor])=>{ if(wn>maxWeek) return; Object.keys(state).filter(k=>new RegExp('^extra_w'+wn+'_s\\d+$').test(k)).forEach(k=>take(k,factor)); });
+  const at=Date.now();
+  const r=sel.length&&typeof prApplyChanges==='function'?prApplyChanges(sel,{auto:true,kind:'adapt',at:at}):null;
+  if(!r||!r.n) return;
+  state._plan_adapted=JSON.stringify({msg,ts:at,at:at,seen:false,week:w,key:`extra_w${w}_s${ei}`,level,n:r.n});
+  save();
+}
+// bandeau « Plan ajusté » : annuler l'allègement (séances encore non faites remises comme avant)
+function undoPlanAdapted(){
+  let a=null; try{ a=JSON.parse(state._plan_adapted||'null'); }catch(e){}
+  if(a&&a.at&&typeof prUndoReview==='function'){
+    const i=(state._plan_reviews||[]).findIndex(e=>e.at===a.at&&e.kind==='adapt');
+    if(i>=0) prUndoReview(i);
+  }
+  delete state._plan_adapted; if(dbRef) dbRef.child('_plan_adapted').remove().catch(()=>{});
+  save(); rendered.plan=false; renderHome();
 }
 
 async function saveValidationExtra(w,ei){
@@ -1659,3 +1646,5 @@ function saveEditEF(){
   if(document.getElementById('sc-plan')?.style.display !== 'none'){ rendered.plan=false; renderPlan(); }
 }
 
+
+const _esc0=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
