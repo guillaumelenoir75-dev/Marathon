@@ -205,16 +205,6 @@ function selectTempoEfPace(prefix, pace){
   });
 }
 
-function selectHmEfPace(pace){
-  const inp=document.getElementById('edit-ef-pace');
-  if(inp){inp.value=pace;updateEfPreview();}
-  document.querySelectorAll('[id^="edit-pace-chip-"]').forEach(btn=>{
-    const sel=btn.id==='edit-pace-chip-'+pace.replace(':','-');
-    btn.style.background=sel?'var(--blue)':'var(--bg2)';
-    btn.style.color=sel?'#fff':'var(--muted)';
-    btn.style.borderColor=sel?'var(--blue)':'var(--border)';
-  });
-}
 
 function selectEfPace(pace){
   const inp = document.getElementById('edit-ef-pace');
@@ -383,19 +373,6 @@ function deleteSession(ws, si){
   renderHome();
 }
 
-function getWeekSessions(ws){
-  const base=weeks[ws-1].sessions;
-  const result=[];
-  base.forEach((s,si)=>{
-    if(!state[`del_w${ws}_s${si}`]) result.push({...getSession(ws,si),_si:si,_extra:false});
-  });
-  let ei=0;
-  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-    try{result.push({...JSON.parse(state[`extra_w${ws}_s${ei}`]),_si:'x'+ei,_extra:true,_ei:ei});}catch(e){}
-    ei++;
-  }
-  return result;
-}
 
 function openAddModal(ws){
   const mc = document.getElementById('modal-container');

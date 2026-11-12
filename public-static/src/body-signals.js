@@ -233,7 +233,7 @@ function bsSleepChip(){
     return '<button type="button" class="bs-sleep" onclick="openSleepPlan()" aria-label="Ce soir : coucher vers ' + B.bed + ', ' + B.sleep + ' de sommeil"><span>🌙</span><span class="t"><b>Ce soir : couche-toi vers ' + B.bed + '</b><small>' + B.sleep + ' de sommeil · réveil ' + B.wake + (B.session ? ' · demain ' + prEsc(B.session) : '') + '</small></span><i aria-hidden="true">›</i></button>';
   } catch(e) { return ''; }
 }
-function bsBedtimeLine(){ return ''; }   // remplacé par bsSleepChip (toujours visible)
+   // remplacé par bsSleepChip (toujours visible)
 // accueil : pastille compacte dans l'en-tête (à côté de « Réveil ») — « 🌙 23h15 » → détail « Ta nuit »
 function bsSleepPill(){
   const el = typeof document !== 'undefined' ? document.getElementById('home-sleep-btn') : null; if(!el) return;

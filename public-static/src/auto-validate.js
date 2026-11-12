@@ -42,6 +42,8 @@ function avMatch(st, act, today){
     .filter(function(x){ return x.ok; }).sort(function(a, b){ return a.score - b.score; });
   if(!c.length) return { reason: 'aucune séance du plan correspondante' };
   if(c.length > 1 && c[1].score - c[0].score < 1) return { reason: 'deux séances possibles : ' + c[0].s.title + ' / ' + c[1].s.title };
+  // course : le temps officiel (résultat, records, analyse de course, fiche de la prépa) ne vient que d'une validation à la main
+  if(c[0].s.type === 'race') return { reason: 'course « ' + c[0].s.title + ' » : saisis ton temps officiel', race: true };
   return { s: c[0].s };
 }
 // 2. WHOOP : l'entraînement de CETTE sortie (horaires), jamais un plus ancien
@@ -338,6 +340,7 @@ function avFeelSave(){
   if(typeof isAdmin === 'function' && isAdmin() && typeof showCoachFeedback === 'function'){ window._lastValidatedPerf = p; try { showCoachFeedback(x, parseFloat(state[k + '_km']) || 0, p.pace || '', p.hr || null, false, null, p.meteo || null, p.whoop || null); } catch(e) {} }
   if(typeof prAfterValidation === 'function') prAfterValidation();
   if(typeof ssOffer === 'function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance »
+  if(typeof sessionChanged === 'function') sessionChanged();
 }
 function avFeelSkip(){
   const ov = document.getElementById('av-feel'); if(!ov) return; const k = ov.dataset.key;

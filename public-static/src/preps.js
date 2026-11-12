@@ -860,12 +860,12 @@ function prepRaceCategory(km, course){
 // meilleur temps connu sur une distance : records saisis + temps des prépas enregistrées
 function prepBestTime(cat, index, skipDate){
   let best = null;
-  const take = function(t, src){ const sec = prepTimeSec(t); if(sec && (!best || sec < best.sec)) best = { sec: sec, time: prepTimeFmt(sec), src: src }; };
+  const take = function(t, src, date){ const sec = prepTimeSec(t); if(sec && (!best || sec < best.sec)) best = { sec: sec, time: prepTimeFmt(sec), src: src, date: date || null }; };
   const key = PREP_RECORD_KEYS[cat]; if(key) take(state[key], 'record');
   const idx = index || _prepIndex || {};
-  Object.keys(idx).forEach(function(k){ const p = idx[k]; if(p.result && p.dist === cat) take(p.result, p.title); });
+  Object.keys(idx).forEach(function(k){ const p = idx[k]; if(p.result && p.dist === cat) take(p.result, p.race || p.title, p.date); });
   // courses de l'historique Strava (sauf la course qu'on est en train d'enregistrer)
-  if(typeof prStravaRaces === 'function') prStravaRaces().forEach(function(r){ if(r.cat === cat && r.date !== skipDate) take(r.time, r.label); });
+  if(typeof prStravaRaces === 'function') prStravaRaces().forEach(function(r){ if(r.cat === cat && r.date !== skipDate) take(r.time, r.label, r.date); });
   return best;
 }
 // enregistre le temps officiel de la course de la prépa en cours ; renvoie { time, cat, pr, prev }

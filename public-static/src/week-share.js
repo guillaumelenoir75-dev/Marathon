@@ -63,7 +63,8 @@ function weekShareData(w, today, mode){
   if(!star && done.length){ const l = done.slice().sort(function(a, b){ return b.km - a.km; })[0]; star = { key: l.key, title: l.title, line: _wsKm(l.km) + ' km' + (l.perf.pace ? ' à ' + String(l.perf.pace).replace(':', "'") + ' /km' : ''), kind: 'long' }; }
   const R = typeof prepRace === 'function' ? prepRace() : null;
   const end = o.to && o.to < today ? o.to : today, dR = R && R.date ? prDays(end, R.date) : null;
-  const F = o.now && typeof prFormScore === 'function' ? prFormScore() : null;
+  // forme du jour seulement quand la nuit du jour est connue (même règle que l'accueil et Statistiques : jamais en attente de WHOOP)
+  const F = o.now && typeof prFormScore === 'function' && !(typeof wellnessState === 'function' && wellnessState().kind !== 'ok') ? prFormScore() : null;
   const rpes = done.map(function(s){ return s.perf.rpe; }).filter(Boolean);
   const total = Object.keys(W).map(Number).reduce(function(a, b){ return Math.max(a, b); }, 0);
   return { mode: 'done', today: today, w: w, total: total, from: o.from, to: o.to, kind: _wsKind(o.kind), now: o.now, kmDone: kmDone, kmPlan: kmPlan, pct: kmPlan ? Math.min(1.5, kmDone / kmPlan) : null,

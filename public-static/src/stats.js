@@ -50,7 +50,11 @@ function renderStats(){
       return pd.getMonth()!==month?monthNames[month]:'';
     });
     const allKm=wsNums.map(ws=>getAthleteWeekKm(ws));
-    kmRealized=wsNums.map((ws,i)=>ws<=eCW?allKm[i]:null);
+    // « Réalisé » = km des séances faites (pas les km prévus) ; prévu = projection à partir de la semaine en cours
+    const doneKm={};
+    try{ prSessions(state).forEach(s=>{ if(s.done&&!s.skip) doneKm[s.w]=(doneKm[s.w]||0)+(parseFloat(s.km)||0); }); }catch(e){}
+    window._statsDoneKm=doneKm;
+    kmRealized=wsNums.map(ws=>ws<=eCW?Math.round((doneKm[ws]||0)*10)/10:null);
     kmProjected=wsNums.map((ws,i)=>ws>=eCW?allKm[i]:null);
     pointFillR=wsNums.map(ws=>ws===eCW?'#E8530A':'#fff');
     pointBorderR=wsNums.map(ws=>ws<=eCW?'#E8530A':'transparent');
@@ -135,7 +139,10 @@ function renderStats(){
   });
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
-  if(badge) badge.textContent = (usesHardPlan() ? getWeekTotalKm(CW) : getAthleteWeekKm(getEffectiveCW())) + ' km';
+  if(badge){
+    if(usesHardPlan()) badge.textContent = getWeekTotalKm(CW) + ' km';
+    else { const _w=getEffectiveCW(), _d=(window._statsDoneKm||{})[_w]||0; badge.textContent = String(Math.round(_d*10)/10).replace('.',',') + ' / ' + getAthleteWeekKm(_w) + ' km'; }
+  }
   renderShoesList();   // Compte › Mes chaussures (si ouvert)
   // Tableau performances
   const pr=document.getElementById('perf-rows');
@@ -667,8 +674,11 @@ function renderWhoopStats() {
   // ── Score synthétique du jour (commun avec « Forme du jour » de l'accueil : wellnessScore) ──
   const _calcSyntheticScore = (rRec, sSleep, fcV) => wellnessScore(rRec, sSleep, fcV);
 
+  // anciens score et tuiles WHOOP : remplacés par « Aujourd'hui » (statsTodayRender) → plus calculés quand il est là
+  const _oldCards = !document.getElementById('st-today');
   const syntheticEl = document.getElementById('whoop-synthetic-score');
-  if (syntheticEl) {
+  if (syntheticEl && !_oldCards) syntheticEl.style.display = 'none';
+  if (syntheticEl && _oldCards) {
     const avg = _calcSyntheticScore(r0, s0, fcToday, allFcEntries);
     // Score d'hier pour la tendance
     const r1 = wd?.recoveries?.[1] || null;
@@ -718,7 +728,7 @@ function renderWhoopStats() {
   }
 
   const _kMode={'Récupération':'recovery','VFC':'hrv','Sommeil':'sleep','Effort':'strain'};
-  document.getElementById('whoop-kpi-row').innerHTML = kpis.map(k => `
+  if (_oldCards) document.getElementById('whoop-kpi-row').innerHTML = kpis.map(k => `
     <div role="button" tabindex="0" onclick="whoopChartOpen('${_kMode[k.label]||'fc'}')" style="cursor:pointer;background:${k.bg};border:1px solid ${k.border};border-radius:12px;padding:12px 10px;text-align:center;">
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${k.label}</div>
       <div style="font-size:24px;font-weight:800;color:${k.color};line-height:1;">${k.value}</div>
@@ -848,8 +858,6 @@ function switchUnifiedChart(mode) {
 }
 
 // Compatibilité anciens appels (ne plus utiliser)
-function switchWhoopChart(mode) { switchUnifiedChart(mode === 'hrv' ? 'hrv' : mode); }
-function switchFcReposChart(type) { switchUnifiedChart(type === 'vfc' ? 'hrv' : 'fc'); }
 
 let curRenfo=1;
 let affutageMode=false;

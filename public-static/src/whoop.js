@@ -212,18 +212,6 @@ async function syncWhoop() {
   }
 }
 
-function _autoFillFcRepos(rhr) {
-  const today = new Date().toISOString().slice(0, 10);
-  // WHOOP est la source autoritaire pour la FC repos — toujours écraser avec la valeur du jour
-  if (dbRef) {
-    dbRef.child('fc_repos_' + today).set(rhr).then(() => {
-      state['fc_repos_' + today] = rhr;
-      const el = document.getElementById('kpi-fc-repos');
-      if (el) el.textContent = rhr + ' bpm';
-      if (typeof renderFcReposChart === 'function') renderFcReposChart();
-    });
-  }
-}
 
 function _renderWhoopPanel(wd, panel) {
   if (!panel) return;
@@ -458,7 +446,7 @@ async function onWakeupFromBanner() {
       <div style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:0;padding:32px 24px;">
         <div style="font-size:72px;line-height:1;margin-bottom:20px;animation:_sunPulse 2.5s ease-in-out infinite;">✅</div>
         <p style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px;text-align:center;margin:0 0 10px;">Réveil enregistré !</p>
-        <p style="font-size:15px;color:rgba(255,255,255,0.85);font-weight:500;margin:0 0 28px;text-align:center;line-height:1.5;">Ton brief matinal est en cours de<br>préparation — tu le recevras<br>dans quelques instants. 🚀</p>
+        <p style="font-size:15px;color:rgba(255,255,255,0.85);font-weight:500;margin:0 0 28px;text-align:center;line-height:1.5;">${(typeof briefTooLate==='function'&&briefTooLate()&&!isTest)?'Ta forme du jour se met à jour.<br>Le brief du matin reprend demain. 🌙':'Ton brief matinal est en cours de<br>préparation — tu le recevras<br>dans quelques instants. 🚀'}</p>
         ${whoopLine}${testLine}
       </div>
       <style>@keyframes _pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}</style>

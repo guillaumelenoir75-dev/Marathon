@@ -417,15 +417,6 @@ function buildLongModalHtml(detail, totalKm){
     +'</div>';
 }
 
-function openHomeModal(idx){
-  openEditModal(CW, idx);
-}
-function saveHomeModal(idx){
-  saveEdit(CW, idx);
-}
-function clearHomeModal(idx){
-  resetSession(CW, idx);
-}
 function _lockBodyScroll(){
   if(document.body.dataset.scrollLocked) return; // déjà verrouillé
   const sy = window.scrollY || 0;
@@ -680,7 +671,7 @@ function renderAthletePlan(el){
   const actionBanner=document.createElement('div');
   actionBanner.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;';
   // programme importé (prépa prête à installer) : pas de régénération par le moteur, il remplacerait le programme fourni
-  const regenBtn=(_adminPreviewUid||String(state.plan_version||'').startsWith('import-'))?'':`<button onclick="confirmModifyPlan()" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">✏️ Modifier mon plan</button>`;
+  const regenBtn=(_adminPreviewUid||String(state.plan_version||'').startsWith('import-'))?'':`<button onclick="confirmModifyPlan()" style="background:#EEF2FD;border:1px solid #c7d7f8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">♻️ Refaire mon plan</button>`;
   const updateBtn=_adminPreviewUid?`<button onclick="cvRegeneratePlan()" style="background:#EBF0FF;border:1px solid #b3c5f5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#1B4FD8;cursor:pointer;">🔄 Mettre à jour</button>`:'';
   const regenDateBtn=_adminPreviewUid?`<button onclick="openRegenFromDateModal()" style="background:#FFF7ED;border:1px solid #fed7aa;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#C2610A;cursor:pointer;">📅 Regen. date</button>`:'';
   const delBtn=_adminPreviewUid?`<button onclick="cvDeletePlan()" style="background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#c0392b;cursor:pointer;">🗑 Supprimer</button>`:'';

@@ -124,7 +124,7 @@ function sendNextRun(){
   const todaySched = dowToSched[new Date().getDay()];
   let nextSession = null;
 
-  for(let ws = CW; ws <= Math.min(CW+1, 32); ws++){
+  for(let ws = CW; ws <= Math.min(CW+1, typeof planTotalWeeks === 'function' ? planTotalWeeks() : 32); ws++){   // prépa en cours (plus seulement Seine-Eure)
     getOrderedWeekSessions(ws).forEach(({s:sess, ei}) => {
       if(nextSession) return;
       if(sess.type === 'rest') return;
@@ -1339,64 +1339,6 @@ function keepBrief(){
   _addBriefActionButtons(true);
 }
 
-async function _appendWeatherMessageAfterBrief() {
-  // Fetch météo silencieusement (utilise cache ou géoloc déjà accordée)
-  // Chercher l'heure de la séance du jour pour cibler la météo
-  const _todayDow = new Date().getDay();
-  const _todaySched = [7,1,2,3,4,5,6][_todayDow];
-  let _seanceHeure = null;
-  getOrderedWeekSessions(CW).some(({s,ei})=>{
-    if(state[`extra_w${CW}_s${ei}_done`]) return false;
-    if(s.sched_day===_todaySched&&s.sched_time){ _seanceHeure=s.sched_time; return true; }
-    return false;
-  });
-  let meteo=null;
-  try{ meteo=await fetchWeatherIfGranted(_seanceHeure, new Date().toISOString().slice(0,10)); }catch(e){}
-  if(!meteo||!meteo.temperature) return;
-
-  // Construire le message météo formaté
-  const temp=meteo.temperature;
-  const ressenti=meteo.ressenti||temp;
-  const conditions=meteo.conditions||'';
-  const impact=meteo.impact_performance||null;
-  const vent=meteo.vent_kmh||0;
-  const pluie=meteo.pluie_mm||0;
-
-  let msg='';
-
-  // En-tête météo
-  const icone=conditions.split(' ').pop()||'🌤️';
-  msg+=`${icone} **${temp}°C` + (ressenti!==temp?` (ressenti ${ressenti}°C)`:'') + `** — ${conditions||'conditions normales'}`;
-  if(vent>20) msg+=`, vent **${vent} km/h**`;
-  if(pluie>0.5) msg+=`, pluie **${Math.round(pluie*10)/10} mm**`;
-  msg+='\n\n';
-
-  // Impact sur la séance
-  if(impact&&impact.elevation_fc_bpm>0){
-    const elev=impact.elevation_fc_bpm;
-    const efAjust=impact.zone_ef_ajustee||`${140+elev}-${148+elev} bpm`;
-    msg+=`⚠️ Chaleur : ta FC sera naturellement **+${elev} bpm** plus haute. Zone EF effective : **${efAjust}**. Allure naturellement plus lente de **+${impact.ralent_sec_km||'?'} sec/km** — c'est normal, ne force pas.\n\n`;
-    if(temp>=28) msg+=`💧 Hydratation +++ : emporte de l'eau, bois **toutes les 20 min** même sans soif.`;
-    else msg+=`💡 Pars tôt si possible pour profiter des heures fraîches.`;
-  } else if(impact&&impact.elevation_fc_bpm<0){
-    const gain=Math.abs(impact.elevation_fc_bpm);
-    msg+=`✅ Conditions fraîches idéales — FC **${gain} bpm** plus basse qu'en été. Tu peux viser le bas de ta zone EF (**140-144 bpm**). Bonne séance !`;
-  } else if(pluie>1){
-    msg+=`🌧️ Pluie prévue — chaussures trail ou grip. Réduis un peu l'allure sur sol mouillé.`;
-  } else {
-    msg+=`✅ Conditions normales — pas d'ajustement nécessaire. Lance-toi !`;
-  }
-
-  // Délai court pour que le message apparaisse progressivement après le brief
-  await new Promise(r=>setTimeout(r,1800));
-  const container=document.getElementById('coach-messages');
-  if(!container) return;
-  addCoachMessage('coach', msg);
-  const _weatherEl = container.lastElementChild;
-  if(_weatherEl) _weatherEl.dataset.weatherBrief = 'true';
-  coachHistory.push({role:'assistant', content:msg, date:new Date().toISOString().slice(0,10), isWeatherBrief:true});
-  saveCoachHistory();
-}
 
 
 async function loadCoachHistory(){

@@ -146,7 +146,6 @@ function openPrefsModal(){
       <!-- Affichage accueil -->
       <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e8e8e8;">
         <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px;">🏠 Accueil</p>
-        ${row('FC de repos','Afficher le bloc fréquence cardiaque','show_fc_repos')}
         ${row('VO2max','Afficher la valeur VO2max','show_vo2max')}
       </div>
 
@@ -178,7 +177,7 @@ function openPrefsModal(){
             + (isAdmin()&&!usesHardPlan()?rowN('Relecture du plan','Dimanche 18h30 — le Coach ajuste la semaine suivante','notif_plan_review'):'')
             + rowN('Planification semaine','Rappel de planification le dimanche','notif_planif')
             + rowN('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')
-            + (isAdmin()?rowN('Rappel FC de repos','Mesure FC repos le matin','notif_fc_repos'):'')
+            + (isAdmin()?rowN('Rappel de réveil','Le matin, si ton réveil n\'est pas encore déclaré','notif_fc_repos'):'')
             + (isAdmin()?rowN('Heure de coucher','21h tous les soirs — besoin appris sur tes nuits WHOOP','notif_bedtime'):'')
             + rowN('Séances non validées','Rappel si des séances ne sont pas cochées','notif_unvalidated');
         })()}

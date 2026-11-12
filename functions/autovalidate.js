@@ -83,7 +83,7 @@ async function runAutoValidate(db, uid, nowMs, deps, opts) {
     if (D.wait) continue;
     const entry = { at: new Date(nowMs).toISOString(), date: act.date, km: act.km, tries: ((prev && prev.tries) || 0) + 1 };
     if (D.skip) {
-      const ambiguous = /deux séances/.test(D.reason || '');
+      const ambiguous = /deux séances|temps officiel/.test(D.reason || '');   // course : à valider à la main avec le temps officiel
       Object.assign(entry, { st: ambiguous ? 'manual' : 'skip', reason: D.reason });
       await db.ref(`${base}/_autoval_log/${act.id}`).set(entry);
       if (ambiguous && !opts.manual) await deps.push('🟠 Sortie à valider', `${String(act.km).replace('.', ',')} km le ${act.date.slice(8)}/${act.date.slice(5, 7)} : ${D.reason}`, 'autoval-manual', '/?action=validate');

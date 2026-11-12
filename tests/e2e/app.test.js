@@ -1515,3 +1515,22 @@ test('Recherche : loupe de l\'accueil, « chaussures » → Mes chaussures ; ré
 });
 
 
+
+test('Circulation de la donnée : un changement de séance met à jour l\'allure EF du brief, les records, l\'écran ouvert et les km réalisés', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  // une course datée plus rapide que le record enregistré (fiche d'une prépa) devient le record
+  await page.evaluate(() => { state.record_10km = '45:00'; _prepIndex = Object.assign({}, _prepIndex || {}, { t10: { title: 'Prépa 10 km', race: '10 km de test', dist: '10 km', date: '2026-09-13', result: '41:30' } }); });
+  // séance validée (comme par le serveur) puis circulation
+  await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type === 'ef')[0];
+    state[s.key + '_done'] = true; state[s.key + '_km'] = 8; state[s.key + '_perf'] = JSON.stringify({ date: '2026-10-28', pace: '5:40', hr: 140, dur: '45:20' });
+    showScreen('stats'); statsTab('train'); window._rp = 0; const o = renderStats; renderStats = function(){ window._rp++; return o.apply(this, arguments); }; sessionChanged({ now: true }); });
+  await page.waitForTimeout(1200);
+  const R = await page.evaluate(() => { const D = window.__DB.users.ADMINUID.state; return { rec: state.record_10km, recDb: D.record_10km, recMeta: (state._records || {})['10 km'], ef: D._ef_ref, rp: window._rp, badge: (document.getElementById('chart-km-badge') || {}).textContent }; });
+  assert.equal(R.rec, '41:30'); assert.equal(R.recDb, '41:30', 'record enregistré'); assert.equal(R.recMeta.date, '2026-09-13');
+  assert.ok(R.ef && R.ef.at === '2026-10-29' && /^\d'\d\d$/.test(R.ef.pace), 'allure EF de référence pour le brief : ' + JSON.stringify(R.ef));
+  assert.ok(R.rp >= 1, 'Statistiques (écran ouvert) redessiné');
+  assert.match(R.badge || '', /^[\d,]+ \/ \d+ km$/, 'pastille km faits / prévus : ' + R.badge);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

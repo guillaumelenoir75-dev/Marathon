@@ -417,7 +417,6 @@ function _alcHomeMain(F, day, e){
 
 // une saisie est rangée au jour du RÉVEIL (nuit WHOOP du même jour) ; on l'affiche à la date de la SOIRÉE (la veille)
 function _alcEve(d, bare){ return new Date(prAddDays(d, -1) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '') + (bare ? '' : ' soir'); }
-function _alcDayTxt(d){ const t = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' }).replace(/\./g, ''); return t.charAt(0).toUpperCase() + t.slice(1); }
 // carte de l'accueil : forme mesurée | perdue à cause de l'alcool | sans alcool
 function _alcSplitCard(S, carryOnly){
   const I = S.I, o = S.obs, w = Math.max(o, S.without), tone = o >= 67 ? 'ok' : o >= 34 ? 'mid' : 'low';

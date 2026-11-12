@@ -149,3 +149,12 @@ test('message : ce qui est importé et ce qui manque encore (avec la raison)', (
   M = app.avFillMsg({ missing: ['strava'], reason: 'aucune sortie Strava le mar. 3 nov.' }, true);
   assert.equal(M.st, 'ko'); assert.deepEqual([...M.lines], ['aucune sortie Strava le mar. 3 nov.', 'Change la date si tu as couru un autre jour']);
 });
+
+test('course objectif : jamais validée seule (temps officiel à saisir) → à valider à la main', () => {
+  const st = { plan_start_date: '2026-11-16', _plan_engine: 'generated' };
+  st.extra_w1_s0 = JSON.stringify({ type: 'race', km: 10, d: '10 km de Rueil|course', sched_date: '2026-11-22', sched_day: 7 });
+  const app = loadApp({ now: '2026-11-22T12:00:00+01:00', state: st });
+  const m = JSON.parse(JSON.stringify(app.avMatch(st, { id: '99', sp: 'Run', km: 10.05, mv: 2500, date: '2026-11-22' }, '2026-11-22')));
+  assert.equal(m.s, undefined, 'aucune séance rattachée');
+  assert.ok(m.race); assert.match(m.reason, /temps officiel/);
+});

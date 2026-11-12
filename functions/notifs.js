@@ -46,12 +46,12 @@ exports.fcReposReminderWeekend = onSchedule(
 
 exports.fcReposReminder14hWeekday = onSchedule(
   {schedule:'0 14 * * 1-5',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Hey, t\'as oublié quelque chose !',"Ton brief du matin t'attend — enregistre ton réveil 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Rappel FC repos',"Pense à rentrer ta FC avant la fin de journée ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Réveil pas encore déclaré',"Déclare-le pour ta forme du jour et la synchro WHOOP (le brief du matin, lui, est passé) 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Rappel FC repos',"Pense à rentrer ta FC avant la fin de journée ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekday:',e.message);}}
 );
 
 exports.fcReposReminder14hWeekend = onSchedule(
   {schedule:'0 14 * * 0,6',timeZone:'Europe/Paris',secrets:[VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY]},
-  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Hey, t\'as oublié quelque chose !',"Ton brief du matin t'attend — enregistre ton réveil 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Rappel FC repos',"Pense à rentrer ta FC avant la fin de journée ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
+  async()=>{try{const db=admin.database();const today=new Date().toISOString().slice(0,10);if(await getUserPref(db,ADMIN_STATE,'notif_fc_repos')){const snap=await db.ref(`${ADMIN_STATE}/_wakeup_${today}`).once('value');if(!snap.val())await sendPush(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Réveil pas encore déclaré',"Déclare-le pour ta forme du jour et la synchro WHOOP (le brief du matin, lui, est passé) 👆",'fc-repos-14h','/');}await sendPushToAll(VAPID_PUBLIC_KEY.value(),VAPID_PRIVATE_KEY.value(),'⏰ Rappel FC repos',"Pense à rentrer ta FC avant la fin de journée ❤️",'fc-repos-14h','/',ADMIN_UID,'notif_fc_repos');}catch(e){console.error('fcReposReminder14hWeekend:',e.message);}}
 );
 
 exports.sessionReminder = onSchedule(
@@ -172,7 +172,8 @@ exports.sessionReminder = onSchedule(
         const uState=userStates[i];
         const prefs=uState._prefs?(typeof uState._prefs==='string'?JSON.parse(uState._prefs):uState._prefs):{};
         if(prefs.notif_seance===false)continue;
-        const ucw=getCurrentWeek(uState.plan_start_date);
+        // semaine du plan de l'athlète (d'après son début), pas celle du plan Seine-Eure écrit en dur
+        const ucw=getCurrentWeek(uState.plan_start_date?Object.assign({_plan_engine:'generated'},uState):uState);
         let sent=false;
         for(let si=0;si<5;si++){
           const done=!!uState[`s${ucw}i${si}done`];if(done)continue;

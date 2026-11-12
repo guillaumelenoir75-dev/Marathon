@@ -131,7 +131,7 @@ function renderHome(){
     let km=0;
     getOrderedWeekSessions(w).forEach(({ei})=>{
       const rv = state[`extra_w${w}_s${ei}_km`];
-      if(rv!=null) km+=parseFloat(rv)||0;
+      if(rv!=null && state[`extra_w${w}_s${ei}_done`]) km+=parseFloat(rv)||0;   // séances faites seulement
     });
     return Math.round(km*10)/10;
   })();
@@ -546,7 +546,7 @@ function renderHome(){
   // VO2max : visible si admin (valeur ou défaut 52), ou si athlète avec valeur renseignée, ou si préférence activée
   const vo2Wrap=vo2El?vo2El.closest('div[onclick]'):null;
   if(vo2Wrap){
-    const showVo2 = isAdmin() || (vo2Val && getPref('show_vo2max'));
+    const showVo2 = (isAdmin() || vo2Val) && getPref('show_vo2max');   // la préférence s'applique aussi au compte admin
     vo2Wrap.style.display = showVo2 ? 'flex' : 'none';
     // Badge "?" VO2max : visible uniquement si le bloc l'est
     const vo2Badge = vo2Wrap.nextElementSibling;
@@ -751,7 +751,7 @@ function renderHome(){
       if(state.ef_pace_auto==='true'&&!state.ef_pace_auto_seen){
         efAutoEl.style.display='flex';
         const msgEl=document.getElementById('home-ef-auto-msg');
-        if(msgEl) msgEl.innerHTML=`Allure EF estimée : <b>${state.ef_pace}/km</b> — calculée d'après ${state.ef_pace_src==='hist'?'tes dernières sorties':'ta première semaine'}. Tu peux l'ajuster dans les paramètres.`;
+        if(msgEl) msgEl.innerHTML=`Allure EF estimée : <b>${getBestEfPace()||state.ef_pace}/km</b> — calculée d'après ${state.ef_pace_src==='hist'?'tes dernières sorties':'ta première semaine'}. Tu peux l'ajuster dans les paramètres.`;
       } else {
         efAutoEl.style.display='none';
       }
@@ -828,7 +828,7 @@ function renderHome(){
       </div>
       <div class="hs-act">
         ${canEdit?`<button type="button" class="hs-ed" onclick="${editFn}" aria-label="Éditer la séance" title="Éditer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`:''}
-        ${isCurrent?`<button type="button" class="hs-ok" onclick="${doneFn}" style="background:${typeC};box-shadow:0 2px 8px ${typeC}55;">✓ Valider</button>`:isPast?`<button type="button" class="hs-ok ghost" onclick="openValidationModalExtra(${w},${ei})">Valider →</button>`:''}
+        ${isCurrent?`<button type="button" class="hs-ok" onclick="${(isRunToday&&typeof avFinish==='function'&&typeof avOn==='function'&&avOn()&&isAdmin()&&state.whoop_token)?'avFinish()':doneFn}" style="background:${typeC};box-shadow:0 2px 8px ${typeC}55;">${(isRunToday&&typeof avFinish==='function'&&typeof avOn==='function'&&avOn()&&isAdmin()&&state.whoop_token)?'🏁 J\'ai fini':'✓ Valider'}</button>`:isPast?`<button type="button" class="hs-ok ghost" onclick="openValidationModalExtra(${w},${ei})">Valider →</button>`:''}
       </div>`;
     } else div.innerHTML=`
       ${isRunToday?`<span style="position:absolute;top:-1px;right:12px;background:${typeC};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;letter-spacing:0.03em;">Aujourd'hui</span>`:''}
@@ -1097,6 +1097,8 @@ function toggleDoneExtra(w,ei){
     save();
     renderHome();
     rendered.stats=false;
+    rendered.plan=false;
+    if(typeof sessionChanged==='function') sessionChanged();   // allure marathon, brief, records, copie de prépa, écrans (session-flow.js)
     });
   }
 }
@@ -1322,6 +1324,7 @@ async function saveSkipExtra(w,ei){
   renderHome();
   rendered.plan=false;
   if(document.getElementById('sc-plan').style.display!=='none') renderPlan();
+  if(typeof sessionChanged==='function') sessionChanged();
 }
 
 function clearSkipExtra(w,ei){
@@ -1582,12 +1585,14 @@ async function saveValidationExtra(w,ei){
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
   if(typeof prAfterValidation==='function') prAfterValidation();   // ajustements du plan proposés (plan-optim.js)
   if(typeof ssOffer==='function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance » (week-share.js)
+  // tout ce qui dépend des séances faites, avec la météo et WHOOP de celle-ci (analyse de course refaite avec la météo)
+  if(typeof sessionChanged==='function') sessionChanged({ race: sExtra.type==='race' && !!_offVal });
 }
 
 // ── MODIFICATION MANUELLE DE L'ALLURE EF ─────────────────────────────────────
 function openEditEFModal(){
   if(document.getElementById('ef-edit-overlay')) return;
-  const current = state.ef_pace || getBestEfPace() || "6'40";
+  const current = (state.ef_pace && state.ef_pace_auto !== 'true') ? state.ef_pace : (getBestEfPace() || state.ef_pace || "6'40");   // la valeur affichée
   const overlay = document.createElement('div');
   overlay.id = 'ef-edit-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:flex-end;padding:0;';

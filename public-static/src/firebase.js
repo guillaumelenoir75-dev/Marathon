@@ -261,7 +261,8 @@ function notifRunAction(search, delay){
   if (!a || a === 'brief') return false;
   const later = function(fn){ setTimeout(fn, delay || 0); };
   if (a === 'validate') { if (typeof quickValidate === 'function') later(quickValidate); return true; }       // dernière sortie Strava → validation pré-remplie
-  if (a === 'feel') { const k = (q.match(/[?&]k=([\w-]+)/) || [])[1] || null; if (typeof avFeelOpen === 'function') later(function(){ avFeelOpen(k); }); return true; }   // ressenti après une validation automatique
+  if (a === 'feel') { const k = (q.match(/[?&]k=([\w-]+)/) || [])[1] || null;   // ressenti : la séance vient d'être validée par le serveur → état relu d'abord
+    if (typeof avFeelOpen === 'function') later(async function(){ try { if (typeof apRefreshIfServerChanged === 'function') await apRefreshIfServerChanged(); } catch(e) {} avFeelOpen(k); }); return true; }   // ressenti après une validation automatique
   if (a === 'week') { if (typeof openWeekShare === 'function') later(function(){ openWeekShare(); }); return true; }   // bilan du dimanche : ta semaine en image
   if (a === 'imprevu') { if (typeof openImprevu === 'function') later(openImprevu); return true; }   // séance clé manquée : réorganiser
   if (a === 'sleep') { if (typeof openSleepPlan === 'function') later(openSleepPlan); return true; }   // 21h « Couche-toi vers … » : ta nuit

@@ -236,13 +236,6 @@ function toggleLongBlockType(i){
   setLongBlocksData(blocks);
   updateLongDuration();
 }
-function updateLongBlockKm(i,val){
-  const blocks=getLongBlocksData();
-  blocks[i].km=parseFloat(val)||1;
-  const dataEl=document.getElementById('long-blocks-data');
-  if(dataEl) dataEl.value=JSON.stringify(blocks);
-  updateLongBlocksTotal(blocks);
-}
 function addLongBlock(){
   const blocks=getLongBlocksData();
   blocks.push({km:2,type:'EF'});
@@ -638,4 +631,5 @@ function _savePerfExtra(ws, ei){
   else delete state[k+'_perf'];
   save(); closeModal(); rendered.plan=false; rendered.stats=false; renderPlan(); renderHome();
   if(_adminPreviewUid) _refreshAthleteCoachView();
+  else if(typeof sessionChanged==='function') sessionChanged();   // allure marathon, brief, records, copie de prépa (session-flow.js)
 }

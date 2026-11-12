@@ -106,6 +106,8 @@ async function apRefreshIfServerChanged(){
     if(typeof prHistoryChanged === 'function') prHistoryChanged();
     if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
     try { renderHome(); } catch(e) {}
+    // séance validée par le serveur, plan ajusté cette nuit : tout ce qui en dépend + l'écran ouvert (session-flow.js)
+    if(typeof sessionChanged === 'function') sessionChanged({ now: true });
     return true;
   } catch(e) { return false; }
 }

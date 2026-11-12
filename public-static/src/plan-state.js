@@ -246,6 +246,15 @@ const EF_AM_TABLE=[
 function getBestEfPace(){
   // EF saisie manuellement (non auto-calculée) : priorité absolue sur les sessions
   if(state.ef_pace && state.ef_pace_auto !== 'true') return state.ef_pace;
+  // une seule allure EF réelle dans toute l'app (en-tête, bandeau, zones de Statistiques, brief du Coach) : médiane des 5 dernières
+  // sorties EF / longues à FC ≤ plafond sur 6 semaines, sur plat et au frais, lendemains d'alcool exclus (prObservedEf, plan-review.js)
+  try {
+    if(typeof prObservedEf === 'function' && typeof prTodayIso === 'function'){
+      const o = prObservedEf(state, prTodayIso());
+      if(o) return Math.floor(o / 60) + "'" + String(Math.round(o % 60)).padStart(2, '0');
+    }
+  } catch(e) {}
+  // pas assez de sorties récentes : ancien calcul (allure brute, tout l'historique)
   const paces=[]; // valeurs EF valides, ordre chronologique (secondes/km)
   // Seed : EF déclarée à l'onboarding
   if(state.ef_pace){
@@ -314,7 +323,9 @@ async function tryAutoCalculateEF(){
   const hist=typeof prAllDone==='function'?prAllDone().filter(s=>(s.type==='ef'||s.type==='long')&&s.perf&&s.perf.pace&&prDays(s.date,prTodayIso())<=42)
     .map(s=>paceStrToSec(String(s.perf.pace))).filter(x=>x!==null&&x>200):[];
   let efSec;
-  if(hist.length>=3){ const srt=hist.slice(-5).sort((a,b)=>a-b); efSec=srt[Math.floor(srt.length/2)]; state.ef_pace_src='hist'; }
+  const obs=typeof prObservedEf==='function'?prObservedEf(state,prTodayIso()):null;   // même calcul que partout ailleurs (FC ≤ plafond, sur plat)
+  if(obs){ efSec=Math.round(obs); state.ef_pace_src='hist'; }
+  else if(hist.length>=3){ const srt=hist.slice(-5).sort((a,b)=>a-b); efSec=srt[Math.floor(srt.length/2)]; state.ef_pace_src='hist'; }
   else if(efPaces.length) efSec=Math.max(...efPaces);   // la plus lente de la 1re semaine (estimation prudente)
   else return null;
   const m=Math.floor(efSec/60);
