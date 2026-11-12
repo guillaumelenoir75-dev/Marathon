@@ -719,7 +719,7 @@ async function prepAutoSave(force){
 function _prepRaceDone(st){
   return Object.keys(st).some(function(k){
     if(!/^extra_w\d+_s\d+$/.test(k) || !(st[k + '_done'] || st[k + '_km'] != null)) return false;
-    try { return JSON.parse(st[k]).type === 'race'; } catch(e) { return false; }
+    try { const x = JSON.parse(st[k]); return x.type === 'race' && !x._season; } catch(e) { return false; }   // étape de « Ma saison » : pas la course objectif
   });
 }
 // Bascule : dès le début de la prépa à venir, une fois la course en cours validée (ou au plus tard à sa première séance)
@@ -903,7 +903,7 @@ async function prepSaveRaceResult(time, date){
   let replay = false;
   if(typeof liveStoreReplay === 'function'){
     let perf = null;
-    Object.keys(state).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k) && state[k + '_done']){ try { if(JSON.parse(state[k]).type === 'race') perf = JSON.parse(state[k + '_perf'] || '{}'); } catch(e) {} } });
+    Object.keys(state).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k) && state[k + '_done']){ try { const x = JSON.parse(state[k]); if(x.type === 'race' && !x._season) perf = JSON.parse(state[k + '_perf'] || '{}'); } catch(e) {} } });
     replay = await liveStoreReplay(sec, perf, pr ? 'record personnel' : '');
   }
   return { time: txt, cat: cat, pr: pr, prev: prev, replay: replay };

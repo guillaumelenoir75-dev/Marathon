@@ -1172,6 +1172,7 @@ function renderRenfoExercises(){
   const renfoBanner=document.getElementById('renfo-done-banner');
   const renfoBtn=document.getElementById('renfo-btn');
   if(isSkipped){
+    const _gb=document.getElementById('renfo-guide-btn'); if(_gb) _gb.style.display='none';
     if(renfoBanner) renfoBanner.style.display='none';
     if(renfoBtn) renfoBtn.style.display='none';
     const cancelBtn2=document.getElementById('renfo-cancel-btn');
@@ -1185,6 +1186,16 @@ function renderRenfoExercises(){
   }
   if(renfoBtn) renfoBtn.style.display='';
   const dk=rfk(CW,dkSlot),isDone=!!state[dk+'done'];
+  // ▶ Séance guidée (renfo-guide.js) : minuteur, séries, repos, voix ; dose adaptée au plan et à la progression
+  let guideBtn=document.getElementById('renfo-guide-btn');
+  if(!guideBtn){
+    guideBtn=document.createElement('button'); guideBtn.id='renfo-guide-btn'; guideBtn.type='button';
+    guideBtn.style.cssText='width:100%;padding:14px;border:none;border-radius:var(--radius);background:linear-gradient(135deg,#0B1F3A,#1B4FD8);color:#fff;font:inherit;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:12px;';
+    guideBtn.onclick=function(){ openRenfoGuide(); };
+    el.parentNode.insertBefore(guideBtn, el);
+  }
+  guideBtn.style.display='';
+  guideBtn.textContent=isDone?'▶ Refaire en séance guidée':'▶ Séance guidée · adaptée à ton plan';
   const banner=document.getElementById('renfo-done-banner');
   banner.style.display=isDone?'flex':'none';
   const doneLabel=affutageMode?(curRenfo===1?'Échauffement':'Séance unique'):(getRenfoData(curRenfo).name);
@@ -1318,7 +1329,7 @@ function markRenfoDone(){
     exos=curRenfo===1?renfoEchauffement:renfoAffutageUnique;
     if(curRenfo===1){const n=new Date();slot='a1_'+(n.getFullYear()*10000+(n.getMonth()+1)*100+n.getDate());}else slot='a2';
   } else {
-    exos=curRenfo===1?renfo1:renfo2;
+    exos=getRenfoData(curRenfo).exos;   // programme choisi pour ce créneau (pas toujours 1 / 2)
     slot=curRenfo;
   }
   const dk=rfk(CW,slot);

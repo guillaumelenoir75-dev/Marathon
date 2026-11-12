@@ -709,7 +709,7 @@ function renderAthletePlan(el){
     // Imprévu / Plan de course / Légende (plan-daily.js)
     const row2=document.createElement('div'); row2.className='pt-row pt-row2';
     const tile=(fn,ico,lab)=>`<button type="button" class="pt-card pt-leg" onclick="${fn}"><span class="pt-ic sm">${ico}</span><b>${lab}</b></button>`;
-    row2.innerHTML=tile('openImprevu()','🧳','Imprévu')+tile('openRacePlan()','🏁','Plan de course')+legendBtn.replace('pt-leg wide','pt-leg');
+    row2.innerHTML=tile('openImprevu()','🧳','Imprévu')+tile('openRacePlan()','🏁','Plan de course')+tile('openSeason()','🗓️','Saison')+legendBtn.replace('pt-leg wide','pt-leg');
     el.appendChild(row2);
   }
   if(regenBtn||updateBtn||regenDateBtn||delBtn){

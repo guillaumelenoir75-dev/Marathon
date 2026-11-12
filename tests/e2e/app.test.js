@@ -313,7 +313,7 @@ test('démarrage allégé : carte, comparaison des prépas et simulateur chargé
   const loaded = () => page.evaluate(() => [...document.querySelectorAll('script[src*="/src/lazy-"]')].map((s) => s.src.replace(/.*lazy-(\w+)-.*/, '$1')).sort());
   assert.deepEqual(await loaded(), [], 'rien de chargé au démarrage');
   assert.ok(await page.evaluate(() => window.LAZY_BUNDLES && typeof _wiPick === 'undefined' && typeof PROG_COLORS === 'undefined' && typeof RaceNav === 'undefined'));
-  assert.ok(await page.evaluate(() => typeof nrOptions === 'undefined' && typeof pcRender === 'undefined'), 'prochaine course et « Mon plan » pas chargés au démarrage');
+  assert.ok(await page.evaluate(() => typeof nrOptions === 'undefined' && typeof pcRender === 'undefined' && typeof seasonRender === 'undefined' && typeof rgParse === 'undefined'), 'prochaine course, « Mon plan », saison et renfo guidé pas chargés au démarrage');
   // Mes prépas › Comparer mes prépas
   await page.evaluate(() => openProgress()); await page.waitForSelector('#prog-panel');
   await page.evaluate(() => document.getElementById('prog-panel').remove());
@@ -1199,6 +1199,51 @@ test('compte admin : Compte › « Santé de l\'app » (pannes en tête, répare
   ({ ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, { functions: fn, query: '?action=health' }));
   await page.waitForSelector('#hl-modal #hl-body .hl-sum', { timeout: 8000 });
   assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('Ma saison : frise, étape « à fond » ajoutée et intégrée au plan, puis retirée (plan rétabli)', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  const before = await page.evaluate(() => JSON.stringify(Object.keys(state).filter((k) => /^extra_w/.test(k)).sort().map((k) => [k, state[k]])));
+  const date = await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.date > '2026-11-03' && x.type !== 'race')[0]; return s.date; });
+  await page.evaluate(() => showScreen('compte')); await page.waitForTimeout(300);
+  await page.click('#season-row');
+  await page.waitForSelector('#se-body .se-tl');
+  await page.fill('#se-name', 'Corrida test'); await page.fill('#se-date', date);
+  await page.click('#se-body .se-go');
+  await page.waitForSelector('#se-body .se-notes, #se-body .se-al');
+  const S = await page.evaluate((d) => { const r = state._season.races[0]; const k = Object.keys(state).find((x) => /^extra_w\d+_s\d+$/.test(x) && JSON.parse(state[x])._season === r.id);
+    return { prio: r.prio, applied: !!r.applied, key: k, sess: k ? JSON.parse(state[k]) : null, db: !!window.__DB.users.ADMINUID.state[k] }; }, date);
+  assert.equal(S.prio, 'B'); assert.ok(S.applied); assert.equal(S.sess.type, 'race'); assert.equal(S.sess.sched_date, date); assert.ok(S.db, 'enregistré');
+  assert.match(await page.textContent('#se-body'), /Corrida test/);
+  await page.click('#se-body .se-x');   // confirmation acceptée par open()
+  await page.waitForFunction(() => !(state._season.races || []).length);
+  const after = await page.evaluate(() => JSON.stringify(Object.keys(state).filter((k) => /^extra_w/.test(k)).sort().map((k) => [k, state[k]])));
+  assert.equal(after, before, 'plan rétabli à l\'identique');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Renfo : séance guidée (séries, repos, côtés), séries cochées, ressenti → niveaux et séance validée', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  await page.evaluate(() => showScreen('renfo')); await page.waitForTimeout(400);
+  await page.click('#renfo-guide-btn');
+  await page.waitForSelector('#rg-ov .rg-list');
+  const n = await page.evaluate(() => _rg.P.items.length);
+  assert.ok(n >= 4);
+  await page.click('#rg-ov .rg-go');
+  await page.waitForSelector('#rg-ov .rg-big');
+  assert.match(await page.textContent('#rg-ov'), /Exercice 1\/\d+ · série 1\//);
+  await page.evaluate(() => { let g = 0; while (_rg && _rg.phase !== 'end' && g++ < 400) rgNext(); });
+  await page.waitForSelector('#rg-ov .rg-feel');
+  await page.click('#rg-ov .rg-feel button:nth-child(1)');
+  await page.waitForFunction(() => !document.getElementById('rg-ov'));
+  const R = await page.evaluate(() => { const dk = rfk(CW, curRenfo); return { done: !!state[dk + 'done'], guided: state[dk + 'guided'], lvl: state._renfo_lvl, s0: state[dk + 'e1_series'], nb: getNbSeries(getRenfoData(curRenfo).exos[1].series) }; });
+  assert.ok(R.done, 'séance validée'); assert.equal(R.guided.feel, 'facile'); assert.equal(R.s0, R.nb, 'séries cochées dans l\'écran Renfo');
+  assert.ok(Object.values(R.lvl).every((x) => x.lvl === 1), 'niveaux +1 après « facile »');
+  assert.deepEqual(errors, []);
+  await ctx.close();
 });
 
 test('localisation du téléphone prise à chaque validation (auto et manuelle) : météo à cet endroit, à l\'heure de la séance', async () => {

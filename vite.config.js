@@ -20,6 +20,8 @@ const lazyGroups = {
   whatif: ['plan-whatif.js'],                                  // MAJ le plan › Et si… ?
   nextrace: ['next-race.js'],                                  // Ta prochaine course
   planchat: ['plan-chat.js'],                                  // Coach › Mon plan
+  season: ['season.js'],                                      // Plan › Ma saison
+  renfo: ['renfo-guide.js'],                                  // Renfo › Séance guidée
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

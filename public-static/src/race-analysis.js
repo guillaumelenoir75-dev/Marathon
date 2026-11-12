@@ -87,7 +87,7 @@ function raAnalyze(o){
 // course de la prépa en cours (validée, avec un temps officiel)
 function raCurrent(){
   try {
-    const R = typeof prepRace === 'function' ? prepRace() : {}, race = prSessions(state).filter(function(s){ return s.type === 'race' && s.done; }).pop();
+    const R = typeof prepRace === 'function' ? prepRace() : {}, race = prSessions(state).filter(function(s){ return s.type === 'race' && s.done && !(s.x && s.x._season); }).pop();   // étape de « Ma saison » écartée
     if(!race) return null;
     const perf = race.perf || {}, rr = state._race_result || {}, sec = prTimeSec(rr.time || perf.official || perf.dur);
     const cat = typeof PD_CAT === 'function' ? PD_CAT(R) : rr.dist, dist = R.km || (cat && PR_RACE_M[cat] ? PR_RACE_M[cat] / 1000 : null);
@@ -99,7 +99,7 @@ function raCurrent(){
 // course d'une prépa passée (copie figée) : pour son bilan
 function raFromSnap(st, meta){
   try {
-    const race = prSessions(st).filter(function(s){ return s.type === 'race' && s.done; }).pop(); if(!race) return null;
+    const race = prSessions(st).filter(function(s){ return s.type === 'race' && s.done && !(s.x && s.x._season); }).pop(); if(!race) return null;
     const cat = meta.dist, dist = PR_RACE_M[cat] ? PR_RACE_M[cat] / 1000 : null, sec = prTimeSec(meta.result || (st._race_result || {}).time);
     const plan = st._race_plan && st._race_plan.date === meta.date ? st._race_plan : null;
     return raAnalyze({ perf: race.perf || {}, sec: sec, dist: dist, cat: cat, date: (race.perf || {}).date || race.date || meta.date, name: meta.race || meta.title || '', plan: plan, goal: prTimeSec(meta.target) });
