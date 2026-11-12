@@ -1514,3 +1514,4 @@ test('Recherche : loupe de l\'accueil, « chaussures » → Mes chaussures ; ré
   await ctx.close();
 });
 
+

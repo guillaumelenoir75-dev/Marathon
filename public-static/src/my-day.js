@@ -28,26 +28,21 @@ function mjSteps(st, today, nowMin){
   if(admin){
     const woke = !!st['_wakeup_' + today];
     if(woke || nowMin < 14 * 60) out.push({ id: 'wake', ic: '🌅', t: woke ? 'Réveil' : 'Je suis réveillé', s: woke ? '' : 'Lance la synchro WHOOP et ta forme du jour', at: 5 * 60, done: woke,
-      act: 'wakeupStart()', btn: 'Réveillé' });
+      act: 'wakeupStart()', btn: 'Réveillé', short: 'Réveil' });
     if(typeof alcEntry === 'function'){
       const e = alcEntry(today);
       out.push({ id: 'alc', ic: '🍷', t: e ? (e.l ? 'Alcool hier soir : ' + e.l + '/10' : 'Pas d\'alcool hier soir') : 'Alcool hier soir ?', s: e ? '' : 'Pour séparer son effet de celui de l\'entraînement',
-        at: 5 * 60 + 1, done: !!e, act: 'alcAsk()', btn: 'Répondre' });
+        at: 5 * 60 + 1, done: !!e, act: 'alcAsk()', btn: 'Répondre', short: e ? (e.l ? 'Alcool ' + e.l + '/10' : 'Sans alcool') : '' });
     }
     if(typeof coachAI !== 'function' || coachAI()){
       const pend = st._brief_pending && (st._brief_pending.date === today || !st._brief_pending.date);
       const late = typeof briefTooLate === 'function' && briefTooLate();
       const seen = !!st['_brief_matin_' + today] && !pend;
       if(pend && !late) out.push({ id: 'brief', ic: '☀️', t: 'Ton brief du matin', s: 'Prêt à lire', at: 5 * 60 + 2, done: false, act: 'openCoachFromNotif()', btn: 'Lire' });
-      else if(seen) out.push({ id: 'brief', ic: '☀️', t: 'Brief du matin', s: '', at: 5 * 60 + 2, done: true, act: 'showScreen(\'coach\')' });
+      else if(seen) out.push({ id: 'brief', ic: '☀️', t: 'Brief du matin', s: '', at: 5 * 60 + 2, done: true, act: 'showScreen(\'coach\')', short: 'Brief' });
     }
   }
-  // forme du jour (si connue)
-  try {
-    const F = typeof prFormScore === 'function' ? prFormScore() : null;
-    if(F && F.score != null) out.push({ id: 'form', ic: F.score >= 67 ? '💚' : F.score >= 34 ? '💛' : '❤️‍🩹', t: 'Forme du jour : ' + F.score + '/100', s: '', at: 5 * 60 + 3, done: true, info: true,
-      act: 'showScreen(\'stats\');if(typeof statsTab===\'function\')statsTab(\'forme\')' });
-  } catch(e) {}
+  // (forme du jour : carte « Forme du jour » juste au-dessus, pas répétée ici)
   // ── séances du jour ──
   const feel = typeof avPendingFeel === 'function' ? avPendingFeel().map(function(x){ return x.key; }) : [];
   const todays = sess.filter(function(s){ return !s.skip && s.type !== 'rest' && (s.done ? s.date === today : (s.x && s.x.sched_date) === today); });
@@ -89,10 +84,10 @@ function mjSteps(st, today, nowMin){
   // ── soir : coucher, demain ──
   try {
     const B = typeof bsBedtime === 'function' ? bsBedtime(today) : null;
-    if(B){
-      const S = typeof bsBedtimeStatus === 'function' ? bsBedtimeStatus(today) : { ready: true };
+    const S = B && typeof bsBedtimeStatus === 'function' ? bsBedtimeStatus(today) : { ready: true };
+    if(B && S.ready){
       const bm = _mjMin(String(B.bed).replace('h', ':'));
-      out.push({ id: 'bed', ic: '🌙', t: S.ready ? 'Couche-toi vers ' + B.bed : 'Heure de coucher', s: S.ready ? B.sleep + ' de sommeil · réveil ' + (B.wake || '') : 'À venir · ' + (S.label || ''),
+      out.push({ id: 'bed', ic: '🌙', t: 'Couche-toi vers ' + B.bed, s: B.sleep + ' de sommeil' + (B.wake ? ' · réveil ' + B.wake : ''), tm: B.bed.replace('h', ':'),
         at: bm != null ? Math.max(20 * 60, bm - 60) : 21 * 60, done: false, soft: true, act: 'openSleepPlan()' });
     }
   } catch(e) {}
@@ -131,24 +126,30 @@ function mjRender(){
     const n = L.filter(function(x){ return !x.info && !x.soft; }), nd = n.filter(function(x){ return x.done; }).length;
     let h = '<div class="mj mj-' + ph + '"><div class="mj-hd"><p><span aria-hidden="true">' + head[0] + '</span> <b>' + head[1] + '</b> · ' + date + '</p>'
       + (n.length ? '<span class="mj-cnt" aria-label="' + nd + ' sur ' + n.length + ' fait">' + nd + '/' + n.length + '</span>' : '') + '</div>';
-    // fait : séances en ligne courte (avec 📸), le reste en pastilles
+    // fait : une seule ligne courte (✓ Réveil · Alcool 2/10 · Brief) ; séances faites en ligne avec 📸
     const ds = done.filter(function(x){ return x.kind === 'sess'; }), dc = done.filter(function(x){ return x.kind !== 'sess'; });
-    if(dc.length) h += '<div class="mj-chips">' + dc.map(function(x){ return '<button type="button" class="mj-chip' + (x.info ? ' info' : '') + '"' + (x.act ? ' onclick="' + x.act + '"' : '') + '><span aria-hidden="true">' + (x.info ? x.ic : '✓') + '</span>' + _mjEsc(x.t) + '</button>'; }).join('') + '</div>';
+    if(dc.length) h += '<div class="mj-dline"><span class="mj-ck" aria-hidden="true">✓</span>' + dc.map(function(x){
+      return '<button type="button"' + (x.act ? ' onclick="' + x.act + '"' : '') + '>' + _mjEsc(x.short || x.t) + '</button>'; }).join('<i aria-hidden="true">·</i>') + '</div>';
     ds.forEach(function(x){
       h += '<div class="mj-done"><button type="button" class="mj-dl" onclick="' + x.act + '"><span class="mj-ck" aria-hidden="true">✓</span><b>' + _mjEsc(x.t) + '</b><span>' + _mjEsc(x.s) + '</span></button>'
         + (x.share && typeof openSessionShare === 'function' ? '<button type="button" class="mj-sh" onclick="openSessionShare(\'' + x.key + '\')" aria-label="Image de ta séance à partager">📸</button>' : '') + '</div>';
     });
     if(now){
-      const when = now.tm ? _mjHm(_mjMin(now.tm)) : '';
+      const when = now.tm ? _mjHm(_mjMin(now.tm)) : '', ahead = now.at - nowMin;
+      // séance encore loin (> 30 min) : compte à rebours, pas de bouton « J'ai fini » / « Valider » trop tôt
+      const early = now.kind === 'sess' && ahead > 30;
+      const lab = now.kind === 'sess' && ahead < -90 ? 'À valider' + (when ? ' · ' + when : '')
+        : early ? when + ' · dans ' + (ahead >= 60 ? Math.floor(ahead / 60) + ' h' + (ahead % 60 >= 5 ? ' ' + String(ahead % 60).padStart(2, '0') : '') : ahead + ' min')
+        : ahead <= 30 ? 'Maintenant' + (when ? ' · ' + when : '') : 'Ensuite' + (when ? ' · ' + when : '');
       const extra = [];
       if(now.kind === 'sess' && now.x){
+        if(now.shoe) extra.push('<span class="mj-shoe">👟 ' + _mjEsc(now.shoe) + '</span>');
         if(typeof prWeatherLine === 'function'){ const wl = prWeatherLine(now.x); if(wl) extra.push(wl); }
-        if(now.shoe) extra.push('<p class="mj-shoe">👟 ' + _mjEsc(now.shoe) + '</p>');
       }
-      h += '<div class="mj-now" role="group" aria-label="Maintenant : ' + _mjEsc(now.t) + '"><button type="button" class="mj-nb"' + (now.act ? ' onclick="' + now.act + '"' : '') + '><span class="mj-ic" aria-hidden="true">' + now.ic + '</span>'
-        + '<span class="mj-nt"><small>' + (now.kind === 'sess' && now.at < nowMin - 90 ? 'À valider' : now.at <= nowMin + 30 ? 'Maintenant' : 'Ensuite') + (when ? ' · ' + when : '') + '</small><b>' + _mjEsc(now.t) + '</b>' + (now.s ? '<span>' + _mjEsc(now.s) + '</span>' : '') + '</span></button>'
-        + (now.btn ? '<button type="button" class="mj-go" onclick="' + (now.btnAct || now.act) + '">' + now.btn + '</button>' : '') + '</div>'
-        + (extra.length ? '<div class="mj-ex">' + extra.join('') + '</div>' : '');
+      h += '<div class="mj-now" role="group" aria-label="' + _mjEsc(lab + ' : ' + now.t) + '"><div class="mj-nr"><button type="button" class="mj-nb"' + (now.act ? ' onclick="' + now.act + '"' : '') + '><span class="mj-ic" aria-hidden="true">' + now.ic + '</span>'
+        + '<span class="mj-nt"><small>' + lab + '</small><b>' + _mjEsc(now.t) + '</b>' + (now.s ? '<span>' + _mjEsc(now.s) + '</span>' : '') + '</span></button>'
+        + (now.btn && !early ? '<button type="button" class="mj-go" onclick="' + (now.btnAct || now.act) + '">' + now.btn + '</button>' : early ? '<span class="mj-chev" aria-hidden="true">›</span>' : '') + '</div>'
+        + (extra.length ? '<div class="mj-ex">' + extra.join('') + '</div>' : '') + '</div>';
     }
     if(later.length){
       const shown = _mjOpen ? later : later.slice(0, 3);
@@ -169,16 +170,16 @@ function _mjCss(){
     + '.mj-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 0;}.mj-hd p{margin:0;font-size:12px;font-weight:600;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mj-hd b{color:#0F172A;font-weight:800;font-size:13.5px;}'
     + '.mj-matin .mj-hd b{color:#B45309;}.mj-jour .mj-hd b{color:#1D4ED8;}.mj-soir .mj-hd b{color:#4338CA;}'
     + '.mj-cnt{font-size:11px;font-weight:800;color:#475569;background:#F1F5F9;border-radius:20px;padding:2px 8px;font-variant-numeric:tabular-nums;flex-shrink:0;}'
-    + '.mj-chips{display:flex;flex-wrap:wrap;gap:5px;}.mj-chip{display:inline-flex;align-items:center;gap:4px;border:none;background:#ECFDF5;color:#166534;font:inherit;font-size:11.5px;font-weight:700;border-radius:20px;padding:4px 9px;cursor:pointer;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mj-chip.info{background:#F1F5F9;color:#334155;}'
+    + '.mj-dline{display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap;overflow:hidden;font-size:12px;color:#166534;}.mj-dline .mj-ck{width:16px;height:16px;font-size:9px;}.mj-dline button{border:none;background:none;padding:2px 0;font:inherit;font-weight:700;color:#166534;cursor:pointer;flex-shrink:0;}.mj-dline i{font-style:normal;color:#86EFAC;}'
     + '.mj-done{display:flex;align-items:center;gap:6px;}.mj-dl{flex:1;min-width:0;display:flex;align-items:center;gap:7px;border:1px solid #D1FAE5;background:#F0FDF4;border-radius:12px;padding:7px 10px;font:inherit;font-size:12.5px;color:#334155;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;}'
     + '.mj-dl b{color:#14532D;font-weight:800;overflow:hidden;text-overflow:ellipsis;}.mj-dl span:last-child{color:#475569;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;}.mj-ck{width:18px;height:18px;border-radius:50%;background:#16A34A;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
     + '.mj-sh{width:34px;height:34px;border-radius:10px;border:1px solid #DCE6F5;background:#fff;font-size:15px;cursor:pointer;flex-shrink:0;}'
-    + '.mj-now{display:flex;align-items:center;gap:8px;background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:14px;padding:9px 10px;}.mj-matin .mj-now{background:#FFFBEB;border-color:#FDE68A;}.mj-soir .mj-now{background:#EEF2FF;border-color:#C7D2FE;}'
+    + '.mj-now{display:flex;flex-direction:column;gap:6px;background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:14px;padding:9px 10px;}.mj-nr{display:flex;align-items:center;gap:8px;min-width:0;}.mj-chev{font-size:20px;color:#93A5C4;flex-shrink:0;}.mj-matin .mj-now{background:#FFFBEB;border-color:#FDE68A;}.mj-soir .mj-now{background:#EEF2FF;border-color:#C7D2FE;}'
     + '.mj-nb{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:none;background:none;padding:0;font:inherit;text-align:left;cursor:pointer;color:inherit;}'
     + '.mj-ic{width:38px;height:38px;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}'
     + '.mj-nt{min-width:0;display:flex;flex-direction:column;}.mj-nt small{font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#64748B;}.mj-nt b{font-size:14.5px;font-weight:800;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mj-nt span{font-size:12px;font-weight:600;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}'
     + '.mj-go{flex-shrink:0;background:#1D4ED8;color:#fff;border:none;border-radius:20px;padding:9px 13px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;}.mj-matin .mj-go{background:#B45309;}.mj-soir .mj-go{background:#4338CA;}'
-    + '.mj-ex{margin:-2px 2px 0;display:flex;flex-direction:column;gap:2px;}.mj-ex p{margin:0;}.mj-shoe{font-size:11.5px;font-weight:600;color:#475569;}'
+    + '.mj-ex{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;padding:6px 0 0 48px;border-top:1px dashed rgba(100,116,139,.25);font-size:11.5px;}.mj-ex p{margin:0!important;}.mj-shoe{font-weight:650;color:#475569;white-space:nowrap;}'
     + '.mj-later{display:flex;flex-direction:column;gap:2px;}.mj-l{display:flex;align-items:center;gap:7px;border:none;background:none;padding:5px 2px;font:inherit;font-size:12.5px;color:#475569;text-align:left;cursor:pointer;min-width:0;}'
     + '.mj-lt{width:38px;flex-shrink:0;font-size:11px;font-weight:800;color:#94A3B8;font-variant-numeric:tabular-nums;}.mj-lx{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mj-lx b{color:#1E293B;font-weight:700;}'
     + '.mj-more{align-self:flex-start;border:none;background:none;color:#1D4ED8;font:inherit;font-size:12px;font-weight:700;padding:2px 2px;cursor:pointer;}';

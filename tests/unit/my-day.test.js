@@ -19,7 +19,8 @@ test('matin (admin) : réveil maintenant, puis alcool, séance de midi, renfo, c
   const st = plan();
   const app = loadApp({ now: NOW, state: st });
   const L = J(app.mjSteps(st, '2026-11-09', 7 * 60 + 30));
-  assert.deepEqual(L.map((x) => x.id.split('-')[0]), ['wake', 'alc', 'sess', 'renfo', 'bed', 'next'], 'dans l\'ordre de la journée');
+  assert.deepEqual(L.map((x) => x.id.split('-')[0]), ['wake', 'alc', 'sess', 'renfo', 'next'], 'dans l\'ordre de la journée (coucher pas encore connu : absent)');
+  assert.ok(!L.some((x) => x.id === 'form'), 'forme du jour : déjà dans la carte au-dessus');
   assert.equal(L.find((x) => x.st === 'now').id, 'wake');
   const s = L.find((x) => x.kind === 'sess');
   assert.equal(s.tm, '12:30'); assert.equal(s.st, 'later'); assert.match(s.btn, /Valider/);
@@ -32,7 +33,7 @@ test('réveil et alcool faits → repliés ; la séance du jour devient « maint
   st._wakeup_2026_11_09 = true; st['_wakeup_2026-11-09'] = true; st._alcohol = { '2026-11-09': { l: 0, t: [], at: 1 } };
   const app = loadApp({ now: '2026-11-09T11:50:00+01:00', state: st });
   let L = J(app.mjSteps(st, '2026-11-09', 11 * 60 + 50));
-  assert.equal(L.find((x) => x.id === 'wake').st, 'done'); assert.equal(L.find((x) => x.id === 'alc').st, 'done');
+  assert.equal(L.find((x) => x.id === 'wake').st, 'done'); assert.equal(L.find((x) => x.id === 'alc').st, 'done'); assert.equal(L.find((x) => x.id === 'alc').short, 'Sans alcool');
   assert.match(L.find((x) => x.id === 'alc').t, /Pas d'alcool/);
   assert.equal(L.find((x) => x.st === 'now').kind, 'sess');
   // le soir, séance pas encore validée : elle passe avant l'alcool non renseigné
