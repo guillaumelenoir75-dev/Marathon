@@ -429,7 +429,7 @@ async function sendCoachMessage(retryMsg){
     let enrichedMsg = msg;
     const lastSession = window._lastValidatedSession;
     if(lastSession && (Date.now() - lastSession.timestamp) < 30*60*1000){
-      let sessionCtx = '[Contexte: Guillaume vient de valider une séance '
+      let sessionCtx = '[Contexte: '+((typeof athleteFirstName==='function'&&athleteFirstName())||'l\'athlète')+' vient de valider une séance '
         + lastSession.type.toUpperCase() + ' - ' + lastSession.titre
         + ' (' + lastSession.km + 'km'
         + (lastSession.pace ? ' @' + lastSession.pace : '')
@@ -892,7 +892,7 @@ async function generateFullBriefFromNotif(memos) {
             return t + ' ' + s.km + 'km' + (s.heure ? ' à ' + s.heure : '');
           }).join(' + ')
         : 'Pas de séance prévue ce matin';
-      const fallback = '💪 Bonjour Guillaume ! ' + fallbackSeances + '. Pose-moi tes questions directement.';
+      const fallback = '💪 Bonjour'+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+' ! ' + fallbackSeances + '. Pose-moi tes questions directement.';
       hideBriefOverlay();
       addCoachMessage('coach', fallback);
       coachHistory.push({role: 'assistant', content: fallback, date: todayStr});
@@ -902,7 +902,7 @@ async function generateFullBriefFromNotif(memos) {
     console.error('generateFullBriefFromNotif error:', e);
     // En cas d'erreur, tenter un message de secours construit localement
     hideBriefOverlay();
-    const errFallback = '💪 Bonjour Guillaume ! Ouvre le Coach IA pour ton brief du jour — je suis prêt pour tes questions !';
+    const errFallback = '💪 Bonjour'+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+' ! Ouvre le Coach IA pour ton brief du jour — je suis prêt pour tes questions !';
     if(textEl) textEl.innerHTML = renderCoachText(errFallback);
   }
 }
@@ -1093,8 +1093,8 @@ async function checkMorningBrief(memos, force) {
       renfoTodayGate.push(rd.name);
   });
 
-  // Lundi : bodyhit compte comme activité du jour même sans séance planifiée
-  const bodyhitToday = (dow === 1);
+  // activité fixe du jour (fiche « Ce que le Coach sait de toi ») : compte comme activité même sans séance planifiée
+  const bodyhitToday = typeof cpFixedOn === 'function' && cpFixedOn(state, dow === 0 ? 7 : dow).length > 0;
 
   if(!force && todaySessions.length === 0 && renfoTodayGate.length === 0 && !bodyhitToday) return false;
 
@@ -1357,7 +1357,7 @@ async function loadCoachHistory(){
     const _hasAnalysis = !!(window._lastAnalysisToday);
     const phs = _hasAnalysis
       ? ['Une question sur cette séance ?','Comment tu te sens après l’effort ?','On prépare la prochaine séance ?','Dis-moi ce que tu as ressenti…']
-      : ['Dis-moi tout Guillaume…','Une question sur ta prochaine séance ?','Comment tu te sens aujourd’hui ?','On parle de ta semaine ?','Pose-moi n’importe quelle question…'];
+      : ['Dis-moi tout'+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+'…','Une question sur ta prochaine séance ?','Comment tu te sens aujourd’hui ?','On parle de ta semaine ?','Pose-moi n’importe quelle question…'];
     let _pi=0;coachInp.placeholder=phs[0];
     setInterval(()=>{_pi=(_pi+1)%phs.length;if(document.activeElement!==coachInp)coachInp.placeholder=phs[_pi];},4000);
   }
@@ -1488,11 +1488,11 @@ async function loadCoachHistory(){
     } else {
       // Pas d'historique
       if (!_fromPushNotif) {
-        addCoachMessage('coach', "Bonjour Guillaume ! Je suis ton coach IA. J'ai accès à tout ton plan et ton historique de séances. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
+        addCoachMessage('coach', "Bonjour"+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+" ! Je suis ton coach IA. J'ai accès à tout ton plan et ton historique de séances. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
       }
     }
   } catch(e) {
-    addCoachMessage('coach', "Bonjour Guillaume ! Je suis ton coach IA. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
+    addCoachMessage('coach', "Bonjour"+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+" ! Je suis ton coach IA. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
   }
   // ── TOUJOURS vérifier le brief du matin en fin de loadCoachHistory ──
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)

@@ -185,3 +185,34 @@ test('forme du jour des briefs = celle de l\'app (_form_today) ; zones FC des co
   assert.match(heat, /> 35°C +: \+15 à \+20 bpm → zone EF effective 159-172 bpm/);
   assert.doesNotMatch(heat, /140-151/);
 });
+
+test('« Ce que le Coach sait de toi » : profil, activités fixes et prénom lus depuis la fiche, plus rien en dur', async () => {
+  const { callHttp } = require('../helpers/functions');
+  const prof = { story: 'Coureur depuis 2025', injuries: 'Tendon d\'Achille droit sensible', gear: 'Coros Pace 3', notes: 'Travaille de nuit le jeudi',
+    fixed: [{ n: 'Natation', d: 'crawl technique', day: 3, t: '07:00', min: 45, gap: 6 }] };
+  const F = loadFunctions({ data: { users: { WkEWrmnYWuUNkGLrwXf9HhaJWfh1: { state: { _coach_profile: prof, _athlete_name: 'Alex' } } } }, modules: ['coach.js'] });
+  const H = F.helpers;
+  const st = { _coach_profile: prof };
+  const t = H.coachProfileText(st);
+  assert.match(t, /Parcours : Coureur depuis 2025/);
+  assert.match(t, /Santé et blessures : Tendon d'Achille/);
+  assert.match(t, /Activité fixe : Natation \(crawl technique\), chaque mercredi à 07h00, 45 min\..*moins de 6 h après/);
+  assert.match(t, /Matériel : Coros Pace 3/);
+  assert.match(t, /À savoir aussi : Travaille de nuit/);
+  assert.equal(H.coachFixedToday(st, 'mercredi'), 'Natation à 07h00 (45 min) — crawl technique');
+  assert.equal(H.coachFixedToday(st, 1), '');
+  assert.match(H.coachFixedRules(st, '  '), /^ {2}- Natation le mercredi à 07h00 → pas de séance intense moins de 6 h après$/);
+  assert.equal(H.coachProfileText({}), '', 'sans fiche : rien');
+  assert.equal(H.withAthleteName('Bonjour {{PRENOM}} !', 'Alex'), 'Bonjour Alex !');
+  assert.equal(H.withAthleteName('Profil de {{PRENOM}}', ''), 'Profil de l\'athlète');
+  assert.equal(await H.athleteName(), 'Alex');
+  assert.match(await H.aiJson({ system: 'Coach de {{PRENOM}}' }), /"Coach de Alex"/);
+  // l'analyse de séance envoie la fiche, jamais l'ancien profil écrit en dur
+  const r = await callHttp(F.coach.analyzeSession, { sessionData: { type: 'ef', titre: 'Footing', kmRealise: 8, allure: '5:50', fc: 140 }, historyData: [], planContext: {} });
+  assert.equal(r.status, 200);
+  const sys = F.calls.ai[0].system;
+  assert.match(sys, /Activité fixe : Natation/);
+  assert.match(sys, /Coros Pace 3/);
+  assert.doesNotMatch(sys, /bodyhit|rotule|Forerunner|Guillaume/i);
+  assert.match(sys, /\{\{PRENOM\}\}/, 'prénom remplacé au moment de l\'appel (callAnthropic)');
+});

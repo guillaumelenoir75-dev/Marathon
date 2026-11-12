@@ -49,7 +49,50 @@ async function checkRateLimit(db, uid, endpoint, minIntervalMs) {
   await db.ref(key).set(Date.now());
 }
 
+// ─── Ce que le Coach sait de toi (fiche de l'app, coach-profile.js) : plus aucun fait personnel écrit en dur ───
+const CP_DAYS = ['', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+const _cpTxt = (v, n) => String(v == null ? '' : v).replace(/[`\s]+/g, ' ').trim().slice(0, n || 600);
+function coachFixedOf(state) {
+  const p = state && state._coach_profile;
+  return (p && Array.isArray(p.fixed) ? p.fixed : []).filter((f) => f && f.n && f.day >= 1 && f.day <= 7);
+}
+const _cpHm = (t) => (t ? String(t).replace(':', 'h') : '');
+// lignes « - … » du PROFIL envoyé au Coach et aux briefs
+function coachProfileText(state) {
+  const p = state && state._coach_profile; if (!p || typeof p !== 'object') return '';
+  const L = [];
+  if (p.story) L.push('- Parcours : ' + _cpTxt(p.story));
+  L.push('- Santé et blessures : ' + (p.injuries ? _cpTxt(p.injuries) : 'rien de signalé'));
+  coachFixedOf(state).forEach((f) => L.push(`- Activité fixe : ${_cpTxt(f.n, 40)}${f.d ? ' (' + _cpTxt(f.d, 120) + ')' : ''}, chaque ${CP_DAYS[f.day]}${f.t ? ' à ' + _cpHm(f.t) : ''}${f.min ? ', ' + f.min + ' min' : ''}. Compte comme renforcement / récupération active.${f.gap ? ` Pas de séance intense moins de ${f.gap} h après.` : ''}`));
+  if (p.gear) L.push('- Matériel : ' + _cpTxt(p.gear, 160));
+  if (p.notes) L.push('- À savoir aussi : ' + _cpTxt(p.notes));
+  return L.join('\n');
+}
+// règles de récupération après les activités fixes (lignes « - … », vide sans activité)
+function coachFixedRules(state, indent) {
+  return coachFixedOf(state).filter((f) => f.gap).map((f) => `${indent || ''}- ${_cpTxt(f.n, 40)} le ${CP_DAYS[f.day]}${f.t ? ' à ' + _cpHm(f.t) : ''} → pas de séance intense moins de ${f.gap} h après`).join('\n');
+}
+// activités fixes d'un jour (1 = lundi … 7 = dimanche, ou nom du jour) : « Bodyhit à 12h30 (…) », vide sinon
+function coachFixedToday(state, day) {
+  const d = typeof day === 'string' ? CP_DAYS.indexOf(day.toLowerCase()) : day;
+  return coachFixedOf(state).filter((f) => f.day === d).map((f) => `${_cpTxt(f.n, 40)}${f.t ? ' à ' + _cpHm(f.t) : ''}${f.min ? ' (' + f.min + ' min)' : ''}${f.d ? ' — ' + _cpTxt(f.d, 120) : ''}`).join(' + ');
+}
+// prénom du compte admin (recopié par l'app depuis le displayName Firebase) : remplace {{PRENOM}} dans les textes
+let _athName = { v: null, at: 0 };
+async function athleteName() {
+  if (_athName.v !== null && Date.now() - _athName.at < 10 * 60000) return _athName.v;
+  try { const v = (await admin.database().ref(ADMIN_STATE + '/_athlete_name').once('value')).val(); _athName = { v: v ? String(v).slice(0, 40) : '', at: Date.now() }; }
+  catch (e) { _athName = { v: '', at: Date.now() }; }
+  return _athName.v;
+}
+// corps JSON d'un appel direct à l'IA (flux) avec le prénom remplacé (échappé pour le JSON)
+async function aiJson(o) { const n = await athleteName(); return withAthleteName(JSON.stringify(o), JSON.stringify(n || "l'athlète").slice(1, -1)); }
+function withAthleteName(t, name) { return typeof t === 'string' ? t.replace(/\{\{PRENOM\}\}/g, name || "l'athlète") : t; }
+
 async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-6', opts = {}) {
+  const _nm = await athleteName();
+  system = withAthleteName(system, _nm);
+  messages = (messages || []).map((m) => (m && typeof m.content === 'string' ? Object.assign({}, m, { content: withAthleteName(m.content, _nm) }) : m));
   const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -233,7 +276,7 @@ function weekTypeFor(st, ws) {
 }
 // Lecture légère des clés de la prépa de l'admin (sans charger tout l'état)
 async function loadPrepState(db) {
-  const keys = ['_plan_engine', 'plan_start_date', 'plan_config', 'onboarding', 'target_time', 'fc_max', '_fc_max_manual', '_hr_zones'];
+  const keys = ['_plan_engine', 'plan_start_date', 'plan_config', 'onboarding', 'target_time', 'fc_max', '_fc_max_manual', '_hr_zones', '_coach_profile', '_athlete_name'];
   const vals = await Promise.all(keys.map(k => db.ref(`${ADMIN_STATE}/${k}`).once('value').then(s => s.val()).catch(() => null)));
   const st = {}; keys.forEach((k, i) => { if (vals[i] !== null && vals[i] !== undefined) st[k] = vals[i]; });
   return st;
@@ -360,7 +403,7 @@ function restBriefSystem(state, sit) {
     : N.tomorrow
     ? `3. 📅 DEMAIN — la séance de demain (fournie dans « Prochaine séance ») : type, distance et heure en **gras**, avec sa consigne d'allure en **gras** si elle est fournie, en une phrase. Puis une phrase pour s'y préparer dès ce soir : l'heure de coucher conseillée en **gras** si elle est fournie, et, pour une sortie longue ou une séance de qualité, un repas du soir adapté. Si des ajustements de la nuit concernent cette séance, dire ce qui a changé et pourquoi en une phrase.`
     : `3. 📅 PROCHAINE SÉANCE : ${jour} — titre EXACT de la rubrique : « 📅 PROCHAINE SÉANCE · ${jour.charAt(0) + jour.slice(1).toLowerCase()} ». Elle n'est PAS demain : ne jamais écrire « demain » pour la désigner. Donne son jour, son type, sa distance et son heure en **gras**, avec sa consigne d'allure en **gras** si elle est fournie, en une phrase ; puis une phrase sur la façon de profiter des jours sans course d'ici là (récupérer, dormir, rester actif en douceur). Pas d'heure de coucher ni de repas de veille aujourd'hui. Si des ajustements de la nuit concernent cette séance, le dire en une phrase.`;
-  return `Tu es le coach running de Guillaume. Aujourd'hui est un JOUR DE REPOS : aucune séance ni renfo de prévu. Rédige un brief du matin court, centré sur sa récupération et sur la séance qui vient. Tu le tutoies ("tu", jamais "Guillaume" dans le texte).
+  return `Tu es le coach running de {{PRENOM}}. Aujourd'hui est un JOUR DE REPOS : aucune séance ni renfo de prévu. Rédige un brief du matin court, centré sur sa récupération et sur la séance qui vient. Tu le tutoies ("tu", jamais "{{PRENOM}}" dans le texte).
 
 PROFIL :
 - ${state && state._plan_engine ? prepObjectiveText(state) : 'Prépare sa prochaine course.'}
@@ -786,13 +829,12 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   }
 
   const restDay = isRestDay(ctx, sit);
-  const system = restDay ? restBriefSystem(state, sit) : `Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+  const system = restDay ? restBriefSystem(state, sit) : `Tu es le coach running de {{PRENOM}}. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à {{PRENOM}} en le tutoyant ("tu", jamais "{{PRENOM}}" dans le corps du texte).
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
 - FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
-- Montre Garmin Forerunner 165.
-- Lundi midi : séance bodyhit (électrostimulation).
+${coachProfileText(state)}
 
 CONTEXTE À PRENDRE EN COMPTE — la SITUATION D'ENTRAÎNEMENT fournie à la fin du message (prépa en cours et phase de la semaine, dernière course et jours écoulés, prépa suivante, charge récente) te donne la vision complète :
 - PÉRIODE POST-COURSE (si indiquée) = priorité absolue : la rappeler en une phrase dans le bloc 2 (ex. « J+10 après ton marathon : on reprend en douceur ») et calibrer tout le brief dessus (footing facile et court, aucune intensité, sensations avant l'allure). La croiser avec la récupération WHOOP, la FC repos et la VFC : récup basse, FC repos haute ou VFC en baisse en période post-course = raccourcir, marcher ou repos.
@@ -830,7 +872,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 RÈGLES :
 - Zéro #. Données chiffrées en **gras**. Ton de coach direct, personnel, naturel.
 - Jamais de tirets en début de paragraphe — texte fluide.
-- Jamais "Guillaume" dans le corps du texte — toujours "tu/ton/ta".
+- Jamais "{{PRENOM}}" dans le corps du texte — toujours "tu/ton/ta".
 - Si pas de séance run aujourd'hui : sauter blocs 4 et 5.
 - INTERDIT : récapituler la semaine ou lister les séances passées. La situation (course passée, prépa, prochaine course) sert à calibrer le brief : y faire référence en une phrase au plus, dans le bloc 2.`;
 
@@ -955,7 +997,7 @@ async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
   const scoreGlobal = Math.round(scoreComps.reduce((a,b) => a+b, 0) / scoreComps.length);
   const scoreEmoji = scoreGlobal >= 67 ? '🟢' : scoreGlobal >= 40 ? '🟡' : '🔴';
 
-  const system = `Tu es le coach running de Guillaume. Ta mission : rédiger un bilan de semaine court, personnalisé et direct. Tu t'adresses DIRECTEMENT à lui en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+  const system = `Tu es le coach running de {{PRENOM}}. Ta mission : rédiger un bilan de semaine court, personnalisé et direct. Tu t'adresses DIRECTEMENT à lui en le tutoyant ("tu", jamais "{{PRENOM}}" dans le corps du texte).
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state)+' '+(totalWeeksFor(state)-cw)+' semaines restantes.':'Prépare un marathon (18 octobre 2026), objectif Sub 4h. '+(32-cw)+' semaines restantes.'}
@@ -985,7 +1027,7 @@ Si séances manquées : les mentionner brièvement sans dramatiser.
 RÈGLES :
 - Zéro #. Données chiffrées en **gras**. Ton direct et naturel.
 - Jamais de tirets en début de paragraphe.
-- Jamais "Guillaume" dans le corps du texte.
+- Jamais "{{PRENOM}}" dans le corps du texte.
 - 3 blocs maximum, dans l'ordre exact ci-dessus.`;
 
   const userMsg = `Semaine S${cw} (${typeSem}) — ${totalWeeksFor(state)-cw} semaines avant ${state&&state._plan_engine?'la course objectif':'le marathon'}.
@@ -1016,7 +1058,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf, heatEfText,
+  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf, heatEfText, coachProfileText, coachFixedRules, coachFixedToday, athleteName, withAthleteName, aiJson,
   buildTrainingSituation, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,

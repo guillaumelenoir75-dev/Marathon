@@ -65,3 +65,17 @@ test('jour de repos : « Repos aujourd\'hui » et prochaine séance ; athlète :
   assert.ok(!L.some((x) => x.id === 'bed'), 'le matin : coucher pas dans Ma journée (pastille 🌙 de l\'en-tête)');
   assert.equal(J(app.mjSteps(st, '2026-11-10', 21 * 60)).find((x) => x.st === 'now').id, 'bed', 'le soir : le coucher');
 });
+
+test('fiche du Coach (coach-profile.js) : nettoyage de la saisie et activités fixes de la semaine', () => {
+  const { loadApp } = require('../helpers/frontend');
+  const app = loadApp({ now: '2026-11-11T10:00:00+01:00', state: {} });   // mercredi
+  const p = app.cpClean({ story: '  Coureur   depuis 2025 ', fixed: [{ n: 'Bodyhit', day: '1', t: '12:30', min: '20', gap: '8' }, { n: '', day: 2 }, { n: 'Vélo', day: 9 }, { n: 'Natation', day: 3, t: '25:00' }] });
+  assert.equal(p.story, 'Coureur depuis 2025');
+  assert.deepEqual(JSON.parse(JSON.stringify(p.fixed)), [{ n: 'Bodyhit', d: '', day: 1, t: '12:30', min: 20, gap: 8 }, { n: 'Natation', d: '', day: 3, t: '' }], 'sans nom ou jour invalide : retirée ; heure invalide : vide');
+  const st = { _coach_profile: p };
+  const W = app.cpFixedWeek(st, new Date('2026-11-11T10:00:00+01:00'));
+  assert.deepEqual(JSON.parse(JSON.stringify(W.map((x) => [x.activite, x.jour, x.statut]))), [['Bodyhit', 'lundi', 'FAIT'], ['Natation', 'mercredi', 'FAIT']]);
+  assert.equal(app.cpFixedWeek(st, new Date('2026-11-09T09:00:00+01:00'))[0].statut, 'À VENIR', 'lundi 9h : bodyhit à venir');
+  assert.deepEqual(JSON.parse(JSON.stringify(app.cpFixedOn(st, 1).map((f) => f.n))), ['Bodyhit']);
+  assert.equal(app.cpFixedWeek({}, new Date()).length, 0, 'sans fiche : rien');
+});

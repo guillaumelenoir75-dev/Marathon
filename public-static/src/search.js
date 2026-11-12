@@ -49,9 +49,10 @@ const SR_ITEMS = [
   { id: 'records', ic: '🏆', t: 'Mes records', g: 'Compte › Mes courses', k: 'record pr meilleur temps chrono', fn: 'openRecordsModal', run: function(){ openRecordsModal(); } },
   // réglages
   { id: 'shoes', ic: '👟', t: 'Mes chaussures', g: 'Compte › Mon entraînement', k: 'chaussures paires km usure', fn: 'openShoesPanel', run: function(){ openShoesPanel(); } },
+  { id: 'coachprofile', ic: '🧠', t: 'Ce que le Coach sait de moi', g: 'Compte › Mon entraînement', k: 'profil coach blessure sante parcours activite fixe bodyhit contraintes materiel montre', a: true, fn: 'openCoachProfile', run: function(){ openCoachProfile(); } },
   { id: 'autopilot', ic: '🤖', t: 'Pilote automatique', g: 'Compte › Mon entraînement', k: 'ajustements nuit automatique pilote', fn: 'openAutopilotSettings', run: function(){ openAutopilotSettings(); } },
   { id: 'autoval', ic: '✅', t: 'Validation automatique', g: 'Compte › Mon entraînement', k: 'validation auto strava whoop meteo reglage', fn: 'avOpenSettings', run: function(){ avOpenSettings(); } },
-  { id: 'qvhelp', ic: '⚡', t: 'Validation express · raccourci iPhone', g: 'Compte › Mon entraînement', k: 'raccourci iphone siri validation rapide', fn: 'openQuickValidateHelp', run: function(){ openQuickValidateHelp(); } },
+  { id: 'qvhelp', ic: '⚡', t: 'Validation express · raccourci iPhone', g: 'Compte › Validation automatique', k: 'raccourci iphone siri validation rapide', fn: 'openQuickValidateHelp', run: function(){ openQuickValidateHelp(); } },
   { id: 'connect', ic: '🔗', t: 'Connecter Strava / WHOOP', g: 'Compte › Applis connectées', k: 'strava whoop connexion synchroniser deconnecter', run: _srAt('compte', 'user-integrations') },
   { id: 'strava', ic: '🟠', t: 'Historique Strava', g: 'Compte › Applis connectées', k: 'strava historique import anciennes courses', fn: 'openStravaHistory', run: function(){ openStravaHistory(); } },
   { id: 'cal', ic: '📅', t: 'Abonnement calendrier', g: 'Compte › Applis connectées', k: 'calendrier agenda ical outlook google iphone', fn: 'showCalendarUrl', a: true, run: function(){ showCalendarUrl(); } },

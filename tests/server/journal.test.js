@@ -87,12 +87,12 @@ test('analyse de séance : le ressenti de Guillaume est lu en premier ; une EF a
   const { loadFunctions: lf, callHttp: ch } = require('../helpers/functions');
   const F = lf({ data: {}, modules: ['coach.js'], ai: '[FEU:🟢]\n⭐ ÉVALUATION\n●●●●●●●●○○ **8/10**' });
   const sessionData = { type: 'long', titre: 'Sortie longue', kmRealise: 10, allure: '4:53', fc: 157,
-    ressenti_athlete: { ce_que_guillaume_a_dit: 'Super séance, je me sentais bien après le 1er km alors j\'ai accéléré, très content', effort_ressenti_sur_10: 6, douleur: 'aucune' },
+    ressenti_athlete: { ce_que_l_athlete_a_dit: 'Super séance, je me sentais bien après le 1er km alors j\'ai accéléré, très content', effort_ressenti_sur_10: 6, douleur: 'aucune' },
     ecart_consigne: { allure_prevue: "5'35", allure_realisee: "4'53", ecart_sec: 42, sens: 'plus rapide que prévu' } };
   const r = await ch(F.coach.analyzeSession, { sessionData, historyData: [], planContext: {} });
   assert.equal(r.status, 200, JSON.stringify(r.out));
   const call = F.calls.ai[0];
-  assert.match(call.user, /^RESSENTI DE GUILLAUME \(à lire en premier\) : .*je me sentais bien.*écart à la consigne/);
+  assert.match(call.user, /^RESSENTI DE L'ATHLÈTE \(à lire en premier\) : .*je me sentais bien.*écart à la consigne/);
   assert.match(call.system, /RESSENTI ET ÉCART CHOISI — RÈGLE PRIORITAIRE/);
   assert.match(call.system, /JAMAIS de reproche/);
   assert.match(call.system, /REQUALIFIE la séance/);
@@ -106,13 +106,13 @@ test('analyse de séance : cadre imposé quand l\'EF est courue plus vite par ch
   const F = lf({ data: {}, modules: ['coach.js'], ai: '[FEU:🔴]\n⭐ ÉVALUATION\n●●●○○○○○○○ **3/10**\nSortie longue transformée en course.' });
   const C = F.coach;
   // détection
-  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'Je me sentais bien, super content', douleur: 'aucune' } }).kind, 'choisi');
+  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_l_athlete_a_dit: 'Je me sentais bien, super content', douleur: 'aucune' } }).kind, 'choisi');
   assert.equal(C.analysisFrame({ ecart_consigne: ec }).kind, 'sans_ressenti');
-  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'Pas bien, jambes lourdes' } }), null, 'ressenti négatif : pas de cadre');
-  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'top', douleur: { niveau_0_3: 2, zone: 'Mollet' } } }), null, 'douleur : pas de cadre');
+  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_l_athlete_a_dit: 'Pas bien, jambes lourdes' } }), null, 'ressenti négatif : pas de cadre');
+  assert.equal(C.analysisFrame({ ecart_consigne: ec, ressenti_athlete: { ce_que_l_athlete_a_dit: 'top', douleur: { niveau_0_3: 2, zone: 'Mollet' } } }), null, 'douleur : pas de cadre');
   assert.equal(C.analysisFrame({ ecart_consigne: Object.assign({}, ec, { sens: 'plus lent que prévu' }) }), null);
   // réponse : feu rouge et 3/10 corrigés, cadre dans la consigne (début et fin)
-  const sessionData = { type: 'long', allure: '4:53', fc: 157, ecart_consigne: ec, ressenti_athlete: { ce_que_guillaume_a_dit: 'Je me sentais bien après le 1er km, j\'ai accéléré, très content', douleur: 'aucune' } };
+  const sessionData = { type: 'long', allure: '4:53', fc: 157, ecart_consigne: ec, ressenti_athlete: { ce_que_l_athlete_a_dit: 'Je me sentais bien après le 1er km, j\'ai accéléré, très content', douleur: 'aucune' } };
   const r = await ch(C.analyzeSession, { sessionData, historyData: [], planContext: {} });
   assert.match(r.out.analysis, /^\[FEU:🟡\]/);
   assert.match(r.out.analysis, /●●●●●●○○○○ \*\*6\/10\*\*/);
@@ -142,7 +142,7 @@ test('« Mon plan » (planChat) : réponse + changements validés (séances à v
   assert.deepEqual(r.out.changes.map((c) => [c.ref, c.km]), [['extra_w3_s2', 14]]);
   assert.deepEqual(r.out.auto, ['extra_w3_s1:detail']);
   const u = F.calls.ai[0].user;
-  assert.match(u, /MESSAGE DE GUILLAUME : Cette semaine ça s'est bien passé/);
+  assert.match(u, /MESSAGE DE L'ATHLÈTE : Cette semaine ça s'est bien passé/);
   assert.match(u, /Coach : Je te propose 10 km \[propositions : Footing — km : 8 km → 10 km — APPLIQUÉES\]/);
   assert.match(F.calls.ai[0].system, /UNIQUEMENT de son plan/);
   // réponse non JSON : gardée telle quelle, sans changement

@@ -94,6 +94,61 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
   await ctx.close();
 });
 
+test('écrans rares chargés à la demande : chaque point d\'entrée charge son fichier et ouvre l\'écran, sans erreur', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  const lazy = await page.evaluate(() => Object.keys(window.LAZY_BUNDLES || {}));
+  ['predict', 'review', 'share', 'charts', 'alcui', 'raui'].forEach((g) => assert.ok(lazy.includes(g), g));
+  // rien de chargé au démarrage
+  assert.equal(await page.evaluate(() => [...document.scripts].filter((s) => /lazy-(predict|review|share|charts|alcui|raui)/.test(s.src)).length), 0);
+  await page.evaluate(() => { window.__stubs = {}; ['openDistancePredModal', 'openMarathonPredModal', 'openPlanReview', 'openRecordsModal', 'openWeekShare', 'openSleepPlan', 'openDataQuality', 'openLevelChart', 'openPaceChart', 'openAlcoholInsights', 'openRaceAnalysis'].forEach((f) => { window.__stubs[f] = window[f]; }); });
+  const screens = [['openDistancePredModal', '10 km'], ['openMarathonPredModal'], ['openPlanReview'], ['openRecordsModal'], ['openWeekShare'], ['openSleepPlan'], ['openDataQuality'], ['openLevelChart'], ['openPaceChart', 'ef'], ['openAlcoholInsights'], ['openRaceAnalysis']];
+  for (const [fn, arg] of screens) {
+    const r = await page.evaluate(async ([f, a]) => {
+      const stub = window.__stubs[f], before = document.querySelectorAll('#modal-container > *, body > *').length;
+      try { await (a ? window[f](a) : window[f]()); } catch (e) { return { err: e.message }; }
+      await new Promise((ok) => setTimeout(ok, 350));
+      const out = { loaded: window[f] !== stub, grew: document.querySelectorAll('#modal-container > *, body > *').length > before };
+      document.querySelectorAll('#modal-container > *').forEach((x) => x.remove());
+      ['plan-review', 'lc-ov', 'pa-ov', 'sl-ov', 'ws-ov', 'ra-ov'].forEach((id) => { const x = document.getElementById(id); if (x) x.remove(); });
+      return out;
+    }, [fn, arg]);
+    assert.ok(!r.err, fn + ' : ' + r.err);
+    assert.ok(r.loaded, fn + ' : vraie fonction chargée');
+  }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('« Ce que le Coach sait de moi » : fiche créée une fois, modifiable, lue par le contexte du Coach', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  await page.evaluate(async () => { await prepDailyTasks(); });
+  const seed = await page.evaluate(() => state._coach_profile);
+  assert.ok(seed && seed.seed === 1 && seed.fixed[0].n === 'Bodyhit' && seed.fixed[0].day === 1, 'fiche créée à partir de ce que le Coach savait');
+  await page.evaluate(() => showScreen('compte')); await page.waitForTimeout(200);
+  assert.ok(await page.evaluate(() => !!document.querySelector('#coachprofile-row').offsetParent));
+  await page.click('#coachprofile-row'); await page.waitForSelector('#cp-ov');
+  await page.fill('#cp-ov [data-f="injuries"]', 'Tendon d\'Achille droit à surveiller');
+  await page.click('#cp-ov .cp-fx button');                    // retirer le bodyhit
+  await page.click('#cp-ov .cp-add');
+  await page.fill('#cp-ov .cp-fx [data-k="n"]', 'Natation');
+  await page.selectOption('#cp-ov .cp-fx [data-k="day"]', '4');
+  await page.fill('#cp-ov .cp-fx [data-k="t"]', '07:00');
+  await page.fill('#cp-ov .cp-fx [data-k="gap"]', '6');
+  await page.click('#cp-ov .cp-save'); await page.waitForTimeout(300);
+  const st = await page.evaluate(() => ({ p: state._coach_profile, db: window.__DB.users[Object.keys(window.__DB.users)[0]].state._coach_profile, open: !!document.getElementById('cp-ov') }));
+  assert.equal(st.open, false);
+  assert.equal(st.p.injuries, 'Tendon d\'Achille droit à surveiller');
+  assert.deepEqual(st.p.fixed, [{ n: 'Natation', d: '', day: 4, t: '07:00', gap: 6 }]);
+  assert.equal(st.db && st.db.fixed[0].n, 'Natation', 'enregistrée dans la base');
+  // contexte du Coach : activités fixes de la fiche, plus de bodyhit écrit en dur
+  const c = await page.evaluate(() => JSON.stringify(typeof cpFixedWeek === 'function' ? cpFixedWeek(state) : null));
+  assert.match(c, /Natation/); assert.doesNotMatch(c, /Bodyhit/);
+  // recherche
+  assert.ok(await page.evaluate(() => searchFind('blessure', true).some((x) => x.id === 'coachprofile')));
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('historique complet : la prépa Seine-Eure enregistrée nourrit les analyses de la nouvelle prépa', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await page.evaluate(async () => { await prPrefetch(); });
@@ -509,7 +564,7 @@ test('analyse du Coach après validation : ton ressenti et l\'écart à la consi
   await page.waitForFunction(() => true); await page.waitForTimeout(2500);
   assert.ok(body, 'analyse demandée');
   const S = body.sessionData;
-  assert.match(S.ressenti_athlete.ce_que_guillaume_a_dit, /je me sentais bien/);
+  assert.match(S.ressenti_athlete.ce_que_l_athlete_a_dit, /je me sentais bien/);
   assert.equal(S.ressenti_athlete.effort_ressenti_sur_10, 6); assert.equal(S.ressenti_athlete.douleur, 'aucune');
   if (/\d['’:]\d{2}/.test(det.split('|').slice(1).join('|'))) assert.equal(S.ecart_consigne.sens, 'plus rapide que prévu');
   // en-tête du Coach : objectif de la prépa en cours (plus « avant le marathon » ni l'allure du marathon Seine-Eure)

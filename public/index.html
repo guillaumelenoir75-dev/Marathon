@@ -458,9 +458,9 @@
   <div class="cp-group">
     <button type="button" class="cp-row" id="fcmax-row" onclick="openFcMaxEdit()" style="display:none;"><span class="cp-ic" style="background:#FDECEF;">❤️</span><span class="cp-txt"><b>Ma FC max</b><span id="fcmax-sub">Zones FC et allures</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" onclick="openShoesPanel()"><span class="cp-ic" style="background:#FFF1EA;">👟</span><span class="cp-txt"><b>Mes chaussures</b><span>Km par paire, liaison Strava</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" id="coachprofile-row" onclick="openCoachProfile()" style="display:none;"><span class="cp-ic" style="background:#EDE9FE;">🧠</span><span class="cp-txt"><b>Ce que le Coach sait de moi</b><span>Parcours, santé, activités fixes</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button type="button" class="cp-row" onclick="openAutopilotSettings()"><span class="cp-ic" style="background:#E0E7FF;">🤖</span><span class="cp-txt"><b>Pilote automatique</b><span>Le plan s'ajuste chaque nuit</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="avOpenSettings()"><span class="cp-ic" style="background:#D1FAE5;">✅</span><span class="cp-txt"><b>Validation automatique</b><span>Strava + WHOOP + météo</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button type="button" class="cp-row" onclick="openQuickValidateHelp()"><span class="cp-ic" style="background:#FFEDD5;">⚡</span><span class="cp-txt"><b>Validation express</b><span>Raccourci iPhone</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button type="button" class="cp-row" onclick="avOpenSettings()"><span class="cp-ic" style="background:#D1FAE5;">✅</span><span class="cp-txt"><b>Validation automatique</b><span>Strava + WHOOP + météo · express</span></span><svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
   <div id="athlete-panel" style="display:none;margin:-4px 0 18px;">
     <div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e0e8f5;">
@@ -1042,6 +1042,7 @@
 <script defer src="/src/coach-plan-modif.js?v=3"></script>
 <script defer src="/src/coach-memos.js?v=3"></script>
 <script defer src="/src/coach-ui.js?v=19"></script>
+<script defer src="/src/coach-profile.js?v=1"></script>
 <script defer src="/src/notifs.js?v=9"></script>
 <script defer src="/src/whoop.js?v=6"></script>
 <script defer src="/src/preps.js?v=1"></script>

@@ -29,7 +29,7 @@ const {
   efMaxOf,
   efRefOf,
   bedtimePlan,
-  parisToday, briefTooLateParis, healthMark, formScoreFor, hrZonesOf,
+  parisToday, briefTooLateParis, healthMark, formScoreFor, hrZonesOf, coachProfileText, athleteName, withAthleteName,
   autopilotBriefText,
   isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT, alcoholBriefText,
 } = require('./helpers');
@@ -456,13 +456,12 @@ exports.briefAfterFcRepos = onSchedule(
       // ── Générer le brief complet côté serveur ──────────────────────────────
       // jour de repos (ni séance ni renfo) : brief centré sur la nuit, la récupération et la séance de demain
       const restDay=isRestDay(ctx, sit);
-      const system=restDay?restBriefSystem(state, sit):`Tu es le coach running de Guillaume. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à Guillaume en le tutoyant ("tu", jamais "Guillaume" dans le corps du texte).
+      const system=restDay?restBriefSystem(state, sit):`Tu es le coach running de {{PRENOM}}. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à {{PRENOM}} en le tutoyant ("tu", jamais "{{PRENOM}}" dans le corps du texte).
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
 - FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
-- Montre Garmin Forerunner 165.
-- Lundi midi : séance bodyhit (électrostimulation).
+${coachProfileText(state)}
 
 CONTEXTE À PRENDRE EN COMPTE — la SITUATION D'ENTRAÎNEMENT fournie à la fin du message (prépa en cours et phase de la semaine, dernière course et jours écoulés, prépa suivante, charge récente) te donne la vision complète :
 - PÉRIODE POST-COURSE (si indiquée) = priorité absolue : la rappeler en une phrase dans le bloc 2 (ex. « J+10 après ton marathon : on reprend en douceur ») et calibrer tout le brief dessus (footing facile et court, aucune intensité, sensations avant l'allure). La croiser avec la récupération WHOOP, la FC repos et la VFC : récup basse, FC repos haute ou VFC en baisse en période post-course = raccourcir, marcher ou repos.
@@ -501,7 +500,7 @@ Si une valeur n'est pas disponible dans le contexte (ex : VFC non mesurée), ne 
 RÈGLES :
 - Zéro #. Données chiffrées en **gras**. Ton de coach direct, personnel, naturel.
 - Jamais de tirets en début de paragraphe — texte fluide.
-- Jamais "Guillaume" dans le corps du texte — toujours "tu/ton/ta".
+- Jamais "{{PRENOM}}" dans le corps du texte — toujours "tu/ton/ta".
 - Si pas de séance run aujourd'hui (repos ou renfo seul) : sauter blocs 4 et 5.
 - INTERDIT : récapituler la semaine ou lister les séances passées. La situation (course passée, prépa, prochaine course) sert à calibrer le brief : y faire référence en une phrase au plus, dans le bloc 2.`;
 
@@ -741,9 +740,9 @@ exports.weekCompleteCongrats = onSchedule(
               perfsDetail.push(`${sessionTitleOf(es)} ${km}km${perf.pace?' @'+perf.pace+'/km':''}${perf.hr?' FC'+perf.hr:''}`);
             }
             const perfsStr=perfsDetail.length>0?perfsDetail.join(', '):`${doneRun} séances`;
-            const prompt=`Félicitations à Guillaume pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant ${state._plan_engine?'la course « '+getPrepInfo(state).name+' »':'le marathon'}.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;
+            const prompt=`Félicitations à {{PRENOM}} pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant ${state._plan_engine?'la course « '+getPrepInfo(state).name+' »':'le marathon'}.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;
             const msg=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running enthousiaste. Réponds en 2 phrases courtes, maximum 180 caractères, jamais de phrase coupée.',[{role:'user',content:prompt}],180,'claude-haiku-4-5-20251001');
-            let body = msg || `S${cw} 100% complète ! Run + renfo : tout validé. Belle semaine Guillaume 💪`;
+            let body = msg || withAthleteName(`S${cw} 100% complète ! Run + renfo : tout validé. Belle semaine {{PRENOM}} 💪`, await athleteName()).replace(/ l'athlète 💪/, ' 💪');
             const lastPunct = Math.max(body.lastIndexOf('.'), body.lastIndexOf('!'), body.lastIndexOf('?'));
             if (lastPunct > 0 && lastPunct < body.length - 1) body = body.slice(0, lastPunct + 1);
             const today = new Date().toISOString().slice(0,10);

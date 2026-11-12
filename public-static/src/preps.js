@@ -758,6 +758,7 @@ async function prepDailyTasks(){
       Object.assign(state, up); if(dbRef) dbRef.update(up).catch(function(){});
     }
   } catch(e) {}
+  if(typeof cpSeed === 'function') cpSeed();   // fiche « Ce que le Coach sait de toi » + prénom pour le serveur (coach-profile.js)
   if(typeof bsSleepDaily === 'function') bsSleepDaily();   // historique des nuits + besoin de sommeil appris (rappel de 21h)
   if(_prepDailyBusy || typeof firebaseReady === 'undefined' || !firebaseReady) return;
   _prepDailyBusy = true;

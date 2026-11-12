@@ -350,7 +350,7 @@ function onPaceInput(el){
 // En production, window.LAZY_BUNDLES (injecté par vite.config.js) donne le fichier minifié de chaque groupe ;
 // en développement, les fichiers sources sont chargés un par un. Les points d'entrée ci-dessous sont remplacés par
 // les vraies fonctions dès que le module est chargé (déclarations globales du même nom).
-const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'], season: ['season.js'], renfo: ['renfo-guide.js'] };
+const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'], season: ['season.js'], renfo: ['renfo-guide.js'], predict: ['predict-ui.js'], review: ['plan-review-ui.js'], share: ['week-share-ui.js'], charts: ['body-signals-ui.js'], alcui: ['alcohol-ui.js'], raui: ['race-analysis-ui.js'] };
 const _lazyP = {};
 function lazyLoad(g){
   if(_lazyP[g]) return _lazyP[g];
@@ -367,6 +367,19 @@ function initRaceOrgMap(){ return _lazyCall('course', 'initRaceOrgMap', initRace
 function openProgress(){ return _lazyCall('progress', 'openProgress', openProgress, arguments); }
 function openWhatIf(){ return _lazyCall('whatif', 'openWhatIf', openWhatIf, arguments); }
 function openNextRace(){ return _lazyCall('nextrace', 'openNextRace', openNextRace, arguments); }
+// écrans rares sortis du démarrage (fichiers *-ui.js) : la vraie fonction remplace ce point d'entrée une fois chargée
+function openMarathonPredModal(){ return _lazyCall('predict', 'openMarathonPredModal', openMarathonPredModal, arguments); }
+function openDistancePredModal(){ return _lazyCall('predict', 'openDistancePredModal', openDistancePredModal, arguments); }
+function openPlanReview(){ return _lazyCall('review', 'openPlanReview', openPlanReview, arguments); }
+function openRecordsModal(){ return _lazyCall('review', 'openRecordsModal', openRecordsModal, arguments); }
+function openWeekShare(){ return _lazyCall('share', 'openWeekShare', openWeekShare, arguments); }
+function openSessionShare(){ return _lazyCall('share', 'openSessionShare', openSessionShare, arguments); }
+function openSleepPlan(){ return _lazyCall('charts', 'openSleepPlan', openSleepPlan, arguments); }
+function openDataQuality(){ return _lazyCall('charts', 'openDataQuality', openDataQuality, arguments); }
+function openLevelChart(){ return _lazyCall('charts', 'openLevelChart', openLevelChart, arguments); }
+function openPaceChart(){ return _lazyCall('charts', 'openPaceChart', openPaceChart, arguments); }
+function openAlcoholInsights(){ return _lazyCall('alcui', 'openAlcoholInsights', openAlcoholInsights, arguments); }
+function openRaceAnalysis(){ return _lazyCall('raui', 'openRaceAnalysis', openRaceAnalysis, arguments); }
 // Coach IA (et toute consommation de tokens) : réservé au compte admin — l'app n'appelle jamais l'IA pour un athlète
 function coachAI(){ return typeof isAdmin === 'function' && isAdmin(); }
 // Brief du matin : plus d'intérêt l'après-midi — dès 12h en semaine, 13h le week-end, il ne s'ouvre plus (reporté au lendemain)

@@ -335,18 +335,18 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     course_objectif: usesHardPlan() ? undefined : prepRace().name + ' (' + (prepRace().course || 'course') + ', objectif ' + prepRace().objectif + ')',
     semi_marathon: usesHardPlan() && CW >= 24 ? {date:'14/09/2026', semaine:28, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 28-CW} : undefined,
     semaines_restantes: planTotalWeeks()-CW,
-    infos_importantes_Guillaume: coachMemos||undefined,
+    infos_importantes_athlete: coachMemos||undefined,
     type_semaine: isDecharge
       ? `DÉCHARGE (${kmCW}km vs ${Math.max(kmPrev,kmNext)}km semaine adjacente) — objectif récupération, pas de performance`
       : `NORMALE (${kmCW}km)`,
     consignes_ef_semaine: isDecharge
-      ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < ${hrEfMax() - 8} bpm idéalement (correction thermique applicable si > 25°C : ajouter +3 à +12 bpm selon la chaleur). Si Guillaume court plus vite, ce n'est PAS une bonne séance.`
+      ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < ${hrEfMax() - 8} bpm idéalement (correction thermique applicable si > 25°C : ajouter +3 à +12 bpm selon la chaleur). Si ${(typeof athleteFirstName==='function'&&athleteFirstName())||"l'athlète"} court plus vite, ce n'est PAS une bonne séance.`
       : `Allure EF normale : entre ${zoneMin} et ${zoneMax} /km. FC < ${hrEfMax()} bpm.`,
     maintenant: {
       jour: jourActuel,
       heure: heureActuelle,
       seances_prevues_aujourd_hui: seancesAujourdhui.length > 0 ? seancesAujourdhui : null,
-      bodyhit_lundi: '12h30 — électrostimulation full body focus jambes'
+      activites_fixes_aujourd_hui: (typeof cpFixedOn === 'function' ? cpFixedOn(state, new Date().getDay() || 7) : []).map(function(f){ return f.n + (f.t ? ' ' + f.t : '') + (f.d ? ' — ' + f.d : ''); })
     },
     fc_repos: state['fc_repos'] || 51,
     fc_repos_context: buildFcReposContext(),
@@ -441,7 +441,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
         pct_regularite: pctDominant,
         ecart_type_heures: ecartType,
         regularite: ecartType<2?'très régulier':ecartType<3?'assez régulier':'variable',
-        note: pctDominant>=70?'Guillaume court principalement le '+dominant+' ('+pctDominant+'% des séances)':'Horaires variables — pas de créneau fixe identifié'
+        note: pctDominant>=70?(athleteFirstName()||'l\'athlète')+' court principalement le '+dominant+' ('+pctDominant+'% des séances)':'Horaires variables — pas de créneau fixe identifié'
       };
     })(),
     delai_inter_seances: (()=>{
@@ -606,12 +606,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     chaussures_plan_verite: !usesHardPlan() ? shoeRulesText() : `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
     contexte_semaines_speciales: usesHardPlan() ? {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'} : {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
     note: "Pour avoir plus de détails, précise ta question.",
-    bodyhit_semaine: (()=>{
-      const _now=new Date(); const _dow=_now.getDay()===0?7:_now.getDay();
-      const _h=_now.getHours()+_now.getMinutes()/60;
-      const _fait=_dow>1||(_dow===1&&_h>=12.5);
-      return {fait:_fait,statut:_fait?'FAIT (lundi 12h30)':'À VENIR (lundi 12h30)',jour:'lundi',note:'Horaire normal lundi 12h30.'};
-    })(),
+    activites_fixes_semaine: typeof cpFixedWeek === 'function' ? cpFixedWeek(state) : [],   // fiche « Ce que le Coach sait de toi » (coach-profile.js)
     semaine_suivante: CW < planTotalWeeks() ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:isRecoveryWeek(CW+1)?'DÉCHARGE':'CHARGE'} : null,
     historique_complet_par_mois: _ccMonthly(),
     alcool: typeof alcCoachContext === 'function' ? alcCoachContext() : null,   // soirées et effet estimé sur la récupération (alcohol.js)
@@ -676,7 +671,7 @@ function buildDetailedSections(needs, fullHistory, futurPlan) {
 
   if(needs.historique_complet) {
     extra.historique_complet = fullHistory;
-    extra.note_dates_seances = "Guillaume complète souvent ses séances le jour de la semaine précédente. perf.date = date réelle si disponible.";
+    extra.note_dates_seances = (athleteFirstName()||'l\'athlète') + " complète souvent ses séances le jour de la semaine précédente. perf.date = date réelle si disponible.";
   }
 
   if(needs.plan_futur) {

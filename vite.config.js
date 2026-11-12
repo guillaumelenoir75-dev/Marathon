@@ -9,7 +9,7 @@ const scriptFiles = [
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
-  'coach-memos.js', 'coach-ui.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
+  'coach-memos.js', 'coach-ui.js', 'coach-profile.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
   'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js', 'alcohol.js', 'auto-validate.js', 'health.js', 'session-flow.js', 'my-day.js', 'search.js', 'nav.js',
 ];
 
@@ -22,6 +22,12 @@ const lazyGroups = {
   planchat: ['plan-chat.js'],                                  // Coach › Mon plan
   season: ['season.js'],                                      // Plan › Ma saison
   renfo: ['renfo-guide.js'],                                  // Renfo › Séance guidée
+  predict: ['predict-ui.js'],                                 // Accueil › fenêtres de prédiction
+  review: ['plan-review-ui.js'],                              // Plan › MAJ le plan, Mes records
+  share: ['week-share-ui.js'],                                // Ta semaine / ta séance en image
+  charts: ['body-signals-ui.js'],                             // niveau, allures, ta nuit, données à vérifier
+  alcui: ['alcohol-ui.js'],                                   // Statistiques › détail Alcool
+  raui: ['race-analysis-ui.js'],                              // analyse de course
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

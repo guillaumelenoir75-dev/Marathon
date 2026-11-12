@@ -362,7 +362,8 @@ function avOpenSettings(){
     + '<button type="button" class="av-opt' + (!on ? ' on' : '') + '" onclick="avSet(\'off\')"><b>Désactivée</b><span>Tu valides toi-même chaque séance</span></button>'
     + (on ? '<button type="button" class="av-save" onclick="document.getElementById(\'av-set\').remove();avFinish()">🏁 J\'ai fini ma séance : vérifier maintenant</button>' : '')
     + '<div class="av-rules"><p>Validée seulement si :</p><ul><li>🟠 <b>Strava</b> · une course rattachée à une seule séance du plan</li><li>💚 <b>WHOOP</b> · l\'entraînement de cette sortie (mêmes horaires)</li><li>🌡️ <b>Météo</b> · au lieu et à l\'heure de la sortie</li></ul><p>Sinon : rien n\'est validé, tu reçois une notification pour valider à la main.</p></div>'
-    + (log.length ? '<div class="av-rules"><p>Dernières sorties</p><ul>' + log.map(row).join('') + '</ul></div>' : '') + '</div></div></div>';
+    + (log.length ? '<div class="av-rules"><p>Dernières sorties</p><ul>' + log.map(row).join('') + '</ul></div>' : '')
+    + (typeof openQuickValidateHelp === 'function' ? '<button type="button" class="av-opt" onclick="document.getElementById(\'av-set\').remove();openQuickValidateHelp()"><b>⚡ Validation express</b><span>Raccourci iPhone : Strava pré-rempli</span></button>' : '') + '</div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
 }
