@@ -124,3 +124,22 @@ test('heure de coucher de ce soir : « à venir » tant que la nuit WHOOP du jou
   s.extra_w1_s0_done = true; s.extra_w1_s0_km = 8; app.ctx.prHistoryChanged && app.ctx.prHistoryChanged();
   assert.equal(app.ctx.bsBedtimeStatus('2026-10-29').ready, true);
 });
+
+test('valeur suspecte confirmée (erreur) ou gardée (juste) : plus à vérifier ; « changer » la remet à vérifier', () => {
+  const s = st([{ date: '2026-10-11', perf: { hr: 182 } }, { date: '2026-10-12', km: 10, dur: '40:00', perf: { pace: '5:40' } }]);
+  const app = loadApp({ now: NOW, state: s });
+  const I = J(app.dqIssues('2026-10-29'));
+  assert.equal(I.length, 2); assert.equal(J(app.dqPending('2026-10-29')).length, 2);
+  const hr = I.find((i) => i.kind === 'hr'), pace = I.find((i) => i.kind === 'pace');
+  app.dqAck(hr.id, true);
+  assert.equal(app.prAllDone('2026-10-29').find((x) => x.date === '2026-10-11').perf.hr, undefined, 'erreur confirmée : toujours écartée');
+  assert.equal(J(app.dqIssues('2026-10-29')).find((i) => i.id === hr.id).ack, true);
+  app.dqKeep(pace.id, true);
+  assert.equal(app.prAllDone('2026-10-29').find((x) => x.date === '2026-10-12').perf.pace, '5:40', 'valeur juste : gardée');
+  assert.equal(J(app.dqPending('2026-10-29')).length, 0, 'tout est traité : plus de bandeau');
+  assert.deepEqual(Object.keys(s._data_ack), [hr.id]); assert.deepEqual(Object.keys(s._data_keep), [pace.id]);
+  app.dqKeep(hr.id, true);
+  assert.equal(s._data_ack, undefined, 'garder retire la confirmation'); assert.equal(Object.keys(s._data_keep).length, 2);
+  app.dqReset(hr.id); app.dqReset(pace.id);
+  assert.equal(J(app.dqPending('2026-10-29')).length, 2, 'remises à vérifier'); assert.equal(s._data_keep, undefined);
+});

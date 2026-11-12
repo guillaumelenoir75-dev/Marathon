@@ -141,13 +141,13 @@ function prAllDone(today){
 // pace : allure impossible ou incohérente avec km + durée (GPS) ; splits : tours à moins de 2'45/km (saut GPS) ;
 // dup : même sortie validée sur deux séances du plan (déjà comptée une fois). Seule la valeur fautive est retirée, pas la séance.
 function dqClean(list, dups){
-  const keep = (typeof state !== 'undefined' && state && state._data_keep) || {}, issues = [];
+  const keep = (typeof state !== 'undefined' && state && state._data_keep) || {}, ack = (typeof state !== 'undefined' && state && state._data_ack) || {}, issues = [];
   const ref = parseInt(state && state.fc_max) || parseInt(((state && state.onboarding) || {}).fc_max) || 196;
   const efMax = typeof hrEfMax === 'function' ? hrEfMax() : 148, P = function(x){ return prPace(x); };
   const durSec = function(t){ const p = String(t || '').split(':').map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : null; };
   const add = function(s, kind, msg, fix){
     const id = (s.date + '|' + s.key + '|' + kind).replace(/[.#$\[\]\/]/g, '_'), kept = !!keep[id];
-    issues.push({ id: id, kind: kind, date: s.date, key: s.key, w: s.w, ei: s.ei, title: s.title, msg: msg, cur: !!s.cur, kept: kept });
+    issues.push({ id: id, kind: kind, date: s.date, key: s.key, w: s.w, ei: s.ei, title: s.title, msg: msg, cur: !!s.cur, kept: kept, ack: !kept && !!ack[id] });
     if(!kept && fix) fix();
   };
   list.forEach(function(s){
@@ -167,18 +167,33 @@ function dqClean(list, dups){
     const bad = (st.splits || []).filter(function(sp){ const x = prPaceSec(sp.allure); return x && x < 165 && (sp.distanceKm == null || sp.distanceKm >= 0.5); });
     if(bad.length) add(s, 'splits', bad.length + ' km à ' + bad.map(function(sp){ return sp.allure; }).slice(0, 2).join(', ') + '/km : saut GPS', function(){ p.strava = Object.assign({}, p.strava || st); p.strava.splits = (st.splits || []).filter(function(sp){ return bad.indexOf(sp) < 0; }); });
   });
-  dups.forEach(function(d){ issues.push({ id: (d.date + '|' + d.s.key + '|dup').replace(/[.#$\[\]\/]/g, '_'), kind: 'dup', date: d.date, key: d.s.key, w: d.s.w, ei: d.s.ei, title: d.s.title,
-    msg: 'Même sortie validée aussi pour « ' + d.first.title + ' » : comptée une fois', cur: d.cur, kept: false, info: true }); });
+  dups.forEach(function(d){ const id = (d.date + '|' + d.s.key + '|dup').replace(/[.#$\[\]\/]/g, '_');
+    issues.push({ id: id, kind: 'dup', date: d.date, key: d.s.key, w: d.s.w, ei: d.s.ei, title: d.s.title,
+    msg: 'Même sortie validée aussi pour « ' + d.first.title + ' » : comptée une fois', cur: d.cur, kept: false, ack: !!ack[id], info: true }); });
   return issues;
 }
 // valeurs suspectes de tout l'historique (après le calcul de prAllDone)
 function dqIssues(today){ prAllDone(today); return (_prAllCache && _prAllCache.issues) || []; }
+// « garder » : la valeur est juste, elle revient dans les analyses (et n'est plus « confirmée erreur »)
 function dqKeep(id, on){
-  state._data_keep = Object.assign({}, state._data_keep || {});
-  if(on) state._data_keep[id] = true; else delete state._data_keep[id];
-  if(typeof dbRef !== 'undefined' && dbRef) dbRef.child('_data_keep').set(Object.keys(state._data_keep).length ? state._data_keep : null).catch(function(){});
+  _dqSet('_data_keep', id, on); if(on) _dqSet('_data_ack', id, false);
   prHistoryChanged();
 }
+// « confirmer » : c'est bien une erreur, elle reste écartée ; traitée = plus signalée (le bandeau disparaît)
+function dqAck(id, on){
+  _dqSet('_data_ack', id, on); if(on) _dqSet('_data_keep', id, false);
+  prHistoryChanged();
+}
+// remettre « à vérifier »
+function dqReset(id){ _dqSet('_data_keep', id, false); _dqSet('_data_ack', id, false); prHistoryChanged(); }
+function _dqSet(k, id, on){
+  const m = Object.assign({}, state[k] || {}); if(!!m[id] === !!on) return;
+  if(on) m[id] = true; else delete m[id];
+  state[k] = Object.keys(m).length ? m : undefined; if(!state[k]) delete state[k];
+  if(typeof dbRef !== 'undefined' && dbRef) dbRef.child(k).set(state[k] || null).catch(function(){});
+}
+// valeurs encore à vérifier (ni gardées, ni confirmées)
+function dqPending(today){ return dqIssues(today).filter(function(i){ return !i.kept && !i.ack; }); }
 const prAddDays = function(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return prIso(d); };
 const prMean = function(a){ return a.length ? a.reduce(function(x, y){ return x + y; }, 0) / a.length : null; };
 const prPaceSec = function(t){ const m = String(t || '').match(/(\d{1,2})['’:](\d{2})/); return m ? prParsePace(m[1], m[2]) : null; };

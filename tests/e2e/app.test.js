@@ -1389,3 +1389,33 @@ test('compte athlète : pas de Coach IA ni de brief du matin, débrief automatiq
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('Signaux du corps : valeur suspecte confirmée → bandeau retiré ; évolution des allures (EF, filtres 12 / 6 / 3 / 1 mois)', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  // un footing validé avec une FC moyenne impossible pour une sortie facile
+  await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type === 'ef' && x.date <= '2026-10-29')[0] || prSessions(state).filter((x) => x.type === 'ef')[0];
+    state[s.key + '_done'] = true; state[s.key + '_km'] = s.kmPlan || 8; state[s.key + '_perf'] = JSON.stringify({ date: '2026-10-28', pace: '5:45', hr: 188, dur: '46:00' }); save(); });
+  await page.evaluate(() => { showScreen('stats'); statsTab('train'); }); await page.waitForTimeout(500);
+  await page.waitForSelector('#bs-stats-card .bs-dq');
+  assert.match(await page.textContent('#bs-stats-card .bs-dq'), /1 valeur suspecte\s*à vérifier/);
+  await page.click('#bs-stats-card .bs-dq');
+  await page.waitForSelector('#bs-dq .dq-st.todo');
+  await page.click('#bs-dq .dq-b.ok');
+  await page.waitForSelector('#bs-dq .dq-st.out');
+  assert.match(await page.textContent('#bs-dq .dq-st.out'), /erreur confirmée/);
+  await page.click('#bs-dq .lc-x');
+  assert.equal(await page.$('#bs-stats-card .bs-dq'), null, 'bandeau retiré une fois traité');
+  assert.match(await page.textContent('#bs-stats-card'), /Données vérifiées \(1\)/);
+  assert.ok(await page.evaluate(() => Object.keys(window.__DB.users.ADMINUID.state._data_ack || {}).length === 1), 'enregistré');
+  // évolution des allures
+  await page.click('text=📈 Évolution de mes allures');
+  await page.waitForSelector('#bs-pa #pa-chart');
+  for (const r of ['6 mois', '3 mois', '1 mois', '12 mois']) { await page.click('#bs-pa .lc-seg >> text=' + r); await page.waitForSelector('#bs-pa #pa-chart'); }
+  assert.ok(await page.$('#bs-pa #pa-chart svg polyline'), 'courbe EF');
+  assert.match(await page.textContent('#bs-pa .pa-sum'), /\d'\d\d/);
+  for (const z of ['Tempo', 'Seuil', 'VMA', 'EF']) { await page.click('#bs-pa .pa-z >> text=' + z); await page.waitForSelector('#bs-pa #pa-chart'); }
+  if (process.env.SHOTS) { await page.waitForTimeout(900); await page.screenshot({ path: process.env.SHOTS + '/pace.png' }); await page.click('#bs-pa .pa-z >> text=Seuil'); await page.waitForTimeout(900); await page.screenshot({ path: process.env.SHOTS + '/pace2.png' }); }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
