@@ -158,3 +158,10 @@ test('course objectif : jamais validée seule (temps officiel à saisir) → à 
   assert.equal(m.s, undefined, 'aucune séance rattachée');
   assert.ok(m.race); assert.match(m.reason, /temps officiel/);
 });
+
+test('météo de la validation automatique : zone EF ajustée = zone de l\'athlète', () => {
+  const { app } = setup({ state: { _hr_zones: { applied: true, efMax: 152 } } });
+  const hot = Object.assign({}, hourly, { temperature_2m: [29, 29, 29], apparent_temperature: [30, 30, 30] });
+  const m = app.avMeteoFromHourly(hot, app.avActFromStrava(raw()));
+  assert.equal(m.impact_performance.zone_ef_ajustee, '152-160 bpm', '144 + 8 · 152 + 8 à 29 °C');
+});

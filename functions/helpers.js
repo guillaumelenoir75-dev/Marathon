@@ -413,6 +413,12 @@ function autopilotBriefText(state, todayStr) {
 // plafond FC de l'endurance : zones recalées par l'app (_hr_zones, body-signals.js) sinon 148 bpm
 // zones FC de l'athlète pour les consignes du Coach et des briefs (comme l'app : FC max saisie > zones recalées > déclarée > 196 ;
 // plafond d'endurance efMaxOf ; tempo / seuil 80-87 % de la FC max) — jamais « 196 » ni « 140-148 » écrits en dur
+// barème d'élévation de la FC à la chaleur, en zone EF de l'athlète (plus de « 140-151 » écrit en dur)
+function heatEfText(state) {
+  const z = hrZonesOf(state);
+  return [['20-25°C', 0, 3], ['25-28°C', 3, 6], ['28-30°C', 5, 8], ['30-33°C', 8, 12], ['33-35°C', 12, 15], ['> 35°C  ', 15, 20]]
+    .map(x => `  • ${x[0]} : +${x[1]} à +${x[2]} bpm → zone EF effective ${z.efLo + x[1]}-${z.efHi + x[2]} bpm`).join('\n');
+}
 function hrZonesOf(state) {
   const st = state || {}, z = st._hr_zones || {}, m = st._fc_max_manual && +st._fc_max_manual.v;
   const max = (m >= 140 && m <= 225) ? m : (z.applied && z.fcMax >= 140 && z.fcMax <= 225) ? z.fcMax : (parseInt(st.fc_max) || parseInt((st.onboarding || {}).fc_max) || 196);
@@ -719,7 +725,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   const sit = await buildTrainingSituation(db, state, todayStr);
   const consigneJour = sit.todaySessions.map(x => `${x.title} ${x.km} km${x.consigne ? ' : ' + x.consigne : ''}`).join(' + ');
   const isDecharge = state._plan_engine ? weekTypeFor(state, cw) === 'décharge' : [8,12,16,20].includes(cw);
-  const consignesEf = sit.postRace ? `Période post-course : footing très facile, FC < 140 bpm, sensations avant l'allure` : isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm` : `Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
+  const _z = hrZonesOf(state), consignesEf = sit.postRace ? `Période post-course : footing très facile, FC < ${_z.efLo} bpm, sensations avant l'allure` : isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < ${_z.efLo} bpm` : `Allure EF de référence : ${efPace}/km — FC ${_z.efLo}-${_z.efHi} bpm`;
   const memos = state['_coach_memos'] || '';
   const seancesStr = ctx.seancesAujourdHui.length > 0 ? ctx.seancesAujourdHui.join(' + ') : 'Récupération';
   const fcSource = fcWhoopRhr ? 'WHOOP RHR' : 'saisie manuelle';
@@ -1010,7 +1016,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf,
+  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf, heatEfText,
   buildTrainingSituation, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,

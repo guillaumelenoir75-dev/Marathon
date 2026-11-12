@@ -340,7 +340,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       ? `DÉCHARGE (${kmCW}km vs ${Math.max(kmPrev,kmNext)}km semaine adjacente) — objectif récupération, pas de performance`
       : `NORMALE (${kmCW}km)`,
     consignes_ef_semaine: isDecharge
-      ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < 140 bpm idéalement (correction thermique applicable si > 25°C : ajouter +3 à +12 bpm selon la chaleur). Si Guillaume court plus vite, ce n'est PAS une bonne séance.`
+      ? `Semaine de décharge : allure EF obligatoirement entre ${zoneEfDecharge} /km. FC < ${hrEfMax() - 8} bpm idéalement (correction thermique applicable si > 25°C : ajouter +3 à +12 bpm selon la chaleur). Si Guillaume court plus vite, ce n'est PAS une bonne séance.`
       : `Allure EF normale : entre ${zoneMin} et ${zoneMax} /km. FC < ${hrEfMax()} bpm.`,
     maintenant: {
       jour: jourActuel,
@@ -564,7 +564,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       return { allure_moy_debut: secToPace(avgPaceFirst), fc_moy_debut: avgHrFirst, allure_moy_fin: secToPace(avgPaceLast), fc_moy_fin: avgHrLast, interpretation };
     })(),
     tendance_ef: (()=>{
-      // Régression linéaire sur les 8 dernières séances EF valides (FC < 148)
+      // Régression linéaire sur les 8 dernières séances EF valides (FC ≤ plafond EF hrEfMax)
       const efPoints = [];
       _ccHist().forEach(h=>{
         if(h.sess.type!=='ef' && h.sess.type!=='long') return;

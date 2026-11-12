@@ -412,7 +412,7 @@ function prepDiscardCurrent(){
         await prepApplyNew();
         syncPlanCompat();
         if(typeof rendered !== 'undefined') rendered.plan = false;
-        try { renderHome(); renderPlan(); } catch(e) {}
+        try { renderHome(); renderPlan(); } catch(e) { diagSilent(e, 'preps:prepDiscardCurrent'); }
         _renderPrepsBody();
         if(typeof showToast === 'function') showToast('Prépa supprimée');
       } catch(e) { alert('Suppression impossible (' + e.message + ').'); }
@@ -451,7 +451,7 @@ function prepLegacyCleanup(){
 async function prepApplyNew(){
   const up = {};
   // km des chaussures figés avant la remise à zéro : la nouvelle prépa repart de leur total réel
-  try { getShoes().forEach(function(sh){ if(!/[.#$\/\[\]]/.test(sh.name)) up['shoe_km_' + sh.name] = shoeKmTotal(sh.name); }); } catch(e) {}
+  try { getShoes().forEach(function(sh){ if(!/[.#$\/\[\]]/.test(sh.name)) up['shoe_km_' + sh.name] = shoeKmTotal(sh.name); }); } catch(e) { diagSilent(e, 'preps:prepApplyNew'); }
   Object.keys(state).forEach(function(k){ if(_PREP_RESET.test(k)){ up[k] = null; delete state[k]; } });
   Object.keys(up).forEach(function(k){ if(up[k] !== null) state[k] = up[k]; });
   up._plan_engine = 'generated'; state._plan_engine = 'generated';
@@ -558,7 +558,7 @@ function prepInstallReady(id){
         syncPlanCompat();
         closePrepsPanel();
         if(typeof rendered !== 'undefined') rendered.plan = false;
-        showScreen('home'); try { renderPlan(); } catch(e) {}
+        showScreen('home'); try { renderPlan(); } catch(e) { diagSilent(e, 'preps:prepInstallReady'); }
         if(typeof showToast === 'function') showToast(R.title + ' installée 🏁');
       } catch(e) { alert('Installation impossible (' + e.message + '). Vérifie ta connexion et réessaie.'); }
     } });
@@ -616,7 +616,7 @@ function prepViewExit(silent){
     await _prepVeilIn('Retour à ta prépa en cours');
     restore();
     showScreen('compte');
-    try { renderCompteScreen(); } catch(e) {}
+    try { renderCompteScreen(); } catch(e) { diagSilent(e, 'preps:prepViewExit'); }
     openPrepsPanel({ instant: true, scroll: V.scroll || 0 });
     await _prepVeilOut();
   })();
@@ -746,7 +746,7 @@ async function prepActivateNext(){
   await _prepRef('prep_next').remove(); _prepNext = null; delete _prepSnapCache['#next'];
   syncPlanCompat();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-  try { renderHome(); renderPlan(); } catch(e) {}
+  try { renderHome(); renderPlan(); } catch(e) { diagSilent(e, 'preps:prepActivateNext'); }
   if(typeof showToast === 'function') showToast((m.title || 'Nouvelle prépa') + ' commence 🏁');
 }
 // Tâches du jour (au chargement et au retour sur l'app) : consignes courtes, prépa à venir, enregistrement, bascule
@@ -868,7 +868,7 @@ function prepBestTime(cat, index, skipDate){
   if(typeof prStravaRaces === 'function') prStravaRaces().forEach(function(r){ if(r.cat === cat && r.date !== skipDate) take(r.time, r.label, r.date); });
   // tests 5 km du plan (même lecture du temps que le niveau : prTestTime) : un test plus rapide est un record 5 km
   if(cat === '5 km' && typeof prAllDone === 'function' && typeof prTestTime === 'function'){
-    try { prAllDone().forEach(function(x){ if(x.done && /^Test\b/i.test(x.title || '') && x.date !== skipDate){ const t = prTestTime(x); if(t) take(prepTimeFmt(t), 'Test 5 km', x.date); } }); } catch(e) {}
+    try { prAllDone().forEach(function(x){ if(x.done && /^Test\b/i.test(x.title || '') && x.date !== skipDate){ const t = prTestTime(x); if(t) take(prepTimeFmt(t), 'Test 5 km', x.date); } }); } catch(e) { diagSilent(e, 'preps:prepBestTime'); }
   }
   return best;
 }

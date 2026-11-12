@@ -569,7 +569,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     const objSec=Math.round(tSec/R.km), fmt=x=>`${Math.floor(x/60)}'${String(x%60).padStart(2,'0')}`;
     let cur=null;
     if(R.course==='Marathon'){ cur=paceStrToSec(getMarathonPaceStr()); }
-    else { try{ const d=buildDistancePrediction(R.course); cur=d&&d.paceSec?Math.round(d.paceSec):null; }catch(e){} }
+    else { try{ const d=buildDistancePrediction(R.course); cur=d&&d.paceSec?Math.round(d.paceSec):null; }catch(e) { diagSilent(e, 'validation-feedback:showCoachFeedback'); } }
     if(!cur) return;
     const ecart=cur-objSec;
     analysisContext.ecart_objectif={ course:R.name, objectif:R.objectif, allure_objectif:fmt(objSec), allure_estimee:fmt(cur), ecart_sec:ecart,
@@ -728,7 +728,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
           _paceBg = _diff <= 15 ? 'rgba(134,239,172,0.4)' : _diff <= 30 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
         }
       }
-    } catch(e) {}
+    } catch(e) { diagSilent(e, 'validation-feedback:showCoachFeedback'); }
     // Couleur FC : toujours colorée. EF/long ≤ plafond EF (hrEfMax) vert, tempo/frac ≤172 vert
     let _hrBg = 'rgba(255,255,255,0.22)';
     if(hr) {

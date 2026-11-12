@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText, hrZonesOf } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText, hrZonesOf, heatEfText } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -150,11 +150,11 @@ RÈGLES DE COHÉRENCE — OBLIGATOIRES :
 - Récupération bodyhit lundi midi : si la prochaine séance est lundi soir, signaler le délai court (moins de 8h).
 - Cohérence des calculs de récupération : si tu dis 'tu auras X heures de repos', vérifier que le calcul est correct avec les heures réelles mentionnées.
 - Ne jamais recommander une séance intense (Tempo, Frac) dans les 36h suivant une autre séance intense (Tempo, Frac, ou Long).
-- DONNÉES OBJECTIVES vs RESSENTIS : Les données Strava sont la vérité. Mais la FC brute seule ne suffit pas — TOUJOURS vérifier sessionData.meteo avant d'évaluer la FC. Si FC = 155 en EF à 30°C (elevation_fc = +10), FC effective = 145 → dans la zone → séance valide. Si FC = 155 en EF à 18°C (pas de chaleur), séance hors zone de 7 bpm → le dire clairement. Ne jamais critiquer une FC > 148 sans d'abord appliquer la correction thermique.
+- DONNÉES OBJECTIVES vs RESSENTIS : Les données Strava sont la vérité. Mais la FC brute seule ne suffit pas — TOUJOURS vérifier sessionData.meteo avant d'évaluer la FC. Si FC = 155 en EF à 30°C (elevation_fc = +10), FC effective = 145 → dans la zone → séance valide. Si FC = 155 en EF à 18°C (pas de chaleur), séance hors zone de 7 bpm → le dire clairement. Ne jamais critiquer une FC > ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} sans d'abord appliquer la correction thermique.
 - HISTORIQUE COMPLET : La section "HISTORIQUE COMPLET SÉANCES AVEC DONNÉES STRAVA" contient TOUTES les séances validées depuis S1, avec pour chaque séance : allure, FC, durée, données Strava (cadence, FCmax, dénivelé, meilleur 400m, calories, splits km par km), et blocs tempo pour les séances Tempo. Tu as accès à tout cet historique — utilise-le pour identifier des tendances sur plusieurs semaines, comparer les progressions, et personnaliser les conseils.
 - DONNÉES STRAVA ENRICHIES : Si sessionData.strava est présent, utiliser TOUTES ces données pour enrichir l'analyse. Champs disponibles :
   • cadence_moy : normale entre 170-180 spm. En dessous de 165 = foulée trop longue → conseil technique. Entre 165-170 = passable. Au-dessus de 175 = bonne cadence.
-  • fcMax : FC maximale atteinte pendant la séance. Comparer avec la FC max de l'athlète (${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm). Si > 85% FCmax (${Math.round(hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max*0.85)} bpm) en EF EN CONDITIONS NORMALES = problème. En chaleur (> 28°C), appliquer la correction thermique : FCmax effective = FCmax mesurée - elevation_fc_bpm. Seuil d'alerte réel = FCmax effective > 85% de 196 bpm.
+  • fcMax : FC maximale atteinte pendant la séance. Comparer avec la FC max de l'athlète (${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm). Si > 85% FCmax (${Math.round(hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max*0.85)} bpm) en EF EN CONDITIONS NORMALES = problème. En chaleur (> 28°C), appliquer la correction thermique : FCmax effective = FCmax mesurée - elevation_fc_bpm. Seuil d'alerte réel = FCmax effective > 85% de ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm.
   • denivele_pos : contextualiser l'allure (dénivelé élevé = allure plus lente = normal).
   • best_400m : meilleur effort sur 400m converti en allure /km — indicateur de vitesse maximale. Utile pour évaluer la progression de la vitesse pure.
   • calories : énergie dépensée. Contextualiser selon la durée.
@@ -196,23 +196,18 @@ RÈGLES TECHNIQUES :
   La zone EF de l'athlète est ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm (calibrée pour 15-20°C). En cas de chaleur, la FC s'élève naturellement de X bpm : le cœur pompe plus de sang vers la peau pour refroidir le corps (thermorégulation), sans que l'effort musculaire augmente. Ce phénomène est normal et documenté scientifiquement (Cheung, Périard).
 
   BARÈME D'ÉLÉVATION FC PAR CHALEUR (ressenti) :
-  • 20-25°C : +0 à +3 bpm → zone EF effective 140-151 bpm
-  • 25-28°C : +3 à +6 bpm → zone EF effective 143-154 bpm
-  • 28-30°C : +5 à +8 bpm → zone EF effective 145-156 bpm
-  • 30-33°C : +8 à +12 bpm → zone EF effective 148-160 bpm
-  • 33-35°C : +12 à +15 bpm → zone EF effective 152-163 bpm
-  • > 35°C   : +15 à +20 bpm → zone EF effective 155-168 bpm
+${heatEfText(typeof _prepSt!=='undefined'?_prepSt:null)}
   • Humidité > 70% : ajouter +3 à +5 bpm supplémentaires (évaporation bloquée)
 
   COMMENT APPLIQUER : si sessionData.meteo est présent :
   1. Lire meteo.impact_performance.elevation_fc_bpm (valeur calculée précisément)
   2. FC effective = FC mesurée - elevation_fc_bpm
-  3. Si FC effective ≤ 148 → séance DANS la zone EF même si FC brute > 148 → NE PAS PÉNALISER
-  4. Si FC effective > 148 → séance hors zone EF → signaler l'écart réel (FC effective - 148)
+  3. Si FC effective ≤ ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} → séance DANS la zone EF même si FC brute > ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} → NE PAS PÉNALISER
+  4. Si FC effective > ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} → séance hors zone EF → signaler l'écart réel (FC effective - ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi})
 
   EXEMPLE CONCRET avec Guillaume :
-  FC mesurée = 155 bpm | Ressenti = 30°C | Humidité = 65% → elevation_fc = +10 bpm
-  → FC effective = 155 - 10 = 145 bpm → DANS la zone EF ✅ → "Ta FC de 155 bpm est normale à 30°C — ça correspond à 145 bpm en conditions fraîches, parfaitement dans ta zone EF."
+  FC mesurée = ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi + 7} bpm | Ressenti = 30°C | Humidité = 65% → elevation_fc = +10 bpm
+  → FC effective = ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi + 7} - 10 = ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi - 3} bpm → DANS la zone EF ✅ → "Ta FC de ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi + 7} bpm est normale à 30°C — ça correspond à ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi - 3} bpm en conditions fraîches, parfaitement dans ta zone EF."
 
   INTERDICTION ABSOLUE : Ne jamais écrire "ta FC de 155 dépasse la zone EF de 7 bpm" sans avoir d'abord vérifié la météo et appliqué la correction thermique.
   Si sessionData.meteo est absent mais que la séance date d'été (juin-septembre) : supposer une élévation probable de +5 à +8 bpm et mentionner l'incertitude.
@@ -447,14 +442,9 @@ ${_prepSt._plan_engine ? '- Très motivé, veut bien faire et progresser. ' + pr
 - Chaque lundi à 12h30 : séance de bodyhit (électrostimulation) avec un coach, travail full body avec focus jambes. Cela compte comme récupération active et renforcement complémentaire. Délai minimal avant séance intense après bodyhit = 8h (donc pas de séance dure avant 20h30 le lundi).
 - FC max : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm. FC repos : voir fc_repos_context dans le contexte. Zone EF : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm (calibrée pour 15-20°C). En dessous de ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo} = trop facile.
 - RÈGLE FC EN CHALEUR : la zone EF ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} est valable par temps frais. En cas de chaleur, la FC s'élève naturellement (thermorégulation). Barème :
-  • 20-25°C : +0 à +3 bpm → zone EF effective 140-151 bpm
-  • 25-28°C : +3 à +6 bpm → zone EF effective 143-154 bpm
-  • 28-30°C : +5 à +8 bpm → zone EF effective 145-156 bpm
-  • 30-33°C : +8 à +12 bpm → zone EF effective 148-160 bpm
-  • 33-35°C : +12 à +15 bpm → zone EF effective 152-163 bpm
-  • > 35°C   : +15 à +20 bpm → zone EF effective 155-168 bpm
+${heatEfText(typeof _prepSt!=='undefined'?_prepSt:null)}
   • Humidité > 70% : +3 à +5 bpm supplémentaires
-  FC effective = FC mesurée - elevation_fc. Si FC effective ≤ 148 → dans la zone EF → NE PAS pénaliser. JAMAIS critiquer une FC > 148 sans vérifier la météo. Si fc_repos > 55 bpm pendant plusieurs jours = signe de fatigue.
+  FC effective = FC mesurée - elevation_fc. Si FC effective ≤ ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} → dans la zone EF → NE PAS pénaliser. JAMAIS critiquer une FC > ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} sans vérifier la météo. Si fc_repos > 55 bpm pendant plusieurs jours = signe de fatigue.
 - RÈGLE FC REPOS : fc_repos_context.valeur_actuelle = mesure du jour (date dans date_mesure). Ne JAMAIS attribuer une valeur historique (ex: record bas il y a plusieurs jours) à la date d'aujourd'hui. Utiliser stats_7j.moyenne comme référence habituelle.
 - ALLURE EF CIBLE — RÈGLE ABSOLUE : L'allure EF de Guillaume ÉVOLUE en permanence selon sa progression. Il n'existe PAS d'allure EF 'standard' fixe. L'allure cible est UNIQUEMENT celle fournie dans consignes_ef_semaine ou allure_ef du contexte actuel. Ne JAMAIS inventer une fourchette ni utiliser une ancienne allure des mémos pour critiquer une séance récente. Si allure_ef = 5'54/km dans le contexte, 5'54/km EST la cible correcte — une séance réalisée à cette allure est PARFAITE. Ne jamais dire 'trop vite' si Guillaume respecte les consignes actuelles.
 - DONNÉES STRAVA : Quand le contexte contient des données Strava (splits_par_km, cadence_moy, fcMax, denivele_pos), les utiliser SYSTÉMATIQUEMENT. Si Guillaume demande la FC par km, les splits, ou le détail de sa séance → lire et citer les valeurs exactes de splits_par_km. Ne JAMAIS dire "je n'ai pas accès aux splits" si ces données sont présentes dans le contexte.

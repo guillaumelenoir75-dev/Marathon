@@ -55,7 +55,7 @@ function rgAdapt(st, today){
       if(out.focus.indexOf(z) < 0){ out.focus.push(z); out.reasons.push('Douleur ' + z.toLowerCase() + ' le ' + prFmtDay(s.date) + (RG_FOCUS[z] ? ' → ' + RG_FOCUS[z] + ' ajouté' : '')); }
       if(z !== 'Dos' && z !== 'Autre') out.noPlyo = true;
     });
-  try { const sig = st._body_signals; if(sig && +sig.level >= 1 && sig.at && prDays(String(sig.at).slice(0, 10), today) <= 7 && out.focus.indexOf('Hanche') < 0){ out.focus.push('Hanche'); out.reasons.push('Foulée à surveiller → hanches renforcées'); } } catch(e) {}
+  try { const sig = st._body_signals; if(sig && +sig.level >= 1 && sig.at && prDays(String(sig.at).slice(0, 10), today) <= 7 && out.focus.indexOf('Hanche') < 0){ out.focus.push('Hanche'); out.reasons.push('Foulée à surveiller → hanches renforcées'); } } catch(e) { diagSilent(e, 'renfo-guide:rgAdapt'); }
   return out;
 }
 // exercices du jour : dose de progression, adaptation, exercice ciblé ajouté (1 au plus)
@@ -128,7 +128,7 @@ function openRenfoGuide(){
 function rgClose(){
   if(_rg){ clearInterval(_rg.timer); try { if(_rg.lock) _rg.lock.release(); } catch(e) {} try { speechSynthesis.cancel(); } catch(e) {} }
   _rg = null; const o = document.getElementById('rg-ov'); if(o) o.remove();
-  if(typeof renderRenfoExercises === 'function') try { renderRenfoExercises(); } catch(e) {}
+  if(typeof renderRenfoExercises === 'function') try { renderRenfoExercises(); } catch(e) { diagSilent(e, 'renfo-guide:rgClose'); }
 }
 function _rgSides(d){ return d.side === 'each' ? 2 : 1; }
 function _rgSideLabel(d){ if(d.side === 'each') return _rg.side ? 'côté droit' : 'côté gauche'; if(d.side === 'alt') return _rg.set % 2 ? 'côté gauche' : 'côté droit'; return ''; }
@@ -208,5 +208,5 @@ function rgFinish(feel){
   save();
   if(typeof showToast === 'function') showToast(feel === 'dur' ? 'Noté : la prochaine sera plus douce' : feel === 'facile' ? 'Noté : la prochaine montera d\'un cran' : 'Séance enregistrée', '💪');
   rgClose();
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'renfo-guide:rgFinish'); }
 }

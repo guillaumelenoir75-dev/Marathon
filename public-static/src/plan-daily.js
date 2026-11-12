@@ -94,7 +94,7 @@ function prWxLoadAt(lat, lng){
   return fetch(url, { credentials: 'omit' }).then(function(r){ return r.json(); })
     .then(function(d){ return d && d.hourly && d.hourly.time ? { time: d.hourly.time, t: d.hourly.temperature_2m, h: d.hourly.relative_humidity_2m, w: d.hourly.wind_speed_10m } : null; }).catch(function(){ return null; });
 }
-function _prWxRerender(w){ if(w && typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); else if(document.getElementById('sc-home').style.display !== 'none') renderHome(); } catch(e) {} } }
+function _prWxRerender(w){ if(w && typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); else if(document.getElementById('sc-home').style.display !== 'none') renderHome(); } catch(e) { diagSilent(e, 'plan-daily:_prWxRerender'); } } }
 // ralentissement (%) : chaleur au-delà de 15 °C (+0,3 %/°C, +0,5 %/°C de plus au-delà de 25 °C), lourdeur, vent, grand froid
 function prWxAdj(m){
   if(!m || m.t == null) return { pct: 0, why: '' };
@@ -315,7 +315,7 @@ function applyImprevu(){
   state._plan_reviews = hist; save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.home = false; }
   const ov = document.getElementById('pd-imprevu'); if(ov) ov.remove();
-  try { renderPlan(); renderHome(); } catch(e) {}
+  try { renderPlan(); renderHome(); } catch(e) { diagSilent(e, 'plan-daily:applyImprevu'); }
   if(typeof showToast === 'function') showToast('Plan adapté : ' + done.length + ' séance' + (done.length > 1 ? 's' : '') + ' (annulable dans « Mettre à jour le plan »)', '🧳');
 }
 

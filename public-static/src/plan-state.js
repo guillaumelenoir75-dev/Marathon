@@ -253,7 +253,7 @@ function getBestEfPace(){
       const o = prObservedEf(state, prTodayIso());
       if(o) return Math.floor(o / 60) + "'" + String(Math.round(o % 60)).padStart(2, '0');
     }
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'plan-state:getBestEfPace'); }
   // pas assez de sorties récentes : ancien calcul (allure brute, tout l'historique)
   const paces=[]; // valeurs EF valides, ordre chronologique (secondes/km)
   // Seed : EF déclarée à l'onboarding

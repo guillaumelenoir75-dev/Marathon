@@ -14,3 +14,19 @@ test('tous les scripts de public-static/src se compilent', () => {
   });
   assert.deepEqual(bad, []);
 });
+
+// Plafond d'endurance : toujours celui de l'athlète (hrEfMax côté app, hrZonesOf / efMaxOf côté serveur), jamais 148 / 140-148
+// écrit en dur dans une consigne, un texte du Coach ou un calcul (seules exceptions : la valeur par défaut, « Comparer mes
+// prépas » qui garde 148 pour la comparabilité, les données du plan Seine-Eure et les pages publiques autonomes)
+test('aucun plafond EF « 148 » ou zone « 140-148 » écrit en dur', () => {
+  const FN = path.join(__dirname, '..', '..', 'functions');
+  const skip = /^(race-nav-data|secours-|amis-|suivi-|prep-progress|plan-state)/;
+  const bad = [];
+  const scan = (dir, f) => fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach((l, i) => {
+    if (/^\s*\/\//.test(l) || /function (efMaxOf|hrEfMax)|: 148;/.test(l)) return;              // commentaire, valeur par défaut
+    if (/140-148|140 – 148|[≤<>] ?148\b|\b148 bpm|\b148 \+|vs 148\b/.test(l)) bad.push(f + ':' + (i + 1));
+  });
+  fs.readdirSync(SRC).filter((f) => f.endsWith('.js') && !skip.test(f)).forEach((f) => scan(SRC, f));
+  fs.readdirSync(FN).filter((f) => f.endsWith('.js')).forEach((f) => scan(FN, f));
+  assert.deepEqual(bad, []);
+});

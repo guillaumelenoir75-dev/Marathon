@@ -244,7 +244,7 @@ async function seasonAdd(){
   state._season = { races: S.races.concat([race]) };
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'season:seasonAdd'); }
   seasonRender(msg + (race.applied && race.applied.notes.length ? '<ul class="se-notes">' + race.applied.notes.map(function(n){ return '<li>' + _seEsc(n) + '</li>'; }).join('') + '</ul>' : ''));
 }
 async function seasonRemove(id){
@@ -258,6 +258,6 @@ async function seasonRemove(id){
   state._season = { races: S.filter(function(x){ return x.id !== id; }) };
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'season:seasonRemove'); }
   seasonRender('↩ ' + _seEsc(r.name) + ' retirée' + (kept.length ? ' (' + kept.length + ' séance' + (kept.length > 1 ? 's' : '') + ' déjà faite' + (kept.length > 1 ? 's' : '') + ' ou retouchée' + (kept.length > 1 ? 's' : '') + ' gardée' + (kept.length > 1 ? 's' : '') + ')' : ''));
 }

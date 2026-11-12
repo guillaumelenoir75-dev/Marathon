@@ -262,7 +262,7 @@ function notifRunAction(search, delay){
   const later = function(fn){ setTimeout(fn, delay || 0); };
   if (a === 'validate') { if (typeof quickValidate === 'function') later(quickValidate); return true; }       // dernière sortie Strava → validation pré-remplie
   if (a === 'feel') { const k = (q.match(/[?&]k=([\w-]+)/) || [])[1] || null;   // ressenti : la séance vient d'être validée par le serveur → état relu d'abord
-    if (typeof avFeelOpen === 'function') later(async function(){ try { if (typeof apRefreshIfServerChanged === 'function') await apRefreshIfServerChanged(); } catch(e) {} avFeelOpen(k); }); return true; }   // ressenti après une validation automatique
+    if (typeof avFeelOpen === 'function') later(async function(){ try { if (typeof apRefreshIfServerChanged === 'function') await apRefreshIfServerChanged(); } catch(e) { diagSilent(e, 'firebase:notifRunAction'); } avFeelOpen(k); }); return true; }   // ressenti après une validation automatique
   if (a === 'week') { if (typeof openWeekShare === 'function') later(function(){ openWeekShare(); }); return true; }   // bilan du dimanche : ta semaine en image
   if (a === 'imprevu') { if (typeof openImprevu === 'function') later(openImprevu); return true; }   // séance clé manquée : réorganiser
   if (a === 'sleep') { if (typeof openSleepPlan === 'function') later(openSleepPlan); return true; }   // 21h « Couche-toi vers … » : ta nuit
@@ -287,7 +287,7 @@ async function openCoachFromNotif() {
   if (_openCoachFromNotifActive) return;
   _openCoachFromNotifActive = true;
   // l'après-midi (12h en semaine, 13h le week-end) : le brief du matin ne s'ouvre plus, reporté au lendemain
-  try { if (typeof briefLateSkip === 'function' && await briefLateSkip()) { _openCoachFromNotifActive = false; return; } } catch(e) {}
+  try { if (typeof briefLateSkip === 'function' && await briefLateSkip()) { _openCoachFromNotifActive = false; return; } } catch(e) { diagSilent(e, 'firebase:openCoachFromNotif'); }
   // Sécurité : libérer le guard après 30s max (évite un blocage permanent si Firebase ne répond pas)
   const _guardTimeout = setTimeout(() => { _openCoachFromNotifActive = false; }, 30000);
 
@@ -322,7 +322,7 @@ async function openCoachFromNotif() {
       const _overlayType = (_pendingLocal && _pendingLocal.type === 'weekly_bilan') ? 'weekly' : 'morning';
       showBriefOverlay(_overlayType);
     }
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'firebase:openCoachFromNotif'); }
 
   // ── Nettoyage Firebase et refresh state (après le switch tab) ──
   // Consommer _open_coach (le chemin postMessage ne le supprime pas,
@@ -333,9 +333,9 @@ async function openCoachFromNotif() {
     if (stateSnap.val()) { state = stateSnap.val(); if(typeof syncBaseReset==='function'){ syncBaseReset(state); if(syncApplyPending()) syncSave(); } if(typeof syncPlanCompat==='function') syncPlanCompat(); }
   } catch(e) {}
 
-  try { await loadCoachHistory(); } catch(e) {}
+  try { await loadCoachHistory(); } catch(e) { diagSilent(e, 'firebase:openCoachFromNotif'); }
   // Filet de sécurité : masquer l'overlay si aucun brief ne l'a fait (notification sans brief)
-  try { if (typeof hideBriefOverlay === 'function') hideBriefOverlay(); } catch(e) {}
+  try { if (typeof hideBriefOverlay === 'function') hideBriefOverlay(); } catch(e) { diagSilent(e, 'firebase:openCoachFromNotif'); }
   clearTimeout(_guardTimeout);
   _openCoachFromNotifActive = false; // Libérer après loadCoachHistory — évite qu'un 2e appel concurrent flipe _coachInitDone pendant le streaming
 }

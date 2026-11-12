@@ -52,7 +52,7 @@ function renderStats(){
     const allKm=wsNums.map(ws=>getAthleteWeekKm(ws));
     // « Réalisé » = km des séances faites (pas les km prévus) ; prévu = projection à partir de la semaine en cours
     const doneKm={};
-    try{ prSessions(state).forEach(s=>{ if(s.done&&!s.skip) doneKm[s.w]=(doneKm[s.w]||0)+(parseFloat(s.km)||0); }); }catch(e){}
+    try{ prSessions(state).forEach(s=>{ if(s.done&&!s.skip) doneKm[s.w]=(doneKm[s.w]||0)+(parseFloat(s.km)||0); }); }catch(e) { diagSilent(e, 'stats:renderStats'); }
     window._statsDoneKm=doneKm;
     kmRealized=wsNums.map(ws=>ws<=eCW?Math.round((doneKm[ws]||0)*10)/10:null);
     kmProjected=wsNums.map((ws,i)=>ws>=eCW?allKm[i]:null);
@@ -303,10 +303,10 @@ function statsTodayMsgs(F, AS){
   const today = prTodayIso(), out = [];
   const add = function(p, ico, t, tone, act){ out.push({ p: p, ico: ico, t: t, tone: tone || '', act: act || '' }); };
   try { const I = typeof prInternal === 'function' ? prInternal(today) : null, pain = I && I.pains[0];
-    if(pain && pain.level >= 2) add(1, '🩹', 'Douleur ' + String(pain.zone || '').toLowerCase() + ' : séances allégées', 'bad'); } catch(e) {}
+    if(pain && pain.level >= 2) add(1, '🩹', 'Douleur ' + String(pain.zone || '').toLowerCase() + ' : séances allégées', 'bad'); } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
   try { const W = typeof prWhoop === 'function' ? prWhoop(today) : null;
     if(W && W.tired) add(2, '😴', 'Fatigue sur 3 nuits (moy. ' + W.avg3 + ' %) : récup d\'abord', 'bad');
-    else if(W && W.fresh) add(7, '🟢', (W.alc ? 'Hors alcool, bien récupéré' : 'Bien récupéré') + ' sur 3 nuits', 'good'); } catch(e) {}
+    else if(W && W.fresh) add(7, '🟢', (W.alc ? 'Hors alcool, bien récupéré' : 'Bien récupéré') + ' sur 3 nuits', 'good'); } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
   if(AS && AS.lost >= 3) add(3, '🍷', '−' + AS.lost + ' pts dus à l\'alcool · plan non allégé', 'alc', 'openAlcoholInsights()');
   try {
     const B = typeof fmSeries === 'function' ? fmSeries(today) : null;
@@ -317,14 +317,14 @@ function statsTodayMsgs(F, AS){
       else if(t >= 15) add(7, '🪶', 'Semaine légère : peu de charge sur 7 j', '', 'statsGo(\'fm-card\')'); }
     const R = typeof prepRace === 'function' ? prepRace() : null, dR = R && R.date ? prDays(today, R.date) : null;
     if(dR != null && dR >= 0 && dR <= 60){
-      let tap = false; try { if(B && dR <= 35){ const T = fmTaperBest(B, today); tap = !!(T && T.gain >= 0.5 && B.last.ctl >= 20); } } catch(e) {}
+      let tap = false; try { if(B && dR <= 35){ const T = fmTaperBest(B, today); tap = !!(T && T.gain >= 0.5 && B.last.ctl >= 20); } } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
       add(tap ? 4 : 8, '🏁', (R.name || 'Course') + ' J-' + dR + (tap ? ' · affûtage à appliquer' : ''), tap ? 'act' : '', 'statsGo(\'fm-card\')');
     }
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
   try { const L = typeof bsLevelNow === 'function' ? bsLevelNow(today) : null;
-    if(L && L.delta != null && Math.abs(L.delta) >= 0.3) add(5, L.delta > 0 ? '📈' : '📉', 'Niveau ' + String(L.v).replace('.', ',') + ' (' + (L.delta > 0 ? '+' : '−') + String(Math.abs(L.delta)).replace('.', ',') + ' en 7 j)', L.delta > 0 ? 'good' : '', 'statsGo(\'bs-level-card\')'); } catch(e) {}
+    if(L && L.delta != null && Math.abs(L.delta) >= 0.3) add(5, L.delta > 0 ? '📈' : '📉', 'Niveau ' + String(L.v).replace('.', ',') + ' (' + (L.delta > 0 ? '+' : '−') + String(Math.abs(L.delta)).replace('.', ',') + ' en 7 j)', L.delta > 0 ? 'good' : '', 'statsGo(\'bs-level-card\')'); } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
   try { const S = typeof prStride === 'function' ? prStride(today) : null;
-    if(S && S.level >= 2) add(3, '🦶', 'Foulée qui se dégrade : pas de hausse de volume', 'bad', 'statsTab(\'train\')'); } catch(e) {}
+    if(S && S.level >= 2) add(3, '🦶', 'Foulée qui se dégrade : pas de hausse de volume', 'bad', 'statsTab(\'train\')'); } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
   return out.sort(function(a, b){ return a.p - b.p; }).slice(0, 4);
 }
 function statsGo(id){ const el = document.getElementById(id); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
@@ -487,7 +487,7 @@ async function _ptrSyncWhoop(spinner) {
     if (typeof syncWhoopFresh === 'function' && state.whoop_token?.access_token) {
       await syncWhoopFresh();
     }
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'stats:_ptrSyncWhoop'); }
   await new Promise(r => setTimeout(r, 400));
   if (spinner) spinner.style.opacity = '0';
 }

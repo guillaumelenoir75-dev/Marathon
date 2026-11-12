@@ -59,7 +59,7 @@ function mjSteps(st, today, nowMin){
       const dur = typeof estimateDuration === 'function' ? estimateDuration(s.x) : '';
       const pace = s.pace && s.pace.text ? s.pace.text.replace(/\s+/g, ' ') : '';
       const fin = typeof avFinish === 'function' && typeof avOn === 'function' && avOn() && admin && st.whoop_token;
-      let shoe = null; try { shoe = typeof shoeDayAdvice === 'function' ? shoeDayAdvice(s.x, today) : null; } catch(e) {}
+      let shoe = null; try { shoe = typeof shoeDayAdvice === 'function' ? shoeDayAdvice(s.x, today) : null; } catch(e) { diagSilent(e, 'my-day:mjSteps'); }
       out.push({ id: 'sess-' + s.key, kind: 'sess', ic: ic, t: title, s: [s.kmPlan ? s.kmPlan + ' km' : '', pace || (dur ? '~' + dur : '')].filter(Boolean).join(' · '),
         tm: tm, at: at, done: false, key: s.key, w: s.w, ei: s.ei, x: s.x, shoe: shoe && shoe.name ? shoe.name : null,
         act: 'homeNextGo(' + s.w + ',' + s.ei + ')', btn: fin ? '🏁 J\'ai fini' : '✓ Valider', btnAct: fin ? 'avFinish()' : 'toggleDoneExtra(' + s.w + ',' + s.ei + ')' });
@@ -89,7 +89,7 @@ function mjSteps(st, today, nowMin){
           btn: 'Appliquer', btnAct: 'hrZonesApply();if(typeof sessionChanged===\'function\')sessionChanged()' });
       }
     }
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'my-day:mjSteps'); }
   // ── jour de repos ──
   const hasTraining = out.some(function(x){ return x.kind === 'sess' || /^renfo/.test(x.id); });
   if(!hasTraining) out.push({ id: 'rest', ic: '😌', t: 'Repos aujourd\'hui', s: 'Récupère : c\'est là que tu progresses', at: 12 * 60, done: true, info: true });
@@ -102,7 +102,7 @@ function mjSteps(st, today, nowMin){
       out.push({ id: 'bed', ic: '🌙', t: 'Couche-toi vers ' + B.bed, s: B.sleep + ' de sommeil' + (B.wake ? ' · réveil ' + B.wake : ''), tm: B.bed.replace('h', ':'),
         at: bm != null ? Math.max(20 * 60, bm - 60) : 21 * 60, done: false, soft: true, act: 'openSleepPlan()' });
     }
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'my-day:mjSteps'); }
   const next = sess.filter(function(s){ return !s.done && !s.skip && s.type !== 'rest' && s.x && s.x.sched_date && s.x.sched_date > today; })
     .sort(function(a, b){ return a.x.sched_date === b.x.sched_date ? String(_mjTime(st, a)).localeCompare(String(_mjTime(st, b))) : a.x.sched_date < b.x.sched_date ? -1 : 1; })[0];
   if(next){

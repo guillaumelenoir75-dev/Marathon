@@ -479,7 +479,7 @@ async function prHistory(today){
       o.sortie_longue_max_km = Math.round(Math.max.apply(null, ss.filter(function(x){ return x.type === 'long'; }).map(function(x){ return x.km; }).concat([0])));
       o.seances_qualite = ss.filter(function(x){ return x.type === 'tempo' || x.type === 'frac'; }).slice(-8)
         .map(function(x){ return { semaine: x.w, date: x.date || x.perf.date || null, titre: x.title, consigne: x.detail, km: x.km, allure: x.perf.pace || null, blocs: x.perf.blocsAllure || null, fc: x.perf.hr || null }; });
-      const ef = prObservedEf(st, p.date); if(ef) o.allure_ef_fc148 = prPace(ef);
+      const ef = prObservedEf(st, p.date); if(ef) o.allure_ef_plafond = prPace(ef);
     }
     out.push(o);
   }
@@ -565,7 +565,7 @@ const prSig = function(list){ return list.map(function(p){ return p.key + '>' + 
 // pastille sur le bouton « MAJ le plan » : propositions pas encore vues
 function planReviewPending(){
   if(typeof prPrefetch === 'function' && !window._prPrefetchDone){
-    if(!window._prPrefetchedOnce){ window._prPrefetchedOnce = true; prPrefetch().then(function(){ if(typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); } catch(e) {} } }); }
+    if(!window._prPrefetchedOnce){ window._prPrefetchedOnce = true; prPrefetch().then(function(){ if(typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); } catch(e) { diagSilent(e, 'plan-review:planReviewPending'); } } }); }
     return 0;                                                                    // pastille calculée une fois la prépa précédente chargée
   }
   try { if(typeof usesHardPlan === 'function' && usesHardPlan()) return 0; const a = prAnalyze(); return a.proposals.length && prSig(a.proposals) !== state._review_seen ? a.proposals.length : 0; } catch(e) { return 0; }
@@ -777,9 +777,9 @@ function openPlanReview(opts){
     if(dbRef) dbRef.child('_review_seen').set(state._review_seen).catch(function(){});
     _prLoading(an);
   })();
-  try { if(typeof renderPlan === 'function'){ rendered.plan = false; } } catch(e) {}
+  try { if(typeof renderPlan === 'function'){ rendered.plan = false; } } catch(e) { diagSilent(e, 'plan-review:openPlanReview'); }
 }
-function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); if(_prReview && _prReview.clTimer) clearInterval(_prReview.clTimer); _prReview = null; try { renderPlan(); } catch(e) {} }
+function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); if(_prReview && _prReview.clTimer) clearInterval(_prReview.clTimer); _prReview = null; try { renderPlan(); } catch(e) { diagSilent(e, 'plan-review:closePlanReview'); } }
 
 // Analyse affichée étape par étape, avec les chiffres réellement calculés (records, séances, base, plan), puis le résultat
 function _prLoading(a){
@@ -1197,7 +1197,7 @@ function applyPlanReview(){
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
   const k = r.n;
   closePlanReview();
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'plan-review:applyPlanReview'); }
   if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour');
 }
 // applique des changements au plan (state) et les inscrit dans l'historique _plan_reviews (annulables : prUndoReview) ;

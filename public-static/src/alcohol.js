@@ -60,7 +60,7 @@ function alcNights(today){
   today = today || prTodayIso();
   const wd = state.whoop_data || {}, sl = {};
   (wd.sleeps || []).forEach(function(s){ if(s && s.date && s.performance_pct != null) sl[s.date] = s.performance_pct; });
-  let L = {}; try { if(typeof fmLoads === 'function') L = fmLoads(today) || {}; } catch(e) {}
+  let L = {}; try { if(typeof fmLoads === 'function') L = fmLoads(today) || {}; } catch(e) { diagSilent(e, 'alcohol:alcNights'); }
   const out = [];
   (wd.recoveries || []).forEach(function(r){
     if(!r || !r.date || r.score == null || r.date > today || prDays(r.date, today) > 90) return;
@@ -298,7 +298,7 @@ function alcPickSave(){ if(!_alcSel || !_alcSel.l) return; alcSave(_alcSel.day, 
 function _alcFinish(msg, ico){
   const done = _alcSel && _alcSel.done, fs = _alcSel && _alcSel.fs; alcClose(true);
   if(typeof showToast === 'function' && !fs) showToast(msg, ico);
-  try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); } catch(e) {}
+  try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); } catch(e) { diagSilent(e, 'alcohol:_alcFinish'); }
   if(typeof done === 'function') done();
 }
 function alcClose(saved){
@@ -316,8 +316,8 @@ function alcMaybeAsk(){
     if(typeof _wakeupBannerHtml0 !== 'undefined' && _wakeupBannerHtml0 === null) _wakeupBannerHtml0 = banner.innerHTML;
     if(typeof wakeFlowSet === 'function') wakeFlowSet(true);
     banner.style.display = 'flex';
-    alcBannerStep(banner, { day: alcDay(), done: function(){ if(typeof wakeFlowSet === 'function') wakeFlowSet(false); banner.style.display = 'none'; try { if(typeof renderHome === 'function') renderHome(); } catch(e) {} } });
-  } catch(e) {}
+    alcBannerStep(banner, { day: alcDay(), done: function(){ if(typeof wakeFlowSet === 'function') wakeFlowSet(false); banner.style.display = 'none'; try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'alcohol:alcMaybeAsk'); } } });
+  } catch(e) { diagSilent(e, 'alcohol:alcMaybeAsk'); }
 }
 
 // ─── Étape plein écran (même fond que « Je suis réveillé ») : au réveil, et pour les 3 dernières nuits ───
@@ -355,7 +355,7 @@ function alcBackfill(){
     if(i >= days.length){
       if(typeof wakeFlowSet === 'function') wakeFlowSet(false);
       banner.style.display = 'none';
-      try { if(typeof renderHome === 'function') renderHome(); } catch(e) {}
+      try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'alcohol:alcBackfill'); }
       if(typeof showToast === 'function') showToast('Alcool des 3 dernières nuits enregistré', '🍷');
       return;
     }
@@ -516,7 +516,7 @@ function openAlcoholInsights(){
 function alcDiagText(today){
   today = today || prTodayIso();
   const A = state._alcohol || {}, wd = state.whoop_data || {}, M = alcModel(today), I = alcImpact(alcDay(), M);
-  let L = {}; try { if(typeof fmLoads === 'function') L = fmLoads(today) || {}; } catch(e) {}
+  let L = {}; try { if(typeof fmLoads === 'function') L = fmLoads(today) || {}; } catch(e) { diagSilent(e, 'alcohol:alcDiagText'); }
   const days = []; for(let k = 0; k < 14; k++) days.push(prAddDays(alcDay(), -k));
   const rec = {}, sl = {}; (wd.recoveries || []).forEach(function(r){ if(r && r.date) rec[r.date] = r; }); (wd.sleeps || []).forEach(function(s){ if(s && s.date) sl[s.date] = s; });
   const nights = days.map(function(d){ const e = A[d], r = rec[d], s = sl[d];

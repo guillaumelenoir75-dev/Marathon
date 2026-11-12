@@ -20,14 +20,14 @@ function sessionChanged(opts){
 async function _sfRun(){
   const o = _sfOpts; _sfOpts = {};
   if(typeof _prepView !== 'undefined' && _prepView && !_prepView.next) return;          // copie consultée : lecture seule
-  try { if(typeof prHistoryChanged === 'function') prHistoryChanged(); } catch(e) {}
+  try { if(typeof prHistoryChanged === 'function') prHistoryChanged(); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
   try { if(typeof updateMarathonPace === 'function') updateMarathonPace(); } catch(e) { console.warn('[données] allure marathon', e); }
   try { sfStoreDerived(); } catch(e) { console.warn('[données] dérivées', e); }
   try { sfAdaptAuto(); } catch(e) { console.warn('[données] allègement', e); }
-  try { const r = sfSyncRecords(); if(r.length && typeof showToast === 'function') showToast('🏆 Record ' + r[0].cat + ' : ' + r[0].time + ' (' + r[0].src + ')'); } catch(e) {}
-  try { if(o.race && typeof raStore === 'function') raStore(); } catch(e) {}
-  try { if(typeof state !== 'undefined' && state.strava_token && typeof shoesStravaFetch === 'function' && typeof getShoes === 'function' && getShoes().some(function(s){ return s.strava_id; })) shoesStravaFetch(true).catch(function(){}); } catch(e) {}
-  try { if(typeof prepAutoSave === 'function') prepAutoSave(true).catch(function(){}); } catch(e) {}
+  try { const r = sfSyncRecords(); if(r.length && typeof showToast === 'function') showToast('🏆 Record ' + r[0].cat + ' : ' + r[0].time + ' (' + r[0].src + ')'); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
+  try { if(o.race && typeof raStore === 'function') raStore(); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
+  try { if(typeof state !== 'undefined' && state.strava_token && typeof shoesStravaFetch === 'function' && typeof getShoes === 'function' && getShoes().some(function(s){ return s.strava_id; })) shoesStravaFetch(true).catch(function(){}); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
+  try { if(typeof prepAutoSave === 'function') prepAutoSave(true).catch(function(){}); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
   sfRefreshScreens();
 }
 // allure EF et signal de la foulée tels que l'app les calcule, pour le brief du lendemain matin (serveur : efRefOf, buildTrainingSituation)
@@ -56,11 +56,11 @@ function sfSyncRecords(){
 }
 function sfRefreshScreens(){
   if(typeof document === 'undefined' || !document.getElementById) return;
-  try { if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; } } catch(e) {}
+  try { if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; } } catch(e) { diagSilent(e, 'session-flow:sfRefreshScreens'); }
   const vis = function(id){ const el = document.getElementById(id); return !!el && el.style.display !== 'none' && el.style.display !== ''; };
-  try { if(typeof renderHome === 'function') renderHome(); } catch(e) {}
-  try { if(vis('sc-plan') && typeof renderPlan === 'function'){ rendered.plan = true; renderPlan(); } } catch(e) {}
-  try { if(vis('sc-stats') && typeof renderStats === 'function'){ rendered.stats = true; renderStats(); } } catch(e) {}
+  try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'session-flow:sfRefreshScreens'); }
+  try { if(vis('sc-plan') && typeof renderPlan === 'function'){ rendered.plan = true; renderPlan(); } } catch(e) { diagSilent(e, 'session-flow:sfRefreshScreens'); }
+  try { if(vis('sc-stats') && typeof renderStats === 'function'){ rendered.stats = true; renderStats(); } } catch(e) { diagSilent(e, 'session-flow:sfRefreshScreens'); }
 }
 // séance validée automatiquement (serveur) nettement plus courte que prévu : même allègement annulable qu'une validation à la main
 // (adaptPlanAfterSession, home-render.js) — une seule fois par séance (perf._adapt), séances des 3 derniers jours

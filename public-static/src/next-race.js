@@ -36,11 +36,11 @@ function nrOptions(today){
   const start = _nrMonday(from > today ? from : today);
   const n = +((state.onboarding || {}).sessions) || 3;
   // niveau et volume habituel
-  let vdot = null; try { const f = prFitness(state, { today: today }); vdot = f && f.vdot; } catch(e) {}
+  let vdot = null; try { const f = prFitness(state, { today: today }); vdot = f && f.vdot; } catch(e) { diagSilent(e, 'next-race:nrOptions'); }
   if(!vdot && typeof prKnownRaces === 'function' && typeof vdotFromRace === 'function'){   // sans niveau calculé : meilleure course connue
     prKnownRaces().forEach(function(k){ const s = prTimeSec(k.time), v = s && PR_RACE_M[k.cat] ? vdotFromRace(PR_RACE_M[k.cat], s) : null; if(v && (!vdot || v > vdot)) vdot = v; });
   }
-  let base = null; try { const L = prLoad(today); base = L && L.chronic ? Math.round(L.chronic) : null; } catch(e) {}
+  let base = null; try { const L = prLoad(today); base = L && L.chronic ? Math.round(L.chronic) : null; } catch(e) { diagSilent(e, 'next-race:nrOptions'); }
   if(!base && state._recette && state._recette.base) base = state._recette.base;
   const opts = NR_CATS.map(function(cat){
     const minW = nrMinWeeks(cat, n);
@@ -94,7 +94,7 @@ function nrBuild(o){
   const id = 'next-' + o.cat.replace(/[^a-z0-9]/gi, '').toLowerCase() + '-' + o.date;
   const meta = { id: id, title: o.name || (NR_LABEL[o.cat] + ' ' + o.date.slice(0, 4)), race: o.name || NR_LABEL[o.cat], dist: o.cat, date: o.date, start: start, first: first || start,
     after: state._prep_id || '', target: ob.target_time || '', weeks: nW, sessions: nS, createdAt: prTodayIso(), memo: '' };
-  if(typeof _prepShape === 'function') try { meta.shape = _prepShape(keys); } catch(e) {}
+  if(typeof _prepShape === 'function') try { meta.shape = _prepShape(keys); } catch(e) { diagSilent(e, 'next-race:nrBuild'); }
   return { meta: meta, state: keys };
 }
 async function nrCreate(o){
@@ -159,8 +159,8 @@ function _nrGo(){
       const m = await nrCreate({ cat: o.cat, date: date, name: name || NR_LABEL[o.cat], target: target, start: _nr.O.start, sessions: _nr.O.sessions, base: _nr.O.base });
       const ov = document.getElementById('nr-modal'); if(ov) ov.remove();
       if(typeof showToast === 'function') showToast('Prépa à venir créée : ' + m.title + ' 🏁');
-      if(typeof _renderPrepsBody === 'function') try { _renderPrepsBody(); } catch(e) {}
-      if(typeof renderCompteHero === 'function') try { renderCompteHero(); } catch(e) {}
+      if(typeof _renderPrepsBody === 'function') try { _renderPrepsBody(); } catch(e) { diagSilent(e, 'next-race:_nrGo'); }
+      if(typeof renderCompteHero === 'function') try { renderCompteHero(); } catch(e) { diagSilent(e, 'next-race:_nrGo'); }
     } catch(e) { alert('Création impossible (' + e.message + ').'); }
   };
   if(_nr.O.next && typeof _showConfirmModal === 'function') _showConfirmModal({ icon: '🔁', title: 'Remplacer « ' + _nr.O.next.title + ' » ?', message: 'La prépa à venir déjà prévue sera remplacée par ce nouveau programme.', confirmLabel: 'Remplacer', confirmStyle: 'background:#1B4FD8;color:#fff;', onConfirm: run });

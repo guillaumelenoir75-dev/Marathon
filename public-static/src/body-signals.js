@@ -93,7 +93,7 @@ function hrFcMaxSet(v){
   const E = hrZonesEstimate();
   state._hr_zones = { applied: true, at: at, efMax: E.efMax, lthr: E.lthr, fcMax: v, prev: prev, conf: 'manuelle', zones: E.zones, manual: true };
   if(typeof save === 'function') save();
-  if(typeof bsRefresh === 'function') try { bsRefresh(); } catch(e) {}
+  if(typeof bsRefresh === 'function') try { bsRefresh(); } catch(e) { diagSilent(e, 'body-signals:hrFcMaxSet'); }
   return { v: v, efMax: E.efMax, prev: prev, zones: E.zones };
 }
 function hrZonesReset(){
@@ -157,7 +157,7 @@ function bsBedtime(today){
   const cy = (wd.cycles || []).find(function(c){ return c && c.date === today && c.strain != null; });
   let loadMin = 0, loadWhy = '';
   if(cy){ const sv = +cy.strain; loadMin = sv >= 18 ? 45 : sv >= 14 ? 30 : sv >= 10 ? 15 : 0; loadWhy = 'effort WHOOP ' + String(Math.round(sv * 10) / 10).replace('.', ','); }
-  else { let L = 0; try { if(typeof fmLoads === 'function') L = (fmLoads(today) || {})[today] || 0; } catch(e) {} loadMin = L >= 150 ? 30 : L >= 80 ? 15 : 0; loadWhy = 'charge ' + Math.round(L); }
+  else { let L = 0; try { if(typeof fmLoads === 'function') L = (fmLoads(today) || {})[today] || 0; } catch(e) { diagSilent(e, 'body-signals:bsBedtime'); } loadMin = L >= 150 ? 30 : L >= 80 ? 15 : 0; loadWhy = 'charge ' + Math.round(L); }
   // récupération basse ce matin : +15 min
   const rc = (wd.recoveries || []).find(function(r){ return r && r.date === today && r.score != null; }), lowMin = rc && rc.score < 34 ? 15 : 0;
   // demain : course +30, séance clé +15
@@ -277,13 +277,13 @@ function bsSleepSet(k, d){
   }
   if(typeof save === 'function') save();
   openSleepPlan();
-  try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); if(typeof statsTodayRender === 'function') statsTodayRender(); } catch(e) {}
+  try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); if(typeof statsTodayRender === 'function') statsTodayRender(); } catch(e) { diagSilent(e, 'body-signals:bsSleepSet'); }
 }
 
 // ─── Affichage (Statistiques, accueil) ──────────────────────────────────────
 function bsRefresh(){
-  try { if(typeof rendered !== 'undefined'){ rendered.stats = false; rendered.plan = false; } } catch(e) {}
-  bsRenderStatsCard(); try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); } catch(e) {}
+  try { if(typeof rendered !== 'undefined'){ rendered.stats = false; rendered.plan = false; } } catch(e) { diagSilent(e, 'body-signals:bsRefresh'); }
+  bsRenderStatsCard(); try { if(typeof prRenderHomeCard === 'function') prRenderHomeCard(); } catch(e) { diagSilent(e, 'body-signals:bsRefresh'); }
 }
 // ligne de la carte « Forme du jour » quand la foulée se dégrade
 function bsHomeLine(){

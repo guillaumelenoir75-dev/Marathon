@@ -43,6 +43,8 @@ async function open(dateIso, db, opts) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // erreur attrapée par l'app sans rien afficher (diagSilent, diag.js) : un bug masqué compte comme une erreur
+  page.on('console', (m) => { if (m.type() === 'warning' && /^\[attrapée\]/.test(m.text())) errors.push(m.text()); });
   page.on('dialog', (d) => d.accept());
   await page.goto(base + (opts.query || ''));
   await page.waitForFunction(() => typeof firebaseReady !== 'undefined' && firebaseReady, null, { timeout: 15000 });

@@ -56,7 +56,7 @@ function openEditModal(ws, si){
         <div style="flex:1;background:#EAF3DE;border-radius:14px;padding:14px;display:flex;flex-direction:column;justify-content:center;gap:6px;">
           <div>
             <p style="font-size:9px;font-weight:800;color:#3B6D11;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">💓 Zone cible</p>
-            <p style="font-size:16px;font-weight:900;color:#2D5A0E;">140 – 148 bpm</p>
+            <p style="font-size:16px;font-weight:900;color:#2D5A0E;">${hrEfMax() - 8} – ${hrEfMax()} bpm</p>
           </div>
           <div>
             <p style="font-size:9px;font-weight:800;color:#3B6D11;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">⏱ Durée estimée</p>

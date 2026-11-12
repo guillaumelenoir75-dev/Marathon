@@ -451,7 +451,7 @@ async function onWakeupFromBanner() {
       </div>
       <style>@keyframes _pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}</style>
     `;
-    setTimeout(() => { _wakeFlow = false; dismissWakeupBanner(); try { if (typeof renderHome === 'function') renderHome(); } catch (e) {} }, 2800);
+    setTimeout(() => { _wakeFlow = false; dismissWakeupBanner(); try { if (typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'whoop:onWakeupFromBanner'); } }, 2800);
   }
   await run;
 }

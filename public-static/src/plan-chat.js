@@ -36,7 +36,7 @@ function coachModeInit(){
 // depuis « MAJ le plan », la carte du pilote automatique… : ouvre « Mon plan », message pré-rempli
 function openPlanChat(prefill){
   if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
-  try { if(typeof closePlanReview === 'function' && document.getElementById('plan-review')) closePlanReview(); } catch(e) {}
+  try { if(typeof closePlanReview === 'function' && document.getElementById('plan-review')) closePlanReview(); } catch(e) { diagSilent(e, 'plan-chat:openPlanChat'); }
   if(typeof showScreen === 'function') showScreen('coach');
   setTimeout(function(){
     coachMode('plan');
@@ -61,7 +61,7 @@ function _pcSummary(){
     const sum = function(o){ return { w: o.w, plan: o.km, done: o.sess.reduce(function(t, x){ return t + (x.done && x.type !== 'race' ? (+x.km || 0) : 0); }, 0) }; };
     ks.forEach(function(w){ if(!cur && W[w].now) cur = sum(W[w]); });
     if(cur) ks.forEach(function(w){ if(!nxt && w > cur.w) nxt = sum(W[w]); });
-  } catch(e) {}
+  } catch(e) { diagSilent(e, 'plan-chat:_pcSummary'); }
   const cells = [];
   if(cur) cells.push('<div><small>Semaine ' + cur.w + '</small><b>' + Math.round(cur.done || 0) + '<i> / ' + Math.round(cur.plan || 0) + ' km</i></b></div>');
   if(nxt) cells.push('<div><small>Semaine ' + nxt.w + '</small><b>' + Math.round(nxt.plan || 0) + '<i> km prévus</i></b></div>');
@@ -160,7 +160,7 @@ function pcApply(id){
   _pcPush({ r: 's', t: '✅ Plan mis à jour : ' + r.n + ' séance' + (r.n > 1 ? 's' : '') + (sel.length < m.ch.filter(function(c){ return !c.off; }).length ? ' (les autres avaient déjà changé)' : '') + '.' });
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'plan-chat:pcApply'); }
   _pcAnalysis(); pcRender();
   if(typeof showToast === 'function') showToast('Plan mis à jour', '📅');
 }
@@ -173,7 +173,7 @@ function pcUndo(id){
   prUndoReview(i);
   m.st = 'undone'; _pcPush({ r: 's', t: '↩ Changements annulés : ton plan d\'origine est rétabli.' }); save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'plan-chat:pcUndo'); }
   _pcAnalysis(); pcRender();
 }
 

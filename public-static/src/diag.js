@@ -8,13 +8,24 @@ function _diagPut(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } cat
 // et bug de Safari iOS sur la base locale du SDK Firebase au retour de l'arrière-plan (Firebase réessaie seul)
 const DIAG_NOISE = [/^Script error\.?$/i, /without an in-progress transaction/i, /The database connection is closing/i];
 function diagNoise(msg){ msg = String(msg || '').replace(/^Promesse rejetée : /, ''); return DIAG_NOISE.some(function(r){ return r.test(msg); }); }
-function diagLog(msg, where){
+function diagLog(msg, where, silent){
   if(diagNoise(msg)) return;
   msg = String(msg || 'Erreur inconnue').slice(0, 200); where = String(where || '').slice(0, 80);
   const L = _diagGet(DIAG_ERR), now = new Date().toISOString(), x = L.find(function(e){ return e.m === msg && e.w === where; });
-  if(x){ x.n = (x.n || 1) + 1; x.at = now; } else L.unshift({ m: msg, w: where, n: 1, at: now, first: now });
+  if(x){ x.n = (x.n || 1) + 1; x.at = now; } else L.unshift(Object.assign({ m: msg, w: where, n: 1, at: now, first: now }, silent ? { s: 1 } : {}));
   L.sort(function(a, b){ return String(b.at).localeCompare(String(a.at)); });
   _diagPut(DIAG_ERR, L.slice(0, 20));
+}
+// erreur attrapée par l'app (try / catch) qui serait sinon passée inaperçue : écran vide, calcul manquant. Journalisée sans
+// rien afficher (marquée « attrapée » dans le Diagnostic, comptée dans Santé de l'app). Ne lève jamais. Refus attendus du
+// navigateur (stockage plein ou interdit, permission refusée, action annulée) ignorés. Lieu = « fichier:fonction ».
+const DIAG_EXPECTED = /^(SecurityError|QuotaExceededError|NotAllowedError|AbortError|NotSupportedError|InvalidStateError)$/;
+function diagSilent(e, where){
+  try {
+    if(e && DIAG_EXPECTED.test(e.name || '')) return;
+    diagLog(e && e.message ? e.message : String(e), where, true);
+    if(typeof console !== 'undefined' && console.warn) console.warn('[attrapée] ' + (where || ''), e);
+  } catch(_) {}
 }
 if(typeof window !== 'undefined' && window.addEventListener){
   window.addEventListener('error', function(e){ if(!e || !e.message) return; diagLog(e.message, (String(e.filename || '').split('/').pop().split('?')[0]) + (e.lineno ? ':' + e.lineno : '')); });
@@ -36,7 +47,7 @@ function diagOpen(){
   ov.innerHTML = '<div class="modal-box" style="max-height:90vh;"><div class="dg-head"><div><p class="dg-eb">Compte</p><p class="dg-title">🩺 Diagnostic</p></div><button class="dg-x" onclick="document.getElementById(\'dg-modal\').remove()" aria-label="Fermer">×</button></div>'
     + '<div class="modal-scroll-body"><div class="dg-body">'
     + '<div class="dg-tiles"><div><b>' + (med != null ? (med / 1000).toFixed(1).replace('.', ',') + ' s' : '—') + '</b><small>démarrage (médiane)</small></div><div><b>' + E.length + '</b><small>erreur' + (E.length > 1 ? 's' : '') + ' récente' + (E.length > 1 ? 's' : '') + '</small></div><div><b>' + esc(v === 'dev' ? 'dev' : new Date(+v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })) + '</b><small>version</small></div></div>'
-    + (E.length ? '<ul class="dg-list">' + E.map(function(e){ return '<li><b>' + esc(e.m) + '</b><small>' + (e.w ? esc(e.w) + ' · ' : '') + '×' + (e.n || 1) + ' · ' + fd(e.at) + '</small></li>'; }).join('') + '</ul>' : '<p class="dg-ok">✅ Aucune erreur enregistrée</p>')
+    + (E.length ? '<ul class="dg-list">' + E.map(function(e){ return '<li><b>' + esc(e.m) + '</b><small>' + (e.s ? 'attrapée · ' : '') + (e.w ? esc(e.w) + ' · ' : '') + '×' + (e.n || 1) + ' · ' + fd(e.at) + '</small></li>'; }).join('') + '</ul>' : '<p class="dg-ok">✅ Aucune erreur enregistrée</p>')
     + '<div class="dg-btns"><button type="button" onclick="diagCopy()">📋 Copier</button>' + (E.length ? '<button type="button" onclick="diagClear()">🧹 Effacer</button>' : '') + '</div></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);

@@ -833,7 +833,7 @@ async function generateFullBriefFromNotif(memos) {
       })),
       memos: memos || null,
       consignes_ef: isRecoveryWeek(CW)
-        ? 'Semaine DÉCHARGE : allure EF lente, FC < 140 bpm'
+        ? 'Semaine DÉCHARGE : allure EF lente, FC < ' + (hrEfMax() - 8) + ' bpm'
         : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC ${hrEfMax()-8}-${hrEfMax()} bpm`,
       allure_ef: getBestEfPace() || null,
       allure_marathon: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })() || null,
@@ -977,7 +977,7 @@ async function checkPendingBrief() {
 }
 
 async function generateAndShowWeeklyBilan() {
-  try { if (typeof showBriefOverlay === 'function') showBriefOverlay('weekly'); } catch(e) {}
+  try { if (typeof showBriefOverlay === 'function') showBriefOverlay('weekly'); } catch(e) { diagSilent(e, 'coach-ui:generateAndShowWeeklyBilan'); }
   const container = document.getElementById('coach-messages');
   const loader = document.createElement('div');
   loader.id = 'bilan-loader';
@@ -1213,7 +1213,7 @@ async function checkMorningBrief(memos, force) {
     // Consignes allure pour les séances du jour
     memos: memos || null,
     consignes_ef: isRecoveryWeek(CW)
-      ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`
+      ? `Semaine DÉCHARGE : allure EF lente, FC < ${hrEfMax() - 8} bpm`
       : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC ${hrEfMax()-8}-${hrEfMax()} bpm`,
     // Allures explicites pour que le coach puisse donner des chiffres précis
     allure_ef: getBestEfPace() || null,
@@ -1411,7 +1411,7 @@ async function loadCoachHistory(){
             });
           }
         }
-        if (_pendingType === 'weekly_bilan') try { showBriefOverlay('weekly'); } catch(e) {}
+        if (_pendingType === 'weekly_bilan') try { showBriefOverlay('weekly'); } catch(e) { diagSilent(e, 'coach-ui:loadCoachHistory'); }
         const _showBrief = () => {
           const _msgContainer = document.getElementById('coach-messages');
           if (!_msgContainer) return false;
@@ -1586,7 +1586,7 @@ async function loadCoachHistory(){
                     _paceBg = _diff <= 15 ? 'rgba(134,239,172,0.4)' : _diff <= 30 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
                   }
                 }
-              } catch(e) {}
+              } catch(e) { diagSilent(e, 'coach-ui:loadCoachHistory'); }
               _badgesHtml += '<span style="background:'+_paceBg+';border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">⚡ '+_srPace+' /km</span>';
             }
             if(_srHr) {
@@ -1627,7 +1627,7 @@ async function loadCoachHistory(){
           _laContainer.scrollTop = _laContainer.scrollHeight;
         }
       }
-    } catch(e) {}
+    } catch(e) { diagSilent(e, 'coach-ui:loadCoachHistory'); }
   }
 }
 // Afficher un overlay de chargement jusqu'à ce que Firebase soit prêt

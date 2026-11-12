@@ -179,4 +179,9 @@ test('forme du jour des briefs = celle de l\'app (_form_today) ; zones FC des co
   const z = H.hrZonesOf({ _fc_max_manual: { v: 193 }, _hr_zones: { applied: true, efMax: 146, fcMax: 195 } });
   assert.deepEqual(z, { max: 193, efLo: 138, efHi: 146, tLo: 154, tHi: 168 });
   assert.deepEqual(H.hrZonesOf({}), { max: 196, efLo: 140, efHi: 148, tLo: 157, tHi: 171 });
+  // barème chaleur du Coach dans la zone EF de l'athlète
+  const heat = H.heatEfText({ _hr_zones: { applied: true, efMax: 152 } });
+  assert.match(heat, /20-25°C : \+0 à \+3 bpm → zone EF effective 144-155 bpm/);
+  assert.match(heat, /> 35°C +: \+15 à \+20 bpm → zone EF effective 159-172 bpm/);
+  assert.doesNotMatch(heat, /140-151/);
 });

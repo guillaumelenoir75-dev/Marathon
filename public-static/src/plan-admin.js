@@ -924,7 +924,7 @@ function renderAthletePanel(){
 
 function openFcMaxEdit(){
   let cur=state.fc_max||'';
-  if(!cur&&typeof hrZonesEstimate==='function'){ try{ const E=hrZonesEstimate(); if(E.obs) cur=E.obs.v; }catch(e){} }
+  if(!cur&&typeof hrZonesEstimate==='function'){ try{ const E=hrZonesEstimate(); if(E.obs) cur=E.obs.v; }catch(e) { diagSilent(e, 'plan-admin:openFcMaxEdit'); } }
   const overlay=document.createElement('div');
   overlay.id='fcmax-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center;';

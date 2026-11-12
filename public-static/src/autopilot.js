@@ -55,7 +55,7 @@ function apUndo(){
   const i = apFindEntry(L);
   if(i >= 0) prUndoReview(i);
   state._autopilot_last = Object.assign({}, L, { undone: true }); save();
-  try { renderHome(); } catch(e) {}
+  try { renderHome(); } catch(e) { diagSilent(e, 'autopilot:apUndo'); }
   document.querySelectorAll('.ap-card').forEach(function(el){ el.outerHTML = apCardHtml(); });
 }
 function apCardHtml(){
@@ -105,7 +105,7 @@ async function apRefreshIfServerChanged(){
     state = snap.val(); if(typeof syncBaseReset==='function'){ syncBaseReset(state); if(syncApplyPending()) syncSave(); } if(typeof syncPlanCompat === 'function') syncPlanCompat();
     if(typeof prHistoryChanged === 'function') prHistoryChanged();
     if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
-    try { renderHome(); } catch(e) {}
+    try { renderHome(); } catch(e) { diagSilent(e, 'autopilot:apRefreshIfServerChanged'); }
     // séance validée par le serveur, plan ajusté cette nuit : tout ce qui en dépend + l'écran ouvert (session-flow.js)
     if(typeof sessionChanged === 'function') sessionChanged({ now: true });
     return true;

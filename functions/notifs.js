@@ -355,7 +355,7 @@ exports.briefAfterFcRepos = onSchedule(
       }
       const fcMoy7j=fcCount>0?Math.round(fcSum/fcCount):null;
 
-      // Allure EF : dernière séance EF valide (FC ≤ 148)
+      // Allure EF : dernière séance EF valide (FC ≤ plafond EF efMaxOf)
       let efPace=null;
       const paceStrToSec=p=>{if(!p)return null;const m=p.replace("'",':').split(':');if(m.length<2)return null;const s=parseInt(m[0])*60+parseInt(m[1]);return isNaN(s)?null:s;};
       const efPaces=[];
@@ -366,7 +366,7 @@ exports.briefAfterFcRepos = onSchedule(
           if(!pr)continue;
           try{const p=JSON.parse(pr);if((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}
         }
-        // prépa générée : séances extra (EF à FC ≤ 148)
+        // prépa générée : séances extra (EF à FC ≤ plafond EF)
         if(state._plan_engine)for(let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr)continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}}
       }
       if(efPaces.length>0){
@@ -378,7 +378,7 @@ exports.briefAfterFcRepos = onSchedule(
       efPace=efRefOf(state)||efPace||"6'40";   // référence de l'app sur tout l'historique si récente
 
       const isDecharge=state._plan_engine?weekTypeFor(state,cw)==='décharge':[8,12,16,20].includes(cw);
-      const consignesEf=sit.postRace?`Période post-course : footing très facile, FC < 140 bpm, sensations avant l'allure`:isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`:`Allure EF de référence : ${efPace}/km — FC 140-148 bpm`;
+      const _z=hrZonesOf(state),consignesEf=sit.postRace?`Période post-course : footing très facile, FC < ${_z.efLo} bpm, sensations avant l'allure`:isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < ${_z.efLo} bpm`:`Allure EF de référence : ${efPace}/km — FC ${_z.efLo}-${_z.efHi} bpm`;
       const consigneJour=sit.todaySessions.map(x=>`${x.title} ${x.km} km${x.consigne?' : '+x.consigne:''}`).join(' + ');
       const memos=state['_coach_memos']||'';
       const seancesStr=ctx.seancesAujourdHui.length>0?ctx.seancesAujourdHui.join(' + '):'Récupération';

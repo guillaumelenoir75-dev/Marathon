@@ -338,7 +338,7 @@ function wsDownload(){
 function wsHeaderBtn(){
   const b = typeof document !== 'undefined' ? document.getElementById('home-share-btn') : null; if(!b) return;
   let ok = false;
-  try { const w = wsCurrentWeek(); ok = w != null && !!wsDataFor(w); } catch(e) {}
+  try { const w = wsCurrentWeek(); ok = w != null && !!wsDataFor(w); } catch(e) { diagSilent(e, 'week-share:wsHeaderBtn'); }
   b.style.display = ok ? 'inline-flex' : 'none';
 }
 function _wsCss(){
@@ -376,7 +376,7 @@ function sessionShareData(key, today){
   const blocs = (p.blocsAllure || []).filter(Boolean).map(function(b){ return String(b).replace(':', "'"); });
   const R = typeof prepRace === 'function' ? prepRace() : null, dR = R && R.date && s.date ? prDays(s.date, R.date) : null;
   const r1 = function(v){ return v != null && isFinite(v) ? Math.round(v * 10) / 10 : null; };
-  let title = s.title; try { if(typeof normalizeSessionTitle === 'function') title = normalizeSessionTitle(s.title, s.type, s.detail) || s.title; } catch(e) {}   // même nom que l'accueil
+  let title = s.title; try { if(typeof normalizeSessionTitle === 'function') title = normalizeSessionTitle(s.title, s.type, s.detail) || s.title; } catch(e) { diagSilent(e, 'week-share:sessionShareData'); }   // même nom que l'accueil
   return { key: key, w: s.w, total: total, type: s.type, title: title, detail: String(s.detail || '').trim(), date: s.date, km: s.km, kmPlan: s.kmPlan,
     dur: p.dur && typeof prTimeSec === 'function' ? prTimeSec(p.dur) : null, pace: p.pace ? String(p.pace).replace(':', "'") : null, hr: p.hr || null, hrMax: sv.fcMax || null,
     cad: sv.cadence || null, up: sv.denivele_pos != null ? sv.denivele_pos : null, temp: p.meteo && typeof p.meteo.temperature === 'number' ? Math.round(p.meteo.temperature) : null,

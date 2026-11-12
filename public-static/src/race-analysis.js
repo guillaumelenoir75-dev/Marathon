@@ -92,7 +92,7 @@ function raCurrent(){
     const perf = race.perf || {}, rr = state._race_result || {}, sec = prTimeSec(rr.time || perf.official || perf.dur);
     const cat = typeof PD_CAT === 'function' ? PD_CAT(R) : rr.dist, dist = R.km || (cat && PR_RACE_M[cat] ? PR_RACE_M[cat] / 1000 : null);
     const date = perf.date || race.date || R.date, plan = state._race_plan && state._race_plan.date === R.date ? state._race_plan : null;
-    let pred = null; try { const fit = prFitness(state, { today: prAddDays(date, -1) }); pred = fit && fit.preds && cat ? fit.preds[cat] : null; } catch(e) {}
+    let pred = null; try { const fit = prFitness(state, { today: prAddDays(date, -1) }); pred = fit && fit.preds && cat ? fit.preds[cat] : null; } catch(e) { diagSilent(e, 'race-analysis:raCurrent'); }
     return raAnalyze({ perf: perf, sec: sec, dist: dist, cat: cat, date: date, name: R.name || '', plan: plan, goal: prTimeSec((state.onboarding || {}).target_time || state.target_time), pred: pred });
   } catch(e) { console.warn('[analyse course]', e); return null; }
 }

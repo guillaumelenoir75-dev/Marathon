@@ -108,7 +108,7 @@ function healthAlertText(items){
 function _hlLocal(){
   const get = function(k){ try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch(e) { return []; } };
   let pend = null;
-  try { const P = typeof syncPendingGet === 'function' ? syncPendingGet() : null; if(P && P.up && Object.keys(P.up).length) pend = { n: Object.keys(P.up).length, at: P.at }; } catch(e) {}
+  try { const P = typeof syncPendingGet === 'function' ? syncPendingGet() : null; if(P && P.up && Object.keys(P.up).length) pend = { n: Object.keys(P.up).length, at: P.at }; } catch(e) { diagSilent(e, 'health:_hlLocal'); }
   const js = get('pm_errors').filter(function(e){ return !(typeof diagNoise === 'function' && diagNoise(e && e.m)); });   // bruit hors de l'app écarté (diag.js)
   return { syncErr: get('pm_sync_err'), pending: pend, jsErr: js };
 }

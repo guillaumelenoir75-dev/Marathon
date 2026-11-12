@@ -75,7 +75,7 @@ function avMeteoFromHourly(H, act){
   const code = H.weather_code ? H.weather_code[i] : null, wind = H.wind_speed_10m ? H.wind_speed_10m[i] : null;
   const elev = t >= 25 ? (Math.floor(t) - 25) * 2 : 0, ral = t >= 25 ? Math.round((t - 25) * 7) : 0;
   const impact = typeof _weatherImpact === 'function' ? _weatherImpact(t, hum, app) : { niveau: t >= 35 ? 'EXTREME' : t >= 30 ? 'ELEVE' : t >= 25 ? 'MODERE' : t >= 20 && hum > 75 ? 'HUMIDE' : t <= 0 ? 'FROID' : 'IDEAL',
-    ralentissement: ral ? '~' + ral + ' sec/km' : '0 sec/km', elevation_fc_bpm: elev, zone_ef_ajustee: (140 + elev) + '-' + (148 + elev) + ' bpm' };
+    ralentissement: ral ? '~' + ral + ' sec/km' : '0 sec/km', elevation_fc_bpm: elev, zone_ef_ajustee: (hrEfMax() - 8 + elev) + '-' + (hrEfMax() + elev) + ' bpm' };
   return { date: act.date, heure_cible: parseInt(act.t, 10) + 'h00', ville: null, temperature: Math.round(t * 10) / 10, ressenti: Math.round((app != null ? app : t) * 10) / 10,
     humidite: Math.round(hum || 0), vent_kmh: Math.round((wind || 0) * 10) / 10, conditions: (typeof _wmoLabel === 'function' ? _wmoLabel(code, 1) : AV_WMO[code]) || 'Conditions variables',
     impact_performance: impact, coordonnees: { lat: Math.round(act.lat * 1000) / 1000, lng: Math.round(act.lng * 1000) / 1000 }, source: 'auto',
@@ -337,7 +337,7 @@ function avFeelSave(){
   ov.remove();
   let x = {}; try { x = JSON.parse(state[k] || '{}'); } catch(e) {}
   if(typeof renderHome === 'function'){ rendered.home = false; renderHome(); }
-  if(typeof isAdmin === 'function' && isAdmin() && typeof showCoachFeedback === 'function'){ window._lastValidatedPerf = p; try { showCoachFeedback(x, parseFloat(state[k + '_km']) || 0, p.pace || '', p.hr || null, false, null, p.meteo || null, p.whoop || null); } catch(e) {} }
+  if(typeof isAdmin === 'function' && isAdmin() && typeof showCoachFeedback === 'function'){ window._lastValidatedPerf = p; try { showCoachFeedback(x, parseFloat(state[k + '_km']) || 0, p.pace || '', p.hr || null, false, null, p.meteo || null, p.whoop || null); } catch(e) { diagSilent(e, 'auto-validate:avFeelSave'); } }
   if(typeof prAfterValidation === 'function') prAfterValidation();
   if(typeof ssOffer === 'function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance »
   if(typeof sessionChanged === 'function') sessionChanged();

@@ -14,15 +14,18 @@ function _fcElevation(tempActuelle, humidity) {
   return (t - 25) * 2; // +2 bpm/°C
 }
 
+// plafond FC de l'endurance de l'athlète (zones recalées / FC max saisie, sinon 148) — jamais 148 écrit en dur
+function _wxEfHi(){ return typeof hrEfMax === 'function' ? hrEfMax() : 148; }
 function _weatherImpact(temp, humidity, apparent) {
   // Impact chaleur — Mora-Rodriguez 2010 (J Appl Physiol)
   // Référence : chaque +1°C au-dessus de 25°C = -2% de performance à effort identique
   // 30°C = +5°C au-dessus du seuil = -10% perf ; 35°C = -20% perf
   const t = temp; // Référence : température réelle (pas ressenti) — Mora-Rodriguez
   const elevFC = _fcElevation(t, humidity || 0);
-  // Zone EF ajustée : 140-148 + élévation due à la chaleur
-  const zoneBas  = 140 + elevFC;
-  const zoneHaut = 148 + elevFC;
+  // Zone EF ajustée : zone EF de l'athlète (plafond hrEfMax, 8 bpm de large) + élévation due à la chaleur
+  const efHi = _wxEfHi(), efLo = efHi - 8;
+  const zoneBas  = efLo + elevFC;
+  const zoneHaut = efHi + elevFC;
 
   // Perte de performance Mora-Rodriguez (%) — appliquée seulement > 25°C
   const pertePerfPct = t >= 25 ? Math.min(Math.round((t - 25) * 2), 40) : 0;
@@ -63,10 +66,10 @@ function _weatherImpact(temp, humidity, apparent) {
     zone_ef_ajustee: elevFC > 0 ? `${zoneBas}-${zoneHaut} bpm` : null,
     note_fc: elevFC > 0
       ? `RÈGLE FC CHALEUR (Mora-Rodriguez) : à ${Math.round(t)}°C, la FC s'élève de +${elevFC} bpm. ` +
-        `Zone EF effective = ${zoneBas}-${zoneHaut} bpm (au lieu de 140-148 bpm). ` +
+        `Zone EF effective = ${zoneBas}-${zoneHaut} bpm (au lieu de ${efLo}-${efHi} bpm). ` +
         `FC effective corrigée = FC mesurée - ${elevFC} bpm. ` +
-        `EXEMPLE : FC 155 bpm mesurée → FC effective ${155 - elevFC} bpm → ` +
-        (155 - elevFC <= 148 ? `DANS la zone EF ✅ — NE PAS pénaliser.` : `hors zone de ${155 - elevFC - 148} bpm.`)
+        `EXEMPLE : FC ${efHi + 7} bpm mesurée → FC effective ${efHi + 7 - elevFC} bpm → ` +
+        (efHi + 7 - elevFC <= efHi ? `DANS la zone EF ✅ — NE PAS pénaliser.` : `hors zone de ${7 - elevFC} bpm.`)
       : null
   };
 }
@@ -347,14 +350,14 @@ async function openHomeWeatherModal() {
     const _efAjusteMin = Math.floor(_efAjusteSec / 60);
     const _efAjusteSec2 = _efAjusteSec % 60;
     const _efAjusteStr = `${_efAjusteMin}'${String(_efAjusteSec2).padStart(2,'0')}`;
-    const _fcAjustee = 148 + degAuDessus * 2; // FC cible à cet effort EF = 148 + 2/°C
+    const _efHi = _wxEfHi(), _fcAjustee = _efHi + degAuDessus * 2; // FC cible à cet effort EF = plafond EF + 2/°C
 
     const barPct = Math.min(100, pertePerfPct * 5); // 20% perte = 100% barre
     const barColor = pertePerfPct <= 4 ? '#E65100' : pertePerfPct <= 10 ? '#C62828' : '#B71C1C';
     const minutes_perdues = Math.round(ralentSecKm * 42.195 / 60);
 
     // Ligne de référence base EF
-    const efBaseLabel = _efPaceStr ? `Base EF (25°C) : ${_efPaceStr}/km · 148 bpm` : '';
+    const efBaseLabel = _efPaceStr ? `Base EF (25°C) : ${_efPaceStr}/km · ${_efHi} bpm` : '';
 
     return `<div style="background:#FFF3E0;border-radius:14px;padding:12px 14px;margin-bottom:12px;border:1.5px solid #FF6D0030;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -385,7 +388,7 @@ async function openHomeWeatherModal() {
           <div style="text-align:center;border-left:1px solid #f0f0f0;">
             <p style="font-size:10px;color:var(--muted);margin:0 0 3px;">FC équivalente</p>
             <p style="font-size:22px;font-weight:800;color:#E24B4A;margin:0;line-height:1;">~${_fcAjustee}</p>
-            <p style="font-size:9px;color:#aaa;margin:2px 0 0;">bpm · +${degAuDessus * 2} vs 148</p>
+            <p style="font-size:9px;color:#aaa;margin:2px 0 0;">bpm · +${degAuDessus * 2} vs ${_efHi}</p>
           </div>
         </div>
         ${efBaseLabel ? `<p style="font-size:9px;color:#ccc;margin:8px 0 0;text-align:center;border-top:1px solid #f5f5f5;padding-top:6px;">${efBaseLabel}</p>` : ''}
@@ -858,7 +861,7 @@ async function fetchWeatherForContext(targetHourStr, targetDate) {
       note: `MÉTÉO${ville ? ' à ' + ville : ''} : ${Math.round(temp)}°C (ressenti ${Math.round(apparent||temp)}°C), ${Math.round(humidity||0)}% humidité. ` +
             (impact.elevation_fc_bpm > 0
               ? `IMPACT FC : +${impact.elevation_fc_bpm} bpm attendus → zone EF effective ${impact.zone_ef_ajustee}. ` +
-                `FC effective = FC mesurée - ${impact.elevation_fc_bpm} bpm. NE JAMAIS critiquer une FC > 148 bpm sans appliquer cette correction. `
+                `FC effective = FC mesurée - ${impact.elevation_fc_bpm} bpm. NE JAMAIS critiquer une FC > ${_wxEfHi()} bpm sans appliquer cette correction. `
               : '') +
             `CONTEXTE CHALEUR : ralentissement attendu vs conditions fraîches = ${impact.ralentissement} (estimation planning uniquement). ` +
             `RÈGLE ABSOLUE : pour comparer l'allure réalisée avec l'allure cible, utiliser UNIQUEMENT les secondes réelles des deux allures — jamais la fourchette ci-dessus. ` +

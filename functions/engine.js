@@ -43,6 +43,7 @@ function loadEngine(opts) {
     navigator: {}, location: { pathname: '/', search: '' }, history: { replaceState() {} },
     fetch: () => Promise.reject(new Error('pas de réseau dans le moteur')),
     state: st, dbRef: null, rendered: {}, _prepIndex: opts.prepIndex || null,
+    diagSilent: (e, w) => { (ctx.__silent = ctx.__silent || []).push({ w, m: e && e.message ? e.message : String(e) }); },   // erreurs attrapées (diag.js), relevées par les tests
     isAdmin: () => opts.admin !== false, usesHardPlan: () => !!opts.hardPlan, save() {}, showToast() {}, initFirebase() {},
     prepRace: () => race || { name: 'Course objectif', course: '', date: '', km: null, objectif: 'non défini' },
     normalizeSessionTitle: (t) => t, FUNCTIONS_BASE: 'https://functions.invalid', ADMIN_EMAIL: '',
