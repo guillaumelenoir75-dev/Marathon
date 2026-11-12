@@ -559,7 +559,21 @@ function _lcDetail(){
 // comme prObservedEf mais sans rien après la date) ; tempo / seuil / VMA = allure de la zone d'après ton niveau à cette date (prFitness).
 // Points = tes séances : sorties EF / longues (allure sur plat), séances tempo ou fractionné (allure médiane des blocs).
 const BS_PACE_Z = { ef: { t: 'EF', l: 'Endurance', c: '#16A34A' }, tempo: { t: 'Tempo', l: 'Tempo', pct: 0.815, c: '#CA8A04' },
-  seuil: { t: 'Seuil', l: 'Seuil', pct: 0.88, c: '#EA580C' }, vma: { t: 'VMA', l: 'VMA', pct: 0.975, c: '#DC2626' } };
+  seuil: { t: 'Seuil', l: 'Seuil', pct: 0.88, c: '#EA580C' }, vma: { t: 'VMA', l: 'VMA', pct: 0.975, c: '#DC2626' },
+  // allure de course : projection d'après le niveau à chaque date (Daniels), tes vraies courses / records datés en losanges
+  r5: { t: '5 km', l: '5 km', race: '5 km', c: '#7C3AED' }, r10: { t: '10 km', l: '10 km', race: '10 km', c: '#2563EB' },
+  semi: { t: 'Semi', l: 'Semi', race: 'Semi-marathon', c: '#0891B2' }, mara: { t: 'Marathon', l: 'Marathon', race: 'Marathon', c: '#BE185D' } };
+// tes vrais résultats sur une distance : records datés (« Mes records »), courses des prépas, courses Strava, résultat de la prépa, tests 5 km
+function bsRaceResults(cat, done){
+  const out = [], seen = {}, add = function(time, date, label){ const sec = prTimeSec(time); if(!sec) return; const k = (date || '') + '|' + Math.round(sec);
+    if(seen[k]) return; seen[k] = 1; out.push({ date: date || null, sec: sec, label: label || cat }); };
+  if(typeof PR_RECORD_KEY !== 'undefined' && PR_RECORD_KEY[cat] && state[PR_RECORD_KEY[cat]]) add(state[PR_RECORD_KEY[cat]], ((state._records || {})[cat] || {}).date, 'Record');
+  (typeof prKnownRaces === 'function' ? prKnownRaces() : []).forEach(function(r){ if(r.cat === cat) add(r.time, r.date, r.label); });
+  if(cat === '5 km' && typeof prTestTime === 'function') (done || []).forEach(function(x){ if(/^Test\b/i.test(x.title || '')){ const t = prTestTime(x); if(t) add(prTime(t), x.date, 'Test 5 km'); } });
+  // même course en record et en fiche de prépa : une seule fois (même temps, la date connue l'emporte)
+  return out.filter(function(r){ return r.date || !out.some(function(o){ return o !== r && o.date && Math.round(o.sec) === Math.round(r.sec); }); })
+    .sort(function(a, b){ return String(a.date || '').localeCompare(String(b.date || '')); });
+}
 const BS_PACE_RANGE = { '1m': [30, 1, '1 mois'], '3m': [91, 2, '3 mois'], '6m': [182, 4, '6 mois'], '12m': [365, 7, '12 mois'] };
 function bsPaceSeries(zone, range, today){
   today = today || prTodayIso();
@@ -568,9 +582,9 @@ function bsPaceSeries(zone, range, today){
   const done = prAllDone(today).filter(function(s){ return s.done && s.date && s.date <= today && s.perf; });
   const alc = function(d){ return typeof alcRunAffected === 'function' && alcRunAffected(d); };
   const med = function(a){ a = a.slice().sort(function(x, y){ return x - y; }); return a.length ? a[Math.floor(a.length / 2)] : null; };
-  const pts = [], dots = [];
+  const pts = [], dots = []; let res = null;
   const days = []; for(let d = 0; d <= span; d += step) days.push(prAddDays(today, -span + d)); if(days[days.length - 1] !== today) days.push(today);
-  if(zone === 'ef' || !Z.pct){
+  if(!Z.pct && !Z.race){
     const efMax = typeof hrEfMax === 'function' ? hrEfMax() : 148;
     const runs = done.filter(function(s){ return (s.type === 'ef' || s.type === 'long') && s.perf.pace && !alc(s.date); }).map(function(s){
       const E = typeof prEqPace === 'function' ? prEqPace(s.perf, s.km) : null, v = E && E.eq ? E.eq : prPaceSec(s.perf.pace), hr = parseInt(s.perf.hr) || null;
@@ -584,19 +598,28 @@ function bsPaceSeries(zone, range, today){
   } else {
     if(typeof prFitness !== 'function') return null;
     const races = typeof prKnownRaces === 'function' ? prKnownRaces() : [];
-    days.forEach(function(d){ const f = prFitness(state, { today: d, races: races, done: done }); if(f.vdot) pts.push({ date: d, v: Math.round(paceAtPct(f.vdot, Z.pct)), vdot: f.vdot }); });
-    const typ = zone === 'vma' ? 'frac' : 'tempo';
-    done.filter(function(s){ return s.type === typ && s.date >= from && !alc(s.date); }).forEach(function(s){
-      const bl = (s.perf.blocsAllure || []).map(prPaceSec).filter(Boolean); if(!bl.length) return;
-      dots.push({ date: s.date, v: Math.round(med(bl)), ok: true, title: s.title, km: s.km, hr: parseInt(s.perf.hr) || null, blocs: bl.length });
-    });
+    const m = Z.race ? PR_RACE_M[Z.race] : null;
+    days.forEach(function(d){ const f = prFitness(state, { today: d, races: races, done: done }); if(!f.vdot) return;
+      if(m){ const t = raceTimeFromVdot(f.vdot, m); if(t) pts.push({ date: d, v: Math.round(t / (m / 1000)), t: Math.round(t), vdot: f.vdot }); }
+      else pts.push({ date: d, v: Math.round(paceAtPct(f.vdot, Z.pct)), vdot: f.vdot }); });
+    if(m){
+      res = bsRaceResults(Z.race, done);
+      res.forEach(function(r){ if(r.date && r.date >= from && r.date <= today) dots.push({ date: r.date, v: Math.round(r.sec / (m / 1000)), t: r.sec, ok: true, race: true, title: r.label }); });
+    } else {
+      const typ = zone === 'vma' ? 'frac' : 'tempo';
+      done.filter(function(s){ return s.type === typ && s.date >= from && !alc(s.date); }).forEach(function(s){
+        const bl = (s.perf.blocsAllure || []).map(prPaceSec).filter(Boolean); if(!bl.length) return;
+        dots.push({ date: s.date, v: Math.round(med(bl)), ok: true, title: s.title, km: s.km, hr: parseInt(s.perf.hr) || null, blocs: bl.length });
+      });
+    }
   }
   // l'axe commence à la 1re valeur connue de la période (pas de longue zone vide)
   let from2 = from; const fd = [pts[0] && pts[0].date, dots[0] && dots[0].date].filter(Boolean).sort()[0];
   if(fd && fd > from) from2 = fd;
   const first = pts[0] || null, last = pts.length ? pts[pts.length - 1] : null;
   return { zone: zone in BS_PACE_Z ? zone : 'ef', range: range in BS_PACE_RANGE ? range : '12m', from: from2, today: today, pts: pts, dots: dots,
-    first: first, last: last, delta: first && last && first !== last ? last.v - first.v : null };
+    first: first, last: last, delta: first && last && first !== last ? last.v - first.v : null,
+    race: Z.race || null, results: res, record: res && res.length ? res.slice().sort(function(a, b){ return a.sec - b.sec; })[0] : null };
 }
 let _paZone = 'ef', _paRange = '12m', _paData = null, _paSel = null;
 function openPaceChart(zone, range){
@@ -617,13 +640,15 @@ function openPaceChart(zone, range){
   if(D && D.last){
     const dv = D.delta, chip = dv == null || Math.abs(dv) < 2 ? '<span class="bs-chip">stable</span>'
       : '<span class="bs-chip ' + (dv < 0 ? 'up' : 'down') + '">' + (dv < 0 ? '▲ ' : '▼ ') + Math.abs(dv) + ' s/km ' + (dv < 0 ? 'plus rapide' : 'plus lente') + '</span>';
-    sum = '<div class="pa-sum"><div><p class="pa-l">' + Z.l + ' · ' + (D.last.date === D.today ? 'aujourd\'hui' : 'au ' + prFmtDate(D.last.date)) + '</p><p class="pa-v">' + _bsP(D.last.v) + '<small>/km</small></p></div>'
-      + '<div class="pa-r">' + chip + (D.first && D.first !== D.last ? '<p class="pa-l">' + _bsP(D.first.v) + ' le ' + prFmtDate(D.first.date) + '</p>' : '') + '</div></div>';
+    const when = D.last.date === D.today ? 'aujourd\'hui' : 'au ' + prFmtDate(D.last.date);
+    sum = '<div class="pa-sum"><div><p class="pa-l">' + (D.race ? Z.l + ' · projection ' + when : Z.l + ' · ' + when) + '</p><p class="pa-v">' + _bsP(D.last.v) + '<small>/km</small>' + (D.last.t ? '<small class="pa-t">' + prTime(D.last.t) + '</small>' : '') + '</p></div>'
+      + '<div class="pa-r">' + chip + (D.first && D.first !== D.last ? '<p class="pa-l">' + _bsP(D.first.v) + ' le ' + prFmtDate(D.first.date) + '</p>' : '') + '</div></div>'
+      + (D.record ? '<p class="pa-rec">🏆 Record ' + prTime(D.record.sec) + ' · ' + _bsP(D.record.sec / (PR_RACE_M[D.race] / 1000)) + '/km' + (D.record.date ? ' · ' + prFmtDate(D.record.date, { day: 'numeric', month: 'short', year: 'numeric' }) : '') + '</p>' : '');
   }
-  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="lc-head" style="background:linear-gradient(135deg,#065F46,#0EA5E9);"><div><p class="lc-eb">Signaux du corps</p><p class="lc-title">📈 Évolution de mes allures</p><p class="lc-sub">' + (_paZone === 'ef' ? 'Allure EF réelle (sur plat, au frais, FC ≤ ' + hrEfMax() + ')' : 'Allure ' + Z.l.toLowerCase() + ' d\'après ton niveau à chaque date') + '</p></div>'
+  ov.innerHTML = '<div class="modal-box" style="max-height:94vh;"><div class="lc-head" style="background:linear-gradient(135deg,#065F46,#0EA5E9);"><div><p class="lc-eb">Signaux du corps</p><p class="lc-title">📈 Évolution de mes allures</p><p class="lc-sub">' + (_paZone === 'ef' ? 'Allure EF réelle (sur plat, au frais, FC ≤ ' + hrEfMax() + ')' : Z.race ? 'Allure ' + Z.l + ' : tes courses réelles et la projection d\'après ton niveau' : 'Allure ' + Z.l.toLowerCase() + ' d\'après ton niveau à chaque date') + '</p></div>'
     + '<button class="lc-x" onclick="document.getElementById(\'bs-pa\').remove()" aria-label="Fermer">×</button></div>'
     + '<div class="modal-scroll-body" style="background:#F5F7FB;"><div class="lc-body"><div class="lc-seg pa4 pa-z">' + zs + '</div><div class="lc-seg pa4">' + rs + '</div>' + sum
-    + '<div class="lc-chart" id="pa-chart"></div><p class="lc-leg"><span><i class="pl" style="background:' + Z.c + '"></i>' + (_paZone === 'ef' ? 'allure EF réelle' : 'allure de la zone') + '</span><span><i class="pd" style="border-color:' + Z.c + '"></i>' + (_paZone === 'ef' ? 'sortie EF / longue' : _paZone === 'vma' ? 'fractionné (blocs)' : 'tempo (blocs)') + '</span>' + (_paZone === 'ef' ? '<span><i class="pd o"></i>FC au-dessus</span>' : '') + '</p>'
+    + '<div class="lc-chart" id="pa-chart"></div><p class="lc-leg"><span><i class="pl" style="background:' + Z.c + '"></i>' + (_paZone === 'ef' ? 'allure EF réelle' : Z.race ? 'projection' : 'allure de la zone') + '</span><span><i class="pd' + (Z.race ? ' rc' : '') + '" style="border-color:' + Z.c + ';color:' + Z.c + '"></i>' + (_paZone === 'ef' ? 'sortie EF / longue' : Z.race ? 'course réelle' : _paZone === 'vma' ? 'fractionné (blocs)' : 'tempo (blocs)') + '</span>' + (_paZone === 'ef' ? '<span><i class="pd o"></i>FC au-dessus</span>' : '') + '</p>'
     + '<div id="pa-detail"></div></div></div></div>';
   _paDraw(); _paDetail();
 }
@@ -649,12 +674,14 @@ function _paDraw(){
   months.forEach(function(d, i){ if(i % every) return; const iso = d.toISOString().slice(0, 10), x = tx(iso);
     if(x - L < 34 || xEnd - x < 26) return;
     g += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" class="lc-grid v"/><text x="' + x + '" y="' + (H - B + 14) + '" class="lc-ax" text-anchor="middle">' + d.toLocaleDateString('fr-FR', { month: 'short' }) + '</text>'; });
-  D.dots.forEach(function(p){ if(p.date < D.from) return;
-    g += '<circle cx="' + tx(p.date).toFixed(1) + '" cy="' + ty(p.v).toFixed(1) + '" r="3" fill="' + (p.ok ? Z.c : '#fff') + '" fill-opacity="' + (p.ok ? '.35' : '1') + '" stroke="' + (p.ok ? Z.c : '#94A3B8') + '" stroke-width="1.2"><title>' + prEsc(p.title) + ' · ' + prFmtDate(p.date) + ' · ' + _bsP(p.v) + '/km</title></circle>'; });
   if(D.pts.length >= 2){
     const line = D.pts.map(function(p){ return tx(p.date).toFixed(1) + ',' + ty(p.v).toFixed(1); }).join(' ');
-    g += '<polyline points="' + line + '" fill="none" stroke="' + Z.c + '" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>';
+    g += '<polyline points="' + line + '" fill="none" stroke="' + Z.c + '" stroke-width="2.6"' + (D.race ? ' stroke-dasharray="6 4"' : '') + ' stroke-linejoin="round" stroke-linecap="round"/>';
   }
+  D.dots.forEach(function(p){ if(p.date < D.from) return;
+    if(p.race){ const x = tx(p.date), y = ty(p.v);
+      g += '<rect x="' + (x - 5).toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" width="10" height="10" rx="2" transform="rotate(45 ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')" fill="' + Z.c + '" stroke="#fff" stroke-width="1.5"><title>' + prEsc(p.title) + ' · ' + prFmtDate(p.date) + ' · ' + prTime(p.t) + ' (' + _bsP(p.v) + '/km)</title></rect>'; return; }
+    g += '<circle cx="' + tx(p.date).toFixed(1) + '" cy="' + ty(p.v).toFixed(1) + '" r="3" fill="' + (p.ok ? Z.c : '#fff') + '" fill-opacity="' + (p.ok ? '.35' : '1') + '" stroke="' + (p.ok ? Z.c : '#94A3B8') + '" stroke-width="1.2"><title>' + prEsc(p.title) + ' · ' + prFmtDate(p.date) + ' · ' + _bsP(p.v) + '/km</title></circle>'; });
   const sp = _paSel != null ? D.pts[_paSel] : null;
   if(sp) g += '<line id="pa-cur" x1="' + tx(sp.date) + '" x2="' + tx(sp.date) + '" y1="' + T + '" y2="' + (H - B) + '" class="lc-cur"/><circle id="pa-dot" cx="' + tx(sp.date) + '" cy="' + ty(sp.v) + '" r="5" fill="#fff" stroke="' + Z.c + '" stroke-width="2.5"/>';
   el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="lc-svg" role="img" aria-label="Allure ' + Z.l + (D.first && D.last ? ' : de ' + _bsP(D.first.v) + ' à ' + _bsP(D.last.v) + ' par km' : '') + '">' + g + '</svg>';
@@ -677,13 +704,13 @@ function _paDetail(){
   if(!D || _paSel == null || !D.pts[_paSel]){ el.innerHTML = ''; return; }
   const p = D.pts[_paSel], Z = BS_PACE_Z[D.zone], isToday = p.date === D.today;
   // séances autour de la date choisie (les 3 plus proches, 3 semaines avant au plus)
-  const near = D.dots.filter(function(x){ return x.date <= p.date && prDays(x.date, p.date) <= 21; }).slice(-3).reverse();
+  const near = D.dots.filter(function(x){ return x.date <= p.date && prDays(x.date, p.date) <= (D.race ? 400 : 21); }).slice(-3).reverse();
   const dd = D.first && D.first !== p ? p.v - D.first.v : null;
   el.innerHTML = '<div class="lc-card"><div class="lc-dh"><div><p class="lc-dd">' + (isToday ? 'Aujourd\'hui' : prFmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'long' })) + '</p>'
     + '<p class="lc-dv">' + _bsP(p.v) + '<small style="font-size:13px;color:#64748B;font-weight:700;">/km</small>' + (dd != null && Math.abs(dd) >= 2 ? '<span class="bs-chip ' + (dd < 0 ? 'up' : 'down') + '">' + (dd < 0 ? '▲ −' : '▼ +') + Math.abs(dd) + ' s</span>' : '') + '</p></div>'
     + '<p class="lc-hint">Touche la courbe pour voir une autre date</p></div>'
-    + (p.vdot ? '<p class="bs-n">Niveau ' + _bsV(p.vdot) + ' à cette date</p>' : p.n ? '<p class="bs-n">Médiane de ' + p.n + ' sorties à FC ≤ ' + hrEfMax() + '</p>' : '')
-    + (near.length ? '<p class="lc-sec">Séances juste avant</p><ul class="lc-why">' + near.map(function(x){ return '<li><span>' + prFmtDate(x.date, { day: 'numeric', month: 'short' }) + ' · ' + prEsc(x.title) + (x.hr ? ' · ' + x.hr + ' bpm' : '') + '</span><b' + (x.ok ? '' : ' style="color:#94A3B8"') + '>' + _bsP(x.v) + '</b></li>'; }).join('') + '</ul>' : '')
+    + (p.t ? '<p class="bs-n">Projection ' + Z.l + ' : <b>' + prTime(p.t) + '</b> · niveau ' + _bsV(p.vdot) + '</p>' : p.vdot ? '<p class="bs-n">Niveau ' + _bsV(p.vdot) + ' à cette date</p>' : p.n ? '<p class="bs-n">Médiane de ' + p.n + ' sorties à FC ≤ ' + hrEfMax() + '</p>' : '')
+    + (near.length ? '<p class="lc-sec">' + (D.race ? 'Tes courses avant cette date' : 'Séances juste avant') + '</p><ul class="lc-why">' + near.map(function(x){ return '<li><span>' + prFmtDate(x.date, x.race ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }) + ' · ' + prEsc(x.title) + (x.t ? ' · ' + prTime(x.t) : '') + (x.hr ? ' · ' + x.hr + ' bpm' : '') + '</span><b' + (x.ok ? '' : ' style="color:#94A3B8"') + '>' + _bsP(x.v) + '</b></li>'; }).join('') + '</ul>' : '')
     + '</div>';
 }
 
@@ -772,7 +799,7 @@ function _bsCss(){
     + '.dq-row{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:11px 12px;}.dq-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:#0F172A;}'
     + '.dq-st{font-size:10.5px;font-weight:800;border-radius:20px;padding:2px 8px;}.dq-st.out{background:#FFEDD5;color:#C2410C;}.dq-st.kept{background:#DCFCE7;color:#15803D;}.dq-st.info{background:#E0E7FF;color:#3730A3;}.dq-st.todo{background:#FEF3C7;color:#92400E;}'
     + '.lc-seg.pa4{grid-template-columns:repeat(4,1fr);}.pa-z{margin-bottom:6px;}.pa-sum{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:10px 12px;margin:10px 0 4px;}.pa-l{font-size:11px;font-weight:700;color:#64748B;margin:0;}.pa-v{font-size:26px;font-weight:900;color:#0F172A;margin:2px 0 0;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}.pa-v small{font-size:13px;color:#64748B;margin-left:2px;}.pa-r{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}'
-    + '.lc-leg i.pl{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;}.lc-leg i.pd{display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid;background:#fff;vertical-align:middle;margin-right:4px;}.lc-leg i.pd.o{border-color:#94A3B8;}'
+    + '.lc-leg i.pl{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;}.lc-leg i.pd{display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid;background:#fff;vertical-align:middle;margin-right:4px;}.lc-leg i.pd.o{border-color:#94A3B8;}.lc-leg i.pd.rc{border-radius:2px;transform:rotate(45deg);background:currentColor;}.pa-t{margin-left:8px !important;font-size:15px !important;color:#334155 !important;font-weight:800;}.pa-rec{font-size:12px;font-weight:700;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:6px 10px;margin:6px 0 2px;}'
     + '.dq-s{font-size:11.5px;color:#64748B;margin:2px 0 0;}.dq-m{font-size:12.5px;color:#334155;margin:5px 0 0;line-height:1.4;}.dq-bs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}'
     + '.dq-b{border:1.5px solid #99F6E4;background:#fff;color:#0F766E;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;}.dq-b.sec{border-color:#E2E8F0;color:#475569;}.dq-b.ok{background:#0F766E;border-color:#0F766E;color:#fff;}'
     + '.bs-arr{font-style:normal;font-size:11px;font-weight:900;line-height:1;margin-right:2px;}.bs-arr.up{color:#16A34A;}.bs-arr.down{color:#EA580C;}'

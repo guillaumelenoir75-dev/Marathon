@@ -59,3 +59,21 @@ test('tempo / seuil / VMA : allure de la zone d\'après le niveau à chaque date
   const E = JSON.parse(JSON.stringify(empty.bsPaceSeries('ef', '12m', '2026-11-12')));
   assert.equal(E.pts.length, 0); assert.equal(E.last, null);
 });
+
+test('allures de course : projection 5 km → marathon d\'après le niveau, vraies courses / records datés en points, record affiché', () => {
+  const s = history();
+  s.record_5km = '21:10'; s._records['5 km'] = { date: '2026-06-14' };
+  const app = loadApp({ now: NOW, state: s });
+  const R = {};
+  ['r5', 'r10', 'semi', 'mara'].forEach((z) => { R[z] = JSON.parse(JSON.stringify(app.bsPaceSeries(z, '12m', '2026-11-12'))); });
+  ['r5', 'r10', 'semi', 'mara'].forEach((z) => { assert.ok(R[z].pts.length > 40 && R[z].last.t > 0, z); assert.ok(Math.abs(R[z].last.v - R[z].last.t / ({ r5: 5, r10: 10, semi: 21.0975, mara: 42.195 }[z])) <= 1, z + ' allure = temps / distance'); });
+  assert.ok(R.r5.last.v < R.r10.last.v && R.r10.last.v < R.semi.last.v && R.semi.last.v < R.mara.last.v, 'plus long = plus lent');
+  assert.equal(Math.round(R.r10.last.t), Math.round(app.raceTimeFromVdot(R.r10.last.vdot, 10000)), 'projection = temps équivalent au niveau');
+  // vraie course datée dans la période : point « course » à son allure réelle
+  const d5 = R.r5.dots.find((x) => x.race && x.date === '2026-06-14');
+  assert.ok(d5, '5 km du 14 juin en point'); assert.equal(d5.t, 1270); assert.equal(d5.v, 254);
+  // record hors période : pas de point, mais affiché
+  assert.equal(R.r10.dots.filter((x) => x.race).length, 0);
+  assert.equal(R.r10.record.sec, 2700); assert.equal(R.r10.record.date, '2025-10-12');
+  assert.equal(R.semi.record, null, 'pas de semi couru : projection seule');
+});

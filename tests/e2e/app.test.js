@@ -1414,7 +1414,13 @@ test('Signaux du corps : valeur suspecte confirmée → bandeau retiré ; évolu
   for (const r of ['6 mois', '3 mois', '1 mois', '12 mois']) { await page.click('#bs-pa .lc-seg >> text=' + r); await page.waitForSelector('#bs-pa #pa-chart'); }
   assert.ok(await page.$('#bs-pa #pa-chart svg polyline'), 'courbe EF');
   assert.match(await page.textContent('#bs-pa .pa-sum'), /\d'\d\d/);
-  for (const z of ['Tempo', 'Seuil', 'VMA', 'EF']) { await page.click('#bs-pa .pa-z >> text=' + z); await page.waitForSelector('#bs-pa #pa-chart'); }
+  for (const z of ['Tempo', 'Seuil', 'VMA', '5 km', '10 km', 'Semi', 'Marathon']) { await page.click('#bs-pa .pa-z >> text="' + z + '"'); await page.waitForSelector('#bs-pa #pa-chart'); }
+  // allure marathon : projection + record et vraie course (Seine-Eure 3:37:05) en losange
+  assert.match(await page.textContent('#bs-pa .pa-sum'), /Marathon · projection/);
+  assert.match(await page.textContent('#bs-pa .pa-rec'), /Record 3:37:05/);
+  assert.ok(await page.$('#bs-pa #pa-chart svg rect'), 'course réelle en losange');
+  if (process.env.SHOTS) { await page.waitForTimeout(900); await page.screenshot({ path: process.env.SHOTS + '/pace3.png' }); }
+  await page.click('#bs-pa .pa-z >> text="EF"'); await page.waitForSelector('#bs-pa #pa-chart');
   if (process.env.SHOTS) { await page.waitForTimeout(900); await page.screenshot({ path: process.env.SHOTS + '/pace.png' }); await page.click('#bs-pa .pa-z >> text=Seuil'); await page.waitForTimeout(900); await page.screenshot({ path: process.env.SHOTS + '/pace2.png' }); }
   assert.deepEqual(errors, []);
   await ctx.close();
