@@ -1571,3 +1571,29 @@ test('Allègement après une séance écourtée : passé dans l\'historique du p
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('Course annulée : résultat, record et analyse retirés ; test 5 km plus rapide → record 5 km', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T18:00:00+01:00', savedDb);
+  const R = await page.evaluate(async () => {
+    const cat = prepRaceCategory(prepRace().km, prepRace().course), key = PREP_RECORD_KEYS[cat];
+    state[key] = '40:30'; state._race_record_prev = '42:00'; state._race_result = { time: '40:30', date: '2026-10-28', dist: cat };
+    state._race_analysis = { date: '2026-10-28' }; state._records = { [cat]: { date: '2026-10-28' } };
+    await prepUndoRaceResult();
+    return { cat, rec: state[key], rr: state._race_result || null, ra: state._race_analysis || null, meta: (state._records || {})[cat] || null, db: window.__DB.users.ADMINUID.state[key] };
+  });
+  assert.equal(R.rec, '42:00', 'record d\'avant rétabli'); assert.equal(R.db, '42:00');
+  assert.equal(R.rr, null); assert.equal(R.ra, null); assert.equal(R.meta, null);
+  // test 5 km validé, plus rapide que le record 5 km
+  const T = await page.evaluate(() => {
+    state.record_5km = '21:30';
+    const s = prAllDone().filter((x) => x.cur && x.done && x.type !== 'race')[0];   // une séance faite de la prépa en cours, transformée en test 5 km
+    const x = JSON.parse(state[s.key]); x.d = 'Test 5 km|5 km à fond'; x.km = 5; state[s.key] = JSON.stringify(x);
+    state[s.key + '_done'] = true; state[s.key + '_km'] = 5; state[s.key + '_perf'] = JSON.stringify({ date: '2026-10-27', dur: '28:00', pace: "4'08", blocsAllure: ['20:40'] });
+    prHistoryChanged(); const out = sfSyncRecords();
+    return { out, rec: state.record_5km };
+  });
+  assert.equal(T.rec, '20:40', 'test 5 km = nouveau record'); assert.equal(T.out[0].src, 'Test 5 km');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

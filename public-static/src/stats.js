@@ -344,10 +344,13 @@ function statsTodayRender(){
     const wd = state.whoop_data || {}, day = wellnessDay(), sc = function(d){
       const r = (wd.recoveries || []).find(function(x){ return x && x.date === d; }), sl = (wd.sleeps || []).find(function(x){ return x && x.date === d; }), fc = parseInt(state['fc_repos_' + d]) || null;
       return r ? wellnessScore(r, sl || null, fc >= 30 && fc <= 100 ? fc : null) : null; };
-    const yest = sc(prAddDays(day, -1)), prev7 = []; for(let k = 1; k <= 7; k++){ const v = sc(prAddDays(day, -k)); if(v != null) prev7.push(v); }
+    // même valeur que la jauge (forme du jour gardée chaque jour, prFormStore) ; sinon, à défaut, score des nuits WHOOP
+    const FH = state._form_hist || {}, td = prTodayIso(), fy = FH[prAddDays(td, -1)];
+    const f7 = []; for(let k = 1; k <= 7; k++){ const v = FH[prAddDays(td, -k)]; if(v != null) f7.push(v); }
+    const yest = fy != null ? fy : sc(prAddDays(day, -1)), prev7 = []; if(f7.length >= 3) prev7.push.apply(prev7, f7); else for(let k = 1; k <= 7; k++){ const v = sc(prAddDays(day, -k)); if(v != null) prev7.push(v); }
     const N = wellnessNight(), avg7 = prev7.length >= 3 ? Math.round(prev7.reduce(function(a, b){ return a + b; }, 0) / prev7.length) : null;
     const trend = [];
-    if(yest != null){ const d = N.r ? wellnessScore(N.r, N.s, N.fc) - yest : null; if(d != null) trend.push('<span class="' + (d > 0 ? 'up' : d < 0 ? 'dn' : '') + '">' + (d > 0 ? '↑ +' : d < 0 ? '↓ −' : '→ ') + Math.abs(d) + ' vs hier</span>'); }
+    if(yest != null){ const d = fy != null ? F.score - fy : N.r ? wellnessScore(N.r, N.s, N.fc) - yest : null; if(d != null) trend.push('<span class="' + (d > 0 ? 'up' : d < 0 ? 'dn' : '') + '">' + (d > 0 ? '↑ +' : d < 0 ? '↓ −' : '→ ') + Math.abs(d) + ' vs hier</span>'); }
     if(avg7 != null) trend.push('moy. 7 j ' + avg7);
     const C = 2 * Math.PI * 26;
     let h = '<div class="st-today"><div class="st-td-h">'

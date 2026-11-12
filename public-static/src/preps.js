@@ -866,7 +866,33 @@ function prepBestTime(cat, index, skipDate){
   Object.keys(idx).forEach(function(k){ const p = idx[k]; if(p.result && p.dist === cat) take(p.result, p.race || p.title, p.date); });
   // courses de l'historique Strava (sauf la course qu'on est en train d'enregistrer)
   if(typeof prStravaRaces === 'function') prStravaRaces().forEach(function(r){ if(r.cat === cat && r.date !== skipDate) take(r.time, r.label, r.date); });
+  // tests 5 km du plan (même lecture du temps que le niveau : prTestTime) : un test plus rapide est un record 5 km
+  if(cat === '5 km' && typeof prAllDone === 'function' && typeof prTestTime === 'function'){
+    try { prAllDone().forEach(function(x){ if(x.done && /^Test\b/i.test(x.title || '') && x.date !== skipDate){ const t = prTestTime(x); if(t) take(prepTimeFmt(t), 'Test 5 km', x.date); } }); } catch(e) {}
+  }
   return best;
+}
+// course objectif dé-validée (annulée à l'accueil) : ce que son temps officiel avait déclenché est retiré — résultat de la prépa,
+// record (remis à sa valeur d'avant si c'était ce temps), analyse de course, temps sur la fiche de la prépa
+async function prepUndoRaceResult(){
+  const rr = state._race_result; if(!rr || !rr.time) return false;
+  const R = typeof prepRace === 'function' ? prepRace() : {}, cat = typeof prepRaceCategory === 'function' ? prepRaceCategory(R.km, R.course) : null;
+  const key = cat ? PREP_RECORD_KEYS[cat] : null, up = { _race_result: null, _race_analysis: null };
+  if(key && prepTimeSec(state[key]) === prepTimeSec(rr.time)){
+    up[key] = state._race_record_prev || null;
+    const rm = Object.assign({}, state._records || {}); if(rm[cat] && rm[cat].date === rr.date){ delete rm[cat]; up._records = Object.keys(rm).length ? rm : null; }
+  }
+  up._race_record_prev = null;
+  Object.keys(up).forEach(function(k){ if(up[k] === null) delete state[k]; else state[k] = up[k]; });
+  try { if(typeof dbRef !== 'undefined' && dbRef) await dbRef.update(up); } catch(e) {}
+  try {
+    const id = state._prep_id;
+    if(id){
+      const cur = (_prepIndex || {})[id] || {}, f = { result: null, ra: null }; if(cur.note === 'Record personnel') f.note = null;
+      await _prepRef('prep_index/' + id).update(f); if(_prepIndex && _prepIndex[id]){ delete _prepIndex[id].result; delete _prepIndex[id].ra; if(f.note === null) delete _prepIndex[id].note; }
+    }
+  } catch(e) {}
+  return true;
 }
 // enregistre le temps officiel de la course de la prépa en cours ; renvoie { time, cat, pr, prev }
 async function prepSaveRaceResult(time, date){

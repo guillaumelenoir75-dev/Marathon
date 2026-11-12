@@ -39,8 +39,8 @@ function getHistoricalComparison(type, pace, hr){
 
 function showAthleteFeedback(s, km, pace, hr, perf, meteo){
   const fcMax=parseInt(state.fc_max)||0;
-  const efMin=fcMax?Math.round(fcMax*0.714):140;
-  const efMax=state._hr_zones&&state._hr_zones.applied?hrEfMax():fcMax?Math.round(fcMax*0.755):148;   // zones recalées (body-signals.js) prioritaires
+  // plafond d'endurance de toute l'app (zones recalées, FC max saisie, sinon 148) — plus jamais 75,5 % de la FC max déclarée à part
+  const efMax=typeof hrEfMax==='function'?hrEfMax():148, efMin=efMax-8;
   const plannedKm=parseFloat(s.km)||0;
   const realKm=parseFloat(km)||0;
   const kmRatio=plannedKm>0?realKm/plannedKm:1;

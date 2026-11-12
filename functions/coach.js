@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText, hrZonesOf } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -62,7 +62,7 @@ ${_prepSt._plan_engine ? '- Objectif actuel — ' + prepObjectiveText(_prepSt) +
 - Très motivé, veut progresser vite sans se blesser. A eu une légère douleur rotule en S2 suite à surcharge (30km) → résolu immédiatement avec réduction + kiné. Renfo kiné 2x/semaine depuis.
 - Chaque lundi midi : séance bodyhit (électrostimulation) full body avec focus jambes.
 - Pas d'autres problèmes médicaux.
-- FC max : 196 bpm. FC repos : voir fc_repos_context dans planContext (valeur datée et historique). Zone EF : 140-148 bpm (72-76% FCmax). En dessous de 140 = trop facile. Au-dessus de 148 = sort de la zone EF, la séance ne compte pas pour le calcul allure marathon. Zone Tempo/Fractionné : 157-170 bpm (80-87% FCmax) — NE JAMAIS utiliser 148 bpm comme limite pour le tempo, 148 est le plafond EF uniquement. FC repos > 55 bpm = signe possible de fatigue accumulée ou surmenage.
+- FC max : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm. FC repos : voir fc_repos_context dans planContext (valeur datée et historique). Zone EF : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm. En dessous de ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo} = trop facile. Au-dessus de ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} = sort de la zone EF, la séance ne compte pas pour le calcul allure marathon. Zone Tempo/Fractionné : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).tLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).tHi} bpm (80-87% FCmax) — NE JAMAIS utiliser ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm comme limite pour le tempo, ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} est le plafond EF uniquement. FC repos > 55 bpm = signe possible de fatigue accumulée ou surmenage.
 - RÈGLE FC REPOS : utiliser fc_repos_context.valeur_actuelle comme valeur du jour (date dans date_mesure). Ne JAMAIS confondre une valeur historique basse (ex: 48 bpm il y a 3 jours) avec la valeur actuelle. stats_7j.moyenne = référence de base. alerte_fatigue = signal prioritaire si présent.
 - Montre GPS : Garmin Forerunner 165. Données précises et fiables. La FC optique peut avoir un léger décalage en début de séance (~2-3 min).
 - VACANCES SRI LANKA S22-S23 (31 juillet - 14 août) : chaleur/humidité extrêmes, décalage +3h30. Allures naturellement plus lentes de 30-60 sec/km. Ne pas pénaliser les allures pendant ces semaines. Encourager hydratation +++, sorties matinales.
@@ -154,7 +154,7 @@ RÈGLES DE COHÉRENCE — OBLIGATOIRES :
 - HISTORIQUE COMPLET : La section "HISTORIQUE COMPLET SÉANCES AVEC DONNÉES STRAVA" contient TOUTES les séances validées depuis S1, avec pour chaque séance : allure, FC, durée, données Strava (cadence, FCmax, dénivelé, meilleur 400m, calories, splits km par km), et blocs tempo pour les séances Tempo. Tu as accès à tout cet historique — utilise-le pour identifier des tendances sur plusieurs semaines, comparer les progressions, et personnaliser les conseils.
 - DONNÉES STRAVA ENRICHIES : Si sessionData.strava est présent, utiliser TOUTES ces données pour enrichir l'analyse. Champs disponibles :
   • cadence_moy : normale entre 170-180 spm. En dessous de 165 = foulée trop longue → conseil technique. Entre 165-170 = passable. Au-dessus de 175 = bonne cadence.
-  • fcMax : FC maximale atteinte pendant la séance. Comparer avec FCmax théorique (196 bpm). Si > 85% FCmax (166 bpm) en EF EN CONDITIONS NORMALES = problème. En chaleur (> 28°C), appliquer la correction thermique : FCmax effective = FCmax mesurée - elevation_fc_bpm. Seuil d'alerte réel = FCmax effective > 85% de 196 bpm.
+  • fcMax : FC maximale atteinte pendant la séance. Comparer avec la FC max de l'athlète (${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm). Si > 85% FCmax (${Math.round(hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max*0.85)} bpm) en EF EN CONDITIONS NORMALES = problème. En chaleur (> 28°C), appliquer la correction thermique : FCmax effective = FCmax mesurée - elevation_fc_bpm. Seuil d'alerte réel = FCmax effective > 85% de 196 bpm.
   • denivele_pos : contextualiser l'allure (dénivelé élevé = allure plus lente = normal).
   • best_400m : meilleur effort sur 400m converti en allure /km — indicateur de vitesse maximale. Utile pour évaluer la progression de la vitesse pure.
   • calories : énergie dépensée. Contextualiser selon la durée.
@@ -193,7 +193,7 @@ RÈGLES TECHNIQUES :
 
   SEMAINE DE DÉCHARGE — RÈGLE : Si planContext indique une semaine de décharge (type_semaine = "DECHARGE" ou similaire), lever le seuil de tolérance sur l'allure globale et la FC. Il est NORMAL et SOUHAITABLE que Guillaume lève légèrement le pied sur les phases EF et de récupération en semaine de décharge. Ne jamais pénaliser ce comportement dans le score.
 - EF/Long — FC ET CHALEUR — RÈGLE CRITIQUE :
-  La zone EF standard est 140-148 bpm (calibrée pour 15-20°C). En cas de chaleur, la FC s'élève naturellement de X bpm : le cœur pompe plus de sang vers la peau pour refroidir le corps (thermorégulation), sans que l'effort musculaire augmente. Ce phénomène est normal et documenté scientifiquement (Cheung, Périard).
+  La zone EF de l'athlète est ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm (calibrée pour 15-20°C). En cas de chaleur, la FC s'élève naturellement de X bpm : le cœur pompe plus de sang vers la peau pour refroidir le corps (thermorégulation), sans que l'effort musculaire augmente. Ce phénomène est normal et documenté scientifiquement (Cheung, Périard).
 
   BARÈME D'ÉLÉVATION FC PAR CHALEUR (ressenti) :
   • 20-25°C : +0 à +3 bpm → zone EF effective 140-151 bpm
@@ -240,7 +240,7 @@ ${_prepSt._plan_engine ? "- PROJECTION : Si prediction_course_objectif est dans 
 - SEMAINE SUIVANTE : Si semaine_suivante est dans planContext, l'utiliser pour contextualiser (ex: "ta S10 sera à 30km — charge qui monte").
 - CHAUSSURE : Si chaussure est dans sessionData et que les chaussures sont dans planContext, vérifier l'usure. Si la chaussure approche ou dépasse 80% de sa durée de vie, le signaler à Guillaume. Si la chaussure vient de changer vs les séances précédentes (différente du dernier historyData), le mentionner comme facteur possible sur l'allure. RÈGLE ABSOLUE ZOOM FLY : La Zoom Fly est réservée à partir de S26 — JAMAIS avant, même si les données montrent qu'elle est utilisée.
 - GELS : S'entraîner avec les gels dès 12km. Protocole exact : 12km=1 gel à 6km · 16km=2 gels à 6&12km · 20km=3 gels à 6,12&17km · 24km=4 gels à 6,12,17&22km · 28km=5 gels à 6,12,17,22&26km · Marathon=8 gels. À partir de S20, rappeler ce point sur les longues sorties.
-- GRAPHIQUES INTEGRES - REGLE ABSOLUE : L'interface affiche automatiquement le bon graphe apres ta reponse. INTERDICTIONS STRICTES : (1) Ne JAMAIS faire de liste de donnees brutes. (2) Ne JAMAIS utiliser des blocs code ou backticks. (3) Ne JAMAIS faire de tableau ASCII avec des donnees ligne par ligne. (4) Ne jamais dire je ne peux pas generer de graphique. TON ROLE : ecrire UNIQUEMENT 2-3 phrases d'analyse avec les chiffres cles en **gras**. Exemple correct : Ta FC EF est stable entre **144-147 bpm** depuis S3, parfaitement dans la zone **140-148 bpm**. Le graphe s'affiche automatiquement. Ne fais RIEN d'autre.
+- GRAPHIQUES INTEGRES - REGLE ABSOLUE : L'interface affiche automatiquement le bon graphe apres ta reponse. INTERDICTIONS STRICTES : (1) Ne JAMAIS faire de liste de donnees brutes. (2) Ne JAMAIS utiliser des blocs code ou backticks. (3) Ne JAMAIS faire de tableau ASCII avec des donnees ligne par ligne. (4) Ne jamais dire je ne peux pas generer de graphique. TON ROLE : ecrire UNIQUEMENT 2-3 phrases d'analyse avec les chiffres cles en **gras**. Exemple correct : Ta FC EF est stable entre **144-147 bpm** depuis S3, parfaitement dans la zone EF. Le graphe s'affiche automatiquement. Ne fais RIEN d'autre.
 - RÔLE DE COACH ACTIF : Ton rôle ne se limite pas à analyser — tu dois aussi PROPOSER des ajustements concrets du plan. Guillaume voit un bouton dans l'interface pour appliquer ta suggestion en 1 clic — tu n'as rien de technique à faire, juste formuler clairement avec les mots "je te suggère", "je propose", "passe cette séance", "réduis", etc.
 
 - ESPRIT CRITIQUE SUR LE PLAN — RÈGLE FONDAMENTALE : Guillaume a construit ce plan lui-même. Il n'est pas parfait. Quand il demande si son plan est bien, risqué, ou s'il peut être amélioré : ANALYSE OBLIGATOIRE avec les données réelles de plan_futur (champs km_total, hausse_vs_precedente_pct, km_tempo, km_frac), puis PROPOSITIONS si nécessaire.
@@ -445,8 +445,8 @@ PROFIL DE GUILLAUME :
 ${_prepSt._plan_engine ? '- Très motivé, veut bien faire et progresser. ' + prepObjectiveText(_prepSt) : "- Tr\u00e8s motiv\u00e9, veut bien faire, progresser vite, et valider son objectif Sub 4h au marathon du 18 octobre 2026."}
 - Pas de problème médical chronique. En S2, mauvaise gestion de la charge (30 km) → légère douleur rotule gauche → réduction immédiate en S3 + consultation kiné → programme de renfo prescrit (2x/semaine). Problème résolu rapidement.
 - Chaque lundi à 12h30 : séance de bodyhit (électrostimulation) avec un coach, travail full body avec focus jambes. Cela compte comme récupération active et renforcement complémentaire. Délai minimal avant séance intense après bodyhit = 8h (donc pas de séance dure avant 20h30 le lundi).
-- FC max : 196 bpm. FC repos : voir fc_repos_context dans le contexte. Zone EF standard : 140-148 bpm (72-76% FCmax, calibrée pour 15-20°C). En dessous de 140 = trop facile.
-- RÈGLE FC EN CHALEUR : la zone EF 140-148 est valable par temps frais. En cas de chaleur, la FC s'élève naturellement (thermorégulation). Barème :
+- FC max : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).max} bpm. FC repos : voir fc_repos_context dans le contexte. Zone EF : ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm (calibrée pour 15-20°C). En dessous de ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo} = trop facile.
+- RÈGLE FC EN CHALEUR : la zone EF ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} est valable par temps frais. En cas de chaleur, la FC s'élève naturellement (thermorégulation). Barème :
   • 20-25°C : +0 à +3 bpm → zone EF effective 140-151 bpm
   • 25-28°C : +3 à +6 bpm → zone EF effective 143-154 bpm
   • 28-30°C : +5 à +8 bpm → zone EF effective 145-156 bpm
@@ -838,7 +838,7 @@ Sinon : activité(s) prévue(s), distance si run, heure si connue. UNE phrase. S
 ## ⚡ CONSIGNES & MÉTÉO
 UNIQUEMENT si séance run ou renfo planifiée.
 - EF : allure en **gras**, FC en **gras**, rappel FC max. Décharge : **+30s/km**.
-- Tempo/Frac : allure blocs en **gras**, structure courte. Zone FC tempo : **157-170 bpm** (80-87% FCmax). NE JAMAIS indiquer 148 bpm comme limite pour le tempo — 148 est le plafond EF uniquement.
+- Tempo/Frac : allure blocs en **gras**, structure courte. Zone FC tempo : **${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).tLo}-${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).tHi} bpm** (80-87% FCmax). NE JAMAIS indiquer ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} bpm comme limite pour le tempo — ${hrZonesOf(typeof _prepSt!=='undefined'?_prepSt:null).efHi} est le plafond EF uniquement.
 - Renfo : 3 exercices clés seulement.
 - Bodyhit : "Électrostimulation full body à 12h30".
 Si météo disponible : ajouter UNE phrase sur température, conditions et impact séance (FC ajustée, allure, hydratation si T°>28°C).

@@ -28,8 +28,8 @@ function _buildMarathonPredictionLegacy() {
     if(!paceSec || fc < 100) return;
     const cadence = perf.strava ? (perf.strava.cadence || perf.strava.cadence_moy || null) : null;
     const entry = { ws: h.gw, date: h.date, paceSec, fc, km: h.km, cadence, type: h.type, perf };
-    if(h.type === 'ef' && fc <= 152) { efPts.push(entry); }
-    else if(h.type === 'long' && fc <= 158) { longPts.push(entry); }
+    if(h.type === 'ef' && fc <= hrEfMax() + 4) { efPts.push(entry); }          // plafond d'endurance de l'app (+4 de tolérance), plus 152 en dur
+    else if(h.type === 'long' && fc <= hrEfMax() + 10) { longPts.push(entry); }
     else if(h.type === 'tempo' || h.type === 'frac') {
       const blocs = perf.blocsAllure ? perf.blocsAllure.filter(Boolean) : [];
       if(blocs.length > 0) { blocs.forEach(b => { const bSec = paceStrToSec(b); if(bSec) tempoPts.push({...entry, paceSec: bSec}); }); }

@@ -169,3 +169,14 @@ test('semaine complète : pas de notification le dimanche (le bilan de 17h la di
   const sent = F.calls.push.some((p) => p.tag === 'week-complete');
   if (sunday) assert.equal(sent, false, 'dimanche : rien'); else assert.ok(true, 'pas dimanche : règle non applicable aujourd\'hui');
 });
+
+test('forme du jour des briefs = celle de l\'app (_form_today) ; zones FC des consignes = celles de l\'athlète', () => {
+  const F = loadFunctions({ data: {} });
+  const H = F.helpers;
+  assert.equal(H.formScoreFor({ _form_today: { date: '2026-11-12', score: 58 } }, '2026-11-12', { score: 80 }, null, 48), 58, 'score de l\'app repris tel quel');
+  const raw = H.formScoreFor({ _form_today: { date: '2026-11-11', score: 58 } }, '2026-11-12', { score: 20, hrv: 90 }, { performance_pct: 90 }, 44);
+  assert.equal(raw, Math.round((20 + 90 + 100 + 100) / 4), 'sinon la formule de l\'app, sans plafond à 33');
+  const z = H.hrZonesOf({ _fc_max_manual: { v: 193 }, _hr_zones: { applied: true, efMax: 146, fcMax: 195 } });
+  assert.deepEqual(z, { max: 193, efLo: 138, efHi: 146, tLo: 154, tHi: 168 });
+  assert.deepEqual(H.hrZonesOf({}), { max: 196, efLo: 140, efHi: 148, tLo: 157, tHi: 171 });
+});

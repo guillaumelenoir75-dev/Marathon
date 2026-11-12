@@ -499,6 +499,20 @@ function prBadges(){
   const got = state._badges || {};
   return { c: c, list: PD_BADGES.map(function(b){ return Object.assign({ on: b.test(c) || !!got[b.id] }, b); }) };
 }
+// forme du jour telle que l'app l'affiche, gardée jour par jour : le brief du matin (serveur) reprend exactement ce score
+// (_form_today), et la tendance « vs hier / moy. 7 j » de Statistiques se calcule sur ces mêmes valeurs (_form_hist, 40 jours)
+function prFormStore(F){
+  try {
+    if(!F || F.score == null || (typeof _prepView !== 'undefined' && _prepView)) return;
+    if(typeof wellnessState === 'function' && wellnessState().kind !== 'ok') return;   // nuit du jour pas encore là : rien de stocké
+    const d = prTodayIso(), H = Object.assign({}, state._form_hist || {});
+    const T = { date: d, score: F.score, label: F.label || '', why: (F.why || []).slice(0, 6) };
+    if(H[d] === F.score && state._form_today && state._form_today.date === d && state._form_today.score === F.score) return;
+    H[d] = F.score; Object.keys(H).sort().slice(0, -40).forEach(function(k){ delete H[k]; });
+    state._form_hist = H; state._form_today = T;
+    if(typeof dbRef !== 'undefined' && dbRef) dbRef.update({ _form_hist: H, _form_today: T }).catch(function(){});
+  } catch(e) {}
+}
 // carte de l'accueil : forme du jour, série, badges ; nouveau badge → toast
 function prRenderHomeCard(){
   const el = document.getElementById('home-form-card'); if(!el) return;
@@ -506,6 +520,7 @@ function prRenderHomeCard(){
     if((typeof usesHardPlan === 'function' && usesHardPlan()) || (typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
     _pdCss();
     const F = prFormScore(), B = prBadges(), on = B.list.filter(function(b){ return b.on; });
+    prFormStore(F);
     const got = Object.assign({}, state._badges || {}), fresh = on.filter(function(b){ return !got[b.id]; });
     if(fresh.length){
       const silent = !state._badges_init;                                       // 1er affichage d'une prépa : badges déjà acquis, sans notification

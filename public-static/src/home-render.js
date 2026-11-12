@@ -1082,6 +1082,8 @@ function toggleDoneExtra(w,ei){
     openValidationModalExtra(w,ei);
   } else {
     confirmUndoSession(()=>{
+    // course objectif annulée : son temps officiel ne compte plus (résultat, record, analyse, fiche de la prépa)
+    try{ const _sx=JSON.parse(state[k]||'{}'); if(_sx.type==='race'&&!_sx._season&&typeof prepUndoRaceResult==='function') prepUndoRaceResult(); }catch(e){}
     state[doneK]=false;
     delete state[k+'_km'];
     delete state[k+'_perf'];

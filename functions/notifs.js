@@ -29,7 +29,7 @@ const {
   efMaxOf,
   efRefOf,
   bedtimePlan,
-  parisToday, briefTooLateParis, healthMark,
+  parisToday, briefTooLateParis, healthMark, formScoreFor, hrZonesOf,
   autopilotBriefText,
   isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT, alcoholBriefText,
 } = require('./helpers');
@@ -331,21 +331,13 @@ exports.briefAfterFcRepos = onSchedule(
         if(lines.length>0)whoopBlock='\nDonnées WHOOP du matin :\n'+lines.join('\n');
       }
 
-      // Score global synthétique (même calcul que stats.js) : nuit du jour uniquement
+      // Forme du jour : celle de l'app (_form_today), sinon même formule (helpers.formScoreFor)
       const r0=whoopRecov;
       const s0=_night.s;
-      const globalComps=[];
-      if(r0?.score!=null)globalComps.push(r0.score);
-      if(s0?.performance_pct!=null)globalComps.push(s0.performance_pct);
-      if(fcToday!=null){
-        const fcScore=fcToday<=44?100:fcToday<=50?Math.round(100-(fcToday-44)*3):fcToday<=60?Math.round(82-(fcToday-50)*3.7):fcToday<=70?Math.round(45-(fcToday-60)*4.5):0;
-        globalComps.push(fcScore);
-      }
-      if(r0?.hrv!=null){const hrvScore=Math.max(0,Math.min(100,Math.round((r0.hrv-40)/50*100)));globalComps.push(hrvScore);}
-      const globalScore=globalComps.length?Math.round(globalComps.reduce((a,b)=>a+b,0)/globalComps.length):null;
+      const globalScore=formScoreFor(state,todayStr,r0,s0,fcToday);
       const globalEmoji=globalScore===null?'':globalScore>=67?'🟢':globalScore>=34?'🟡':'🔴';
       const globalLabel=globalScore===null?'':globalScore>=67?'Bonne forme':globalScore>=34?'Forme moyenne':'Récupération insuffisante';
-      const globalScoreLine=globalScore!==null?`Score du jour (synthétique) : ${globalScore}% ${globalEmoji} ${globalLabel} [moyenne récup+sommeil+FC${r0?.hrv!=null?'+VFC':''}]`:'';
+      const globalScoreLine=globalScore!==null?`Forme du jour (même score que dans l\'app) : ${globalScore}% ${globalEmoji} ${globalLabel}`:'';
 
       const now=new Date();
       const dow=now.getDay();
@@ -468,7 +460,7 @@ exports.briefAfterFcRepos = onSchedule(
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
-- FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
+- FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
 - Montre Garmin Forerunner 165.
 - Lundi midi : séance bodyhit (électrostimulation).
 

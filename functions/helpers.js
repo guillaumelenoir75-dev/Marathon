@@ -93,6 +93,18 @@ async function healthMark(key, ok, msg, db) {
   } catch (e) { console.warn('healthMark ' + key + ':', e.message); }
 }
 
+// Forme du jour pour les briefs : le score affiché dans l'app ce jour-là (prFormScore : récup, sommeil, FC repos, VFC ajustés par la
+// charge, l'effort ressenti et la douleur — _form_today écrit par l'app), sinon le même score de base que l'app (wellnessScore, stats.js)
+function formScoreFor(state, todayStr, r0, s0, fcToday) {
+  const T = state && state._form_today;
+  if (T && T.date === todayStr && typeof T.score === 'number') return T.score;
+  const c = [];
+  if (r0 && r0.score != null) c.push(r0.score);
+  if (s0 && s0.performance_pct != null) c.push(s0.performance_pct);
+  if (fcToday != null) c.push(fcToday <= 44 ? 100 : fcToday <= 50 ? Math.round(100 - (fcToday - 44) * 3) : fcToday <= 60 ? Math.round(82 - (fcToday - 50) * 3.7) : fcToday <= 70 ? Math.round(45 - (fcToday - 60) * 4.5) : 0);
+  if (r0 && r0.hrv != null) c.push(Math.max(0, Math.min(100, Math.round((r0.hrv - 40) / 50 * 100))));
+  return c.length ? Math.round(c.reduce((a, b) => a + b, 0) / c.length) : null;
+}
 // notifications « de confort » : pas envoyées si une autre notification est partie il y a moins de PUSH_GAP_MIN minutes
 // (le brief, « séance dans 1h », le coucher, le bilan, la relecture, la validation automatique et la santé de l'app passent toujours)
 const PUSH_SOFT = /^(unvalidated-reminder|week-complete|planif-reminder|shaker|fc-repos|missed-key)/;
@@ -193,7 +205,9 @@ function getCurrentWeek(st) {
 function weekFromStart(start, total) {
   if (!start) return 1;
   // même calcul que l'app (getAthleteCW) : semaines écoulées depuis plan_start_date (un lundi)
-  const n = Math.floor(Math.floor((Date.now() - new Date(String(start).slice(0, 10)).getTime()) / 86400000) / 7) + 1;
+  // jours entre dates du calendrier de Paris (la semaine change le lundi à 0 h heure de Paris, comme l'app)
+  const days = Math.round((Date.parse(parisToday() + 'T12:00:00Z') - Date.parse(String(start).slice(0, 10) + 'T12:00:00Z')) / 86400000);
+  const n = Math.floor(days / 7) + 1;
   return Math.max(1, Math.min(total || 60, n));
 }
 function totalWeeksFor(st) {
@@ -219,7 +233,7 @@ function weekTypeFor(st, ws) {
 }
 // Lecture légère des clés de la prépa de l'admin (sans charger tout l'état)
 async function loadPrepState(db) {
-  const keys = ['_plan_engine', 'plan_start_date', 'plan_config', 'onboarding', 'target_time'];
+  const keys = ['_plan_engine', 'plan_start_date', 'plan_config', 'onboarding', 'target_time', 'fc_max', '_fc_max_manual', '_hr_zones'];
   const vals = await Promise.all(keys.map(k => db.ref(`${ADMIN_STATE}/${k}`).once('value').then(s => s.val()).catch(() => null)));
   const st = {}; keys.forEach((k, i) => { if (vals[i] !== null && vals[i] !== undefined) st[k] = vals[i]; });
   return st;
@@ -350,7 +364,7 @@ function restBriefSystem(state, sit) {
 
 PROFIL :
 - ${state && state._plan_engine ? prepObjectiveText(state) : 'Prépare sa prochaine course.'}
-- FC max 196 bpm. FC repos > 55 bpm = signe de fatigue.
+- FC max ${hrZonesOf(state).max} bpm. FC repos > 55 bpm = signe de fatigue.
 
 STRUCTURE OBLIGATOIRE — dans cet ordre, rien d'autre :
 
@@ -397,6 +411,14 @@ function autopilotBriefText(state, todayStr) {
 }
 
 // plafond FC de l'endurance : zones recalées par l'app (_hr_zones, body-signals.js) sinon 148 bpm
+// zones FC de l'athlète pour les consignes du Coach et des briefs (comme l'app : FC max saisie > zones recalées > déclarée > 196 ;
+// plafond d'endurance efMaxOf ; tempo / seuil 80-87 % de la FC max) — jamais « 196 » ni « 140-148 » écrits en dur
+function hrZonesOf(state) {
+  const st = state || {}, z = st._hr_zones || {}, m = st._fc_max_manual && +st._fc_max_manual.v;
+  const max = (m >= 140 && m <= 225) ? m : (z.applied && z.fcMax >= 140 && z.fcMax <= 225) ? z.fcMax : (parseInt(st.fc_max) || parseInt((st.onboarding || {}).fc_max) || 196);
+  const efHi = efMaxOf(st), efLo = efHi - 8;
+  return { max: max, efLo: efLo, efHi: efHi, tLo: Math.round(max * 0.80), tHi: Math.round(max * 0.87) };
+}
 function efMaxOf(state) { const z = state && state._hr_zones; return z && z.applied && z.efMax >= 120 && z.efMax <= 185 ? z.efMax : 148; }
 // allure EF de référence calculée par l'app sur TOUT l'historique (toutes les prépas) : _ef_ref { pace, at }, récente (≤ 7 j)
 function efRefOf(state, todayStr) {
@@ -620,31 +642,10 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   const fcWhoopRhr = (whoopToday && whoopRecov && whoopRecov.rhr) ? whoopRecov.rhr : null;
   const fcToday = fcWhoopRhr || state['fc_repos_'+todayStr] || null;
 
-  // Score global synthétique (même calcul que stats.js) : nuit du jour uniquement
+  // Forme du jour : exactement celle de l'app (prFormScore, gardée par prFormStore → _form_today), sinon même formule (formScoreFor)
   const r0 = whoopRecov;
   const s0 = _night.s;
-  const globalScoreComponents = [];
-  if (r0?.score != null) globalScoreComponents.push(r0.score);
-  if (s0?.performance_pct != null) globalScoreComponents.push(s0.performance_pct);
-  if (fcToday != null) {
-    const fcScore = fcToday <= 44 ? 100
-      : fcToday <= 50 ? Math.round(100 - (fcToday - 44) * 3)
-      : fcToday <= 60 ? Math.round(82 - (fcToday - 50) * 3.7)
-      : fcToday <= 70 ? Math.round(45 - (fcToday - 60) * 4.5)
-      : 0;
-    globalScoreComponents.push(fcScore);
-  }
-  if (r0?.hrv != null) {
-    const hrvScore = Math.max(0, Math.min(100, Math.round((r0.hrv - 40) / 50 * 100)));
-    globalScoreComponents.push(hrvScore);
-  }
-  let globalScore = globalScoreComponents.length
-    ? Math.round(globalScoreComponents.reduce((a,b)=>a+b,0)/globalScoreComponents.length)
-    : null;
-  // Si le score WHOOP du jour est rouge, le score global ne peut pas dépasser le rouge
-  if (whoopToday && r0?.score != null && r0.score < 34 && globalScore !== null && globalScore >= 34) {
-    globalScore = Math.min(globalScore, 33);
-  }
+  const globalScore = formScoreFor(state, todayStr, r0, s0, fcToday);
   const globalScoreEmoji = globalScore===null?'':globalScore>=67?'🟢':globalScore>=34?'🟡':'🔴';
   const globalScoreLabel = globalScore===null?''
     : globalScore>=67?'Bonne forme':globalScore>=34?'Forme moyenne':'Récupération insuffisante';
@@ -783,7 +784,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
-- FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
+- FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
 - Montre Garmin Forerunner 165.
 - Lundi midi : séance bodyhit (électrostimulation).
 
@@ -828,7 +829,7 @@ RÈGLES :
 - INTERDIT : récapituler la semaine ou lister les séances passées. La situation (course passée, prépa, prochaine course) sert à calibrer le brief : y faire référence en une phrase au plus, dans le bloc 2.`;
 
   const globalScoreLine = globalScore !== null
-    ? `Score du jour (synthétique) : ${globalScore}% ${globalScoreEmoji} ${globalScoreLabel} [moyenne récup+sommeil+FC${r0?.hrv!=null?'+VFC':''}]`
+    ? `Forme du jour (même score que dans l\'app) : ${globalScore}% ${globalScoreEmoji} ${globalScoreLabel}`
     : '';
 
   const userMsg = restDay ? `${dateComplet}
@@ -952,7 +953,7 @@ async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
 
 PROFIL :
 - ${state&&state._plan_engine?prepObjectiveText(state)+' '+(totalWeeksFor(state)-cw)+' semaines restantes.':'Prépare un marathon (18 octobre 2026), objectif Sub 4h. '+(32-cw)+' semaines restantes.'}
-- FC max 196 bpm. Zone EF : 140-148 bpm. FC repos > 55 bpm = signe de fatigue.
+- FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
 
 STRUCTURE OBLIGATOIRE — dans cet ordre exact, chaque section séparée par une ligne vide :
 
@@ -1009,7 +1010,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  pushTooClose, PUSH_GAP_MIN,
+  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf,
   buildTrainingSituation, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,

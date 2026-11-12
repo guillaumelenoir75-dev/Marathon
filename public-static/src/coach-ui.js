@@ -834,7 +834,7 @@ async function generateFullBriefFromNotif(memos) {
       memos: memos || null,
       consignes_ef: isRecoveryWeek(CW)
         ? 'Semaine DÉCHARGE : allure EF lente, FC < 140 bpm'
-        : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
+        : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC ${hrEfMax()-8}-${hrEfMax()} bpm`,
       allure_ef: getBestEfPace() || null,
       allure_marathon: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })() || null,
       allure_tempo: (()=>{
@@ -1213,7 +1213,7 @@ async function checkMorningBrief(memos, force) {
     memos: memos || null,
     consignes_ef: isRecoveryWeek(CW)
       ? `Semaine DÉCHARGE : allure EF lente, FC < 140 bpm`
-      : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC 140-148 bpm`,
+      : `Allure EF : ${getBestEfPace()||"6'40"}/km — FC ${hrEfMax()-8}-${hrEfMax()} bpm`,
     // Allures explicites pour que le coach puisse donner des chiffres précis
     allure_ef: getBestEfPace() || null,
     allure_marathon: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })() || null,
@@ -1595,7 +1595,7 @@ async function loadCoachHistory(){
                 if(_srIsTempo) {
                   _hrBg = _hrN<=172 ? 'rgba(134,239,172,0.4)' : _hrN<=185 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
                 } else {
-                  _hrBg = _hrN<=148 ? 'rgba(134,239,172,0.4)' : _hrN<=158 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
+                  _hrBg = _hrN<=hrEfMax() ? 'rgba(134,239,172,0.4)' : _hrN<=hrEfMax()+10 ? 'rgba(251,191,36,0.4)' : 'rgba(248,113,113,0.35)';
                 }
               }
               _badgesHtml += '<span style="background:'+_hrBg+';border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:#fff;">❤️ '+_srHr+' bpm</span>';

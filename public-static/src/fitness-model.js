@@ -11,7 +11,7 @@ function fmHr(){
   const rs = [], today = prTodayIso();
   for(let i = 0; i < 30; i++){ const v = parseFloat(state['fc_repos_' + prAddDays(today, -i)]); if(v > 30 && v < 100) rs.push(v); }
   rs.sort(function(a, b){ return a - b; });
-  return { rest: rs.length ? rs[Math.floor(rs.length / 2)] : 50, max: parseInt(state.fc_max) || parseInt((state.onboarding || {}).fc_max) || 190 };
+  return { rest: rs.length ? rs[Math.floor(rs.length / 2)] : 50, max: (typeof hrManualMax === 'function' && hrManualMax() && hrManualMax().v) || parseInt(state.fc_max) || parseInt((state.onboarding || {}).fc_max) || 196 };   // même FC max que le reste de l'app
 }
 // minutes d'une séance (durée saisie, sinon km × allure)
 function fmMinutes(s, efPace){

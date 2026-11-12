@@ -584,9 +584,10 @@ function confirmUndoSession(onConfirm){
 const openWeeks=new Set();
 function getAthleteCW(){
   if(!state.plan_start_date) return 1;
-  const now=new Date();
-  let startDate=new Date(state.plan_start_date);
-  const diffDays=Math.floor((now-startDate)/(1000*60*60*24));
+  // jours entre dates du calendrier local (plus d'heure UTC : la semaine change le lundi à 0 h, comme prMonday / prWeeks)
+  const _ld=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const _today=typeof prTodayIso==='function'?prTodayIso():_ld(new Date());
+  const diffDays=Math.round((Date.parse(_today+'T12:00:00Z')-Date.parse(String(state.plan_start_date).slice(0,10)+'T12:00:00Z'))/86400000);
   let cw=Math.max(1,Math.floor(diffDays/7)+1);
   // Auto-correction : si CW dépasse le nombre de semaines du plan,
   // recalculer plan_start_date depuis le sched_date de la première séance.
@@ -600,13 +601,12 @@ function getAthleteCW(){
         if(!s.sched_date) break;
         const d=new Date(s.sched_date+'T00:00:00'); const dw=d.getDay();
         const mon=new Date(d); mon.setDate(d.getDate()+(dw===0?-6:1-dw));
-        const iso=mon.toISOString().split('T')[0];
+        const iso=_ld(mon);   // date locale (toISOString décalait d'un jour avant 1-2 h du matin)
         if(iso!==state.plan_start_date){
           state.plan_start_date=iso;
           if(dbRef) dbRef.child('plan_start_date').set(iso).catch(()=>{});
         }
-        startDate=mon;
-        const d2=Math.floor((now-startDate)/(1000*60*60*24));
+        const d2=Math.round((Date.parse(_today+'T12:00:00Z')-Date.parse(iso+'T12:00:00Z'))/86400000);
         cw=Math.max(1,Math.floor(d2/7)+1);
         break;
       }catch(e){ break; }
