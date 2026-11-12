@@ -303,7 +303,10 @@ function _liveRenderHomeBtn(){
 function initLiveHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
   if(typeof firebase === 'undefined'){ b.style.display = 'none'; return; }      // mode aperçu hors ligne
-  b.style.display = 'none';                     // visible sur l'accueil seulement pendant une course lancée (sinon : Compte)
+  // visible sur l'accueil seulement pendant une course lancée (sinon : Compte) — état connu réappliqué à chaque rafraîchissement
+  // de l'accueil (avant : masqué à chaque renderHome, et ne revenait qu'au prochain changement de /live)
+  if(window._liveHomeListen && typeof _liveVal !== 'undefined' && _liveVal){ _liveRenderHomeBtn(); return; }
+  b.style.display = 'none';
   if(!isAdmin() || window._liveHomeListen || typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
   window._liveHomeListen = true;
   _liveLoadCore().then(function(){

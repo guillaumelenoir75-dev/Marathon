@@ -897,6 +897,7 @@ exports.shakerAfterRun = onSchedule(
       const snap=await db.ref(`${ADMIN_STATE}/_shaker_run_ts`).once('value');
       const ts=snap.val();
       if(!ts) return;
+      if(!(await getUserPref(db,ADMIN_STATE,'notif_shaker'))) return;   // réglage Préférences › Rappel shaker
       const now=Date.now();
       if(now<ts) return; // pas encore 30 min
       if(now-ts>90*60*1000){ await db.ref(`${ADMIN_STATE}/_shaker_run_ts`).remove(); return; } // expiré
@@ -919,6 +920,7 @@ exports.shakerNoon = onSchedule(
       // Jour de la semaine Paris : 1=lundi … 7=dimanche (même convention que sched_day)
       const _parisDate=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));
       const todayDay=_parisDate.getDay()===0?7:_parisDate.getDay();
+      if(!(await getUserPref(db,ADMIN_STATE,'notif_shaker'))) return;   // réglage Préférences › Rappel shaker
       // Lire le plan de la semaine courante
       const stateSnap=await db.ref(ADMIN_STATE).once('value');
       const st=stateSnap.val()||{};

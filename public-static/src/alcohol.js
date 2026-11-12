@@ -221,7 +221,7 @@ function alcFormChip(F, S){
     if(typeof _prepView !== 'undefined' && _prepView) return '';
     _alcCss();
     const day = alcDay(), e = alcEntry(day);
-    if(!e) return state['_wakeup_' + day] ? '<button type="button" class="alc-chip ask" onclick="alcAsk()"><span>🌙</span><span class="t">Alcool hier soir ? <u>Répondre</u></span><i aria-hidden="true">›</i></button>' : '';
+    if(!e) return state['_wakeup_' + day] && !(typeof mjActive === 'function' && mjActive()) ? '<button type="button" class="alc-chip ask" onclick="alcAsk()"><span>🌙</span><span class="t">Alcool hier soir ? <u>Répondre</u></span><i aria-hidden="true">›</i></button>' : '';
     const ico = function(t){ return (t || []).map(function(id){ const x = ALC_TYPES.find(function(y){ return y.id === id; }); return x ? x.ico : ''; }).join(''); };
     if(S && S.lost >= 3){
       const I = S.I, what = I.l ? I.l + '/10 hier soir ' + ico(I.t) : 'Pas d\'alcool hier soir';   // accueil : seulement la soirée d'hier
@@ -393,7 +393,7 @@ function alcHomeLine(F, chipShown){
 }
 function _alcHomeMain(F, day, e){
   try {
-    if(!e) return state['_wakeup_' + day] ? '<button type="button" class="alc-home ask" onclick="alcAsk()"><span>🌙</span><span><b>Alcool hier soir ?</b><small>Réponds pour séparer son effet de celui de l\'entraînement</small></span><span aria-hidden="true">›</span></button>' : '';
+    if(!e) return state['_wakeup_' + day] && !(typeof mjActive === 'function' && mjActive()) ? '<button type="button" class="alc-home ask" onclick="alcAsk()"><span>🌙</span><span><b>Alcool hier soir ?</b><small>Réponds pour séparer son effet de celui de l\'entraînement</small></span><span aria-hidden="true">›</span></button>' : '';
     if(!(+e.l > 0)){
       const C = alcImpact(day), S0 = F ? alcFormSplit(F, day) : null;
       if(S0 && S0.lost >= 3) return _alcSplitCard(S0, true);

@@ -772,7 +772,9 @@ test('alcool : étape plein écran du réveil (même fond), puis l\'accueil avec
   await b2.page.waitForSelector('#wakeup-banner .alc-fs .alc-fs-none', { timeout: 8000 });
   await b2.page.click('#wakeup-banner .alc-later');
   await b2.page.waitForFunction(() => document.getElementById('wakeup-banner').style.display === 'none');
-  assert.match(await b2.page.textContent('#home-form-card'), /Alcool hier soir \?/);
+  // la question reste posée dans « Ma journée » (une seule fois sur l'accueil, plus dans la carte Forme)
+  assert.match(await b2.page.textContent('#home-day-card'), /Alcool hier soir \?/);
+  assert.doesNotMatch(await b2.page.textContent('#home-form-card'), /Alcool hier soir \?/);
   assert.deepEqual(b2.errors, []);
   await b2.ctx.close();
 });
@@ -1436,6 +1438,12 @@ test('Ma journée : le matin le réveil d\'abord ; l\'après-midi la séance « 
   assert.match(await page.textContent('#home-day-card .mj-now'), /Je suis réveillé/);
   assert.match(await page.textContent('#home-day-card .mj-later'), /Footing EF/);
   assert.equal((await page.innerHTML('#home-next-card')).trim(), '', 'pas de doublon');
+  // réveil : une seule action sur l'accueil (« Ma journée »), ni pastille d'en-tête ni bouton dans la carte Forme
+  assert.equal(await page.evaluate(() => document.getElementById('wakeup-btn').style.display), 'none');
+  assert.equal(await page.locator('#home-form-card .pd-wake:has-text("Je suis réveillé")').count(), 0);
+  // course en direct lancée : le bouton reste après un rafraîchissement de l'accueil
+  const live = await page.evaluate(() => { window._liveHomeListen = true; _liveVal = { status: 'running', test: true }; _liveRenderHomeBtn(); renderHome(); return document.getElementById('home-live-btn').style.display; });
+  assert.equal(live, 'flex');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj-matin.png', clip: { x: 0, y: 200, width: 390, height: 420 } });
   assert.deepEqual(errors, []);
   await ctx.close();

@@ -1023,8 +1023,9 @@ async function checkMorningBrief(memos, force) {
   if(_briefShownToday) return false;
   // l'après-midi (12h en semaine, 13h le week-end), même depuis une notification : pas de brief, reporté au lendemain
   if(typeof briefTooLate === 'function' && briefTooLate()) return false;
-  // force=true (depuis notif) : on génère le brief même si la préf est désactivée côté client
-  if(!force && !getPref('notif_brief_matin')) return false;
+  // un seul générateur du brief du matin : le serveur, au réveil (briefAfterFcRepos → _brief_pending, affiché par checkPendingBrief).
+  // L'app ne génère plus son propre brief à 8h (règles différentes : dimanche, lundi) — seulement à la demande explicite (force)
+  if(!force) return false;
   const now = new Date();
   const h = now.getHours();
   const dow = now.getDay(); // 0=dim,1=lun,...,6=sam

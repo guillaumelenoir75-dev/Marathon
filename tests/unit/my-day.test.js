@@ -62,5 +62,6 @@ test('jour de repos : « Repos aujourd\'hui » et prochaine séance ; athlète :
   assert.ok(L.some((x) => x.id === 'rest'));
   assert.ok(!L.some((x) => x.id === 'wake' || x.id === 'alc' || x.id === 'brief'));
   const n = L.find((x) => x.id === 'next'); assert.match(n.t, /^Demain · Tempo/);
-  assert.equal(L.find((x) => x.st === 'now').id, 'bed', 'seul repère restant');
+  assert.ok(!L.some((x) => x.id === 'bed'), 'le matin : coucher pas dans Ma journée (pastille 🌙 de l\'en-tête)');
+  assert.equal(J(app.mjSteps(st, '2026-11-10', 21 * 60)).find((x) => x.st === 'now').id, 'bed', 'le soir : le coucher');
 });

@@ -46,6 +46,7 @@ async function testLocalNotif(type){
     notif_planif:      { title: '📅 On planifie la semaine ?', body: 'Prends 2 min pour planifier tes séances de la semaine à venir.' },
     notif_congrats:    { title: '🏆 Semaine S'+cw+' complète !', body: 'Toutes tes séances sont validées. Beau travail, continue ! 💪' },
     notif_fc_repos:    { title: '☀️ Réveillé ?', body: 'Déclare ton réveil : synchro WHOOP et ta forme du jour.' },
+    notif_shaker:      { title: '🥤 Pense à ton shaker !', body: 'Belle séance ! N\'oublie pas ton shaker de récupération 💪' },
     notif_missed:      { title: '⏭️ Séance clé manquée hier', body: 'Tempo 3×8 min pas faite — Réorganiser ma semaine ›' },
     notif_bedtime:     { title: '🌙 Couche-toi vers 22h40', body: 'Demain 7h30 : Footing EF. 8h20 de sommeil, réveil 7h30 (+20 min de dette).' },
     notif_unvalidated: { title: '⚠️ Séances non validées', body: '2 séances de cette semaine ne sont pas encore cochées.' },

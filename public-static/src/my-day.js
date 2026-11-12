@@ -78,6 +78,18 @@ function mjSteps(st, today, nowMin){
         act: 'showScreen(\'renfo\',' + r + ')', btn: '▶ Guidée', btnAct: 'showScreen(\'renfo\',' + r + ');openRenfoGuide()' });
     });
   }
+  // ── zones FC : une séance a révélé une nouvelle FC max / FC seuil → proposé ici (avant : seulement dans Statistiques) ──
+  try {
+    if(typeof hrZonesEstimate === 'function' && !(typeof _prepView !== 'undefined' && _prepView)){
+      const E = hrZonesEstimate(today);
+      if(E && E.propose){
+        const t = E.manual ? 'FC max relevée : ' + E.declared + ' → ' + E.obs.v + ' bpm' : 'Plafond d\'endurance : ' + E.cur + ' → ' + E.efMax + ' bpm';
+        out.push({ id: 'zones', ic: '❤️', t: t, s: 'Tes séances récentes recalent tes zones FC', at: 5 * 60 + 4, done: false,
+          act: 'showScreen(\'stats\');if(typeof statsTab===\'function\')statsTab(\'train\');setTimeout(function(){if(typeof statsGo===\'function\')statsGo(\'bs-stats-card\')},450)',
+          btn: 'Appliquer', btnAct: 'hrZonesApply();if(typeof sessionChanged===\'function\')sessionChanged()' });
+      }
+    }
+  } catch(e) {}
   // ── jour de repos ──
   const hasTraining = out.some(function(x){ return x.kind === 'sess' || /^renfo/.test(x.id); });
   if(!hasTraining) out.push({ id: 'rest', ic: '😌', t: 'Repos aujourd\'hui', s: 'Récupère : c\'est là que tu progresses', at: 12 * 60, done: true, info: true });
@@ -85,7 +97,7 @@ function mjSteps(st, today, nowMin){
   try {
     const B = typeof bsBedtime === 'function' ? bsBedtime(today) : null;
     const S = B && typeof bsBedtimeStatus === 'function' ? bsBedtimeStatus(today) : { ready: true };
-    if(B && S.ready){
+    if(B && S.ready && nowMin >= 19 * 60){   // le soir seulement : dans la journée, la pastille 🌙 de l'en-tête suffit
       const bm = _mjMin(String(B.bed).replace('h', ':'));
       out.push({ id: 'bed', ic: '🌙', t: 'Couche-toi vers ' + B.bed, s: B.sleep + ' de sommeil' + (B.wake ? ' · réveil ' + B.wake : ''), tm: B.bed.replace('h', ':'),
         at: bm != null ? Math.max(20 * 60, bm - 60) : 21 * 60, done: false, soft: true, act: 'openSleepPlan()' });
@@ -111,6 +123,13 @@ function mjSteps(st, today, nowMin){
   return out;
 }
 
+// « Ma journée » est affichée (accueil) : elle porte alors les actions du jour (réveil, alcool, ressenti) — les autres cartes
+// de l'accueil ne les répètent pas (en-tête, Forme du jour, ligne de la séance)
+function mjActive(){
+  if(typeof document === 'undefined' || !document.getElementById || !document.getElementById('home-day-card')) return false;
+  if((typeof _prepView !== 'undefined' && _prepView) || (typeof isPlaisirMode === 'function' && isPlaisirMode()) || typeof prSessions !== 'function') return false;
+  return true;
+}
 // ─── Affichage ─────────────────────────────────────────────────────────────────────────────────────────────
 let _mjOpen = false;
 function mjRender(){

@@ -551,7 +551,7 @@ function prRenderHomeCard(){
       const C = 2 * Math.PI * 26;
       h += '<div class="pd-form wait"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><text x="32" y="38" text-anchor="middle">💤</text></svg>'
         + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>En attente du réveil</b><small>Ta récupération WHOOP de cette nuit arrive au réveil.</small></div>'
-        + (typeof onWakeup === 'function' && typeof isAdmin === 'function' && isAdmin() ? '<button type="button" class="pd-wake" onclick="wakeupStart()">☀️ Je suis réveillé</button>' : '') + '</div>';
+        + (typeof onWakeup === 'function' && typeof isAdmin === 'function' && isAdmin() && !(typeof mjActive === 'function' && mjActive()) ? '<button type="button" class="pd-wake" onclick="wakeupStart()">☀️ Je suis réveillé</button>' : '') + '</div>';   // sinon : « Ma journée » juste en dessous
     } else if(F){ const C = 2 * Math.PI * 26;
       // alcool : arc hachuré violet jusqu'à la forme « sans alcool » (alcohol.js alcFormSplit)
       const AS = typeof alcFormSplit === 'function' ? alcFormSplit(F) : null, AL = AS && typeof alcFormLabel === 'function' ? alcFormLabel(F, AS) : null;

@@ -533,8 +533,8 @@ function renderHome(){
   if(vo2El) vo2El.textContent = vo2Val || '—';
   const wakeupBtn = document.getElementById('wakeup-btn');
   if (wakeupBtn) {
-    if (!isAdmin()) {
-      wakeupBtn.style.display = 'none';
+    if (!isAdmin() || (typeof mjActive === 'function' && mjActive())) {
+      wakeupBtn.style.display = 'none';   // le réveil se déclare dans « Ma journée » (et l'écran plein du matin)
     } else {
       wakeupBtn.style.display = 'flex';
       const wakeupDate = (typeof _getWakeupDate === 'function') ? _getWakeupDate() : new Date().toISOString().slice(0, 10);
@@ -903,7 +903,7 @@ function renderHome(){
       row.className='hs-row'+(skip?' skip':''); row.style.setProperty('--c',skip?'#C0392B':typeC);
       row.setAttribute('role','button'); row.setAttribute('aria-expanded','false');
       row.onclick=()=>{homeSessToggle(row);row.setAttribute('aria-expanded',row.classList.contains('open')?'true':'false');};
-      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km'+(()=>{const L=typeof prEqPaceLabel==='function'?prEqPaceLabel(pf,rv!=null?rv:s2.km):'';return L?' <i class="hs-eq">'+L+'</i>':'';})():'')))+'</span>'+(pf.auto&&!pf.rpe&&!pf.feelSkip?'<button type="button" class="hs-feel" onclick="event.stopPropagation();avFeelOpen(\'extra_w'+w+'_s'+ei+'\')">🤖 ressenti ?</button>':pf.auto?'<span class="hs-d" title="Validée automatiquement">🤖</span>':'')+(dd?'<span class="hs-d">'+dd+'</span>':'')+(!skip&&typeof openSessionShare==='function'?'<button type="button" class="hs-share" aria-label="Image de la séance à partager" title="Partager la séance" onclick="event.stopPropagation();openSessionShare(\'extra_w'+w+'_s'+ei+'\')">📸</button>':'')+'<span class="hs-ch">›</span>';
+      row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km'+(()=>{const L=typeof prEqPaceLabel==='function'?prEqPaceLabel(pf,rv!=null?rv:s2.km):'';return L?' <i class="hs-eq">'+L+'</i>':'';})():'')))+'</span>'+(pf.auto&&!pf.rpe&&!pf.feelSkip&&!(typeof mjActive==='function'&&mjActive()&&(pf.date||s2.sched_date)===(typeof prTodayIso==='function'?prTodayIso():''))?'<button type="button" class="hs-feel" onclick="event.stopPropagation();avFeelOpen(\'extra_w'+w+'_s'+ei+'\')">🤖 ressenti ?</button>':pf.auto?'<span class="hs-d" title="Validée automatiquement">🤖</span>':'')+(dd?'<span class="hs-d">'+dd+'</span>':'')+(!skip&&typeof openSessionShare==='function'?'<button type="button" class="hs-share" aria-label="Image de la séance à partager" title="Partager la séance" onclick="event.stopPropagation();openSessionShare(\'extra_w'+w+'_s'+ei+'\')">📸</button>':'')+'<span class="hs-ch">›</span>';
       if(!skip&&typeof _wsCss==='function') _wsCss();
       div.style.display='none';
       el.appendChild(row);

@@ -179,6 +179,7 @@ function openPrefsModal(){
             + rowN('Félicitations semaine','Notification quand la semaine est complète','notif_congrats')
             + (isAdmin()?rowN('Rappel de réveil','Le matin, si ton réveil n\'est pas encore déclaré','notif_fc_repos'):'')
             + (isAdmin()?rowN('Heure de coucher','21h tous les soirs — besoin appris sur tes nuits WHOOP','notif_bedtime'):'')
+            + (isAdmin()?rowN('Rappel shaker','Protéines 30 min après la séance, et à 14h les jours sans séance','notif_shaker'):'')
             + rowN('Séances non validées','Rappel si des séances ne sont pas cochées','notif_unvalidated');
         })()}
       </div>

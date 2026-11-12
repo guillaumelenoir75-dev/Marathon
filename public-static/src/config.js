@@ -166,9 +166,11 @@ const weeks=[
 const _HARD_WEEKS = weeks.slice(), _HARD_DATES = weekDates.slice();
 const _MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 function syncPlanCompat(){
-  if(typeof isAdmin !== 'function' || !isAdmin()) return;             // athlètes : inchangé
+  // athlète : semaine et plan de SA prépa (plus la semaine du plan Seine-Eure écrit en dur) dès qu'il a un programme
+  const _adm = typeof isAdmin === 'function' && isAdmin();
+  if(!_adm && !(state && state.plan_start_date && getAthleteMaxWeek() > 0)) return;
   weeks.length = 0; weekDates.length = 0;
-  if(usesHardPlan()){
+  if(_adm && usesHardPlan()){
     _HARD_WEEKS.forEach(function(w){ weeks.push(w); }); _HARD_DATES.forEach(function(d){ weekDates.push(d); });
     CW = getCurrentWeek(); homeViewWeek = CW; return;
   }
@@ -190,7 +192,7 @@ function syncPlanCompat(){
   if(!(homeViewWeek >= 1 && homeViewWeek <= weeks.length)) homeViewWeek = CW;   // garde la semaine consultée à l'accueil (save() rappelle cette fonction)
   // créneaux renfo habituels de l'admin (mercredi 19:00, vendredi 18:30) pour la semaine en cours et la suivante
   const rfDef = { 1: { day: 3, time: '19:00' }, 2: { day: 5, time: '18:30' } };
-  [CW, Math.min(CW + 1, weeks.length)].forEach(function(w){ [1, 2].forEach(function(r){ const k = 'rf' + w + 'r' + r + 'sched'; if(!state[k]) state[k] = JSON.stringify(rfDef[r]); }); });
+  if(_adm) [CW, Math.min(CW + 1, weeks.length)].forEach(function(w){ [1, 2].forEach(function(r){ const k = 'rf' + w + 'r' + r + 'sched'; if(!state[k]) state[k] = JSON.stringify(rfDef[r]); }); });
 }
 // Course objectif de la prépa en cours
 function prepRace(){
