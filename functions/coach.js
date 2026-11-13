@@ -512,6 +512,14 @@ Structure : 3-4 blocs max (émoji + 1-2 phrases chacun). Arrête-toi sur une phr
 Cite les chiffres clés mais reste concis.
 SI L'ATHLÈTE DEMANDE UNE CRITIQUE DU PLAN : applique impérativement la règle ESPRIT CRITIQUE SUR LE PLAN. Identifie 2-4 points concrets à améliorer. Sois direct. Pas de validation creuse.`;
         maxTokens = 500;
+      } else if(responseMode === 'voix') {
+        modeInstructions = `MODE VOCAL : ta réponse est lue à voix haute pendant une conversation, {{PRENOM}} t'écoute (il ne lit pas).
+Parle comme un coach au téléphone : 2 à 4 phrases courtes et naturelles, la plus importante en premier.
+INTERDIT : listes, titres, tableaux, markdown, émojis, symboles, abréviations obscures, balises [FEU:…].
+Chiffres : seulement les 1 ou 2 qui comptent, dits simplement (« cinq minutes quarante au kilomètre », « cent quarante-cinq pulsations »).
+Si la question demande un long bilan : donne l'essentiel en 3 phrases et propose d'en dire plus.
+Tu peux finir par une question courte si elle fait avancer l'échange — jamais systématiquement.`;
+        maxTokens = 260;
       } else if(responseMode === 'meteo') {
         modeInstructions = `MODE MÉTÉO : Conseils running personnalisés selon la météo actuelle.
 LIMITE ABSOLUE : 3 conseils courts maximum. Chaque conseil = 1 phrase. Total : 5-7 lignes grand maximum.

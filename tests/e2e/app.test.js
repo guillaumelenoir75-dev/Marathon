@@ -94,6 +94,40 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
   await ctx.close();
 });
 
+test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute relancée, échange gardé dans le fil', async () => {
+  let body = null;
+  const sse = ['Très bonne question. ', 'Ce soir, fais ton footing à 5\'40/km', ' sans forcer, FC sous 145 bpm. ', 'Ça te va ?'];
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    functions: async (r) => {
+      if (/coachChat/.test(r.request().url())) { body = JSON.parse(r.request().postData() || '{}'); return r.fulfill({ contentType: 'text/event-stream', body: sse.map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' }); }
+      return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    },
+    init: () => {
+      window.__said = []; window.__recStarts = 0;
+      class FakeRec { start() { window.__recStarts++; const me = this; if (window.__recStarts === 1) setTimeout(() => { const r = [{ transcript: 'Comment je cours ce soir' }]; r.isFinal = true; me.onresult && me.onresult({ results: [r] }); me.onend && me.onend(); }, 150); } stop() {} abort() {} }
+      window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {}, getVoices() { return [{ lang: 'fr-FR', name: 'Amélie', localService: true }]; } } });
+    } });
+  await page.evaluate(() => showScreen('coach')); await page.waitForTimeout(300);
+  assert.ok(await page.evaluate(() => !!document.querySelector('#coach-voice-btn').offsetParent), 'bouton micro dans le Coach');
+  await page.click('#coach-voice-btn');
+  await page.waitForSelector('#cv-ov');
+  await page.waitForFunction(() => window.__recStarts >= 2, null, { timeout: 8000 });   // réponse lue puis écoute relancée
+  const r = await page.evaluate(() => ({ said: window.__said.filter((t) => t.trim()), st: document.getElementById('cv-ov').className, you: document.querySelector('#cv-ov .cv-you').textContent,
+    thread: document.getElementById('coach-messages').textContent }));
+  assert.equal(body && body.responseMode, 'voix', 'réponse courte faite pour être écoutée');
+  assert.equal(r.you, 'Comment je cours ce soir');
+  assert.ok(r.said.length >= 2, 'lue phrase par phrase : ' + JSON.stringify(r.said));
+  assert.ok(r.said.some((t) => /5 minutes 40 au kilomètre/.test(t) && /145 pulsations/.test(t)), JSON.stringify(r.said));
+  assert.match(r.st, /listen/);
+  assert.match(r.thread, /Comment je cours ce soir/); assert.match(r.thread, /Ça te va \?/);
+  await page.click('#cv-ov .cv-x');
+  assert.equal(await page.evaluate(() => !!document.getElementById('cv-ov')), false);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('écrans rares chargés à la demande : chaque point d\'entrée charge son fichier et ouvre l\'écran, sans erreur', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   const lazy = await page.evaluate(() => Object.keys(window.LAZY_BUNDLES || {}));

@@ -215,13 +215,15 @@ async function sendCoachMeteo() {
 function isAtBottom(el){ return el.scrollHeight - el.scrollTop - el.clientHeight < 80; }
 function smartScroll(el){ if(isAtBottom(el)) el.scrollTo({top:el.scrollHeight,behavior:"smooth"}); }
 
-async function sendCoachMessage(retryMsg){
-  if(typeof coachAI === 'function' && !coachAI()) return;   // Coach IA : compte admin seulement (le serveur refuse aussi)
+// opts (mode vocal, coach-voice.js) : {voice: true, onToken(t), onDone(texte|null)} — réponse courte « à écouter », texte reçu au fil du flux
+async function sendCoachMessage(retryMsg, opts){
+  opts = opts || {};
+  if(typeof coachAI === 'function' && !coachAI()){ if(opts.onDone) opts.onDone(null); return; }   // Coach IA : compte admin seulement (le serveur refuse aussi)
   const input = document.getElementById('coach-input');
   const msg = retryMsg || (input ? input.value.trim() : '');
-  if(!msg) return;
-  if(input){ input.value = ''; input.style.height='auto'; }
-  if(input) setTimeout(()=>input.focus(),100);
+  if(!msg){ if(opts.onDone) opts.onDone(null); return; }
+  if(input && !retryMsg){ input.value = ''; input.style.height='auto'; }
+  if(input && !opts.voice) setTimeout(()=>input.focus(),100);   // mode vocal : pas de clavier
   addCoachMessage('user', msg);
   coachHistory.push({role:'user', content: msg, date: new Date().toISOString().slice(0,10)});
   _lastUserMessageBeforeProposal = msg; // stocker pour extraction
@@ -243,7 +245,7 @@ async function sendCoachMessage(retryMsg){
   try {
     // ── Détecter ce que la question nécessite ──
     const needs = detectContextNeeds(msg);
-    const responseMode = detectResponseMode(msg);
+    const responseMode = opts.voice ? 'voix' : detectResponseMode(msg);
 
     // ── Construire l'historique complet (réutilisé si besoin) ──
     const fullHistory = [];
@@ -533,7 +535,8 @@ async function sendCoachMessage(retryMsg){
         if(!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
         if(data === '[DONE]') continue;
-        try { const parsed = JSON.parse(data); if(parsed.token) fullText += parsed.token; } catch(e) {}
+        let parsed = null; try { parsed = JSON.parse(data); } catch(e) {}
+        if(parsed && parsed.token){ fullText += parsed.token; if(opts.onToken) try { opts.onToken(parsed.token); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); } }
       }
     }
 
@@ -548,7 +551,7 @@ async function sendCoachMessage(retryMsg){
       // Retry après 2 secondes
       setTimeout(() => {
         window._coachRetrying = false;
-        sendCoachMessage(msg);
+        sendCoachMessage(msg, opts);
       }, 2000);
       return;
     }
@@ -574,6 +577,7 @@ async function sendCoachMessage(retryMsg){
 
     coachHistory.push({role:'assistant', content: cleanedFullText||'', date: new Date().toISOString().slice(0,10)});
     saveCoachHistory();
+    if(opts.onDone) try { opts.onDone(cleanedFullText || ''); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); }
     if(cleanedFullText) checkForPlanProposal(cleanedFullText, bubble);
     if(responseMode==='analyse'||responseMode==='rapport'){
       setTimeout(()=>{
@@ -588,6 +592,7 @@ async function sendCoachMessage(retryMsg){
     loader.remove();
     if(sendBtn){ sendBtn.disabled=false; sendBtn.style.opacity='1'; sendBtn.style.cursor='pointer'; }
     addCoachMessage('coach', 'Désolé, je suis temporairement indisponible.');
+    if(opts.onDone) try { opts.onDone(null); } catch(_) {}
   }
 }
 function saveCoachHistory(){

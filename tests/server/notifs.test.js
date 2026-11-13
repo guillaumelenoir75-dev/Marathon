@@ -216,3 +216,8 @@ test('« Ce que le Coach sait de toi » : profil, activités fixes et prénom lu
   assert.doesNotMatch(sys, /bodyhit|rotule|Forerunner|Guillaume/i);
   assert.match(sys, /\{\{PRENOM\}\}/, 'prénom remplacé au moment de l\'appel (callAnthropic)');
 });
+
+test('Coach à la voix : mode « voix » = réponse courte, sans liste ni émoji, faite pour être écoutée', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../../functions/coach.js'), 'utf8');
+  assert.match(src, /responseMode === 'voix'[\s\S]{0,900}MODE VOCAL[\s\S]{0,700}INTERDIT : listes, titres, tableaux, markdown, émojis[\s\S]{0,600}maxTokens = 260/);
+});

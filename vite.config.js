@@ -28,6 +28,7 @@ const lazyGroups = {
   charts: ['body-signals-ui.js'],                             // niveau, allures, ta nuit, données à vérifier
   alcui: ['alcohol-ui.js'],                                   // Statistiques › détail Alcool
   raui: ['race-analysis-ui.js'],                              // analyse de course
+  voice: ['coach-voice.js'],                                  // Coach › parler à la voix
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

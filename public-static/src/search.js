@@ -49,6 +49,7 @@ const SR_ITEMS = [
   { id: 'records', ic: '🏆', t: 'Mes records', g: 'Compte › Mes courses', k: 'record pr meilleur temps chrono', fn: 'openRecordsModal', run: function(){ openRecordsModal(); } },
   // réglages
   { id: 'shoes', ic: '👟', t: 'Mes chaussures', g: 'Compte › Mon entraînement', k: 'chaussures paires km usure', fn: 'openShoesPanel', run: function(){ openShoesPanel(); } },
+  { id: 'voice', ic: '🎙️', t: 'Parler au Coach à la voix', g: 'Coach', k: 'vocal voix micro oral parler discuter mains libres conversation', a: true, fn: 'openCoachVoice', run: function(){ showScreen('coach'); openCoachVoice(); } },
   { id: 'coachprofile', ic: '🧠', t: 'Ce que le Coach sait de moi', g: 'Compte › Mon entraînement', k: 'profil coach blessure sante parcours activite fixe bodyhit contraintes materiel montre', a: true, fn: 'openCoachProfile', run: function(){ openCoachProfile(); } },
   { id: 'autopilot', ic: '🤖', t: 'Pilote automatique', g: 'Compte › Mon entraînement', k: 'ajustements nuit automatique pilote', fn: 'openAutopilotSettings', run: function(){ openAutopilotSettings(); } },
   { id: 'autoval', ic: '✅', t: 'Validation automatique', g: 'Compte › Mon entraînement', k: 'validation auto strava whoop meteo reglage', fn: 'avOpenSettings', run: function(){ avOpenSettings(); } },
