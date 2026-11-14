@@ -122,6 +122,20 @@ test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute 
   assert.ok(r.said.some((t) => /5 minutes 40 au kilomètre/.test(t) && /145 pulsations/.test(t)), JSON.stringify(r.said));
   assert.match(r.st, /listen/);
   assert.match(r.thread, /Comment je cours ce soir/); assert.match(r.thread, /Ça te va \?/);
+  // toucher la réponse = la relire
+  const n0 = await page.evaluate(() => window.__said.length);
+  await page.click('#cv-ov .cv-co'); await page.waitForTimeout(400);
+  assert.ok(await page.evaluate((n) => window.__said.length > n, n0), 'réponse relue');
+  // réglages : vitesse rapide gardée sur le téléphone
+  await page.click('#cv-ov .cv-gear');
+  await page.click('#cv-ov .cv-set button:has-text("Rapide")');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('pm_cv')).rate), 1.2);
+  assert.equal(await page.evaluate(() => _cv.prefs.rate), 1.2);
+  // 2e question écrite : l'échange précédent passe dans le fil de l'écran vocal
+  await page.click('#cv-ov .cv-gear');
+  await page.fill('#cv-in', 'Et demain ?'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => document.querySelector('#cv-ov .cv-log').textContent.includes('Comment je cours ce soir'), null, { timeout: 5000 });
+  assert.equal(await page.evaluate(() => document.querySelector('#cv-ov .cv-you').textContent), 'Et demain ?');
   await page.click('#cv-ov .cv-x');
   assert.equal(await page.evaluate(() => !!document.getElementById('cv-ov')), false);
   assert.deepEqual(errors, []);

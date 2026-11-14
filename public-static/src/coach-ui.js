@@ -215,7 +215,7 @@ async function sendCoachMeteo() {
 function isAtBottom(el){ return el.scrollHeight - el.scrollTop - el.clientHeight < 80; }
 function smartScroll(el){ if(isAtBottom(el)) el.scrollTo({top:el.scrollHeight,behavior:"smooth"}); }
 
-// opts (mode vocal, coach-voice.js) : {voice: true, onToken(t), onDone(texte|null)} — réponse courte « à écouter », texte reçu au fil du flux
+// opts (mode vocal, coach-voice.js) : {voice: true, onToken(t), onDone(texte|null), memos} — réponse courte « à écouter », texte reçu au fil du flux
 async function sendCoachMessage(retryMsg, opts){
   opts = opts || {};
   if(typeof coachAI === 'function' && !coachAI()){ if(opts.onDone) opts.onDone(null); return; }   // Coach IA : compte admin seulement (le serveur refuse aussi)
@@ -365,7 +365,8 @@ async function sendCoachMessage(retryMsg, opts){
 
     // ── Charger les mémos ──
     let coachMemos = '';
-    try { const ms = await dbRef.child('_coach_memos').once('value'); coachMemos = ms.val()||''; } catch(e){}
+    if(typeof opts.memos === 'string') coachMemos = opts.memos;   // mode vocal : mémos déjà chargés à l'ouverture (une lecture de moins par question)
+    else try { const ms = await dbRef.child('_coach_memos').once('value'); coachMemos = ms.val()||''; } catch(e){}
 
     // ── Date / heure / séances du jour ──
     const now = new Date();
