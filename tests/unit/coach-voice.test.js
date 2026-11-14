@@ -71,3 +71,17 @@ test('cvBriefText : brief en attente du jour, sinon dernier brief du jour dans l
   const long = '## ❤️ FC REPOS & RÉCUPÉRATION\n' + 'x'.repeat(300);
   assert.equal(app.cvBriefText({}, '2026-11-13', [{ role: 'assistant', date: '2026-11-13', content: long }]), long);
 });
+
+test('image de séance : l\'allure de chaque km a sa place au-dessus de sa barre (14 km, 21 km, 30 km)', () => {
+  const S = 1080, M = 64;
+  [14, 21, 30].forEach((n) => {
+    const gw = n > 20 ? 4 : 8, bw = (S - 2 * M - gw * (n - 1)) / n;
+    for (let i = 0; i < n; i++) {
+      const L = app.ssSplitLabel(n, bw, gw, i);
+      assert.ok(L.font >= 14 && L.font <= 24, n + ' km : police lisible');
+      if (L.rotate) assert.ok(n > 20 && L.font <= bw + gw - 4, n + ' km : à la verticale, la hauteur du texte tient dans la largeur de la barre');
+      else assert.ok(L.font * 2.3 <= L.room + 1, n + ' km : « 5\'13 » tient dans sa place');
+    }
+  });
+  assert.equal(app.ssSplitLabel(14, 60, 8, 3).font, 24, '14 km (cas de la capture) : grande police, toutes les allures');
+});

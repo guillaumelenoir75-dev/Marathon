@@ -254,13 +254,17 @@ function ssDraw(D){
   } else if(D.splits.length >= 2){
     txt('ALLURE PAR KM', M, top, 22, 'rgba(255,255,255,0.5)', 800, 'left', 4);
     const L = D.splits.slice(0, 30), n = L.length, gw = n > 20 ? 4 : 8, bw = (S - 2 * M - gw * (n - 1)) / n;
-    const secs = L.map(function(x){ return x.sec; }), mn = Math.min.apply(null, secs), mx = Math.max.apply(null, secs), base = bot, hMax = 170;
+    const secs = L.map(function(x){ return x.sec; }), mn = Math.min.apply(null, secs), mx = Math.max.apply(null, secs), base = bot, hMax = n > 20 ? 140 : 170;   // > 20 km : place pour les allures écrites à la verticale
     const best = secs.indexOf(mn);
     L.forEach(function(x, i){ const h = 36 + (mx > mn ? (mx - x.sec) / (mx - mn) : 0.6) * (hMax - 36), xx = M + i * (bw + gw);
       const q = g.createLinearGradient(0, base - h, 0, base); q.addColorStop(0, i === best ? A1 : alpha(A1, 0.85)); q.addColorStop(1, alpha(A2, 0.55));
       g.fillStyle = x.part ? alpha(A1, 0.3) : q; _wsRound(g, xx, base - h, bw, h, Math.min(14, bw / 2)); g.fill();
-      if(n <= 12 || i === best) txt(pace(x.sec), xx + bw / 2, base - h - 12, n <= 12 ? 22 : 24, i === best ? '#FFFFFF' : 'rgba(255,255,255,0.7)', 800, 'center');
-      if(n <= 15 || (i + 1) % 5 === 0) txt(String(x.km || i + 1), xx + bw / 2, base + 30, 20, 'rgba(255,255,255,0.5)', 700, 'center'); });
+      // allure de CHAQUE km au-dessus de sa barre : taille adaptée à la largeur, en quinconce si les barres sont très serrées
+      const lay = ssSplitLabel(n, bw, gw, i), lab = pace(x.sec), col = i === best ? '#FFFFFF' : 'rgba(255,255,255,0.78)';
+      let fs = lay.font; while(fs > 12 && width(lab, fs, 800) > lay.room) fs--;
+      if(lay.rotate){ g.save(); g.translate(xx + bw / 2 + fs * 0.36, base - h - 10); g.rotate(-Math.PI / 2); txt(lab, 0, 0, fs, col, 800, 'left'); g.restore(); }   // à la verticale au-dessus de sa barre
+      else txt(lab, xx + bw / 2, base - h - 12, fs, col, 800, 'center');
+      if(n <= 22 || (i + 1) % 5 === 0) txt(String(x.km || i + 1), xx + bw / 2, base + 30, n <= 15 ? 20 : 17, 'rgba(255,255,255,0.5)', 700, 'center'); });
   } else {
     g.fillStyle = 'rgba(255,255,255,0.06)'; _wsRound(g, M, top - 20, S - 2 * M, 160, 28); g.fill();
     txt(fit(D.detail || D.title, 34, 800, S - 2 * M - 60), S / 2, top + 50, 34, '#FFFFFF', 800, 'center');
@@ -280,6 +284,13 @@ function ssDraw(D){
   if(D.race) txt(fit((D.race.days === 0 ? 'Jour J' : 'J-' + D.race.days) + '  ·  ' + D.race.name, 26, 700, S - 2 * M - 260), M, 1010, 26, 'rgba(255,255,255,0.75)', 700);
   txt((typeof planBrand === 'function' ? planBrand() : 'Plan course').toUpperCase(), S - M, 1010, 22, 'rgba(255,255,255,0.42)', 800, 'right', 5);
   return c;
+}
+// étiquette d'allure d'une barre (image de séance) : chaque km garde son allure. Jusqu'à 20 km : à plat au-dessus de la
+// barre (police selon la largeur) ; au-delà : à la verticale au-dessus de la barre (la hauteur de police tient dans la largeur)
+function ssSplitLabel(n, bw, gw){
+  if(n > 20) return { rotate: true, font: Math.max(14, Math.min(22, Math.floor(bw + gw - 6))), room: 58 };
+  const room = bw + gw - 4;
+  return { rotate: false, font: Math.max(14, Math.min(24, Math.floor(room / 2.3))), room: room };
 }
 function _ssName(){ return 'seance-' + (_ssData && _ssData.date ? _ssData.date : '') + '.png'; }
 function openSessionShare(key){
