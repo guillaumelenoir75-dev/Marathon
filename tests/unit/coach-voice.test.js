@@ -45,3 +45,29 @@ test('cvSuggest : suggestions selon le moment et la séance du jour', () => {
   const sun = JSON.parse(JSON.stringify(a.cvSuggest({}, new Date('2026-11-15T19:00:00+01:00'))));
   assert.deepEqual(sun.slice(0, 2), ['Fais-moi le bilan de ma semaine', 'Qu\'est-ce que je fais demain ?'], 'dimanche soir');
 });
+
+test('cvIntent : commandes vocales reconnues, questions jamais prises pour une commande', () => {
+  const I = (t) => JSON.parse(JSON.stringify(app.cvIntent(t)));
+  assert.deepEqual(I('Pas d\'alcool hier soir'), { k: 'alc', l: 0, t: [] });
+  assert.deepEqual(I("J'ai bu 3 bières"), { k: 'alc', l: 3, t: ['beer'], n: 3 });
+  assert.deepEqual(I("J'ai bu deux verres de vin."), { k: 'alc', l: 2, t: ['wine'], n: 2 });
+  assert.deepEqual(I("J'ai bu 2 pintes"), { k: 'alc', l: 5, t: ['beer'], n: 4 }, 'une pinte ≈ 2 verres → 4 verres = niveau 5');
+  assert.deepEqual(I('alcool 4 sur 10'), { k: 'alc', l: 4, t: [] });
+  assert.equal(app.cvIntent("Est-ce que l'alcool d'hier soir change ma séance ?"), null, 'question → le Coach');
+  assert.equal(app.cvIntent("j'ai bu 3 verres hier, c'est grave ?"), null);
+  assert.equal(I('Lis-moi mon brief').k, 'brief');
+  assert.equal(I("J'ai fini ma séance").k, 'fin');
+  assert.deepEqual(I('Ouvre mes statistiques'), { k: 'go', s: 'stats', label: 'tes statistiques' });
+  assert.equal(I('Répète').k, 'repeat');
+  assert.deepEqual(I('Parle plus lentement'), { k: 'rate', d: -1 });
+  assert.equal(I('Merci, c\'est tout').k, 'bye');
+  assert.equal(app.cvIntent('Salut'), null, 'un bonjour ne ferme pas la conversation');
+  assert.equal(app.cvIntent('Comment je cours ce soir'), null);
+});
+
+test('cvBriefText : brief en attente du jour, sinon dernier brief du jour dans le fil', () => {
+  assert.equal(app.cvBriefText({ _brief_pending: { date: '2026-11-13', content: 'Bonjour ! Récup 70 %…' } }, '2026-11-13', []), 'Bonjour ! Récup 70 %…');
+  assert.equal(app.cvBriefText({ _brief_pending: { date: '2026-11-12', content: 'hier' } }, '2026-11-13', []), null, 'jamais celui de la veille');
+  const long = '## ❤️ FC REPOS & RÉCUPÉRATION\n' + 'x'.repeat(300);
+  assert.equal(app.cvBriefText({}, '2026-11-13', [{ role: 'assistant', date: '2026-11-13', content: long }]), long);
+});

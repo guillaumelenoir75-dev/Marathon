@@ -67,6 +67,38 @@ function cvSuggest(st, now){
   ['Où j\'en suis pour mon objectif ?', 'Fais-moi le point sur ma semaine', 'Qu\'est-ce que je fais demain ?'].forEach(function(x){ if(out.indexOf(x) < 0) out.push(x); });
   return out.slice(0, 3);
 }
+// ─── Commandes vocales traitées sur le téléphone (instantané, sans le Coach) ───
+// alcool d'hier soir, lire le brief, « j'ai fini » (validation), ouvrir un écran, répéter, vitesse de la voix, fin de conversation.
+// Une question (« est-ce que l'alcool… ? ») n'est jamais prise pour une commande.
+const CV_NUM = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12 };
+const CV_SCREENS = [[/plan|programme/, 'plan', 'ton plan'], [/stat/, 'stats', 'tes statistiques'], [/accueil|journ[ée]e/, 'home', 'l\'accueil'], [/compte|r[ée]glage/, 'compte', 'ton compte'], [/renfo|renforcement/, 'renfo', 'le renfo']];
+function cvIntent(text){
+  const raw = String(text || '').trim(), t = raw.toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, ' ').replace(/[.!]+$/, '');
+  if(!t) return null;
+  const question = /\?$/.test(raw) || /^(est-ce|est ce|pourquoi|comment|combien|quel|quelle|qu'est-ce|que penses|tu penses|à ton avis|dis-moi si)/.test(t);
+  const words = t.split(' ').length;
+  if(!question){
+    if(/^(pas d'alcool|aucun alcool|z[ée]ro alcool|rien bu|je n'ai (rien|pas) bu|j'ai rien bu|pas bu)/.test(t)) return { k: 'alc', l: 0, t: [] };
+    let m = t.match(/^(?:hier soir,? )?(?:j'ai bu|j'ai pris|j ai bu)\s+(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze)\s+(verres? de vin|verres? d'alcool|verres?|bi[èe]res?|demis?|pintes?|coupes?|ballons?|cocktails?|shots?|whisky)/);
+    if(m){
+      let n = /^\d+$/.test(m[1]) ? +m[1] : CV_NUM[m[1]] || 0; const w = m[2];
+      if(/pinte/.test(w)) n *= 2;                                  // une pinte ≈ 2 verres standard
+      let l = 0; while(l < ALC_DRINKS_CV.length - 1 && ALC_DRINKS_CV[l] < n) l++;
+      const ty = /bi[èe]re|demi|pinte/.test(w) ? ['beer'] : /vin|coupe|ballon/.test(w) ? ['wine'] : /whisky|shot|cocktail|alcool/.test(w) ? ['spirits'] : [];
+      return { k: 'alc', l: l, t: ty, n: n };
+    }
+    m = t.match(/^(?:alcool|j'ai bu)\s*:?\s*(\d{1,2})\s*(?:sur|\/)\s*10$/); if(m && +m[1] <= 10) return { k: 'alc', l: +m[1], t: [] };
+    if(/^(lis|lit|relis|lire|lis-moi|lit-moi|relis-moi|tu peux lire|tu me lis)\b.*\bbrief\b/.test(t) || /^(mon|le) brief( du matin)?$/.test(t)) return { k: 'brief' };
+    if(/^(j'ai fini|j'ai termin[ée]|je viens de finir|je viens de terminer|valide ma s[ée]ance|valider ma s[ée]ance|s[ée]ance termin[ée]e)/.test(t)) return { k: 'fin' };
+    if(/^(ouvre|montre|affiche|va (sur|dans|à|au)|emm[eè]ne-moi)/.test(t) && words <= 6){ for(const S of CV_SCREENS){ if(S[0].test(t)) return { k: 'go', s: S[1], label: S[2] }; } }
+    if(/^(r[ée]p[èe]te|tu peux r[ée]p[ée]ter|redis|redis-le|encore une fois)/.test(t) && words <= 5) return { k: 'repeat' };
+    if(/(parle|parles|lis|va) (un peu )?(plus )?(lentement|moins vite|doucement)/.test(t) && words <= 7) return { k: 'rate', d: -1 };
+    if(/(parle|parles|lis|va) (un peu )?plus vite|acc[ée]l[eè]re/.test(t) && words <= 7) return { k: 'rate', d: 1 };
+    if(/^(stop|arr[êe]te|c'est tout|merci,? c'est tout|ce sera tout|au revoir|à plus|ciao|bonne (nuit|soir[ée]e|journ[ée]e)|merci coach)\b/.test(t) && words <= 5) return { k: 'bye' };
+  }
+  return null;
+}
+const ALC_DRINKS_CV = typeof ALC_DRINKS !== 'undefined' ? ALC_DRINKS : [0, 1, 2, 3, 3.5, 5, 6, 7.5, 9, 11, 13];
 // réglages (par téléphone) : vitesse, voix, sons, écoute automatique après la réponse
 const CV_RATES = [['Lente', 0.92], ['Normale', 1.05], ['Rapide', 1.2]];
 function _cvPrefs(){ let p = {}; try { p = JSON.parse(localStorage.getItem('pm_cv') || '{}') || {}; } catch(e) {} return { rate: +p.rate || 1.05, voice: p.voice || '', sounds: p.sounds !== false, auto: p.auto !== false }; }
@@ -138,9 +170,10 @@ function _cvSet(st, label){
   const el = ov.querySelector('.cv-st'); if(el) el.textContent = label || L[st] || '';
   const orb = ov.querySelector('.cv-orb'); if(orb) orb.setAttribute('aria-label', L[st] || 'Parler');
 }
-function openCoachVoice(){
+function openCoachVoice(opts){
+  opts = opts || {};
   if(typeof coachAI === 'function' && !coachAI()) return;
-  if(document.getElementById('cv-ov')) return;
+  if(document.getElementById('cv-ov')){ if(opts.brief) cvAsk('Lis mon brief'); return; }
   _cvCss();
   _cv = { st: 'idle', q: [], buf: '', speaking: false, streamDone: true, rec: null, closed: false, canListen: !!_cvRecClass(), heard: '', reply: '', lock: null, empty: 0, prefs: _cvPrefs(), memos: null, log: [] };
   // déverrouille la voix et les sons sur iPhone : 1re lecture dans le geste qui ouvre l'écran
@@ -160,7 +193,8 @@ function openCoachVoice(){
   document.body.appendChild(ov);
   try { if(navigator.wakeLock) navigator.wakeLock.request('screen').then(function(l){ if(_cv) _cv.lock = l; }).catch(function(){}); } catch(e) {}
   _cvSet('idle');
-  if(_cv.canListen) cvListen();
+  if(opts.brief) cvAsk('Lis mon brief');                         // 🎧 de « Ma journée » : le brief lu tout de suite
+  else if(_cv.canListen) cvListen();
 }
 function closeCoachVoice(){
   if(!_cv) return;
@@ -192,7 +226,7 @@ function cvOrbTap(){
   if(_cv.st === 'listen'){ try { _cv.rec && _cv.rec.stop(); } catch(e) {} return; }   // j'ai fini de parler
   if(_cv.st === 'idle'){ if(_cv.canListen) cvListen(); else { const i = document.getElementById('cv-in'); if(i) i.focus(); } }
 }
-function _cvHush(){ if(!_cv) return; _cv.q = []; _cv.speaking = false; _cv.mute = true; try { speechSynthesis.cancel(); } catch(e) {} }
+function _cvHush(){ if(!_cv) return; _cv.q = []; _cv.speaking = false; _cv.mute = true; _cv.after = null; try { speechSynthesis.cancel(); } catch(e) {} }
 // écoute : texte en direct ; fin de tour = silence (cvTurnWait : plus long si la phrase n'est pas finie) ou fin de la dictée
 // auto = relance après la réponse (hors d'un toucher : l'iPhone peut la refuser → « Touche pour parler », micro gardé)
 function cvListen(auto){
@@ -243,7 +277,9 @@ function cvAsk(text){
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), sug = ov && ov.querySelector('.cv-sug'), set = ov && ov.querySelector('.cv-set');
   if(you){ you.textContent = text; you.classList.remove('interim'); } if(co) co.textContent = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
   _cv.buf = ''; _cv.reply = ''; _cv.streamDone = false; const turn = _cv.turn = (_cv.turn || 0) + 1;
-  _cvSet('think'); _cvTone('send');
+  _cvTone('send');
+  if(_cvLocal(text)) return;                                      // commande vocale : réponse immédiate, sans le Coach
+  _cvSet('think');
   if(typeof sendCoachMessage !== 'function'){ _cvSet('idle', 'Coach indisponible'); return; }
   const opts = { voice: true,
     onToken: function(tok){
@@ -266,6 +302,7 @@ function _cvNext(){
   if(!_cv || _cv.closed || _cv.speaking) return;
   const t = _cv.q.shift();
   if(!t){
+    if(_cv.streamDone && _cv.after){ const f = _cv.after; _cv.after = null; f(); return; }   // commande : action après la phrase
     if(_cv.streamDone && _cv.st !== 'listen' && _cv.st !== 'idle'){
       if(_cv.canListen && _cv.prefs.auto) setTimeout(function(){ if(_cv && !_cv.speaking && _cv.streamDone && !_cv.q.length) cvListen(true); }, 350);
       else _cvSet('idle');
@@ -280,4 +317,61 @@ function _cvNext(){
   u.onend = next; u.onerror = next;
   _cv.speaking = true; _cvSet('speak');
   try { speechSynthesis.speak(u); } catch(e) { next(); }
+}
+
+// réponse prononcée sans le Coach (commandes) ; after() une fois la phrase dite
+function _cvSay(text, after){
+  if(!_cv) return;
+  const co = document.querySelector('#cv-ov .cv-co');
+  _cv.reply = text; if(co) co.textContent = String(text).replace(/[*#`_]/g, '');
+  _cv.mute = false; _cv.streamDone = true; _cv.after = after || null;
+  cvSentences(text, true).out.forEach(_cvQueue);
+  if(!_cv.q.length && !_cv.speaking){ const f = _cv.after; _cv.after = null; if(f) f(); else _cvNext(); }
+}
+function _cvToday(){ return typeof prTodayIso === 'function' ? prTodayIso() : new Date().toISOString().slice(0, 10); }
+// texte du brief du matin : en attente de lecture, sinon le dernier brief du jour dans le fil du Coach
+function cvBriefText(st, today, hist){
+  const p = st && st._brief_pending;
+  if(p && p.content && (!p.date || p.date === today)) return String(p.content);
+  const H = (hist || []).filter(function(m){ return m && m.role === 'assistant' && m.date === today && String(m.content || '').length > 250 && /(FC REPOS|S[ÉE]ANCE DU JOUR|brief|récup)/i.test(m.content); });
+  return H.length ? String(H[H.length - 1].content) : null;
+}
+function _cvLocal(text){
+  const I = cvIntent(text); if(!I) return false;
+  if(I.k === 'alc'){
+    if(typeof alcSave !== 'function'){ return false; }
+    try { alcSave(null, I.l, I.t); } catch(e) { diagSilent(e, 'coach-voice:_cvLocal'); return false; }
+    try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'coach-voice:_cvLocal'); }
+    _cvSay(I.l === 0 ? 'C\'est noté : pas d\'alcool hier soir.' : 'C\'est noté : ' + (I.n ? I.n + ' verre' + (I.n > 1 ? 's' : '') + ', soit ' : '') + I.l + ' sur 10 hier soir. J\'en tiens compte pour ta forme du jour.');
+    return true;
+  }
+  if(I.k === 'brief'){
+    const b = cvBriefText(typeof state !== 'undefined' ? state : null, _cvToday(), typeof coachHistory !== 'undefined' ? coachHistory : []);
+    if(!b){ _cvSay('Ton brief du matin n\'est pas encore prêt. Pose-moi ta question, je te réponds.'); return true; }
+    try { const k = '_brief_matin_' + _cvToday(); state[k] = true; if(typeof dbRef !== 'undefined' && dbRef) dbRef.child(k).set(true).catch(function(){}); } catch(e) { diagSilent(e, 'coach-voice:_cvLocal'); }
+    _cvSay(b);
+    return true;
+  }
+  if(I.k === 'fin'){
+    const auto = typeof avFinish === 'function' && typeof avOn === 'function' && avOn();
+    _cvSay(auto ? 'Bravo ! Je vérifie Strava, WHOOP et la météo pour valider ta séance.' : 'Bravo ! J\'ouvre la validation de ta séance.', function(){
+      closeCoachVoice();
+      if(auto) avFinish(); else if(typeof quickValidate === 'function') quickValidate();
+    });
+    return true;
+  }
+  if(I.k === 'go'){ _cvSay('J\'ouvre ' + I.label + '.', function(){ closeCoachVoice(); if(typeof showScreen === 'function') showScreen(I.s); }); return true; }
+  if(I.k === 'repeat'){
+    const last = _cv.log.length ? _cv.log[_cv.log.length - 1].c : '';
+    if(!last){ _cvSay('Je n\'ai encore rien dit. Pose-moi ta question !'); return true; }
+    _cvSay(last); return true;
+  }
+  if(I.k === 'rate'){
+    const i = CV_RATES.map(function(r){ return r[1]; }), cur = i.indexOf(_cv.prefs.rate), n = Math.max(0, Math.min(i.length - 1, (cur < 0 ? 1 : cur) + I.d));
+    _cvPrefsSet('rate', i[n]);
+    _cvSay(I.d < 0 ? (n === 0 && cur === 0 ? 'Je parle déjà au plus lent.' : 'D\'accord, je parle plus lentement.') : (n === i.length - 1 && cur === n ? 'Je parle déjà au plus vite.' : 'D\'accord, je parle plus vite.'));
+    return true;
+  }
+  if(I.k === 'bye'){ _cvSay('À plus tard !', function(){ closeCoachVoice(); }); return true; }
+  return false;
 }

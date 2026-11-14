@@ -38,7 +38,7 @@ function mjSteps(st, today, nowMin){
       const pend = st._brief_pending && (st._brief_pending.date === today || !st._brief_pending.date);
       const late = typeof briefTooLate === 'function' && briefTooLate();
       const seen = !!st['_brief_matin_' + today] && !pend;
-      if(pend && !late) out.push({ id: 'brief', ic: '☀️', t: 'Ton brief du matin', s: 'Prêt à lire', at: 5 * 60 + 2, done: false, act: 'openCoachFromNotif()', btn: 'Lire' });
+      if(pend && !late) out.push({ id: 'brief', ic: '☀️', t: 'Ton brief du matin', s: 'Prêt à lire', at: 5 * 60 + 2, done: false, act: 'openCoachFromNotif()', btn: 'Lire', listen: true });   // 🎧 = l'écouter (coach-voice.js)
       else if(seen) out.push({ id: 'brief', ic: '☀️', t: 'Brief du matin', s: '', at: 5 * 60 + 2, done: true, act: 'showScreen(\'coach\')', short: 'Brief' });
     }
   }
@@ -144,7 +144,8 @@ function mjRender(){
     const done = L.filter(function(x){ return x.st === 'done'; }), now = L.filter(function(x){ return x.st === 'now'; })[0], later = L.filter(function(x){ return x.st === 'later'; });
     const n = L.filter(function(x){ return !x.info && !x.soft; }), nd = n.filter(function(x){ return x.done; }).length;
     let h = '<div class="mj mj-' + ph + '"><div class="mj-hd"><p><span aria-hidden="true">' + head[0] + '</span> <b>' + head[1] + '</b> · ' + date + '</p>'
-      + (n.length ? '<span class="mj-cnt" aria-label="' + nd + ' sur ' + n.length + ' fait">' + nd + '/' + n.length + '</span>' : '') + '</div>';
+      + '<span class="mj-hr">' + (n.length ? '<span class="mj-cnt" aria-label="' + nd + ' sur ' + n.length + ' fait">' + nd + '/' + n.length + '</span>' : '')
+      + (typeof coachAI === 'function' && coachAI() && typeof openCoachVoice === 'function' ? '<button type="button" class="mj-mic" onclick="openCoachVoice()" aria-label="Parler au Coach à la voix">🎙️</button>' : '') + '</span></div>';   // Coach à la voix (coach-voice.js)
     // fait : une seule ligne courte (✓ Réveil · Alcool 2/10 · Brief) ; séances faites en ligne avec 📸
     const ds = done.filter(function(x){ return x.kind === 'sess'; }), dc = done.filter(function(x){ return x.kind !== 'sess'; });
     if(dc.length) h += '<div class="mj-dline"><span class="mj-ck" aria-hidden="true">✓</span>' + dc.map(function(x){
@@ -167,6 +168,7 @@ function mjRender(){
       }
       h += '<div class="mj-now" role="group" aria-label="' + _mjEsc(lab + ' : ' + now.t) + '"><div class="mj-nr"><button type="button" class="mj-nb"' + (now.act ? ' onclick="' + now.act + '"' : '') + '><span class="mj-ic" aria-hidden="true">' + now.ic + '</span>'
         + '<span class="mj-nt"><small>' + lab + '</small><b>' + _mjEsc(now.t) + '</b>' + (now.s ? '<span>' + _mjEsc(now.s) + '</span>' : '') + '</span></button>'
+        + (now.listen && typeof coachAI === 'function' && coachAI() && typeof openCoachVoice === 'function' ? '<button type="button" class="mj-go mj-ear" onclick="openCoachVoice({brief:true})" aria-label="Écouter le brief">🎧</button>' : '')
         + (now.btn && !early ? '<button type="button" class="mj-go" onclick="' + (now.btnAct || now.act) + '">' + now.btn + '</button>' : early ? '<span class="mj-chev" aria-hidden="true">›</span>' : '') + '</div>'
         + (extra.length ? '<div class="mj-ex">' + extra.join('') + '</div>' : '') + '</div>';
     }
@@ -188,6 +190,7 @@ function _mjCss(){
   st.textContent = '.mj{background:#fff;border:1px solid #DCE6F5;border-radius:18px;padding:12px;box-shadow:0 1px 3px rgba(12,52,122,.06);display:flex;flex-direction:column;gap:8px;}'
     + '.mj-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 0;}.mj-hd p{margin:0;font-size:12px;font-weight:600;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mj-hd b{color:#0F172A;font-weight:800;font-size:13.5px;}'
     + '.mj-matin .mj-hd b{color:#B45309;}.mj-jour .mj-hd b{color:#1D4ED8;}.mj-soir .mj-hd b{color:#4338CA;}'
+    + '.mj-hr{display:flex;align-items:center;gap:6px;flex-shrink:0;}.mj-mic{border:none;background:#EEF2FF;color:#4338CA;width:30px;height:30px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}.mj-go.mj-ear{padding:9px 10px;background:#E0E7FF;color:#4338CA;margin-right:6px;}'
     + '.mj-cnt{font-size:11px;font-weight:800;color:#475569;background:#F1F5F9;border-radius:20px;padding:2px 8px;font-variant-numeric:tabular-nums;flex-shrink:0;}'
     + '.mj-dline{display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap;overflow:hidden;font-size:12px;color:#166534;}.mj-dline .mj-ck{width:16px;height:16px;font-size:9px;}.mj-dline button{border:none;background:none;padding:2px 0;font:inherit;font-weight:700;color:#166534;cursor:pointer;flex-shrink:0;}.mj-dline i{font-style:normal;color:#86EFAC;}'
     + '.mj-done{display:flex;align-items:center;gap:6px;}.mj-dl{flex:1;min-width:0;display:flex;align-items:center;gap:7px;border:1px solid #D1FAE5;background:#F0FDF4;border-radius:12px;padding:7px 10px;font:inherit;font-size:12.5px;color:#334155;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;}'

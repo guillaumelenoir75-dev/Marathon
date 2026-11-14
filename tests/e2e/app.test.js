@@ -142,6 +142,35 @@ test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute 
   await ctx.close();
 });
 
+test('Coach à la voix : 🎧 du brief dans « Ma journée », commandes vocales sans le Coach (alcool, au revoir)', async () => {
+  let aiCalls = 0;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    functions: async (r) => { if (/coachChat/.test(r.request().url())) aiCalls++; return r.fulfill({ contentType: 'application/json', body: '{"success":true}' }); },
+    init: () => {
+      window.__said = []; window.__recStarts = 0;
+      class FakeRec { start() { window.__recStarts++; } stop() {} abort() {} }
+      window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {}, getVoices() { return []; } } });
+    } });
+  await page.evaluate(() => { state['_wakeup_2026-10-29'] = true; state._alcohol = Object.assign({}, state._alcohol, { '2026-10-29': { l: 2, t: [], at: '2026-10-29T07:00:00Z' } }); state._brief_pending = { date: '2026-10-29', type: 'morning_brief', content: '## ❤️ FC REPOS & RÉCUPÉRATION\nRécup à 72 %, belle nuit.\n## 🎯 SÉANCE DU JOUR\nFooting de 8 km à 5\'40/km ce soir.' }; showScreen('home'); renderHome(); });
+  await page.waitForSelector('#home-day-card .mj-mic');
+  await page.click('#home-day-card .mj-ear');
+  await page.waitForSelector('#cv-ov');
+  await page.waitForFunction(() => window.__said.some((t) => /5 minutes 40 au kilomètre/.test(t)), null, { timeout: 5000 });
+  assert.ok(await page.evaluate(() => state._brief_matin_2026_10_29 === true || state['_brief_matin_2026-10-29'] === true), 'brief marqué comme lu');
+  // commande vocale : enregistrée tout de suite, sans appeler le Coach
+  await page.fill('#cv-in', 'Pas d\'alcool hier soir'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /pas d'alcool hier soir/i.test(t)), null, { timeout: 5000 });
+  const alc = await page.evaluate(() => { const A = state._alcohol || {}; return A[Object.keys(A).sort().pop()]; });
+  assert.equal(alc && alc.l, 0);
+  await page.fill('#cv-in', 'Merci, c\'est tout'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => !document.getElementById('cv-ov'), null, { timeout: 5000 });
+  assert.equal(aiCalls, 0, 'aucune de ces commandes n\'appelle l\'IA');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('écrans rares chargés à la demande : chaque point d\'entrée charge son fichier et ouvre l\'écran, sans erreur', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   const lazy = await page.evaluate(() => Object.keys(window.LAZY_BUNDLES || {}));
