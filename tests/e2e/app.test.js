@@ -1070,7 +1070,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   await page.evaluate(() => showScreen('home')); await page.waitForTimeout(500);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
   const C = await page.evaluate(() => { const g = (sel, p) => { const e = document.querySelector(sel); return e ? getComputedStyle(e)[p] : null; };
-    return { body: g('body', 'backgroundColor'), card: g('#home-day-card .mj', 'backgroundColor'), title: g('#home-day-card .mj-l b', 'color'), head: g('#sc-home > div', 'backgroundImage') }; });
+    return { body: g('body', 'backgroundColor'), card: g('#home-day-card .mj', 'backgroundColor'), title: g('#home-day-card .mj-l b', 'color'), head: g('#home-hero', 'backgroundImage') }; });
   assert.ok(lum(C.body) < 0.2, 'page sombre ' + C.body);
   if (C.card) { assert.ok(lum(C.card) < 0.25, 'carte sombre ' + C.card); assert.ok(lum(C.title) > 0.7, 'titre clair ' + C.title); }
   assert.match(C.head, /linear-gradient/, 'en-tête en dégradé gardé');
@@ -1084,7 +1084,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   if (tick) assert.match(tick, /rgb\(27, 79, 216\)/, 'coche bleue');
   // réglage
   await page.evaluate(() => { closePlanReview(); themeOpen(); });
-  assert.equal(await page.locator('#th-set .th-opt').count(), 3);
+  assert.equal(await page.locator('#th-set .th-opt').count(), 4);
   assert.deepEqual(o.errors, []);
   await o.ctx.close();
   // clair par défaut : couleurs d'origine
@@ -1095,6 +1095,48 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   await o.ctx.close();
 });
 
+test('thème « Piste de nuit » : 4e choix, bleu nuit + orange, accueil avec anneau J-x, Maintenant, pastilles de l\'en-tête', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-11-03T19:12:00+01:00', savedDb, { init: () => { localStorage.setItem('pm_theme', 'piste'); } });
+  await page.evaluate(() => { showScreen('home'); renderHome(); }); await page.waitForTimeout(600);
+  const H = await page.evaluate(() => ({
+    theme: document.documentElement.dataset.theme, piste: document.documentElement.dataset.piste,
+    body: getComputedStyle(document.body).backgroundColor,
+    hero: getComputedStyle(document.getElementById('home-hero')).display, ph: getComputedStyle(document.getElementById('home-piste')).display,
+    big: (document.querySelector('#home-piste .ph-big') || {}).textContent, race: (document.querySelector('#home-piste .ph-race') || {}).textContent,
+    tiles: [...document.querySelectorAll('#home-piste .ph-tile small')].map((e) => e.textContent),
+    dash: (document.querySelector('#home-piste .ph-prog') || { getAttribute: () => '' }).getAttribute('stroke-dasharray'),
+    greet: (document.querySelector('#home-piste .ph-hi') || {}).textContent,
+    chips: [...document.querySelectorAll('#ph-chips > [id]')].map((e) => e.id),
+    now: !!document.querySelector('#home-day-card .ph-now'), dayFirst: !!(document.getElementById('home-day-card').compareDocumentPosition(document.getElementById('home-form-card')) & 4),
+    nav: getComputedStyle(document.querySelector('#nav-home')).color, font: getComputedStyle(document.body).fontFamily
+  }));
+  assert.equal(H.theme, 'dark'); assert.equal(H.piste, '1');
+  assert.equal(H.body, 'rgb(14, 20, 36)', 'page bleu nuit');
+  assert.equal(H.hero, 'none', 'ancien en-tête masqué'); assert.equal(H.ph, 'flex');
+  assert.match(H.big, /^(J-\d+|Jour J)$/); assert.match(H.race, /Novemb/);
+  assert.deepEqual(H.tiles, ['Objectif', 'Prévu', 'Forme']);
+  assert.match(H.dash, /^\d+ 900$/);
+  assert.match(H.greet, /^Bonsoir/);
+  assert.ok(H.chips.includes('home-search-btn') && H.chips.includes('home-ef-pill') && H.chips.includes('notif-btn'), H.chips.join(','));
+  assert.ok(H.now, 'bloc « Maintenant »'); assert.ok(H.dayFirst, 'la journée avant la Forme du jour');
+  assert.equal(H.nav, 'rgb(224, 96, 58)', 'onglet actif orange');
+  assert.match(H.font, /Manrope/);
+  // le bleu de l'app devient l'orange de piste (bouton « Enregistrer » d'une fenêtre), les fonds blancs deviennent bleu nuit
+  const M = await page.evaluate(() => ({ sw: typeof thMap === 'function' ? thMap('#1B4FD8', 'bg') : '', w: thMap('#FFFFFF', 'bg'), g: thMapValue('linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%)', 'bg') }));
+  assert.equal(M.sw, 'rgb(224,96,58)'); assert.match(M.w, /^rgb\((2[0-9]|1[0-9]),/); assert.doesNotMatch(M.g, /224,96,58/, 'dégradés bleus → bleu nuit, pas orange');
+  // toucher l'anneau = fenêtre de prédiction / objectif ; la tuile Forme ouvre Statistiques
+  await page.click('#home-piste .ph-tile:nth-child(3)'); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('sc-stats')).display !== 'none'), true);
+  if (process.env.SHOTS) { await page.evaluate(() => showScreen('home')); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/piste-home.png' }); await page.screenshot({ path: process.env.SHOTS + '/piste-home-full.png', fullPage: true }); }
+  if (process.env.SHOTS) for (const sc of ['plan', 'stats', 'compte']) { await page.evaluate((n) => showScreen(n), sc); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/piste-' + sc + '.png' }); }
+  // réglage : 4 choix, Piste coché
+  await page.evaluate(() => themeOpen());
+  assert.match(await page.textContent('#th-set .th-opt.on'), /Piste de nuit/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débordement (clair et sombre), diagnostic', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   // poids : budget du bundle de démarrage (gzip)
@@ -1102,7 +1144,7 @@ test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débor
   const bundle = fs.readdirSync(path.join(DIST, 'src')).find((f) => /^bundle-\d+\.js$/.test(f));
   const gz = zlib.gzipSync(fs.readFileSync(path.join(DIST, 'src', bundle))).length;
   assert.ok(gz < 440 * 1024, 'bundle ' + Math.round(gz / 1024) + ' Ko gzip (budget 440 Ko)');
-  for (const theme of ['light', 'dark']) {
+  for (const theme of ['light', 'dark', 'piste']) {
     const { ctx, page, errors } = await open('2026-11-03T15:00:00+01:00', savedDb, { init: (t) => { localStorage.setItem('pm_theme', t); }, initArg: theme });
     // démarrage mesuré jusqu'au 1er affichage de l'accueil
     const boot = await page.evaluate(() => window._bootMs);

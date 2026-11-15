@@ -19,8 +19,8 @@
 <meta name="theme-color" content="#0C447C">
 <meta name="application-name" content="En Piste">
 <meta name="color-scheme" content="light">
-<script>try{var _tp=localStorage.getItem('pm_theme')||'auto';if(_tp==='dark'||(_tp==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
-<style>html[data-theme=dark],html[data-theme=dark] body{background:#141B2B;color-scheme:dark;}</style>
+<script>try{var _tp=localStorage.getItem('pm_theme')||'auto';if(_tp==='piste')document.documentElement.setAttribute('data-piste','1');if(_tp==='dark'||_tp==='piste'||(_tp==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<style>html[data-theme=dark],html[data-theme=dark] body{background:#141B2B;color-scheme:dark;}html[data-piste],html[data-piste] body{background:#0E1424;}html[data-piste] #sc-home > #home-hero{display:none;}</style>
 <link rel="stylesheet" href="/src/styles.css">
 <link rel="stylesheet" href="/src/race-map.css?v=12">
 </head>
@@ -36,7 +36,9 @@
 
 <!-- ACCUEIL -->
 <div id="sc-home" style="background:#EDF2FB;min-height:100vh;">
-  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:14px 16px 24px;border-radius:22px;color:#fff;margin-bottom:-12px;">
+  <!-- Thème « Piste de nuit » : en-tête propre (piste-home.js phRender) ; l'en-tête bleu ci-dessous est alors masqué -->
+  <div id="home-piste" style="display:none;"></div>
+  <div id="home-hero" style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:14px 16px 24px;border-radius:22px;color:#fff;margin-bottom:-12px;">
     <!-- Badge semaine + notifs + allure EF sur une seule ligne -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:6px;min-width:0;">
@@ -56,7 +58,7 @@
         <!-- ta nuit : heure de coucher conseillée (body-signals.js bsSleepPill) → détail « Ta nuit » -->
           <button id="home-sleep-btn" type="button" onclick="openSleepPlan()" style="display:none;align-items:center;gap:4px;background:rgba(165,180,252,0.20);border:1px solid rgba(165,180,252,0.40);border-radius:20px;padding:3px 9px;cursor:pointer;flex-shrink:0;color:#C7D2FE;font:inherit;"></button>
       </div>
-      <div onclick="openEditEFModal()" style="display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;" title="Allure Endurance Fondamentale — ton rythme confortable de base. Clique pour modifier.">
+      <div id="home-ef-pill" onclick="openEditEFModal()" style="display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;background:rgba(255,255,255,0.13);border-radius:9px;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;" title="Allure Endurance Fondamentale — ton rythme confortable de base. Clique pour modifier.">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         <span style="font-size:12px;font-weight:700;" id="kpi-ef-pace">—</span>
         <span style="font-size:10px;opacity:0.6;">/km EF</span>
@@ -985,7 +987,7 @@
 </div>
 
 <!-- NAV -->
-<div style="position:fixed;bottom:0;left:0;right:0;-webkit-transform:translateZ(0);transform:translateZ(0);background:rgba(255,255,255,0.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,0.07);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px);">
+<div id="nav-bar" style="position:fixed;bottom:0;left:0;right:0;-webkit-transform:translateZ(0);transform:translateZ(0);background:rgba(255,255,255,0.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,0.07);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px);">
   <button class="nav-btn" onclick="showScreen('home')" id="nav-home">
     <div class="nav-icon-wrap"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg></div>
     <span class="nav-btn-label">Accueil</span>
@@ -1063,6 +1065,7 @@
 <script defer src="/src/health.js?v=1"></script>
 <script defer src="/src/session-flow.js?v=1"></script>
 <script defer src="/src/my-day.js?v=1"></script>
+<script defer src="/src/piste-home.js?v=1"></script>
 <script defer src="/src/search.js?v=1"></script>
 <script defer src="/src/nav.js?v=1"></script>
 </body>

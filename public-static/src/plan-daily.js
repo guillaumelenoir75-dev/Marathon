@@ -570,6 +570,7 @@ function prRenderHomeCard(){
     if(typeof wsHeaderBtn === 'function') wsHeaderBtn();                       // ta semaine en image : bouton de l'en-tête (week-share.js)
     if(dRace != null && dRace >= 0 && dRace <= 6) h += '<button type="button" class="pd-raceb" onclick="openRacePlan()">🏁 <b>' + prEsc(R.name) + '</b> dans ' + dRace + ' jour' + (dRace > 1 ? 's' : '') + ' · ton plan de course ›</button>';
     el.innerHTML = h + '</div>';
+    if(typeof phRender === 'function') phRender();                             // thème Piste de nuit : tuile « Forme » de l'en-tête
   } catch(e) { el.innerHTML = ''; }
 }
 // Forme du jour : 4 mini-valeurs colorées (récup, sommeil, FC repos, VFC — stats.js wellnessTiles) au lieu d'une ligne de texte ;

@@ -130,6 +130,21 @@ function mjActive(){
   if((typeof _prepView !== 'undefined' && _prepView) || (typeof isPlaisirMode === 'function' && isPlaisirMode()) || typeof prSessions !== 'function') return false;
   return true;
 }
+// libellé de l'étape « maintenant » : « Maintenant · 12h00 », « 18h30 · dans 4 h 47 » (séance encore loin : pas de bouton),
+// « À valider · 12h00 » ; extra = chaussure + météo d'une séance (partagé avec l'accueil « Piste de nuit », piste-home.js)
+function mjNowInfo(now, nowMin){
+  const when = now.tm ? _mjHm(_mjMin(now.tm)) : '', ahead = now.at - nowMin;
+  const early = now.kind === 'sess' && ahead > 30;
+  const lab = now.kind === 'sess' && ahead < -90 ? 'À valider' + (when ? ' · ' + when : '')
+    : early ? when + ' · dans ' + (ahead >= 60 ? Math.floor(ahead / 60) + ' h' + (ahead % 60 >= 5 ? ' ' + String(ahead % 60).padStart(2, '0') : '') : ahead + ' min')
+    : ahead <= 30 ? 'Maintenant' + (when ? ' · ' + when : '') : 'Ensuite' + (when ? ' · ' + when : '');
+  const extra = [];
+  if(now.kind === 'sess' && now.x){
+    if(now.shoe) extra.push('<span class="mj-shoe">👟 ' + _mjEsc(now.shoe) + '</span>');
+    if(typeof prWeatherLine === 'function'){ const wl = prWeatherLine(now.x); if(wl) extra.push(wl); }
+  }
+  return { lab: lab, early: early, extra: extra };
+}
 // ─── Affichage ─────────────────────────────────────────────────────────────────────────────────────────────
 let _mjOpen = false;
 function mjRender(){
@@ -138,6 +153,7 @@ function mjRender(){
     if((typeof _prepView !== 'undefined' && _prepView) || (typeof isPlaisirMode === 'function' && isPlaisirMode()) || typeof prSessions !== 'function'){ el.innerHTML = ''; return false; }
     const d = new Date(), nowMin = d.getHours() * 60 + d.getMinutes(), today = prTodayIso();
     const L = mjSteps(state, today, nowMin); if(!L.length){ el.innerHTML = ''; return false; }
+    if(typeof phIsOn === 'function' && phIsOn() && typeof phDayHtml === 'function'){ el.innerHTML = phDayHtml(L, nowMin); return true; }   // thème Piste de nuit
     _mjCss();
     const ph = mjPhase(nowMin), head = { matin: ['☀️', 'Ce matin'], jour: ['🏃', 'Aujourd\'hui'], soir: ['🌙', 'Ce soir'] }[ph];
     const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
@@ -155,17 +171,8 @@ function mjRender(){
         + (x.share && typeof openSessionShare === 'function' ? '<button type="button" class="mj-sh" onclick="openSessionShare(\'' + x.key + '\')" aria-label="Image de ta séance à partager">📸</button>' : '') + '</div>';
     });
     if(now){
-      const when = now.tm ? _mjHm(_mjMin(now.tm)) : '', ahead = now.at - nowMin;
       // séance encore loin (> 30 min) : compte à rebours, pas de bouton « J'ai fini » / « Valider » trop tôt
-      const early = now.kind === 'sess' && ahead > 30;
-      const lab = now.kind === 'sess' && ahead < -90 ? 'À valider' + (when ? ' · ' + when : '')
-        : early ? when + ' · dans ' + (ahead >= 60 ? Math.floor(ahead / 60) + ' h' + (ahead % 60 >= 5 ? ' ' + String(ahead % 60).padStart(2, '0') : '') : ahead + ' min')
-        : ahead <= 30 ? 'Maintenant' + (when ? ' · ' + when : '') : 'Ensuite' + (when ? ' · ' + when : '');
-      const extra = [];
-      if(now.kind === 'sess' && now.x){
-        if(now.shoe) extra.push('<span class="mj-shoe">👟 ' + _mjEsc(now.shoe) + '</span>');
-        if(typeof prWeatherLine === 'function'){ const wl = prWeatherLine(now.x); if(wl) extra.push(wl); }
-      }
+      const NI = mjNowInfo(now, nowMin), early = NI.early, lab = NI.lab, extra = NI.extra;
       h += '<div class="mj-now" role="group" aria-label="' + _mjEsc(lab + ' : ' + now.t) + '"><div class="mj-nr"><button type="button" class="mj-nb"' + (now.act ? ' onclick="' + now.act + '"' : '') + '><span class="mj-ic" aria-hidden="true">' + now.ic + '</span>'
         + '<span class="mj-nt"><small>' + lab + '</small><b>' + _mjEsc(now.t) + '</b>' + (now.s ? '<span>' + _mjEsc(now.s) + '</span>' : '') + '</span></button>'
         + (now.listen && typeof coachAI === 'function' && coachAI() && typeof openCoachVoice === 'function' ? '<button type="button" class="mj-go mj-ear" onclick="openCoachVoice({brief:true})" aria-label="Écouter le brief">🎧</button>' : '')
