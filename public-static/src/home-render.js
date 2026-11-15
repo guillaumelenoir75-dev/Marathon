@@ -902,7 +902,8 @@ function renderHome(){
       const row=document.createElement('div');
       row.className='hs-row'+(skip?' skip':''); row.style.setProperty('--c',skip?'#C0392B':typeC);
       row.setAttribute('role','button'); row.setAttribute('aria-expanded','false');
-      row.onclick=()=>{homeSessToggle(row);row.setAttribute('aria-expanded',row.classList.contains('open')?'true':'false');};
+      row.onclick=()=>{ if(!skip&&typeof phIsOn==='function'&&phIsOn()&&typeof openSessionPiste==='function'){ openSessionPiste('extra_w'+w+'_s'+ei); return; }   // Piste de nuit : écran de la séance
+        homeSessToggle(row);row.setAttribute('aria-expanded',row.classList.contains('open')?'true':'false');};
       row.innerHTML='<span class="hs-ck">'+(skip?'✕':'✓')+'</span><span class="hs-tx"><b>'+title+'</b> · '+(skip?(skipReason||'non réalisée'):(String(rv!=null?rv:s2.km).replace('.',',')+' km'+(pf.pace?' · '+String(pf.pace).replace(':',"'")+'/km'+(()=>{const L=typeof prEqPaceLabel==='function'?prEqPaceLabel(pf,rv!=null?rv:s2.km):'';return L?' <i class="hs-eq">'+L+'</i>':'';})():'')))+'</span>'+(pf.auto&&!pf.rpe&&!pf.feelSkip&&!(typeof mjActive==='function'&&mjActive()&&(pf.date||s2.sched_date)===(typeof prTodayIso==='function'?prTodayIso():''))?'<button type="button" class="hs-feel" onclick="event.stopPropagation();avFeelOpen(\'extra_w'+w+'_s'+ei+'\')">🤖 ressenti ?</button>':pf.auto?'<span class="hs-d" title="Validée automatiquement">🤖</span>':'')+(dd?'<span class="hs-d">'+dd+'</span>':'')+(!skip&&typeof openSessionShare==='function'?'<button type="button" class="hs-share" aria-label="Image de la séance à partager" title="Partager la séance" onclick="event.stopPropagation();openSessionShare(\'extra_w'+w+'_s'+ei+'\')">📸</button>':'')+'<span class="hs-ch">›</span>';
       if(!skip&&typeof _wsCss==='function') _wsCss();
       div.style.display='none';

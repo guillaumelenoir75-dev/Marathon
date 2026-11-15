@@ -140,19 +140,20 @@ function phDayHtml(L, nowMin){
       + (I.extra.length && !/^À valider/.test(I.lab) ? '<div class="ph-ex">' + I.extra.join('') + '</div>' : '') + '</div>';   // séance passée : ni chaussure ni météo
   }
   const rows = [];
-  if(!now) rows.push('<div class="ph-li ph-lh"><span class="ph-eb2">TA JOURNÉE · TOUT EST FAIT</span>' + cnt + '</div>');   // rien à faire : un en-tête, pas de grand bloc
   done.filter(function(x){ return x.kind === 'sess'; }).forEach(function(x){
     const go = typeof openSessionPiste === 'function' ? 'openSessionPiste(\'' + x.key + '\')' : x.act;
     rows.push('<div class="ph-li"><button type="button" class="ph-lb" onclick="' + go + '">' + PH_CK + '<b>' + E(x.t) + '</b><span>' + E(x.s) + '</span></button>'
       + (x.share && typeof openSessionShare === 'function' ? '<button type="button" class="mj-sh" onclick="openSessionShare(\'' + x.key + '\')" aria-label="Image de ta séance à partager">📸</button>' : '') + '</div>');
   });
   const dc = done.filter(function(x){ return x.kind !== 'sess'; });
-  if(dc.length) rows.push('<div class="ph-li ph-dl">' + PH_CK + '<span class="ph-dli">' + dc.map(function(x){
-    return '<button type="button"' + (x.act ? ' onclick="' + x.act + '"' : '') + '>' + E(x.short || x.t) + '</button>'; }).join('<i aria-hidden="true">·</i>') + '</span></div>');
+  // fait : une ligne « ✓ Réveil · Alcool 6/10 · Brief · Repos » ; journée bouclée → le compteur au bout de cette ligne (pas de bloc en plus)
+  if(dc.length || !now) rows.unshift('<div class="ph-li ph-dl">' + PH_CK + '<span class="ph-dli">' + (dc.length ? dc.map(function(x){
+    return '<button type="button"' + (x.act ? ' onclick="' + x.act + '"' : '') + '>' + E(x.short || x.t) + '</button>'; }).join('<i aria-hidden="true">·</i>') : '<b>Journée bouclée</b>') + '</span>'
+    + (!now && n.length ? '<span class="ph-cnt">' + nd + '/' + n.length + '</span>' : '') + '</div>');
   const open = typeof _mjOpen !== 'undefined' && _mjOpen, shown = open ? later : later.slice(0, 2);
   shown.forEach(function(x){
     const t = x.id === 'next' || !x.tm ? '→' : _mjHm(_mjMin(x.tm));
-    rows.push('<button type="button" class="ph-li ph-l"' + (x.act ? ' onclick="' + x.act + '"' : '') + '><span class="ph-arr">' + t + '</span><b>' + E(x.t) + '</b>' + (x.s && x.s.length <= 24 ? '<span>' + E(x.s) + '</span>' : '') + '</button>');
+    rows.push('<button type="button" class="ph-li ph-l"' + (x.act ? ' onclick="' + x.act + '"' : '') + '><span class="ph-arr' + (t === '→' ? ' ic' : '') + '">' + t + '</span><b>' + E(x.t) + '</b>' + (x.s && x.s.length <= 24 ? '<span class="ph-v">' + E(x.s) + '</span>' : '') + '</button>');
   });
   if(later.length > 2) rows.push('<button type="button" class="ph-li ph-more" onclick="mjToggle()">' + (open ? 'Moins' : '+ ' + (later.length - 2) + ' autre' + (later.length > 3 ? 's' : '')) + '</button>');
   if(rows.length) h += '<div class="ph-list">' + rows.join('') + '</div>';
@@ -197,12 +198,24 @@ function _phCss(){
     + '.ph-list{background:#161E33;border-radius:22px;padding:4px 14px;display:flex;flex-direction:column;}'
     + '.ph-li{display:flex;align-items:center;gap:10px;min-height:40px;border:none;border-bottom:1px solid #24304D;background:none;padding:0;color:#F2F4F8;font:inherit;text-align:left;width:100%;min-width:0;}.ph-li:last-child{border-bottom:none;}'
     + 'button.ph-li{cursor:pointer;}.ph-li b{flex:0 1 auto;font-size:14px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
-    + '.ph-li span:not(.ph-arr):not(.ph-dli){margin-left:auto;font-size:13px;font-weight:600;color:#C2CADB;white-space:nowrap;flex:0 1 auto;min-width:0;max-width:45%;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;padding-left:8px;}'
+    + '.ph-li .ph-v,.ph-lb>span{margin-left:auto;font-size:13px;font-weight:600;color:#C2CADB;white-space:nowrap;flex:0 1 auto;min-width:0;max-width:45%;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;padding-left:8px;}'
     + '.ph-lb{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:none;background:none;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:40px;}'
     + '.ph-ck{stroke:#5BD08A;flex-shrink:0;}'
     + '.ph-dli{display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap;overflow:hidden;}.ph-dli button{border:none;background:none;padding:4px 0;color:#F2F4F8;font:inherit;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;}.ph-dli i{font-style:normal;color:#5B6884;}'
+    + '.ph-li .ph-v{flex:0 0 auto;max-width:none;}.ph-dl .ph-cnt{margin-left:auto;padding-left:8px;}.ph-dli b{font-size:14px;font-weight:800;}.ph-arr.ic{width:18px!important;}'
     + '.ph-arr{width:38px;flex-shrink:0;font-size:12px;font-weight:800;letter-spacing:.04em;color:#9AA6BF;font-variant-numeric:tabular-nums;}'
     + '.ph-li .mj-sh{width:36px;height:36px;border-radius:12px;border:1px solid #2C3858;background:transparent;font-size:15px;cursor:pointer;flex-shrink:0;}'
     + '.ph-more{color:#E0603A;font-size:13px;font-weight:800;}';
+
+  // Forme du jour plus lisible : jauge à côté du titre, mesures sur toute la largeur ; lignes des séances faites allégées
+  const P = 'html[data-theme=dark][data-piste]';
+  st.textContent += P + ' .pd-form:not(.fail):not(.wait):not(.load){display:grid;grid-template-columns:54px minmax(0,1fr);column-gap:12px;row-gap:8px;align-items:center;border-radius:20px;padding:12px;}'
+    + P + ' .pd-form:not(.fail):not(.wait):not(.load)>div{display:contents;}'
+    + P + ' .pd-form:not(.fail):not(.wait):not(.load) .pd-gauge{grid-column:1;grid-row:1/3;width:54px;height:54px;}'
+    + P + ' .pd-form:not(.fail):not(.wait):not(.load) .pd-form-l{grid-column:2;grid-row:1;align-self:end;}'
+    + P + ' .pd-form:not(.fail):not(.wait):not(.load)>div>b{grid-column:2;grid-row:2;align-self:start;font-size:16px;line-height:1.25;}'
+    + P + ' .pd-form:not(.fail):not(.wait):not(.load)>div>:nth-child(n+3){grid-column:1/-1;margin-top:0!important;}'
+    + P + ' .hs-row .hs-d[title],' + P + ' .hs-row .hs-ch{display:none;}' + P + ' .hs-row{border-radius:14px;padding:9px 12px;font-size:13px;}' + P + ' .hs-row .hs-share{flex-shrink:0;}'
+    + P + ' #safe-top{background:rgba(14,20,36,.94)!important;height:calc(env(safe-area-inset-top,0px) + 6px);}';
   document.head.appendChild(st);
 }

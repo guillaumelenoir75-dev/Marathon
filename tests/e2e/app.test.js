@@ -1134,6 +1134,11 @@ test('thème « Piste de nuit » : 4e choix, bleu nuit + orange, accueil avec an
   if (process.env.SHOTS) console.log('[mesure] forme du jour à', Y.form, 'px');
   if (process.env.SHOTS) console.log('[mesure]', JSON.stringify(await page.evaluate(() => ['ph-top', 'ph-ring', 'ph-chips', 'ph-blocks', 'home-day-card', 'home-form-card'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return id + ':' + Math.round(r.top) + '+' + Math.round(r.height); }))));
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/piste-home-fit.png' });
+  if (process.env.SHOTS) {   // aperçu de la carte Forme du jour avec une nuit WHOOP (données d'exemple, capture seulement)
+    await page.evaluate(() => { document.getElementById('home-form-card').innerHTML = '<div class="pd-home"><div class="pd-form low"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="39 163"/><text x="32" y="37" text-anchor="middle">24</text></svg><div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>Très basse, surtout à cause de l\'alcool</b><div class="pd-mini"><span class="bad"><i>Récup</i>26 %</span><span class="mid"><i>Sommeil</i>69 %</span><span class="bad"><i>FC repos</i>64</span><span class="bad"><i>VFC</i>48 ms</span></div><small>charge 7 j élevée (2,0×) −10</small></div></div></div>'; });
+    await page.waitForTimeout(200); await page.screenshot({ path: process.env.SHOTS + '/piste-home-form.png' });
+    await page.evaluate(() => { if (typeof prRenderHomeCard === 'function') prRenderHomeCard(); });
+  }
   assert.ok(Y.form <= 430, 'forme du jour trop bas : ' + Y.form + ' px');
   assert.ok(Y.chips <= 40, 'pastilles sur une seule ligne');
   if (process.env.SHOTS) { await page.evaluate(() => showScreen('home')); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/piste-home.png' }); await page.screenshot({ path: process.env.SHOTS + '/piste-home-full.png', fullPage: true }); }

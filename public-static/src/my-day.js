@@ -92,7 +92,7 @@ function mjSteps(st, today, nowMin){
   } catch(e) { diagSilent(e, 'my-day:mjSteps'); }
   // ── jour de repos ──
   const hasTraining = out.some(function(x){ return x.kind === 'sess' || /^renfo/.test(x.id); });
-  if(!hasTraining) out.push({ id: 'rest', ic: '😌', t: 'Repos aujourd\'hui', s: 'Récupère : c\'est là que tu progresses', at: 12 * 60, done: true, info: true });
+  if(!hasTraining) out.push({ id: 'rest', ic: '😌', t: 'Repos aujourd\'hui', short: 'Repos', s: 'Récupère : c\'est là que tu progresses', at: 12 * 60, done: true, info: true });
   // ── soir : coucher, demain ──
   try {
     const B = typeof bsBedtime === 'function' ? bsBedtime(today) : null;
