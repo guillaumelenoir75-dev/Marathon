@@ -998,7 +998,7 @@ function renderAthletePlan(el){
   if(!_adminPreviewUid && !renderPlan._noScroll){
     setTimeout(()=>{
       const curCard=el.querySelector('.plan-week-card.is-current');
-      if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+      if(curCard && !(typeof phIsOn==='function' && phIsOn())) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});   // Piste de nuit : la semaine en couloirs reste en haut
     },120);
   }
   renderPlan._noScroll=false;
@@ -1060,6 +1060,7 @@ function renderPlan(){
     if(ptEl) ptEl.textContent=_R&&_R.date?(_R.objectif&&_R.objectif!=='non défini'?'Objectif '+_R.objectif+' · ':'')+new Date(_R.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}):'Ton plan personnalisé';
     openWeeks.add(getAthleteCW());
     renderAthletePlan(el);
+    if(typeof psPlanRender === 'function') psPlanRender();   // thème Piste de nuit : la semaine en couloirs (piste-screens.js)
     return;
   }
   // Garantir que le rôle admin est bien enregistré si l'email correspond
@@ -1313,7 +1314,7 @@ function renderPlan(){
   if(!renderPlan._noScroll){
     setTimeout(()=>{
       const curCard=el.querySelector('.plan-week-card.is-current');
-      if(curCard) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+      if(curCard && !(typeof phIsOn==='function' && phIsOn())) curCard.scrollIntoView({behavior:'smooth',block:'nearest'});   // Piste de nuit : la semaine en couloirs reste en haut
     },120);
   }
   renderPlan._noScroll=false;

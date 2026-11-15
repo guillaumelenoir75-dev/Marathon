@@ -139,7 +139,8 @@ function phDayHtml(L, nowMin){
   h += '</div>';
   const rows = [];
   done.filter(function(x){ return x.kind === 'sess'; }).forEach(function(x){
-    rows.push('<div class="ph-li"><button type="button" class="ph-lb" onclick="' + x.act + '">' + PH_CK + '<b>' + E(x.t) + '</b><span>' + E(x.s) + '</span></button>'
+    const go = typeof openSessionPiste === 'function' ? 'openSessionPiste(\'' + x.key + '\')' : x.act;
+    rows.push('<div class="ph-li"><button type="button" class="ph-lb" onclick="' + go + '">' + PH_CK + '<b>' + E(x.t) + '</b><span>' + E(x.s) + '</span></button>'
       + (x.share && typeof openSessionShare === 'function' ? '<button type="button" class="mj-sh" onclick="openSessionShare(\'' + x.key + '\')" aria-label="Image de ta séance à partager">📸</button>' : '') + '</div>');
   });
   const dc = done.filter(function(x){ return x.kind !== 'sess'; });

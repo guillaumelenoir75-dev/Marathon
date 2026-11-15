@@ -380,16 +380,21 @@ function _pdRaceRender(){
   const mk = function(m, l, t){ return '<button type="button" class="pd-seg' + (P.mode === m ? ' on' : '') + '" onclick="_pdRace.mode=\'' + m + '\';_pdRaceRender()"><b>' + l + '</b><small>' + t + '</small></button>'; };
   let h = '<div class="pd-segs">' + (I.goal ? mk('goal', 'Objectif', prTime(I.goal)) : '') + (I.real ? mk('real', 'Réaliste', prTime(I.real)) : '')
     + '<button type="button" class="pd-seg' + (P.mode === 'custom' ? ' on' : '') + '" onclick="_pdRace.mode=\'custom\';_pdRaceRender();setTimeout(function(){const e=document.getElementById(\'pd-custom\');if(e)e.focus();},50)"><b>Mon temps</b><small>' + (P.custom ? prTime(P.custom) : 'à saisir') + '</small></button></div>';
-  if(P.mode === 'custom') h += '<div class="pd-card"><label class="pd-lab">Temps visé<input id="pd-custom" inputmode="numeric" placeholder="' + (long ? 'h:mm:ss' : 'mm:ss') + '" value="' + (P.custom ? prTime(P.custom) : '') + '" oninput="if(typeof prFmtTimeInput===\'function\')prFmtTimeInput(this)" onchange="_pdCustom(this.value)"></label></div>';
-  h += '<div class="pd-card pd-hero"><div><small>Temps visé</small><b>' + prTime(tgtWx) + '</b></div><div><small>Allure moyenne</small><b>' + prPace(tgtWx / I.dist) + '<i>/km</i></b></div>'
-    + (I.real && P.mode !== 'real' ? '<p class="pd-note">' + (target < I.real * 0.985 ? '⚠️ Plus rapide que ton niveau actuel (' + prTime(I.real) + ') : départ très prudent, accélère seulement après la mi-course si tout va bien.' : '✓ Cohérent avec ton niveau actuel (' + prTime(I.real) + ').') + '</p>' : '')
-    + (adj.pct >= 1 ? '<p class="pd-note pd-warm">🌡️ Prévision ' + prEsc(P.wxWhere || '') + ' : ' + prEsc(adj.why) + ' : allures +' + prV(adj.pct) + ' % (' + prTime(target) + ' → ' + prTime(tgtWx) + ').</p>' : wx ? '<p class="pd-note">🌤️ Prévision ' + prEsc(P.wxWhere || '') + ' : ' + Math.round(wx.t) + ' °C, vent ' + Math.round(wx.w) + ' km/h, conditions favorables.</p>' : '') + '</div>';
-  // passages
-  const marks = sp.filter(function(x, i){ return i === sp.length - 1 || (I.dist <= 10 ? true : I.dist <= 22 ? (i + 1) % 2 === 1 || i === 0 : (i + 1) % 5 === 0); });
-  h += '<p class="pd-sec">Allure km par km</p><div class="pd-card pd-splits"><table><thead><tr><th>Km</th><th>Allure</th><th>Passage</th></tr></thead><tbody>'
-    + marks.map(function(x, i){ return '<tr' + (x.km === sp[sp.length - 1].km ? ' class="fin"' : '') + '><td>' + (x.km === sp[sp.length - 1].km ? '🏁 ' + String(x.km).replace('.', ',') : x.km) + '</td><td>' + prPace(x.pace) + '</td><td>' + prTime(x.cum) + '</td></tr>'; }).join('') + '</tbody></table>'
-    + '<p class="pd-note">Départ un peu plus lent (+' + Math.round(sp[0].pace - tgtWx / I.dist) + ' s au 1er km), régularité jusqu\'à la mi-course, puis on relance légèrement : finir plus vite qu\'on est parti.</p>'
-    + (pac && pac.start ? '<p class="pd-note pd-warm">🐢 D\'après ta dernière course : ' + prEsc(pac.why) + ' — départ encore plus prudent sur les 2 premiers km.</p>' : '') + '</div>';
+  const custom = P.mode === 'custom' ? '<div class="pd-card"><label class="pd-lab">Temps visé<input id="pd-custom" inputmode="numeric" placeholder="' + (long ? 'h:mm:ss' : 'mm:ss') + '" value="' + (P.custom ? prTime(P.custom) : '') + '" oninput="if(typeof prFmtTimeInput===\'function\')prFmtTimeInput(this)" onchange="_pdCustom(this.value)"></label></div>' : '';
+  h += custom;
+  const notes = (I.real && P.mode !== 'real' ? '<p class="pd-note">' + (target < I.real * 0.985 ? '⚠️ Plus rapide que ton niveau actuel (' + prTime(I.real) + ') : départ très prudent, accélère seulement après la mi-course si tout va bien.' : '✓ Cohérent avec ton niveau actuel (' + prTime(I.real) + ').') + '</p>' : '')
+    + (adj.pct >= 1 ? '<p class="pd-note pd-warm">🌡️ Prévision ' + prEsc(P.wxWhere || '') + ' : ' + prEsc(adj.why) + ' : allures +' + prV(adj.pct) + ' % (' + prTime(target) + ' → ' + prTime(tgtWx) + ').</p>' : wx ? '<p class="pd-note">🌤️ Prévision ' + prEsc(P.wxWhere || '') + ' : ' + Math.round(wx.t) + ' °C, vent ' + Math.round(wx.w) + ' km/h, conditions favorables.</p>' : '');
+  h += '<div class="pd-card pd-hero"><div><small>Temps visé</small><b>' + prTime(tgtWx) + '</b></div><div><small>Allure moyenne</small><b>' + prPace(tgtWx / I.dist) + '<i>/km</i></b></div>' + notes + '</div>';
+  // passages (thème Piste de nuit : haut de la fenêtre redessiné, piste-screens.js psRaceTop)
+  const _pacNote = pac && pac.start ? '🐢 D\'après ta dernière course : ' + prEsc(pac.why) + ' — départ plus prudent sur les 2 premiers km.' : 'Départ un peu plus lent, régularité jusqu\'à la mi-course, puis on relance : finir plus vite qu\'on est parti.';
+  if(typeof phIsOn === 'function' && phIsOn() && typeof psRaceTop === 'function') h = psRaceTop({ P: P, I: I, sp: sp, tgt: tgtWx, wx: wx, custom: custom, notes: notes ? '<div class="pd-card">' + notes + '</div>' : '', pacNote: _pacNote });
+  else {
+    const marks = sp.filter(function(x, i){ return i === sp.length - 1 || (I.dist <= 10 ? true : I.dist <= 22 ? (i + 1) % 2 === 1 || i === 0 : (i + 1) % 5 === 0); });
+    h += '<p class="pd-sec">Allure km par km</p><div class="pd-card pd-splits"><table><thead><tr><th>Km</th><th>Allure</th><th>Passage</th></tr></thead><tbody>'
+      + marks.map(function(x, i){ return '<tr' + (x.km === sp[sp.length - 1].km ? ' class="fin"' : '') + '><td>' + (x.km === sp[sp.length - 1].km ? '🏁 ' + String(x.km).replace('.', ',') : x.km) + '</td><td>' + prPace(x.pace) + '</td><td>' + prTime(x.cum) + '</td></tr>'; }).join('') + '</tbody></table>'
+      + '<p class="pd-note">Départ un peu plus lent (+' + Math.round(sp[0].pace - tgtWx / I.dist) + ' s au 1er km), régularité jusqu\'à la mi-course, puis on relance légèrement : finir plus vite qu\'on est parti.</p>'
+      + (pac && pac.start ? '<p class="pd-note pd-warm">🐢 D\'après ta dernière course : ' + prEsc(pac.why) + ' — départ encore plus prudent sur les 2 premiers km.</p>' : '') + '</div>';
+  }
   // échauffement, ravitaillement, consignes
   const warm = cat === 'Marathon' ? '8-10 min de footing très léger + 2 lignes droites, 20 min avant le départ. Garde de l\'énergie : les premiers km servent d\'échauffement.'
     : cat === 'Semi-marathon' ? '12-15 min de footing + 3 accélérations progressives de 80 m + 1 min à allure course, à finir 10 min avant le départ.'

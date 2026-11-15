@@ -6,6 +6,7 @@ function renderStats(){
   if(typeof bsRenderStatsCard === 'function') bsRenderStatsCard();         // signaux du corps : foulée, zones FC (body-signals.js)
   if(typeof fmRenderStatsCard === 'function') fmRenderStatsCard();         // forme / fatigue, jour J, affûtage (fitness-model.js)
   { const _ac = document.getElementById('alc-stats-card'); if(_ac) _ac.innerHTML = typeof alcStatsHtml === 'function' ? alcStatsHtml() : ''; }   // alcool et récupération (alcohol.js)
+  if(typeof psStatsRender === 'function') psStatsRender();                  // thème Piste de nuit : Progrès en tête (piste-screens.js)
   statsTodayRender();                                                        // Forme › « Aujourd'hui » : forme du jour, à retenir, 4 mesures
   const monthNames=['JANV.','FÉVR.','MARS','AVR.','MAI','JUIN','JUIL.','AOÛT','SEPT.','OCT.','NOV.','DÉC.'];
 
@@ -327,7 +328,7 @@ function statsTodayMsgs(F, AS){
     if(S && S.level >= 2) add(3, '🦶', 'Foulée qui se dégrade : pas de hausse de volume', 'bad', 'statsTab(\'train\')'); } catch(e) { diagSilent(e, 'stats:statsTodayMsgs'); }
   return out.sort(function(a, b){ return a.p - b.p; }).slice(0, 4);
 }
-function statsGo(id){ const el = document.getElementById(id); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function statsGo(id){ let el = document.getElementById(id); if(el && !el.offsetParent && id === 'bs-level-card') el = document.getElementById('stats-piste'); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 function statsTodayRender(){
   const el = document.getElementById('st-today'); if(!el) return;
   try {

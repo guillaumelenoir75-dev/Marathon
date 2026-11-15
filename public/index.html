@@ -250,7 +250,7 @@
 
 <!-- PLAN -->
 <div id="sc-plan" style="display:none;background:#E2E8F5;min-height:100vh;">
-  <div style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:20px 16px 36px;color:#fff;">
+  <div id="plan-hero" style="background:linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%,#2563EB 100%);padding:20px 16px 36px;color:#fff;">
     <div style="font-size:10px;font-weight:700;opacity:0.58;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:5px;">Mon programme</div>
     <div id="plan-title" style="font-size:28px;font-weight:900;letter-spacing:-0.6px;line-height:1.05;">Plan marathon</div>
     <div style="font-size:12px;opacity:0.65;margin-top:3px;" id="plan-total-km">32 semaines · 1092 km</div>
@@ -259,6 +259,8 @@
     </div>
     <div style="font-size:10px;opacity:0.55;margin-top:6px;" id="plan-hero-label"></div>
   </div>
+  <!-- Thème « Piste de nuit » : la semaine en couloirs (piste-screens.js psPlanRender) -->
+  <div id="plan-piste" style="display:none;"></div>
   <div id="plan-list" style="padding:14px 14px 28px;display:flex;flex-direction:column;gap:10px;margin-top:-18px;"></div>
 </div>
 
@@ -268,7 +270,9 @@
   <div id="stats-ptr-spinner" style="display:flex;justify-content:center;padding:0 0 6px;opacity:0;transition:opacity 0.15s;pointer-events:none;">
     <div style="width:22px;height:22px;border:2.5px solid rgba(27,79,216,0.2);border-top-color:#1B4FD8;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
   </div>
-  <p style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:12px;">Statistiques</p>
+  <p id="stats-title" style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:12px;">Statistiques</p>
+  <!-- Thème « Piste de nuit » : Progrès (piste-screens.js psStatsRender) -->
+  <div id="stats-piste" style="display:none;"></div>
   <div id="st-tabs" class="st-tabs" role="tablist">
     <button type="button" role="tab" data-st="forme" class="on" onclick="statsTab('forme')">Forme</button>
     <button type="button" role="tab" data-st="train" onclick="statsTab('train')">Entraînement</button>
@@ -1066,6 +1070,7 @@
 <script defer src="/src/session-flow.js?v=1"></script>
 <script defer src="/src/my-day.js?v=1"></script>
 <script defer src="/src/piste-home.js?v=1"></script>
+<script defer src="/src/piste-screens.js?v=1"></script>
 <script defer src="/src/search.js?v=1"></script>
 <script defer src="/src/nav.js?v=1"></script>
 </body>

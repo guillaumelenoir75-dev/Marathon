@@ -1137,6 +1137,58 @@ test('thème « Piste de nuit » : 4e choix, bleu nuit + orange, accueil avec an
   await ctx.close();
 });
 
+test('Piste de nuit · plan en couloirs, séance faite (ressenti), Progrès, plan de course, renfo et voix aux couleurs de la piste', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const SH = process.env.SHOTS;
+  const { ctx, page, errors } = await open('2026-11-03T19:12:00+01:00', savedDb, { init: () => { localStorage.setItem('pm_theme', 'piste'); } });
+  // Plan : 7 couloirs, détail du jour, autre semaine
+  await page.evaluate(() => showScreen('plan')); await page.waitForTimeout(500);
+  const P = await page.evaluate(() => ({ vis: getComputedStyle(document.getElementById('plan-piste')).display, hero: getComputedStyle(document.getElementById('plan-hero')).display,
+    lanes: document.querySelectorAll('#plan-piste .ps-lane').length, weeks: document.querySelectorAll('#plan-piste .ps-wk').length, on: (document.querySelector('#plan-piste .ps-lane.on .ps-day small') || {}).textContent,
+    card: (document.querySelector('#plan-piste .ps-card') || {}).textContent || '' }));
+  assert.equal(P.vis, 'flex'); assert.equal(P.hero, 'none'); assert.equal(P.lanes, 7); assert.ok(P.weeks >= 3, 'semaines ' + P.weeks);
+  assert.equal(P.on, 'Mar', 'aujourd\'hui sélectionné');
+  if (SH) await page.screenshot({ path: SH + '/piste-plan.png' });
+  await page.click('#plan-piste .ps-lane:nth-child(7)'); await page.waitForTimeout(150);
+  assert.match(await page.textContent('#plan-piste .ps-card'), /Dim/);
+  await page.click('#plan-piste .ps-wk:nth-child(3)'); await page.waitForTimeout(150);
+  assert.match(await page.textContent('#plan-piste .ps-eb'), /^Semaine 3/);
+  // séance faite : écran dédié, ressenti enregistré
+  const key = await page.evaluate(() => (prSessions(state).find((s) => s.done && !s.skip) || {}).key);
+  assert.ok(key, 'une séance faite');
+  await page.evaluate((k) => openSessionPiste(k), key); await page.waitForSelector('#ps-sess .ps-bigkm');
+  await page.click('#ps-sess .ps-rpe button:nth-child(7)'); await page.waitForTimeout(400);
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k + '_perf'] || '{}').rpe, key), 7);
+  assert.match(await page.textContent('#ps-sess .ps-rv'), /7\/10 · Soutenu/);
+  if (SH) await page.screenshot({ path: SH + '/piste-seance.png' });
+  await page.click('#ps-sess .ps-ic[aria-label=Fermer]'); assert.equal(await page.locator('#ps-sess').count(), 0);
+  // Progrès
+  await page.evaluate(() => showScreen('stats')); await page.waitForTimeout(700); await page.evaluate(() => window.scrollTo(0, 0));
+  const S = await page.evaluate(() => ({ vis: getComputedStyle(document.getElementById('stats-piste')).display, lvl: getComputedStyle(document.getElementById('bs-level-card')).display,
+    tiles: [...document.querySelectorAll('#stats-piste .ps-rt small')].map((e) => e.textContent), big: (document.querySelector('#stats-piste .ps-lv b') || {}).textContent }));
+  assert.equal(S.vis, 'flex'); assert.equal(S.lvl, 'none'); assert.deepEqual(S.tiles, ['5 km', '10 km', 'Semi', 'Marathon']); assert.match(S.big, /^\d{2},\d$/);
+  if (SH) await page.screenshot({ path: SH + '/piste-progres.png' });
+  await page.click('#stats-piste .ps-seg button:first-child'); await page.waitForTimeout(150);
+  assert.match(await page.textContent('#stats-piste .ps-lv span'), /3 mois/);
+  // plan de course du jour J
+  await page.evaluate(() => openRacePlan()); await page.waitForSelector('#pd-race .ps-race');
+  assert.match(await page.textContent('#pd-race .ps-rh b'), /^\d{2}'\d{2}$/);
+  assert.equal(await page.locator('#pd-race .ps-sr').count(), 10, 'un 10 km : tous les km');
+  if (SH) { await page.waitForTimeout(700); await page.screenshot({ path: SH + '/piste-jourj.png' }); }
+  await page.click('#pd-race .ps-ch:last-child'); await page.waitForSelector('#pd-custom');
+  await page.evaluate(() => document.getElementById('pd-race').remove());
+  // renfo guidé et Coach à la voix : couleurs de la piste
+  await page.evaluate(() => { showScreen('renfo', 1); openRenfoGuide(); }); await page.waitForSelector('#rg-ov');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('rg-ov')).backgroundColor), 'rgb(14, 20, 36)');
+  if (SH) await page.screenshot({ path: SH + '/piste-renfo.png' });
+  await page.evaluate(() => rgClose());
+  const orb = await page.evaluate(() => { const o = document.createElement('div'); o.id = 'cv-ov'; o.className = 'speak'; o.innerHTML = '<button class="cv-orb"></button>'; document.body.appendChild(o);
+    const c = getComputedStyle(o.querySelector('.cv-orb')).backgroundColor; o.remove(); return c; });
+  assert.equal(orb, 'rgb(224, 96, 58)', 'le Coach parle : orange de piste');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débordement (clair et sombre), diagnostic', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   // poids : budget du bundle de démarrage (gzip)

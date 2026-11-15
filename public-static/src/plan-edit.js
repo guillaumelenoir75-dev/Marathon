@@ -73,6 +73,7 @@ function toggleWeek(s){
 }
 
 function scrollToCurrentWeek(){
+  if(typeof phIsOn === 'function' && phIsOn() && document.getElementById('plan-piste') && document.getElementById('plan-piste').style.display !== 'none'){ window.scrollTo({ top: 0, behavior: 'instant' }); return; }   // Piste de nuit : la semaine en couloirs est en haut
   const currentCard = document.querySelector('.plan-week-card.is-current');
   if(!currentCard) return;
   // getBoundingClientRect donne la position relative au viewport
