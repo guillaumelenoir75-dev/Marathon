@@ -1128,6 +1128,14 @@ test('thème « Piste de nuit » : 4e choix, bleu nuit + orange, accueil avec an
   // toucher l'anneau = fenêtre de prédiction / objectif ; la tuile Forme ouvre Statistiques
   await page.click('#home-piste .ph-tile:nth-child(3)'); await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('sc-stats')).display !== 'none'), true);
+  // tout tient sur un écran d'iPhone : en-tête, pastilles et « Ta journée » laissent la Forme du jour visible sans défiler
+  await page.evaluate(() => { showScreen('home'); window.scrollTo(0, 0); }); await page.waitForTimeout(300);
+  const Y = await page.evaluate(() => ({ form: Math.round(document.getElementById('home-form-card').getBoundingClientRect().top), chips: document.getElementById('ph-chips').getBoundingClientRect().height }));
+  if (process.env.SHOTS) console.log('[mesure] forme du jour à', Y.form, 'px');
+  if (process.env.SHOTS) console.log('[mesure]', JSON.stringify(await page.evaluate(() => ['ph-top', 'ph-ring', 'ph-chips', 'ph-blocks', 'home-day-card', 'home-form-card'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return id + ':' + Math.round(r.top) + '+' + Math.round(r.height); }))));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/piste-home-fit.png' });
+  assert.ok(Y.form <= 430, 'forme du jour trop bas : ' + Y.form + ' px');
+  assert.ok(Y.chips <= 40, 'pastilles sur une seule ligne');
   if (process.env.SHOTS) { await page.evaluate(() => showScreen('home')); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/piste-home.png' }); await page.screenshot({ path: process.env.SHOTS + '/piste-home-full.png', fullPage: true }); }
   if (process.env.SHOTS) for (const sc of ['plan', 'stats', 'compte']) { await page.evaluate((n) => showScreen(n), sc); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/piste-' + sc + '.png' }); }
   // réglage : 4 choix, Piste coché
@@ -1206,7 +1214,7 @@ test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débor
       const W = window.innerWidth, bad = [];
       if (document.documentElement.scrollWidth > W + 1) bad.push(n + ' : page ' + document.documentElement.scrollWidth);
       document.querySelectorAll('#sc-' + n + ' *').forEach((e) => {
-        if (!e.offsetParent || e.closest('[style*="overflow-x"],[style*="overflow:auto"],[style*="overflow:hidden"],.pr-strip,.lv-scroll,svg')) return;
+        if (!e.offsetParent || e.closest('[style*="overflow-x"],[style*="overflow:auto"],[style*="overflow:hidden"],.pr-strip,.lv-scroll,.ph-chips,.ps-weeks,svg')) return;
         const r = e.getBoundingClientRect(); if (r.width && r.right > W + 1) bad.push(n + ' : ' + (e.id || e.className || e.tagName) + ' → ' + Math.round(r.right));
       });
       return bad.slice(0, 5);
