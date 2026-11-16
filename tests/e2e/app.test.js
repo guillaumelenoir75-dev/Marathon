@@ -1202,6 +1202,38 @@ test('Piste de nuit · plan en couloirs, séance faite (ressenti), Progrès, pla
   await ctx.close();
 });
 
+test('validation : les blocs d\'un fractionné / tempo toujours proposés (temps + allure), même sans Strava ni « Remplir à la main »', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-11-03T19:12:00+01:00', savedDb);
+  const S = await page.evaluate(() => { const s = prSessions(state).find((x) => (x.type === 'frac' || x.type === 'tempo') && !x.done); return s && { w: s.w, ei: s.ei, key: s.key, title: s.title, detail: s.detail }; });
+  assert.ok(S, 'une séance de qualité à valider');
+  await page.evaluate((x) => openValidationModalExtra(x.w, x.ei), S); await page.waitForSelector('#val-blocs-container');
+  const V = await page.evaluate(() => ({ manual: getComputedStyle(document.getElementById('val-manual')).display, blocs: !!document.getElementById('val-blocs-container').offsetParent,
+    n: document.querySelectorAll('#val-blocs-rows .val-bloc-row').length, t: !!document.getElementById('val-bloc-t-0'), p: !!document.getElementById('val-bloc-0'), spec: window._valBlocSpec }));
+  if (process.env.SHOTS) { await page.evaluate(() => document.getElementById('val-blocs-container').scrollIntoView({ block: 'center' })); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/blocs.png' }); }
+  assert.equal(V.manual, 'none', 'champs km / durée encore cachés');
+  assert.ok(V.blocs, 'blocs visibles quand même'); assert.ok(V.n >= 2); assert.ok(V.t && V.p, 'temps et allure');
+  // un bloc de plus, puis saisie : temps du bloc 1, allure du bloc 2
+  await page.click('#val-blocs-container button[aria-label="Ajouter un bloc"]');
+  assert.equal(await page.locator('#val-blocs-rows .val-bloc-row').count(), V.n + 1);
+  const T0 = V.spec.dist ? ((x) => Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'))(Math.round(V.spec.dist / 1000 * 240)) : '8:00';   // 4'00 /km
+  await page.fill('#val-bloc-t-0', T0);
+  if (V.spec.dist) assert.equal(await page.inputValue('#val-bloc-0'), '4:00', 'allure calculée depuis le temps');
+  await page.fill('#val-bloc-1', '4:05');
+  await page.evaluate((x) => { avManualOpen(); document.getElementById('val-km').value = '9'; document.getElementById('val-dur').value = '45:00'; return saveValidationExtra(x.w, x.ei); }, S);
+  await page.waitForTimeout(600);
+  const perf = await page.evaluate((k) => JSON.parse(state[k + '_perf'] || '{}'), S.key);
+  assert.equal(perf.blocsTemps[0], T0);
+  assert.equal(perf.blocsAllure[1], '4:05');
+  assert.equal(perf.blocsTemps.length, V.n + 1);
+  // re-validation : les blocs saisis reviennent
+  await page.evaluate(() => { const m = document.querySelector('#modal-container .modal-overlay'); if (m) m.remove(); });
+  await page.evaluate((x) => openValidationModalExtra(x.w, x.ei), S); await page.waitForSelector('#val-blocs-container');
+  assert.equal(await page.inputValue('#val-bloc-1'), '4:05');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débordement (clair et sombre), diagnostic', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   // poids : budget du bundle de démarrage (gzip)

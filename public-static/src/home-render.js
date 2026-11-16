@@ -1238,29 +1238,8 @@ function openValidationModalExtra(w,ei){
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">bpm</p>
         </div>
       </div>
-      ${(()=>{
-        if(s.type!=='tempo' && s.type!=='frac') return '';
-        const titleMatch=(s.d||'').split('|')[0].match(/(\d+)\s*[x\u00d7]/i)||(s.d||'').split('|').slice(1).join('|').match(/(\d+)\s*[x\u00d7]/i);   // titre, sinon consigne
-        const nbBlocs=titleMatch?parseInt(titleMatch[1]):2;
-        const prevBlocs=prev.blocsAllure||[];
-        const nbRows=Math.ceil(nbBlocs/3);
-        const _bColor=s.type==='frac'?'#C4141B':'#1B4FD8';
-        const _bLabel=s.type==='frac'?'⚡ Allure par bloc fractionné':'⚡ Allure par bloc tempo';
-        let html='<div id="val-blocs-container" style="margin-top:12px;"><p style="font-size:12px;font-weight:600;color:'+_bColor+';margin-bottom:4px;">'+_bLabel+'</p><p style="font-size:10px;color:#888;margin-bottom:8px;">Facultatif — renseigne l\'allure de chaque bloc d\'après ta montre.</p>';
-        for(let row=0;row<nbRows;row++){
-          const s2=row*3,e2=Math.min(s2+3,nbBlocs),cnt=e2-s2;
-          html+='<div style="display:grid;grid-template-columns:repeat('+cnt+',1fr);gap:8px;'+(row>0?'margin-top:8px;':'')+'">';
-          for(let i=s2;i<e2;i++){
-            html+='<div><p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Bloc '+(i+1)+'</p>';
-            html+='<input type="text" id="val-bloc-'+i+'" value="'+(prevBlocs[i]||'')+'" placeholder="4:50" maxlength="5" style="background:var(--bg2);border:1.5px solid '+_bColor+'30;border-radius:var(--radius-sm);padding:10px;font-size:18px;font-weight:700;color:'+_bColor+';width:100%;outline:none;text-align:center;">';
-            html+='<p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p></div>';
-          }
-          html+='</div>';
-        }
-        html+='</div>';
-        return html;
-      })()}
       </div><!-- /val-manual -->
+      ${s.type!=='race'&&typeof prBlocsHtml==='function'?prBlocsHtml(s,prev):''}<!-- blocs (temps + allure) : toujours visibles dès que la séance en a (plan-daily.js) -->
       ${s.type!=='race'&&typeof jvHtml==='function'?jvHtml(prev,{title:(s.d||'').split('|')[0],type:s.type,km:s.km}):''}
       ${s.type!=='race'&&typeof prRpeHtml==='function'?prRpeHtml(prev):''}
     </div>
@@ -1449,14 +1428,16 @@ async function saveValidationExtra(w,ei){
   // Journal de séance dicté / écrit (journal.js) : texte + note lue par le Coach
   const _jv=typeof jvRead==='function'?jvRead():null;
   if(_jv&&_jv.text){ perf.journal=_jv.text; if(_jv.note) perf.note=_jv.note; }
-  // Blocs Tempo/Frac
+  // Blocs (fractionné, tempo, toute séance « N × … ») : temps + allure de chaque bloc (plan-daily.js prBlocsRead)
   let sExtra={};try{sExtra=JSON.parse(state[k]||'{}');}catch(e){}
-  if(sExtra.type==='tempo'||sExtra.type==='frac'){
-    const tmatch=(sExtra.d||'').split('|')[0].match(/(\d+)\s*[x\u00d7]/i)||(sExtra.d||'').split('|').slice(1).join('|').match(/(\d+)\s*[x\u00d7]/i);
-    const nbB=tmatch?parseInt(tmatch[1]):2;
-    const blocsAllure=[];
-    for(let i=0;i<nbB;i++){const el=document.getElementById('val-bloc-'+i);blocsAllure.push(el&&el.value.trim()?el.value.trim():'');}
-    if(blocsAllure.some(b=>b)) perf.blocsAllure=blocsAllure;
+  const _bBox=document.getElementById('val-blocs-container');
+  if(_bBox&&typeof prBlocsRead==='function'){
+    const _bn=+_bBox.dataset.n||0, _bt=[], _bp=[];
+    for(let i=0;i<_bn;i++){ const t=document.getElementById('val-bloc-t-'+i), p=document.getElementById('val-bloc-'+i); _bt.push(t?t.value:''); _bp.push(p?p.value:''); }
+    const _bs=typeof prBlocSpec==='function'?prBlocSpec((sExtra.d||'').split('|')[0],(sExtra.d||'').split('|').slice(1).join('|'),sExtra.type):null;
+    const _br=prBlocsRead(_bs,_bt,_bp);
+    if(_br.blocsAllure) perf.blocsAllure=_br.blocsAllure;
+    if(_br.blocsTemps) perf.blocsTemps=_br.blocsTemps;
   }
   // Strava — même logique que saveValidation
   if(window._stravaActivityData){
@@ -1476,14 +1457,14 @@ async function saveValidationExtra(w,ei){
     if(g.laps&&g.laps.length>0) stravaData.laps=g.laps;
     if(Object.keys(stravaData).length>0){
       let ex={};try{ex=state[k+'_perf']?JSON.parse(state[k+'_perf']):{}}catch(e){}
-      ['rpe','pain','blocsAllure','blocsAuto','_blocsAuto','journal','note'].forEach(f=>delete ex[f]);   // gérés par le formulaire : jamais repris de l'ancienne validation
+      ['rpe','pain','blocsAllure','blocsTemps','blocsAuto','_blocsAuto','journal','note'].forEach(f=>delete ex[f]);   // gérés par le formulaire : jamais repris de l'ancienne validation
       const _keep=Object.assign({},perf);
       Object.assign(perf,ex,_keep);
       perf.strava=stravaData;
     }
     if(g.activityId) perf.strava_id=String(g.activityId);   // sortie rattachée : jamais reprise par la validation automatique
     // blocs non saisis : lus depuis les tours Strava
-    if((sExtra.type==='tempo'||sExtra.type==='frac')&&!(perf.blocsAllure||[]).some(Boolean)&&stravaData.laps&&typeof prBlocsFromLaps==='function'){
+    if(document.getElementById('val-blocs-container')&&!(perf.blocsAllure||[]).some(Boolean)&&stravaData.laps&&typeof prBlocsFromLaps==='function'){
       const _p=(sExtra.d||'').split('|'), _bl=prBlocsFromLaps(_p[0],_p.slice(1).join('|'),stravaData.laps);
       if(_bl){ perf.blocsAllure=_bl; perf.blocsAuto=true; }
     }

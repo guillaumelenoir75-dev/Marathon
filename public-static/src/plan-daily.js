@@ -23,18 +23,97 @@ function prBlocsFromLaps(title, detail, laps){
   if(work.length < Math.max(2, Math.ceil(n * 0.6))) return null;
   return work.slice(0, n).map(function(l){ return prPace(l.p).replace("'", ':'); });
 }
+// ─── Blocs d'une séance (fractionné, tempo, et toute séance « N × … » : sortie longue avec blocs à allure marathon…) ───
+// → {n, dist (m) | null, dur (s) | null, fixed} ; null = pas de blocs (lignes droites, accélérations, strides, éducatifs : pas des blocs chronométrés)
+const PR_BLOC_RE = /(\d+)\s*[x×]\s*(\d+(?:[,.]\d+)?)\s*(km|m|min|mn|'|sec|s)(?![a-zà-ü])/gi;
+function prBlocSpec(title, detail, type){
+  const txt = String(title || '') + ' · ' + String(detail || '');
+  let m, spec = null;
+  PR_BLOC_RE.lastIndex = 0;
+  while((m = PR_BLOC_RE.exec(txt))){
+    const after = txt.slice(m.index + m[0].length, m.index + m[0].length + 28).toLowerCase();
+    if(/ligne|acc[ée]l|stride|[ée]duc|gamme|mont[ée]e/.test(after)) continue;   // pas des blocs chronométrés
+    const n = +m[1], v = parseFloat(m[2].replace(',', '.')), u = m[3].toLowerCase();
+    if(!(n >= 2 && n <= 30) || !(v > 0)) continue;
+    spec = { n: n, dist: u === 'km' ? v * 1000 : u === 'm' ? v : null, dur: u === 'min' || u === 'mn' || u === "'" ? v * 60 : u === 'sec' || u === 's' ? v : null, fixed: true };
+    if(spec.dist && (spec.dist < 50 || spec.dist > 15000)) { spec = null; continue; }
+    break;
+  }
+  if(spec) return spec;
+  if(type === 'tempo' || type === 'frac'){
+    const g = txt.match(/(\d+)\s*[x×]/i);
+    return { n: g && +g[1] >= 1 && +g[1] <= 30 ? +g[1] : 2, dist: null, dur: null, fixed: false };
+  }
+  return null;
+}
+// « 3:20 » / « 1:05:30 » → secondes ; temps d'un bloc ↔ allure (/km) quand la distance du bloc est connue
+const _prT = function(t){ const p = String(t || '').trim().replace(/['’h]/g, ':').split(':').map(Number); if(!p.length || p.some(isNaN)) return null; return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : p[0] || null; };
+const _prMs = function(sec){ sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+function prBlocPace(time, distM){ const t = _prT(time); if(!t || !(distM > 0)) return ''; const p = t / distM * 1000; return p >= 120 && p <= 720 ? _prMs(p) : ''; }
+function prBlocTime(pace, distM){ const p = _prT(pace); if(!p || !(distM > 0) || p < 120 || p > 720) return ''; return _prMs(p * distM / 1000); }
+// lecture de la saisie : allure calculée depuis le temps quand elle manque (bloc à distance connue)
+function prBlocsRead(spec, times, paces){
+  const n = Math.max((times || []).length, (paces || []).length), A = [], T = [];
+  for(let i = 0; i < n; i++){
+    const t = String((times || [])[i] || '').trim(), p = String((paces || [])[i] || '').trim();
+    T.push(t); A.push(p || (t && spec && spec.dist ? prBlocPace(t, spec.dist) : ''));
+  }
+  return { blocsAllure: A.some(Boolean) ? A : null, blocsTemps: T.some(Boolean) ? T : null };
+}
+// fenêtre « Valider la séance » : blocs toujours proposés (temps + allure), même sans Strava ni « Remplir à la main »
+function prBlocsHtml(s, prev){
+  prev = prev || {};
+  const parts = String(s.d || '').split('|'), spec = prBlocSpec(parts[0], parts.slice(1).join('|'), s.type);
+  if(!spec) return '';
+  const pa = prev.blocsAllure || [], pt = prev.blocsTemps || [], n = Math.max(spec.n, pa.length, pt.length);
+  const unit = spec.dist ? (spec.dist >= 1000 ? String(spec.dist / 1000).replace('.', ',') + ' km' : spec.dist + ' m') : spec.dur ? (spec.dur % 60 ? _prMs(spec.dur) : spec.dur / 60 + ' min') : '';
+  const C = s.type === 'frac' ? '#C4141B' : s.type === 'tempo' ? '#B45309' : '#1D4ED8';
+  window._valBlocSpec = spec;
+  let h = '<div id="val-blocs-container" data-n="' + n + '" style="background:var(--bg2);border:1.5px solid ' + C + '33;border-radius:14px;padding:12px;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;"><p style="margin:0;font-size:13px;font-weight:800;color:' + C + ';">⚡ Tes blocs' + (unit ? ' · ' + n + ' × ' + unit : '') + '</p>'
+    + '<span style="display:flex;gap:6px;"><button type="button" onclick="prBlocsCount(-1)" aria-label="Retirer un bloc" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ' + C + '55;background:transparent;color:' + C + ';font-size:18px;font-weight:800;cursor:pointer;">−</button>'
+    + '<button type="button" onclick="prBlocsCount(1)" aria-label="Ajouter un bloc" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ' + C + '55;background:transparent;color:' + C + ';font-size:18px;font-weight:800;cursor:pointer;">+</button></span></div>'
+    + '<p style="margin:0 0 8px;font-size:11px;color:var(--muted);">Temps et allure de chaque bloc d\'après ta montre' + (spec.dist ? ' : l\'un calcule l\'autre' : '') + '. Vide = lu dans tes tours Strava.</p><div id="val-blocs-rows" style="display:flex;flex-direction:column;gap:6px;">';
+  for(let i = 0; i < n; i++) h += _prBlocRow(i, pt[i] || '', pa[i] || '', spec, C);
+  return h + '</div></div>';
+}
+function _prBlocRow(i, t, p, spec, C){
+  const inp = 'background:var(--bg);border:1.5px solid ' + C + '30;border-radius:10px;padding:9px 6px;font-size:17px;font-weight:800;color:' + C + ';width:100%;outline:none;text-align:center;font-variant-numeric:tabular-nums;';
+  return '<div class="val-bloc-row" style="display:grid;grid-template-columns:54px 1fr 1fr;gap:8px;align-items:center;"><span style="font-size:12px;font-weight:800;color:var(--muted);">Bloc ' + (i + 1) + '</span>'
+    + '<label style="display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--muted);text-align:center;"><input type="text" inputmode="numeric" id="val-bloc-t-' + i + '" value="' + t + '" placeholder="' + (spec.dur ? _prMs(spec.dur) : spec.dist ? (spec.dist >= 1000 ? '4:05' : '1:32') : '3:20') + '" maxlength="8" oninput="prBlocInput(' + i + ',\'t\')" style="' + inp + '">temps</label>'
+    + '<label style="display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--muted);text-align:center;"><input type="text" inputmode="numeric" id="val-bloc-' + i + '" value="' + p + '" placeholder="4:05" maxlength="5" oninput="prBlocInput(' + i + ',\'p\')" style="' + inp + '">allure /km</label></div>';
+}
+// temps saisi → allure (et l'inverse) quand la distance du bloc est connue ; une valeur tapée à la main n'est jamais écrasée
+function prBlocInput(i, f){
+  const spec = window._valBlocSpec; if(!spec || !spec.dist) return;
+  const t = document.getElementById('val-bloc-t-' + i), p = document.getElementById('val-bloc-' + i); if(!t || !p) return;
+  const src = f === 't' ? t : p, dst = f === 't' ? p : t;
+  src.dataset.m = '1';
+  if(dst.dataset.m === '1' && dst.value.trim()) return;
+  const v = f === 't' ? prBlocPace(t.value, spec.dist) : prBlocTime(p.value, spec.dist);
+  dst.value = v; delete dst.dataset.m;
+}
+function prBlocsCount(d){
+  const box = document.getElementById('val-blocs-container'), rows = document.getElementById('val-blocs-rows'); if(!box || !rows) return;
+  const n = Math.max(1, Math.min(30, (+box.dataset.n || 0) + d)), spec = window._valBlocSpec || {};
+  const C = (rows.querySelector('input') || {}).style ? rows.querySelector('input').style.color : '#1D4ED8';
+  while(rows.children.length < n) rows.insertAdjacentHTML('beforeend', _prBlocRow(rows.children.length, '', '', spec, C));
+  while(rows.children.length > n) rows.lastElementChild.remove();
+  box.dataset.n = n;
+  const tt = box.querySelector('p'); if(tt && /×/.test(tt.textContent)) tt.textContent = tt.textContent.replace(/· \d+ ×/, '· ' + n + ' ×');
+}
 // pré-remplissage de la fenêtre de validation après l'import Strava
 function prFillBlocsFromStrava(activity){
-  const ctx = window._currentValidationSession; if(!ctx || !ctx.s || (ctx.s.type !== 'tempo' && ctx.s.type !== 'frac')) return;
+  const ctx = window._currentValidationSession; if(!ctx || !ctx.s || !document.getElementById('val-blocs-container')) return;
   const parts = String(ctx.s.d || '').split('|'), bl = prBlocsFromLaps(parts[0], parts.slice(1).join('|'), activity && activity.laps);
   const box = document.getElementById('val-blocs-container'); if(!box) return;
   const old = document.getElementById('val-blocs-strava-msg'); if(old) old.remove();
   const msg = document.createElement('p'); msg.id = 'val-blocs-strava-msg'; msg.style.cssText = 'font-size:11px;font-weight:700;margin-top:8px;text-align:center;';
   if(bl){
     let n = 0;
-    bl.forEach(function(v, i){ const el = document.getElementById('val-bloc-' + i); if(el && !el.value.trim()){ el.value = v; el.style.borderColor = '#1382E4'; n++; } });
+    bl.forEach(function(v, i){ const el = document.getElementById('val-bloc-' + i); if(el && !el.value.trim()){ el.value = v; el.style.borderColor = '#1382E4'; n++; if(typeof prBlocInput === 'function') prBlocInput(i, 'p'); } });
     msg.style.color = '#1382E4'; msg.textContent = n ? '⚡ ' + n + ' bloc' + (n > 1 ? 's' : '') + ' rempli' + (n > 1 ? 's' : '') + ' depuis tes tours Strava : vérifie-les.' : 'Blocs déjà renseignés.';
-  } else { msg.style.color = '#888'; msg.textContent = 'Tours Strava non reconnus comme des blocs : renseigne l\'allure de chaque bloc d\'après ta montre (facultatif).'; }
+  } else { msg.style.color = '#888'; msg.textContent = 'Tours Strava non reconnus comme des blocs : renseigne le temps ou l\'allure de chaque bloc d\'après ta montre.'; }
   box.appendChild(msg);
 }
 

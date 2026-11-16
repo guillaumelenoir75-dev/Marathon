@@ -188,7 +188,14 @@ function _psSessRender(key, D){
       + B.bars.map(function(b){ return '<div class="ps-col">' + (b.lab ? '<span class="ps-lab' + (b.best ? ' best' : '') + '">' + prPace(b.sec) + '</span>' : '') + '<i class="' + (b.best ? 'best' : '') + '" style="height:' + b.h + 'px"></i></div>'; }).join('') + '</div>'
       + '<div class="ps-kms" style="--n:' + B.n + '">' + B.bars.map(function(b, i){ return '<span>' + (B.n <= 16 || i % 2 === 0 ? b.km : '') + '</span>'; }).join('') + '</div>'
       + (B.line != null ? '<p class="ps-note">Pointillés : haut de la consigne. Au-dessus = plus rapide que prévu.</p>' : '') + '</div>';
-  } else if(D.blocs && D.blocs.length) h += '<div class="ps-box"><div class="ps-bh"><h3>Blocs</h3></div><p class="ps-blocs">' + D.blocs.map(_psE).join(' · ') + '</p></div>';
+  }
+  // blocs du fractionné / tempo : temps et allure de chaque bloc (saisis à la validation ou lus dans les tours Strava)
+  const BA = p.blocsAllure || [], BT = p.blocsTemps || [], nb = Math.max(BA.length, BT.length);
+  if(nb && (BA.some(Boolean) || BT.some(Boolean))){
+    h += '<div class="ps-box"><div class="ps-bh"><h3>Tes blocs</h3><span>' + nb + ' bloc' + (nb > 1 ? 's' : '') + (p.blocsAuto || p._blocsAuto ? ' · tours Strava' : '') + '</span></div><div class="ps-bl">';
+    for(let i = 0; i < nb; i++) h += '<div><small>' + (i + 1) + '</small>' + (BT[i] ? '<b>' + _psE(String(BT[i])) + '</b>' : '') + (BA[i] ? '<span>' + _psE(String(BA[i]).replace(':', '\'')) + ' /km</span>' : '') + '</div>';
+    h += '</div></div>';
+  }
   const r = p.rpe || 0, col = function(n){ return n <= 4 ? 'g' : n <= 6 ? 'b' : n <= 8 ? 'a' : 'r'; };
   h += '<div class="ps-box"><div class="ps-bh"><h3>Ton ressenti</h3><span class="ps-rv ' + (r ? col(r) : '') + '">' + (r ? r + '/10 · ' + PS_RPE[r] : 'pas encore noté') + '</span></div>'
     + '<div class="ps-rpe" role="group" aria-label="Effort ressenti de 1 à 10">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function(n){
@@ -322,6 +329,8 @@ function _psCss(){
     + '.ps-line{position:absolute;left:0;right:0;border-top:2px dashed rgba(242,244,248,.45);pointer-events:none;}'
     + '.ps-kms{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:3px;}.ps-kms span{text-align:center;font-size:10px;font-weight:700;color:#9AA6BF;}'
     + '.ps-blocs{margin:0;font-size:15px;font-weight:800;}'
+    + '.ps-bl{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;}.ps-bl>div{background:#0E1424;border-radius:12px;padding:7px 8px;display:flex;flex-direction:column;gap:1px;}'
+    + '.ps-bl small{font-size:10px;font-weight:800;color:#9AA6BF;}.ps-bl b{font-family:' + BS + ';font-size:20px;font-weight:800;line-height:1.05;}.ps-bl span{font-size:12px;font-weight:700;color:#E0603A;font-variant-numeric:tabular-nums;}'
     + '.ps-rv{font-size:13px!important;font-weight:800!important;}.ps-rv.g{color:#5BD08A!important;}.ps-rv.b{color:#4FB3D9!important;}.ps-rv.a{color:#E8A33D!important;}.ps-rv.r{color:#E0603A!important;}'
     + '.ps-rpe{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;}.ps-rpe button{height:44px;border:none;border-radius:10px;background:#0E1424;color:#C2CADB;font:inherit;font-size:14px;font-weight:800;cursor:pointer;padding:0;}'
     + '.ps-rpe button.on{color:#0E1424;}.ps-rpe .g{background:#5BD08A;}.ps-rpe .b{background:#4FB3D9;}.ps-rpe .a{background:#E8A33D;}.ps-rpe .r{background:#E0603A;}'
