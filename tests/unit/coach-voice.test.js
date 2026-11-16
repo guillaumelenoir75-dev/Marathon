@@ -11,6 +11,24 @@ test('cvSpeakable : allures, FC, abréviations et émojis rendus prononçables',
   assert.equal(app.cvSpeakable('Objectif 3h37 en S12, J-21.'), 'Objectif 3 heures 37 en semaine 12, J moins 21.');
   assert.equal(app.cvSpeakable('[FEU:🟢] Bien joué ✅\n- 21,4 km'), 'Bien joué. - 21 virgule 4 kilomètres');
   assert.equal(app.cvSpeakable("Vise 4'05 sur le seuil"), 'Vise 4 minutes 05 sur le seuil');
+  // chiffres écrits en chiffres par le Coach : bien prononcés (minutes rondes, minutes seules, pourcentages)
+  assert.equal(app.cvSpeakable("Vise 42'00, soit 4'12/km."), 'Vise 42 minutes, soit 4 minutes 12 au kilomètre.');
+  assert.equal(app.cvSpeakable("Garde 2' de marge, confiance 80 %."), 'Garde 2 minutes de marge, confiance 80 pour cent.');
+});
+
+test('cvKeep : tour de parole court — 2 phrases, 40 mots au plus, une courte question de relance en 3e', () => {
+  const w = (n) => Array(n).fill('mot').join(' ') + '.';
+  assert.equal(app.cvKeep(0, 0, w(60)), true, '1re phrase toujours lue');
+  assert.equal(app.cvKeep(1, 12, w(10)), true, '2e phrase si le total reste court');
+  assert.equal(app.cvKeep(1, 30, w(15)), false, 'au-delà de 40 mots : coupé');
+  assert.equal(app.cvKeep(2, 20, 'Tu veux que je détaille ?'), true, 'courte question de relance');
+  assert.equal(app.cvKeep(2, 20, w(6)), false, '3e phrase sans question : coupée');
+  assert.equal(app.cvKeep(3, 20, 'Ça te va ?'), false, 'jamais une 4e phrase');
+  // réponse trop longue (celle du test sur iPhone) : seules les 2 premières phrases passent
+  const long = "Le modèle me donne 43'47 avec une confiance de 80 %. C'est honnête : tu sors d'un marathon il y a moins d'un mois. Ton objectif à toi c'est 41'50, c'est ambitieux. Ma recommandation : vise 42'00.";
+  const S = app.cvSentences(long, true).out; let n = 0, words = 0; const kept = [];
+  for (const x of S) { if (!app.cvKeep(n, words, x)) break; kept.push(x); n++; words += x.split(/\s+/).length; }
+  assert.equal(kept.length, 2);
 });
 
 test('cvSentences : chaque phrase complète part tout de suite, la fin attend la suite du flux', () => {

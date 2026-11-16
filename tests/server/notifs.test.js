@@ -219,5 +219,8 @@ test('« Ce que le Coach sait de toi » : profil, activités fixes et prénom lu
 
 test('Coach à la voix : mode « voix » = réponse courte, sans liste ni émoji, faite pour être écoutée', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '../../functions/coach.js'), 'utf8');
-  assert.match(src, /responseMode === 'voix'[\s\S]{0,900}MODE VOCAL[\s\S]{0,700}INTERDIT : listes, titres, tableaux, markdown, émojis[\s\S]{0,600}maxTokens = 260/);
+  assert.match(src, /responseMode === 'voix'[\s\S]{0,900}MODE VOCAL[\s\S]{0,400}1 ou 2 phrases courtes, 30 mots AU TOTAL[\s\S]{0,600}CHIFFRES TOUJOURS EN CHIFFRES, JAMAIS EN LETTRES[\s\S]{0,400}INTERDIT : listes, titres, markdown, gras, émojis[\s\S]{0,600}maxTokens = 120/);
+  // pas de mise en forme écrite (émojis par bloc, gras) en mode vocal, et rappel en fin de consigne
+  assert.match(src, /reglesTour = responseMode === 'voix' \? reglesCommunes\.replace\(\/FORMAT VISUEL OBLIGATOIRE/);
+  assert.match(src, /RAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres/);
 });

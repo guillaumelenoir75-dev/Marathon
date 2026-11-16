@@ -97,9 +97,12 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
 test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute relancée, échange gardé dans le fil', async () => {
   let body = null;
   const sse = ['Très bonne question. ', 'Ce soir, fais ton footing à 5\'40/km', ' sans forcer, FC sous 145 bpm. ', 'Ça te va ?'];
+  // 2e réponse trop longue (comme sur iPhone) : seules les 2 premières phrases sont lues et affichées
+  const sseLong = ['Vise 42\'00, soit 4\'12/km. ', 'Pars prudent sur les 3 premiers km. ', 'Le modèle donne 43\'47 avec une confiance de 80 % parce que tu sors d\'un marathon. ', 'Ton objectif de 41\'50 reste ambitieux.'];
+  let calls = 0;
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
     functions: async (r) => {
-      if (/coachChat/.test(r.request().url())) { body = JSON.parse(r.request().postData() || '{}'); return r.fulfill({ contentType: 'text/event-stream', body: sse.map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' }); }
+      if (/coachChat/.test(r.request().url())) { body = JSON.parse(r.request().postData() || '{}'); calls++; return r.fulfill({ contentType: 'text/event-stream', body: (calls > 1 ? sseLong : sse).map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' }); }
       return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
     },
     init: () => {
@@ -136,6 +139,10 @@ test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute 
   await page.fill('#cv-in', 'Et demain ?'); await page.click('#cv-ov .cv-bot button');
   await page.waitForFunction(() => document.querySelector('#cv-ov .cv-log').textContent.includes('Comment je cours ce soir'), null, { timeout: 5000 });
   assert.equal(await page.evaluate(() => document.querySelector('#cv-ov .cv-you').textContent), 'Et demain ?');
+  await page.waitForFunction(() => _cv && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 8000 });
+  const L = await page.evaluate(() => ({ co: document.querySelector('#cv-ov .cv-co').textContent, said: window.__said.join(' | ') }));
+  assert.equal(L.co, "Vise 42'00, soit 4'12/km. Pars prudent sur les 3 premiers km.", 'réponse coupée à 2 phrases, chiffres en chiffres');
+  assert.match(L.said, /Vise 42 minutes, soit 4 minutes 12 au kilomètre/); assert.doesNotMatch(L.said, /43 minutes 47|ambitieux/, 'la suite n\'est pas lue');
   await page.click('#cv-ov .cv-x');
   assert.equal(await page.evaluate(() => !!document.getElementById('cv-ov')), false);
   assert.deepEqual(errors, []);

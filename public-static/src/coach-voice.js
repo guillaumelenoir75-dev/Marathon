@@ -16,7 +16,9 @@ function cvSpeakable(t){
     .replace(/```[\s\S]*?```/g, ' ').replace(/[`*_#>|]/g, ' ')
     .replace(/\p{Extended_Pictographic}|️|‍|[●○★☆✓✅⚠️➜→•▪︎·]/gu, ' ')
     .replace(/(\d{1,2})\s*h\s*(\d{2})(?:\s*min)?(?:\s*['’]\s*(\d{2}))?/g, function(m, h, mi, se){ return h + ' heure' + (+h > 1 ? 's ' : ' ') + mi + (se ? ' et ' + se + ' secondes' : ''); })
-    .replace(/(\d{1,2})\s*['’]\s*(\d{2})(?:["”]|'')?(\s*\/\s*km)?/g, function(m, mi, se, km){ return mi + ' minute' + (+mi > 1 ? 's ' : ' ') + se + (km ? ' au kilomètre' : ''); })
+    .replace(/(\d{1,2})\s*['’]\s*(\d{2})(?:["”]|'')?(\s*\/\s*km)?/g, function(m, mi, se, km){ return mi + ' minute' + (+mi > 1 ? 's' : '') + (se === '00' ? '' : ' ' + se) + (km ? ' au kilomètre' : ''); })
+    .replace(/(\d{1,3})\s*['’](?!\d)/g, function(m, mi){ return mi + ' minute' + (+mi > 1 ? 's' : ''); })
+    .replace(/(\d)\s*%/g, '$1 pour cent')
     .replace(/\/\s*km\b/g, ' au kilomètre')
     .replace(/(\d)\s*km\b/g, '$1 kilomètres').replace(/\bkm\b/g, 'kilomètres')
     .replace(/(\d)\s*bpm\b/gi, '$1 pulsations').replace(/\bbpm\b/gi, 'pulsations')
@@ -25,6 +27,16 @@ function cvSpeakable(t){
     .replace(/\bS(\d{1,2})\b/g, 'semaine $1').replace(/\bJ\s*-\s*(\d+)\b/g, 'J moins $1')
     .replace(/(\d),(\d)/g, '$1 virgule $2')
     .replace(/\s*\n+\s*/g, '. ').replace(/\.(\s*\.)+/g, '.').replace(/\s{2,}/g, ' ').trim();
+}
+// tour de parole court (conversation) : 1re phrase toujours, 2e si le total reste ≤ 40 mots, 3e seulement une courte question
+// de relance ; au-delà, la réponse est coupée (ni lue ni affichée)
+const CV_MAX_WORDS = 40;
+function cvKeep(n, words, s){
+  const w = String(s || '').trim().split(/\s+/).filter(Boolean).length;
+  if(n === 0) return true;
+  if(words + w > CV_MAX_WORDS) return false;
+  if(n === 1) return true;
+  return n === 2 && /\?\s*$/.test(s) && w <= 10;
 }
 // découpe le flux en phrases complètes : {out: [phrases prêtes], rest: début de la suivante} ; final = tout ce qui reste
 function cvSentences(buf, final){
@@ -276,22 +288,29 @@ function cvAsk(text){
   _cvLogPush();
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), sug = ov && ov.querySelector('.cv-sug'), set = ov && ov.querySelector('.cv-set');
   if(you){ you.textContent = text; you.classList.remove('interim'); } if(co) co.textContent = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
-  _cv.buf = ''; _cv.reply = ''; _cv.streamDone = false; const turn = _cv.turn = (_cv.turn || 0) + 1;
+  _cv.buf = ''; _cv.reply = ''; _cv.said = ''; _cv.nS = 0; _cv.nW = 0; _cv.cut = false; _cv.streamDone = false; const turn = _cv.turn = (_cv.turn || 0) + 1;
+  const clean = function(t){ return String(t).replace(/[*#`_]/g, '').replace(/\s{2,}/g, ' ').trim(); };
+  const take = function(x){                                       // phrase gardée → lue tout de suite ; trop long → coupé
+    if(_cv.cut) return;
+    if(!cvKeep(_cv.nS, _cv.nW, x)){ _cv.cut = true; _cv.buf = ''; return; }
+    _cv.said += (_cv.said ? ' ' : '') + x; _cv.nS++; _cv.nW += x.split(/\s+/).filter(Boolean).length; _cvQueue(x);
+  };
+  const show = function(){ _cv.reply = clean(_cv.said + (_cv.cut ? '' : ' ' + _cv.buf)); if(co) co.textContent = _cv.reply; };
   _cvTone('send');
   if(_cvLocal(text)) return;                                      // commande vocale : réponse immédiate, sans le Coach
   _cvSet('think');
   if(typeof sendCoachMessage !== 'function'){ _cvSet('idle', 'Coach indisponible'); return; }
   const opts = { voice: true,
     onToken: function(tok){
-      if(!_cv || _cv.turn !== turn || _cv.mute) return;
-      _cv.reply += tok; if(co) co.textContent = _cv.reply.replace(/[*#`_]/g, '');
-      _cv.buf += tok; const S = cvSentences(_cv.buf, false); _cv.buf = S.rest; S.out.forEach(_cvQueue);
+      if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
+      _cv.buf += tok; const S = cvSentences(_cv.buf, false); _cv.buf = S.rest; S.out.forEach(take); show();
     },
     onDone: function(full){
       if(!_cv || _cv.turn !== turn) return;
       if(full == null){ _cv.streamDone = true; _cvSet('idle', 'Le Coach n\'a pas pu répondre — touche pour réessayer'); return; }
-      if(!_cv.reply && full){ _cv.reply = full; if(co) co.textContent = full.replace(/[*#`_]/g, ''); _cv.buf = full; }   // réponse arrivée d'un bloc
-      if(!_cv.mute){ const S = cvSentences(_cv.buf, true); _cv.buf = ''; S.out.forEach(_cvQueue); }
+      if(!_cv.said && !_cv.buf && full) _cv.buf = full;          // réponse arrivée d'un bloc
+      if(!_cv.mute && !_cv.cut){ const S = cvSentences(_cv.buf, true); S.out.forEach(take); }
+      _cv.buf = ''; show();
       _cv.streamDone = true; _cvNext();
     } };
   if(typeof _cv.memos === 'string') opts.memos = _cv.memos;

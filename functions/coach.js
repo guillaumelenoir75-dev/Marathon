@@ -513,13 +513,14 @@ Cite les chiffres clés mais reste concis.
 SI L'ATHLÈTE DEMANDE UNE CRITIQUE DU PLAN : applique impérativement la règle ESPRIT CRITIQUE SUR LE PLAN. Identifie 2-4 points concrets à améliorer. Sois direct. Pas de validation creuse.`;
         maxTokens = 500;
       } else if(responseMode === 'voix') {
-        modeInstructions = `MODE VOCAL : ta réponse est lue à voix haute pendant une conversation, {{PRENOM}} t'écoute (il ne lit pas).
-Parle comme un coach au téléphone : 2 à 4 phrases courtes et naturelles, la plus importante en premier.
-INTERDIT : listes, titres, tableaux, markdown, émojis, symboles, abréviations obscures, balises [FEU:…].
-Chiffres : seulement les 1 ou 2 qui comptent, dits simplement (« cinq minutes quarante au kilomètre », « cent quarante-cinq pulsations »).
-Si la question demande un long bilan : donne l'essentiel en 3 phrases et propose d'en dire plus.
-Tu peux finir par une question courte si elle fait avancer l'échange — jamais systématiquement.`;
-        maxTokens = 260;
+        modeInstructions = `MODE VOCAL — CONVERSATION ORALE : {{PRENOM}} te parle et t'écoute, c'est un échange à tour de rôle, comme au téléphone.
+LONGUEUR : 1 ou 2 phrases courtes, 30 mots AU TOTAL au maximum. Réponds directement à la question dès les premiers mots, sans introduction, sans récapituler le contexte, sans justifier sauf si on te le demande.
+UN SEUL chiffre clé par réponse (le plus utile). S'il y a plus à dire, arrête-toi et propose : « Tu veux que je détaille ? »
+CHIFFRES TOUJOURS EN CHIFFRES, JAMAIS EN LETTRES (l'app les prononce elle-même) : 42'00, 4'12/km, 145 bpm, 80 %, 12 km, S3, J-5. INTERDIT : « quarante-deux minutes », « quatre minutes douze ».
+STYLE PARLÉ : tutoiement, phrases simples, comme un coach qui parle. INTERDIT : listes, titres, markdown, gras, émojis, symboles, balises [FEU:…], formules écrites (« Ma recommandation : », « En résumé »).
+Exemple de bonne réponse : « Vise 42'00, soit 4'12/km. Pars prudent, accélère après le 5e km si tu te sens bien. »
+Tu peux finir par une courte question qui relance l'échange, pas à chaque fois.`;
+        maxTokens = 120;
       } else if(responseMode === 'meteo') {
         modeInstructions = `MODE MÉTÉO : Conseils running personnalisés selon la météo actuelle.
 LIMITE ABSOLUE : 3 conseils courts maximum. Chaque conseil = 1 phrase. Total : 5-7 lignes grand maximum.
@@ -619,11 +620,13 @@ ${coachFixedRules(_prepSt, '   ')}
         : '';
       const rappelTemporel = dr ? `\nContexte temporel : Nous sommes ${dr.complet}. Jours encore disponibles cette semaine : ${joursRestants || 'aucun'}. Ne propose JAMAIS une séance un jour déjà passé.` : '';
 
+      // mode vocal : pas de mise en forme écrite (émojis, gras, blocs) — la consigne orale prime
+      const reglesTour = responseMode === 'voix' ? reglesCommunes.replace(/FORMAT VISUEL OBLIGATOIRE :[\s\S]*?Texte fluide, pas de tirets\n/, 'FORMAT : texte oral, voir MODE VOCAL.\n') : reglesCommunes;
       const system = `${profilAthlete}
 ${_situation ? '\n' + _situation + '\nCette situation est à jour : elle prime sur les dates ou phases plus anciennes évoquées dans l\'historique. En période post-course, conseils de reprise progressive.\n' : ''}
-${reglesCommunes}
+${reglesTour}
 
-${modeInstructions}${rappelPlanification}${rappelTemporel}`;
+${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'voix' ? '\nRAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres.' : ''}`;
 
       const todayDate = (stateContext?.date_reelle?.annee && stateContext?.date_reelle?.mois && stateContext?.date_reelle?.jour)
         ? `${stateContext.date_reelle.annee}-${String(stateContext.date_reelle.mois).padStart(2,'0')}-${String(stateContext.date_reelle.jour).padStart(2,'0')}`
