@@ -60,6 +60,14 @@ function prBlocsRead(spec, times, paces){
   }
   return { blocsAllure: A.some(Boolean) ? A : null, blocsTemps: T.some(Boolean) ? T : null };
 }
+// blocs saisis dans la fenêtre ouverte (validation ou « Mon ressenti ») ; null = pas de carte de blocs
+function prBlocsFromForm(sx){
+  const box = typeof document !== 'undefined' ? document.getElementById('val-blocs-container') : null; if(!box) return null;
+  const n = +box.dataset.n || 0, T = [], P = [];
+  for(let i = 0; i < n; i++){ const t = document.getElementById('val-bloc-t-' + i), p = document.getElementById('val-bloc-' + i); T.push(t ? t.value : ''); P.push(p ? p.value : ''); }
+  const parts = String((sx || {}).d || '').split('|');
+  return prBlocsRead(prBlocSpec(parts[0], parts.slice(1).join('|'), (sx || {}).type), T, P);
+}
 // fenêtre « Valider la séance » : blocs toujours proposés (temps + allure), même sans Strava ni « Remplir à la main »
 function prBlocsHtml(s, prev){
   prev = prev || {};
@@ -85,10 +93,11 @@ function _prBlocRow(i, t, p, spec, C){
 }
 // temps saisi → allure (et l'inverse) quand la distance du bloc est connue ; une valeur tapée à la main n'est jamais écrasée
 function prBlocInput(i, f){
-  const spec = window._valBlocSpec; if(!spec || !spec.dist) return;
   const t = document.getElementById('val-bloc-t-' + i), p = document.getElementById('val-bloc-' + i); if(!t || !p) return;
   const src = f === 't' ? t : p, dst = f === 't' ? p : t;
   src.dataset.m = '1';
+  const box = document.getElementById('val-blocs-container'); if(box) box.dataset.touched = '1';
+  const spec = window._valBlocSpec; if(!spec || !spec.dist) return;
   if(dst.dataset.m === '1' && dst.value.trim()) return;
   const v = f === 't' ? prBlocPace(t.value, spec.dist) : prBlocTime(p.value, spec.dist);
   dst.value = v; delete dst.dataset.m;
@@ -99,7 +108,7 @@ function prBlocsCount(d){
   const C = (rows.querySelector('input') || {}).style ? rows.querySelector('input').style.color : '#1D4ED8';
   while(rows.children.length < n) rows.insertAdjacentHTML('beforeend', _prBlocRow(rows.children.length, '', '', spec, C));
   while(rows.children.length > n) rows.lastElementChild.remove();
-  box.dataset.n = n;
+  box.dataset.n = n; box.dataset.touched = '1';
   const tt = box.querySelector('p'); if(tt && /×/.test(tt.textContent)) tt.textContent = tt.textContent.replace(/· \d+ ×/, '· ' + n + ' ×');
 }
 // pré-remplissage de la fenêtre de validation après l'import Strava

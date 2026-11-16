@@ -1234,6 +1234,37 @@ test('validation : les blocs d\'un fractionné / tempo toujours proposés (temps
   await ctx.close();
 });
 
+test('« Mon ressenti » après « J\'ai fini » : les blocs du fractionné lus dans les tours Strava, corrigeables', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  const k = Object.keys(S).find((x) => /^extra_w\d+_s\d+$/.test(x) && /"type":"(frac|tempo)"/.test(S[x]) && !S[x + '_done']);
+  assert.ok(k, 'une séance de qualité');
+  const x = JSON.parse(S[k]);
+  // validée automatiquement aujourd'hui, sans ressenti, avec des blocs lus dans les tours Strava
+  S[k + '_done'] = true; S[k + '_km'] = 9; S[k + '_perf'] = JSON.stringify({ date: '2026-11-03', dur: '45:00', pace: '5:00', auto: { at: '2026-11-03T18:00:00Z', src: 'scan' }, blocsAllure: ['4:10', '4:12', '4:08'], blocsAuto: true });
+  const { ctx, page, errors } = await open('2026-11-03T19:12:00+01:00', JSON.stringify(D));
+  await page.evaluate((key) => avFeelOpen(key), k); await page.waitForSelector('#av-feel #val-blocs-container');
+  assert.equal(await page.inputValue('#av-feel #val-bloc-1'), '4:12', 'blocs pré-remplis');
+  // « Plus tard » sans rien toucher : les blocs restent ceux de Strava
+  await page.click('#av-feel .av-skip'); await page.waitForTimeout(300);
+  let p = await page.evaluate((key) => JSON.parse(state[key + '_perf']), k);
+  assert.equal(p.blocsAuto, true); assert.equal(p.blocsTemps, undefined);
+  // reprise : correction du bloc 2 + temps du bloc 1, puis ressenti
+  await page.evaluate((key) => { const st = JSON.parse(state[key + '_perf']); delete st.feelSkip; state[key + '_perf'] = JSON.stringify(st); avFeelOpen(key); }, k);
+  await page.waitForSelector('#av-feel #val-blocs-container');
+  await page.fill('#av-feel #val-bloc-1', '4:05');
+  await page.fill('#av-feel #val-bloc-t-0', '4:10');
+  await page.evaluate(() => { if (typeof prRpePick === 'function') prRpePick(6); });
+  await page.click('#av-feel .av-save'); await page.waitForTimeout(500);
+  p = await page.evaluate((key) => JSON.parse(state[key + '_perf']), k);
+  assert.equal(p.rpe, 6);
+  assert.equal(p.blocsAllure[1], '4:05', 'bloc corrigé'); assert.equal(p.blocsTemps[0], '4:10', 'temps saisi');
+  assert.equal(p.blocsAuto, undefined, 'blocs maintenant saisis à la main');
+  assert.equal(x.type === 'frac' || x.type === 'tempo', true);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('rapidité et solidité : poids du bundle, démarrage mesuré, aucun débordement (clair et sombre), diagnostic', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   // poids : budget du bundle de démarrage (gzip)

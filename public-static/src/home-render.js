@@ -1430,15 +1430,8 @@ async function saveValidationExtra(w,ei){
   if(_jv&&_jv.text){ perf.journal=_jv.text; if(_jv.note) perf.note=_jv.note; }
   // Blocs (fractionné, tempo, toute séance « N × … ») : temps + allure de chaque bloc (plan-daily.js prBlocsRead)
   let sExtra={};try{sExtra=JSON.parse(state[k]||'{}');}catch(e){}
-  const _bBox=document.getElementById('val-blocs-container');
-  if(_bBox&&typeof prBlocsRead==='function'){
-    const _bn=+_bBox.dataset.n||0, _bt=[], _bp=[];
-    for(let i=0;i<_bn;i++){ const t=document.getElementById('val-bloc-t-'+i), p=document.getElementById('val-bloc-'+i); _bt.push(t?t.value:''); _bp.push(p?p.value:''); }
-    const _bs=typeof prBlocSpec==='function'?prBlocSpec((sExtra.d||'').split('|')[0],(sExtra.d||'').split('|').slice(1).join('|'),sExtra.type):null;
-    const _br=prBlocsRead(_bs,_bt,_bp);
-    if(_br.blocsAllure) perf.blocsAllure=_br.blocsAllure;
-    if(_br.blocsTemps) perf.blocsTemps=_br.blocsTemps;
-  }
+  const _br=typeof prBlocsFromForm==='function'?prBlocsFromForm(sExtra):null;
+  if(_br){ if(_br.blocsAllure) perf.blocsAllure=_br.blocsAllure; if(_br.blocsTemps) perf.blocsTemps=_br.blocsTemps; }
   // Strava — même logique que saveValidation
   if(window._stravaActivityData){
     const g=window._stravaActivityData;

@@ -319,6 +319,7 @@ function avFeelOpen(key){
     + '<div class="av-chips">' + chip('🟠 ' + String(s.km).replace('.', ',') + ' km · ' + String(p.pace || '').replace(':', "'") + '/km')
     + (p.whoop && p.whoop.workout_strain != null ? chip('💚 WHOOP ' + String(Math.round(p.whoop.workout_strain * 10) / 10).replace('.', ',')) : '')
     + (p.meteo ? chip('🌡️ ' + Math.round(p.meteo.temperature) + '°') : '') + (p.hr ? chip('❤️ ' + p.hr) : '') + '</div>'
+    + (typeof prBlocsHtml === 'function' && s.type !== 'race' ? prBlocsHtml({ type: s.type, d: (s.x && s.x.d) || '' }, p) : '')   // blocs du fractionné / tempo : lus dans les tours Strava, à corriger ou compléter (plan-daily.js)
     + (typeof jvHtml === 'function' ? jvHtml() : '') + (typeof prRpeHtml === 'function' ? prRpeHtml({}) : '')
     + '<button type="button" class="av-save" onclick="avFeelSave()">Enregistrer mon ressenti</button>'
     + '<button type="button" class="av-skip" onclick="avFeelSkip()">Plus tard</button></div></div></div>';
@@ -332,6 +333,7 @@ function avFeelSave(){
   const r = typeof prRpeRead === 'function' ? prRpeRead() : null, j = typeof jvRead === 'function' ? jvRead() : null;
   if(r){ if(r.rpe) p.rpe = r.rpe; if(r.pain) p.pain = r.pain; }
   if(j && j.text){ p.journal = j.text; if(j.note) p.note = j.note; }
+  _avFeelBlocs(k, p);
   if(!p.rpe){ if(typeof showToast === 'function') showToast('Choisis ton effort ressenti (1 à 10)', '🤖'); return; }
   state[k + '_perf'] = JSON.stringify(p); save();
   ov.remove();
@@ -342,10 +344,22 @@ function avFeelSave(){
   if(typeof ssOffer === 'function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance »
   if(typeof sessionChanged === 'function') sessionChanged();
 }
+// blocs saisis dans « Mon ressenti » : remplacent ceux lus dans les tours Strava (marqués saisis à la main)
+function _avFeelBlocs(k, p){
+  const box = document.getElementById('val-blocs-container');
+  if(typeof prBlocsFromForm !== 'function' || !box || box.dataset.touched !== '1') return;   // rien de tapé : les blocs lus dans les tours Strava restent tels quels
+  let x = {}; try { x = JSON.parse(state[k] || '{}'); } catch(e) {}
+  const B = prBlocsFromForm(x); if(!B || (!B.blocsAllure && !B.blocsTemps)) return;
+  if(B.blocsAllure) p.blocsAllure = B.blocsAllure;
+  if(B.blocsTemps) p.blocsTemps = B.blocsTemps;
+  delete p.blocsAuto; delete p._blocsAuto;
+}
 function avFeelSkip(){
   const ov = document.getElementById('av-feel'); if(!ov) return; const k = ov.dataset.key;
   let p = {}; try { p = JSON.parse(state[k + '_perf'] || '{}'); } catch(e) {}
+  _avFeelBlocs(k, p);
   p.feelSkip = true; state[k + '_perf'] = JSON.stringify(p); save(); ov.remove();
+  if(typeof sessionChanged === 'function') sessionChanged();
   if(typeof renderHome === 'function'){ rendered.home = false; renderHome(); }
 }
 function avOn(){ return (state._autoval || 'on') !== 'off'; }
