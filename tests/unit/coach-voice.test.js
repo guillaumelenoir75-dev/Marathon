@@ -31,6 +31,18 @@ test('cvKeep : tour de parole court — 2 phrases, 40 mots au plus, une courte q
   assert.equal(kept.length, 2);
 });
 
+test('cvWantsLong / cvKeep long : détail demandé (plan km par km, liste…) → réponse complète, sinon courte', () => {
+  assert.equal(app.cvWantsLong("Tu peux me faire un plan de course kilomètre par kilomètre pour 42 minutes"), true);
+  assert.equal(app.cvWantsLong('Détaille-moi ma séance de demain'), true);
+  assert.equal(app.cvWantsLong('Je dois faire quel temps dimanche ?'), false, 'question simple : réponse courte');
+  assert.equal(app.cvWantsLong('Oui vas-y', true), true, '« oui » juste après une réponse coupée = le détail');
+  assert.equal(app.cvWantsLong('Oui', false), false);
+  const w = (n) => Array(n).fill('mot').join(' ') + '.';
+  assert.equal(app.cvKeep(5, 90, w(15), true), true, 'long : on continue');
+  assert.equal(app.cvKeep(5, 160, w(15), true), false, 'long : 170 mots au plus');
+  assert.equal(app.cvKeep(14, 100, w(5), true), false, 'long : 14 phrases au plus');
+});
+
 test('cvSentences : chaque phrase complète part tout de suite, la fin attend la suite du flux', () => {
   let S = app.cvSentences('Très bonne idée. Ta séance de ce soir se pré', false);
   assert.deepEqual(JSON.parse(JSON.stringify(S.out)), ['Très bonne idée.']);

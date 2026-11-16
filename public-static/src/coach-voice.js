@@ -29,14 +29,22 @@ function cvSpeakable(t){
     .replace(/\s*\n+\s*/g, '. ').replace(/\.(\s*\.)+/g, '.').replace(/\s{2,}/g, ' ').trim();
 }
 // tour de parole court (conversation) : 1re phrase toujours, 2e si le total reste ≤ 40 mots, 3e seulement une courte question
-// de relance ; au-delà, la réponse est coupée (ni lue ni affichée)
-const CV_MAX_WORDS = 40;
-function cvKeep(n, words, s){
+// de relance ; au-delà, la réponse est coupée (ni lue ni affichée). Détail demandé (long) : jusqu'à 14 phrases / 170 mots.
+const CV_MAX_WORDS = 40, CV_LONG_WORDS = 170, CV_LONG_SENT = 14;
+function cvKeep(n, words, s, long){
   const w = String(s || '').trim().split(/\s+/).filter(Boolean).length;
   if(n === 0) return true;
+  if(long) return n < CV_LONG_SENT && words + w <= CV_LONG_WORDS;
   if(words + w > CV_MAX_WORDS) return false;
   if(n === 1) return true;
   return n === 2 && /\?\s*$/.test(s) && w <= 10;
+}
+// la question demande-t-elle le détail ? (plan km par km, liste, explication…) ; « oui » juste après une réponse coupée aussi
+const CV_LONG_RE = /(km|kilom[eè]tres?)\s+(par|apr[eè]s)\s+(km|kilom[eè]tre)|d[ée]tail|plan de course|strat[ée]gie de course|toutes? les|chaque (km|kilom|s[ée]ance|jour|bloc)|\bliste\b|[ée]tape par [ée]tape|\bprogramme\b|explique|r[ée]sum[ée]|\bbilan\b|\bcompl[eè]te?\b|ma semaine|cette semaine|la semaine prochaine/i;
+const CV_YES_RE = /^(oui|ouais|ouep|yes|vas[- ]y|ok|okay|d'accord|go|je veux bien|volontiers|carr[ée]ment|bien s[uû]r|continue|la suite|dis[- ]moi|avec plaisir)\b/i;
+function cvWantsLong(text, prevCut){
+  const t = String(text || '').trim().replace(/[’]/g, "'");
+  return CV_LONG_RE.test(t) || (!!prevCut && CV_YES_RE.test(t));
 }
 // découpe le flux en phrases complètes : {out: [phrases prêtes], rest: début de la suivante} ; final = tout ce qui reste
 function cvSentences(buf, final){
@@ -288,19 +296,25 @@ function cvAsk(text){
   _cvLogPush();
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), sug = ov && ov.querySelector('.cv-sug'), set = ov && ov.querySelector('.cv-set');
   if(you){ you.textContent = text; you.classList.remove('interim'); } if(co) co.textContent = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
+  const long = cvWantsLong(text, _cv.lastCut); _cv.lastCut = false;   // détail demandé : réponse complète
   _cv.buf = ''; _cv.reply = ''; _cv.said = ''; _cv.nS = 0; _cv.nW = 0; _cv.cut = false; _cv.streamDone = false; const turn = _cv.turn = (_cv.turn || 0) + 1;
   const clean = function(t){ return String(t).replace(/[*#`_]/g, '').replace(/\s{2,}/g, ' ').trim(); };
   const take = function(x){                                       // phrase gardée → lue tout de suite ; trop long → coupé
     if(_cv.cut) return;
-    if(!cvKeep(_cv.nS, _cv.nW, x)){ _cv.cut = true; _cv.buf = ''; return; }
-    _cv.said += (_cv.said ? ' ' : '') + x; _cv.nS++; _cv.nW += x.split(/\s+/).filter(Boolean).length; _cvQueue(x);
+    if(!cvKeep(_cv.nS, _cv.nW, x, long)){
+      _cv.cut = true; _cv.buf = '';
+      if(!long && !/\?\s*$/.test(_cv.said)){ const q = 'Tu veux le détail ?'; _cv.said += ' ' + q; _cvQueue(q); }   // « oui » → version complète
+      _cv.lastCut = !long; return;
+    }
+    _cv.said += (_cv.said ? ' ' : '') + x; if(!/:\s*$/.test(x)) _cv.nS++;   // « Km 1 : » n'est pas une phrase
+    _cv.nW += x.split(/\s+/).filter(Boolean).length; _cvQueue(x);
   };
   const show = function(){ _cv.reply = clean(_cv.said + (_cv.cut ? '' : ' ' + _cv.buf)); if(co) co.textContent = _cv.reply; };
   _cvTone('send');
   if(_cvLocal(text)) return;                                      // commande vocale : réponse immédiate, sans le Coach
   _cvSet('think');
   if(typeof sendCoachMessage !== 'function'){ _cvSet('idle', 'Coach indisponible'); return; }
-  const opts = { voice: true,
+  const opts = { voice: true, voiceLong: long,
     onToken: function(tok){
       if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
       _cv.buf += tok; const S = cvSentences(_cv.buf, false); _cv.buf = S.rest; S.out.forEach(take); show();
@@ -311,6 +325,7 @@ function cvAsk(text){
       if(!_cv.said && !_cv.buf && full) _cv.buf = full;          // réponse arrivée d'un bloc
       if(!_cv.mute && !_cv.cut){ const S = cvSentences(_cv.buf, true); S.out.forEach(take); }
       _cv.buf = ''; show();
+      if(!long && /d[ée]taill?e?\b[^.?!]*\?\s*$/i.test(_cv.said)) _cv.lastCut = true;   // « Tu veux que je détaille ? » → « oui » = détail
       _cv.streamDone = true; _cvNext();
     } };
   if(typeof _cv.memos === 'string') opts.memos = _cv.memos;

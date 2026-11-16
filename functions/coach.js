@@ -521,6 +521,14 @@ STYLE PARLÉ : tutoiement, phrases simples, comme un coach qui parle. INTERDIT :
 Exemple de bonne réponse : « Vise 42'00, soit 4'12/km. Pars prudent, accélère après le 5e km si tu te sens bien. »
 Tu peux finir par une courte question qui relance l'échange, pas à chaque fois.`;
         maxTokens = 120;
+      } else if(responseMode === 'voix_long') {
+        // demande explicite de détail à l'oral (plan km par km, liste, explication) : réponse complète mais toujours parlée
+        modeInstructions = `MODE VOCAL — DÉTAIL DEMANDÉ : {{PRENOM}} te parle et t'écoute, et il vient de demander explicitement le détail (plan km par km, liste, explication complète). Donne-le EN ENTIER, sans t'arrêter au milieu.
+LONGUEUR : 150 mots au maximum, phrases courtes, une idée par phrase. Commence directement par le contenu.
+REGROUPE ce qui se répète pour rester court à l'oral : « Km 1 et 2 en 4'18, km 3 à 8 en 4'12, puis 4'05 sur les 2 derniers. »
+CHIFFRES TOUJOURS EN CHIFFRES, JAMAIS EN LETTRES : 42'00, 4'12/km, 145 bpm, 80 %.
+INTERDIT : listes à puces, retours à la ligne, titres, markdown, émojis, une ligne par km (« Km 1 : … Km 2 : … »). Termine sur une phrase complète.`;
+        maxTokens = 450;
       } else if(responseMode === 'meteo') {
         modeInstructions = `MODE MÉTÉO : Conseils running personnalisés selon la météo actuelle.
 LIMITE ABSOLUE : 3 conseils courts maximum. Chaque conseil = 1 phrase. Total : 5-7 lignes grand maximum.
@@ -621,12 +629,12 @@ ${coachFixedRules(_prepSt, '   ')}
       const rappelTemporel = dr ? `\nContexte temporel : Nous sommes ${dr.complet}. Jours encore disponibles cette semaine : ${joursRestants || 'aucun'}. Ne propose JAMAIS une séance un jour déjà passé.` : '';
 
       // mode vocal : pas de mise en forme écrite (émojis, gras, blocs) — la consigne orale prime
-      const reglesTour = responseMode === 'voix' ? reglesCommunes.replace(/FORMAT VISUEL OBLIGATOIRE :[\s\S]*?Texte fluide, pas de tirets\n/, 'FORMAT : texte oral, voir MODE VOCAL.\n') : reglesCommunes;
+      const reglesTour = (responseMode === 'voix' || responseMode === 'voix_long') ? reglesCommunes.replace(/FORMAT VISUEL OBLIGATOIRE :[\s\S]*?Texte fluide, pas de tirets\n/, 'FORMAT : texte oral, voir MODE VOCAL.\n') : reglesCommunes;
       const system = `${profilAthlete}
 ${_situation ? '\n' + _situation + '\nCette situation est à jour : elle prime sur les dates ou phases plus anciennes évoquées dans l\'historique. En période post-course, conseils de reprise progressive.\n' : ''}
 ${reglesTour}
 
-${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'voix' ? '\nRAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres.' : ''}`;
+${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'voix' ? '\nRAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres.' : responseMode === 'voix_long' ? '\nRAPPEL : détail complet en 150 mots max, regroupé, chiffres en chiffres.' : ''}`;
 
       const todayDate = (stateContext?.date_reelle?.annee && stateContext?.date_reelle?.mois && stateContext?.date_reelle?.jour)
         ? `${stateContext.date_reelle.annee}-${String(stateContext.date_reelle.mois).padStart(2,'0')}-${String(stateContext.date_reelle.jour).padStart(2,'0')}`

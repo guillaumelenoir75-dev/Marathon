@@ -221,6 +221,8 @@ test('Coach à la voix : mode « voix » = réponse courte, sans liste ni émoji
   const src = require('fs').readFileSync(require('path').join(__dirname, '../../functions/coach.js'), 'utf8');
   assert.match(src, /responseMode === 'voix'[\s\S]{0,900}MODE VOCAL[\s\S]{0,400}1 ou 2 phrases courtes, 30 mots AU TOTAL[\s\S]{0,600}CHIFFRES TOUJOURS EN CHIFFRES, JAMAIS EN LETTRES[\s\S]{0,400}INTERDIT : listes, titres, markdown, gras, émojis[\s\S]{0,600}maxTokens = 120/);
   // pas de mise en forme écrite (émojis par bloc, gras) en mode vocal, et rappel en fin de consigne
-  assert.match(src, /reglesTour = responseMode === 'voix' \? reglesCommunes\.replace\(\/FORMAT VISUEL OBLIGATOIRE/);
+  assert.match(src, /reglesTour = \(responseMode === 'voix' \|\| responseMode === 'voix_long'\) \? reglesCommunes\.replace\(\/FORMAT VISUEL OBLIGATOIRE/);
   assert.match(src, /RAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres/);
+  // détail demandé à l'oral : réponse complète mais parlée et regroupée
+  assert.match(src, /responseMode === 'voix_long'[\s\S]{0,300}DÉTAIL DEMANDÉ[\s\S]{0,400}EN ENTIER[\s\S]{0,300}150 mots[\s\S]{0,300}REGROUPE[\s\S]{0,600}maxTokens = 450/);
 });

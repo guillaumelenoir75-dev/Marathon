@@ -141,7 +141,13 @@ test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute 
   assert.equal(await page.evaluate(() => document.querySelector('#cv-ov .cv-you').textContent), 'Et demain ?');
   await page.waitForFunction(() => _cv && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 8000 });
   const L = await page.evaluate(() => ({ co: document.querySelector('#cv-ov .cv-co').textContent, said: window.__said.join(' | ') }));
-  assert.equal(L.co, "Vise 42'00, soit 4'12/km. Pars prudent sur les 3 premiers km.", 'réponse coupée à 2 phrases, chiffres en chiffres');
+  assert.equal(L.co, "Vise 42'00, soit 4'12/km. Pars prudent sur les 3 premiers km. Tu veux le détail ?", 'réponse coupée à 2 phrases (+ proposition du détail), chiffres en chiffres');
+  assert.equal(body.responseMode, 'voix');
+  // « oui » → le détail complet (mode voix_long), rien de coupé
+  await page.fill('#cv-in', 'Oui vas-y'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => document.querySelector('#cv-ov .cv-you').textContent === 'Oui vas-y' && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 8000 });
+  assert.equal(body.responseMode, 'voix_long', 'détail demandé');
+  assert.match(await page.evaluate(() => document.querySelector('#cv-ov .cv-co').textContent), /ambitieux\.$/, 'réponse complète');
   assert.match(L.said, /Vise 42 minutes, soit 4 minutes 12 au kilomètre/); assert.doesNotMatch(L.said, /43 minutes 47|ambitieux/, 'la suite n\'est pas lue');
   await page.click('#cv-ov .cv-x');
   assert.equal(await page.evaluate(() => !!document.getElementById('cv-ov')), false);

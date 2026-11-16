@@ -245,7 +245,7 @@ async function sendCoachMessage(retryMsg, opts){
   try {
     // ── Détecter ce que la question nécessite ──
     const needs = detectContextNeeds(msg);
-    const responseMode = opts.voice ? 'voix' : detectResponseMode(msg);
+    const responseMode = opts.voice ? (opts.voiceLong ? 'voix_long' : 'voix') : detectResponseMode(msg);   // voix_long : détail demandé à l'oral
 
     // ── Construire l'historique complet (réutilisé si besoin) ──
     const fullHistory = [];
