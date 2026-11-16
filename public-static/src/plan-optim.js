@@ -85,6 +85,8 @@ async function stravaHistSync(force){
 function prHistoryRefresh(){
   try {
     if(typeof rendered !== 'undefined'){ rendered.stats = false; rendered.plan = false; }
+    // avant la fin du démarrage (historique chargé pendant l'écran de chargement) : rien à dessiner, l'accueil le fera (firebase.js)
+    if(typeof firebaseReady !== 'undefined' && !firebaseReady) return;
     if(typeof prRenderHomeCard === 'function') prRenderHomeCard();
     const sc = document.getElementById('sc-stats'); if(sc && sc.style.display !== 'none' && typeof bsRenderStatsCard === 'function'){ bsRenderStatsCard(); if(typeof fmRenderStatsCard === 'function') fmRenderStatsCard(); }
   } catch(e) { diagSilent(e, 'plan-optim:prHistoryRefresh'); }

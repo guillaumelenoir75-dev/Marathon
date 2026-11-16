@@ -680,7 +680,9 @@ function prRenderHomeCard(){
     // ouverture de l'app / synchro en cours sans la nuit du jour → chargement
     else if(WS.kind === 'loading' || (typeof whoopStartupLoading === 'function' && whoopStartupLoading())){
       h += '<div class="pd-form load" aria-busy="true"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-spin"/></svg>'
-        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>Mise à jour…</b><small>Récupération de ta nuit WHOOP</small></div></div>';
+        + '<div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>Mise à jour de ta nuit WHOOP…</b>'
+        + '<div class="pd-mini sk">' + ['Récup', 'Sommeil', 'FC repos', 'VFC'].map(function(l){ return '<span><i>' + l + '</i>…</span>'; }).join('') + '</div>'   // même gabarit que la carte finale : rien ne saute
+        + '</div></div>';
     }
     // après 4h : la récupération WHOOP de la nuit n'est pas encore là → en attente du réveil (comme le bouton Réveil)
     else if(WS.kind === 'waiting'){
@@ -758,7 +760,7 @@ function _pdCss(){
     + '.pd-form.wait{background:linear-gradient(135deg,#F5F3FF,#EEF2FF);border-color:#DDD6FE;}.pd-form.wait text{font-size:20px;}.pd-wake{flex-shrink:0;border:none;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f97316,#fbbf24);cursor:pointer;font-family:inherit;}'
     + '.pd-form-l{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748B;}.pd-form b{display:block;font-size:14.5px;font-weight:850;color:#0F172A;}.pd-form small{display:block;font-size:11.5px;color:#64748B;font-weight:600;margin-top:1px;}'
     + '.pd-mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:6px;}.pd-mini span{display:block;border-radius:8px;padding:3px 0 4px;text-align:center;font-size:12.5px;font-weight:850;color:#334155;background:#F1F5F9;font-variant-numeric:tabular-nums;white-space:nowrap;}'
-    + '.pd-mini i{display:block;font-style:normal;font-size:9px;font-weight:700;letter-spacing:.02em;color:#64748B;opacity:.9;}.pd-mini .ok{background:#ECFDF5;color:#047857;}.pd-mini .mid{background:#FFFBEB;color:#B45309;}.pd-mini .low{background:#FEF2F2;color:#B91C1C;}'
+    + '.pd-mini i{display:block;font-style:normal;font-size:9px;font-weight:700;letter-spacing:.02em;color:#64748B;opacity:.9;}.pd-mini .ok{background:#ECFDF5;color:#047857;}.pd-mini .mid{background:#FFFBEB;color:#B45309;}.pd-mini .low{background:#FEF2F2;color:#B91C1C;}.pd-mini.sk span{color:#94A3B8;}'
     + '.pd-strip{display:flex;gap:8px;align-items:center;}.pd-streak{flex-shrink:0;background:#FFF7ED;color:#9A3412;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;}.pd-bdg-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:2px;background:#F5F3FF;border:none;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit;}.pd-bdg-btn i{font-style:normal;font-size:15px;}.pd-bdg-btn span{font-size:12px;font-weight:800;color:#5B21B6;margin-left:4px;white-space:nowrap;}'
     + '.pd-raceb{width:100%;text-align:left;background:linear-gradient(135deg,#FFFBEB,#FEF3C7);border:1px solid #FDE68A;border-radius:14px;padding:10px 14px;font-size:13px;color:#78350F;cursor:pointer;font-family:inherit;}'
     + '.pd-bgrid{padding:14px 16px 24px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}.pd-b{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;opacity:.5;filter:grayscale(1);}.pd-b.on{opacity:1;filter:none;border-color:#DDD6FE;box-shadow:0 6px 16px -10px rgba(91,33,182,.5);}.pd-b span{font-size:30px;}.pd-b b{font-size:13px;font-weight:850;color:#0F172A;}.pd-b small{font-size:11px;color:#64748B;font-weight:700;}';

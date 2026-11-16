@@ -774,13 +774,39 @@ test('forme du jour à l\'ouverture : chargement pendant la synchro WHOOP, jamai
   } });
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   let txt = await page.textContent('#home-form-card');
-  assert.match(txt, /Mise à jour…/); assert.doesNotMatch(txt, /récup\s*30 %/i, 'pas de valeur périmée');
+  assert.match(txt, /Mise à jour de ta nuit WHOOP…/); assert.doesNotMatch(txt, /récup\s*30 %/i, 'pas de valeur périmée');
   // la synchro a ramené la nuit : nouvelle valeur affichée
   await page.evaluate(() => { window.__DB.users.ADMINUID.state.whoop_data = { updatedAt: new Date().toISOString(), recoveries: [{ date: '2026-10-29', score: 82, rhr: 49, hrv: 70 }], sleeps: [{ date: '2026-10-29', performance_pct: 90, duration_hours: '7h50' }] }; });
   release();
   await page.waitForFunction(() => /récup\s*82 %/i.test(document.getElementById('home-form-card').textContent), null, { timeout: 5000 });
   txt = await page.textContent('#home-form-card');
-  assert.doesNotMatch(txt, /Mise à jour…/);
+  assert.doesNotMatch(txt, /Mise à jour/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Piste de nuit · ouverture : forme du jour jamais dessinée avant la fin du démarrage, chargement au même gabarit que la carte finale', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const D = JSON.parse(savedDb), st = D.users.ADMINUID.state;
+  st.whoop_token = { access_token: 'x' };
+  st.whoop_data = { updatedAt: '2026-10-28T20:00:00Z', recoveries: [{ date: '2026-10-29', score: 70, rhr: 50, hrv: 60 }], sleeps: [{ date: '2026-10-29', performance_pct: 80, duration_hours: '7h30' }] };
+  let release = null; const gate = new Promise((r) => { release = r; });
+  const { ctx, page, errors } = await open('2026-10-29T10:00:00+01:00', JSON.stringify(D), {
+    functions: async (r) => { if (/whoopSync/.test(r.request().url())) await gate; return r.fulfill({ contentType: 'application/json', body: '{"success":true}' }); },
+    init: () => {
+      try { localStorage.setItem('pm_theme', 'piste'); } catch (e) {}
+      window.__FORM = [];
+      const hook = () => { if (typeof prRenderHomeCard !== 'function') return setTimeout(hook, 2); const o = prRenderHomeCard; window.prRenderHomeCard = function () { window.__FORM.push(typeof firebaseReady !== 'undefined' && firebaseReady); return o.apply(this, arguments); }; };
+      document.addEventListener('DOMContentLoaded', hook);
+    } });
+  assert.deepEqual((await page.evaluate(() => window.__FORM)).filter((x) => !x), [], 'aucun rendu de la forme du jour avant la fin du démarrage (valeur d\'hier)');
+  const box = () => page.evaluate(() => { const f = document.querySelector('#home-form-card .pd-form'); return { cls: f.className, h: Math.round(f.getBoundingClientRect().height), d: getComputedStyle(f).display, mini: f.querySelectorAll('.pd-mini span').length, shadow: getComputedStyle(f).boxShadow }; });
+  const L = await box();
+  assert.match(L.cls, /load/); assert.equal(L.d, 'grid'); assert.equal(L.mini, 4); assert.match(L.shadow, /rgba\(0, 0, 0/);
+  release();
+  await page.waitForFunction(() => !document.querySelector('#home-form-card .pd-form.load'), null, { timeout: 8000 });
+  const F = await box();
+  assert.equal(F.d, 'grid'); assert.ok(Math.abs(F.h - L.h) <= 8, 'même hauteur : ' + L.h + ' → ' + F.h);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
