@@ -499,7 +499,7 @@ async function sendCoachMessage(retryMsg, opts){
     const response = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/coachChat', {
       method:'POST',
       headers:await authHeaders(true),
-      body:JSON.stringify({message:enrichedMsg, history:coachHistory.slice(-20), stateContext, responseMode})
+      body:JSON.stringify({message:enrichedMsg, history:coachHistory.slice(opts.voice ? -10 : -20), stateContext, responseMode, tone: opts.tone || undefined})   // vocal : moins d'historique (plus rapide), ton choisi
     });
 
     // NE PAS supprimer loader ici — il reste visible pendant la lecture du stream

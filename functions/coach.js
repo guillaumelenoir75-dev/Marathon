@@ -388,12 +388,43 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
   }
 );
 
+// ─── Coach vocal : vitesse ───
+// contexte (prépa + situation) lu en parallèle et gardé 90 s : le préchauffage à l'ouverture de l'écran vocal le prépare,
+// les questions suivantes le réutilisent ; modèle rapide pour les réponses courtes (repli automatique si indisponible)
+const VOICE_MODEL = 'claude-haiku-5-5', CHAT_MODEL = 'claude-sonnet-4-6', CC_TTL = 90000;
+let _ccCache = null;
+async function coachCtxLoad(useCache){
+  if(useCache && _ccCache && Date.now() - _ccCache.at < CC_TTL) return _ccCache;
+  const db = admin.database();
+  const [prep, situation] = await Promise.all([
+    loadPrepState(db).catch(() => ({})),
+    db.ref(ADMIN_STATE).once('value').then((sn) => buildTrainingSituation(db, sn.val() || {})).then((r) => (r && r.text) || '').catch((e) => { console.warn('coachChat situation:', e.message); return ''; })
+  ]);
+  _ccCache = { at: Date.now(), prep, situation };
+  return _ccCache;
+}
+// contexte allégé pour une réponse orale courte : les gros blocs (plan futur, historique détaillé) sont retirés
+function voiceLightCtx(ctx){
+  const out = {};
+  Object.keys(ctx || {}).forEach((k) => {
+    let v = ctx[k];
+    if(k === 'seances_recentes_detail' && Array.isArray(v)) v = v.slice(-4).map((r) => { const c = Object.assign({}, r); if(c.strava) c.strava = Object.assign({}, c.strava, { splits: undefined, splits_par_km: undefined }); return c; });
+    let n = 0; try { n = JSON.stringify(v).length; } catch(e) {}
+    if(n <= 3000 || k === 'date_reelle' || k === 'seances_a_venir' || k === 'seances_recentes_detail') out[k] = v;
+  });
+  return out;
+}
+exports.voiceLightCtx = voiceLightCtx;
+const VOICE_TONES = { direct: 'TON : direct et factuel, va droit au but.', encourageant: 'TON : chaleureux et encourageant, valorise ce qui va bien avant de corriger.' };
+
 exports.coachChat = onRequest(
   { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120, memory: '512MiB' },
   async (req, res) => {
     corsHeaders(res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    // préchauffage (ouverture de l'écran vocal) : instance réveillée + contexte prêt, sans appel à l'IA
+    if(req.body && req.body.warm){ try { await coachCtxLoad(true); } catch(e) {} res.json({ ok: true, warm: true }); return; }
     // Rate limiting : max 20 appels/minute
     try {
       const db = admin.database();
@@ -402,11 +433,11 @@ exports.coachChat = onRequest(
       const rateData = rateSnap.val() || { count: 0, windowStart: 0 };
       const now = Date.now();
       if (now - rateData.windowStart > 60000) {
-        await db.ref(ratePath).set({ count: 1, windowStart: now });
+        db.ref(ratePath).set({ count: 1, windowStart: now }).catch(() => {});
       } else if (rateData.count >= 20) {
         res.status(429).json({ error: 'Trop de requêtes. Attends 1 minute.' }); return;
       } else {
-        await db.ref(ratePath).set({ count: rateData.count + 1, windowStart: rateData.windowStart });
+        db.ref(ratePath).set({ count: rateData.count + 1, windowStart: rateData.windowStart }).catch(() => {});
       }
     } catch(e) { console.warn('rate limit check failed:', e.message); }
     // Validation entrées
@@ -421,13 +452,15 @@ exports.coachChat = onRequest(
       res.status(400).json({ error: 'history invalide (max 50 entrées)' }); return;
     }
     try {
-      const { message, history, stateContext, responseMode } = req.body;
+      const { message, history, responseMode, tone } = req.body;
+      const isVoice = responseMode === 'voix' || responseMode === 'voix_long';
+      const stateContext = responseMode === 'voix' ? voiceLightCtx(req.body.stateContext) : req.body.stateContext;   // réponse orale courte : contexte léger
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
       const isStreaming = req.headers['accept'] === 'text/event-stream';
-      const _prepSt = await loadPrepState(admin.database()).catch(() => ({}));
-      // vision complète (prépas, courses passées et à venir, période post-course, charge récente)
-      let _situation = '';
-      try { const _st = (await admin.database().ref(ADMIN_STATE).once('value')).val() || {}; _situation = (await buildTrainingSituation(admin.database(), _st)).text; } catch(e) { console.warn('coachChat situation:', e.message); }
+      // vision complète (prépas, courses passées et à venir, période post-course, charge récente) — lue en parallèle, gardée 90 s en vocal
+      const _cc = await coachCtxLoad(isVoice);
+      const _prepSt = _cc.prep || {};
+      const _situation = _cc.situation || '';
 
       const profilAthlete = `Tu es le coach running personnel de {{PRENOM}}. Voici tout ce que tu sais sur lui :
 
@@ -634,13 +667,13 @@ ${coachFixedRules(_prepSt, '   ')}
 ${_situation ? '\n' + _situation + '\nCette situation est à jour : elle prime sur les dates ou phases plus anciennes évoquées dans l\'historique. En période post-course, conseils de reprise progressive.\n' : ''}
 ${reglesTour}
 
-${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'voix' ? '\nRAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres.' : responseMode === 'voix_long' ? '\nRAPPEL : détail complet en 150 mots max, regroupé, chiffres en chiffres.' : ''}`;
+${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : ''}${rappelPlanification}${rappelTemporel}${responseMode === 'voix' ? '\nRAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres.' : responseMode === 'voix_long' ? '\nRAPPEL : détail complet en 150 mots max, regroupé, chiffres en chiffres.' : ''}`;
 
       const todayDate = (stateContext?.date_reelle?.annee && stateContext?.date_reelle?.mois && stateContext?.date_reelle?.jour)
         ? `${stateContext.date_reelle.annee}-${String(stateContext.date_reelle.mois).padStart(2,'0')}-${String(stateContext.date_reelle.jour).padStart(2,'0')}`
         : new Date().toISOString().slice(0,10);
 
-      const anchoredHistory = (history || []).slice(-30).map(m => {
+      const anchoredHistory = (history || []).slice(isVoice ? -10 : -30).map(m => {   // vocal : derniers échanges seulement (plus rapide)
         if(m.role === 'user' && m.date && m.date !== todayDate) {
           return { role: m.role, content: `[Message du ${m.date}] ${m.content}` };
         }
@@ -681,6 +714,7 @@ ${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'vo
 
         const MAX_RETRIES = 3;
         let streamRes = null;
+        let model = responseMode === 'voix' ? VOICE_MODEL : CHAT_MODEL;   // réponse orale courte : modèle rapide
         for(let attempt = 0; attempt < MAX_RETRIES; attempt++) {
           if(attempt > 0) {
             await new Promise(r => setTimeout(r, Math.pow(2, attempt - 1) * 1000));
@@ -693,9 +727,10 @@ ${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'vo
               'x-api-key': ANTHROPIC_API_KEY.value(),
               'anthropic-version': '2023-06-01'
             },
-            body: await aiJson({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, stream: true, system, messages })
+            body: await aiJson({ model, max_tokens: maxTokens, stream: true, system, messages })
           }, 110000);
-          console.log(`Anthropic coachChat attempt ${attempt + 1} status:`, streamRes.status);
+          console.log(`Anthropic coachChat attempt ${attempt + 1} status:`, streamRes.status, model);
+          if(!streamRes.ok && model !== CHAT_MODEL && [400, 404].includes(streamRes.status)){ model = CHAT_MODEL; continue; }   // modèle rapide indisponible → modèle habituel
           if(streamRes.ok || ![429, 503, 529].includes(streamRes.status)) break;
           const errText = await streamRes.text().catch(()=>'no body');
           console.error(`Anthropic coachChat error ${streamRes.status} (attempt ${attempt + 1}):`, errText);
@@ -729,7 +764,7 @@ ${modeInstructions}${rappelPlanification}${rappelTemporel}${responseMode === 'vo
         res.end();
       } else {
         const reply = await callAnthropic(ANTHROPIC_API_KEY.value(), system, messages, maxTokens);
-        res.json({ reply: reply || 'Réponse non disponible.' });
+        res.json({ reply: reply || 'Réponse non disponible.' });   // (hors flux : modèle habituel)
       }
     } catch(e) {
       console.error('coachChat error:', e.message);

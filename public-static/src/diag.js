@@ -41,12 +41,15 @@ function _diagVersion(){ const s = Array.prototype.slice.call(document.scripts).
 function diagOpen(){
   const E = _diagGet(DIAG_ERR), B = _diagGet(DIAG_BOOT), mc = document.getElementById('modal-container'), ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'dg-modal'; ov.style.setProperty('--_overlay-bg', 'rgba(0,0,0,0.45)');
+  // Coach vocal : délai médian jusqu'au 1er mot lu (réponses courtes, coach-voice.js)
+  let cvMed = null; try { const L = JSON.parse(localStorage.getItem('pm_cv_lat') || '[]').filter(function(x){ return x && !x.long && x.say > 0; }).map(function(x){ return x.say; }).sort(function(a, b){ return a - b; }); if(L.length) cvMed = L[Math.floor(L.length / 2)]; } catch(e) {}
   const v = _diagVersion(), med = B.length ? B.map(function(b){ return b.ms; }).sort(function(a, b){ return a - b; })[Math.floor(B.length / 2)] : null;
   const esc = function(t){ return String(t).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   const fd = function(iso){ try { return new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch(e) { return iso; } };
   ov.innerHTML = '<div class="modal-box" style="max-height:90vh;"><div class="dg-head"><div><p class="dg-eb">Compte</p><p class="dg-title">🩺 Diagnostic</p></div><button class="dg-x" onclick="document.getElementById(\'dg-modal\').remove()" aria-label="Fermer">×</button></div>'
     + '<div class="modal-scroll-body"><div class="dg-body">'
-    + '<div class="dg-tiles"><div><b>' + (med != null ? (med / 1000).toFixed(1).replace('.', ',') + ' s' : '—') + '</b><small>démarrage (médiane)</small></div><div><b>' + E.length + '</b><small>erreur' + (E.length > 1 ? 's' : '') + ' récente' + (E.length > 1 ? 's' : '') + '</small></div><div><b>' + esc(v === 'dev' ? 'dev' : new Date(+v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })) + '</b><small>version</small></div></div>'
+    + '<div class="dg-tiles"><div><b>' + (med != null ? (med / 1000).toFixed(1).replace('.', ',') + ' s' : '—') + '</b><small>démarrage (médiane)</small></div>'
+    + (cvMed != null ? '<div><b>' + (cvMed / 1000).toFixed(1).replace('.', ',') + ' s</b><small>Coach vocal : 1er mot</small></div>' : '') + '<div><b>' + E.length + '</b><small>erreur' + (E.length > 1 ? 's' : '') + ' récente' + (E.length > 1 ? 's' : '') + '</small></div><div><b>' + esc(v === 'dev' ? 'dev' : new Date(+v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })) + '</b><small>version</small></div></div>'
     + (E.length ? '<ul class="dg-list">' + E.map(function(e){ return '<li><b>' + esc(e.m) + '</b><small>' + (e.s ? 'attrapée · ' : '') + (e.w ? esc(e.w) + ' · ' : '') + '×' + (e.n || 1) + ' · ' + fd(e.at) + '</small></li>'; }).join('') + '</ul>' : '<p class="dg-ok">✅ Aucune erreur enregistrée</p>')
     + '<div class="dg-btns"><button type="button" onclick="diagCopy()">📋 Copier</button>' + (E.length ? '<button type="button" onclick="diagClear()">🧹 Effacer</button>' : '') + '</div></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });

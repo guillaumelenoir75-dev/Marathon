@@ -99,9 +99,10 @@ test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute 
   const sse = ['Très bonne question. ', 'Ce soir, fais ton footing à 5\'40/km', ' sans forcer, FC sous 145 bpm. ', 'Ça te va ?'];
   // 2e réponse trop longue (comme sur iPhone) : seules les 2 premières phrases sont lues et affichées
   const sseLong = ['Vise 42\'00, soit 4\'12/km. ', 'Pars prudent sur les 3 premiers km. ', 'Le modèle donne 43\'47 avec une confiance de 80 % parce que tu sors d\'un marathon. ', 'Ton objectif de 41\'50 reste ambitieux.'];
-  let calls = 0;
+  let calls = 0, warm = 0;
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
     functions: async (r) => {
+      if (/coachChat/.test(r.request().url()) && /"warm":true/.test(r.request().postData() || '')) { warm++; return r.fulfill({ contentType: 'application/json', body: '{"ok":true,"warm":true}' }); }
       if (/coachChat/.test(r.request().url())) { body = JSON.parse(r.request().postData() || '{}'); calls++; return r.fulfill({ contentType: 'text/event-stream', body: (calls > 1 ? sseLong : sse).map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' }); }
       return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
     },
@@ -158,7 +159,7 @@ test('Coach à la voix : écoute → réponse lue phrase par phrase → écoute 
 test('Coach à la voix : 🎧 du brief dans « Ma journée », commandes vocales sans le Coach (alcool, au revoir)', async () => {
   let aiCalls = 0;
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
-    functions: async (r) => { if (/coachChat/.test(r.request().url())) aiCalls++; return r.fulfill({ contentType: 'application/json', body: '{"success":true}' }); },
+    functions: async (r) => { if (/coachChat/.test(r.request().url()) && !/"warm":true/.test(r.request().postData() || '')) aiCalls++; return r.fulfill({ contentType: 'application/json', body: '{"success":true}' }); },   // préchauffage : pas d'IA
     init: () => {
       window.__said = []; window.__recStarts = 0;
       class FakeRec { start() { window.__recStarts++; } stop() {} abort() {} }
@@ -180,6 +181,61 @@ test('Coach à la voix : 🎧 du brief dans « Ma journée », commandes vocales
   await page.fill('#cv-in', 'Merci, c\'est tout'); await page.click('#cv-ov .cv-bot button');
   await page.waitForFunction(() => !document.getElementById('cv-ov'), null, { timeout: 5000 });
   assert.equal(aiCalls, 0, 'aucune de ces commandes n\'appelle l\'IA');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Coach à la voix : il parle en premier, montre une carte, modifie le plan à la voix (oui → appliqué, annule), note un mémo', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  let target = null, warm = 0, memoNote = null;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    functions: async (r) => {
+      const url = r.request().url(), pd = r.request().postData() || '';
+      if (/coachChat/.test(url) && /"warm":true/.test(pd)) { warm++; return r.fulfill({ contentType: 'application/json', body: '{"ok":true,"warm":true}' }); }
+      if (/coachChat/.test(url)) return r.fulfill({ contentType: 'text/event-stream', body: ['Vise 42\'00, soit 4\'12/km. ', 'Pars prudent.'].map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' });
+      if (/planChat/.test(url)) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, reply: 'OK, on allège un peu.', changes: [{ ref: target.key, km: target.km - 2, reason: 'fatigue' }], auto: [] }) });
+      if (/addMemo/.test(url)) { memoNote = JSON.parse(pd).note; return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ memos: '- Mal au mollet gauche (29/10)' }) }); }
+      return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    },
+    init: () => {
+      window.__said = []; window.__recStarts = 0;
+      class FakeRec { start() { window.__recStarts++; } stop() {} abort() {} }
+      window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {}, getVoices() { return []; } } });
+    } });
+  target = await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.date > prTodayIso() && x.kmPlan >= 5).shift(); return { key: s.key, title: s.title, km: s.kmPlan }; });
+  await page.evaluate(() => { delete state._brief_pending; openCoachVoice(); });
+  await page.waitForSelector('#cv-ov');
+  // 5 · il ouvre la conversation, puis écoute ; le serveur est préchauffé
+  await page.waitForFunction(() => window.__recStarts >= 1, null, { timeout: 5000 });
+  assert.match(await page.evaluate(() => window.__said.filter((t) => t.trim()).slice(0, 4).join(' ')), /^(Salut|Bonsoir)\b[\s\S]*Une question \?/);
+  assert.equal(warm, 1, 'préchauffage à l\'ouverture');
+  // 4 · plan de course : carte km par km sous la réponse, temps lu dans la réponse ; 1 · délai mesuré
+  await page.fill('#cv-in', 'Fais-moi mon plan de course km par km'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForSelector('#cv-ov .cv-card .cv-sp');
+  const card = await page.evaluate(() => ({ h: document.querySelector('#cv-ov .cv-cdh').textContent, n: document.querySelectorAll('#cv-ov .cv-sp').length, lat: JSON.parse(localStorage.getItem('pm_cv_lat') || '[]').length }));
+  assert.match(card.h, /42'00 · 4'12\/km/); assert.ok(card.n >= 5, 'lignes km par km : ' + card.n); assert.equal(card.lat, 1);
+  // 3 · modifier le plan à la voix : proposition dite + carte, « oui » → appliqué, « annule » → rétabli
+  await page.waitForFunction(() => _cv && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 5000 });
+  await page.fill('#cv-in', 'Allège ma séance de demain, je suis fatigué'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /Je valide \?/.test(t)), null, { timeout: 8000 });
+  assert.match(await page.textContent('#cv-ov .cv-card'), new RegExp((target.km - 2) + ' km au lieu de ' + target.km + ' km'));
+  await page.fill('#cv-in', 'Oui vas-y'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /C'est fait/.test(t)), null, { timeout: 5000 });
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, target.key), target.km - 2, 'plan modifié');
+  assert.equal(await page.evaluate(() => state._plan_reviews.slice(-1)[0].kind), 'chat');
+  await page.fill('#cv-in', 'Annule'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /C'est annulé/.test(t)), null, { timeout: 5000 });
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, target.key), target.km, 'annulé');
+  // « note que… » → mémo du Coach
+  await page.fill('#cv-in', "Note que j'ai mal au mollet gauche"); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /C'est noté, je m'en souviendrai/.test(t)), null, { timeout: 5000 });
+  assert.equal(memoNote, "j'ai mal au mollet gauche");
+  // 7 · toucher sa phrase = la corriger dans le champ
+  await page.click('#cv-ov .cv-you');
+  assert.equal(await page.inputValue('#cv-in'), "Note que j'ai mal au mollet gauche");
+  await page.click('#cv-ov .cv-x');
   assert.deepEqual(errors, []);
   await ctx.close();
 });

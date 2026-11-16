@@ -115,3 +115,54 @@ test('image de séance : l\'allure de chaque km a sa place au-dessus de sa barre
   });
   assert.equal(app.ssSplitLabel(14, 60, 8, 3).font, 24, '14 km (cas de la capture) : grande police, toutes les allures');
 });
+
+test('cvGreeting : le Coach ouvre la conversation selon la journée (séance du soir, repos, brief prêt)', () => {
+  const { synthPlan } = require('../helpers/frontend');
+  const st = synthPlan({ start: '2026-11-09' });
+  st.extra_w1_s3 = JSON.stringify({ type: 'ef', km: 8, d: 'Footing EF|5\'45', sched_date: '2026-11-13', sched_day: 5, sched_time: '18:30' });
+  const a = loadApp({ now: '2026-11-13T19:10:00+01:00', state: st });
+  const G = a.cvGreeting(st, new Date('2026-11-13T19:10:00+01:00'), 'Léa');
+  assert.match(G.text, /^Bonsoir Léa\. Ce soir : Footing EF de 8 km à 18h30\. Une question \?$/);
+  assert.equal(G.offer, null);
+  st._brief_pending = { content: 'Brief…', date: '2026-11-13' };
+  const b = loadApp({ now: '2026-11-13T08:00:00+01:00', state: st });
+  const B = b.cvGreeting(st, new Date('2026-11-13T08:00:00+01:00'), '');
+  assert.equal(B.offer, 'brief'); assert.match(B.text, /brief du matin est prêt/);
+});
+
+test('cvCardKind / cvTimeIn / cvRaceCard : la bonne carte sous la réponse, plan de course lisible', () => {
+  assert.equal(app.cvCardKind('Fais-moi mon plan de course kilomètre par kilomètre'), 'race');
+  assert.equal(app.cvCardKind('Quel temps je peux viser dimanche ?'), 'pred');
+  assert.equal(app.cvCardKind('Comment est ma récup ce matin ?'), 'form');
+  assert.equal(app.cvCardKind('Comment j\'aborde ma séance de ce soir ?'), 'sess');
+  assert.equal(app.cvCardKind('Merci'), null);
+  assert.equal(app.cvTimeIn("Vise 42'00, soit 4'12/km."), 2520);
+  assert.equal(app.cvTimeIn('Objectif 1h35 au semi'), 5700);
+  assert.equal(app.cvTimeIn("Pars en 4'18/km"), null, 'une allure n\'est pas un temps de course');
+  const C = app.cvRaceCard(2520, 10);
+  assert.equal(C.rows.length, 10); assert.equal(Math.round(C.pace), 252);
+  assert.ok(Math.abs(C.rows[9].cum - 2520) < 1, 'le cumul retombe sur le temps visé');
+  assert.ok(app.cvRaceCard(12600, 42.195).rows.length <= 12, 'marathon : regroupé');
+});
+
+test('cvActionIntent / cvMemoIntent / cvChangeLine : le Coach agit sur le plan, note ce qu\'on lui dit', () => {
+  assert.equal(app.cvActionIntent('Décale ma séance de demain à jeudi'), true);
+  assert.equal(app.cvActionIntent('Tu peux alléger ma semaine, je suis crevé'), true);
+  assert.equal(app.cvActionIntent('Ajoute un footing samedi'), true);
+  assert.equal(app.cvActionIntent('Comment je passe ma semaine ?'), false);
+  assert.equal(app.cvActionIntent('Quel temps dimanche ?'), false);
+  assert.equal(app.cvMemoIntent("Note que j'ai mal au mollet gauche"), "j'ai mal au mollet gauche");
+  assert.equal(app.cvMemoIntent('Retiens que je cours mieux le matin.'), 'je cours mieux le matin');
+  assert.equal(app.cvMemoIntent('Comment je note ma séance ?'), null);
+  assert.equal(app.cvChangeLine({ title: 'Footing EF', date: '2026-11-19', field: 'km', before: 8, after: 6 }), 'Footing EF de jeudi : 6 km au lieu de 8 km');
+});
+
+test('cvFixTranscript / cvEcho / cvLatMedian : vocabulaire course, écho du haut-parleur, délai mesuré', () => {
+  assert.equal(app.cvFixTranscript('Je vise 4 minutes 12 en e f'), "Je vise 4'12 en EF");
+  assert.equal(app.cvFixTranscript('Mon seuil à 4 05 au kilomètre'), "Mon seuil à 4'05/km");
+  assert.equal(app.cvFixTranscript('ma v m a'), 'ma VMA');
+  assert.equal(app.cvEcho('vise 42 minutes soit', "Vise 42 minutes, soit 4 minutes 12 au kilomètre"), true, 'sa propre voix : pas d\'interruption');
+  assert.equal(app.cvEcho('attends attends stop', 'Vise 42 minutes, soit 4 minutes 12'), false, 'toi qui parles : interruption');
+  assert.equal(app.cvEcho('ok', 'Vise 42 minutes'), true, 'trop court pour décider');
+  assert.equal(app.cvLatMedian([{ say: 1800 }, { say: 900 }, { say: 1200 }, { say: 5000, long: 1 }]), 1200);
+});
