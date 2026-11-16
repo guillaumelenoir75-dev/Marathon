@@ -809,12 +809,14 @@ function renderHome(){
     const editFn = canEdit ? `openEditExtraModal(${w},${ei})` : (done||skip?`openValidationModalExtra(${w},${ei})`:'');
     const doneFn = isCurrent ? `toggleDoneExtra(${w},${ei})` : '';
     const div=document.createElement('div');
+    div.className='hs-card'; div.dataset.st=done?'done':skip?'skip':isRunToday?'today':isPast?'past':'todo'; div.dataset.type=s2.type||'';   // thème Piste de nuit : niveau de relief (piste-home.js)
     div.style.cssText='border-radius:14px;display:flex;align-items:center;gap:'+(done||skip?'12px':'10px')+';padding:'+(done?'8px 14px':skip?'11px 14px':'10px 12px')+';background:var(--bg);position:relative;cursor:default;'
       +(isRunToday?`border:2px solid ${typeC};box-shadow:0 0 0 4px ${typeC}15,inset 3px 0 0 ${typeC};`
       :done?`border:1px solid ${typeC}30;background:linear-gradient(90deg,${typeBgC}50,var(--bg));box-shadow:inset 3px 0 0 ${typeC};`
       :skip?'border:1px solid #e5c6c6;background:linear-gradient(90deg,#fff5f550,var(--bg));box-shadow:inset 3px 0 0 #C0392B;'
       :`border:1px solid var(--border);box-shadow:inset 3px 0 0 ${typeC};`)
       +(isPast&&!done&&!skip?'opacity:0.65;':'');
+    div.style.setProperty('--c',typeC);
     // séance à faire : 3 lignes — « Mar 12:00 · Footing EF », consigne, « 8 km · ~44' · chaussure » ; Éditer en icône
     const dayTxt=[s2.sched_day?_schedDays[s2.sched_day]:'',s2.sched_time||''].filter(Boolean).join(' ');
     if(!done&&!skip){ const durC=estimateDuration(s2); div.innerHTML=`

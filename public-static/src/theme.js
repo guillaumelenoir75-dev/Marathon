@@ -34,6 +34,19 @@ function _thOut(h, s, l, a){ s /= 100; l /= 100; const k = function(n){ return (
 // Piste de nuit : le bleu vif de l'app (boutons, onglet actif, coches…) devient l'orange de piste ; dans un dégradé, les bleus
 // deviennent bleu nuit (en-têtes) ; fonds clairs → bleu nuit plus profond que le Sombre
 let _thPiste = false;
+// Piste de nuit · relief : fonds de page de l'app (→ #070B16), ombre des cartes posées (filet clair en haut + ombre portée)
+const TH_PAGE = ['237,242,251', '226,232,245', '243,246,252', '237,242,250'];   // #EDF2FB, #E2E8F5, #F3F6FC, #EDF2FA
+const TH_RELIEF = 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 20px rgba(0,0,0,0.42)';
+// fond de carte : blanc (ou presque) ou jeton --bg / --card ; null = autre chose
+function _thIsCard(v){
+  v = String(v || '');
+  if(/var\(--(bg|card)\)/.test(v)) return true;
+  if(/gradient/.test(v)) return false;
+  const m = v.match(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|\bwhite\b/); if(!m) return false;
+  const o = _thParse(m[0]); if(!o || o.a < 0.5) return false;
+  return _thHsl(o).l >= 98.5;
+}
+function _thRadius(r){ const n = parseFloat(String(r || '').split(/\s/)[0]); return isNaN(n) ? 0 : n; }
 const TH_TARTAN = { r: 224, g: 96, b: 58 }, TH_TARTAN_FG = { r: 239, g: 122, b: 84 };
 function _thRgb(o, a){ return a < 1 ? 'rgba(' + o.r + ',' + o.g + ',' + o.b + ',' + (Math.round(a * 100) / 100) + ')' : 'rgb(' + o.r + ',' + o.g + ',' + o.b + ')'; }
 function thIsBrand(x){ return x.h >= 216 && x.h <= 230 && x.s >= 60 && x.l >= 38 && x.l <= 62; }
@@ -49,7 +62,12 @@ function thMap(c, role){
   }
   const neutral = x.s < 8, H = neutral ? (_thPiste ? 224 : 222) : x.h;  // blanc / gris neutres → ardoise (teinte du fond de l'app)
   if(role === 'bg'){ if(o.a < 0.5 || x.l < 78) return c;
-    if(_thPiste) return _thOut(H, neutral ? 40 : Math.min(x.s, 45), Math.max(4, 1.5 + (x.l - 78) * 0.58), o.a);   // blanc → #161E33, fond de page → #0E1424
+    if(_thPiste){
+      // relief : fond de page → le plus sombre, blanc → carte posée, gris / teintes clairs → creux (plus sombres que la carte)
+      if(TH_PAGE.indexOf(o.r + ',' + o.g + ',' + o.b) >= 0) return _thRgb({ r: 7, g: 11, b: 22 }, o.a);
+      if(x.l >= 98.5) return _thRgb({ r: 17, g: 26, b: 46 }, o.a);
+      return _thOut(H, neutral ? 40 : Math.min(x.s, 45), Math.max(3.5, 2 + (x.l - 78) * 0.33), o.a);
+    }
     return _thOut(H, neutral ? 22 : Math.min(x.s, 40), 6 + (x.l - 78) * 0.6, o.a); }
   if(role === 'fg'){ if(x.l >= 58 || o.a < 0.3) return c; return _thOut(x.h, Math.min(x.s, 85), x.l < 30 ? 100 - x.l * 0.6 : Math.max(66, 100 - x.l * 0.75), o.a); }
   if(role === 'line'){ if(o.a < 0.3 || x.l >= 97) return c; if(x.l >= 70) return _thOut(H, neutral ? (_thPiste ? 36 : 20) : Math.min(x.s, 35), 18 + (x.l - 70) * 0.25, o.a); if(x.l < 25) return _thOut(x.h, x.s, 55, o.a); return c; }
@@ -99,6 +117,9 @@ function _thRules(rules){
         const nv = /#|rgb|white|black/i.test(v) ? thMapValue(v, role) : v; if(nv !== v) changed = true;
         decl += p + ':' + nv + (r.style.getPropertyPriority(p) ? ' !important' : '') + ';';
       }
+      if(_thPiste && decl && _thRadius(r.style.getPropertyValue('border-radius')) >= 10 && _thIsCard(r.style.getPropertyValue('background') || r.style.getPropertyValue('background-color'))){
+        const sh = r.style.getPropertyValue('box-shadow'); decl += 'box-shadow:' + (sh && sh !== 'none' ? sh + ',' : '') + TH_RELIEF + ';';
+      }
       if(decl && (changed || _thHasColorRules)) css += _thPrefix(r.selectorText) + '{' + decl + '}\n';
     } else if(r.type === 4 && r.cssRules){ const inner = _thRules(r.cssRules); if(inner) css += '@media ' + r.conditionText + '{' + inner + '}\n'; }
     else if(r.type === 12 && r.cssRules){ const inner = _thRules(r.cssRules); if(inner) css += '@supports ' + r.conditionText + '{' + inner + '}\n'; }
@@ -120,6 +141,10 @@ function _thEl(el){
   if(el.nodeType !== 1) return;
   if(el.hasAttribute('style') && el.__thS !== el.getAttribute('style')){
     const s = el.style;
+    // relief (piste) : carte posée en ligne (fond blanc / --bg, coins ≥ 10 px) → filet clair + ombre, une seule fois
+    if(_thPiste && el.tagName !== 'BUTTON' && el.tagName !== 'INPUT' && _thRadius(s.borderRadius) >= 10 && _thIsCard(s.background || s.backgroundColor) && String(s.boxShadow).indexOf('0.42)') < 0){
+      s.boxShadow = (s.boxShadow && s.boxShadow !== 'none' ? s.boxShadow + ', ' : '') + TH_RELIEF;
+    }
     for(let j = 0; j < s.length; j++){
       const p = s[j], role = thRole(p); if(!role) continue;
       const v = s.getPropertyValue(p); if(!v || !/#|rgb|white|black/i.test(v)) continue;
@@ -173,16 +198,16 @@ function themeOpen(){
 const TH_P = 'html[data-theme=dark][data-piste]';
 function thPisteCss(){
   if(document.getElementById('th-piste')) return;
-  const tc = document.querySelector('meta[name=theme-color]'); if(tc) tc.setAttribute('content', '#0E1424');
+  const tc = document.querySelector('meta[name=theme-color]'); if(tc) tc.setAttribute('content', '#070B16');
   const P = TH_P, st = document.createElement('style'); st.id = 'th-piste'; st.dataset.th = '1';
   st.textContent = "@font-face{font-family:'Manrope';font-style:normal;font-weight:200 800;font-display:swap;src:url(/fonts/manrope.woff2) format('woff2');}"
     + "@font-face{font-family:'Big Shoulders Display';font-style:normal;font-weight:100 900;font-display:swap;src:url(/fonts/big-shoulders-display.woff2) format('woff2');}"
-    + P + ',' + P + ' body{background:#0E1424;}' + P + '{--blue:#E0603A;}'
+    + P + ',' + P + ' body{background:#070B16;}' + P + '{--blue:#E0603A;}'
     + P + ' .plan-week-card.is-current{box-shadow:0 0 0 2.5px #E0603A,0 4px 28px rgba(224,96,58,.16);}'
-    + P + ' body{font-family:Manrope,system-ui,-apple-system,sans-serif;color:#F2F4F8;--page:#0E1424;--card:#161E33;--card-2:#1C2742;--ink:#F2F4F8;--ink-2:#C2CADB;--muted-2:#9AA6BF;--line:#24304D;--brand:#E0603A;--r-card:20px;}'
+    + P + ' body{font-family:Manrope,system-ui,-apple-system,sans-serif;color:#F2F4F8;--page:#070B16;--card:#111A2E;--card-2:#0A1020;--ink:#EEF1F7;--ink-2:#C3CBDC;--muted-2:#8C98B4;--line:#1E2944;--brand:#E0603A;--r-card:20px;}'
     + P + ' :where(button,input,select,textarea){font-family:inherit;}'
-    + P + ' #app{background:#0E1424;}'
-    + P + ' #nav-bar{background:rgba(11,16,29,.94)!important;border-top:1px solid #1E2740!important;}'
+    + P + ' #app{background:#070B16;}'
+    + P + ' #nav-bar{background:rgba(7,11,22,.96)!important;border-top:1px solid #18213A!important;box-shadow:0 -10px 30px rgba(0,0,0,.5)!important;}'
     + P + ' .nav-btn{color:#9AA6BF;}' + P + ' .nav-btn.active{color:#E0603A;}' + P + ' .nav-btn.active .nav-icon-wrap{background:rgba(224,96,58,.14);}' + P + ' .nav-btn-label{font-weight:700;}'
     + P + " #plan-title," + P + " .modal-stat-value{font-family:'Big Shoulders Display',Manrope,sans-serif;letter-spacing:.01em;}";
   document.head.appendChild(st);

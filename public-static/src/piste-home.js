@@ -90,6 +90,20 @@ function _phInit(el){
   // la journée avant la Forme du jour
   const day = document.getElementById('home-day-card'), form = document.getElementById('home-form-card');
   if(day && form && form.parentNode) form.parentNode.insertBefore(day, form);
+  // relief : un vrai titre par section (barre de la couleur du rôle) et la barre de la semaine
+  const sec = function(id, color, title){ const d = document.createElement('div'); d.className = 'ph-sec'; d.id = id; d.innerHTML = '<h2><i style="background:' + color + '"></i>' + title + '</h2><span id="' + id + '-n"></span>'; return d; };
+  if(day && day.parentNode) day.parentNode.insertBefore(sec('ph-sec-day', '#4FB3D9', 'Ta journée'), day);
+  if(form && form.parentNode) form.parentNode.insertBefore(sec('ph-sec-form', '#F2B544', 'Forme du jour'), form);
+  const sh = document.getElementById('home-sess-head');
+  if(sh && sh.parentNode){ const wb = document.createElement('div'); wb.id = 'ph-weekbar'; wb.className = 'ph-weekbar'; sh.parentNode.insertBefore(wb, sh.nextSibling); }
+}
+// barre de la semaine : km faits / prévus et séances faites, lus dans l'en-tête de la liste des séances (home-render.js)
+function phWeekBar(){
+  const wb = document.getElementById('ph-weekbar'); if(!wb) return;
+  const km = (document.getElementById('week-total-km') || {}).textContent || '', sp = ((document.getElementById('sessions-progress') || {}).textContent || '').trim();
+  const m = km.replace(/\s/g, '').match(/^([\d.,]+)\/([\d.,]+)km$/), tot = m ? m[2] : (km.match(/[\d.,]+/) || [''])[0], dn = m ? m[1] : '0';
+  const pc = Math.max(0, Math.min(100, Math.round(parseFloat(String(dn).replace(',', '.')) / (parseFloat(String(tot).replace(',', '.')) || 1) * 100)));
+  wb.innerHTML = '<div class="ph-wb"><b class="ph-wbk">' + _phEsc(String(dn).replace('.', ',')) + '<small> / ' + _phEsc(String(tot).replace('.', ',')) + ' km</small></b><span class="ph-wbb"><i style="width:' + pc + '%"></i></span>' + (sp ? '<b class="ph-wbs">' + _phEsc(sp.replace('/', ' / ')) + '</b>' : '') + '</div>';
 }
 function phGoal(){ const b = document.getElementById('home-marathon-time-block'); if(b && typeof b.onclick === 'function') b.onclick(); else if(b) b.click(); }
 function phRender(){
@@ -102,6 +116,15 @@ function phRender(){
     const mic = typeof coachAI === 'function' && coachAI() && typeof openCoachVoice === 'function';
     document.getElementById('ph-top').innerHTML = '<div class="ph-hd"><p class="ph-eb">' + _phEsc(V.eyebrow) + '</p><h1 class="ph-hi">' + _phEsc(V.greet) + '</h1></div>'
       + (mic ? '<button type="button" class="ph-mic" onclick="openCoachVoice()" aria-label="Parler au Coach à la voix"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>' : '');
+    const vis = function(id){ const e = document.getElementById(id); return !!(e && e.innerHTML.trim()); };
+    const sd = document.getElementById('ph-sec-day'), sf = document.getElementById('ph-sec-form');
+    if(sd) sd.style.display = vis('home-day-card') ? '' : 'none';
+    if(sf){ sf.style.display = vis('home-form-card') ? '' : 'none';
+      const H = state._form_hist || {}, yd = typeof prAddDays === 'function' ? prAddDays(today, -1) : null, t = H[today], y = yd ? H[yd] : null;
+      const n = document.getElementById('ph-sec-form-n'); if(n) n.textContent = t != null && y != null ? 'vs hier ' + (t - y >= 0 ? '+' : '−') + Math.abs(Math.round(t - y)) : ''; }
+    phWeekBar();
+    const cards = document.querySelectorAll('#home-sessions .hs-card'); let nx = false;
+    [].forEach.call(cards, function(c){ const on = !nx && (c.dataset.st === 'today' || c.dataset.st === 'todo'); c.classList.toggle('ph-next', on); if(on) nx = true; });
     const bl = document.getElementById('ph-blocks');
     if(bl) bl.style.display = [].some.call(bl.children, function(c){ return c.style.display !== 'none' && getComputedStyle(c).display !== 'none'; }) ? '' : 'none';
     const ring = document.getElementById('ph-ring');
@@ -127,7 +150,8 @@ function phDayHtml(L, nowMin){
   _phCss();
   const E = _phEsc, now = L.filter(function(x){ return x.st === 'now'; })[0], later = L.filter(function(x){ return x.st === 'later'; });
   const done = L.filter(function(x){ return x.st === 'done'; }), n = L.filter(function(x){ return !x.info && !x.soft; }), nd = n.filter(function(x){ return x.done; }).length;
-  const cnt = n.length ? '<span class="ph-cnt">' + nd + ' sur ' + n.length + ' fait' + (nd > 1 ? 's' : '') + '</span>' : '';
+  const cnt = '';
+  const secN = typeof document !== 'undefined' && document.getElementById('ph-sec-day-n'); if(secN) secN.textContent = n.length ? nd + ' / ' + n.length + ' fait' + (nd > 1 ? 's' : '') + (nd === n.length ? ' ✓' : '') : '';
   let h = '<div class="ph-day">';
   if(now){
     h += '<div class="ph-now" role="group" aria-label="' + E(mjNowInfo(now, nowMin).lab + ' : ' + now.t) + '"><div class="ph-now-hd"><span class="ph-eb2">';
@@ -149,7 +173,7 @@ function phDayHtml(L, nowMin){
   // fait : une ligne « ✓ Réveil · Alcool 6/10 · Brief · Repos » ; journée bouclée → le compteur au bout de cette ligne (pas de bloc en plus)
   if(dc.length || !now) rows.unshift('<div class="ph-li ph-dl">' + PH_CK + '<span class="ph-dli">' + (dc.length ? dc.map(function(x){
     return '<button type="button"' + (x.act ? ' onclick="' + x.act + '"' : '') + '>' + E(x.short || x.t) + '</button>'; }).join('<i aria-hidden="true">·</i>') : '<b>Journée bouclée</b>') + '</span>'
-    + (!now && n.length ? '<span class="ph-cnt">' + nd + '/' + n.length + '</span>' : '') + '</div>');
+    + '</div>');
   const open = typeof _mjOpen !== 'undefined' && _mjOpen, shown = open ? later : later.slice(0, 2);
   shown.forEach(function(x){
     const t = x.id === 'next' || !x.tm ? '→' : _mjHm(_mjMin(x.tm));
@@ -163,7 +187,7 @@ function phDayHtml(L, nowMin){
 function _phCss(){
   if(typeof document === 'undefined' || document.getElementById('ph-css')) return;
   const st = document.createElement('style'); st.id = 'ph-css'; st.dataset.th = '1';      // couleurs déjà « piste » : jamais converties
-  const BS = "'Big Shoulders Display',Manrope,sans-serif";
+  const BS = "'Big Shoulders Display',Manrope,sans-serif", P = 'html[data-theme=dark][data-piste]';
   st.textContent = '#home-piste{flex-direction:column;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 2px;color:#F2F4F8;}'
     + '.ph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;}.ph-hd{min-width:0;}'
     + '.ph-eb{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9AA6BF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
@@ -205,10 +229,45 @@ function _phCss(){
     + '.ph-li .ph-v{flex:0 0 auto;max-width:none;}.ph-dl .ph-cnt{margin-left:auto;padding-left:8px;}.ph-dli b{font-size:14px;font-weight:800;}.ph-arr.ic{width:18px!important;}'
     + '.ph-arr{width:38px;flex-shrink:0;font-size:12px;font-weight:800;letter-spacing:.04em;color:#9AA6BF;font-variant-numeric:tabular-nums;}'
     + '.ph-li .mj-sh{width:36px;height:36px;border-radius:12px;border:1px solid #2C3858;background:transparent;font-size:15px;cursor:pointer;flex-shrink:0;}'
-    + '.ph-more{color:#E0603A;font-size:13px;font-weight:800;}';
+    + '.ph-more{color:#E0603A;font-size:13px;font-weight:800;}'
+    // ─ relief : page la plus sombre, cartes posées (filet clair + ombre), cartes en avant, creux pour les chiffres
+    + '#home-piste{gap:10px;}'
+    + '.ph-card{background:linear-gradient(180deg,#1C2645 0%,#141D36 100%);border:1px solid #2A3760;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 18px 40px rgba(0,0,0,.6);}'
+    + '.ph-tile{background:#0A1020;box-shadow:inset 0 2px 6px rgba(0,0,0,.65),inset 0 -1px 0 rgba(255,255,255,.04);}'
+    + '.ph-trk{stroke:#0A1020;}.ph-lane{stroke:#2A3760;}'
+    + '.ph-chips>*{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 4px 10px rgba(0,0,0,.35)!important;}'
+    + '.ph-list{background:#111A2E;border:1px solid #1E2944;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(0,0,0,.45);}.ph-li{border-bottom-color:#1A2440;}'
+    + '.ph-now{background:linear-gradient(180deg,rgba(224,96,58,.16),rgba(224,96,58,.05)),#141D36;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 16px 34px rgba(0,0,0,.55);}'
+    + '.ph-sec{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px 0;}'
+    + '.ph-sec h2{margin:0;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#EEF1F7;}.ph-sec h2 i{display:block;width:4px;height:16px;border-radius:2px;}'
+    + '.ph-sec>span{font-size:13px;font-weight:700;color:#8C98B4;font-variant-numeric:tabular-nums;}'
+    + P + ' #home-day-card{padding-top:8px!important;}' + P + ' #home-form-card{padding-top:8px!important;}'
+    // Forme du jour : la carte en avant, teintée par son score
+    + P + ' .pd-form.ok,' + P + ' .pd-form.mid,' + P + ' .pd-form.low{border-radius:22px!important;grid-template-columns:64px minmax(0,1fr)!important;padding:14px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 18px 40px rgba(0,0,0,.6)!important;}'
+    + P + ' .pd-form.ok{background:radial-gradient(130% 90% at 0% 0%,rgba(91,208,138,.20),rgba(91,208,138,0) 55%),linear-gradient(180deg,#1C2645,#141D36)!important;border:1px solid rgba(91,208,138,.38)!important;}'
+    + P + ' .pd-form.mid{background:radial-gradient(130% 90% at 0% 0%,rgba(242,181,68,.20),rgba(242,181,68,0) 55%),linear-gradient(180deg,#1C2645,#141D36)!important;border:1px solid rgba(242,181,68,.38)!important;}'
+    + P + ' .pd-form.low{background:radial-gradient(130% 90% at 0% 0%,rgba(240,106,90,.20),rgba(240,106,90,0) 55%),linear-gradient(180deg,#1C2645,#141D36)!important;border:1px solid rgba(240,106,90,.38)!important;}'
+    + P + ' .pd-form .g-bg{stroke:#0A1020!important;}' + P + " .pd-form .pd-gauge text{font-family:" + BS + ";font-size:24px;font-weight:900;}"
+    + P + ' .pd-form.ok .pd-gauge text{fill:#5BD08A;}' + P + ' .pd-form.mid .pd-gauge text{fill:#F2B544;}' + P + ' .pd-form.low .pd-gauge text{fill:#F06A5A;}'
+    + P + ' .pd-form.ok .g-fg{stroke:#5BD08A!important;}' + P + ' .pd-form.mid .g-fg{stroke:#F2B544!important;}' + P + ' .pd-form.low .g-fg{stroke:#F06A5A!important;}'
+    + P + ' .pd-form .pd-form-l{display:none;}' + P + ' .pd-form>div>b{font-size:17px!important;font-weight:800!important;grid-row:1/3!important;align-self:center!important;line-height:1.25!important;}'
+    + P + ' .pd-form .pd-gauge{width:62px!important;height:62px!important;}'
+    + P + ' .pd-mini span{background:#0A1020!important;border:none!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.65),inset 0 -1px 0 rgba(255,255,255,.04)!important;}'
+    // la semaine : barre en creux, séance faite en retrait, prochaine séance en avant, jour J doré
+    + P + ' #home-sess-head{display:none!important;}'
+    + '.ph-weekbar{padding:8px 16px 2px;}.ph-wb{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#0A1020;box-shadow:inset 0 2px 6px rgba(0,0,0,.65),inset 0 -1px 0 rgba(255,255,255,.04);}'
+    + ".ph-wbk{font-family:" + BS + ";font-size:24px;font-weight:900;white-space:nowrap;}.ph-wbk small{font-family:Manrope,sans-serif;font-size:13px;font-weight:700;color:#8C98B4;}"
+    + '.ph-wbb{flex:1;height:8px;border-radius:4px;background:#1A2440;overflow:hidden;}.ph-wbb i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#E0603A,#F08060);}.ph-wbs{font-size:13px;color:#C3CBDC;white-space:nowrap;}'
+    + P + ' #home-week-label{font-size:13px!important;letter-spacing:.14em!important;text-transform:uppercase;color:#EEF1F7!important;}' + P + ' #home-week-dates{font-size:13px!important;color:#8C98B4!important;}'
+    + P + ' #home-sessions .hs-row{background:rgba(91,208,138,.07)!important;border:1px dashed rgba(91,208,138,.35)!important;box-shadow:none!important;}'
+    + P + ' #home-sessions .hs-card{background:#111A2E!important;border:1px solid #1E2944!important;border-radius:18px!important;opacity:1;box-shadow:inset 4px 0 0 var(--c),inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(0,0,0,.45)!important;}'
+    + P + ' #home-sessions .hs-card[data-st=past]{opacity:.6;}'
+    + P + ' #home-sessions .hs-card.ph-next{background:linear-gradient(180deg,#1C2645,#141D36)!important;border-color:#2A3760!important;box-shadow:inset 4px 0 0 var(--c),inset 0 1px 0 rgba(255,255,255,.10),0 18px 40px rgba(0,0,0,.6)!important;}'
+    + P + ' #home-sessions .hs-card.ph-next:not([data-st=today])::after{content:"PROCHAINE";position:absolute;top:-8px;right:12px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#0B1020;background:#E0603A;border-radius:6px;padding:2px 7px;}'
+    + P + ' #home-sessions .hs-card[data-type=race]{background:linear-gradient(180deg,#2A2414,#191A20)!important;border:1px solid rgba(242,181,68,.45)!important;box-shadow:inset 4px 0 0 #F2B544,inset 0 1px 0 rgba(255,255,255,.08),0 16px 34px rgba(0,0,0,.55)!important;}'
+    + P + ' .pd-raceb{background:repeating-linear-gradient(135deg,#1E1A10 0 10px,#211D12 10px 20px)!important;border:1px solid rgba(242,181,68,.45)!important;box-shadow:0 10px 24px rgba(0,0,0,.45)!important;color:#F2E6C8!important;}';
 
   // Forme du jour plus lisible : jauge à côté du titre, mesures sur toute la largeur ; lignes des séances faites allégées
-  const P = 'html[data-theme=dark][data-piste]';
   st.textContent += P + ' .pd-form:not(.fail):not(.wait):not(.load){display:grid;grid-template-columns:54px minmax(0,1fr);column-gap:12px;row-gap:8px;align-items:center;border-radius:20px;padding:12px;}'
     + P + ' .pd-form:not(.fail):not(.wait):not(.load)>div{display:contents;}'
     + P + ' .pd-form:not(.fail):not(.wait):not(.load) .pd-gauge{grid-column:1;grid-row:1/3;width:54px;height:54px;}'
