@@ -1216,16 +1216,20 @@ test('validation : les blocs d\'un fractionné / tempo toujours proposés (temps
   // un bloc de plus, puis saisie : temps du bloc 1, allure du bloc 2
   await page.click('#val-blocs-container button[aria-label="Ajouter un bloc"]');
   assert.equal(await page.locator('#val-blocs-rows .val-bloc-row').count(), V.n + 1);
-  const T0 = V.spec.dist ? ((x) => Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'))(Math.round(V.spec.dist / 1000 * 240)) : '8:00';   // 4'00 /km
-  await page.fill('#val-bloc-t-0', T0);
-  if (V.spec.dist) assert.equal(await page.inputValue('#val-bloc-0'), '4:00', 'allure calculée depuis le temps');
-  await page.fill('#val-bloc-1', '4:05');
+  // un seul champ visible par bloc ; saisie au pavé numérique, sans « : »
+  const mode = await page.evaluate(() => window._valBlocMode);
+  if (mode === 't') await page.click('#val-blocs-container .vb-seg[data-m="p"]');
+  assert.equal(await page.evaluate(() => [getComputedStyle(document.getElementById('val-bloc-0')).display, getComputedStyle(document.getElementById('val-bloc-t-0')).display].join()), 'inline-block,none');
+  await page.locator('#val-bloc-0').pressSequentially('408');
+  assert.equal(await page.inputValue('#val-bloc-0'), '4:08', '« 408 » tapé = 4:08');
+  if (V.spec.dist) assert.notEqual(await page.inputValue('#val-bloc-t-0'), '', 'temps calculé');
+  await page.locator('#val-bloc-1').pressSequentially('405');
   await page.evaluate((x) => { avManualOpen(); document.getElementById('val-km').value = '9'; document.getElementById('val-dur').value = '45:00'; return saveValidationExtra(x.w, x.ei); }, S);
   await page.waitForTimeout(600);
   const perf = await page.evaluate((k) => JSON.parse(state[k + '_perf'] || '{}'), S.key);
-  assert.equal(perf.blocsTemps[0], T0);
-  assert.equal(perf.blocsAllure[1], '4:05');
-  assert.equal(perf.blocsTemps.length, V.n + 1);
+  assert.equal(perf.blocsAllure[0], '4:08'); assert.equal(perf.blocsAllure[1], '4:05');
+  if (V.spec.dist === 1000) assert.equal(perf.blocsTemps[0], '4:08', '1 km : temps = allure');
+  assert.equal(perf.blocsAllure.length, V.n + 1);
   // re-validation : les blocs saisis reviennent
   await page.evaluate(() => { const m = document.querySelector('#modal-container .modal-overlay'); if (m) m.remove(); });
   await page.evaluate((x) => openValidationModalExtra(x.w, x.ei), S); await page.waitForSelector('#val-blocs-container');
@@ -1252,13 +1256,16 @@ test('« Mon ressenti » après « J\'ai fini » : les blocs du fractionné lus 
   // reprise : correction du bloc 2 + temps du bloc 1, puis ressenti
   await page.evaluate((key) => { const st = JSON.parse(state[key + '_perf']); delete st.feelSkip; state[key + '_perf'] = JSON.stringify(st); avFeelOpen(key); }, k);
   await page.waitForSelector('#av-feel #val-blocs-container');
-  await page.fill('#av-feel #val-bloc-1', '4:05');
-  await page.fill('#av-feel #val-bloc-t-0', '4:10');
+  if (await page.evaluate(() => window._valBlocMode) === 't') await page.click('#av-feel .vb-seg[data-m="p"]');
+  await page.fill('#av-feel #val-bloc-1', '');
+  await page.locator('#av-feel #val-bloc-1').pressSequentially('405');
+  await page.fill('#av-feel #val-bloc-0', '');
+  await page.locator('#av-feel #val-bloc-0').pressSequentially('410');
   await page.evaluate(() => { if (typeof prRpePick === 'function') prRpePick(6); });
   await page.click('#av-feel .av-save'); await page.waitForTimeout(500);
   p = await page.evaluate((key) => JSON.parse(state[key + '_perf']), k);
   assert.equal(p.rpe, 6);
-  assert.equal(p.blocsAllure[1], '4:05', 'bloc corrigé'); assert.equal(p.blocsTemps[0], '4:10', 'temps saisi');
+  assert.equal(p.blocsAllure[1], '4:05', 'bloc corrigé'); assert.equal(p.blocsAllure[0], '4:10', '« 410 » tapé = 4:10');
   assert.equal(p.blocsAuto, undefined, 'blocs maintenant saisis à la main');
   assert.equal(x.type === 'frac' || x.type === 'tempo', true);
   assert.deepEqual(errors, []);

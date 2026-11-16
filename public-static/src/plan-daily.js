@@ -47,15 +47,23 @@ function prBlocSpec(title, detail, type){
   return null;
 }
 // « 3:20 » / « 1:05:30 » → secondes ; temps d'un bloc ↔ allure (/km) quand la distance du bloc est connue
-const _prT = function(t){ const p = String(t || '').trim().replace(/['’h]/g, ':').split(':').map(Number); if(!p.length || p.some(isNaN)) return null; return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : p[0] || null; };
+// saisie au pavé numérique de l'iPhone (pas de « : ») : « 408 » → « 4:08 », « 1532 » → « 15:32 », « 13205 » → « 1:32:05 »
+function prBlocFmt(v){
+  v = String(v == null ? '' : v);
+  const d = v.replace(/\D/g, '').slice(0, 6);
+  if(!d) return '';
+  return d.length <= 2 ? d : d.length <= 4 ? d.slice(0, -2) + ':' + d.slice(-2) : d.slice(0, -4) + ':' + d.slice(-4, -2) + ':' + d.slice(-2);
+}
+const _prT = function(t){ t = String(t || '').trim(); if(/^\d{3,6}$/.test(t)) t = prBlocFmt(t); const p = t.replace(/['’h]/g, ':').split(':').map(Number); if(!p.length || p.some(isNaN)) return null; return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : p[0] || null; };
 const _prMs = function(sec){ sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
 function prBlocPace(time, distM){ const t = _prT(time); if(!t || !(distM > 0)) return ''; const p = t / distM * 1000; return p >= 120 && p <= 720 ? _prMs(p) : ''; }
 function prBlocTime(pace, distM){ const p = _prT(pace); if(!p || !(distM > 0) || p < 120 || p > 720) return ''; return _prMs(p * distM / 1000); }
+const _prNorm = function(v){ v = String(v == null ? '' : v).trim(); return /^\d{3,6}$/.test(v) ? prBlocFmt(v) : v; };
 // lecture de la saisie : allure calculée depuis le temps quand elle manque (bloc à distance connue)
 function prBlocsRead(spec, times, paces){
   const n = Math.max((times || []).length, (paces || []).length), A = [], T = [];
   for(let i = 0; i < n; i++){
-    const t = String((times || [])[i] || '').trim(), p = String((paces || [])[i] || '').trim();
+    const t = _prNorm((times || [])[i]), p = _prNorm((paces || [])[i]);
     T.push(t); A.push(p || (t && spec && spec.dist ? prBlocPace(t, spec.dist) : ''));
   }
   return { blocsAllure: A.some(Boolean) ? A : null, blocsTemps: T.some(Boolean) ? T : null };
@@ -68,7 +76,10 @@ function prBlocsFromForm(sx){
   const parts = String((sx || {}).d || '').split('|');
   return prBlocsRead(prBlocSpec(parts[0], parts.slice(1).join('|'), (sx || {}).type), T, P);
 }
-// fenêtre « Valider la séance » : blocs toujours proposés (temps + allure), même sans Strava ni « Remplir à la main »
+// fenêtre « Valider la séance » : blocs toujours proposés, même sans Strava ni « Remplir à la main »
+// un seul champ par bloc : le temps du bloc (blocs à distance, sauf 1 km où temps = allure) ou son allure ; l'autre valeur
+// est calculée et affichée en petit à côté ; « Temps / Allure » pour changer ce qu'on saisit (blocs à distance seulement)
+function prBlocMode0(spec){ return spec && spec.dist && spec.dist !== 1000 ? 't' : 'p'; }
 function prBlocsHtml(s, prev){
   prev = prev || {};
   const parts = String(s.d || '').split('|'), spec = prBlocSpec(parts[0], parts.slice(1).join('|'), s.type);
@@ -76,36 +87,68 @@ function prBlocsHtml(s, prev){
   const pa = prev.blocsAllure || [], pt = prev.blocsTemps || [], n = Math.max(spec.n, pa.length, pt.length);
   const unit = spec.dist ? (spec.dist >= 1000 ? String(spec.dist / 1000).replace('.', ',') + ' km' : spec.dist + ' m') : spec.dur ? (spec.dur % 60 ? _prMs(spec.dur) : spec.dur / 60 + ' min') : '';
   const C = s.type === 'frac' ? '#C4141B' : s.type === 'tempo' ? '#B45309' : '#1D4ED8';
-  window._valBlocSpec = spec;
-  let h = '<div id="val-blocs-container" data-n="' + n + '" style="background:var(--bg2);border:1.5px solid ' + C + '33;border-radius:14px;padding:12px;">'
+  const mode = prBlocMode0(spec), sw = spec.dist && spec.dist !== 1000;
+  window._valBlocSpec = spec; window._valBlocMode = mode;
+  const help = spec.dist === 1000 ? 'Allure de chaque bloc (= son temps sur 1 km).' : sw ? 'Saisis le temps de chaque bloc, l\'allure se calcule (ou l\'inverse).' : 'Allure de chaque bloc d\'après ta montre.';
+  const seg = function(m, t){ return '<button type="button" class="vb-seg' + (mode === m ? ' on' : '') + '" data-m="' + m + '" onclick="prBlocMode(\'' + m + '\')" aria-pressed="' + (mode === m) + '" style="border:none;border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;background:' + (mode === m ? C : 'transparent') + ';color:' + (mode === m ? '#fff' : C) + ';">' + t + '</button>'; };
+  let h = '<div id="val-blocs-container" data-n="' + n + '" data-c="' + C + '" style="background:var(--bg2);border:1.5px solid ' + C + '33;border-radius:14px;padding:12px;">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;"><p style="margin:0;font-size:13px;font-weight:800;color:' + C + ';">⚡ Tes blocs' + (unit ? ' · ' + n + ' × ' + unit : '') + '</p>'
     + '<span style="display:flex;gap:6px;"><button type="button" onclick="prBlocsCount(-1)" aria-label="Retirer un bloc" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ' + C + '55;background:transparent;color:' + C + ';font-size:18px;font-weight:800;cursor:pointer;">−</button>'
     + '<button type="button" onclick="prBlocsCount(1)" aria-label="Ajouter un bloc" style="width:32px;height:32px;border-radius:50%;border:1.5px solid ' + C + '55;background:transparent;color:' + C + ';font-size:18px;font-weight:800;cursor:pointer;">+</button></span></div>'
-    + '<p style="margin:0 0 8px;font-size:11px;color:var(--muted);">Temps et allure de chaque bloc d\'après ta montre' + (spec.dist ? ' : l\'un calcule l\'autre' : '') + '. Vide = lu dans tes tours Strava.</p><div id="val-blocs-rows" style="display:flex;flex-direction:column;gap:6px;">';
-  for(let i = 0; i < n; i++) h += _prBlocRow(i, pt[i] || '', pa[i] || '', spec, C);
+    + '<p style="margin:0 0 8px;font-size:11px;color:var(--muted);">' + help + ' Vide = lu dans tes tours Strava.</p>'
+    + (sw ? '<div role="group" aria-label="Je saisis" style="display:inline-flex;gap:2px;border:1.5px solid ' + C + '40;border-radius:10px;padding:2px;margin-bottom:8px;">' + seg('t', '⏱ Temps') + seg('p', 'Allure /km') + '</div>' : '')
+    + '<div id="val-blocs-rows" style="display:flex;flex-direction:column;gap:6px;">';
+  for(let i = 0; i < n; i++) h += _prBlocRow(i, pt[i] || '', pa[i] || '', spec, C, mode);
   return h + '</div></div>';
 }
-function _prBlocRow(i, t, p, spec, C){
-  const inp = 'background:var(--bg);border:1.5px solid ' + C + '30;border-radius:10px;padding:9px 6px;font-size:17px;font-weight:800;color:' + C + ';width:100%;outline:none;text-align:center;font-variant-numeric:tabular-nums;';
-  return '<div class="val-bloc-row" style="display:grid;grid-template-columns:54px 1fr 1fr;gap:8px;align-items:center;"><span style="font-size:12px;font-weight:800;color:var(--muted);">Bloc ' + (i + 1) + '</span>'
-    + '<label style="display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--muted);text-align:center;"><input type="text" inputmode="numeric" id="val-bloc-t-' + i + '" value="' + t + '" placeholder="' + (spec.dur ? _prMs(spec.dur) : spec.dist ? (spec.dist >= 1000 ? '4:05' : '1:32') : '3:20') + '" maxlength="8" oninput="prBlocInput(' + i + ',\'t\')" style="' + inp + '">temps</label>'
-    + '<label style="display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--muted);text-align:center;"><input type="text" inputmode="numeric" id="val-bloc-' + i + '" value="' + p + '" placeholder="4:05" maxlength="5" oninput="prBlocInput(' + i + ',\'p\')" style="' + inp + '">allure /km</label></div>';
+function _prBlocHint(i){
+  const spec = window._valBlocSpec || {}, mode = window._valBlocMode || 'p', hEl = document.getElementById('val-bloc-h-' + i); if(!hEl) return '';
+  const t = document.getElementById('val-bloc-t-' + i), p = document.getElementById('val-bloc-' + i);
+  const v = !spec.dist || spec.dist === 1000 ? '' : mode === 't' ? (p && p.value ? p.value + ' /km' : '') : (t && t.value ? t.value : '');
+  hEl.textContent = v ? '→ ' + v : '';
+  return v;
 }
-// temps saisi → allure (et l'inverse) quand la distance du bloc est connue ; une valeur tapée à la main n'est jamais écrasée
+function _prBlocRow(i, t, p, spec, C, mode){
+  mode = mode || window._valBlocMode || prBlocMode0(spec);
+  const inp = 'background:var(--bg);border:1.5px solid ' + C + '30;border-radius:10px;padding:9px 6px;font-size:18px;font-weight:800;color:' + C + ';width:100%;outline:none;text-align:center;font-variant-numeric:tabular-nums;';
+  const ph = mode === 't' ? (spec.dist >= 1000 ? '4:05' : spec.dist ? _prMs(Math.round(spec.dist / 1000 * 240)) : '3:20') : '4:05';
+  const hint = !spec.dist || spec.dist === 1000 ? '' : mode === 't' ? (p ? '→ ' + p + ' /km' : '') : (t ? '→ ' + t : '');
+  const cols = spec.dist && spec.dist !== 1000 ? '54px 1fr 84px' : '54px 1fr 0';   // colonne de droite = valeur calculée (blocs à distance hors 1 km)
+  return '<div class="val-bloc-row" style="display:grid;grid-template-columns:' + cols + ';gap:8px;align-items:center;"><span style="font-size:12px;font-weight:800;color:var(--muted);">Bloc ' + (i + 1) + '</span>'
+    + '<span><input type="text" inputmode="numeric" id="val-bloc-t-' + i + '" value="' + t + '" placeholder="' + ph + '" maxlength="8" aria-label="Temps du bloc ' + (i + 1) + '" oninput="prBlocInput(' + i + ',\'t\')" style="' + inp + (mode === 't' ? '' : 'display:none;') + '">'
+    + '<input type="text" inputmode="numeric" id="val-bloc-' + i + '" value="' + p + '" placeholder="' + ph + '" maxlength="5" aria-label="Allure du bloc ' + (i + 1) + '" oninput="prBlocInput(' + i + ',\'p\')" style="' + inp + (mode === 'p' ? '' : 'display:none;') + '"></span>'
+    + '<span id="val-bloc-h-' + i + '" style="font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;">' + hint + '</span></div>';
+}
+// « Temps » / « Allure » : le champ affiché change, les valeurs restent
+function prBlocMode(m){
+  const box = document.getElementById('val-blocs-container'); if(!box) return;
+  window._valBlocMode = m; const C = box.dataset.c || '#1D4ED8';
+  box.querySelectorAll('.vb-seg').forEach(function(b){ const on = b.dataset.m === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.style.background = on ? C : 'transparent'; b.style.color = on ? '#fff' : C; });
+  for(let i = 0; i < (+box.dataset.n || 0); i++){
+    const t = document.getElementById('val-bloc-t-' + i), p = document.getElementById('val-bloc-' + i);
+    if(t) t.style.display = m === 't' ? '' : 'none'; if(p) p.style.display = m === 'p' ? '' : 'none';
+    _prBlocHint(i);
+  }
+}
+// saisie : « : » ajoutés tout seuls ; temps → allure (et l'inverse) quand la distance du bloc est connue ; 1 km : temps = allure
 function prBlocInput(i, f){
   const t = document.getElementById('val-bloc-t-' + i), p = document.getElementById('val-bloc-' + i); if(!t || !p) return;
   const src = f === 't' ? t : p, dst = f === 't' ? p : t;
+  const fv = prBlocFmt(src.value); if(fv !== src.value) src.value = fv;
   src.dataset.m = '1';
   const box = document.getElementById('val-blocs-container'); if(box) box.dataset.touched = '1';
-  const spec = window._valBlocSpec; if(!spec || !spec.dist) return;
-  if(dst.dataset.m === '1' && dst.value.trim()) return;
-  const v = f === 't' ? prBlocPace(t.value, spec.dist) : prBlocTime(p.value, spec.dist);
-  dst.value = v; delete dst.dataset.m;
+  const spec = window._valBlocSpec || {};
+  if(spec.dist){
+    if(!(dst.dataset.m === '1' && dst.value.trim() && dst.style.display !== 'none')){
+      dst.value = spec.dist === 1000 ? src.value : f === 't' ? prBlocPace(t.value, spec.dist) : prBlocTime(p.value, spec.dist); delete dst.dataset.m;
+    }
+  }
+  _prBlocHint(i);
 }
 function prBlocsCount(d){
   const box = document.getElementById('val-blocs-container'), rows = document.getElementById('val-blocs-rows'); if(!box || !rows) return;
   const n = Math.max(1, Math.min(30, (+box.dataset.n || 0) + d)), spec = window._valBlocSpec || {};
-  const C = (rows.querySelector('input') || {}).style ? rows.querySelector('input').style.color : '#1D4ED8';
+  const C = box.dataset.c || '#1D4ED8';
   while(rows.children.length < n) rows.insertAdjacentHTML('beforeend', _prBlocRow(rows.children.length, '', '', spec, C));
   while(rows.children.length > n) rows.lastElementChild.remove();
   box.dataset.n = n; box.dataset.touched = '1';

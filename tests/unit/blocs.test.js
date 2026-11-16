@@ -36,3 +36,16 @@ test('temps ↔ allure d\'un bloc, et lecture de la saisie (allure calculée qua
   assert.deepEqual(d.blocsAllure, ['4:36', '4:35', '']); assert.equal(d.blocsTemps, null);
   assert.deepEqual(J(a.prBlocsRead({ n: 2 }, ['', ''], ['', ''])), { blocsAllure: null, blocsTemps: null });
 });
+
+test('pavé numérique de l\'iPhone (sans « : ») : « 408 » = 4:08, jamais 408 secondes ; un seul champ par bloc', () => {
+  const a = app();
+  assert.equal(a.prBlocFmt('408'), '4:08'); assert.equal(a.prBlocFmt('1532'), '15:32'); assert.equal(a.prBlocFmt('13205'), '1:32:05');
+  assert.equal(a.prBlocFmt('4:08'), '4:08', 'déjà écrit avec « : »'); assert.equal(a.prBlocFmt('40'), '40'); assert.equal(a.prBlocFmt(''), '');
+  assert.equal(a.prBlocPace('132', 400), '3:50', 'temps tapé sans « : »');
+  assert.equal(a.prBlocTime('408', 1000), '4:08');
+  const r = J(a.prBlocsRead({ n: 3, dist: 1000 }, ['', '', ''], ['408', '412', '4:05']));
+  assert.deepEqual(r.blocsAllure, ['4:08', '4:12', '4:05']);
+  // champ saisi : le temps pour des blocs à distance, l'allure pour 1 km (temps = allure), une durée ou rien de lisible
+  assert.equal(a.prBlocMode0({ n: 4, dist: 400 }), 't'); assert.equal(a.prBlocMode0({ n: 3, dist: 1000 }), 'p');
+  assert.equal(a.prBlocMode0({ n: 3, dur: 480 }), 'p'); assert.equal(a.prBlocMode0({ n: 2 }), 'p');
+});
