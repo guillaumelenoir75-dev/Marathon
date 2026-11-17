@@ -671,8 +671,9 @@ function cvFixTranscript(t){
     .replace(/\s{2,}/g, ' ').trim();
 }
 function cvEditYou(){
-  if(!_cv || _cv.st === 'listen') return;
+  if(!_cv) return;
   const you = document.querySelector('#cv-ov .cv-you'); if(!you || !you.textContent.trim()) return;
+  if(_cv.st === 'listen'){ try { if(_cv.rec){ const r = _cv.rec; _cv.rec = null; r.abort(); } } catch(e) {} _cvSet('idle'); }   // micro rouvert : on l'arrête pour corriger
   const i = document.getElementById('cv-in'); if(!i) return;
   i.value = you.textContent; i.focus(); try { i.setSelectionRange(0, i.value.length); } catch(e) {}
   _cvSet(_cv.st === 'speak' ? 'speak' : 'idle', 'Corrige ta phrase en bas puis Envoyer');

@@ -236,8 +236,10 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
   await page.waitForFunction(() => window.__said.some((t) => /C'est noté, je m'en souviendrai/.test(t)), null, { timeout: 5000 });
   assert.equal(memoNote, "j'ai mal au mollet gauche");
   // 7 · toucher sa phrase = la corriger dans le champ
+  await page.waitForFunction(() => _cv && _cv.st === 'listen', null, { timeout: 5000 });   // le micro s'est rouvert : toucher sa phrase l'arrête
   await page.click('#cv-ov .cv-you');
   assert.equal(await page.inputValue('#cv-in'), "Note que j'ai mal au mollet gauche");
+  assert.equal(await page.evaluate(() => _cv.st), 'idle');
   await page.click('#cv-ov .cv-x');
   assert.deepEqual(errors, []);
   await ctx.close();
