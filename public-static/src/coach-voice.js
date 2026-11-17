@@ -518,16 +518,28 @@ function cvCardKind(q){
   if(/s[ée]ance|aujourd'hui|ce soir|ce matin|demain|footing|fractionn|tempo|sortie longue/.test(t)) return 'sess';
   return null;
 }
-// temps visé lu dans la réponse du Coach (« 42'00 », « 1h35 », « 3h45'00 »), en secondes ; null si aucun
-function cvTimeIn(text){
-  const t = String(text || '');
-  let m = t.match(/(\d{1,2})\s*h\s*(\d{2})/); if(m) return +m[1] * 3600 + +m[2] * 60;
-  m = t.match(/\b(\d{2,3})\s*['’]\s*(\d{2})\b(?!\s*\/\s*km)/); if(m && +m[1] >= 12) return +m[1] * 60 + +m[2];
+// temps visé lu dans la réponse du Coach (« 42'00 », « 1h35 », « 3h45'00 »), en secondes ; null si aucun.
+// Seul un temps cohérent avec la distance compte (allure entre 2'30 et 10'00/km) : une heure de départ (« à 9h00 ») n'est
+// jamais prise pour un temps de course
+function cvTimeIn(text, distKm){
+  const t = String(text || ''), re = /(\d{1,2})\s*h\s*(\d{2})(?:\s*['’]\s*(\d{2}))?|\b(\d{2,3})\s*['’]\s*(\d{2})\b(?!\s*\/\s*km)/g;
+  let m;
+  while((m = re.exec(t))){
+    const before = t.slice(Math.max(0, m.index - 12), m.index).toLowerCase();
+    let sec;
+    if(m[1] != null){
+      if(/(?:^|\s)(à|a|vers|dès|des|depuis|avant|après|apres|départ|depart)\s*$/.test(before)) continue;   // heure de la journée
+      sec = +m[1] * 3600 + +m[2] * 60 + (m[3] ? +m[3] : 0);
+    } else { if(+m[4] < 12) continue; sec = +m[4] * 60 + +m[5]; }
+    if(distKm > 0){ const p = sec / distKm; if(p < 150 || p > 600) continue; }
+    return sec;
+  }
   return null;
 }
 // plan de course en lignes : km, allure, temps cumulé (5 km / 10 km : chaque km ; au-delà : regroupé tous les 5 km)
 function cvRaceCard(totalSec, distKm){
   if(!(totalSec > 0) || !(distKm > 0) || typeof prRaceSplits !== 'function') return null;
+  if(totalSec / distKm < 150 || totalSec / distKm > 600) return null;   // allure impossible : pas de carte plutôt qu'un plan faux
   const sp = prRaceSplits(totalSec, distKm), n = sp.length;
   const keep = sp.filter(function(x, i){ return n <= 12 || i === 0 || i === n - 1 || (Math.round(x.km) % 5 === 0 && x.km === Math.round(x.km)); });
   const slow = Math.max.apply(null, sp.map(function(x){ return x.pace; })), fast = Math.min.apply(null, sp.map(function(x){ return x.pace; }));
@@ -541,7 +553,7 @@ function cvCardHtml(kind, reply){
     const st = typeof state !== 'undefined' ? state : {}, R = typeof prepRace === 'function' ? (prepRace() || {}) : {};
     if(kind === 'race'){
       const cat = typeof predRaceCat === 'function' ? predRaceCat(R) : null, P = cat && typeof predRace === 'function' ? predRace(cat) : null;
-      const tgt = cvTimeIn(reply) || (P && P.sec) || null, C = cvRaceCard(tgt, R.km);
+      const tgt = cvTimeIn(reply, R.km) || (P && P.sec) || null, C = cvRaceCard(tgt, R.km);
       if(!C) return '';
       return '<div class="cv-cd"><p class="cv-cdh"><span>🏁 ' + _cvE(R.name || 'Plan de course') + '</span><b>' + _cvT(tgt) + ' · ' + _cvP(C.pace) + '/km</b></p>'
         + C.rows.map(function(r, i){ return '<div class="cv-sp' + (i === 0 ? ' f' : i === C.rows.length - 1 ? ' l' : '') + '"><span>km ' + r.km + '</span><i><u style="width:' + r.w + '%"></u></i><b>' + _cvP(r.pace) + '</b><small>' + _cvT(r.cum) + '</small></div>'; }).join('') + '</div>';

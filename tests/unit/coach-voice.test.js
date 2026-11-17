@@ -139,6 +139,12 @@ test('cvCardKind / cvTimeIn / cvRaceCard : la bonne carte sous la réponse, plan
   assert.equal(app.cvTimeIn("Vise 42'00, soit 4'12/km."), 2520);
   assert.equal(app.cvTimeIn('Objectif 1h35 au semi'), 5700);
   assert.equal(app.cvTimeIn("Pars en 4'18/km"), null, 'une allure n\'est pas un temps de course');
+  // bug iPhone : « départ à 9h00. Objectif 42'00 » → 42'00, jamais l'heure de départ
+  assert.equal(app.cvTimeIn("Course dimanche à 9h00. Objectif 42'00, soit 4'12/km.", 10), 2520);
+  assert.equal(app.cvTimeIn("Départ 9h00, vise 42'00", 10), 2520, 'heure hors allure possible : écartée');
+  assert.equal(app.cvTimeIn('Vise 3h45 au marathon', 42.195), 13500);
+  assert.equal(app.cvTimeIn('Rendez-vous à 9h00', 10), null);
+  assert.equal(app.cvRaceCard(32400, 10), null, 'allure impossible (54\'/km) : pas de carte');
   const C = app.cvRaceCard(2520, 10);
   assert.equal(C.rows.length, 10); assert.equal(Math.round(C.pace), 252);
   assert.ok(Math.abs(C.rows[9].cum - 2520) < 1, 'le cumul retombe sur le temps visé');
