@@ -146,58 +146,66 @@ function _cvTone(kind){
 }
 function _cvCss(){
   if(document.getElementById('cv-css')) return;
-  const s = document.createElement('style'); s.id = 'cv-css';
-  s.textContent = '#cv-ov{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;align-items:center;color:#fff;background:radial-gradient(120% 80% at 50% 0%,#312e81 0%,#0f172a 55%,#020617 100%);padding:calc(env(safe-area-inset-top) + 14px) 20px calc(env(safe-area-inset-bottom) + 18px);box-sizing:border-box;font-family:inherit;}'
-    + '#cv-ov .cv-top{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}'
-    + '#cv-ov .cv-top span{opacity:.75;flex:1;}'
-    + '#cv-ov .cv-x,#cv-ov .cv-gear{background:rgba(255,255,255,.12);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;}'
-    + '#cv-ov .cv-log{width:100%;max-width:520px;max-height:24vh;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-top:10px;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 30%);mask-image:linear-gradient(to bottom,transparent,#000 30%);}'
-    + '#cv-ov .cv-log p{margin:0;font-size:13px;line-height:1.45;opacity:.55;}#cv-ov .cv-log p.u{text-align:right;font-weight:700;}'
-    + '#cv-ov .cv-mid{flex:1;width:100%;max-width:520px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:0;}'
-    + '#cv-ov .cv-orb{position:relative;width:150px;height:150px;flex-shrink:0;border-radius:50%;border:none;cursor:pointer;background:radial-gradient(circle at 35% 30%,#a5b4fc,#6366f1 45%,#4338ca 75%);box-shadow:0 0 60px rgba(99,102,241,.45);transition:transform .25s ease,box-shadow .25s ease;-webkit-tap-highlight-color:transparent;}'
-    + '#cv-ov .cv-orb::before,#cv-ov .cv-orb::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:2px solid rgba(165,180,252,.35);opacity:0;}'
-    + '#cv-ov.listen .cv-orb{background:radial-gradient(circle at 35% 30%,#99f6e4,#14b8a6 45%,#0f766e 78%);box-shadow:0 0 70px rgba(20,184,166,.5);}'
-    + '#cv-ov.listen .cv-orb::before{animation:cvRing 1.6s ease-out infinite;}#cv-ov.listen .cv-orb::after{animation:cvRing 1.6s ease-out .8s infinite;}'
-    + '#cv-ov.listen.hear .cv-orb{transform:scale(1.07);}'
-    + '#cv-ov.think .cv-orb{animation:cvBreath 1.2s ease-in-out infinite;background:conic-gradient(from 0deg,#6366f1,#a855f7,#6366f1);}'
-    + '#cv-ov.speak .cv-orb{animation:cvTalk .5s ease-in-out infinite alternate;background:radial-gradient(circle at 35% 30%,#fde68a,#f59e0b 45%,#c2410c 80%);box-shadow:0 0 70px rgba(245,158,11,.45);}'
-    + '@keyframes cvRing{0%{transform:scale(.9);opacity:.8}100%{transform:scale(1.35);opacity:0}}@keyframes cvBreath{50%{transform:scale(.94)}}@keyframes cvTalk{to{transform:scale(1.06)}}'
-    + '@media (prefers-reduced-motion: reduce){#cv-ov .cv-orb,#cv-ov .cv-orb::before,#cv-ov .cv-orb::after{animation:none!important;transition:none!important}}'
-    + '#cv-ov .cv-st{font-size:15px;font-weight:700;opacity:.85;text-align:center;min-height:20px;margin:0;}'
-    + '#cv-ov .cv-you{font-size:21px;font-weight:700;line-height:1.35;text-align:center;min-height:28px;max-height:20vh;overflow:auto;margin:0;}'
-    + '#cv-ov .cv-you.interim{opacity:.6;}'
-    + '#cv-ov .cv-co{font-size:15.5px;line-height:1.55;opacity:.92;text-align:center;max-height:24vh;overflow:auto;margin:0;cursor:pointer;}'
-    + '#cv-ov .cv-co:not(:empty)::after{content:"  🔁";opacity:.5;font-size:12px;}'
-    + '#cv-ov .cv-sug{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}'
-    + '#cv-ov .cv-sug button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}'
-    + '#cv-ov .cv-bot{width:100%;max-width:520px;display:flex;gap:8px;align-items:center;}'
-    + '#cv-ov .cv-bot input{flex:1;min-width:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:999px;padding:11px 16px;font-size:15px;font-family:inherit;outline:none;}'
-    + '#cv-ov .cv-bot input::placeholder{color:rgba(255,255,255,.55);}'
-    + '#cv-ov .cv-bot button{background:rgba(255,255,255,.14);border:none;color:#fff;border-radius:999px;padding:11px 14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}'
-    + '#cv-ov .cv-set{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top) + 62px);max-width:520px;margin:0 auto;background:rgba(15,23,42,.97);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;z-index:2;}'
-    + '#cv-ov .cv-set b{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.7;}'
-    + '#cv-ov .cv-seg{display:flex;gap:6px;flex-wrap:wrap;}#cv-ov .cv-seg button{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:10px;padding:8px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;}'
-    + '#cv-ov .cv-seg button[aria-pressed=true]{background:#6366f1;border-color:#6366f1;}'
-    + '#cv-ov .cv-set select{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px;font-size:14px;font-family:inherit;}'
-    + '#cv-ov .cv-card{width:100%;max-width:440px;}#cv-ov .cv-card:empty{display:none;}'
-    + '#cv-ov .cv-cd{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow:auto;text-align:left;}'
-    + '#cv-ov .cv-cdh{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;font-weight:800;}#cv-ov .cv-cdh span{opacity:.8;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}#cv-ov .cv-cdh b{font-size:16px;white-space:nowrap;font-variant-numeric:tabular-nums;}'
-    + '#cv-ov .cv-cdl{margin:0;font-size:13.5px;line-height:1.45;opacity:.9;}'
-    + '#cv-ov .cv-sp{display:grid;grid-template-columns:44px 1fr 46px 52px;align-items:center;gap:8px;font-size:13px;font-variant-numeric:tabular-nums;}#cv-ov .cv-sp span{opacity:.7;}#cv-ov .cv-sp i{height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;}#cv-ov .cv-sp u{display:block;height:100%;border-radius:3px;background:#f59e0b;}#cv-ov .cv-sp small{opacity:.6;text-align:right;}'
-    + '#cv-ov .cv-tl{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px;}#cv-ov .cv-tl div{background:rgba(0,0,0,.2);border-radius:10px;padding:6px 8px;}#cv-ov .cv-tl small{display:block;font-size:10.5px;opacity:.65;}#cv-ov .cv-tl b{font-size:15px;font-variant-numeric:tabular-nums;}'
-    + '#cv-ov .ok{color:#4ade80;}#cv-ov .mid{color:#fbbf24;}#cv-ov .low{color:#f87171;}'
-    + '#cv-ov .cv-ok{display:flex;gap:8px;margin-top:4px;}#cv-ov .cv-ok button{flex:1;border:none;border-radius:12px;padding:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;color:#fff;background:rgba(255,255,255,.14);}#cv-ov .cv-ok button:first-child{background:#16a34a;}'
-    + '#cv-ov .cv-you{cursor:text;}'
-    + '#cv-ov :focus-visible{outline:2px solid #a5b4fc;outline-offset:3px;}';
+  // maquette « Coach à la voix » : fil de discussion en relief (page #070B16, cartes posées, carte en avant, creux),
+  // une couleur par état (écoute bleu, réflexion violet, parole ambre, à valider orange) ; écran sombre dans tous les thèmes
+  const s = document.createElement('style'); s.id = 'cv-css'; s.dataset.th = '1';   // déjà sombre : jamais convertie
+  const LIFT = 'background:linear-gradient(180deg,#1C2645,#141D36);border:1px solid #2A3760;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 18px 40px rgba(0,0,0,.6);';
+  const CARD = 'background:#111A2E;border:1px solid #1E2944;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 8px 20px rgba(0,0,0,.42);';
+  const WELL = 'background:#0A1020;box-shadow:inset 0 2px 6px rgba(0,0,0,.65),inset 0 -1px 0 rgba(255,255,255,.04);';
+  s.textContent = '#cv-ov{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;color:#EEF1F7;background:#070B16;padding-top:calc(env(safe-area-inset-top) + 12px);box-sizing:border-box;font-family:Manrope,system-ui,-apple-system,sans-serif;}#cv-ov *{box-sizing:border-box;}'
+    + '#cv-ov .cv-top{display:flex;align-items:center;gap:10px;padding:0 16px;}#cv-ov .cv-top span{flex:1;min-width:0;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8C98B4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '#cv-ov .cv-x,#cv-ov .cv-gear{width:40px;height:40px;flex-shrink:0;border-radius:50%;' + CARD + 'color:#C3CBDC;font-size:16px;cursor:pointer;font-family:inherit;}'
+    + '#cv-ov .cv-ctx{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 2px;scrollbar-width:none;flex-shrink:0;}#cv-ov .cv-ctx::-webkit-scrollbar{display:none;}#cv-ov .cv-ctx:empty{display:none;}'
+    + '#cv-ov .cv-ctx span{flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 11px;border-radius:15px;' + CARD + 'font-size:12.5px;font-weight:700;color:#C3CBDC;white-space:nowrap;}'
+    + '#cv-ov .cv-th{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:9px;padding:12px 16px 16px;}'
+    + '#cv-ov .cv-log{display:flex;flex-direction:column;gap:9px;}#cv-ov .cv-log:empty{display:none;}'
+    + '#cv-ov .cv-log .u,#cv-ov .cv-you{align-self:flex-end;max-width:86%;margin:0;padding:10px 13px;border-radius:18px 6px 18px 18px;background:rgba(224,96,58,.14);border:1px solid rgba(224,96,58,.35);color:#F7D6CA;font-size:15px;font-weight:600;line-height:1.4;cursor:text;}'
+    + '#cv-ov .cv-log .c,#cv-ov .cv-co{align-self:flex-start;max-width:90%;margin:0;padding:10px 13px;border-radius:6px 18px 18px 18px;' + CARD + 'font-size:15px;line-height:1.5;}'
+    + '#cv-ov .cv-log .c::before,#cv-ov .cv-co::before{content:"Coach";display:block;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7C88A4;margin-bottom:3px;}'
+    + '#cv-ov .cv-log .c{color:#C3CBDC;}#cv-ov .cv-co{cursor:pointer;}#cv-ov .cv-you:empty,#cv-ov .cv-co:empty,#cv-ov .cv-card:empty{display:none;}#cv-ov .cv-you.interim{opacity:.65;}'
+    + '#cv-ov .cv-num{display:inline-block;padding:0 6px;border-radius:7px;' + WELL + 'font-weight:800;color:#F2B544;font-variant-numeric:tabular-nums;line-height:1.4;}'
+    + '#cv-ov .cv-co mark{background:linear-gradient(180deg,transparent 55%,rgba(242,181,68,.35) 55%);color:#fff;}'
+    + '#cv-ov .cv-card,#cv-ov .cv-log .k{width:100%;}'
+    + '#cv-ov .cv-cd{border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;text-align:left;' + LIFT + '}'
+    + '#cv-ov .cv-cd.act{border-color:rgba(224,96,58,.55);background:radial-gradient(120% 90% at 0% 0%,rgba(224,96,58,.16),rgba(224,96,58,0) 55%),linear-gradient(180deg,#1C2645,#141D36);}'
+    + '#cv-ov .cv-log .cv-cd{opacity:.8;}'
+    + '#cv-ov .cv-cdh{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:10px;}#cv-ov .cv-cdh span{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8C98B4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}#cv-ov .cv-cd.act .cv-cdh span{color:#E0603A;}#cv-ov .cv-cdh b{font-size:17px;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums;}'
+    + '#cv-ov .cv-cdl{margin:0;font-size:13.5px;line-height:1.45;color:#C3CBDC;}#cv-ov .cv-cdl b{color:#EEF1F7;}'
+    + '#cv-ov .cv-sp{display:grid;grid-template-columns:42px 1fr 42px 48px;align-items:center;gap:8px;font-size:12.5px;font-variant-numeric:tabular-nums;min-height:18px;}#cv-ov .cv-sp span{color:#8C98B4;}#cv-ov .cv-sp b{font-weight:800;}'
+    + '#cv-ov .cv-sp i{height:7px;border-radius:4px;' + WELL + 'overflow:hidden;display:block;}#cv-ov .cv-sp u{display:block;height:100%;border-radius:4px;background:#F2B544;}#cv-ov .cv-sp.f u{background:#4FB3D9;}#cv-ov .cv-sp.l u{background:#E0603A;}#cv-ov .cv-sp small{color:#7C88A4;text-align:right;}'
+    + '#cv-ov .cv-tl{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px;}#cv-ov .cv-tl div{border-radius:12px;padding:6px 8px;' + WELL + '}#cv-ov .cv-tl small{display:block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8C98B4;}#cv-ov .cv-tl b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;}'
+    + '#cv-ov .ok{color:#5BD08A;}#cv-ov .mid{color:#F2B544;}#cv-ov .low{color:#F06A5A;}'
+    + '#cv-ov .cv-ok{display:flex;gap:8px;margin-top:4px;}#cv-ov .cv-ok button{flex:1;height:42px;border-radius:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;color:#C3CBDC;background:transparent;border:1px solid #2A3760;}#cv-ov .cv-ok button:first-child{background:#E0603A;border-color:#E0603A;color:#0B1020;box-shadow:0 6px 16px rgba(224,96,58,.35);}'
+    + '#cv-ov .cv-sug{display:flex;flex-wrap:wrap;gap:8px;}#cv-ov .cv-sug button{border-radius:999px;padding:9px 13px;font-size:13.5px;font-weight:700;color:#C3CBDC;cursor:pointer;font-family:inherit;' + CARD + '}'
+    + '#cv-ov .cv-dock{flex-shrink:0;border-radius:24px 24px 0 0;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);display:flex;flex-direction:column;gap:10px;' + LIFT + 'border-bottom:none;}'
+    + '#cv-ov .cv-dr{display:flex;align-items:center;gap:14px;}#cv-ov .cv-sl{flex:1;min-width:0;}'
+    + '#cv-ov .cv-orb{--o:#5B6886;position:relative;width:52px;height:52px;flex-shrink:0;border-radius:50%;border:none;cursor:pointer;background:radial-gradient(circle at 35% 30%,#fff6 0%,var(--o) 45%,var(--o) 100%);box-shadow:0 0 26px color-mix(in srgb,var(--o) 45%,transparent),inset 0 2px 0 rgba(255,255,255,.3);transition:transform .2s ease;-webkit-tap-highlight-color:transparent;}'
+    + '#cv-ov .cv-orb::before{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px dashed var(--o);opacity:.55;}'
+    + '#cv-ov.listen .cv-orb{--o:#4FB3D9;}#cv-ov.think .cv-orb{--o:#A78BFA;}#cv-ov.speak .cv-orb{--o:#F2B544;}#cv-ov.ask .cv-orb{--o:#E0603A;}'
+    + '#cv-ov.listen .cv-orb::before{animation:cvRing 1.6s ease-out infinite;}#cv-ov.listen.hear .cv-orb{transform:scale(1.08);}#cv-ov.think .cv-orb{animation:cvBreath 1.2s ease-in-out infinite;}#cv-ov.speak .cv-orb{animation:cvTalk .5s ease-in-out infinite alternate;}#cv-ov.speak .cv-orb::before{border-style:solid;}'
+    + '@keyframes cvRing{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.35);opacity:0}}@keyframes cvBreath{50%{transform:scale(.92)}}@keyframes cvTalk{to{transform:scale(1.06)}}'
+    + '@media (prefers-reduced-motion: reduce){#cv-ov .cv-orb,#cv-ov .cv-orb::before{animation:none!important;transition:none!important}}'
+    + '#cv-ov .cv-st{margin:0;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8C98B4;}#cv-ov.listen .cv-st{color:#4FB3D9;}#cv-ov.think .cv-st{color:#A78BFA;}#cv-ov.speak .cv-st{color:#F2B544;}#cv-ov.ask .cv-st{color:#E0603A;}'
+    + '#cv-ov .cv-ss{margin:2px 0 0;font-size:13px;color:#C3CBDC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}#cv-ov .cv-ss:empty{display:none;}'
+    + '#cv-ov .cv-bot{display:flex;gap:8px;align-items:center;}#cv-ov .cv-bot input{flex:1;min-width:0;border:1px solid #1E2944;color:#EEF1F7;border-radius:999px;padding:11px 16px;font-size:15px;font-family:inherit;outline:none;' + WELL + '}#cv-ov .cv-bot input::placeholder{color:#7C88A4;}'
+    + '#cv-ov .cv-bot button{border:1px solid #2A3760;background:transparent;color:#EEF1F7;border-radius:999px;padding:11px 15px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}'
+    + '#cv-ov .cv-set{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top) + 60px);max-width:520px;margin:0 auto;border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:11px;z-index:2;max-height:70vh;overflow:auto;' + LIFT + '}'
+    + '#cv-ov .cv-set b{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8C98B4;}'
+    + '#cv-ov .cv-seg{display:flex;gap:6px;flex-wrap:wrap;}#cv-ov .cv-seg button{flex:1;border:1px solid #2A3760;background:transparent;color:#C3CBDC;border-radius:11px;padding:8px;font-size:13.5px;font-weight:800;cursor:pointer;font-family:inherit;}'
+    + '#cv-ov .cv-seg button[aria-pressed=true]{background:#E0603A;border-color:#E0603A;color:#0B1020;}'
+    + '#cv-ov .cv-set select{border:1px solid #1E2944;color:#EEF1F7;border-radius:11px;padding:8px;font-size:14px;font-family:inherit;' + WELL + '}'
+    + '#cv-ov :focus-visible{outline:2px solid #E0603A;outline-offset:3px;}';
   document.head.appendChild(s);
 }
 function _cvSet(st, label){
   if(!_cv) return; _cv.st = st;
   const ov = document.getElementById('cv-ov'); if(!ov) return;
   ov.classList.remove('listen', 'think', 'speak', 'idle', 'hear'); ov.classList.add(st);
-  const L = { listen: 'Je t\'écoute…', think: 'Je réfléchis…', speak: 'Touche pour m\'interrompre', idle: _cv.canListen ? 'Touche pour parler' : 'Écris ta question en bas' };
-  const el = ov.querySelector('.cv-st'); if(el) el.textContent = label || L[st] || '';
-  const orb = ov.querySelector('.cv-orb'); if(orb) orb.setAttribute('aria-label', L[st] || 'Parler');
+  ov.classList.toggle('ask', !!_cv.pending && st !== 'think');          // un changement de plan attend ton « oui »
+  const V = cvStateLabels(st, { canListen: _cv.canListen, ask: !!_cv.pending });
+  const el = ov.querySelector('.cv-st'); if(el) el.textContent = label || V.t;
+  const sub = ov.querySelector('.cv-ss'); if(sub) sub.textContent = label ? '' : V.s;
+  const orb = ov.querySelector('.cv-orb'); if(orb) orb.setAttribute('aria-label', V.a);
 }
 function openCoachVoice(opts){
   opts = opts || {};
@@ -214,11 +222,14 @@ function openCoachVoice(opts){
   const sug = cvSuggest(typeof state !== 'undefined' ? state : null, new Date());
   _cv.sug = sug;
   const ov = document.createElement('div'); ov.id = 'cv-ov'; ov.className = 'idle'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Parler au Coach');
-  ov.innerHTML = '<div class="cv-top"><span>🎙️ Coach · à la voix</span><button type="button" class="cv-gear" aria-label="Réglages de la voix" onclick="cvSettings()">⚙️</button><button type="button" class="cv-x" aria-label="Fermer" onclick="closeCoachVoice()">×</button></div>'
-    + '<div class="cv-log" aria-label="Échanges précédents"></div>'
-    + '<div class="cv-mid"><button type="button" class="cv-orb" onclick="cvOrbTap()"></button><p class="cv-st"></p><p class="cv-you" onclick="cvEditYou()" title="Toucher pour corriger"></p><p class="cv-co" aria-live="polite" onclick="cvRepeat()" title="Relire"></p><div class="cv-card" aria-live="polite"></div>'
+  let ctx = []; try { ctx = cvContext(typeof state !== 'undefined' ? state : null, new Date()); } catch(e) { diagSilent(e, 'coach-voice:cvContext'); }
+  ov.innerHTML = '<div class="cv-top"><span>🎙️ Coach · à la voix</span><button type="button" class="cv-gear" aria-label="Réglages de la voix" onclick="cvSettings()">⚙︎</button><button type="button" class="cv-x" aria-label="Fermer" onclick="closeCoachVoice()">✕</button></div>'
+    + '<div class="cv-ctx">' + ctx.map(function(c){ return '<span' + (c.c ? ' class="' + c.c + '"' : '') + '>' + _cvE(c.t) + '</span>'; }).join('') + '</div>'
+    + '<div class="cv-th" aria-label="Conversation"><div class="cv-log" aria-label="Échanges précédents"></div>'
+    + '<p class="cv-you" onclick="cvEditYou()" title="Toucher pour corriger"></p><p class="cv-co" aria-live="polite" onclick="cvRepeat()" title="Relire"></p><div class="cv-card" aria-live="polite"></div>'
     + '<div class="cv-sug">' + sug.map(function(t, i){ return '<button type="button" onclick="cvAsk(_cv.sug[' + i + '])">' + t.replace(/</g, '&lt;') + '</button>'; }).join('') + '</div></div>'
-    + '<form class="cv-bot" onsubmit="event.preventDefault();cvTyped()"><input id="cv-in" type="text" enterkeyhint="send" placeholder="Ou écris ici…" aria-label="Écrire au Coach"><button type="submit">Envoyer</button></form>';
+    + '<div class="cv-dock"><div class="cv-dr"><button type="button" class="cv-orb" onclick="cvOrbTap()"></button><div class="cv-sl"><p class="cv-st"></p><p class="cv-ss"></p></div></div>'
+    + '<form class="cv-bot" onsubmit="event.preventDefault();cvTyped()"><input id="cv-in" type="text" enterkeyhint="send" placeholder="Ou écris ici…" aria-label="Écrire au Coach"><button type="submit">Envoyer</button></form></div>';
   document.body.appendChild(ov);
   try { if(navigator.wakeLock) navigator.wakeLock.request('screen').then(function(l){ if(_cv) _cv.lock = l; }).catch(function(){}); } catch(e) {}
   _cvSet('idle');
@@ -284,9 +295,9 @@ function cvListen(auto){
     let fin = '', tmp = '';
     for(let i = 0; i < e.results.length; i++){ const r = e.results[i]; if(r.isFinal) fin += r[0].transcript + ' '; else tmp += r[0].transcript; }
     _cv.heard = (fin + ' ' + tmp).replace(/\s+/g, ' ').trim();
-    if(!rec._spoke && _cv.heard){ rec._spoke = true; const co = ov && ov.querySelector('.cv-co'); if(co) co.textContent = ''; }
+    if(!rec._spoke && _cv.heard){ rec._spoke = true; _cvLogPush(); }   // tu parles : l'échange précédent rejoint le fil
     if(ov){ ov.classList.add('hear'); clearTimeout(rec._hearT); rec._hearT = setTimeout(function(){ ov.classList.remove('hear'); }, 260); }
-    if(you){ you.textContent = _cv.heard; you.classList.toggle('interim', !!tmp); }
+    if(you){ you.textContent = _cv.heard; you.classList.toggle('interim', !!tmp); _cvScroll(); }
     clearTimeout(quiet); quiet = setTimeout(finish, cvTurnWait(_cv.heard, !tmp));
   };
   rec.onerror = function(e){
@@ -302,14 +313,19 @@ function cvListen(auto){
   if(_cv.prefs.sounds && _cv.ac) setTimeout(go, 180); else go();  // micro ouvert après le son (pas capté)
 }
 function cvTyped(){ const i = document.getElementById('cv-in'); const t = i ? i.value.trim() : ''; if(!t) return; i.value = ''; i.blur(); cvAsk(t); }
+// l'échange terminé (ta phrase, sa réponse, sa carte) rejoint le fil au-dessus ; la zone « en cours » est vidée
 function _cvLogPush(){
   if(!_cv) return;
-  const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), log = ov && ov.querySelector('.cv-log');
-  if(!log || !you || !you.textContent || !_cv.reply) return;
-  _cv.log.push({ u: you.textContent, c: _cv.reply.replace(/[*#`_]/g, '') }); _cv.log = _cv.log.slice(-4);
-  log.innerHTML = _cv.log.map(function(x){ const e = function(t){ return String(t).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }; return '<p class="u">' + e(x.u) + '</p><p>' + e(x.c) + '</p>'; }).join('');
-  log.scrollTop = log.scrollHeight;
+  const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), card = ov && ov.querySelector('.cv-card'), log = ov && ov.querySelector('.cv-log');
+  if(!log || !_cv.reply) return;
+  _cv.log.push({ u: you ? you.textContent : '', c: _cv.reply.replace(/[*#`_]/g, ''), k: card ? card.innerHTML.replace(/<div class="cv-ok">[\s\S]*?<\/div>/g, '') : '' }); _cv.log = _cv.log.slice(-6);
+  log.innerHTML = _cv.log.map(function(x){ return (x.u ? '<p class="u">' + _cvE(x.u) + '</p>' : '') + '<p class="c">' + cvRich(x.c) + '</p>' + (x.k ? '<div class="k">' + x.k + '</div>' : ''); }).join('');
+  if(you){ you.textContent = ''; you.classList.remove('interim'); } if(co) co.innerHTML = ''; if(card) card.innerHTML = '';
+  _cv.reply = ''; _cv.hl = null; _cvScroll();
 }
+function _cvScroll(){ const th = document.querySelector('#cv-ov .cv-th'); if(th) th.scrollTop = th.scrollHeight; }
+// réponse en cours : chiffres en pastilles, phrase lue surlignée
+function _cvCo(text){ const co = document.querySelector('#cv-ov .cv-co'); if(co){ co.innerHTML = cvRich(text, _cv && _cv.hl); _cvScroll(); } }
 // question → Coach (mode voix) ; chaque phrase reçue part tout de suite à la lecture
 function cvAsk(text){
   if(!_cv || !text) return;
@@ -318,7 +334,8 @@ function cvAsk(text){
   _cvLogPush();
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), sug = ov && ov.querySelector('.cv-sug'), set = ov && ov.querySelector('.cv-set');
   text = cvFixTranscript(text);                                   // vocabulaire course (EF, VMA, 4'12…)
-  if(you){ you.textContent = text; you.classList.remove('interim'); } if(co) co.textContent = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
+  if(you){ you.textContent = text; you.classList.remove('interim'); } if(co) co.innerHTML = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
+  _cv.hl = null; _cvScroll();
   const card = ov && ov.querySelector('.cv-card'); if(card) card.innerHTML = '';
   _cv.lastQ = text;
   const yes = CV_YES_RE.test(text.trim().replace(/[’]/g, "'")), no = CV_NO_RE.test(text.trim().replace(/[’]/g, "'"));
@@ -340,7 +357,7 @@ function cvAsk(text){
     _cv.said += (_cv.said ? ' ' : '') + x; if(!/:\s*$/.test(x)) _cv.nS++;   // « Km 1 : » n'est pas une phrase
     _cv.nW += x.split(/\s+/).filter(Boolean).length; _cvQueue(x);
   };
-  const show = function(){ _cv.reply = clean(_cv.said + (_cv.cut ? '' : ' ' + _cv.buf)); if(co) co.textContent = _cv.reply; };
+  const show = function(){ _cv.reply = clean(_cv.said + (_cv.cut ? '' : ' ' + _cv.buf)); _cvCo(_cv.reply); };
   _cvTone('send');
   if(_cvLocal(text)) return;                                      // commande vocale : réponse immédiate, sans le Coach
   const memo = cvMemoIntent(text); if(memo){ _cvMemo(memo, turn); return; }   // « note que… » → mémo du Coach
@@ -373,10 +390,11 @@ function cvAsk(text){
   if(typeof _cv.memos === 'string') opts.memos = _cv.memos;
   sendCoachMessage(text, opts);
 }
-function _cvQueue(sentence){ if(!_cv) return; const t = cvSpeakable(sentence); if(t.replace(/[\s.,;:!?]/g, '').length < 2) return; _cv.q.push(t); _cvNext(); }
+function _cvQueue(sentence){ if(!_cv) return; const t = cvSpeakable(sentence); if(t.replace(/[\s.,;:!?]/g, '').length < 2) return; _cv.q.push({ t: t, raw: sentence }); _cvNext(); }
 function _cvNext(){
   if(!_cv || _cv.closed || _cv.speaking) return;
-  const t = _cv.q.shift();
+  const it = _cv.q.shift(), t = it && (typeof it === 'string' ? it : it.t);
+  if(_cv.reply){ const h = it && it.raw ? it.raw : null; if(h !== _cv.hl){ _cv.hl = h; _cvCo(_cv.reply.replace(/[*#`_]/g, '')); } }   // phrase lue surlignée
   if(!t){
     if(_cv.streamDone) _cvBargeStop();
     if(_cv.streamDone && _cv.after){ const f = _cv.after; _cv.after = null; f(); return; }   // commande : action après la phrase
@@ -401,8 +419,7 @@ function _cvNext(){
 // réponse prononcée sans le Coach (commandes) ; after() une fois la phrase dite
 function _cvSay(text, after){
   if(!_cv) return;
-  const co = document.querySelector('#cv-ov .cv-co');
-  _cv.reply = text; if(co) co.textContent = String(text).replace(/[*#`_]/g, '');
+  _cv.reply = String(text); _cv.hl = null; _cvCo(String(text).replace(/[*#`_]/g, ''));
   _cv.mute = false; _cv.streamDone = true; _cv.after = after || null;
   cvSentences(text, true).out.forEach(_cvQueue);
   if(!_cv.q.length && !_cv.speaking){ const f = _cv.after; _cv.after = null; if(f) f(); else _cvNext(); }
@@ -527,7 +544,7 @@ function cvCardHtml(kind, reply){
       const tgt = cvTimeIn(reply) || (P && P.sec) || null, C = cvRaceCard(tgt, R.km);
       if(!C) return '';
       return '<div class="cv-cd"><p class="cv-cdh"><span>🏁 ' + _cvE(R.name || 'Plan de course') + '</span><b>' + _cvT(tgt) + ' · ' + _cvP(C.pace) + '/km</b></p>'
-        + C.rows.map(function(r){ return '<div class="cv-sp"><span>km ' + r.km + '</span><i><u style="width:' + r.w + '%"></u></i><b>' + _cvP(r.pace) + '</b><small>' + _cvT(r.cum) + '</small></div>'; }).join('') + '</div>';
+        + C.rows.map(function(r, i){ return '<div class="cv-sp' + (i === 0 ? ' f' : i === C.rows.length - 1 ? ' l' : '') + '"><span>km ' + r.km + '</span><i><u style="width:' + r.w + '%"></u></i><b>' + _cvP(r.pace) + '</b><small>' + _cvT(r.cum) + '</small></div>'; }).join('') + '</div>';
     }
     if(kind === 'pred'){
       const cat = typeof predRaceCat === 'function' ? predRaceCat(R) : null, P = cat && typeof predRace === 'function' ? predRace(cat) : null;
@@ -599,7 +616,7 @@ async function _cvPlanAction(text, turn){
     _cv.pending = { id: m.id };
     const L = ch.slice(0, 3).map(cvChangeLine);
     const el = document.querySelector('#cv-ov .cv-card');
-    if(el) el.innerHTML = '<div class="cv-cd"><p class="cv-cdh"><span>📋 ' + ch.length + ' changement' + (ch.length > 1 ? 's' : '') + '</span><b>à valider</b></p>' + ch.map(function(c){ return '<p class="cv-cdl">' + _cvE(cvChangeLine(c)) + '</p>'; }).join('') + '<div class="cv-ok"><button type="button" onclick="cvAsk(\'Oui\')">✓ Valider</button><button type="button" onclick="cvAsk(\'Non\')">Non merci</button></div></div>';
+    if(el) el.innerHTML = '<div class="cv-cd act"><p class="cv-cdh"><span>📋 ' + ch.length + ' changement' + (ch.length > 1 ? 's' : '') + '</span><b>à valider</b></p>' + ch.map(function(c){ return '<p class="cv-cdl">' + _cvE(cvChangeLine(c)) + '</p>'; }).join('') + '<div class="cv-ok"><button type="button" onclick="cvAsk(\'Oui\')">✓ Valider</button><button type="button" onclick="cvAsk(\'Non\')">Non merci</button></div></div>';
     _cvSay(_cvShort(m.t, 1) + ' ' + L.join('. ') + (ch.length > 3 ? '. Et ' + (ch.length - 3) + ' autre' + (ch.length > 4 ? 's' : '') + ' changement' + (ch.length > 4 ? 's' : '') : '') + '. Je valide ?', function(){ if(_cv && _cv.canListen && _cv.prefs.auto) cvListen(true); else _cvSet('idle'); });
   } catch(e) { diagSilent(e, 'coach-voice:_cvPlanAction'); if(_cv) _cvSay('Je n\'ai pas pu regarder ton plan. Réessaie dans un instant.'); }
 }
@@ -672,3 +689,47 @@ function _cvBargeStart(){
   } catch(e) { _cv.barge = null; }
 }
 function _cvBargeStop(){ if(!_cv || !_cv.barge) return; const b = _cv.barge; _cv.barge = null; try { b.abort(); } catch(e) {} }
+
+// ─── Écran (maquette « fil de discussion ») : libellés des états, pastilles de contexte, chiffres mis en valeur ───
+function cvStateLabels(st, o){
+  o = o || {};
+  if(o.ask && st !== 'think') return st === 'listen' ? { t: 'Je valide ?', s: 'Dis « oui » ou « non »', a: 'Réponds oui ou non' } : { t: 'Je valide ?', s: 'Oui / non à la voix, ou touche Valider', a: 'Parler' };
+  return ({
+    listen: { t: 'Je t\'écoute…', s: 'Parle, ta phrase s\'écrit en direct', a: 'J\'ai fini de parler' },
+    think: { t: 'Je réfléchis…', s: 'Réponse dans un instant', a: 'Le Coach réfléchit' },
+    speak: { t: 'Le Coach parle', s: 'Touche la bulle pour l\'interrompre', a: 'Interrompre le Coach' }
+  })[st] || (o.canListen ? { t: 'Touche pour parler', s: 'Ou écris ta question en bas', a: 'Parler' } : { t: 'Écris ta question', s: 'Micro indisponible sur cet appareil', a: 'Parler' });
+}
+// pastilles du haut : course (J-x), forme du jour, séance du jour
+function cvContext(st, now){
+  st = st || {}; now = now || new Date();
+  const out = [], iso = _cvIso(now), h = now.getHours();
+  try {
+    const R = typeof prepRace === 'function' ? prepRace() : null;
+    if(R && R.date && R.date >= iso){
+      const d = Math.round((new Date(R.date + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000);
+      const lab = R.km ? (Math.abs(R.km - 42.2) < 0.6 ? 'Marathon' : Math.abs(R.km - 21.1) < 0.6 ? 'Semi' : String(Math.round(R.km * 10) / 10).replace('.', ',') + ' km') : (R.course || R.name || 'Course');
+      out.push({ t: '🏁 ' + (d === 0 ? 'Jour J' : 'J-' + d) + ' · ' + lab });
+    }
+  } catch(e) { diagSilent(e, 'coach-voice:cvContext'); }
+  const F = st._form_today;
+  if(F && F.date === iso && F.score != null) out.push({ t: '💛 Forme ' + F.score, c: F.score >= 67 ? 'ok' : F.score >= 34 ? 'mid' : 'low' });
+  try {
+    const S = typeof prSessions === 'function' ? prSessions(st).filter(function(s){ return s.date === iso && !s.skip && s.type !== 'rest'; }) : [];
+    const todo = S.filter(function(s){ return !s.done; })[0], done = S.filter(function(s){ return s.done; })[0];
+    const km = function(s){ return s.kmPlan ? ' ' + String(Math.round(s.kmPlan * 10) / 10).replace('.', ',') + ' km' : ''; };
+    const short = function(t){ return String(t || '').replace(/^Footing\s+/i, '').replace(/^Sortie\s+longue/i, 'Longue'); };
+    if(todo) out.push({ t: '🏃 ' + (h >= 17 ? 'Ce soir' : h < 12 ? 'Ce matin' : 'Aujourd\'hui') + ' · ' + short(todo.title) + km(todo) });
+    else if(done) out.push({ t: '✓ ' + short(done.title) + km(done), c: 'ok' });
+    else out.push({ t: '😴 Repos aujourd\'hui' });
+  } catch(e) { diagSilent(e, 'coach-voice:cvContext'); }
+  return out;
+}
+// texte du Coach → HTML : chiffres en pastilles (42'00, 4'12/km, 8 km, 145 bpm, 80 %), phrase lue surlignée (hl)
+const CV_NUM_RE = /(\d{1,2}h\d{2}(?:['’]\d{2})?|\d{1,3}['’]\d{2}(?:\s?\/\s?km)?|\d+(?:[.,]\d+)?\s?(?:km|bpm|ms)\b|\d+(?:[.,]\d+)?\s?%)/g;
+function cvRich(text, hl){
+  const T = String(text || ''), pills = function(x){ return _cvE(x).replace(CV_NUM_RE, '<span class="cv-num">$1</span>'); };
+  const h = hl ? String(hl).replace(/[*#`_]/g, '').replace(/\s{2,}/g, ' ').trim() : '', i = h ? T.indexOf(h) : -1;
+  if(i < 0) return pills(T);
+  return pills(T.slice(0, i)) + '<mark>' + pills(h) + '</mark>' + pills(T.slice(i + h.length));
+}

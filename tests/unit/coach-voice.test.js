@@ -166,3 +166,22 @@ test('cvFixTranscript / cvEcho / cvLatMedian : vocabulaire course, écho du haut
   assert.equal(app.cvEcho('ok', 'Vise 42 minutes'), true, 'trop court pour décider');
   assert.equal(app.cvLatMedian([{ say: 1800 }, { say: 900 }, { say: 1200 }, { say: 5000, long: 1 }]), 1200);
 });
+
+test('écran vocal : libellés des états, pastilles de contexte, chiffres en pastilles et phrase lue surlignée', () => {
+  assert.equal(app.cvStateLabels('speak').t, 'Le Coach parle');
+  assert.equal(app.cvStateLabels('listen').t, 'Je t\'écoute…');
+  assert.equal(app.cvStateLabels('listen', { ask: true }).t, 'Je valide ?', 'un changement attend ton « oui »');
+  assert.equal(app.cvStateLabels('idle', { canListen: false }).t, 'Écris ta question');
+  const html = app.cvRich("Vise 42'00, soit 4'12/km. Pars prudent sur 8 km.", "Pars prudent sur 8 km.");
+  assert.match(html, /<span class="cv-num">42'00<\/span>/); assert.match(html, /<span class="cv-num">4'12\/km<\/span>/);
+  assert.match(html, /<mark>Pars prudent sur <span class="cv-num">8 km<\/span>\.<\/mark>/);
+  assert.equal(app.cvRich('<b>x</b>'), '&lt;b&gt;x&lt;/b&gt;', 'texte échappé');
+  const { synthPlan } = require('../helpers/frontend');
+  const st = synthPlan({ start: '2026-11-09' });
+  st.extra_w1_s3 = JSON.stringify({ type: 'ef', km: 8, d: 'Footing EF|5\'45', sched_date: '2026-11-13', sched_day: 5, sched_time: '18:30' });
+  st._form_today = { date: '2026-11-13', score: 45 };
+  const a = loadApp({ now: '2026-11-13T19:10:00+01:00', state: st });
+  const C = JSON.parse(JSON.stringify(a.cvContext(st, new Date('2026-11-13T19:10:00+01:00'))));
+  assert.ok(C.some((c) => c.t === '💛 Forme 45' && c.c === 'mid'), JSON.stringify(C));
+  assert.ok(C.some((c) => c.t === '🏃 Ce soir · EF 8 km'), JSON.stringify(C));
+});

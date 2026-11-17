@@ -10,7 +10,7 @@
 //    Moteur : psSplitBars(splits, paceLo).
 //  • Progrès (#stats-piste, en tête de Statistiques) : niveau du moment, courbe 3 / 6 mois, temps équivalents 5 km → marathon,
 //    allures par zone. Moteur : psLevelView(hist, n).
-//  • Coach à la voix (#cv-ov) et renfo guidé (#rg-ov) : mêmes écrans, aux couleurs de la piste (feuille #ps-css).
+//  • Renfo guidé (#rg-ov) : même écran, aux couleurs de la piste (feuille #ps-css) ; le Coach à la voix a son propre style « relief ».
 
 const PS_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const PS_KIND = { ef: 'ef', long: 'ef', tempo: 'key', frac: 'key', race: 'race' };
@@ -350,20 +350,7 @@ function _psCss(){
     + '.ps-rt>div{border:2px solid transparent;}.ps-rt>div.on{border-color:#E0603A;}.ps-rt>div.on small{color:#E0603A;}.ps-rt b{font-family:' + BS + ';font-weight:800;font-size:22px;line-height:1.15;}'
     + '.ps-zr{display:flex;align-items:center;gap:10px;}.ps-zr span{width:78px;font-size:12px;font-weight:800;color:#9AA6BF;flex-shrink:0;}.ps-zr i{flex:1;height:10px;border-radius:5px;}.ps-zr b{width:96px;text-align:right;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;flex-shrink:0;}'
     + '.ps-zr .z2{background:#4FB3D9;}.ps-zr .z3{background:#8AA0D8;}.ps-zr .z4{background:#E8A33D;}.ps-zr .z5{background:#E0603A;}'
-    // Coach à la voix
-    + P + ' #cv-ov{background:#070B16;font-family:Manrope,system-ui,sans-serif;}'
-    + P + ' #cv-ov .cv-top{color:#9AA6BF;}' + P + ' #cv-ov .cv-x,' + P + ' #cv-ov .cv-gear{background:transparent;border:1px solid #24304D;width:44px;height:44px;}'
-    + P + ' #cv-ov .cv-orb{width:120px;height:120px;background:#2C3858;box-shadow:none;margin:38px;}'
-    + P + ' #cv-ov .cv-orb::before{inset:-20px;border:2px dashed #24304D;opacity:1;}' + P + ' #cv-ov .cv-orb::after{inset:-38px;border:2px dashed #24304D;opacity:1;}'
-    + P + ' #cv-ov.listen .cv-orb{background:#4FB3D9;box-shadow:none;}' + P + ' #cv-ov.listen .cv-orb::before{border-color:#4FB3D9;}'
-    + P + ' #cv-ov.think .cv-orb{background:#8AA0D8;}' + P + ' #cv-ov.think .cv-orb::after{border-color:#8AA0D8;}'
-    + P + ' #cv-ov.speak .cv-orb{background:#E0603A;box-shadow:none;}' + P + ' #cv-ov.speak .cv-orb::before{border-color:#E0603A;opacity:1;}'
-    + P + ' #cv-ov .cv-st{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#9AA6BF;opacity:1;}'
-    + P + ' #cv-ov.listen .cv-st{color:#4FB3D9;}' + P + ' #cv-ov.speak .cv-st{color:#E0603A;}'
-    + P + ' #cv-ov .cv-you{font-size:20px;font-weight:800;letter-spacing:-.01em;}' + P + ' #cv-ov .cv-co{font-size:15px;color:#C2CADB;opacity:1;}'
-    + P + ' #cv-ov .cv-sug button,' + P + ' #cv-ov .cv-bot button{background:transparent;border:1px solid #2C3858;height:40px;padding:0 14px;font-weight:700;}'
-    + P + ' #cv-ov .cv-bot input{background:#161E33;border:1px solid #24304D;}'
-    + P + ' #cv-ov .cv-set{background:#161E33;border-color:#24304D;}' + P + ' #cv-ov .cv-seg button[aria-pressed=true]{background:#E0603A;border-color:#E0603A;color:#0E1424;}'
+    // Coach à la voix : l'écran a déjà le style « relief » de la piste (coach-voice.js _cvCss), rien à surcharger
     // Renfo guidé
     + P + ' #rg-ov{background:#070B16;font-family:Manrope,system-ui,sans-serif;}'
     + P + ' #rg-ov .rg-x{background:transparent;border:1px solid #24304D;width:44px;height:44px;}'

@@ -215,12 +215,15 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
   await page.fill('#cv-in', 'Fais-moi mon plan de course km par km'); await page.click('#cv-ov .cv-bot button');
   await page.waitForSelector('#cv-ov .cv-card .cv-sp');
   const card = await page.evaluate(() => ({ h: document.querySelector('#cv-ov .cv-cdh').textContent, n: document.querySelectorAll('#cv-ov .cv-sp').length, lat: JSON.parse(localStorage.getItem('pm_cv_lat') || '[]').length }));
+  if (process.env.SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/voix-plan.png' }); }
   assert.match(card.h, /42'00 · 4'12\/km/); assert.ok(card.n >= 5, 'lignes km par km : ' + card.n); assert.equal(card.lat, 1);
   // 3 · modifier le plan à la voix : proposition dite + carte, « oui » → appliqué, « annule » → rétabli
   await page.waitForFunction(() => _cv && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 5000 });
   await page.fill('#cv-in', 'Allège ma séance de demain, je suis fatigué'); await page.click('#cv-ov .cv-bot button');
   await page.waitForFunction(() => window.__said.some((t) => /Je valide \?/.test(t)), null, { timeout: 8000 });
   assert.match(await page.textContent('#cv-ov .cv-card'), new RegExp((target.km - 2) + ' km au lieu de ' + target.km + ' km'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/voix-action.png' });
+  assert.equal(await page.evaluate(() => document.getElementById('cv-ov').classList.contains('ask')), true, 'à valider : orange');
   await page.fill('#cv-in', 'Oui vas-y'); await page.click('#cv-ov .cv-bot button');
   await page.waitForFunction(() => window.__said.some((t) => /C'est fait/.test(t)), null, { timeout: 5000 });
   assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, target.key), target.km - 2, 'plan modifié');
@@ -1300,9 +1303,11 @@ test('Piste de nuit · plan en couloirs, séance faite (ressenti), Progrès, pla
   assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('rg-ov')).backgroundColor), 'rgb(7, 11, 22)');
   if (SH) await page.screenshot({ path: SH + '/piste-renfo.png' });
   await page.evaluate(() => rgClose());
-  const orb = await page.evaluate(() => { const o = document.createElement('div'); o.id = 'cv-ov'; o.className = 'speak'; o.innerHTML = '<button class="cv-orb"></button>'; document.body.appendChild(o);
-    const c = getComputedStyle(o.querySelector('.cv-orb')).backgroundColor; o.remove(); return c; });
-  assert.equal(orb, 'rgb(224, 96, 58)', 'le Coach parle : orange de piste');
+  // Coach à la voix : écran « relief » (fil de discussion), une couleur par état — parle = ambre, à valider = orange
+  const orb = await page.evaluate(async () => { await lazyLoad('voice'); _cvCss(); const o = document.createElement('div'); o.id = 'cv-ov'; o.className = 'speak'; o.innerHTML = '<button class="cv-orb"></button>'; document.body.appendChild(o);
+    const g = (el) => getComputedStyle(el).getPropertyValue('--o').trim(); const sp = g(o.querySelector('.cv-orb')); o.className = 'speak ask'; const ask = g(o.querySelector('.cv-orb'));
+    const bg = getComputedStyle(o).backgroundColor; o.remove(); return { sp, ask, bg }; });
+  assert.equal(orb.sp, '#F2B544', 'le Coach parle : ambre'); assert.equal(orb.ask, '#E0603A', 'à valider : orange de piste'); assert.equal(orb.bg, 'rgb(7, 11, 22)');
   assert.deepEqual(errors, []);
   await ctx.close();
 });
