@@ -1371,3 +1371,70 @@ exports.sessionJournal = onRequest(
     }
   }
 );
+
+// ─── Coach à la voix : voix Google (Cloud Text-to-Speech, voix neuronales françaises) ───
+// Compte admin seulement. Chaque phrase est transformée en audio (MP3, base64) ; cache en mémoire ; plafond mensuel
+// pour rester dans l'offre gratuite (_tts_usage/<AAAA-MM>, caractères) ; au-delà ou en cas d'erreur → { fallback: true }
+// et l'app lit avec la voix de l'iPhone. { list: true } = voix françaises disponibles (Neural2 / WaveNet).
+const TTS_MONTH_MAX = 800000, TTS_API = 'https://texttospeech.googleapis.com/v1';
+let _ttsTok = null, _ttsVoices = null;
+const _ttsCache = new Map();
+async function ttsToken(){
+  if(_ttsTok && _ttsTok.exp > Date.now() + 60000) return _ttsTok.t;
+  const r = await fetchWithTimeout('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token', { headers: { 'Metadata-Flavor': 'Google' } }, 5000);
+  const j = await r.json();
+  if(!j || !j.access_token) throw new Error('jeton Google indisponible');
+  _ttsTok = { t: j.access_token, exp: Date.now() + (+j.expires_in || 3000) * 1000 };
+  return _ttsTok.t;
+}
+// voix françaises utilisables dans l'offre gratuite : Neural2 d'abord, puis WaveNet (ni Studio, ni Chirp, ni Standard)
+function ttsPickVoices(list){
+  return (list || []).filter((v) => v && /^fr-FR-(Neural2|Wavenet)-/.test(v.name || '') && (v.languageCodes || ['fr-FR']).indexOf('fr-FR') >= 0)
+    .map((v) => ({ name: v.name, gender: v.ssmlGender || '', kind: /Neural2/.test(v.name) ? 'Neural2' : 'WaveNet' }))
+    .sort((a, b) => (a.kind === b.kind ? (a.name < b.name ? -1 : 1) : a.kind === 'Neural2' ? -1 : 1));
+}
+async function ttsVoiceList(){
+  if(_ttsVoices && Date.now() - _ttsVoices.at < 6 * 3600000) return _ttsVoices.v;
+  const r = await fetchWithTimeout(TTS_API + '/voices?languageCode=fr-FR', { headers: { Authorization: 'Bearer ' + await ttsToken() } }, 8000);
+  if(!r.ok) throw new Error('voix Google : HTTP ' + r.status);
+  const v = ttsPickVoices((await r.json()).voices);
+  _ttsVoices = { at: Date.now(), v };
+  return v;
+}
+function ttsDefaultVoice(V){ return (V.find((v) => v.kind === 'Neural2' && v.gender === 'MALE') || V[0] || { name: 'fr-FR-Neural2-B' }).name; }
+exports.ttsPickVoices = ttsPickVoices;
+
+exports.coachTts = onRequest(
+  { timeoutSeconds: 30, memory: '256MiB' },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    const b = req.body || {};
+    try {
+      if(b.list){ const V = await ttsVoiceList(); res.json({ voices: V, def: ttsDefaultVoice(V) }); return; }
+      const text = String(b.text || '').replace(/\s+/g, ' ').trim().slice(0, 1200);
+      if(!text){ res.status(400).json({ error: 'texte vide' }); return; }
+      let voice = /^fr-FR-(Neural2|Wavenet)-[A-Z]$/.test(b.voice || '') ? b.voice : null;
+      const rate = Math.max(0.8, Math.min(1.3, +b.rate || 1));
+      if(!voice){ try { voice = ttsDefaultVoice(await ttsVoiceList()); } catch(e) { voice = 'fr-FR-Neural2-B'; } }
+      const key = voice + '|' + rate + '|' + text;
+      if(_ttsCache.has(key)){ res.json({ audio: _ttsCache.get(key), voice, cached: true }); return; }
+      // plafond mensuel (offre gratuite)
+      const month = new Date().toISOString().slice(0, 7), ref = admin.database().ref('_tts_usage/' + month);
+      const used = (await ref.once('value')).val() || 0;
+      if(used + text.length > TTS_MONTH_MAX){ res.status(429).json({ fallback: true, reason: 'quota', used }); return; }
+      const r = await fetchWithTimeout(TTS_API + '/text:synthesize', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await ttsToken() },
+        body: JSON.stringify({ input: { text }, voice: { languageCode: 'fr-FR', name: voice }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, sampleRateHertz: 24000 } }) }, 10000);
+      if(!r.ok){ const t = await r.text().catch(() => ''); console.error('coachTts', r.status, t.slice(0, 300)); res.status(503).json({ fallback: true, reason: 'api', status: r.status }); return; }
+      const audio = (await r.json()).audioContent;
+      if(!audio){ res.status(503).json({ fallback: true, reason: 'vide' }); return; }
+      ref.transaction((n) => (n || 0) + text.length).catch(() => {});
+      _ttsCache.set(key, audio); if(_ttsCache.size > 300) _ttsCache.delete(_ttsCache.keys().next().value);
+      res.json({ audio, voice });
+    } catch(e) {
+      console.error('coachTts error:', e.message);
+      if(!res.headersSent) res.status(503).json({ fallback: true, reason: 'erreur', error: e.message });
+    }
+  }
+);

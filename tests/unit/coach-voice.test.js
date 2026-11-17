@@ -191,3 +191,7 @@ test('écran vocal : libellés des états, pastilles de contexte, chiffres en pa
   assert.ok(C.some((c) => c.t === '💛 Forme 45' && c.c === 'mid'), JSON.stringify(C));
   assert.ok(C.some((c) => c.t === '🏃 Ce soir · EF 8 km'), JSON.stringify(C));
 });
+
+test('cvTtsRate : vitesse de l\'app → vitesse de la voix Google', () => {
+  assert.equal(app.cvTtsRate(0.92), 0.95); assert.equal(app.cvTtsRate(1.05), 1.05); assert.equal(app.cvTtsRate(1.2), 1.15);
+});

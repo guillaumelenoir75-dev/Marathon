@@ -245,6 +245,52 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
   await ctx.close();
 });
 
+test('Coach à la voix : voix Google (naturelle) lue phrase par phrase, repli sur la voix de l\'iPhone si le service ne répond pas', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  // 50 ms de silence en WAV : ce que renvoie la fonction coachTts (MP3 en vrai)
+  const n = 400, wav = Buffer.alloc(44 + n * 2); wav.write('RIFF', 0); wav.writeUInt32LE(36 + n * 2, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(16000, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(n * 2, 40);
+  const tts = []; let down = false;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    functions: async (r) => {
+      const url = r.request().url(), pd = r.request().postData() || '';
+      if (/coachTts/.test(url)) { const b = JSON.parse(pd || '{}'); if (b.list) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ voices: [{ name: 'fr-FR-Neural2-B', gender: 'MALE', kind: 'Neural2' }, { name: 'fr-FR-Neural2-A', gender: 'FEMALE', kind: 'Neural2' }], def: 'fr-FR-Neural2-B' }) });
+        tts.push(b); return down ? r.fulfill({ status: 503, contentType: 'application/json', body: '{"fallback":true}' }) : r.fulfill({ contentType: 'application/json', body: JSON.stringify({ audio: wav.toString('base64'), voice: 'fr-FR-Neural2-B' }) }); }
+      if (/coachChat/.test(url) && !/"warm":true/.test(pd)) return r.fulfill({ contentType: 'text/event-stream', body: ['Vise 42\'00. ', 'Pars prudent.'].map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' });
+      return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    },
+    init: () => {
+      window.__said = []; window.__recStarts = 0;
+      class FakeRec { start() { window.__recStarts++; } stop() {} abort() {} }
+      window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {}, getVoices() { return []; } } });
+    } });
+  await page.evaluate(() => { delete state._brief_pending; openCoachVoice(); });
+  await page.waitForFunction(() => window.__recStarts >= 1, null, { timeout: 8000 });   // accueil lu puis écoute
+  assert.ok(tts.length >= 1 && /^(Salut|Bonsoir)/.test(tts[0].text), 'accueil lu par la voix Google : ' + JSON.stringify(tts[0]));
+  assert.equal(tts[0].rate, 1.05);
+  assert.deepEqual(await page.evaluate(() => window.__said.filter((t) => t.trim())), [], 'la voix de l\'iPhone ne parle pas');
+  // question : réponse lue par Google, phrase par phrase
+  await page.fill('#cv-in', 'Quel temps dimanche ?'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => _cv && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 8000 });
+  assert.ok(tts.some((b) => /42 minutes/.test(b.text)), 'texte prononçable envoyé : ' + JSON.stringify(tts.map((b) => b.text)));
+  // réglages : voix Google listées, choix gardé ; puis service en panne → voix de l'iPhone
+  await page.click('#cv-ov .cv-gear'); await page.waitForSelector('#cv-ov .cv-set select');
+  assert.match(await page.textContent('#cv-ov .cv-set select'), /Femme A · Neural2/);
+  await page.selectOption('#cv-ov .cv-set select', 'fr-FR-Neural2-A');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('pm_cv')).gvoice), 'fr-FR-Neural2-A');
+  await page.click('#cv-ov .cv-gear');
+  down = true;
+  await page.fill('#cv-in', 'Et demain ?'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /Pars prudent/.test(t)), null, { timeout: 8000 });
+  assert.equal(tts[tts.length - 1].voice, 'fr-FR-Neural2-A');
+  // réglage « iPhone » : plus d'appel à la voix Google
+  await page.click('#cv-ov .cv-gear'); await page.click('#cv-ov .cv-set button:has-text("iPhone")');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('pm_cv')).engine), 'native');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('écrans rares chargés à la demande : chaque point d\'entrée charge son fichier et ouvre l\'écran, sans erreur', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   const lazy = await page.evaluate(() => Object.keys(window.LAZY_BUNDLES || {}));

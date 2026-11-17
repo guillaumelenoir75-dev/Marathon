@@ -121,8 +121,13 @@ function cvIntent(text){
 const ALC_DRINKS_CV = typeof ALC_DRINKS !== 'undefined' ? ALC_DRINKS : [0, 1, 2, 3, 3.5, 5, 6, 7.5, 9, 11, 13];
 // réglages (par téléphone) : vitesse, voix, sons, écoute automatique après la réponse
 const CV_RATES = [['Lente', 0.92], ['Normale', 1.05], ['Rapide', 1.2]];
-function _cvPrefs(){ let p = {}; try { p = JSON.parse(localStorage.getItem('pm_cv') || '{}') || {}; } catch(e) {} return { rate: +p.rate || 1.05, voice: p.voice || '', sounds: p.sounds !== false, auto: p.auto !== false, greet: p.greet !== false, filler: p.filler !== false, tone: p.tone || '', barge: p.barge === true }; }
-function _cvPrefsSet(k, v){ const p = _cvPrefs(); p[k] = v; try { localStorage.setItem('pm_cv', JSON.stringify(p)); } catch(e) {} if(_cv){ _cv.prefs = p; if(k === 'voice') _cv.voice = _cvVoice(); } }
+function _cvPrefs(){ let p = {}; try { p = JSON.parse(localStorage.getItem('pm_cv') || '{}') || {}; } catch(e) {} return { rate: +p.rate || 1.05, voice: p.voice || '', sounds: p.sounds !== false, auto: p.auto !== false, greet: p.greet !== false, filler: p.filler !== false, tone: p.tone || '', barge: p.barge === true, engine: p.engine === 'native' ? 'native' : 'google', gvoice: p.gvoice || '' }; }
+function _cvPrefsSet(k, v){
+  const p = _cvPrefs(); p[k] = v; try { localStorage.setItem('pm_cv', JSON.stringify(p)); } catch(e) {}
+  if(_cv){ _cv.prefs = p; if(k === 'voice') _cv.voice = _cvVoice();
+    if(k === 'engine' && v === 'google'){ _cv.ttsDown = false; _cv.ttsFails = 0; if(!_cv.ac) try { _cv.ac = new (window.AudioContext || window.webkitAudioContext)(); if(_cv.ac.resume) _cv.ac.resume(); } catch(e) {} }   // toucher = son débloqué
+    if(k === 'gvoice' || k === 'rate') _cvTtsMem = null; }
+}
 function _cvRecClass(){ return typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition || null) : null; }
 function _cvVoices(){ if(typeof speechSynthesis === 'undefined') return []; return speechSynthesis.getVoices().filter(function(v){ return /^fr(-|_|$)/i.test(v.lang); }); }
 function _cvVoice(){
@@ -215,7 +220,8 @@ function openCoachVoice(opts){
   _cv = { st: 'idle', q: [], buf: '', speaking: false, streamDone: true, rec: null, closed: false, canListen: !!_cvRecClass(), heard: '', reply: '', lock: null, empty: 0, prefs: _cvPrefs(), memos: null, log: [] };
   // déverrouille la voix et les sons sur iPhone : 1re lecture dans le geste qui ouvre l'écran
   try { if(typeof speechSynthesis !== 'undefined'){ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speechSynthesis.onvoiceschanged = function(){ if(_cv) _cv.voice = _cvVoice(); }; } } catch(e) {}
-  try { if(_cv.prefs.sounds && (window.AudioContext || window.webkitAudioContext)){ _cv.ac = new (window.AudioContext || window.webkitAudioContext)(); if(_cv.ac.resume) _cv.ac.resume(); } } catch(e) {}
+  try { if((_cv.prefs.sounds || _cv.prefs.engine === 'google') && (window.AudioContext || window.webkitAudioContext)){ _cv.ac = new (window.AudioContext || window.webkitAudioContext)(); if(_cv.ac.resume) _cv.ac.resume();
+    const b = _cv.ac.createBuffer(1, 1, 22050), src = _cv.ac.createBufferSource(); src.buffer = b; src.connect(_cv.ac.destination); src.start(0); } } catch(e) {}   // son débloqué dans le toucher (voix Google sur iPhone)
   _cv.voice = _cvVoice();
   // mémos du Coach lus une fois (au lieu d'une lecture par question)
   try { if(typeof dbRef !== 'undefined' && dbRef) dbRef.child('_coach_memos').once('value').then(function(s){ if(_cv) _cv.memos = s.val() || ''; }).catch(function(){}); } catch(e) {}
@@ -246,6 +252,7 @@ function closeCoachVoice(){
   if(!_cv) return;
   _cv.closed = true;
   _cvBargeStop();
+  _cvStopGoogle();
   // fin de conversation : l'essentiel de l'échange rejoint les mémos du Coach (« on a dit : 42'00 dimanche… »)
   if(_cv.aiTurns > 0 && typeof extractAndSaveMemosWithContext === 'function'){ try { extractAndSaveMemosWithContext([]); } catch(e) { diagSilent(e, 'coach-voice:close'); } if(typeof showToast === 'function') showToast('Le Coach garde l\'essentiel de votre échange', '🧠'); }
   try { if(_cv.rec) _cv.rec.abort(); } catch(e) {}
@@ -262,8 +269,11 @@ function cvSettings(){
   const p = _cv.prefs, V = _cvVoices(), cur = _cv.voice ? _cv.voice.name : '';
   const box = document.createElement('div'); box.className = 'cv-set'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Réglages de la voix');
   const seg = function(k, opts){ return '<div class="cv-seg">' + opts.map(function(o){ return '<button type="button" aria-pressed="' + (p[k] === o[1]) + '" onclick="_cvPrefsSet(\'' + k + '\',' + JSON.stringify(o[1]).replace(/"/g, '&quot;') + ');cvSettings();cvSettings()">' + o[0] + '</button>'; }).join('') + '</div>'; };
-  box.innerHTML = '<b>Vitesse de la voix</b>' + seg('rate', CV_RATES)
-    + (V.length > 1 ? '<b>Voix</b><select aria-label="Voix" onchange="_cvPrefsSet(\'voice\', this.value)">' + V.map(function(v){ return '<option' + (v.name === cur ? ' selected' : '') + '>' + v.name.replace(/</g, '&lt;') + '</option>'; }).join('') + '</select>' : '')
+  const GV = _cvGVoices();
+  box.innerHTML = '<b>Voix</b>' + seg('engine', [['Google (naturelle)', 'google'], ['iPhone', 'native']])
+    + (p.engine === 'google' && GV.length ? '<select aria-label="Voix Google" onchange="_cvPrefsSet(\'gvoice\', this.value)">' + GV.map(function(v){ return '<option value="' + v.name + '"' + ((p.gvoice || _cvGDef) === v.name ? ' selected' : '') + '>' + _cvGLabel(v) + '</option>'; }).join('') + '</select>' : '')
+    + '<b>Vitesse de la voix</b>' + seg('rate', CV_RATES)
+    + (p.engine === 'native' && V.length > 1 ? '<b>Voix de l\'iPhone</b><select aria-label="Voix" onchange="_cvPrefsSet(\'voice\', this.value)">' + V.map(function(v){ return '<option' + (v.name === cur ? ' selected' : '') + '>' + v.name.replace(/</g, '&lt;') + '</option>'; }).join('') + '</select>' : '')
     + '<b>Sons d\'écoute</b>' + seg('sounds', [['Oui', true], ['Non', false]])
     + '<b>Réécouter après chaque réponse</b>' + seg('auto', [['Oui', true], ['Non', false]])
     + '<b>Ton du Coach</b>' + seg('tone', [['Normal', ''], ['Direct', 'direct'], ['Encourageant', 'encourageant']])
@@ -278,7 +288,7 @@ function cvOrbTap(){
   if(_cv.st === 'listen'){ try { _cv.rec && _cv.rec.stop(); } catch(e) {} return; }   // j'ai fini de parler
   if(_cv.st === 'idle'){ if(_cv.canListen) cvListen(); else { const i = document.getElementById('cv-in'); if(i) i.focus(); } }
 }
-function _cvHush(){ if(!_cv) return; _cvBargeStop(); _cv.q = []; _cv.speaking = false; _cv.mute = true; _cv.after = null; try { speechSynthesis.cancel(); } catch(e) {} }
+function _cvHush(){ if(!_cv) return; _cvBargeStop(); _cvStopGoogle(); _cv.q = []; _cv.speaking = false; _cv.mute = true; _cv.after = null; try { speechSynthesis.cancel(); } catch(e) {} }
 // écoute : texte en direct ; fin de tour = silence (cvTurnWait : plus long si la phrase n'est pas finie) ou fin de la dictée
 // auto = relance après la réponse (hors d'un toucher : l'iPhone peut la refuser → « Touche pour parler », micro gardé)
 function cvListen(auto){
@@ -390,7 +400,7 @@ function cvAsk(text){
   if(typeof _cv.memos === 'string') opts.memos = _cv.memos;
   sendCoachMessage(text, opts);
 }
-function _cvQueue(sentence){ if(!_cv) return; const t = cvSpeakable(sentence); if(t.replace(/[\s.,;:!?]/g, '').length < 2) return; _cv.q.push({ t: t, raw: sentence }); _cvNext(); }
+function _cvQueue(sentence){ if(!_cv) return; const t = cvSpeakable(sentence); if(t.replace(/[\s.,;:!?]/g, '').length < 2) return; const it = { t: t, raw: sentence }; if(_cvUseGoogle()){ it.ap = _cvTtsFetch(t); it.ap.catch(function(){}); } _cv.q.push(it); _cvNext(); }
 function _cvNext(){
   if(!_cv || _cv.closed || _cv.speaking) return;
   const it = _cv.q.shift(), t = it && (typeof it === 'string' ? it : it.t);
@@ -404,10 +414,15 @@ function _cvNext(){
     }
     return;
   }
-  if(typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined'){ _cv.q = []; _cvSet('idle'); return; }
   _cv.spoken = ((_cv.spoken || '') + ' ' + t).slice(-600);        // ce que dit le haut-parleur (écho ignoré par « couper la parole »)
+  if(_cvUseGoogle()){ _cv.speaking = true; _cvSet('speak'); _cvBargeStart(); _cvPlayGoogle(it, t, _cv.turn); return; }   // voix Google
+  _cvSpeakNative(t, _cv.turn);
+}
+// voix de l'iPhone (et repli de la voix Google)
+function _cvSpeakNative(t, turn){
+  if(!_cv) return;
+  if(typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined'){ _cv.q = []; _cv.speaking = false; _cvSet('idle'); return; }
   const u = new SpeechSynthesisUtterance(t); u.lang = 'fr-FR'; if(_cv.voice) u.voice = _cv.voice; u.rate = _cv.prefs.rate || 1.05; u.pitch = 1;
-  const turn = _cv.turn;
   let done = false; const next = function(){ if(done) return; done = true; clearTimeout(guard); if(!_cv || _cv.turn !== turn) return; _cv.speaking = false; _cvNext(); };
   const guard = setTimeout(next, 2500 + t.length * 110 / (u.rate || 1));   // filet : certains navigateurs n'appellent pas onend
   u.onend = next; u.onerror = next;
@@ -745,4 +760,64 @@ function cvRich(text, hl){
   const h = hl ? String(hl).replace(/[*#`_]/g, '').replace(/\s{2,}/g, ' ').trim() : '', i = h ? T.indexOf(h) : -1;
   if(i < 0) return pills(T);
   return pills(T.slice(0, i)) + '<mark>' + pills(h) + '</mark>' + pills(T.slice(i + h.length));
+}
+
+// ─── Voix Google (fonction coachTts : voix neuronale française, offre gratuite) ; repli automatique sur la voix de l'iPhone ───
+let _cvTtsMem = null, _cvGDef = '';
+function _cvUseGoogle(){ return !!(_cv && _cv.prefs.engine !== 'native' && !_cv.ttsDown && _cv.ac && typeof fetch === 'function' && typeof authHeaders === 'function'); }
+// vitesse de l'app → vitesse de la voix Google
+function cvTtsRate(r){ return r <= 0.95 ? 0.95 : r >= 1.15 ? 1.15 : 1.05; }
+function _cvTtsFetch(text){
+  const p = _cv.prefs, rate = cvTtsRate(p.rate || 1.05), key = (p.gvoice || '') + '|' + rate + '|' + text, ac = _cv.ac;
+  _cvTtsMem = _cvTtsMem || new Map();
+  if(_cvTtsMem.has(key)) return _cvTtsMem.get(key);
+  const base = typeof FUNCTIONS_BASE !== 'undefined' ? FUNCTIONS_BASE : 'https://us-central1-prepa-marathon.cloudfunctions.net';
+  const pr = (async function(){
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, to = setTimeout(function(){ try { if(ctl) ctl.abort(); } catch(e) {} }, 6000);
+    try {
+      const r = await fetch(base + '/coachTts', { method: 'POST', headers: await authHeaders(false), body: JSON.stringify({ text: text, voice: p.gvoice || undefined, rate: rate }), signal: ctl ? ctl.signal : undefined });
+      const j = await r.json().catch(function(){ return {}; });
+      if(!r.ok || !j.audio) throw new Error(j.reason || 'HTTP ' + r.status);
+      const bin = atob(j.audio), u = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      return await new Promise(function(ok, ko){ const q = ac.decodeAudioData(u.buffer, ok, ko); if(q && q.then) q.then(ok, ko); });
+    } finally { clearTimeout(to); }
+  })();
+  pr.catch(function(){ if(_cvTtsMem) _cvTtsMem.delete(key); });
+  _cvTtsMem.set(key, pr); if(_cvTtsMem.size > 60) _cvTtsMem.delete(_cvTtsMem.keys().next().value);
+  return pr;
+}
+async function _cvPlayGoogle(it, t, turn){
+  let buf = null;
+  try { buf = await (it.ap || (it.ap = _cvTtsFetch(t))); if(_cv) _cv.ttsFails = 0; }
+  catch(e) { if(_cv){ _cv.ttsFails = (_cv.ttsFails || 0) + 1; if(_cv.ttsFails >= 2) _cv.ttsDown = true; } }   // 2 échecs : voix de l'iPhone pour la suite
+  if(!_cv || _cv.closed || _cv.turn !== turn || _cv.mute) return;
+  if(!buf){ _cvSpeakNative(t, turn); return; }
+  try {
+    if(_cv.ac.state === 'suspended' && _cv.ac.resume) _cv.ac.resume();
+    const src = _cv.ac.createBufferSource(); src.buffer = buf; src.connect(_cv.ac.destination); _cv.src = src;
+    let done = false;
+    const end = function(){ if(done) return; done = true; clearTimeout(g); if(!_cv || _cv.turn !== turn || _cv.mute || _cv.src !== src) return; _cv.src = null; _cv.speaking = false; _cvNext(); };
+    const g = setTimeout(end, buf.duration * 1000 + 1500);
+    src.onended = end; src.start(0);
+  } catch(e) { _cvSpeakNative(t, turn); }
+}
+function _cvStopGoogle(){ if(!_cv || !_cv.src) return; const s = _cv.src; _cv.src = null; try { s.onended = null; s.stop(); } catch(e) {} }
+// voix Google proposées dans les réglages (liste gardée 1 jour sur le téléphone)
+function _cvGLabel(v){ return (v.gender === 'FEMALE' ? 'Femme' : v.gender === 'MALE' ? 'Homme' : 'Voix') + ' ' + String(v.name).replace(/^fr-FR-(Neural2|Wavenet)-/, '') + ' · ' + v.kind; }
+function _cvGVoices(){
+  let c = null; try { c = JSON.parse(localStorage.getItem('pm_cv_gv') || 'null'); } catch(e) {}
+  if(c && c.def) _cvGDef = c.def;
+  if(!c || Date.now() - (c.at || 0) > 86400000){
+    (async function(){
+      try {
+        const base = typeof FUNCTIONS_BASE !== 'undefined' ? FUNCTIONS_BASE : 'https://us-central1-prepa-marathon.cloudfunctions.net';
+        const r = await fetch(base + '/coachTts', { method: 'POST', headers: await authHeaders(false), body: JSON.stringify({ list: true }) });
+        const j = await r.json(); if(!r.ok || !Array.isArray(j.voices)) return;
+        try { localStorage.setItem('pm_cv_gv', JSON.stringify({ at: Date.now(), v: j.voices, def: j.def })); } catch(e) {}
+        _cvGDef = j.def || '';
+        const ov = document.getElementById('cv-ov'); if(ov && ov.querySelector('.cv-set')){ cvSettings(); cvSettings(); }   // réglages ouverts : liste affichée
+      } catch(e) {}
+    })();
+  }
+  return c && Array.isArray(c.v) ? c.v : [];
 }
