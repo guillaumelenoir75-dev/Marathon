@@ -383,6 +383,12 @@ function openRaceAnalysis(){ return _lazyCall('raui', 'openRaceAnalysis', openRa
 function openCoachVoice(){ return _lazyCall('voice', 'openCoachVoice', openCoachVoice, arguments); }
 // Coach IA (et toute consommation de tokens) : réservé au compte admin — l'app n'appelle jamais l'IA pour un athlète
 function coachAI(){ return typeof isAdmin === 'function' && isAdmin(); }
+// Onglet Coach : ouvre le Coach à la voix (choix par défaut) ; « Écrit » = l'ancien fil (réglage du Coach à la voix, localStorage pm_coach_tab)
+function coachTabMode(){ try { return localStorage.getItem('pm_coach_tab') === 'text' ? 'text' : 'voice'; } catch(e) { return 'voice'; } }
+function coachTab(){
+  if(coachAI() && coachTabMode() === 'voice' && typeof openCoachVoice === 'function'){ openCoachVoice(); return; }
+  if(typeof showScreen === 'function') showScreen('coach');
+}
 // Brief du matin : plus d'intérêt l'après-midi — dès 12h en semaine, 13h le week-end, il ne s'ouvre plus (reporté au lendemain)
 function briefTooLate(d){ d = d || new Date(); const dow = d.getDay(); return d.getHours() >= (dow === 0 || dow === 6 ? 13 : 12); }
 // Ouverture du Coach par une notification / au lancement, l'après-midi : le brief du matin en attente est abandonné

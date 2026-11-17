@@ -159,7 +159,7 @@ function _cvCss(){
   const WELL = 'background:#0A1020;box-shadow:inset 0 2px 6px rgba(0,0,0,.65),inset 0 -1px 0 rgba(255,255,255,.04);';
   s.textContent = '#cv-ov{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;color:#EEF1F7;background:#070B16;padding-top:calc(env(safe-area-inset-top) + 12px);box-sizing:border-box;font-family:Manrope,system-ui,-apple-system,sans-serif;}#cv-ov *{box-sizing:border-box;}'
     + '#cv-ov .cv-top{display:flex;align-items:center;gap:10px;padding:0 16px;}#cv-ov .cv-top span{flex:1;min-width:0;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8C98B4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
-    + '#cv-ov .cv-x,#cv-ov .cv-gear{width:40px;height:40px;flex-shrink:0;border-radius:50%;' + CARD + 'color:#C3CBDC;font-size:16px;cursor:pointer;font-family:inherit;}'
+    + '#cv-ov .cv-x,#cv-ov .cv-gear,#cv-ov .cv-txt{width:40px;height:40px;flex-shrink:0;border-radius:50%;' + CARD + 'color:#C3CBDC;font-size:16px;cursor:pointer;font-family:inherit;}'
     + '#cv-ov .cv-ctx{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 2px;scrollbar-width:none;flex-shrink:0;}#cv-ov .cv-ctx::-webkit-scrollbar{display:none;}#cv-ov .cv-ctx:empty{display:none;}'
     + '#cv-ov .cv-ctx span{flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 11px;border-radius:15px;' + CARD + 'font-size:12.5px;font-weight:700;color:#C3CBDC;white-space:nowrap;}'
     + '#cv-ov .cv-th{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:9px;padding:12px 16px 16px;}'
@@ -229,7 +229,7 @@ function openCoachVoice(opts){
   _cv.sug = sug;
   const ov = document.createElement('div'); ov.id = 'cv-ov'; ov.className = 'idle'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Parler au Coach');
   let ctx = []; try { ctx = cvContext(typeof state !== 'undefined' ? state : null, new Date()); } catch(e) { diagSilent(e, 'coach-voice:cvContext'); }
-  ov.innerHTML = '<div class="cv-top"><span>🎙️ Coach · à la voix</span><button type="button" class="cv-gear" aria-label="Réglages de la voix" onclick="cvSettings()">⚙︎</button><button type="button" class="cv-x" aria-label="Fermer" onclick="closeCoachVoice()">✕</button></div>'
+  ov.innerHTML = '<div class="cv-top"><span>🎙️ Coach · à la voix</span><button type="button" class="cv-txt" aria-label="Fil écrit du Coach (briefs, Mon plan)" title="Fil écrit" onclick="cvOpenText()">💬</button><button type="button" class="cv-gear" aria-label="Réglages de la voix" onclick="cvSettings()">⚙︎</button><button type="button" class="cv-x" aria-label="Fermer" onclick="closeCoachVoice()">✕</button></div>'
     + '<div class="cv-ctx">' + ctx.map(function(c){ return '<span' + (c.c ? ' class="' + c.c + '"' : '') + '>' + _cvE(c.t) + '</span>'; }).join('') + '</div>'
     + '<div class="cv-th" aria-label="Conversation"><div class="cv-log" aria-label="Échanges précédents"></div>'
     + '<p class="cv-you" onclick="cvEditYou()" title="Toucher pour corriger"></p><p class="cv-co" aria-live="polite" onclick="cvRepeat()" title="Relire"></p><div class="cv-card" aria-live="polite"></div>'
@@ -278,7 +278,8 @@ function cvSettings(){
     + '<b>Réécouter après chaque réponse</b>' + seg('auto', [['Oui', true], ['Non', false]])
     + '<b>Ton du Coach</b>' + seg('tone', [['Normal', ''], ['Direct', 'direct'], ['Encourageant', 'encourageant']])
     + '<b>Le Coach parle en premier</b>' + seg('greet', [['Oui', true], ['Non', false]])
-    + '<b>Couper la parole à la voix (essai)</b>' + seg('barge', [['Oui', true], ['Non', false]]);
+    + '<b>Couper la parole à la voix (essai)</b>' + seg('barge', [['Oui', true], ['Non', false]])
+    + '<b>L\'onglet Coach ouvre</b><div class="cv-seg">' + [['La voix', 'voice'], ['Le fil écrit', 'text']].map(function(o){ return '<button type="button" aria-pressed="' + ((typeof coachTabMode === 'function' ? coachTabMode() : 'voice') === o[1]) + '" onclick="cvTabPref(\'' + o[1] + '\')">' + o[0] + '</button>'; }).join('') + '</div>';
   ov.appendChild(box);
 }
 function cvRepeat(){ if(!_cv || !_cv.reply || _cv.st === 'think') return; try { if(_cv.rec) _cv.rec.abort(); } catch(e) {} _cvHush(); _cv.mute = false; _cv.streamDone = true; cvSentences(_cv.reply, true).out.forEach(_cvQueue); }
@@ -821,3 +822,7 @@ function _cvGVoices(){
   }
   return c && Array.isArray(c.v) ? c.v : [];
 }
+
+// fil écrit du Coach (briefs longs, « Mon plan », historique) depuis l'écran vocal ; préférence de l'onglet Coach
+function cvOpenText(){ closeCoachVoice(); if(typeof showScreen === 'function') showScreen('coach'); }
+function cvTabPref(v){ try { localStorage.setItem('pm_coach_tab', v === 'text' ? 'text' : 'voice'); } catch(e) {} cvSettings(); cvSettings(); }

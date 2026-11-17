@@ -205,7 +205,8 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
       Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {}, getVoices() { return []; } } });
     } });
   target = await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.date > prTodayIso() && x.kmPlan >= 5).shift(); return { key: s.key, title: s.title, km: s.kmPlan }; });
-  await page.evaluate(() => { delete state._brief_pending; openCoachVoice(); });
+  await page.evaluate(() => { delete state._brief_pending; });
+  await page.click('#nav-coach');                                   // l'onglet Coach ouvre le Coach à la voix
   await page.waitForSelector('#cv-ov');
   // 5 · il ouvre la conversation, puis écoute ; le serveur est préchauffé
   await page.waitForFunction(() => window.__recStarts >= 1, null, { timeout: 5000 });
@@ -240,6 +241,16 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
   await page.click('#cv-ov .cv-you');
   assert.equal(await page.inputValue('#cv-in'), "Note que j'ai mal au mollet gauche");
   assert.equal(await page.evaluate(() => _cv.st), 'idle');
+  // 💬 = fil écrit (briefs, Mon plan) ; réglage « l'onglet Coach ouvre le fil écrit »
+  await page.click('#cv-ov .cv-txt');
+  assert.equal(await page.evaluate(() => !document.getElementById('cv-ov') && getComputedStyle(document.getElementById('sc-coach')).display !== 'none'), true, 'fil écrit ouvert');
+  await page.evaluate(() => showScreen('home')); await page.click('#nav-coach'); await page.waitForSelector('#cv-ov');
+  await page.click('#cv-ov .cv-gear'); await page.click('#cv-ov .cv-set button:has-text("Le fil écrit")');
+  assert.equal(await page.evaluate(() => localStorage.getItem('pm_coach_tab')), 'text');
+  await page.click('#cv-ov .cv-x'); await page.evaluate(() => showScreen('home'));
+  await page.click('#nav-coach');
+  assert.equal(await page.evaluate(() => !document.getElementById('cv-ov') && getComputedStyle(document.getElementById('sc-coach')).display !== 'none'), true, 'onglet Coach → fil écrit');
+  await page.evaluate(() => { localStorage.removeItem('pm_coach_tab'); showScreen('home'); }); await page.click('#nav-coach'); await page.waitForSelector('#cv-ov');
   await page.click('#cv-ov .cv-x');
   assert.deepEqual(errors, []);
   await ctx.close();

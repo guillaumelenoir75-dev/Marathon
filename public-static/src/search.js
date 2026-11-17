@@ -12,7 +12,7 @@ const SR_ITEMS = [
   { id: 'plan', ic: '📋', t: 'Mon plan', g: 'Onglet', k: 'programme semaines seances entrainement', run: function(){ showScreen('plan'); } },
   { id: 'renfo', ic: '🏋️', t: 'Renforcement', g: 'Onglet', k: 'renfo musculation gainage exercices', run: function(){ showScreen('renfo'); } },
   { id: 'stats', ic: '📊', t: 'Statistiques', g: 'Onglet', k: 'stats chiffres graphiques', run: function(){ showScreen('stats'); } },
-  { id: 'coach', ic: '💬', t: 'Coach IA', g: 'Onglet', k: 'discuter question conseil brief', a: true, run: function(){ showScreen('coach'); } },
+  { id: 'coach', ic: '💬', t: 'Coach IA · fil écrit', g: 'Onglet', k: 'discuter question conseil brief écrit texte mon plan', a: true, run: function(){ showScreen('coach'); } },
   { id: 'compte', ic: '👤', t: 'Compte', g: 'Onglet', k: 'reglages parametres profil', run: function(){ showScreen('compte'); } },
   // aujourd'hui
   { id: 'validate', ic: '✅', t: 'Valider ma séance', g: 'Validation', k: 'valider seance faite strava importer', fn: 'quickValidate', run: function(){ quickValidate(); } },
@@ -49,7 +49,7 @@ const SR_ITEMS = [
   { id: 'records', ic: '🏆', t: 'Mes records', g: 'Compte › Mes courses', k: 'record pr meilleur temps chrono', fn: 'openRecordsModal', run: function(){ openRecordsModal(); } },
   // réglages
   { id: 'shoes', ic: '👟', t: 'Mes chaussures', g: 'Compte › Mon entraînement', k: 'chaussures paires km usure', fn: 'openShoesPanel', run: function(){ openShoesPanel(); } },
-  { id: 'voice', ic: '🎙️', t: 'Parler au Coach à la voix', g: 'Coach', k: 'vocal voix micro oral parler discuter mains libres conversation', a: true, fn: 'openCoachVoice', run: function(){ showScreen('coach'); openCoachVoice(); } },
+  { id: 'voice', ic: '🎙️', t: 'Parler au Coach à la voix', g: 'Coach', k: 'vocal voix micro oral parler discuter mains libres conversation', a: true, fn: 'openCoachVoice', run: function(){ openCoachVoice(); } },
   { id: 'coachprofile', ic: '🧠', t: 'Ce que le Coach sait de moi', g: 'Compte › Mon entraînement', k: 'profil coach blessure sante parcours activite fixe bodyhit contraintes materiel montre', a: true, fn: 'openCoachProfile', run: function(){ openCoachProfile(); } },
   { id: 'autopilot', ic: '🤖', t: 'Pilote automatique', g: 'Compte › Mon entraînement', k: 'ajustements nuit automatique pilote', fn: 'openAutopilotSettings', run: function(){ openAutopilotSettings(); } },
   { id: 'autoval', ic: '✅', t: 'Validation automatique', g: 'Compte › Mon entraînement', k: 'validation auto strava whoop meteo reglage', fn: 'avOpenSettings', run: function(){ avOpenSettings(); } },
