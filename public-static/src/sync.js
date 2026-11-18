@@ -28,6 +28,23 @@ function syncBaseReset(data){
   const map = {}; Object.keys(data || {}).forEach(function(k){ if(data[k] !== undefined) map[k] = _sj(data[k]); });
   _syncBases[_syncRefKey(typeof dbRef !== 'undefined' ? dbRef : null)] = { obj: state, map: map };   // une base par emplacement (son état, un athlète…)
 }
+// écriture ciblée d'une sous-clé (ex. ['_coach_threads', id, 'done']) : la base n'est touchée qu'à cet endroit (le serveur
+// peut écrire une autre sous-clé de la même clé sans être écrasé) et la version connue est mise à jour (save() ne la réécrit pas)
+function syncSetPath(path, v){
+  if(typeof state === 'undefined' || !state || !path || !path.length) return;
+  const k = path[0], b = _syncBases[_syncRefKey(typeof dbRef !== 'undefined' ? dbRef : null)];
+  let o = state[k] = state[k] && typeof state[k] === 'object' ? Object.assign({}, state[k]) : {};
+  for(let i = 1; i < path.length - 1; i++){ o = o[path[i]] = o[path[i]] && typeof o[path[i]] === 'object' ? Object.assign({}, o[path[i]]) : {}; }
+  if(path.length > 1){ if(v == null) delete o[path[path.length - 1]]; else o[path[path.length - 1]] = _syncClean(v); } else state[k] = _syncClean(v);
+  if(b && b.obj === state && b.map) b.map[k] = _sj(state[k]);
+  if(typeof dbRef !== 'undefined' && dbRef && _syncOwn()) _syncWrite(function(){ return dbRef.child(path.join('/')).set(v == null ? null : _syncClean(v)); }).catch(function(e){ _syncErrLog(e, [path.join('/')]); });
+}
+// valeur reçue du serveur (déjà dans la base) : gardée telle quelle, sans réécriture
+function syncAdopt(k, v){
+  if(typeof state === 'undefined' || !state) return;
+  state[k] = v;
+  const b = _syncBases[_syncRefKey(typeof dbRef !== 'undefined' ? dbRef : null)]; if(b && b.obj === state && b.map) b.map[k] = _sj(v);
+}
 // clés à écrire : modifiées, ajoutées, ou retirées (null)
 function syncDiff(){
   const b = _syncBases[_syncRefKey(typeof dbRef !== 'undefined' ? dbRef : null)], up = {}, B = (b && b.obj === state && b.map) || {};

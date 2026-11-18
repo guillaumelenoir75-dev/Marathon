@@ -115,18 +115,20 @@ function cvIntent(text){
     if(/(parle|parles|lis|va) (un peu )?(plus )?(lentement|moins vite|doucement)/.test(t) && words <= 7) return { k: 'rate', d: -1 };
     if(/(parle|parles|lis|va) (un peu )?plus vite|acc[ée]l[eè]re/.test(t) && words <= 7) return { k: 'rate', d: 1 };
     if(/^(stop|arr[êe]te|c'est tout|merci,? c'est tout|ce sera tout|au revoir|à plus|ciao|bonne (nuit|soir[ée]e|journ[ée]e)|merci coach)\b/.test(t) && words <= 5) return { k: 'bye' };
+    if(/^(d[ée]brief|on (fait|d[ée]marre) le d[ée]brief|je (te|vais te) raconte|raconte|je veux (te )?raconter)\b/.test(t) && /s[ée]ance|sortie|footing|run|course|d[ée]brief/.test(t) && words <= 9) return { k: 'debrief' };
   }
   return null;
 }
 const ALC_DRINKS_CV = typeof ALC_DRINKS !== 'undefined' ? ALC_DRINKS : [0, 1, 2, 3, 3.5, 5, 6, 7.5, 9, 11, 13];
 // réglages (par téléphone) : vitesse, voix, sons, écoute automatique après la réponse
 const CV_RATES = [['Lente', 0.92], ['Normale', 1.05], ['Rapide', 1.2]];
-function _cvPrefs(){ let p = {}; try { p = JSON.parse(localStorage.getItem('pm_cv') || '{}') || {}; } catch(e) {} return { rate: +p.rate || 1.05, voice: p.voice || '', sounds: p.sounds !== false, auto: p.auto !== false, greet: p.greet !== false, filler: p.filler !== false, tone: p.tone || '', barge: p.barge === true, engine: p.engine === 'native' ? 'native' : 'google', gvoice: p.gvoice || '' }; }
+function _cvPrefs(){ let p = {}; try { p = JSON.parse(localStorage.getItem('pm_cv') || '{}') || {}; } catch(e) {} return { rate: +p.rate || 1.05, voice: p.voice || '', sounds: p.sounds !== false, auto: p.auto !== false, greet: p.greet !== false, filler: p.filler !== false, tone: p.tone || '', barge: p.barge === true, engine: p.engine === 'native' ? 'native' : 'google', gvoice: p.gvoice || '', stt: p.stt === 'native' ? 'native' : 'google' }; }
 function _cvPrefsSet(k, v){
   const p = _cvPrefs(); p[k] = v; try { localStorage.setItem('pm_cv', JSON.stringify(p)); } catch(e) {}
   if(_cv){ _cv.prefs = p; if(k === 'voice') _cv.voice = _cvVoice();
     if(k === 'engine' && v === 'google'){ _cv.ttsDown = false; _cv.ttsFails = 0; if(!_cv.ac) try { _cv.ac = new (window.AudioContext || window.webkitAudioContext)(); if(_cv.ac.resume) _cv.ac.resume(); } catch(e) {} }   // toucher = son débloqué
-    if(k === 'gvoice' || k === 'rate') _cvTtsMem = null; }
+    if(k === 'gvoice' || k === 'rate') _cvTtsMem = null;
+    if(k === 'stt'){ _cv.sttDown = false; _cv.sttFails = 0; _cv.canListen = !!_cvRecClass() || _cvSttAvail(); } }
 }
 function _cvRecClass(){ return typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition || null) : null; }
 function _cvVoices(){ if(typeof speechSynthesis === 'undefined') return []; return speechSynthesis.getVoices().filter(function(v){ return /^fr(-|_|$)/i.test(v.lang); }); }
@@ -171,16 +173,8 @@ function _cvCss(){
     + '#cv-ov .cv-num{display:inline-block;padding:0 6px;border-radius:7px;' + WELL + 'font-weight:800;color:#F2B544;font-variant-numeric:tabular-nums;line-height:1.4;}'
     + '#cv-ov .cv-co mark{background:linear-gradient(180deg,transparent 55%,rgba(242,181,68,.35) 55%);color:#fff;}'
     + '#cv-ov .cv-card,#cv-ov .cv-log .k{width:100%;}'
-    + '#cv-ov .cv-cd{border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;text-align:left;' + LIFT + '}'
-    + '#cv-ov .cv-cd.act{border-color:rgba(224,96,58,.55);background:radial-gradient(120% 90% at 0% 0%,rgba(224,96,58,.16),rgba(224,96,58,0) 55%),linear-gradient(180deg,#1C2645,#141D36);}'
-    + '#cv-ov .cv-log .cv-cd{opacity:.8;}'
-    + '#cv-ov .cv-cdh{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:10px;}#cv-ov .cv-cdh span{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8C98B4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}#cv-ov .cv-cd.act .cv-cdh span{color:#E0603A;}#cv-ov .cv-cdh b{font-size:17px;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums;}'
-    + '#cv-ov .cv-cdl{margin:0;font-size:13.5px;line-height:1.45;color:#C3CBDC;}#cv-ov .cv-cdl b{color:#EEF1F7;}'
-    + '#cv-ov .cv-sp{display:grid;grid-template-columns:42px 1fr 42px 48px;align-items:center;gap:8px;font-size:12.5px;font-variant-numeric:tabular-nums;min-height:18px;}#cv-ov .cv-sp span{color:#8C98B4;}#cv-ov .cv-sp b{font-weight:800;}'
-    + '#cv-ov .cv-sp i{height:7px;border-radius:4px;' + WELL + 'overflow:hidden;display:block;}#cv-ov .cv-sp u{display:block;height:100%;border-radius:4px;background:#F2B544;}#cv-ov .cv-sp.f u{background:#4FB3D9;}#cv-ov .cv-sp.l u{background:#E0603A;}#cv-ov .cv-sp small{color:#7C88A4;text-align:right;}'
-    + '#cv-ov .cv-tl{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px;}#cv-ov .cv-tl div{border-radius:12px;padding:6px 8px;' + WELL + '}#cv-ov .cv-tl small{display:block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8C98B4;}#cv-ov .cv-tl b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;}'
-    + '#cv-ov .ok{color:#5BD08A;}#cv-ov .mid{color:#F2B544;}#cv-ov .low{color:#F06A5A;}'
-    + '#cv-ov .cv-ok{display:flex;gap:8px;margin-top:4px;}#cv-ov .cv-ok button{flex:1;height:42px;border-radius:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;color:#C3CBDC;background:transparent;border:1px solid #2A3760;}#cv-ov .cv-ok button:first-child{background:#E0603A;border-color:#E0603A;color:#0B1020;box-shadow:0 6px 16px rgba(224,96,58,.35);}'
+    + (typeof cfCardCss === 'function' ? cfCardCss('#cv-ov') : '')   // cartes, notes 👍 / 👎, chiffres corrigés (coach-plus.js)
+    + '#cv-ov .cv-log .cv-cd{opacity:.8;}#cv-ov .cv-vote:empty{display:none;}#cv-ov .cv-log .cf-v small{opacity:.8;}'
     + '#cv-ov .cv-sug{display:flex;flex-wrap:wrap;gap:8px;}#cv-ov .cv-sug button{border-radius:999px;padding:9px 13px;font-size:13.5px;font-weight:700;color:#C3CBDC;cursor:pointer;font-family:inherit;' + CARD + '}'
     + '#cv-ov .cv-dock{flex-shrink:0;border-radius:24px 24px 0 0;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);display:flex;flex-direction:column;gap:10px;' + LIFT + 'border-bottom:none;}'
     + '#cv-ov .cv-dr{display:flex;align-items:center;gap:14px;}#cv-ov .cv-sl{flex:1;min-width:0;}'
@@ -217,7 +211,7 @@ function openCoachVoice(opts){
   if(typeof coachAI === 'function' && !coachAI()) return;
   if(document.getElementById('cv-ov')){ if(opts.brief) cvAsk('Lis mon brief'); return; }
   _cvCss();
-  _cv = { st: 'idle', q: [], buf: '', speaking: false, streamDone: true, rec: null, closed: false, canListen: !!_cvRecClass(), heard: '', reply: '', lock: null, empty: 0, prefs: _cvPrefs(), memos: null, log: [] };
+  _cv = { st: 'idle', q: [], buf: '', speaking: false, streamDone: true, rec: null, closed: false, canListen: !!_cvRecClass() || _cvSttAvail(), heard: '', reply: '', lock: null, empty: 0, prefs: _cvPrefs(), memos: null, log: [] };
   // déverrouille la voix et les sons sur iPhone : 1re lecture dans le geste qui ouvre l'écran
   try { if(typeof speechSynthesis !== 'undefined'){ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speechSynthesis.onvoiceschanged = function(){ if(_cv) _cv.voice = _cvVoice(); }; } } catch(e) {}
   try { if((_cv.prefs.sounds || _cv.prefs.engine === 'google') && (window.AudioContext || window.webkitAudioContext)){ _cv.ac = new (window.AudioContext || window.webkitAudioContext)(); if(_cv.ac.resume) _cv.ac.resume();
@@ -232,7 +226,7 @@ function openCoachVoice(opts){
   ov.innerHTML = '<div class="cv-top"><span>🎙️ Coach · à la voix</span><button type="button" class="cv-txt" aria-label="Fil écrit du Coach (briefs, Mon plan)" title="Fil écrit" onclick="cvOpenText()">💬</button><button type="button" class="cv-gear" aria-label="Réglages de la voix" onclick="cvSettings()">⚙︎</button><button type="button" class="cv-x" aria-label="Fermer" onclick="closeCoachVoice()">✕</button></div>'
     + '<div class="cv-ctx">' + ctx.map(function(c){ return '<span' + (c.c ? ' class="' + c.c + '"' : '') + '>' + _cvE(c.t) + '</span>'; }).join('') + '</div>'
     + '<div class="cv-th" aria-label="Conversation"><div class="cv-log" aria-label="Échanges précédents"></div>'
-    + '<p class="cv-you" onclick="cvEditYou()" title="Toucher pour corriger"></p><p class="cv-co" aria-live="polite" onclick="cvRepeat()" title="Relire"></p><div class="cv-card" aria-live="polite"></div>'
+    + '<p class="cv-you" onclick="cvEditYou()" title="Toucher pour corriger"></p><p class="cv-co" aria-live="polite" onclick="cvRepeat()" title="Relire"></p><div class="cv-vote"></div><div class="cv-card" aria-live="polite"></div>'
     + '<div class="cv-sug">' + sug.map(function(t, i){ return '<button type="button" onclick="cvAsk(_cv.sug[' + i + '])">' + t.replace(/</g, '&lt;') + '</button>'; }).join('') + '</div></div>'
     + '<div class="cv-dock"><div class="cv-dr"><button type="button" class="cv-orb" onclick="cvOrbTap()"></button><div class="cv-sl"><p class="cv-st"></p><p class="cv-ss"></p></div></div>'
     + '<form class="cv-bot" onsubmit="event.preventDefault();cvTyped()"><input id="cv-in" type="text" enterkeyhint="send" placeholder="Ou écris ici…" aria-label="Écrire au Coach"><button type="submit">Envoyer</button></form></div>';
@@ -241,8 +235,10 @@ function openCoachVoice(opts){
   _cvSet('idle');
   _cvWarm();                                                      // serveur réveillé + contexte préparé pendant que tu parles
   if(opts.brief) cvAsk('Lis mon brief');                         // 🎧 de « Ma journée » : le brief lu tout de suite
+  else if(opts.debrief) _cvDebriefStart(opts.debrief === true ? null : opts.debrief);   // « Le raconter au Coach »
   else if(_cv.prefs.greet && typeof speechSynthesis !== 'undefined'){   // le Coach ouvre la conversation (sans IA, instantané)
     let G = null; try { G = cvGreeting(typeof state !== 'undefined' ? state : null, new Date(), typeof athleteFirstName === 'function' ? athleteFirstName() : ''); } catch(e) { diagSilent(e, 'coach-voice:greeting'); }
+    try { if(G && !G.offer) G = _cvOpening(G); } catch(e) { diagSilent(e, 'coach-voice:opening'); }   // séance à débriefer, point à suivre
     if(G){ _cv.offer = G.offer; _cvSay(G.text, function(){ if(_cv && !_cv.closed){ if(_cv.canListen) cvListen(true); else _cvSet('idle'); } }); }
     else if(_cv.canListen) cvListen();
   }
@@ -253,6 +249,7 @@ function closeCoachVoice(){
   _cv.closed = true;
   _cvBargeStop();
   _cvStopGoogle();
+  _cvMicStop();
   // fin de conversation : l'essentiel de l'échange rejoint les mémos du Coach (« on a dit : 42'00 dimanche… »)
   if(_cv.aiTurns > 0 && typeof extractAndSaveMemosWithContext === 'function'){ try { extractAndSaveMemosWithContext([]); } catch(e) { diagSilent(e, 'coach-voice:close'); } if(typeof showToast === 'function') showToast('Le Coach garde l\'essentiel de votre échange', '🧠'); }
   try { if(_cv.rec) _cv.rec.abort(); } catch(e) {}
@@ -272,6 +269,7 @@ function cvSettings(){
   const GV = _cvGVoices();
   box.innerHTML = '<b>Voix</b>' + seg('engine', [['Google (naturelle)', 'google'], ['iPhone', 'native']])
     + (p.engine === 'google' && GV.length ? '<select aria-label="Voix Google" onchange="_cvPrefsSet(\'gvoice\', this.value)">' + GV.map(function(v){ return '<option value="' + v.name + '"' + ((p.gvoice || _cvGDef) === v.name ? ' selected' : '') + '>' + _cvGLabel(v) + '</option>'; }).join('') + '</select>' : '')
+    + '<b>Reconnaissance de ta voix</b>' + seg('stt', [['Google (précise)', 'google'], ['iPhone', 'native']])
     + '<b>Vitesse de la voix</b>' + seg('rate', CV_RATES)
     + (p.engine === 'native' && V.length > 1 ? '<b>Voix de l\'iPhone</b><select aria-label="Voix" onchange="_cvPrefsSet(\'voice\', this.value)">' + V.map(function(v){ return '<option' + (v.name === cur ? ' selected' : '') + '>' + v.name.replace(/</g, '&lt;') + '</option>'; }).join('') + '</select>' : '')
     + '<b>Sons d\'écoute</b>' + seg('sounds', [['Oui', true], ['Non', false]])
@@ -286,66 +284,162 @@ function cvRepeat(){ if(!_cv || !_cv.reply || _cv.st === 'think') return; try { 
 function cvOrbTap(){
   if(!_cv) return;
   if(_cv.st === 'speak'){ _cvHush(); cvListen(); return; }        // interrompre et parler
-  if(_cv.st === 'listen'){ try { _cv.rec && _cv.rec.stop(); } catch(e) {} return; }   // j'ai fini de parler
+  if(_cv.st === 'listen'){ if(_cv.finish) _cv.finish(); else try { _cv.rec && _cv.rec.stop(); } catch(e) {} return; }   // j'ai fini de parler
   if(_cv.st === 'idle'){ if(_cv.canListen) cvListen(); else { const i = document.getElementById('cv-in'); if(i) i.focus(); } }
 }
 function _cvHush(){ if(!_cv) return; _cvBargeStop(); _cvStopGoogle(); _cv.q = []; _cv.speaking = false; _cv.mute = true; _cv.after = null; try { speechSynthesis.cancel(); } catch(e) {} }
 // écoute : texte en direct ; fin de tour = silence (cvTurnWait : plus long si la phrase n'est pas finie) ou fin de la dictée
 // auto = relance après la réponse (hors d'un toucher : l'iPhone peut la refuser → « Touche pour parler », micro gardé)
+// Reconnaissance Google (réglage, par défaut) : ta phrase est aussi enregistrée et, à la fin du tour, transcrite par la fonction
+// coachStt (vocabulaire de la course) ; la dictée de l'iPhone affiche le texte en direct et sert de repli. Si la dictée ne
+// renvoie rien alors que tu parles, la fin du tour vient du silence mesuré au micro.
 function cvListen(auto){
   if(!_cv || _cv.closed) return;
-  const R = _cvRecClass(); if(!R){ _cvSet('idle'); return; }
-  _cvBargeStop();
+  const R = _cvRecClass(), G = _cvSttOn();
+  if(!R && !G){ _cvSet('idle'); return; }
+  _cvBargeStop(); _cvMicStop();
   try { if(_cv.rec) _cv.rec.abort(); } catch(e) {}
-  const rec = new R(); _cv.rec = rec; _cv.heard = '';
-  rec.lang = 'fr-FR'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+  const rec = R ? new R() : { start: function(){}, stop: function(){}, abort: function(){} }; _cv.rec = rec; _cv.heard = '';
+  if(R){ rec.lang = 'fr-FR'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1; }
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you');
-  let quiet = null, sent = false;
-  const finish = function(){ if(sent || !_cv || _cv.rec !== rec) return; sent = true; clearTimeout(quiet); try { rec.stop(); } catch(e) {} const t = _cv.heard.trim(); if(t){ _cv.empty = 0; cvAsk(t); } else { _cv.empty++; _cvSet('idle', _cv.empty > 1 ? 'Touche pour parler' : 'Je n\'ai rien entendu — touche pour parler'); } };
-  rec.onresult = function(e){
-    let fin = '', tmp = '';
-    for(let i = 0; i < e.results.length; i++){ const r = e.results[i]; if(r.isFinal) fin += r[0].transcript + ' '; else tmp += r[0].transcript; }
-    _cv.heard = (fin + ' ' + tmp).replace(/\s+/g, ' ').trim();
-    if(!rec._spoke && _cv.heard){ rec._spoke = true; _cvLogPush(); }   // tu parles : l'échange précédent rejoint le fil
-    if(ov){ ov.classList.add('hear'); clearTimeout(rec._hearT); rec._hearT = setTimeout(function(){ ov.classList.remove('hear'); }, 260); }
-    if(you){ you.textContent = _cv.heard; you.classList.toggle('interim', !!tmp); _cvScroll(); }
-    clearTimeout(quiet); quiet = setTimeout(finish, cvTurnWait(_cv.heard, !tmp));
+  let quiet = null, sent = false, M = null, idle = null, cap = null;
+  const hear = function(){ if(!rec._spoke){ rec._spoke = true; _cvLogPush(); } if(ov){ ov.classList.add('hear'); clearTimeout(rec._hearT); rec._hearT = setTimeout(function(){ ov.classList.remove('hear'); }, 260); } };
+  const nothing = function(){ _cv.empty++; _cvSet('idle', _cv.empty > 1 ? 'Touche pour parler' : 'Je n\'ai rien entendu — touche pour parler'); };
+  const finish = function(){
+    if(sent || !_cv || _cv.rec !== rec) return; sent = true; _cv.finish = null; clearTimeout(quiet); clearTimeout(idle); clearTimeout(cap);
+    try { rec.stop(); } catch(e) {}
+    const t = _cv.heard.trim();
+    if(M && M.ok && M.voice){                                         // phrase enregistrée : transcrite par Google
+      _cvSet('think', 'Je t\'ai entendu…');
+      const sec = (Date.now() - M.t0) / 1000, turn = _cv.turn;
+      _cvMicStop(M).then(function(b){ return b ? _cvStt(b, sec) : null; }).then(function(g){
+        if(!_cv || _cv.closed || _cv.turn !== turn) return;
+        const txt = g && g.replace(/[\s.?!,]/g, '').length >= 2 ? g : t;
+        if(txt){ _cv.empty = 0; cvAsk(txt); } else nothing();
+      });
+      return;
+    }
+    _cvMicStop(M);
+    if(t){ _cv.empty = 0; cvAsk(t); } else nothing();
   };
-  rec.onerror = function(e){
-    if(!e || !/not-allowed|service-not-allowed/.test(e.error || '')) return;
-    sent = true;
-    if(auto) _cvSet('idle', 'Touche pour parler');
-    else { _cv.canListen = false; _cvSet('idle', 'Micro refusé — écris ta question en bas'); }
-  };
-  rec.onend = function(){ if(!sent && _cv && _cv.rec === rec && _cv.heard && quiet) return; finish(); };   // la dictée s'arrête seule : on attend la fin du délai en cours
+  _cv.finish = finish;
+  if(R){
+    rec.onresult = function(e){
+      let fin = '', tmp = '';
+      for(let i = 0; i < e.results.length; i++){ const r = e.results[i]; if(r.isFinal) fin += r[0].transcript + ' '; else tmp += r[0].transcript; }
+      _cv.heard = (fin + ' ' + tmp).replace(/\s+/g, ' ').trim();
+      if(_cv.heard) hear();                                           // tu parles : l'échange précédent rejoint le fil
+      if(you){ you.textContent = _cv.heard; you.classList.toggle('interim', !!tmp); _cvScroll(); }
+      clearTimeout(quiet); quiet = setTimeout(finish, cvTurnWait(_cv.heard, !tmp));
+    };
+    rec.onerror = function(e){
+      if(!e || !/not-allowed|service-not-allowed/.test(e.error || '')) return;
+      if(M && M.ok) return;                                           // micro Google ouvert : il prend le relais
+      sent = true; _cv.finish = null; _cvMicStop(M);
+      if(auto) _cvSet('idle', 'Touche pour parler');
+      else { _cv.canListen = !!G; _cvSet('idle', G ? 'Touche pour parler' : 'Micro refusé — écris ta question en bas'); }
+    };
+    rec.onend = function(){
+      if(!sent && _cv && _cv.rec === rec && _cv.heard && quiet) return;   // la dictée s'arrête seule : on attend la fin du délai en cours
+      if(!sent && M && M.ok && M.voice && !_cv.heard) return;          // la dictée n'a rien compris mais tu parles : fin au silence
+      finish();
+    };
+  }
   _cvSet('listen');                                               // la réponse précédente reste affichée jusqu'à ce que tu parles
   _cvTone('listen');
-  const go = function(){ if(!_cv || _cv.rec !== rec || sent) return; try { rec.start(); } catch(e) { sent = true; _cvSet('idle'); } };   // iPhone : relance refusée hors d'un toucher → « Touche pour parler »
+  const go = function(){
+    if(!_cv || _cv.rec !== rec || sent) return;
+    if(G){ M = _cvMicStart(); M.onVoice = hear; M.onSilence = function(){ if(!_cv.heard && !sent) finish(); }; }
+    if(R) try { rec.start(); } catch(e) { if(!G){ sent = true; _cv.finish = null; _cvSet('idle'); return; } }   // iPhone : relance refusée hors d'un toucher → « Touche pour parler »
+    idle = setTimeout(function(){ if(!_cv.heard && !(M && M.voice)) finish(); }, R ? 12000 : 9000);   // personne ne parle
+    cap = setTimeout(finish, 45000);                              // tour de parole de 45 s au plus
+  };
   if(_cv.prefs.sounds && _cv.ac) setTimeout(go, 180); else go();  // micro ouvert après le son (pas capté)
+}
+
+// ─── 6 · Reconnaissance vocale Google (fonction coachStt) ───
+function _cvSttAvail(){ return !!(_cvPrefs().stt !== 'native' && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined' && typeof authHeaders === 'function'); }
+function _cvSttOn(){ return !!(_cv && _cv.prefs.stt !== 'native' && !_cv.sttDown && _cvSttAvail()); }
+function _cvMicStart(){
+  const M = { chunks: [], t0: Date.now(), voice: false, lastVoice: 0, ok: false, stopped: false };
+  _cv.mic = M;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } }).then(function(stream){
+      if(!_cv || _cv.mic !== M || M.stopped){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+      M.stream = stream;
+      const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].filter(function(m){ try { return MediaRecorder.isTypeSupported(m); } catch(e) { return false; } })[0];
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
+      M.rec = rec; M.mime = rec.mimeType || mime || '';
+      rec.ondataavailable = function(e){ if(e.data && e.data.size) M.chunks.push(e.data); };
+      rec.start(250); M.ok = true; M.t0 = Date.now();
+      // niveau sonore : la bulle réagit ; fin du tour au silence si la dictée de l'iPhone ne renvoie rien
+      try { if(_cv.ac){ const src = _cv.ac.createMediaStreamSource(stream), an = _cv.ac.createAnalyser(); an.fftSize = 1024; src.connect(an); M.src = src;
+        const buf = new Float32Array(an.fftSize);
+        M.iv = setInterval(function(){
+          an.getFloatTimeDomainData(buf); let q = 0; for(let i = 0; i < buf.length; i++) q += buf[i] * buf[i];
+          if(Math.sqrt(q / buf.length) > 0.03){ M.voice = true; M.lastVoice = Date.now(); if(M.onVoice) M.onVoice(); }
+          else if(M.voice && M.onSilence && Date.now() - M.lastVoice > 1300) M.onSilence();
+        }, 100); } } catch(e) {}
+    }).catch(function(){ M.failed = true; if(_cv){ _cv.sttFails = (_cv.sttFails || 0) + 1; if(_cv.sttFails >= 2) _cv.sttDown = true; } });
+  } catch(e) { M.failed = true; }
+  return M;
+}
+function _cvMicStop(M){
+  M = M || (_cv && _cv.mic); if(!M) return Promise.resolve(null);
+  if(_cv && _cv.mic === M) _cv.mic = null;
+  if(M._done) return M._done;
+  M.stopped = true; clearInterval(M.iv); try { if(M.src) M.src.disconnect(); } catch(e) {}
+  M._done = new Promise(function(ok){
+    let f = false;
+    const fin = function(){ if(f) return; f = true; try { if(M.stream) M.stream.getTracks().forEach(function(t){ t.stop(); }); } catch(e) {} ok(M.chunks.length ? new Blob(M.chunks, { type: M.mime || 'audio/mp4' }) : null); };
+    if(M.rec && M.rec.state !== 'inactive'){ M.rec.onstop = fin; try { M.rec.stop(); } catch(e) { fin(); } setTimeout(fin, 900); } else fin();
+  });
+  return M._done;
+}
+function _cvHints(){
+  const H = [];
+  try { (typeof getShoes === 'function' ? getShoes() : []).forEach(function(x){ if(x && x.name) H.push(String(x.name)); }); } catch(e) {}
+  try { const R = typeof prepRace === 'function' ? prepRace() : null; if(R && R.name) H.push(String(R.name)); } catch(e) {}
+  try { const n = typeof athleteFirstName === 'function' ? athleteFirstName() : ''; if(n) H.push(n); } catch(e) {}
+  return H.slice(0, 20);
+}
+async function _cvStt(blob, sec){
+  const base = typeof FUNCTIONS_BASE !== 'undefined' ? FUNCTIONS_BASE : 'https://us-central1-prepa-marathon.cloudfunctions.net';
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, to = setTimeout(function(){ try { if(ctl) ctl.abort(); } catch(e) {} }, 4500);
+  try {
+    const b64 = await new Promise(function(ok, ko){ const r = new FileReader(); r.onload = function(){ ok(String(r.result).split(',')[1] || ''); }; r.onerror = ko; r.readAsDataURL(blob); });
+    const r = await fetch(base + '/coachStt', { method: 'POST', headers: await authHeaders(false), body: JSON.stringify({ audio: b64, sec: Math.round(sec * 10) / 10, hints: _cvHints() }), signal: ctl ? ctl.signal : undefined });
+    const j = await r.json().catch(function(){ return {}; });
+    if(!r.ok || j.fallback) throw new Error(j.reason || 'HTTP ' + r.status);
+    if(_cv) _cv.sttFails = 0;
+    return String(j.text || '').trim();
+  } catch(e) { if(_cv){ _cv.sttFails = (_cv.sttFails || 0) + 1; if(_cv.sttFails >= 2) _cv.sttDown = true; } return null; }   // 2 échecs : dictée de l'iPhone pour la suite
+  finally { clearTimeout(to); }
 }
 function cvTyped(){ const i = document.getElementById('cv-in'); const t = i ? i.value.trim() : ''; if(!t) return; i.value = ''; i.blur(); cvAsk(t); }
 // l'échange terminé (ta phrase, sa réponse, sa carte) rejoint le fil au-dessus ; la zone « en cours » est vidée
 function _cvLogPush(){
   if(!_cv) return;
-  const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), card = ov && ov.querySelector('.cv-card'), log = ov && ov.querySelector('.cv-log');
+  const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), card = ov && ov.querySelector('.cv-card'), log = ov && ov.querySelector('.cv-log'), vote = ov && ov.querySelector('.cv-vote');
   if(!log || !_cv.reply) return;
-  _cv.log.push({ u: you ? you.textContent : '', c: _cv.reply.replace(/[*#`_]/g, ''), k: card ? card.innerHTML.replace(/<div class="cv-ok">[\s\S]*?<\/div>/g, '') : '' }); _cv.log = _cv.log.slice(-6);
-  log.innerHTML = _cv.log.map(function(x){ return (x.u ? '<p class="u">' + _cvE(x.u) + '</p>' : '') + '<p class="c">' + cvRich(x.c) + '</p>' + (x.k ? '<div class="k">' + x.k + '</div>' : ''); }).join('');
-  if(you){ you.textContent = ''; you.classList.remove('interim'); } if(co) co.innerHTML = ''; if(card) card.innerHTML = '';
+  _cv.log.push({ u: you ? you.textContent : '', c: _cv.reply.replace(/[*#`_]/g, ''), k: card ? card.innerHTML.replace(/<div class="cv-ok">[\s\S]*?<\/div>/g, '') : '', f: vote ? vote.innerHTML : '' }); _cv.log = _cv.log.slice(-6);
+  log.innerHTML = _cv.log.map(function(x){ return (x.u ? '<p class="u">' + _cvE(x.u) + '</p>' : '') + '<p class="c">' + cvRich(x.c) + '</p>' + (x.f ? x.f : '') + (x.k ? '<div class="k">' + x.k + '</div>' : ''); }).join('');
+  if(you){ you.textContent = ''; you.classList.remove('interim'); } if(co) co.innerHTML = ''; if(card) card.innerHTML = ''; if(vote) vote.innerHTML = '';
   _cv.reply = ''; _cv.hl = null; _cvScroll();
 }
 function _cvScroll(){ const th = document.querySelector('#cv-ov .cv-th'); if(th) th.scrollTop = th.scrollHeight; }
 // réponse en cours : chiffres en pastilles, phrase lue surlignée
 function _cvCo(text){ const co = document.querySelector('#cv-ov .cv-co'); if(co){ co.innerHTML = cvRich(text, _cv && _cv.hl); _cvScroll(); } }
 // question → Coach (mode voix) ; chaque phrase reçue part tout de suite à la lecture
-function cvAsk(text){
+function cvAsk(text, shown, direct){
   if(!_cv || !text) return;
   try { if(_cv.rec) _cv.rec.abort(); } catch(e) {}
+  _cv.finish = null; _cvMicStop();
   _cvHush(); _cv.mute = false;
   _cvLogPush();
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), sug = ov && ov.querySelector('.cv-sug'), set = ov && ov.querySelector('.cv-set');
   text = cvFixTranscript(text);                                   // vocabulaire course (EF, VMA, 4'12…)
-  if(you){ you.textContent = text; you.classList.remove('interim'); } if(co) co.innerHTML = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
+  if(you){ you.textContent = shown || text; you.classList.remove('interim'); } if(co) co.innerHTML = ''; if(sug) sug.style.display = 'none'; if(set) set.remove();
   _cv.hl = null; _cvScroll();
   const card = ov && ov.querySelector('.cv-card'); if(card) card.innerHTML = '';
   _cv.lastQ = text;
@@ -353,13 +447,17 @@ function cvAsk(text){
   const offer = _cv.offer, pend = _cv.pending, applied = _cv.lastApplied; _cv.offer = null; _cv.pending = null;
   if(offer === 'brief' && yes) text = 'Lis mon brief';            // « Ton brief est prêt, je te le lis ? » → « oui »
   if(pend && (yes || no)){ _cvTone('send'); _cvPlanAnswer(pend, yes); return; }   // « Je valide ? » → oui / non
+  if(_cv.deb && !_cv.deb.done && !(cvIntent(text) || {}).k){ _cvTone('send'); if(_cvDebriefTurn(text)) return; }   // débrief de séance en cours
   if(applied && CV_UNDO_RE.test(text.trim())){ _cvTone('send'); _cvPlanUndo(applied); return; }
   _cv.lastApplied = null;
-  const long = cvWantsLong(text, _cv.lastCut); _cv.lastCut = false;   // détail demandé : réponse complète
+  const long = !direct && cvWantsLong(text, _cv.lastCut); _cv.lastCut = false;   // détail demandé : réponse complète
   _cv.buf = ''; _cv.reply = ''; _cv.said = ''; _cv.nS = 0; _cv.nW = 0; _cv.cut = false; _cv.streamDone = false; const turn = _cv.turn = (_cv.turn || 0) + 1;
   const clean = function(t){ return String(t).replace(/[*#`_]/g, '').replace(/\s{2,}/g, ' ').trim(); };
+  _cv.nFix = 0; _cv.toolSaid = false; _cv.F = null;
+  try { if(typeof cfFacts === 'function') _cv.F = cfFacts(); } catch(e) { diagSilent(e, 'coach-voice:facts'); }
   const take = function(x){                                       // phrase gardée → lue tout de suite ; trop long → coupé
     if(_cv.cut) return;
+    if(_cv.F && typeof cvVerifySentence === 'function'){ const V = cvVerifySentence(x, _cv.F); if(V.fixes.length){ x = V.text; _cv.nFix += V.fixes.length; } }   // chiffres vérifiés avant d'être lus
     if(!cvKeep(_cv.nS, _cv.nW, x, long)){
       _cv.cut = true; _cv.buf = '';
       if(!long && !/\?\s*$/.test(_cv.said)){ const q = 'Tu veux le détail ?'; _cv.said += ' ' + q; _cvQueue(q); }   // « oui » → version complète
@@ -370,9 +468,9 @@ function cvAsk(text){
   };
   const show = function(){ _cv.reply = clean(_cv.said + (_cv.cut ? '' : ' ' + _cv.buf)); _cvCo(_cv.reply); };
   _cvTone('send');
-  if(_cvLocal(text)) return;                                      // commande vocale : réponse immédiate, sans le Coach
-  const memo = cvMemoIntent(text); if(memo){ _cvMemo(memo, turn); return; }   // « note que… » → mémo du Coach
-  if(cvActionIntent(text) && typeof pcSend === 'function'){ _cvPlanAction(text, turn); return; }   // « décale ma séance… » → plan
+  if(!direct && _cvLocal(text)) return;                                      // commande vocale : réponse immédiate, sans le Coach
+  const memo = !direct && cvMemoIntent(text); if(memo){ _cvMemo(memo, turn); return; }   // « note que… » → mémo du Coach
+  if(!direct && cvActionIntent(text) && typeof pcSend === 'function'){ _cvPlanAction(text, turn); return; }   // « décale ma séance… » → plan
   _cvSet('think');
   if(typeof sendCoachMessage !== 'function'){ _cvSet('idle', 'Coach indisponible'); return; }
   _cv.aiTurns = (_cv.aiTurns || 0) + 1;
@@ -386,7 +484,12 @@ function cvAsk(text){
       if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
       _cv.buf += tok; const S = cvSentences(_cv.buf, false); _cv.buf = S.rest; S.out.forEach(takeT); show();
     },
-    onDone: function(full){
+    onTool: function(o){                                          // il va chercher une séance, la météo… : une petite phrase en attendant
+      if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
+      clearTimeout(_cv.fillT);
+      if(!_cv.said && !_cv.speaking && !_cv.q.length && !_cv.toolSaid && o && o.say){ _cv.toolSaid = true; _cvQueue(o.say); }
+    },
+    onDone: function(full, meta){
       if(!_cv || _cv.turn !== turn) return;
       clearTimeout(_cv.fillT);
       if(full == null){ _cv.streamDone = true; _cvSet('idle', 'Le Coach n\'a pas pu répondre — touche pour réessayer'); return; }
@@ -394,6 +497,7 @@ function cvAsk(text){
       if(!_cv.mute && !_cv.cut){ const S = cvSentences(_cv.buf, true); S.out.forEach(takeT); }
       _cv.buf = ''; show();
       _cvLatPush({ at: Date.now(), tok: tTok, say: tSay, long: long ? 1 : 0 });   // délai jusqu'au 1er mot (Diagnostic)
+      if(typeof cfLog === 'function'){ const fid = cfLog({ q: text, a: _cv.said, m: 'voix', cut: _cv.cut, lat: tSay, fix: _cv.nFix, tools: meta && meta.tools }); const vb = document.querySelector('#cv-ov .cv-vote'); if(vb) vb.innerHTML = cfVoteHtml(fid); }   // note 👍 / 👎
       _cvShowCard(cvCardKind(text), _cv.said);                    // montrer en parlant : plan de course, séance, forme, prédiction
       if(!long && /d[ée]taill?e?\b[^.?!]*\?\s*$/i.test(_cv.said)) _cv.lastCut = true;   // « Tu veux que je détaille ? » → « oui » = détail
       _cv.streamDone = true; _cvNext();
@@ -440,6 +544,7 @@ function _cvSay(text, after){
   cvSentences(text, true).out.forEach(_cvQueue);
   if(!_cv.q.length && !_cv.speaking){ const f = _cv.after; _cv.after = null; if(f) f(); else _cvNext(); }
 }
+function _cvAddDays(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return _cvIso(d); }
 function _cvToday(){ return typeof prTodayIso === 'function' ? prTodayIso() : new Date().toISOString().slice(0, 10); }
 // texte du brief du matin : en attente de lecture, sinon le dernier brief du jour dans le fil du Coach
 function cvBriefText(st, today, hist){
@@ -484,6 +589,7 @@ function _cvLocal(text){
     _cvSay(I.d < 0 ? (n === 0 && cur === 0 ? 'Je parle déjà au plus lent.' : 'D\'accord, je parle plus lentement.') : (n === i.length - 1 && cur === n ? 'Je parle déjà au plus vite.' : 'D\'accord, je parle plus vite.'));
     return true;
   }
+  if(I.k === 'debrief'){ _cvDebriefStart(null); return true; }
   if(I.k === 'bye'){ _cvSay(_cv.aiTurns ? 'À plus tard ! Je garde l\'essentiel de ce qu\'on s\'est dit.' : 'À plus tard !', function(){ closeCoachVoice(); }); return true; }
   return false;
 }
@@ -525,11 +631,103 @@ function cvGreeting(st, now, name){
   return { text: hi + ' ' + mid + ' Une question ?', offer: null };
 }
 
+// ouverture complétée (hors brief) : séance du jour validée sans ressenti → débrief ; sinon point à suivre dont la relance est due
+function _cvOpening(G){
+  const st = typeof state !== 'undefined' ? state : null, today = _cvToday();
+  const hi = (String(G.text).match(/^(?:Salut|Bonsoir)[^.]*\./) || [''])[0];
+  const deb = _cvDebriefSession(true);
+  if(deb){ _cv.deb = { key: deb.key, s: deb, parts: [], asked: {} }; return { text: (hi ? hi + ' ' : '') + cvDebriefOpening(deb), offer: null }; }
+  const th = typeof cfThreadDue === 'function' && st ? cfThreadDue(st, today) : null;
+  if(th){
+    const t = String(G.text).replace(/\s*Une question \?$/, '') + ' ' + cfFollowQ(th);
+    if(typeof cfThreadAsked === 'function') cfThreadAsked(th.id);
+    if(typeof coachHistory !== 'undefined') coachHistory.push({ role: 'assistant', content: t, date: today });   // le Coach sait à quoi tu réponds
+    return { text: t, offer: null };
+  }
+  return G;
+}
+
+// ─── 2 · Débrief de séance à la voix : « comment c'était ? », une ou deux relances, puis effort, douleur et ressenti enregistrés ───
+const CV_DEB_Q = { rpe: 'Et l\'effort, sur 10 ?', pain: 'Une douleur ou une gêne quelque part ?' };
+function cvDebriefOpening(s){
+  const p = (s && s.perf) || {}, km = s && s.km ? String(Math.round(s.km * 10) / 10).replace('.', ',') + ' km' : '', pace = p.pace ? String(p.pace).replace(':', '\'') + '/km' : '';
+  return 'Bravo pour ' + (km ? 'tes ' + km : 'ta séance') + (pace ? ' à ' + pace : '') + ' ! Raconte-moi : comment c\'était ?';
+}
+// ce qui manque après tes réponses : {ask: 'rpe' | 'pain' | null, rpe, pain, note} (lecture locale jvParse + réponses courtes)
+function cvDebriefNext(parts, asked){
+  asked = asked || {};
+  // asked.rpe / asked.pain = rang de la réponse à cette question dans parts
+  const all = (parts || []).join('. '), ans = function(i){ return String((parts || [])[i] || '').toLowerCase().replace(/[’]/g, "'").trim(); };
+  const P = typeof jvParse === 'function' ? jvParse(all) : { rpe: null, pain: null, note: all };
+  let rpe = P.rpe, pain = P.pain;
+  if(!rpe && asked.rpe != null){ const m = ans(asked.rpe).match(/\b(10|[1-9])\b|\b(un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\b/); if(m) rpe = m[1] ? +m[1] : CV_NUM[m[2]]; }
+  if(pain == null && asked.pain != null && /^(non|nan|rien|aucune?|pas (de|du tout)|tout va bien|nickel|ras)\b/.test(ans(asked.pain))) pain = { level: 0, zone: null };
+  const ask = !rpe && asked.rpe == null ? 'rpe' : pain == null && asked.pain == null ? 'pain' : null;
+  return { ask: ask, rpe: rpe || null, pain: pain, note: P.note || null };
+}
+// séance à débriefer : validée automatiquement sans ressenti (aujourd'hui seulement à l'ouverture), sinon la dernière faite (≤ 1 jour)
+function _cvDebriefSession(todayOnly){
+  const today = _cvToday();
+  try {
+    const L = typeof avPendingFeel === 'function' ? avPendingFeel() : [];
+    const a = L.filter(function(s){ return !todayOnly || s.date === today; }).sort(function(x, y){ return x.date < y.date ? 1 : -1; })[0];
+    if(a || todayOnly) return a || null;
+    const st = typeof prRealState === 'function' ? prRealState() : state;
+    return (typeof prSessions === 'function' ? prSessions(st) : []).filter(function(s){ return s.done && s.type !== 'rest' && s.date && s.date <= today && s.date >= _cvAddDays(today, -1); })
+      .sort(function(x, y){ return x.date < y.date ? 1 : -1; })[0] || null;
+  } catch(e) { diagSilent(e, 'coach-voice:_cvDebriefSession'); return null; }
+}
+function _cvDebriefStart(key){
+  if(!_cv) return;
+  let s = null;
+  try { if(key && typeof prSessions === 'function') s = prSessions(typeof prRealState === 'function' ? prRealState() : state).filter(function(x){ return x.key === key && x.done; })[0] || null; } catch(e) { diagSilent(e, 'coach-voice:_cvDebriefStart'); }
+  s = s || _cvDebriefSession(false);
+  if(!s){ _cvSay('Je ne trouve pas de séance récente à débriefer. Pose-moi ta question !'); return; }
+  _cv.deb = { key: s.key, s: s, parts: [], asked: {} };
+  _cvSay(cvDebriefOpening(s), _cvListenAfter);
+}
+function _cvListenAfter(){ if(_cv && !_cv.closed){ if(_cv.canListen && _cv.prefs.auto) cvListen(true); else _cvSet('idle'); } }
+// une réponse du débrief : relance (effort, douleur) ou enregistrement ; false = ce n'était pas un débrief (une question)
+function _cvDebriefTurn(text){
+  const d = _cv.deb;
+  if(!d.parts.length && (/\?\s*$/.test(text) || /^(est-ce|pourquoi|comment je|quel|quelle|combien|qu'est-ce)/i.test(text.trim()))){ _cv.deb = null; return false; }
+  d.parts.push(text);
+  const N = cvDebriefNext(d.parts, d.asked);
+  _cvLogPush();
+  const you = document.querySelector('#cv-ov .cv-you'); if(you) you.textContent = text;
+  if(N.ask){ d.asked[N.ask] = d.parts.length; _cvSay(CV_DEB_Q[N.ask], _cvListenAfter); return true; }   // la prochaine réponse répond à cette question
+  d.done = true; _cvDebriefSave(N);
+  return true;
+}
+async function _cvDebriefSave(N){
+  const d = _cv.deb, k = d.key, s = d.s, text = d.parts.join(' ').slice(0, 1200);
+  _cvSet('think', 'Je note ton ressenti…');
+  let p = {}; try { p = JSON.parse(state[k + '_perf'] || '{}') || {}; } catch(e) {}
+  let rpe = N.rpe, pain = N.pain, note = N.note;
+  try {   // lecture fine par le Coach (même fonction que « Raconte ta séance ») ; la lecture locale reste le repli
+    const base = typeof FUNCTIONS_BASE !== 'undefined' ? FUNCTIONS_BASE : 'https://us-central1-prepa-marathon.cloudfunctions.net';
+    const r = await fetch(base + '/sessionJournal', { method: 'POST', headers: await authHeaders(false), body: JSON.stringify({ text: text, session: { title: s.title, type: s.type, km: s.km, pace: p.pace, hr: p.hr } }) });
+    const j = await r.json();
+    if(j && j.success){ if(j.rpe) rpe = j.rpe; if(j.pain) pain = j.pain; if(j.note) note = j.note; }
+  } catch(e) {}
+  if(!_cv) return;
+  if(rpe) p.rpe = rpe; if(pain) p.pain = pain; p.journal = text; if(note) p.note = note; delete p.feelSkip;
+  try { state[k + '_perf'] = JSON.stringify(p); save(); if(typeof sessionChanged === 'function') sessionChanged({ now: true }); } catch(e) { diagSilent(e, 'coach-voice:_cvDebriefSave'); }
+  _cv.deb = null;
+  if(typeof showToast === 'function') showToast('Ressenti enregistré' + (rpe ? ' · effort ' + rpe + '/10' : ''), '🎙️');
+  const km = s.km ? String(Math.round(s.km * 10) / 10).replace('.', ',') + ' km' : '';
+  const msg = 'Débrief de ma séance « ' + s.title + ' » (' + km + (p.pace ? ' à ' + String(p.pace).replace(':', '\'') + '/km' : '') + (p.hr ? ', FC ' + p.hr : '') + ') : « ' + text + ' ».'
+    + (rpe ? ' Effort ' + rpe + '/10.' : '') + (pain && pain.level ? ' Douleur ' + pain.level + '/3' + (pain.zone ? ' (' + pain.zone + ')' : '') + '.' : pain ? ' Aucune douleur.' : '')
+    + ' Réagis en 1 ou 2 phrases, comme un coach qui écoute.';
+  cvAsk(msg, d.parts[d.parts.length - 1], true);
+}
+
 // ─── 4 · Montrer en parlant : une carte sous la réponse ───
 function cvCardKind(q){
   const t = String(q || '').toLowerCase().replace(/[’]/g, "'");
   if(/plan de course|km par km|kilom[eè]tres? par kilom[eè]tre|strat[ée]gie de course|allures? (de|pour) (la |ma )?course|d[ée]coupage/.test(t)) return 'race';
   if(/pr[ée]diction|pr[ée]vu|quel temps|chrono|en combien|temps (pour|de|à) (ma |la )?course|viser/.test(t)) return 'pred';
+  if(/allure (ef|d'endurance|endurance)|\bef\b|endurance fondamentale|progress/.test(t)) return 'ef';
   if(/\bforme\b|r[ée]cup|fatigu|sommeil|whoop|en forme/.test(t)) return 'form';
   if(/s[ée]ance|aujourd'hui|ce soir|ce matin|demain|footing|fractionn|tempo|sortie longue/.test(t)) return 'sess';
   return null;
@@ -581,6 +779,14 @@ function cvCardHtml(kind, reply){
         + '<div><small>Prévu</small><b>' + _cvT(P.sec) + '</b></div>' + (P.lo && P.hi ? '<div><small>Fourchette</small><b>' + _cvT(P.lo) + ' – ' + _cvT(P.hi) + '</b></div>' : '')
         + (R.objectif && R.objectif !== 'non défini' ? '<div><small>Objectif</small><b>' + _cvE(R.objectif) + '</b></div>' : '') + '<div><small>Allure</small><b>' + _cvP(P.pace) + '/km</b></div></div></div>';
     }
+    if(kind === 'ef'){
+      const P = cvEfPoints(typeof prAllDone === 'function' ? prAllDone(_cvIso(new Date())) : []); if(P.length < 2) return '';
+      const slow = Math.max.apply(null, P.map(function(x){ return x.p; })), fast = Math.min.apply(null, P.map(function(x){ return x.p; }));
+      const ef = typeof getBestEfPace === 'function' ? getBestEfPace() : null;
+      return '<div class="cv-cd"><p class="cv-cdh"><span>📈 Allure EF · sur plat</span><b>' + (ef ? _cvE(String(ef).replace(':', '\'')) + '/km' : '') + '</b></p>'
+        + P.map(function(x, i){ return '<div class="cv-sp' + (i === P.length - 1 ? ' l' : '') + '"><span>' + _cvE(x.d.slice(8) + '/' + x.d.slice(5, 7)) + '</span><i><u style="width:' + (slow > fast ? Math.round(35 + 65 * (slow - x.p) / (slow - fast)) : 70) + '%"></u></i><b>' + _cvP(x.p) + '</b><small>' + (x.hr ? '♥' + x.hr : '') + '</small></div>'; }).join('')
+        + '<p class="cv-cdl">' + (P[P.length - 1].p < P[0].p ? '↗ ' + (P[0].p - P[P.length - 1].p) + ' s/km plus rapide qu\'au début' : P[P.length - 1].p > P[0].p ? '↘ ' + (P[P.length - 1].p - P[0].p) + ' s/km plus lent qu\'au début' : '= stable') + ' · barre longue = plus rapide</p></div>';
+    }
     if(kind === 'form'){
       const F = typeof prFormScore === 'function' ? prFormScore() : null;
       if(!F || F.score == null) return '';
@@ -599,6 +805,14 @@ function cvCardHtml(kind, reply){
     }
   } catch(e) { diagSilent(e, 'coach-voice:cvCardHtml'); }
   return '';
+}
+// tes 6 dernières sorties EF / longues : allure sur plat (pente et météo retirées), FC
+function cvEfPoints(done){
+  return (done || []).filter(function(s){ return (s.type === 'ef' || s.type === 'long') && s.perf && s.perf.pace; }).slice(-6).map(function(s){
+    let p = null; try { const E = typeof prEqPace === 'function' ? prEqPace(s.perf, s.km) : null; if(E && E.eq) p = Math.round(E.eq); } catch(e) {}
+    if(!p){ const m = String(s.perf.pace).match(/(\d{1,2})[:'’](\d{2})/); p = m ? +m[1] * 60 + +m[2] : null; }
+    return { d: s.date, p: p, hr: parseInt(s.perf.hr) || null };
+  }).filter(function(x){ return x.p; });
 }
 function _cvShowCard(kind, reply){
   const el = document.querySelector('#cv-ov .cv-card'); if(!el) return;
@@ -689,7 +903,7 @@ function cvFixTranscript(t){
 function cvEditYou(){
   if(!_cv) return;
   const you = document.querySelector('#cv-ov .cv-you'); if(!you || !you.textContent.trim()) return;
-  if(_cv.st === 'listen'){ try { if(_cv.rec){ const r = _cv.rec; _cv.rec = null; r.abort(); } } catch(e) {} _cvSet('idle'); }   // micro rouvert : on l'arrête pour corriger
+  if(_cv.st === 'listen'){ try { if(_cv.rec){ const r = _cv.rec; _cv.rec = null; r.abort(); } } catch(e) {} _cv.finish = null; _cvMicStop(); _cvSet('idle'); }   // micro rouvert : on l'arrête pour corriger
   const i = document.getElementById('cv-in'); if(!i) return;
   i.value = you.textContent; i.focus(); try { i.setSelectionRange(0, i.value.length); } catch(e) {}
   _cvSet(_cv.st === 'speak' ? 'speak' : 'idle', 'Corrige ta phrase en bas puis Envoyer');
@@ -804,7 +1018,7 @@ async function _cvPlayGoogle(it, t, turn){
 }
 function _cvStopGoogle(){ if(!_cv || !_cv.src) return; const s = _cv.src; _cv.src = null; try { s.onended = null; s.stop(); } catch(e) {} }
 // voix Google proposées dans les réglages (liste gardée 1 jour sur le téléphone)
-function _cvGLabel(v){ return (v.gender === 'FEMALE' ? 'Femme' : v.gender === 'MALE' ? 'Homme' : 'Voix') + ' ' + String(v.name).replace(/^fr-FR-(Neural2|Wavenet)-/, '') + ' · ' + v.kind; }
+function _cvGLabel(v){ return (v.gender === 'FEMALE' ? 'Femme' : v.gender === 'MALE' ? 'Homme' : 'Voix') + ' ' + String(v.name).replace(/^fr-FR-(Neural2|Wavenet|Chirp3-HD)-/, '') + ' · ' + v.kind; }
 function _cvGVoices(){
   let c = null; try { c = JSON.parse(localStorage.getItem('pm_cv_gv') || 'null'); } catch(e) {}
   if(c && c.def) _cvGDef = c.def;

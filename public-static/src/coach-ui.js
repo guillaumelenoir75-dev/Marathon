@@ -230,15 +230,12 @@ async function sendCoachMessage(retryMsg, opts){
   const container = document.getElementById('coach-messages');
   const loader = document.createElement('div');
   loader.id = 'coach-loader';
-  loader.style.cssText = 'display:flex;align-items:center;gap:8px;';
+  loader.className = 'cc-msg cc-c';
   // Fix 7: désactiver bouton envoi pendant génération
   const sendBtn = document.getElementById('coach-send-btn');
   if(sendBtn){ sendBtn.disabled=true; sendBtn.style.opacity='0.35'; sendBtn.style.cursor='not-allowed'; }
   // Fix 1: loader avec message texte au lieu des 3 points
-  loader.innerHTML = '<div style="width:32px;height:32px;border-radius:50%;background:#0C447C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:14px;">🤖</span></div>'
-    + '<div style="background:var(--bg);border-radius:4px 14px 14px 14px;padding:10px 14px;border-left:3px solid rgba(27,79,216,0.2);">'
-    + '<div class="coach-typing"><span>Le Coach écrit</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div>'
-    + '</div>';
+  loader.innerHTML = '<div class="cc-av">🤖</div><div class="cc-b"><div class="coach-typing"><span>Le Coach écrit</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>';
   container.appendChild(loader);
   container.scrollTo({top:container.scrollHeight, behavior:"smooth"});
   // Always scroll on new message send
@@ -496,6 +493,7 @@ async function sendCoachMessage(retryMsg, opts){
       enrichedMsg = msg + '\n\n[Dates exactes séances: ' + planningDatesFinal + '. AUJOURD\'HUI = ' + jourActuel + ' ' + _dateAuj + '. Utilise UNIQUEMENT ces dates, ne calcule jamais toi-même.]';
     }
 
+    const t0 = Date.now();
     const response = await fetch('https://us-central1-prepa-marathon.cloudfunctions.net/coachChat', {
       method:'POST',
       headers:await authHeaders(true),
@@ -507,14 +505,14 @@ async function sendCoachMessage(retryMsg, opts){
     // Préparer la bulle réponse (PAS encore dans le DOM)
     const container = document.getElementById('coach-messages');
     const bubbleWrap = document.createElement('div');
-    bubbleWrap.style.cssText = 'display:flex;align-items:flex-start;gap:8px;opacity:0;transition:opacity 0.3s ease;';
+    bubbleWrap.className = 'cc-msg cc-c';
+    bubbleWrap.style.cssText = 'opacity:0;transition:opacity 0.3s ease;';
     const avatar = document.createElement('div');
-    avatar.style.cssText = 'width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1B4FD8,#6B21A8);display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-    avatar.innerHTML = '<span style="font-size:14px;">🤖</span>';
+    avatar.className = 'cc-av'; avatar.textContent = '🤖';
     const bubble = document.createElement('div');
-    bubble.style.cssText = 'background:var(--bg);border-radius:4px 14px 14px 14px;padding:12px 14px;max-width:85%;border-left:3px solid rgba(27,79,216,0.2);box-shadow:0 1px 6px rgba(0,0,0,0.07);';
+    bubble.className = 'cc-b';
     const textEl = document.createElement('div');
-    textEl.style.cssText = 'font-size:14px;color:var(--text);line-height:1.7;';
+    textEl.className = 'cc-tx';
     bubble.appendChild(textEl);
     bubbleWrap.appendChild(avatar);
     bubbleWrap.appendChild(bubble);
@@ -524,7 +522,7 @@ async function sendCoachMessage(retryMsg, opts){
     if(!response.ok || !response.body) throw new Error('HTTP ' + response.status);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let fullText = '', buffer = '';
+    let fullText = '', buffer = '', tFirst = 0, nTools = 0;
 
     while(true) {
       const {done, value} = await reader.read();
@@ -537,12 +535,15 @@ async function sendCoachMessage(retryMsg, opts){
         const data = line.slice(6).trim();
         if(data === '[DONE]') continue;
         let parsed = null; try { parsed = JSON.parse(data); } catch(e) {}
-        if(parsed && parsed.token){ fullText += parsed.token; if(opts.onToken) try { opts.onToken(parsed.token); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); } }
+        if(parsed && parsed.token){ if(!tFirst) tFirst = Date.now() - t0; fullText += parsed.token; if(opts.onToken) try { opts.onToken(parsed.token); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); } }
+        if(parsed && parsed.tool){ nTools++; const lb = loader.querySelector('.coach-typing span'); if(lb) lb.textContent = 'Le Coach regarde tes données'; if(opts.onTool) try { opts.onTool(parsed); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); } }   // il va chercher une séance, la météo… (coach-tools.js)
+        if(parsed && parsed.threads && typeof cfThreadsAdopt === 'function') cfThreadsAdopt(parsed.threads);   // point à suivre ouvert / fermé par le Coach
       }
     }
 
-    // Injecter le texte dans la bulle (encore hors DOM)
-    const cleanedFullText = cleanTruncated(fullText);
+    // Injecter le texte dans la bulle (encore hors DOM) ; chiffres vérifiés sur les données de l'app (coach-plus.js)
+    let cleanedFullText = cleanTruncated(fullText), _fixes = [];
+    if(cleanedFullText && typeof cvVerify === 'function'){ try { const V = cvVerify(cleanedFullText, cfFacts()); cleanedFullText = V.text; _fixes = V.fixes; } catch(e) { diagSilent(e, 'coach-ui:verify'); } }
 
     // Si réponse vide → retry automatique silencieux (1 seule fois)
     if(!cleanedFullText && !window._coachRetrying) {
@@ -559,8 +560,13 @@ async function sendCoachMessage(retryMsg, opts){
     window._coachRetrying = false;
 
     textEl.innerHTML = cleanedFullText
-      ? renderCoachText(cleanedFullText)
+      ? (typeof cfMarkFixes === 'function' ? cfMarkFixes(renderCoachText(cleanedFullText), _fixes) : renderCoachText(cleanedFullText))
       : '<p style="margin:0;color:var(--muted);font-style:italic;">Je suis momentanément indisponible, réessaie dans quelques secondes.</p>';
+    // fil écrit : réponse notée 👍 / 👎 (coach-plus.js) ; la voix note ses propres réponses
+    if(cleanedFullText && !opts.voice && typeof cfLog === 'function'){
+      const fid = cfLog({ q: msg, a: cleanedFullText, m: 'chat', lat: tFirst, fix: _fixes.length, tools: nTools });
+      const v = document.createElement('div'); v.innerHTML = cfVoteHtml(fid); bubble.appendChild(v.firstChild);
+    }
 
     // Crossfade atomique : ajouter bulle au DOM opacity:0, puis fade-in/out simultané
     container.appendChild(bubbleWrap); // ajoute avec opacity:0 déjà défini
@@ -578,8 +584,9 @@ async function sendCoachMessage(retryMsg, opts){
 
     coachHistory.push({role:'assistant', content: cleanedFullText||'', date: new Date().toISOString().slice(0,10)});
     saveCoachHistory();
-    if(opts.onDone) try { opts.onDone(cleanedFullText || ''); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); }
+    if(opts.onDone) try { opts.onDone(cleanedFullText || '', { tools: nTools, fixes: _fixes.length, tok: tFirst }); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); }
     if(cleanedFullText) checkForPlanProposal(cleanedFullText, bubble);
+    if(cleanedFullText && !opts.voice) ccCardFor(msg, cleanedFullText, bubble, container);   // carte sous la réponse (plan de course, allure EF…)
     if(responseMode==='analyse'||responseMode==='rapport'){
       setTimeout(()=>{
         const chartQuery = _lastUserMessageBeforeProposal || msg;
@@ -595,6 +602,17 @@ async function sendCoachMessage(retryMsg, opts){
     addCoachMessage('coach', 'Désolé, je suis temporairement indisponible.');
     if(opts.onDone) try { opts.onDone(null); } catch(_) {}
   }
+}
+// fil écrit : même carte que le Coach à la voix sous la réponse (plan de course, prédiction, allure EF, forme, séance)
+async function ccCardFor(q, reply, bubble, container){
+  try {
+    if(typeof cvCardKind !== 'function' && typeof lazyLoad === 'function') await lazyLoad('voice');
+    const k = typeof cvCardKind === 'function' ? cvCardKind(q) : null; if(!k) return;
+    const html = cvCardHtml(k, reply); if(!html) return;
+    const d = document.createElement('div'); d.className = 'cc-card'; d.innerHTML = html;
+    const v = bubble.querySelector('.cf-v'); if(v) bubble.insertBefore(d, v); else bubble.appendChild(d);
+    if(container) smartScroll(container);
+  } catch(e) { diagSilent(e, 'coach-ui:ccCardFor'); }
 }
 function saveCoachHistory(){
   if(!dbRef) return;

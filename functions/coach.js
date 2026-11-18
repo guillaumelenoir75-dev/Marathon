@@ -396,13 +396,31 @@ let _ccCache = null;
 async function coachCtxLoad(useCache){
   if(useCache && _ccCache && Date.now() - _ccCache.at < CC_TTL) return _ccCache;
   const db = admin.database();
-  const [prep, situation] = await Promise.all([
+  const [prep, situation, fb] = await Promise.all([
     loadPrepState(db).catch(() => ({})),
-    db.ref(ADMIN_STATE).once('value').then((sn) => buildTrainingSituation(db, sn.val() || {})).then((r) => (r && r.text) || '').catch((e) => { console.warn('coachChat situation:', e.message); return ''; })
+    db.ref(ADMIN_STATE).once('value').then((sn) => buildTrainingSituation(db, sn.val() || {})).then((r) => (r && r.text) || '').catch((e) => { console.warn('coachChat situation:', e.message); return ''; }),
+    db.ref(ADMIN_STATE + '/_coach_fb').once('value').then((sn) => sn.val() || {}).catch(() => ({}))
   ]);
-  _ccCache = { at: Date.now(), prep, situation };
+  _ccCache = { at: Date.now(), prep, situation, fb };
   return _ccCache;
 }
+// ─── Notes de {{PRENOM}} sur les réponses (👍 / 👎 + raison, _coach_fb) → consignes ajustées : défauts récents à éviter ───
+const FB_WHY = { long: 'trop long', faux: 'chiffre ou fait faux', inutile: 'pas utile', flou: 'pas clair', court: 'trop court' };
+function fbText(fb, now){
+  now = now || Date.now();
+  const L = Object.keys(fb || {}).map((k) => fb[k]).filter((x) => x && x.at && now - x.at < 30 * 86400000).sort((a, b) => a.at - b.at);
+  if(!L.length) return '';
+  const up = L.filter((x) => x.v > 0).length, down = L.filter((x) => x.v < 0), why = {};
+  down.forEach((x) => { if(x.why) why[x.why] = (why[x.why] || 0) + 1; });
+  const W = Object.keys(why).sort((a, b) => why[b] - why[a]).map((k) => (FB_WHY[k] || k) + ' ×' + why[k]);
+  let s = `RETOURS DE {{PRENOM}} SUR TES RÉPONSES (30 derniers jours) : 👍 ${up} · 👎 ${down.length}${W.length ? ' (' + W.join(', ') + ')' : ''}.`;
+  const R = down.slice(-4);
+  if(R.length) s += '\nRéponses qu\'il n\'a pas aimées — évite ces défauts :' + R.map((x) => `\n  · « ${String(x.q || '').slice(0, 80)} » → « ${String(x.a || '').slice(0, 140)} »${x.why ? ' : ' + (FB_WHY[x.why] || x.why) : ''}`).join('');
+  if(why.long >= 2) s += '\nIl trouve souvent tes réponses trop longues : fais plus court que d\'habitude.';
+  if(why.faux >= 1) s += '\nIl a relevé des chiffres faux : appuie chaque chiffre sur les données (outils), sinon ne le donne pas.';
+  return s;
+}
+exports.fbText = fbText;
 // contexte allégé pour une réponse orale courte : les gros blocs (plan futur, historique détaillé) sont retirés
 function voiceLightCtx(ctx){
   const out = {};
@@ -415,6 +433,13 @@ function voiceLightCtx(ctx){
   return out;
 }
 exports.voiceLightCtx = voiceLightCtx;
+const { COACH_TOOLS, TOOL_SAY, ctLoad, ctRun, ctReset } = require('./coach-tools');
+const OUTILS_REGLE = `OUTILS — tu peux aller chercher les données toi-même (le contexte ne contient que les dernières séances, en résumé) :
+- detail_seance / comparer_seances / seances_faites : dès qu'on te parle d'une séance précise (« mardi », « hier », « ma dernière longue »), de splits, d'une comparaison ou d'une période, APPELLE l'outil au lieu de deviner ou de dire que tu n'as pas l'info.
+- seances_prevues : le plan au-delà de ce que montre le contexte. meteo : temps prévu un jour et une heure donnés. niveau_et_records : niveau, temps prévu, records, allures par zone.
+- Si le contexte suffit, réponds directement (plus rapide). Ne parle jamais d'« outil » ; au plus « Je regarde. » avant de chercher.
+- Chaque chiffre que tu donnes (allure, temps, km, FC) doit venir du contexte ou d'un outil ; sinon ne le donne pas.
+SUIVI — quand {{PRENOM}} évoque quelque chose à reprendre plus tard (douleur ou gêne, essai d'une chaussure, d'un gel ou d'une routine, fatigue inhabituelle, question qu'il veut revoir), appelle suivi_ouvrir. Quand sa réponse montre qu'un point de la liste « Points à suivre » est réglé, appelle suivi_fermer avec son id. Relance due : prends-en des nouvelles en une phrase courte, une seule fois (pas si c'est déjà fait aujourd'hui ou dans l'historique), sans en faire le sujet principal.`;
 const VOICE_TONES = { direct: 'TON : direct et factuel, va droit au but.', encourageant: 'TON : chaleureux et encourageant, valorise ce qui va bien avant de corriger.' };
 
 exports.coachChat = onRequest(
@@ -461,6 +486,7 @@ exports.coachChat = onRequest(
       const _cc = await coachCtxLoad(isVoice);
       const _prepSt = _cc.prep || {};
       const _situation = _cc.situation || '';
+      const _fbTxt = fbText(_cc.fb);
 
       const profilAthlete = `Tu es le coach running personnel de {{PRENOM}}. Voici tout ce que tu sais sur lui :
 
@@ -667,6 +693,8 @@ ${coachFixedRules(_prepSt, '   ')}
 ${_situation ? '\n' + _situation + '\nCette situation est à jour : elle prime sur les dates ou phases plus anciennes évoquées dans l\'historique. En période post-course, conseils de reprise progressive.\n' : ''}
 ${reglesTour}
 
+${OUTILS_REGLE}
+${_fbTxt ? '\n' + _fbTxt + '\n' : ''}
 ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : ''}${rappelPlanification}${rappelTemporel}${responseMode === 'voix' ? '\nRAPPEL : 1 ou 2 phrases, 30 mots max, chiffres en chiffres.' : responseMode === 'voix_long' ? '\nRAPPEL : détail complet en 150 mots max, regroupé, chiffres en chiffres.' : ''}`;
 
       const todayDate = (stateContext?.date_reelle?.annee && stateContext?.date_reelle?.mois && stateContext?.date_reelle?.jour)
@@ -712,55 +740,90 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        const MAX_RETRIES = 3;
-        let streamRes = null;
+        const MAX_RETRIES = 3, MAX_ROUNDS = 4;
         let model = responseMode === 'voix' ? VOICE_MODEL : CHAT_MODEL;   // réponse orale courte : modèle rapide
-        for(let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-          if(attempt > 0) {
-            await new Promise(r => setTimeout(r, Math.pow(2, attempt - 1) * 1000));
-            console.log(`coachChat retry attempt ${attempt + 1}`);
+        let tools = req.body.noTools ? null : COACH_TOOLS;                 // le Coach va chercher les données lui-même (coach-tools.js)
+        const send = (o) => res.write('data: ' + JSON.stringify(o) + '\n\n');
+        const convo = messages.slice();
+        let T = null, wrote = '', used = [];
+        const getT = async () => T || (T = await ctLoad(admin.database(), ADMIN_UID, require('./helpers').parisToday()));
+        for(let round = 0; round < MAX_ROUNDS; round++){
+          let streamRes = null;
+          for(let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            if(attempt > 0) {
+              await new Promise(r => setTimeout(r, Math.pow(2, attempt - 1) * 1000));
+              console.log(`coachChat retry attempt ${attempt + 1}`);
+            }
+            const body = { model, max_tokens: maxTokens, stream: true, system, messages: convo };
+            if(tools){ body.tools = tools; if(round === MAX_ROUNDS - 1) body.tool_choice = { type: 'none' }; }   // dernier tour : réponse obligatoire
+            streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY.value(),
+                'anthropic-version': '2023-06-01'
+              },
+              body: await aiJson(body)
+            }, 110000);
+            console.log(`Anthropic coachChat attempt ${attempt + 1} status:`, streamRes.status, model, round);
+            if(!streamRes.ok && model !== CHAT_MODEL && [400, 404].includes(streamRes.status)){ model = CHAT_MODEL; attempt--; continue; }   // modèle rapide indisponible → modèle habituel
+            if(!streamRes.ok && streamRes.status === 400 && tools && round === 0){ tools = null; attempt--; continue; }   // outils refusés → réponse sans outils
+            if(streamRes.ok || ![429, 503, 529].includes(streamRes.status)) break;
+            const errText = await streamRes.text().catch(()=>'no body');
+            console.error(`Anthropic coachChat error ${streamRes.status} (attempt ${attempt + 1}):`, errText);
           }
-          streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': ANTHROPIC_API_KEY.value(),
-              'anthropic-version': '2023-06-01'
-            },
-            body: await aiJson({ model, max_tokens: maxTokens, stream: true, system, messages })
-          }, 110000);
-          console.log(`Anthropic coachChat attempt ${attempt + 1} status:`, streamRes.status, model);
-          if(!streamRes.ok && model !== CHAT_MODEL && [400, 404].includes(streamRes.status)){ model = CHAT_MODEL; continue; }   // modèle rapide indisponible → modèle habituel
-          if(streamRes.ok || ![429, 503, 529].includes(streamRes.status)) break;
-          const errText = await streamRes.text().catch(()=>'no body');
-          console.error(`Anthropic coachChat error ${streamRes.status} (attempt ${attempt + 1}):`, errText);
-        }
 
-        if (!streamRes || !streamRes.ok || !streamRes.body) {
-          const errText = streamRes ? await streamRes.text().catch(()=>'no body') : 'no response';
-          console.error('Anthropic coachChat final error:', streamRes?.status, errText);
-          res.write('data: ' + JSON.stringify({token: 'Je suis momentanément indisponible, réessaie dans quelques secondes.'}) + '\n\n');
-          res.write('data: [DONE]\n\n'); res.end(); return;
-        }
-
-        let buffer = '';
-        for await (const chunk of streamRes.body) {
-          buffer += Buffer.from(chunk).toString('utf-8');
-          const lines = buffer.split('\n');
-          buffer = lines.pop();
-          for(const line of lines) {
-            if(!line.startsWith('data: ')) continue;
-            const data = line.slice(6).trim();
-            if(data === '[DONE]') { res.write('data: [DONE]\n\n'); continue; }
-            try {
-              const parsed = JSON.parse(data);
-              if(parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.text) {
-                res.write('data: ' + JSON.stringify({token: parsed.delta.text}) + '\n\n');
-              }
-              if(parsed.type === 'message_stop') res.write('data: [DONE]\n\n');
-            } catch(e) {}
+          if (!streamRes || !streamRes.ok || !streamRes.body) {
+            const errText = streamRes ? await streamRes.text().catch(()=>'no body') : 'no response';
+            console.error('Anthropic coachChat final error:', streamRes?.status, errText);
+            if(!wrote) send({token: 'Je suis momentanément indisponible, réessaie dans quelques secondes.'});
+            break;
           }
+
+          // lecture du flux : texte transmis tout de suite ; appels d'outils assemblés (input_json_delta)
+          const blocks = []; let stop = null, buffer = '', sep = !!wrote;
+          for await (const chunk of streamRes.body) {
+            buffer += Buffer.from(chunk).toString('utf-8');
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for(const line of lines) {
+              if(!line.startsWith('data: ')) continue;
+              const data = line.slice(6).trim();
+              if(data === '[DONE]') continue;
+              let p = null; try { p = JSON.parse(data); } catch(e) { continue; }
+              const i = p.index || 0;
+              if(p.type === 'content_block_start' && p.content_block){
+                blocks[i] = p.content_block.type === 'tool_use' ? { type: 'tool_use', id: p.content_block.id, name: p.content_block.name, input: {}, _j: '' } : { type: 'text', text: '' };
+                if(blocks[i].type === 'tool_use') send({ tool: blocks[i].name, say: TOOL_SAY[blocks[i].name] || null });
+              } else if(p.type === 'content_block_delta' && p.delta){
+                if(p.delta.text){
+                  if(!blocks[i]) blocks[i] = { type: 'text', text: '' };
+                  let tx = p.delta.text;
+                  if(sep && wrote && !/\s$/.test(wrote) && !/^\s/.test(tx)) tx = ' ' + tx;   // texte d'avant la recherche + suite : un espace
+                  sep = false;
+                  blocks[i].text += p.delta.text; wrote += tx; send({ token: tx });
+                } else if(p.delta.partial_json != null && blocks[i]) blocks[i]._j += p.delta.partial_json;
+              } else if(p.type === 'content_block_stop' && blocks[i] && blocks[i].type === 'tool_use'){
+                try { blocks[i].input = blocks[i]._j ? JSON.parse(blocks[i]._j) : {}; } catch(e) { blocks[i].input = {}; }
+              } else if(p.type === 'message_delta' && p.delta && p.delta.stop_reason) stop = p.delta.stop_reason;
+            }
+          }
+          const calls = blocks.filter((b) => b && b.type === 'tool_use');
+          if(stop !== 'tool_use' || !calls.length || !tools) break;
+          // outils exécutés, résultats rendus au Coach, puis il reprend (même flux)
+          const results = [];
+          for(const b of calls){
+            let out;
+            try { out = await ctRun(await getT(), b.name, b.input); } catch(e) { out = { erreur: 'donnée indisponible' }; }
+            used.push(b.name);
+            if(out && out.changed){ send({ threads: out.changed }); delete out.changed; _ccCache = null; }   // point à suivre : l'app le garde, la situation sera relue
+            results.push({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(out).slice(0, 12000) });
+          }
+          convo.push({ role: 'assistant', content: blocks.filter(Boolean).map((b) => b.type === 'tool_use' ? { type: 'tool_use', id: b.id, name: b.name, input: b.input } : { type: 'text', text: b.text }).filter((b) => b.type !== 'text' || b.text) });
+          convo.push({ role: 'user', content: results });
         }
+        if(used.length) console.log('coachChat outils :', used.join(', '));
+        res.write('data: [DONE]\n\n');
         res.end();
       } else {
         const reply = await callAnthropic(ANTHROPIC_API_KEY.value(), system, messages, maxTokens);
@@ -1376,7 +1439,7 @@ exports.sessionJournal = onRequest(
 // Compte admin seulement. Chaque phrase est transformée en audio (MP3, base64) ; cache en mémoire ; plafond mensuel
 // pour rester dans l'offre gratuite (_tts_usage/<AAAA-MM>, caractères) ; au-delà ou en cas d'erreur → { fallback: true }
 // et l'app lit avec la voix de l'iPhone. { list: true } = voix françaises disponibles (Neural2 / WaveNet).
-const TTS_MONTH_MAX = 800000, TTS_API = 'https://texttospeech.googleapis.com/v1';
+const TTS_MONTH_MAX = 800000, TTS_HD_MAX = 150000, TTS_API = 'https://texttospeech.googleapis.com/v1';
 let _ttsTok = null, _ttsVoices = null;
 const _ttsCache = new Map();
 async function ttsToken(){
@@ -1389,9 +1452,10 @@ async function ttsToken(){
 }
 // voix françaises utilisables dans l'offre gratuite : Neural2 d'abord, puis WaveNet (ni Studio, ni Chirp, ni Standard)
 function ttsPickVoices(list){
-  return (list || []).filter((v) => v && /^fr-FR-(Neural2|Wavenet)-/.test(v.name || '') && (v.languageCodes || ['fr-FR']).indexOf('fr-FR') >= 0)
-    .map((v) => ({ name: v.name, gender: v.ssmlGender || '', kind: /Neural2/.test(v.name) ? 'Neural2' : 'WaveNet' }))
-    .sort((a, b) => (a.kind === b.kind ? (a.name < b.name ? -1 : 1) : a.kind === 'Neural2' ? -1 : 1));
+  const K = { HD: 0, Neural2: 1, WaveNet: 2 };
+  return (list || []).filter((v) => v && /^fr-FR-(Neural2|Wavenet|Chirp3-HD)-/.test(v.name || '') && (v.languageCodes || ['fr-FR']).indexOf('fr-FR') >= 0)
+    .map((v) => ({ name: v.name, gender: v.ssmlGender || '', kind: /Chirp3-HD/.test(v.name) ? 'HD' : /Neural2/.test(v.name) ? 'Neural2' : 'WaveNet' }))
+    .sort((a, b) => (a.kind === b.kind ? (a.name < b.name ? -1 : 1) : K[a.kind] - K[b.kind]));
 }
 async function ttsVoiceList(){
   if(_ttsVoices && Date.now() - _ttsVoices.at < 6 * 3600000) return _ttsVoices.v;
@@ -1401,7 +1465,15 @@ async function ttsVoiceList(){
   _ttsVoices = { at: Date.now(), v };
   return v;
 }
-function ttsDefaultVoice(V){ return (V.find((v) => v.kind === 'Neural2' && v.gender === 'MALE') || V[0] || { name: 'fr-FR-Neural2-B' }).name; }
+// voix par défaut : la plus récente et la plus naturelle (Chirp 3 HD, homme), sinon Neural2 homme
+function ttsDefaultVoice(V, noHd){ return (V.find((v) => !noHd && v.kind === 'HD' && v.gender === 'MALE') || V.find((v) => v.kind === 'Neural2' && v.gender === 'MALE') || V.find((v) => !noHd || v.kind !== 'HD') || { name: 'fr-FR-Neural2-B' }).name; }
+// SSML (voix Neural2 / WaveNet) : chiffres légèrement appuyés, petite respiration avant ; texte déjà rendu prononçable par l'app
+const TTS_NUM_RE = /(\d+(?:[.,]\d+)?\s(?:minutes?\s\d+\s(?:au kilomètre|secondes?)|minutes?(?:\s\d+)?|secondes?|kilomètres?|pulsations|pour cent|heures?(?:\s\d+)?|mètres?)|\d+(?:[.,]\d+)?)/g;
+function ttsSsml(text){
+  const esc = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return '<speak>' + esc.replace(TTS_NUM_RE, (m, g, off) => (off > 0 ? '<break time="60ms"/>' : '') + '<emphasis level="moderate">' + m + '</emphasis>').replace(/([,;:])\s/g, '$1<break time="120ms"/> ') + '</speak>';
+}
+exports.ttsSsml = ttsSsml;
 exports.ttsPickVoices = ttsPickVoices;
 
 exports.coachTts = onRequest(
@@ -1415,25 +1487,77 @@ exports.coachTts = onRequest(
       if(b.list){ const V = await ttsVoiceList(); res.json({ voices: V, def: ttsDefaultVoice(V) }); return; }
       const text = String(b.text || '').replace(/\s+/g, ' ').trim().slice(0, 1200);
       if(!text){ res.status(400).json({ error: 'texte vide' }); return; }
-      let voice = /^fr-FR-(Neural2|Wavenet)-[A-Z]$/.test(b.voice || '') ? b.voice : null;
+      let voice = /^fr-FR-(Neural2-[A-Z]|Wavenet-[A-Z]|Chirp3-HD-[A-Za-z]+)$/.test(b.voice || '') ? b.voice : null;
       const rate = Math.max(0.8, Math.min(1.3, +b.rate || 1));
-      if(!voice){ try { voice = ttsDefaultVoice(await ttsVoiceList()); } catch(e) { voice = 'fr-FR-Neural2-B'; } }
+      let V = []; try { V = await ttsVoiceList(); } catch(e) {}
+      if(!voice) voice = V.length ? ttsDefaultVoice(V) : 'fr-FR-Neural2-B';
+      // plafonds mensuels (offre gratuite) : voix HD à part, plus bas ; au-delà, la voix Neural2 prend le relais
+      const month = new Date().toISOString().slice(0, 7), db = admin.database(), ref = db.ref('_tts_usage/' + month), refHd = db.ref('_tts_usage/' + month + '_hd');
+      let hd = /Chirp3-HD/.test(voice);
+      if(hd && ((await refHd.once('value')).val() || 0) + text.length > TTS_HD_MAX){ voice = V.length ? ttsDefaultVoice(V, true) : 'fr-FR-Neural2-B'; hd = false; }
       const key = voice + '|' + rate + '|' + text;
       if(_ttsCache.has(key)){ res.json({ audio: _ttsCache.get(key), voice, cached: true }); return; }
-      // plafond mensuel (offre gratuite)
-      const month = new Date().toISOString().slice(0, 7), ref = admin.database().ref('_tts_usage/' + month);
       const used = (await ref.once('value')).val() || 0;
       if(used + text.length > TTS_MONTH_MAX){ res.status(429).json({ fallback: true, reason: 'quota', used }); return; }
-      const r = await fetchWithTimeout(TTS_API + '/text:synthesize', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await ttsToken() },
-        body: JSON.stringify({ input: { text }, voice: { languageCode: 'fr-FR', name: voice }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, sampleRateHertz: 24000 } }) }, 10000);
+      const ttsTok = await ttsToken();
+      const call = (input, cfg) => fetchWithTimeout(TTS_API + '/text:synthesize', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ttsTok },
+        body: JSON.stringify({ input, voice: { languageCode: 'fr-FR', name: voice }, audioConfig: Object.assign({ audioEncoding: 'MP3', sampleRateHertz: 24000 }, cfg) }) }, 10000);
+      // HD : texte simple (pas de SSML) ; Neural2 / WaveNet : SSML ; refusé (400) → texte simple, sans vitesse
+      let r = await call(hd ? { text } : { ssml: ttsSsml(text) }, { speakingRate: rate });
+      if(r.status === 400){ console.warn('coachTts 400, nouvel essai en texte simple', voice); r = await call({ text }, {}); }
       if(!r.ok){ const t = await r.text().catch(() => ''); console.error('coachTts', r.status, t.slice(0, 300)); res.status(503).json({ fallback: true, reason: 'api', status: r.status }); return; }
       const audio = (await r.json()).audioContent;
       if(!audio){ res.status(503).json({ fallback: true, reason: 'vide' }); return; }
+      if(hd) refHd.transaction((n) => (n || 0) + text.length).catch(() => {});
       ref.transaction((n) => (n || 0) + text.length).catch(() => {});
       _ttsCache.set(key, audio); if(_ttsCache.size > 300) _ttsCache.delete(_ttsCache.keys().next().value);
       res.json({ audio, voice });
     } catch(e) {
       console.error('coachTts error:', e.message);
+      if(!res.headersSent) res.status(503).json({ fallback: true, reason: 'erreur', error: e.message });
+    }
+  }
+);
+
+// ─── Coach à la voix : reconnaissance vocale Google (Speech-to-Text v2, modèle « short ») ───
+// Compte admin seulement. L'app enregistre ta phrase (AAC / Opus) et l'envoie à la fin du tour ; vocabulaire de la course
+// favorisé (EF, VMA, fractionné…, + chaussures et course de l'app). Plafond mensuel en secondes pour rester dans l'offre gratuite
+// (_stt_usage/<AAAA-MM>) ; au-delà, service refusé ou erreur → { fallback: true } et l'app garde la dictée de l'iPhone.
+const STT_MONTH_MAX = 3300, STT_PHRASES = ['EF', 'endurance fondamentale', 'VMA', 'fractionné', 'tempo', 'seuil', 'allure', 'sortie longue', 'footing', 'récup', 'FC', 'FC max', 'bpm', 'WHOOP', 'Strava', 'semi-marathon', 'marathon', 'lignes droites', 'gel', 'au kilomètre', 'par kilomètre', 'fractionné court', 'côtes', 'affûtage', 'brief'];
+async function sttProject(){
+  const p = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+  if(p) return p;
+  const r = await fetchWithTimeout('http://metadata.google.internal/computeMetadata/v1/project/project-id', { headers: { 'Metadata-Flavor': 'Google' } }, 3000);
+  return (await r.text()).trim();
+}
+function sttPhrases(extra){ const seen = {}; return STT_PHRASES.concat((extra || []).map((x) => String(x || '').slice(0, 40))).filter((x) => x && !seen[x.toLowerCase()] && (seen[x.toLowerCase()] = 1)).slice(0, 60).map((value) => ({ value, boost: 10 })); }
+exports.sttPhrases = sttPhrases;
+exports.coachStt = onRequest(
+  { timeoutSeconds: 30, memory: '256MiB' },
+  async (req, res) => {
+    corsHeaders(res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
+    const b = req.body || {};
+    try {
+      const audio = String(b.audio || '');
+      if(audio.length < 200 || audio.length > 2500000){ res.status(400).json({ error: 'audio absent ou trop long' }); return; }
+      const sec = Math.max(1, Math.min(60, Math.ceil(+b.sec || 15)));
+      const month = new Date().toISOString().slice(0, 7), ref = admin.database().ref('_stt_usage/' + month);
+      const used = (await ref.once('value')).val() || 0;
+      if(used + sec > STT_MONTH_MAX){ res.status(429).json({ fallback: true, reason: 'quota', used }); return; }
+      const project = await sttProject();
+      const body = { config: { autoDecodingConfig: {}, languageCodes: ['fr-FR'], model: 'short', features: { enableAutomaticPunctuation: true },
+        adaptation: { phraseSets: [{ inlinePhraseSet: { phrases: sttPhrases(Array.isArray(b.hints) ? b.hints.slice(0, 30) : []) } }] } }, content: audio };
+      const r = await fetchWithTimeout('https://speech.googleapis.com/v2/projects/' + encodeURIComponent(project) + '/locations/global/recognizers/_:recognize',
+        { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await ttsToken() }, body: JSON.stringify(body) }, 12000);
+      if(!r.ok){ const t = await r.text().catch(() => ''); console.error('coachStt', r.status, t.slice(0, 300)); res.status(503).json({ fallback: true, reason: 'api', status: r.status }); return; }
+      const j = await r.json();
+      ref.transaction((n) => (n || 0) + sec).catch(() => {});
+      const text = (j.results || []).map((x) => x.alternatives && x.alternatives[0] ? x.alternatives[0].transcript : '').join(' ').replace(/\s+/g, ' ').trim();
+      res.json({ text, sec });
+    } catch(e) {
+      console.error('coachStt error:', e.message);
       if(!res.headersSent) res.status(503).json({ fallback: true, reason: 'erreur', error: e.message });
     }
   }

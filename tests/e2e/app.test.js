@@ -302,6 +302,122 @@ test('Coach à la voix : voix Google (naturelle) lue phrase par phrase, repli su
   await ctx.close();
 });
 
+test('Coach · fil écrit en relief : recherche annoncée, chiffres vérifiés, carte, note 👎 avec raison, points suivis, qualité du Coach', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  let n = 0;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    functions: async (r) => {
+      const url = r.request().url();
+      if (/coachChat/.test(url)) { n++;
+        const ev = n === 1 ? [{ tool: 'niveau_et_records', say: 'Je regarde ton niveau.' }, { token: "Ton record sur 10 km est 41'00." }, { threads: { t1: { t: 'Mollet gauche qui tire', k: 'douleur', at: Date.now(), due: '2026-10-30', src: 'coach' } } }]
+          : [{ token: "Vise 42'00, soit 4'12/km." }];
+        return r.fulfill({ contentType: 'text/event-stream', body: ev.map((e) => 'data: ' + JSON.stringify(e) + '\n\n').join('') + 'data: [DONE]\n\n' }); }
+      return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    } });
+  await page.evaluate(() => { state.record_10km = '45:00'; save(); localStorage.setItem('pm_coach_tab', 'text'); showScreen('coach'); }); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('sc-coach')).backgroundColor), 'rgb(7, 11, 22)', 'page sombre en relief, comme la voix');
+  await page.fill('#coach-input', 'Quel est mon record sur 10 km ?'); await page.click('#coach-send-btn');
+  await page.waitForSelector('#coach-messages .cc-c .cf-v');
+  const R = await page.evaluate(() => { const b = [...document.querySelectorAll('#coach-messages .cc-c .cc-b')].pop(); return { t: b.querySelector('.cc-tx').textContent, fix: (b.querySelector('.cf-fix') || {}).title || '' }; });
+  assert.match(R.t, /Ton record sur 10 km est 45'00\./, 'chiffre corrigé par l\'app : ' + R.t);
+  assert.match(R.fix, /le Coach avait dit 41'00/);
+  // point à suivre ouvert par le Coach : gardé par l'app sans être réécrit (le serveur l'a déjà enregistré)
+  const th = await page.evaluate(() => { save(); const u = window.__DB.users, st = u[Object.keys(u).find((k) => u[k].state)].state; return { app: !!(state._coach_threads && state._coach_threads.t1), db: !!st._coach_threads }; });
+  assert.deepEqual(th, { app: true, db: false });
+  // 👎 + raison → enregistré pour le Coach ; relevé local
+  await page.click('#coach-messages .cc-c .cf-v button[aria-label="Réponse à revoir"]');
+  await page.click('#coach-messages .cf-v button:has-text("Trop long")');
+  const fb = await page.evaluate(() => { const u = window.__DB.users, st = u[Object.keys(u).find((k) => u[k].state)].state; return Object.values(st._coach_fb || {}); });
+  assert.equal(fb.length, 1); assert.equal(fb[0].v, -1); assert.equal(fb[0].why, 'long'); assert.match(fb[0].q, /record sur 10 km/);
+  // carte sous la réponse (plan de course), comme à la voix
+  await page.fill('#coach-input', 'Fais-moi mon plan de course km par km'); await page.click('#coach-send-btn');
+  await page.waitForSelector('#coach-messages .cc-card .cv-sp', { timeout: 8000 });
+  assert.match(await page.textContent('#coach-messages .cc-card .cv-cdh'), /42'00 · 4'12\/km/);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/coach-fil.png' });
+  // Mes mémos : ce que le Coach suit, « Réglé »
+  await page.evaluate(() => openMemosModal()); await page.waitForSelector('#follow-t1');
+  await page.click('#follow-t1 button');
+  assert.ok(await page.evaluate(() => !!state._coach_threads.t1.done));
+  await page.evaluate(() => closeModal());
+  // qualité du Coach (à la demande)
+  await page.evaluate(() => openCoachQuality()); await page.waitForSelector('#cq-modal');
+  const q = await page.textContent('#cq-modal');
+  assert.match(q, /👍 0 · 👎 1/); assert.match(q, /Trop long/); assert.match(q, /chiffres corrigés/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Coach à la voix : débrief de séance (relances, ressenti enregistré), point suivi relancé, reconnaissance Google', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const chat = [], stt = []; let sttDown = false, journal = null;
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    functions: async (r) => {
+      const url = r.request().url(), pd = r.request().postData() || '';
+      if (/coachChat/.test(url) && /"warm":true/.test(pd)) return r.fulfill({ contentType: 'application/json', body: '{"ok":true,"warm":true}' });
+      if (/coachChat/.test(url)) { chat.push(JSON.parse(pd)); return r.fulfill({ contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ token: 'Bien joué, on surveille ce mollet.' }) + '\n\ndata: [DONE]\n\n' }); }
+      if (/sessionJournal/.test(url)) { journal = JSON.parse(pd); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, rpe: 5, pain: { level: 1, zone: 'Mollet' }, note: 'Correct, le mollet tire un peu' }) }); }
+      if (/coachStt/.test(url)) { stt.push(JSON.parse(pd)); return sttDown ? r.fulfill({ status: 503, contentType: 'application/json', body: '{"fallback":true}' }) : r.fulfill({ contentType: 'application/json', body: JSON.stringify({ text: 'Mon allure EF cette semaine ?', sec: 2 }) }); }
+      return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    },
+    init: () => {
+      window.__said = []; window.__recStarts = 0;
+      class FakeRec { start() { window.__recStarts++; window.__rec = this; } stop() {} abort() {} }
+      window.__speak = (t) => { const me = window.__rec, r = [{ transcript: t }]; r.isFinal = true; me.onresult && me.onresult({ results: [r] }); me.onend && me.onend(); };
+      window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {}, getVoices() { return []; } } });
+    } });
+  // une séance du jour validée automatiquement, sans ressenti
+  const key = await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.kmPlan >= 5)[0];
+    state[s.key + '_done'] = true; state[s.key + '_km'] = 8; state[s.key + '_perf'] = JSON.stringify({ date: prTodayIso(), pace: '5:30', hr: 140, dur: '44:00', auto: { at: Date.now(), src: 'test' } });
+    delete state._brief_pending; save(); localStorage.setItem('pm_cv', JSON.stringify({ engine: 'native', stt: 'native' })); return s.key; });
+  await page.evaluate(() => openCoachVoice());
+  await page.waitForFunction(() => window.__recStarts >= 1, null, { timeout: 8000 });
+  assert.match(await page.evaluate(() => window.__said.join(' ')), /Raconte-moi : comment c'était \?/, 'il ouvre sur le débrief');
+  await page.evaluate(() => window.__speak('Bof, rien de spécial'));
+  await page.waitForFunction(() => window.__said.some((t) => /l'effort, sur 10/.test(t)) && window.__recStarts >= 2, null, { timeout: 8000 });
+  await page.evaluate(() => window.__speak('cinq'));
+  await page.waitForFunction(() => window.__said.some((t) => /douleur ou une gêne/.test(t)) && window.__recStarts >= 3, null, { timeout: 8000 });
+  await page.evaluate(() => window.__speak('Le mollet tire un peu'));
+  await page.waitForFunction(() => window.__said.some((t) => /on surveille ce mollet/.test(t)), null, { timeout: 8000 });
+  const P = await page.evaluate((k) => JSON.parse(state[k + '_perf']), key);
+  assert.equal(P.rpe, 5); assert.equal(P.pain.zone, 'Mollet'); assert.match(P.journal, /Bof, rien de spécial cinq Le mollet tire un peu/); assert.equal(P.note, 'Correct, le mollet tire un peu');
+  assert.match(journal.text, /mollet/); assert.match(chat[chat.length - 1].message, /^Débrief de ma séance/);
+  // douleur notée → point suivi par le Coach (écrit seul, sans écraser le reste)
+  await page.waitForFunction(() => state._coach_threads && Object.keys(state._coach_threads).some((k) => /Mollet/.test(k)), null, { timeout: 5000 });
+  const tid = await page.evaluate(() => Object.keys(state._coach_threads).find((k) => /Mollet/.test(k)));
+  await page.evaluate(() => closeCoachVoice());
+  // le lendemain matin : relance du point à l'ouverture, marquée « demandée »
+  await page.evaluate(() => { window.__said = []; window.__recStarts = 0; openCoachVoice(); });
+  await page.waitForFunction(() => window.__recStarts >= 1, null, { timeout: 8000 });
+  assert.equal(await page.evaluate(() => /Au fait, douleur mollet/.test(window.__said.join(' '))), false, 'relance prévue demain seulement');
+  await page.evaluate((id) => { closeCoachVoice(); state._coach_threads[id].due = prTodayIso(); window.__said = []; window.__recStarts = 0; openCoachVoice(); }, tid);
+  await page.waitForFunction(() => window.__recStarts >= 1, null, { timeout: 8000 });
+  assert.match(await page.evaluate(() => window.__said.join(' ')), /Au fait, douleur mollet légère après .*: ça va mieux \?/);
+  assert.equal(await page.evaluate((id) => { const u = window.__DB.users; return u[Object.keys(u).find((k) => u[k].state)].state._coach_threads[id].asked; }, tid), '2026-10-29');
+  // reconnaissance Google : ta phrase enregistrée est transcrite par coachStt (vocabulaire course) ; en panne → dictée de l'iPhone
+  await page.waitForFunction(() => _cv && _cv.st === 'listen', null, { timeout: 8000 });
+  const r0 = await page.evaluate(() => { _cvPrefsSet('stt', 'google'); window._cvMicStart = function(){ const M = { ok: true, voice: true, chunks: [new Blob(['x'.repeat(600)], { type: 'audio/webm' })], mime: 'audio/webm', t0: Date.now() - 2000, stopped: false }; _cv.mic = M; return M; };
+    const n = window.__recStarts; cvListen(); return n; });
+  await page.waitForFunction((n) => window.__recStarts > n, r0, { timeout: 5000 });
+  await page.evaluate(() => window.__speak('mon allure e f cette semaine'));
+  await page.waitForFunction(() => document.querySelector('#cv-ov .cv-you') && /Mon allure EF cette semaine \?/.test(document.querySelector('#cv-ov .cv-you').textContent + ' ' + document.querySelector('#cv-ov .cv-log').textContent), null, { timeout: 8000 });
+  assert.equal(stt.length, 1); assert.ok(stt[0].audio.length > 500); assert.ok(Array.isArray(stt[0].hints));
+  for (let i = 0; i < 50 && !/^Mon allure EF/.test(chat[chat.length - 1].message); i++) await page.waitForTimeout(100);   // question envoyée au Coach
+  assert.equal(chat[chat.length - 1].message.split('\n')[0], 'Mon allure EF cette semaine ?');
+  await page.waitForFunction(() => _cv && _cv.st === 'listen' && window.__rec === _cv.rec, null, { timeout: 8000 });   // micro rouvert (écoute démarrée)
+  sttDown = true;
+  await page.evaluate(() => window.__speak('Et demain ?'));
+  await page.waitForFunction(() => window.__said.filter((t) => /on surveille/.test(t)).length >= 2, null, { timeout: 8000 });   // 2 réponses depuis la réouverture
+  assert.equal(chat[chat.length - 1].message.split('\n')[0], 'Et demain ?', 'repli : texte de la dictée');
+  // 👍 sur la réponse vocale
+  await page.click('#cv-ov .cv-vote button[aria-label="Bonne réponse"]');
+  assert.equal(await page.evaluate(() => { const u = window.__DB.users; return Object.values(u[Object.keys(u).find((k) => u[k].state)].state._coach_fb || {}).filter((x) => x.v > 0 && x.m === 'voix').length; }), 1);
+  await page.evaluate(() => closeCoachVoice());
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('écrans rares chargés à la demande : chaque point d\'entrée charge son fichier et ouvre l\'écran, sans erreur', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   const lazy = await page.evaluate(() => Object.keys(window.LAZY_BUNDLES || {}));
@@ -1248,7 +1364,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   o = await open('2026-11-03T15:00:00+01:00', savedDb); page = o.page;
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(237, 242, 251)');
-  assert.equal(await page.locator('style[data-th]').count(), 0, 'aucune règle sombre en mode clair');
+  assert.equal(await page.locator('style[data-th]:not(#cc-css)').count(), 0, 'aucune règle sombre en mode clair (hors fil du Coach, en relief dans tous les thèmes)');
   await o.ctx.close();
 });
 

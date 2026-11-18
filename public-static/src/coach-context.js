@@ -77,7 +77,7 @@ function addCoachMessage(role, text, opts){
   // Date separator
   const nowD=new Date();
   const dStr=nowD.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  const lastSep=container.querySelector('.chat-date-sep:last-of-type');
+  const _seps=container.querySelectorAll('.chat-date-sep'), lastSep=_seps.length?_seps[_seps.length-1]:null;   // (:last-of-type visait le dernier div, pas le dernier séparateur)
   if(!lastSep||lastSep.dataset.date!==dStr){
     const sep=document.createElement('div');sep.className='chat-date-sep';
     sep.dataset.date=dStr;sep.textContent=dStr.charAt(0).toUpperCase()+dStr.slice(1);
@@ -112,7 +112,7 @@ function addCoachMessage(role, text, opts){
       if(_feuBadge) headerRight += _feuBadge;
     }
     div.innerHTML =
-      '<div style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(12,68,124,0.13);border:1px solid rgba(12,68,124,0.1);">'
+      '<div class="cc-bo" style="border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(12,68,124,0.13);border:1px solid rgba(12,68,124,0.1);">'
       +'<div style="background:'+headerBg+';padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'
         +'<div style="display:flex;align-items:center;gap:8px;">'
           +'<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:13px;">🤖</span></div>'
@@ -120,18 +120,18 @@ function addCoachMessage(role, text, opts){
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:4px;">'+headerRight+'</div>'
       +'</div>'
-      +'<div style="background:#fff;padding:14px 16px;">'
+      +'<div class="cc-bb" style="background:#fff;padding:14px 16px;">'
         +'<div data-coach-text="1" style="color:var(--text,#1a1a1a);">'+renderBriefText(text)+'</div>'
         +(briefType==='morning'&&typeof apCardHtml==='function'?apCardHtml():'')   // ajustements de la nuit + « Annuler » (autopilot.js)
       +'</div>'
       +'</div>';
   } else {
-    div.style.cssText = 'display:flex;align-items:flex-start;gap:8px;'+(isCoach?'':'flex-direction:row-reverse;');
-    div.innerHTML = (isCoach?'<div style="width:32px;height:32px;border-radius:50%;background:#0C447C;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:14px;">🤖</span></div>':'')
-      +'<div style="max-width:85%;background:'+(isCoach?'#fff':'#0C447C')+';border-radius:'+(isCoach?'4px 14px 14px 14px':'14px 4px 14px 14px')+';padding:12px 14px;border-left:'+(isCoach?'3px solid rgba(12,68,124,0.15)':'0')+';">'
-      +'<'+(isCoach?'div':'p')+' data-coach-text="1" style="font-size:14px;color:'+(isCoach?'var(--text)':'#fff')+';line-height:1.7;">'+(isCoach?renderCoachText(text):text.replace(/\n/g,'<br>'))+'</'+(isCoach?'div':'p')+'>'
-      +'<p style="font-size:10px;color:'+(isCoach?'var(--muted)':'rgba(255,255,255,0.55)')+';margin-top:4px;text-align:right;">'
-      +new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</p></div>';
+    // bulles au style « relief » de l'écran vocal (feuille #cc-css, coach-plus.js)
+    div.classList.add('cc-msg', isCoach ? 'cc-c' : 'cc-u');
+    div.innerHTML = (isCoach?'<div class="cc-av">🤖</div>':'')
+      +'<div class="cc-b">'
+      +'<'+(isCoach?'div':'p')+' class="cc-tx" data-coach-text="1" style="margin:0;">'+(isCoach?renderCoachText(text):String(text).replace(/</g,'&lt;').replace(/\n/g,'<br>'))+'</'+(isCoach?'div':'p')+'>'
+      +'<p class="cc-tm">'+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</p></div>';
   }
 
   container.appendChild(div);

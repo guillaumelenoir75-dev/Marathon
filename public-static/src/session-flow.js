@@ -26,6 +26,7 @@ async function _sfRun(){
   try { sfAdaptAuto(); } catch(e) { console.warn('[données] allègement', e); }
   try { const r = sfSyncRecords(); if(r.length && typeof showToast === 'function') showToast('🏆 Record ' + r[0].cat + ' : ' + r[0].time + ' (' + r[0].src + ')'); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
   try { if(o.race && typeof raStore === 'function') raStore(); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
+  try { if(typeof cfThreadsSync === 'function') cfThreadsSync(); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }   // douleur notée → point suivi par le Coach (coach-plus.js)
   try { if(typeof state !== 'undefined' && state.strava_token && typeof shoesStravaFetch === 'function' && typeof getShoes === 'function' && getShoes().some(function(s){ return s.strava_id; })) shoesStravaFetch(true).catch(function(){}); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
   try { if(typeof prepAutoSave === 'function') prepAutoSave(true).catch(function(){}); } catch(e) { diagSilent(e, 'session-flow:_sfRun'); }
   sfRefreshScreens();

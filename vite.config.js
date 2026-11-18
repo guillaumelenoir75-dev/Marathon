@@ -9,7 +9,7 @@ const scriptFiles = [
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
-  'coach-memos.js', 'coach-ui.js', 'coach-profile.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
+  'coach-memos.js', 'coach-plus.js', 'coach-ui.js', 'coach-profile.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-daily.js', 'prep-debrief.js',
   'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js', 'alcohol.js', 'auto-validate.js', 'health.js', 'session-flow.js', 'my-day.js', 'piste-home.js', 'piste-screens.js', 'search.js', 'nav.js',
 ];
 
@@ -29,6 +29,7 @@ const lazyGroups = {
   alcui: ['alcohol-ui.js'],                                   // Statistiques › détail Alcool
   raui: ['race-analysis-ui.js'],                              // analyse de course
   voice: ['coach-voice.js'],                                  // Coach › parler à la voix
+  cquality: ['coach-quality-ui.js'],                          // Diagnostic › Qualité du Coach
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

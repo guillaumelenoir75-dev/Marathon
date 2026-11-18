@@ -320,6 +320,7 @@ function avFeelOpen(key){
     + (p.whoop && p.whoop.workout_strain != null ? chip('💚 WHOOP ' + String(Math.round(p.whoop.workout_strain * 10) / 10).replace('.', ',')) : '')
     + (p.meteo ? chip('🌡️ ' + Math.round(p.meteo.temperature) + '°') : '') + (p.hr ? chip('❤️ ' + p.hr) : '') + '</div>'
     + (typeof prBlocsHtml === 'function' && s.type !== 'race' ? prBlocsHtml({ type: s.type, d: (s.x && s.x.d) || '' }, p) : '')   // blocs du fractionné / tempo : lus dans les tours Strava, à corriger ou compléter (plan-daily.js)
+    + (typeof coachAI === 'function' && coachAI() && typeof openCoachVoice === 'function' ? '<button type="button" class="av-voice" onclick="document.getElementById(\'av-feel\').remove();openCoachVoice({debrief:\'' + s.key + '\'})">🎙️ Le raconter au Coach, à la voix</button>' : '')   // débrief à la voix (coach-voice.js)
     + (typeof jvHtml === 'function' ? jvHtml() : '') + (typeof prRpeHtml === 'function' ? prRpeHtml({}) : '')
     + '<button type="button" class="av-save" onclick="avFeelSave()">Enregistrer mon ressenti</button>'
     + '<button type="button" class="av-skip" onclick="avFeelSkip()">Plus tard</button></div></div></div>';
@@ -393,7 +394,7 @@ function _avCss(){
     + '.av-eb{margin:0;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85;}.av-title{margin:2px 0;font-size:20px;font-weight:900;}.av-sub{margin:0;font-size:12.5px;opacity:.9;}'
     + '.av-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;}'
     + '.av-chips{display:flex;flex-wrap:wrap;gap:6px;}.av-chip{background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:6px 11px;font-size:13px;font-weight:800;color:#0F172A;}'
-    + '.av-save{padding:13px;border:none;border-radius:14px;background:#047857;color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;}.av-skip{padding:8px;border:none;background:none;color:#64748B;font-weight:700;cursor:pointer;font-family:inherit;}'
+    + '.av-save{padding:13px;border:none;border-radius:14px;background:#047857;color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;}.av-voice{padding:13px;border:none;border-radius:14px;background:#4338CA;color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;}.av-skip{padding:8px;border:none;background:none;color:#64748B;font-weight:700;cursor:pointer;font-family:inherit;}'
     + '.av-opt{display:flex;flex-direction:column;gap:2px;text-align:left;padding:12px 14px;border-radius:14px;border:1.5px solid #E2E8F0;background:#fff;cursor:pointer;font-family:inherit;}.av-opt b{font-size:14.5px;color:#0F172A;}.av-opt span{font-size:12.5px;color:#64748B;}.av-opt.on{border-color:#047857;background:#ECFDF5;}'
     + '.av-rules{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:11px 13px;font-size:13px;color:#334155;}.av-rules p{margin:0 0 4px;font-weight:800;}.av-rules ul{margin:0;padding-left:18px;}.av-rules li{margin:3px 0;}'
     + '.av-rows{display:flex;flex-direction:column;gap:6px;}.av-src{display:grid;grid-template-columns:28px 64px 1fr auto;align-items:center;gap:8px;background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px;font-size:13.5px;}'

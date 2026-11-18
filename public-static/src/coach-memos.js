@@ -34,6 +34,7 @@ function _renderMemosModal(memosRaw) {
     +'</div>'
     +'<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">'+lines.length+' mémo'+(lines.length>1?'s':'')+' — ce que le coach retient sur toi.</p>'
     +linesHtml
+    +_followHtml()
     +'<div style="display:flex;gap:8px;margin-top:14px;">'
     +'<button onclick="closeModal()" style="flex:1;padding:11px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);cursor:pointer;">Fermer</button>'
     +(lines.length>0?'<button onclick="clearAllMemos()" style="padding:11px 14px;background:transparent;border:1px solid #ef4444;border-radius:var(--radius-sm);font-size:13px;color:#ef4444;cursor:pointer;">🗑 Tout</button>':'')
@@ -42,6 +43,19 @@ function _renderMemosModal(memosRaw) {
   _lockBodyScroll();
   mc.appendChild(overlay);
 }
+
+// points que le Coach suit (douleur, essai, question…) : il en reprend des nouvelles ; « Réglé » les ferme (coach-plus.js)
+function _followHtml(){
+  if(typeof cfThreads !== 'function' || typeof state === 'undefined' || !state) return '';
+  const L = cfThreads(state, typeof prTodayIso === 'function' ? prTodayIso() : new Date().toISOString().slice(0, 10));
+  if(!L.length) return '';
+  const IC = { douleur: '🩹', essai: '🧪', fatigue: '😮‍💨', question: '❓' };
+  return '<p style="font-size:13px;font-weight:700;color:var(--text);margin:16px 0 6px;">🔁 Ce que le Coach suit</p>'
+    + L.map(function(x){ return '<div id="follow-' + x.id + '" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">'
+      + '<span style="font-size:13px;color:var(--text);flex:1;line-height:1.45;">' + (IC[x.k] || '📌') + ' ' + String(x.t).replace(/</g, '&lt;') + '<br><span style="font-size:11px;color:var(--muted);">' + (x.src === 'app' ? 'Noté à la validation' : 'Noté par le Coach') + (x.due ? ' · relance ' + new Date(x.due + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '') + '</span></span>'
+      + '<button onclick="followDone(\'' + x.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:11px;color:var(--muted);cursor:pointer;">✓ Réglé</button></div>'; }).join('');
+}
+function followDone(id){ if(typeof cfThreadClose === 'function') cfThreadClose(id, 'Réglé (fermé à la main)'); _renderMemosModal(_currentMemos); }
 
 function deleteMemoLine(idx) {
   const lines = _parseMemos(_currentMemos);

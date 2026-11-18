@@ -476,6 +476,21 @@ function efRefOf(state, todayStr) {
   return Math.round((Date.parse(t + 'T12:00:00Z') - Date.parse(String(r.at).slice(0, 10) + 'T12:00:00Z')) / 86400000) <= 7 ? r.pace : null;
 }
 
+// ─── Points à suivre du Coach (_coach_threads) : ouverts par le Coach (outil suivi_ouvrir) ou par l'app (douleur à la validation) ───
+// {id: {t, k, at (ms), due 'AAAA-MM-JJ', src, asked?, done?: {at, c}}} ; ouverts depuis plus de 21 jours = expirés (plus montrés)
+const THREAD_TTL = 21;
+function threadsOpen(state, today) {
+  const T = (state && state._coach_threads) || {}, t0 = new Date((today || parisToday()) + 'T12:00:00Z').getTime();
+  return Object.keys(T).map((id) => Object.assign({ id }, T[id])).filter((x) => x && x.t && !x.done && x.at && (t0 - x.at) / 86400000 <= THREAD_TTL)
+    .sort((a, b) => a.at - b.at);
+}
+function threadsText(state, today) {
+  today = today || parisToday();
+  const L = threadsOpen(state, today); if (!L.length) return '';
+  const day = (ms) => new Date(ms).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: 'Europe/Paris' });
+  return 'Points à suivre (prends-en des nouvelles quand la relance est due, une seule fois, en une phrase courte ; suivi_fermer quand c\'est réglé) :'
+    + L.slice(0, 8).map((x) => `\n  · [${x.id}] ${x.k || 'autre'} · « ${String(x.t).slice(0, 120)} » · depuis ${day(x.at)}${x.due ? (x.due <= today ? ' · relance due' + (x.asked === today ? ' (déjà demandé aujourd\'hui)' : '') : ' · relance le ' + x.due) : ''}`).join('');
+}
 async function buildTrainingSituation(db, state, todayStr, opts) {
   opts = opts || {};
   state = state || {};
@@ -594,6 +609,7 @@ async function buildTrainingSituation(db, state, todayStr, opts) {
   const nextS = sess.filter((s) => s.date > today && !s.done && s.x.type !== 'rest').sort((a, b) => a.date.localeCompare(b.date))[0];
   if (!todaySessions.length && nextS) lines.push(`Prochaine séance : ${fmtD(nextS.date)} — ${sessionTitleOf(nextS.x)} ${nextS.x.km} km.`);
   const nextSession = nextS ? { date: nextS.date, title: sessionTitleOf(nextS.x), km: parseFloat(nextS.x.km) || 0, time: nextS.x.sched_time || null, type: nextS.x.type, consigne: String(nextS.x.d || '').split('|')[1] || '', tomorrow: days(today, nextS.date) === 1 } : null;
+  const fu = threadsText(state, today); if (fu) lines.push(fu);
   return { text: `SITUATION D'ENTRAÎNEMENT (au ${fmtD(today)}) :\n- ` + lines.join('\n- '), todaySessions, nextSession, postRace: !!(last && RECOVERY_DAYS[raceCategory(last.dist)] && days(last.date, today) < RECOVERY_DAYS[raceCategory(last.dist)]) };
 }
 
@@ -1059,7 +1075,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 
 module.exports = {
   pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf, heatEfText, coachProfileText, coachFixedRules, coachFixedToday, athleteName, withAthleteName, aiJson,
-  buildTrainingSituation, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
+  buildTrainingSituation, threadsOpen, threadsText, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,
   ADMIN_EMAIL,
