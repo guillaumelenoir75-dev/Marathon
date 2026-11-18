@@ -615,6 +615,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       return _ccHist(8).reverse().slice(0,15).map(h=>{ const perf=h.perf||{}; return {date:h.date,semaine:h.cur?h.w:null,type:h.sess.type,titre:sessionTitle(h.sess),km:h.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null}; });
     })(),
     whoop: typeof buildWhoopContext==='function' ? buildWhoopContext() : null,
+    forme_du_jour: (state._form_today && typeof prTodayIso==='function' && state._form_today.date===prTodayIso()) ? state._form_today : null,   // note du jour de l'accueil (récup, sommeil, FC repos, VFC + ajustements)
     absences_semaine: state['absences_cw'+CW]||null,
     prochaines_semaines: (()=>{
       const r = [];

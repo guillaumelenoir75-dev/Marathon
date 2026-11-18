@@ -457,7 +457,7 @@ function cvAsk(text, shown, direct){
   try { if(typeof cfFacts === 'function') _cv.F = cfFacts(); } catch(e) { diagSilent(e, 'coach-voice:facts'); }
   const take = function(x){                                       // phrase gardée → lue tout de suite ; trop long → coupé
     if(_cv.cut) return;
-    if(_cv.F && typeof cvVerifySentence === 'function'){ const V = cvVerifySentence(x, _cv.F); if(V.fixes.length){ x = V.text; _cv.nFix += V.fixes.length; } }   // chiffres vérifiés avant d'être lus
+    if(_cv.F && typeof cvVerifySentence === 'function'){ try { const V = cvVerifySentence(x, _cv.F); if(V.fixes.length){ x = V.text; _cv.nFix += V.fixes.length; } } catch(e) { diagSilent(e, 'coach-voice:verify'); } }   // chiffres vérifiés avant d'être lus (une phrase n'est jamais perdue)
     if(!cvKeep(_cv.nS, _cv.nW, x, long)){
       _cv.cut = true; _cv.buf = '';
       if(!long && !/\?\s*$/.test(_cv.said)){ const q = 'Tu veux le détail ?'; _cv.said += ' ' + q; _cvQueue(q); }   // « oui » → version complète
@@ -493,7 +493,10 @@ function cvAsk(text, shown, direct){
       if(!_cv || _cv.turn !== turn) return;
       clearTimeout(_cv.fillT);
       if(full == null){ _cv.streamDone = true; _cvSet('idle', 'Le Coach n\'a pas pu répondre — touche pour réessayer'); return; }
-      if(!_cv.said && !_cv.buf && full) _cv.buf = full;          // réponse arrivée d'un bloc
+      if(!_cv.said && full) _cv.buf = full;                      // réponse arrivée d'un bloc, ou rien encore lu : la réponse entière
+      if(!_cv.said && !String(_cv.buf || '').trim()){              // réponse vide : jamais de silence
+        _cv.streamDone = true; _cvSay('Je n\'ai pas eu de réponse. Tu peux me reposer ta question ?', _cvListenAfter); return;
+      }
       if(!_cv.mute && !_cv.cut){ const S = cvSentences(_cv.buf, true); S.out.forEach(takeT); }
       _cv.buf = ''; show();
       _cvLatPush({ at: Date.now(), tok: tTok, say: tSay, long: long ? 1 : 0 });   // délai jusqu'au 1er mot (Diagnostic)

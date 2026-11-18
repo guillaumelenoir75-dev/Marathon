@@ -28,7 +28,16 @@ function openCoachQuality(){
     + '<div><b>' + pct(S.cut, S.voice) + '</b><small>coupées (voix)</small></div><div><b>' + S.fixes + '</b><small>chiffres corrigés</small></div><div><b>' + S.tools + '</b><small>données cherchées</small></div></div>'
     + '<p class="cq-s">Raisons des 👎</p>' + Object.keys(W).map(function(k){ const n = S.why[k] || 0; return '<div class="cq-r"><span>' + W[k] + '</span><i><u style="width:' + Math.round(n / maxW * 100) + '%"></u></i><b>' + n + '</b></div>'; }).join('')
     + (S.recentDown.length ? '<p class="cq-s">Dernières réponses à revoir</p>' + S.recentDown.map(function(x){ return '<div class="cq-d">« ' + esc(String(x.q || '').slice(0, 90)) + ' »<small>' + esc(String(x.a || '').slice(0, 160)) + (x.why ? ' · ' + esc(W[x.why] || x.why) : '') + '</small></div>'; }).join('') : '')
+    + '<p class="cq-s">Dernière réponse (serveur)</p><div class="cq-d" id="cq-dbg">…</div>'
     + '<p class="cq-n">Le Coach relit tes notes à chaque question : les défauts relevés lui sont rappelés.</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
+  // relevé du serveur sur la dernière réponse (tours, raison d'arrêt, données cherchées, longueur) : lu frais dans la base
+  const put = function(d){ const el = document.getElementById('cq-dbg'); if(el) el.innerHTML = cqDbgText(d); };
+  try { if(typeof dbRef !== 'undefined' && dbRef) dbRef.child('_coach_dbg').once('value').then(function(x){ put(x.val()); }).catch(function(){ put(state._coach_dbg); }); else put(state._coach_dbg); } catch(e) { put(null); }
+}
+function cqDbgText(d){
+  if(!d || !d.at) return 'Aucune encore';
+  const R = (d.rounds || []).map(function(r){ return (r.r === 'secours' ? 'secours' : 'tour ' + (+r.r + 1)) + ' : ' + (r.err ? 'erreur ' + r.err : r.http ? 'HTTP ' + r.http : (r.stop || '?') + (r.tools ? ' → ' + r.tools : '') + ' · ' + (r.chars || 0) + ' car.'); });
+  return new Date(d.at).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + String(d.mode || 'chat').replace(/</g, '&lt;') + ' · ' + (d.chars || 0) + ' caractères<small>' + R.join(' · ').replace(/</g, '&lt;') + '</small>';
 }

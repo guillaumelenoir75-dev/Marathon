@@ -154,3 +154,38 @@ test('reconnaissance vocale Google : vocabulaire de la course, secondes comptée
   const A = loadFunctions({ athlete: true, data: {}, fetch: net() });
   assert.equal((await callHttp(A.coach.coachStt, { audio })).status, 403);
 });
+
+test('jamais de réponse vide : flux sans texte (erreur en cours de flux) → dernier tour sans outil, sinon phrase de secours ; relevé pour le diagnostic', async () => {
+  const data = { users: { [UID]: { state: stateFixture() } } }, bodies = [];
+  const errStream = { ok: true, status: 200, body: (async function* () { yield Buffer.from('data: ' + JSON.stringify({ type: 'error', error: { type: 'overloaded_error' } }) + '\n'); })() };
+  const F = loadFunctions({ data, fetch: async (url, o) => { const b = JSON.parse(o.body); bodies.push(b);
+    if (b.stream) return errStream;
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'Nuit correcte : récup 62 %.' }] }) }; } });
+  const out = await callStream(F.coach.coachChat, { message: "Qu'as-tu pensé de ma nuit ?", responseMode: 'voix', stateContext: {} });
+  assert.equal(events(out).map((e) => e.token).filter(Boolean).join(''), 'Nuit correcte : récup 62 %.');
+  assert.equal(bodies[0].max_tokens, 400, 'avec les outils : 400 jetons au moins par tour');
+  const dbg = data.users[UID].state._coach_dbg;
+  assert.equal(dbg.rounds[0].err, 'overloaded_error'); assert.equal(dbg.rounds[1].r, 'secours'); assert.equal(dbg.chars, 'Nuit correcte : récup 62 %.'.length);
+  // secours lui aussi vide → phrase fixe, jamais rien
+  const G = loadFunctions({ data: { users: { [UID]: { state: stateFixture() } } }, fetch: async (url, o) => (JSON.parse(o.body).stream ? sse([], 'end_turn') : { ok: false, status: 529, json: async () => ({}) }) });
+  const out2 = await callStream(G.coach.coachChat, { message: 'Et alors ?', responseMode: 'voix', stateContext: {} });
+  assert.match(events(out2).map((e) => e.token).filter(Boolean).join(''), /Repose-moi ta question/);
+});
+
+test('réflexion du modèle (thinking) gardée telle quelle pour le tour suivant, jamais envoyée à l\'app', async () => {
+  const bodies = [];
+  const think = { ok: true, status: 200, body: (async function* () { yield Buffer.from([
+    { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'Il veut sa séance.' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'SIG' } },
+    { type: 'content_block_stop', index: 0 },
+    { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'tu1', name: 'detail_seance', input: {} } },
+    { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '{"date":"2026-11-10"}' } },
+    { type: 'content_block_stop', index: 1 }, { type: 'message_delta', delta: { stop_reason: 'tool_use' } }].map((e) => 'data: ' + JSON.stringify(e)).join('\n') + '\n'); })() };
+  const F = loadFunctions({ data: { users: { [UID]: { state: stateFixture() } } }, fetch: async (url, o) => { bodies.push(JSON.parse(o.body)); return bodies.length === 1 ? think : sse([{ text: 'Mardi : 8,2 km.' }]); } });
+  const out = await callStream(F.coach.coachChat, { message: 'Et mardi ?', stateContext: {} });
+  assert.equal(events(out).map((e) => e.token).filter(Boolean).join(''), 'Mardi : 8,2 km.');
+  const a = bodies[1].messages[bodies[1].messages.length - 2].content;
+  assert.deepEqual(a[0], { type: 'thinking', thinking: 'Il veut sa séance.', signature: 'SIG' });
+  assert.equal(a[1].type, 'tool_use');
+});

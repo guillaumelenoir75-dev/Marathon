@@ -428,7 +428,7 @@ function voiceLightCtx(ctx){
     let v = ctx[k];
     if(k === 'seances_recentes_detail' && Array.isArray(v)) v = v.slice(-4).map((r) => { const c = Object.assign({}, r); if(c.strava) c.strava = Object.assign({}, c.strava, { splits: undefined, splits_par_km: undefined }); return c; });
     let n = 0; try { n = JSON.stringify(v).length; } catch(e) {}
-    if(n <= 3000 || k === 'date_reelle' || k === 'seances_a_venir' || k === 'seances_recentes_detail') out[k] = v;
+    if(n <= 3000 || k === 'date_reelle' || k === 'seances_a_venir' || k === 'seances_recentes_detail' || k === 'whoop' || k === 'forme_du_jour') out[k] = v;
   });
   return out;
 }
@@ -745,17 +745,19 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
         let tools = req.body.noTools ? null : COACH_TOOLS;                 // le Coach va chercher les données lui-même (coach-tools.js)
         const send = (o) => res.write('data: ' + JSON.stringify(o) + '\n\n');
         const convo = messages.slice();
-        let T = null, wrote = '', used = [];
+        let T = null, wrote = '', used = [], dbg = [], last = false;
         const getT = async () => T || (T = await ctLoad(admin.database(), ADMIN_UID, require('./helpers').parisToday()));
         for(let round = 0; round < MAX_ROUNDS; round++){
           let streamRes = null;
+          last = round === MAX_ROUNDS - 1;
           for(let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             if(attempt > 0) {
               await new Promise(r => setTimeout(r, Math.pow(2, attempt - 1) * 1000));
               console.log(`coachChat retry attempt ${attempt + 1}`);
             }
-            const body = { model, max_tokens: maxTokens, stream: true, system, messages: convo };
-            if(tools){ body.tools = tools; if(round === MAX_ROUNDS - 1) body.tool_choice = { type: 'none' }; }   // dernier tour : réponse obligatoire
+            // avec les outils, un appel + une phrase d'attente doivent tenir : jamais moins de 400 jetons par tour (la longueur reste fixée par les consignes et l'app)
+            const body = { model, max_tokens: tools ? Math.max(maxTokens, 400) : maxTokens, stream: true, system, messages: convo };
+            if(tools){ body.tools = tools; if(last) body.tool_choice = { type: 'none' }; }   // dernier tour : réponse obligatoire
             streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: {
@@ -776,12 +778,14 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
           if (!streamRes || !streamRes.ok || !streamRes.body) {
             const errText = streamRes ? await streamRes.text().catch(()=>'no body') : 'no response';
             console.error('Anthropic coachChat final error:', streamRes?.status, errText);
+            dbg.push({ r: round, http: streamRes ? streamRes.status : 0, model });
             if(!wrote) send({token: 'Je suis momentanément indisponible, réessaie dans quelques secondes.'});
+            wrote = wrote || '·';
             break;
           }
 
           // lecture du flux : texte transmis tout de suite ; appels d'outils assemblés (input_json_delta)
-          const blocks = []; let stop = null, buffer = '', sep = !!wrote;
+          const blocks = []; let stop = null, buffer = '', sep = !!wrote, sErr = null;
           for await (const chunk of streamRes.body) {
             buffer += Buffer.from(chunk).toString('utf-8');
             const lines = buffer.split('\n');
@@ -793,7 +797,9 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
               let p = null; try { p = JSON.parse(data); } catch(e) { continue; }
               const i = p.index || 0;
               if(p.type === 'content_block_start' && p.content_block){
-                blocks[i] = p.content_block.type === 'tool_use' ? { type: 'tool_use', id: p.content_block.id, name: p.content_block.name, input: {}, _j: '' } : { type: 'text', text: '' };
+                const cb = p.content_block;
+                // réflexion du modèle (thinking) : gardée telle quelle pour le tour suivant, jamais envoyée à l'app
+                blocks[i] = cb.type === 'tool_use' ? { type: 'tool_use', id: cb.id, name: cb.name, input: {}, _j: '' } : cb.type === 'thinking' ? { type: 'thinking', thinking: cb.thinking || '', signature: cb.signature || '' } : cb.type === 'redacted_thinking' ? { type: 'redacted_thinking', data: cb.data } : { type: 'text', text: '' };
                 if(blocks[i].type === 'tool_use') send({ tool: blocks[i].name, say: TOOL_SAY[blocks[i].name] || null });
               } else if(p.type === 'content_block_delta' && p.delta){
                 if(p.delta.text){
@@ -803,12 +809,16 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
                   sep = false;
                   blocks[i].text += p.delta.text; wrote += tx; send({ token: tx });
                 } else if(p.delta.partial_json != null && blocks[i]) blocks[i]._j += p.delta.partial_json;
+                else if(p.delta.thinking != null && blocks[i] && blocks[i].type === 'thinking') blocks[i].thinking += p.delta.thinking;
+                else if(p.delta.signature != null && blocks[i] && blocks[i].type === 'thinking') blocks[i].signature += p.delta.signature;
               } else if(p.type === 'content_block_stop' && blocks[i] && blocks[i].type === 'tool_use'){
                 try { blocks[i].input = blocks[i]._j ? JSON.parse(blocks[i]._j) : {}; } catch(e) { blocks[i].input = {}; }
               } else if(p.type === 'message_delta' && p.delta && p.delta.stop_reason) stop = p.delta.stop_reason;
+              else if(p.type === 'error') sErr = (p.error && (p.error.type || p.error.message)) || 'erreur';   // erreur en cours de flux (surcharge…)
             }
           }
           const calls = blocks.filter((b) => b && b.type === 'tool_use');
+          dbg.push({ r: round, model, stop: stop || null, err: sErr || undefined, tools: calls.map((b) => b.name).join(',') || undefined, chars: blocks.filter((b) => b && b.type === 'text').reduce((a, b) => a + b.text.length, 0) });
           if(stop !== 'tool_use' || !calls.length || !tools) break;
           // outils exécutés, résultats rendus au Coach, puis il reprend (même flux)
           const results = [];
@@ -819,10 +829,25 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
             if(out && out.changed){ send({ threads: out.changed }); delete out.changed; _ccCache = null; }   // point à suivre : l'app le garde, la situation sera relue
             results.push({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(out).slice(0, 12000) });
           }
-          convo.push({ role: 'assistant', content: blocks.filter(Boolean).map((b) => b.type === 'tool_use' ? { type: 'tool_use', id: b.id, name: b.name, input: b.input } : { type: 'text', text: b.text }).filter((b) => b.type !== 'text' || b.text) });
+          convo.push({ role: 'assistant', content: blocks.filter(Boolean).map((b) => b.type === 'tool_use' ? { type: 'tool_use', id: b.id, name: b.name, input: b.input } : b.type === 'text' ? { type: 'text', text: b.text } : b).filter((b) => b.type !== 'text' || b.text) });
           convo.push({ role: 'user', content: results });
         }
         if(used.length) console.log('coachChat outils :', used.join(', '));
+        // jamais une réponse vide : un dernier tour sans outil, puis une phrase de secours
+        if(!wrote){
+          try {
+            const body = { model: CHAT_MODEL, max_tokens: Math.max(maxTokens, 300), system, messages: convo };
+            if(convo.some((m) => Array.isArray(m.content))){ body.tools = COACH_TOOLS; body.tool_choice = { type: 'none' }; }
+            const r = await fetchWithTimeout('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' }, body: await aiJson(body) }, 60000);
+            const j = r.ok ? await r.json() : null, tx = j && Array.isArray(j.content) ? j.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() : '';
+            dbg.push({ r: 'secours', http: r.status, chars: tx.length });
+            if(tx){ wrote = tx; send({ token: tx }); }
+          } catch(e) { dbg.push({ r: 'secours', err: e.message }); }
+          if(!wrote) send({ token: 'Je n\'ai pas réussi à formuler ma réponse. Repose-moi ta question ?' });
+          console.warn('coachChat réponse vide', JSON.stringify(dbg));
+        }
+        // dernier échange relevé pour le diagnostic (Qualité du Coach)
+        admin.database().ref(ADMIN_STATE + '/_coach_dbg').set({ at: Date.now(), mode: responseMode || 'chat', rounds: dbg.slice(0, 6), tools: used.join(',') || null, chars: wrote.length }).catch(() => {});
         res.write('data: [DONE]\n\n');
         res.end();
       } else {
