@@ -78,3 +78,14 @@ test('voix Google : plafond du mois atteint ou service refusé → repli sur la 
   const A = loadFunctions({ athlete: true, data: {}, fetch: net([]) });
   assert.equal((await callHttp(A.coach.coachTts, { text: 'Bonjour' })).status, 403);
 });
+
+test('voix HD refusée pour une phrase → la même phrase en voix Neural2 (pas de repli sur l\'iPhone)', async () => {
+  const calls = [];
+  const F = loadFunctions({ data: {}, fetch: async (url, o) => { const b = o && o.body ? JSON.parse(o.body) : null; calls.push({ url, body: b });
+    if (/metadata/.test(url)) return json({ access_token: 't', expires_in: 3600 }); if (/\/voices/.test(url)) return json(VOICES);
+    return b.voice.name === 'fr-FR-Chirp3-HD-Charon' ? json({ error: 'boom' }, 500) : json({ audioContent: 'TjJC' }); } });
+  const r = await callHttp(F.coach.coachTts, { text: 'La bière a coûté 13 points.' });
+  assert.equal(r.status, 200); assert.equal(r.out.audio, 'TjJC'); assert.equal(r.out.voice, 'fr-FR-Neural2-B');
+  const S = calls.filter((c) => /text:synthesize/.test(c.url));
+  assert.equal(S[0].body.voice.name, 'fr-FR-Chirp3-HD-Charon'); assert.ok(S[1].body.input.ssml, 'relais Neural2 en SSML');
+});

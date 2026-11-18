@@ -29,6 +29,7 @@ function openCoachQuality(){
     + '<p class="cq-s">Raisons des 👎</p>' + Object.keys(W).map(function(k){ const n = S.why[k] || 0; return '<div class="cq-r"><span>' + W[k] + '</span><i><u style="width:' + Math.round(n / maxW * 100) + '%"></u></i><b>' + n + '</b></div>'; }).join('')
     + (S.recentDown.length ? '<p class="cq-s">Dernières réponses à revoir</p>' + S.recentDown.map(function(x){ return '<div class="cq-d">« ' + esc(String(x.q || '').slice(0, 90)) + ' »<small>' + esc(String(x.a || '').slice(0, 160)) + (x.why ? ' · ' + esc(W[x.why] || x.why) : '') + '</small></div>'; }).join('') : '')
     + '<p class="cq-s">Dernière réponse (serveur)</p><div class="cq-d" id="cq-dbg">…</div>'
+    + '<p class="cq-s">Voix · dernières phrases lues</p><div class="cq-d">' + cqTtsText() + '</div>'
     + '<p class="cq-n">Le Coach relit tes notes à chaque question : les défauts relevés lui sont rappelés.</p></div></div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   mc.appendChild(ov);
@@ -40,4 +41,11 @@ function cqDbgText(d){
   if(!d || !d.at) return 'Aucune encore';
   const R = (d.rounds || []).map(function(r){ return (r.r === 'secours' ? 'secours' : 'tour ' + (+r.r + 1)) + ' : ' + (r.err ? 'erreur ' + r.err : r.http ? 'HTTP ' + r.http : (r.stop || '?') + (r.tools ? ' → ' + r.tools : '') + ' · ' + (r.chars || 0) + ' car.'); });
   return new Date(d.at).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + String(d.mode || 'chat').replace(/</g, '&lt;') + ' · ' + (d.chars || 0) + ' caractères<small>' + R.join(' · ').replace(/</g, '&lt;') + '</small>';
+}
+// relevé des dernières phrases lues (coach-voice.js, pm_cv_tts) : Google ou iPhone, délai, échec
+function cqTtsText(){
+  let L = []; try { L = JSON.parse(localStorage.getItem('pm_cv_tts') || '[]') || []; } catch(e) {}
+  if(!L.length) return 'Aucune encore';
+  const g = L.filter(function(x){ return x.g; }).length, last = L.slice(-6).reverse();
+  return g + ' / ' + L.length + ' par la voix Google<small>' + last.map(function(x){ return (x.g ? 'Google' : 'iPhone') + (x.ms != null ? ' ' + (x.ms / 1000).toFixed(1).replace('.', ',') + ' s' : '') + (x.err ? ' · ' + String(x.err).replace(/</g, '&lt;') : '') + (x.ac && x.ac !== 'running' ? ' · son ' + x.ac : ''); }).join('<br>') + '</small>';
 }

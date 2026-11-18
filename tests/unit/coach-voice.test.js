@@ -14,6 +14,7 @@ test('cvSpeakable : allures, FC, abréviations et émojis rendus prononçables',
   // chiffres écrits en chiffres par le Coach : bien prononcés (minutes rondes, minutes seules, pourcentages)
   assert.equal(app.cvSpeakable("Vise 42'00, soit 4'12/km."), 'Vise 42 minutes, soit 4 minutes 12 au kilomètre.');
   assert.equal(app.cvSpeakable("Garde 2' de marge, confiance 80 %."), 'Garde 2 minutes de marge, confiance 80 pour cent.');
+  assert.equal(app.cvSpeakable('La bière a coûté 13 points — sans ça tu serais à 72 %.'), 'La bière a coûté 13 points, sans ça tu serais à 72 pour cent.', 'tiret long → virgule');
 });
 
 test('cvKeep : tour de parole court — 2 phrases, 40 mots au plus, une courte question de relance en 3e', () => {

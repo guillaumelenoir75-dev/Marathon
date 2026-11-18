@@ -13,6 +13,7 @@ let _cv = null;
 function cvSpeakable(t){
   return String(t || '')
     .replace(/\[FEU:[^\]]*\]/g, ' ')
+    .replace(/\s*[—–]\s*/g, ', ')
     .replace(/```[\s\S]*?```/g, ' ').replace(/[`*_#>|]/g, ' ')
     .replace(/\p{Extended_Pictographic}|️|‍|[●○★☆✓✅⚠️➜→•▪︎·]/gu, ' ')
     .replace(/(\d{1,2})\s*h\s*(\d{2})(?:\s*min)?(?:\s*['’]\s*(\d{2}))?/g, function(m, h, mi, se){ return h + ' heure' + (+h > 1 ? 's ' : ' ') + mi + (se ? ' et ' + se + ' secondes' : ''); })
@@ -435,6 +436,7 @@ function cvAsk(text, shown, direct){
   if(!_cv || !text) return;
   try { if(_cv.rec) _cv.rec.abort(); } catch(e) {}
   _cv.finish = null; _cvMicStop();
+  try { if(_cv.ac && _cv.ac.state !== 'running' && _cv.ac.resume) _cv.ac.resume(); } catch(e) {}   // micro coupé : son réveillé pour la réponse
   _cvHush(); _cv.mute = false;
   _cvLogPush();
   const ov = document.getElementById('cv-ov'), you = ov && ov.querySelector('.cv-you'), co = ov && ov.querySelector('.cv-co'), sug = ov && ov.querySelector('.cv-sug'), set = ov && ov.querySelector('.cv-set');
@@ -533,7 +535,9 @@ function _cvSpeakNative(t, turn){
   const u = new SpeechSynthesisUtterance(t); u.lang = 'fr-FR'; if(_cv.voice) u.voice = _cv.voice; u.rate = _cv.prefs.rate || 1.05; u.pitch = 1;
   let done = false; const next = function(){ if(done) return; done = true; clearTimeout(guard); if(!_cv || _cv.turn !== turn) return; _cv.speaking = false; _cvNext(); };
   const guard = setTimeout(next, 2500 + t.length * 110 / (u.rate || 1));   // filet : certains navigateurs n'appellent pas onend
-  u.onend = next; u.onerror = next;
+  let started = false; u.onstart = function(){ started = true; };
+  const nostart = setTimeout(function(){ if(!started && !(typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking)){ _cvTtsLog({ g: 0, err: 'voix iPhone muette' }); next(); } }, 3000);
+  u.onend = function(){ clearTimeout(nostart); next(); }; u.onerror = function(){ clearTimeout(nostart); next(); };
   _cv.speaking = true; _cvSet('speak');
   try { speechSynthesis.speak(u); } catch(e) { next(); }
   _cvBargeStart();                                                // couper la parole à la voix (réglage, essai)
@@ -997,21 +1001,30 @@ function _cvTtsFetch(text){
       const j = await r.json().catch(function(){ return {}; });
       if(!r.ok || !j.audio) throw new Error(j.reason || 'HTTP ' + r.status);
       const bin = atob(j.audio), u = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-      return await new Promise(function(ok, ko){ const q = ac.decodeAudioData(u.buffer, ok, ko); if(q && q.then) q.then(ok, ko); });
+      return await new Promise(function(ok, ko){ const g = setTimeout(function(){ ko(new Error('décodage trop long')); }, 3000); const q = ac.decodeAudioData(u.buffer, function(b){ clearTimeout(g); ok(b); }, function(e){ clearTimeout(g); ko(e || new Error('décodage')); }); if(q && q.then) q.then(function(b){ clearTimeout(g); ok(b); }, function(e){ clearTimeout(g); ko(e); }); });
     } finally { clearTimeout(to); }
   })();
   pr.catch(function(){ if(_cvTtsMem) _cvTtsMem.delete(key); });
   _cvTtsMem.set(key, pr); if(_cvTtsMem.size > 60) _cvTtsMem.delete(_cvTtsMem.keys().next().value);
   return pr;
 }
+// délai borné : une attente ne bloque jamais la lecture
+function _cvWithin(p, ms){ return Promise.race([p, new Promise(function(ok, ko){ setTimeout(function(){ ko(new Error('trop long')); }, ms); })]); }
+// relevé des 30 dernières phrases lues (Qualité du Coach) : Google ou iPhone, délai, raison d'un échec, état du son
+function _cvTtsLog(o){ try { const L = JSON.parse(localStorage.getItem('pm_cv_tts') || '[]'); L.push(Object.assign({ at: Date.now() }, o)); localStorage.setItem('pm_cv_tts', JSON.stringify(L.slice(-30))); } catch(e) {} }
 async function _cvPlayGoogle(it, t, turn){
-  let buf = null;
-  try { buf = await (it.ap || (it.ap = _cvTtsFetch(t))); if(_cv) _cv.ttsFails = 0; }
-  catch(e) { if(_cv){ _cv.ttsFails = (_cv.ttsFails || 0) + 1; if(_cv.ttsFails >= 2) _cv.ttsDown = true; } }   // 2 échecs : voix de l'iPhone pour la suite
-  if(!_cv || _cv.closed || _cv.turn !== turn || _cv.mute) return;
-  if(!buf){ _cvSpeakNative(t, turn); return; }
+  let buf = null, err = null; const t0 = Date.now();
+  try { buf = await _cvWithin(it.ap || (it.ap = _cvTtsFetch(t)), 9000); }
+  catch(e) { err = e; }
+  if(!buf && _cv && !_cv.closed && _cv.turn === turn && !_cv.mute){   // un nouvel essai avant la voix de l'iPhone
+    try { _cvTtsMem && _cvTtsMem.clear(); buf = await _cvWithin(_cvTtsFetch(t), 7000); err = null; } catch(e) { err = e; }
+  }
+  if(_cv){ if(buf) _cv.ttsFails = 0; else { _cv.ttsFails = (_cv.ttsFails || 0) + 1; if(_cv.ttsFails >= 2) _cv.ttsDown = true; } }   // 2 phrases ratées : voix de l'iPhone pour la suite
+  if(!_cv || _cv.closed || _cv.turn !== turn || _cv.mute){ if(_cv && _cv.turn === turn) _cv.speaking = false; return; }
+  if(_cv.ac && _cv.ac.state !== 'running' && _cv.ac.resume){ try { await _cvWithin(_cv.ac.resume(), 800); } catch(e) {} }   // son coupé par le micro (iPhone) : réveillé
+  _cvTtsLog({ g: buf ? 1 : 0, ms: Date.now() - t0, err: err ? String(err.message || err).slice(0, 60) : undefined, ac: _cv.ac ? _cv.ac.state : 'aucun' });
+  if(!buf || !_cv.ac || _cv.ac.state !== 'running'){ _cvSpeakNative(t, turn); return; }
   try {
-    if(_cv.ac.state === 'suspended' && _cv.ac.resume) _cv.ac.resume();
     const src = _cv.ac.createBufferSource(); src.buffer = buf; src.connect(_cv.ac.destination); _cv.src = src;
     let done = false;
     const end = function(){ if(done) return; done = true; clearTimeout(g); if(!_cv || _cv.turn !== turn || _cv.mute || _cv.src !== src) return; _cv.src = null; _cv.speaking = false; _cvNext(); };

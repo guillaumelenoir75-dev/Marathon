@@ -1530,6 +1530,7 @@ exports.coachTts = onRequest(
       // HD : texte simple (pas de SSML) ; Neural2 / WaveNet : SSML ; refusé (400) → texte simple, sans vitesse
       let r = await call(hd ? { text } : { ssml: ttsSsml(text) }, { speakingRate: rate });
       if(r.status === 400){ console.warn('coachTts 400, nouvel essai en texte simple', voice); r = await call({ text }, {}); }
+      if(!r.ok && hd){ console.warn('coachTts voix HD refusée', r.status, '→ Neural2'); voice = V.length ? ttsDefaultVoice(V, true) : 'fr-FR-Neural2-B'; hd = false; r = await call({ ssml: ttsSsml(text) }, { speakingRate: rate }); if(r.status === 400) r = await call({ text }, {}); }
       if(!r.ok){ const t = await r.text().catch(() => ''); console.error('coachTts', r.status, t.slice(0, 300)); res.status(503).json({ fallback: true, reason: 'api', status: r.status }); return; }
       const audio = (await r.json()).audioContent;
       if(!audio){ res.status(503).json({ fallback: true, reason: 'vide' }); return; }
