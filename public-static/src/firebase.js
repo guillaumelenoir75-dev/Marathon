@@ -128,6 +128,7 @@ function initFirebase(){
               migrateState();
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
+              if(typeof shoesUpdateNov2026==='function') shoesUpdateNov2026();   // Evo SL (EF) + Adizero Boston (tempo)
               if(typeof prepShortDescV1==='function') prepShortDescV1();
               if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
               if(typeof prTitlesCoherent==='function') prTitlesCoherent();   // titres accordés aux consignes
@@ -228,6 +229,7 @@ function initFirebase(){
               migrateState();
               if(typeof prepLegacyCleanup==='function') prepLegacyCleanup();
               if(typeof shoesUpdateOct2026==='function') shoesUpdateOct2026();
+              if(typeof shoesUpdateNov2026==='function') shoesUpdateNov2026();   // Evo SL (EF) + Adizero Boston (tempo)
               if(typeof prepShortDescV1==='function') prepShortDescV1();
               if(typeof prFixSchedDatesV1==='function') prFixSchedDatesV1();   // dates des plans générés (fuseau)
               if(typeof prTitlesCoherent==='function') prTitlesCoherent();   // titres accordés aux consignes

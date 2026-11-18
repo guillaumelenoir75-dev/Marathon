@@ -78,6 +78,41 @@ function shoesUpdateOct2026(){
   try{ if(dbRef) dbRef.update(up).catch(()=>{}); }catch(e){}
   if(typeof rendered!=='undefined'){ rendered.stats=false; rendered.plan=false; }
 }
+// Paires de novembre 2026 (neuves, 0 km) : Evo SL pour l'endurance fondamentale, Adizero Boston pour les tempos.
+// Les autres règles (longues, fractionné, course) restent ; seules les séances pas encore faites changent de paire (les km déjà
+// courus restent comptés sur la bonne paire). Appliqué une fois sur la prépa en cours de l'admin, et sur la prépa à venir.
+const SHOES_NOV_2026=[{name:'Adizero Boston',short:'Boston',color:'#C4960A',max:700},{name:'Evo SL',short:'Evo SL',color:'#D4537E',max:600}];
+const SHOES_NOV_2026_RULES={ef:'Evo SL',tempo:'Adizero Boston'};
+// changements d'un état (prépa en cours ou à venir) : paires ajoutées, règles, séances à venir des types concernés
+function shoesNov2026Changes(st, withShoes){
+  const up={};
+  if(withShoes){
+    let arr=[]; try{ arr=JSON.parse(st._shoes||'[]')||[]; }catch(e){}
+    SHOES_NOV_2026.forEach(sh=>{ if(!arr.some(x=>x.name===sh.name)){ arr.push(Object.assign({},sh)); up['shoe_km_'+sh.name]=0; } });
+    up._shoes=JSON.stringify(arr);
+    let r={}; try{ r=JSON.parse(st._shoe_rules||'{}')||{}; }catch(e){}
+    up._shoe_rules=JSON.stringify(Object.assign(r,SHOES_NOV_2026_RULES));
+  }
+  Object.keys(st).forEach(k=>{
+    if(!/^extra_w\d+_s\d+$/.test(k)||st[k+'_done']||st[k+'_km']!=null) return;   // séance faite : sa paire ne change pas
+    let x; try{ x=JSON.parse(st[k]); }catch(e){ return; }
+    const want=x&&SHOES_NOV_2026_RULES[x.type];
+    if(want&&x.shoe!==want){ x.shoe=want; up[k]=JSON.stringify(x); }
+  });
+  return up;
+}
+function shoesUpdateNov2026(){
+  if(!isAdmin()||usesHardPlan()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v3) return;
+  const up=shoesNov2026Changes(state,true); up._shoes_v3=true;
+  Object.assign(state,up);
+  try{ if(dbRef) dbRef.update(up).catch(()=>{}); }catch(e){}
+  // prépa à venir : ses séances suivent les mêmes paires
+  try{
+    if(dbRef&&dbRef.parent){ const ref=dbRef.parent.child('prep_next/state');
+      ref.once('value').then(function(sn){ const ns=sn.val(); if(!ns) return; const u=shoesNov2026Changes(ns,false); if(Object.keys(u).length) return ref.update(u); }).catch(()=>{}); }
+  }catch(e){}
+  if(typeof rendered!=='undefined'){ rendered.stats=false; rendered.plan=false; rendered.home=false; }
+}
 function updateShoeMax(name, val){
   const arr=getShoes();
   const sh=arr.find(s=>s.name===name);
