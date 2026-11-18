@@ -418,6 +418,32 @@ test('Coach à la voix : débrief de séance (relances, ressenti enregistré), p
   await ctx.close();
 });
 
+test('Coach à la voix : la dernière phrase est lue sans attendre la fin de la réponse (recherche ou note en cours côté serveur)', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
+    init: () => {
+      window.__said = []; window.__recStarts = 0;
+      class FakeRec { start() { window.__recStarts++; } stop() {} abort() {} }
+      window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+      window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak(u) { window.__said.push(u.text); setTimeout(() => { u.onstart && u.onstart(); u.onend && u.onend(); }, 20); }, cancel() {}, getVoices() { return []; } } });
+    } });
+  await page.evaluate(() => { delete state._brief_pending; localStorage.setItem('pm_cv', JSON.stringify({ engine: 'native', stt: 'native', greet: false })); openCoachVoice(); });
+  await page.waitForSelector('#cv-ov');
+  // réponse qui s'arrête (le serveur note un point à suivre) : tout ce qui est écrit est lu tout de suite
+  await page.evaluate(() => { window.sendCoachMessage = function(t, o){ window.__o = o; o.onToken("Récup à 59 %, c'est moyen. "); o.onToken('Sans ça tu serais à 72 %.'); o.onTool({ tool: 'suivi_ouvrir', say: null }); }; cvAsk("Qu'as-tu pensé de ma nuit ?"); });
+  await page.waitForFunction(() => window.__said.some((t) => /72 pour cent/.test(t)), null, { timeout: 4000 });
+  await page.evaluate(() => window.__o.onDone("Récup à 59 %, c'est moyen. Sans ça tu serais à 72 %.", { tools: 1 }));
+  assert.equal(await page.evaluate(() => window.__said.filter((t) => /72 pour cent/.test(t)).length), 1, 'lue une seule fois');
+  // flux qui marque une pause sans recherche annoncée : lue au bout d'un court silence
+  await page.waitForFunction(() => _cv && !_cv.speaking && !_cv.q.length, null, { timeout: 4000 });
+  await page.evaluate(() => { window.sendCoachMessage = function(t, o){ window.__o = o; o.onToken('Bonne nuit dans l\'ensemble. '); o.onToken('Ta VFC remonte.'); }; cvAsk('Et ma VFC ?'); });
+  await page.waitForFunction(() => window.__said.some((t) => /VFC remonte|variabilité cardiaque remonte/.test(t)), null, { timeout: 4000 });
+  await page.evaluate(() => { window.__o.onDone("Bonne nuit dans l'ensemble. Ta VFC remonte.", {}); closeCoachVoice(); });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('écrans rares chargés à la demande : chaque point d\'entrée charge son fichier et ouvre l\'écran, sans erreur', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   const lazy = await page.evaluate(() => Object.keys(window.LAZY_BUNDLES || {}));

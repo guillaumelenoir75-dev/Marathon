@@ -54,6 +54,14 @@ async function ctLoad(db, uid, today) {
   return _ct;
 }
 function ctReset() { _ct = null; }
+// points à suivre : seulement la liste, sans charger tout l'historique (réponse immédiate)
+async function ctLight(db, uid, today) {
+  if (_ct && _ct.uid === uid && _ct.today === today && Date.now() - _ct.at < 90000) return _ct;
+  const base = `users/${uid}`;
+  const th = (await db.ref(base + '/state/_coach_threads').once('value')).val() || {};
+  return { uid, today, db, base, state: { _coach_threads: th }, light: true };
+}
+const LIGHT_TOOLS = ['suivi_ouvrir', 'suivi_fermer'];
 
 // ─── séances ───
 function ctLine(s, E) {
@@ -207,4 +215,4 @@ async function ctRun(T, name, input, deps) {
   }
 }
 
-module.exports = { COACH_TOOLS, TOOL_SAY, ctLoad, ctReset, ctRun, ctFind, ctDetail, ctLine };
+module.exports = { COACH_TOOLS, TOOL_SAY, LIGHT_TOOLS, ctLoad, ctLight, ctReset, ctRun, ctFind, ctDetail, ctLine };

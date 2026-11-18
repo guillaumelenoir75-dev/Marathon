@@ -480,20 +480,25 @@ function cvAsk(text, shown, direct){
   clearTimeout(_cv.fillT);                                        // attente : une petite phrase si rien n'arrive en 1,6 s
   if(_cv.prefs.filler) _cv.fillT = setTimeout(function(){ if(_cv && _cv.turn === turn && !_cv.said && !_cv.speaking && !_cv.mute && !_cv.streamDone) _cvQueue(CV_FILLERS[turn % CV_FILLERS.length]); }, 1600);
   const take0 = take; const takeT = function(x){ if(!tSay && !_cv.cut) tSay = Date.now() - t0; take0(x); };
+  const flush = function(){ if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut || !String(_cv.buf || '').trim()) return; const S = cvSentences(_cv.buf, true); _cv.buf = S.rest; S.out.forEach(takeT); show(); };
   const opts = { voice: true, voiceLong: long, tone: _cv.prefs.tone || undefined,
     onToken: function(tok){
       if(!tTok) tTok = Date.now() - t0;
       if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
       _cv.buf += tok; const S = cvSentences(_cv.buf, false); _cv.buf = S.rest; S.out.forEach(takeT); show();
+      // phrase finie mais plus rien n'arrive (le Coach cherche une donnée, note un point à suivre…) : lue sans attendre la suite
+      clearTimeout(_cv.flushT);
+      if(/[.!?…]["»)]?\s*$/.test(_cv.buf)) _cv.flushT = setTimeout(flush, 600);
     },
     onTool: function(o){                                          // il va chercher une séance, la météo… : une petite phrase en attendant
       if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
       clearTimeout(_cv.fillT);
+      flush();                                                    // ce qui est déjà écrit est lu tout de suite
       if(!_cv.said && !_cv.speaking && !_cv.q.length && !_cv.toolSaid && o && o.say){ _cv.toolSaid = true; _cvQueue(o.say); }
     },
     onDone: function(full, meta){
       if(!_cv || _cv.turn !== turn) return;
-      clearTimeout(_cv.fillT);
+      clearTimeout(_cv.fillT); clearTimeout(_cv.flushT);
       if(full == null){ _cv.streamDone = true; _cvSet('idle', 'Le Coach n\'a pas pu répondre — touche pour réessayer'); return; }
       if(!_cv.said && full) _cv.buf = full;                      // réponse arrivée d'un bloc, ou rien encore lu : la réponse entière
       if(!_cv.said && !String(_cv.buf || '').trim()){              // réponse vide : jamais de silence

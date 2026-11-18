@@ -433,7 +433,7 @@ function voiceLightCtx(ctx){
   return out;
 }
 exports.voiceLightCtx = voiceLightCtx;
-const { COACH_TOOLS, TOOL_SAY, ctLoad, ctRun, ctReset } = require('./coach-tools');
+const { COACH_TOOLS, TOOL_SAY, LIGHT_TOOLS, ctLoad, ctLight, ctRun, ctReset } = require('./coach-tools');
 const OUTILS_REGLE = `OUTILS — tu peux aller chercher les données toi-même (le contexte ne contient que les dernières séances, en résumé) :
 - detail_seance / comparer_seances / seances_faites : dès qu'on te parle d'une séance précise (« mardi », « hier », « ma dernière longue »), de splits, d'une comparaison ou d'une période, APPELLE l'outil au lieu de deviner ou de dire que tu n'as pas l'info.
 - seances_prevues : le plan au-delà de ce que montre le contexte. meteo : temps prévu un jour et une heure donnés. niveau_et_records : niveau, temps prévu, records, allures par zone.
@@ -449,7 +449,8 @@ exports.coachChat = onRequest(
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     try { await verifyAdmin(req); } catch(e) { res.status(403).json({ error: e.message }); return; }
     // préchauffage (ouverture de l'écran vocal) : instance réveillée + contexte prêt, sans appel à l'IA
-    if(req.body && req.body.warm){ try { await coachCtxLoad(true); } catch(e) {} res.json({ ok: true, warm: true }); return; }
+    // + historique chargé pour les outils (séance précise, comparaison…) : la 1re recherche sera immédiate
+    if(req.body && req.body.warm){ try { await Promise.all([coachCtxLoad(true), ctLoad(admin.database(), ADMIN_UID, require('./helpers').parisToday()).catch(() => null)]); } catch(e) {} res.json({ ok: true, warm: true }); return; }
     // Rate limiting : max 20 appels/minute
     try {
       const db = admin.database();
@@ -824,7 +825,7 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
           const results = [];
           for(const b of calls){
             let out;
-            try { out = await ctRun(await getT(), b.name, b.input); } catch(e) { out = { erreur: 'donnée indisponible' }; }
+            try { out = await ctRun(LIGHT_TOOLS.includes(b.name) && !T ? await ctLight(admin.database(), ADMIN_UID, require('./helpers').parisToday()) : await getT(), b.name, b.input); } catch(e) { out = { erreur: 'donnée indisponible' }; }
             used.push(b.name);
             if(out && out.changed){ send({ threads: out.changed }); delete out.changed; _ccCache = null; }   // point à suivre : l'app le garde, la situation sera relue
             results.push({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(out).slice(0, 12000) });
