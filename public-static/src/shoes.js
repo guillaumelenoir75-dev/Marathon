@@ -74,13 +74,14 @@ function shoesUpdateOct2026(){
   try{ if(dbRef) dbRef.update(up).catch(()=>{}); }catch(e){}
   if(typeof rendered!=='undefined'){ rendered.stats=false; rendered.plan=false; }
 }
-// Paires de novembre 2026 (neuves, 0 km) : Evo SL pour l'endurance fondamentale, Adizero Boston pour les tempos.
-// Les autres règles (longues, fractionné, course) restent ; seules les séances pas encore faites changent de paire (les km déjà
+// Paires de novembre 2026 (neuves, 0 km) : Evo SL pour l'endurance fondamentale et les sorties longues, Adizero Boston pour les tempos.
+// Les autres règles (fractionné, course) restent ; seules les séances pas encore faites changent de paire (les km déjà
 // courus restent comptés sur la bonne paire). Appliqué une fois sur la prépa en cours de l'admin, et sur la prépa à venir.
 const SHOES_NOV_2026=[{name:'Adizero Boston',short:'Boston',color:'#C4960A',max:700},{name:'Evo SL',short:'Evo SL',color:'#D4537E',max:600}];
-const SHOES_NOV_2026_RULES={ef:'Evo SL',tempo:'Adizero Boston'};
+const SHOES_NOV_2026_RULES={ef:'Evo SL',long:'Evo SL',tempo:'Adizero Boston'};
 // changements d'un état (prépa en cours ou à venir) : paires ajoutées, règles, séances à venir des types concernés
-function shoesNov2026Changes(st, withShoes){
+// types : seuls ces types de séance changent de paire (défaut : tous ceux des règles)
+function shoesNov2026Changes(st, withShoes, types){
   const up={};
   if(withShoes){
     let arr=[]; try{ arr=JSON.parse(st._shoes||'[]')||[]; }catch(e){}
@@ -92,20 +93,22 @@ function shoesNov2026Changes(st, withShoes){
   Object.keys(st).forEach(k=>{
     if(!/^extra_w\d+_s\d+$/.test(k)||st[k+'_done']||st[k+'_km']!=null) return;   // séance faite : sa paire ne change pas
     let x; try{ x=JSON.parse(st[k]); }catch(e){ return; }
-    const want=x&&SHOES_NOV_2026_RULES[x.type];
+    const want=x&&(!types||types.indexOf(x.type)>=0)&&SHOES_NOV_2026_RULES[x.type];
     if(want&&x.shoe!==want){ x.shoe=want; up[k]=JSON.stringify(x); }
   });
   return up;
 }
 function shoesUpdateNov2026(){
-  if(!isAdmin()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v3) return;
-  const up=shoesNov2026Changes(state,true); up._shoes_v3=true;
+  if(!isAdmin()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v4) return;
+  // déjà passé aux paires de novembre (v3) : seules les sorties longues à venir passent aux Evo SL (v4)
+  const types=state._shoes_v3?['long']:null;
+  const up=shoesNov2026Changes(state,true,types); up._shoes_v3=true; up._shoes_v4=true;
   Object.assign(state,up);
   try{ if(dbRef) dbRef.update(up).catch(()=>{}); }catch(e){}
   // prépa à venir : ses séances suivent les mêmes paires
   try{
     if(dbRef&&dbRef.parent){ const ref=dbRef.parent.child('prep_next/state');
-      ref.once('value').then(function(sn){ const ns=sn.val(); if(!ns) return; const u=shoesNov2026Changes(ns,false); if(Object.keys(u).length) return ref.update(u); }).catch(()=>{}); }
+      ref.once('value').then(function(sn){ const ns=sn.val(); if(!ns) return; const u=shoesNov2026Changes(ns,false,types); if(Object.keys(u).length) return ref.update(u); }).catch(()=>{}); }
   }catch(e){}
   if(typeof rendered!=='undefined'){ rendered.stats=false; rendered.plan=false; rendered.home=false; }
 }

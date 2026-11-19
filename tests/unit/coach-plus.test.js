@@ -93,7 +93,7 @@ test('carte allure EF : 6 dernières sorties EF / longues, intention reconnue', 
   assert.ok(P.length <= 6 && P.length >= 4); assert.ok(P.every((x) => x.p > 300 && x.p < 345)); assert.equal(P[P.length - 1].d, '2026-11-08');
 });
 
-test('chaussures de novembre 2026 : Evo SL (EF) et Adizero Boston (tempo) ajoutées à 0 km, séances à venir seulement', () => {
+test('chaussures de novembre 2026 : Evo SL (EF, sorties longues) et Adizero Boston (tempo) ajoutées à 0 km, séances à venir seulement', () => {
   const J = (o) => JSON.stringify(o);
   const st = {
     _shoes: J([{ name: 'Salomon Aero Glide 4 GRVL', short: 'GRVL', max: 800 }, { name: 'Adidas Adios Pro 4', short: 'Adios', max: 500 }]),
@@ -107,13 +107,18 @@ test('chaussures de novembre 2026 : Evo SL (EF) et Adizero Boston (tempo) ajout�
   const shoes = JSON.parse(up._shoes);
   assert.deepEqual(shoes.slice(2).map((s) => [s.name, s.short]), [['Adizero Boston', 'Boston'], ['Evo SL', 'Evo SL']]);
   assert.equal(up['shoe_km_Adizero Boston'], 0); assert.equal(up['shoe_km_Evo SL'], 0);
-  assert.deepEqual(JSON.parse(up._shoe_rules), { ef: 'Evo SL', long: 'Salomon Aero Glide 4 GRVL', frac: 'Adidas Adios Pro 4', tempo: 'Adizero Boston', race: 'Adidas Adios Pro 4' });
+  assert.deepEqual(JSON.parse(up._shoe_rules), { ef: 'Evo SL', long: 'Evo SL', frac: 'Adidas Adios Pro 4', tempo: 'Adizero Boston', race: 'Adidas Adios Pro 4' });
   assert.equal(up.extra_w1_s0, undefined, 'séance faite : paire inchangée (km gardés)');
   assert.equal(JSON.parse(up.extra_w2_s0).shoe, 'Evo SL'); assert.equal(JSON.parse(up.extra_w2_s1).shoe, 'Adizero Boston');
-  assert.equal(up.extra_w2_s2, undefined); assert.equal(up.extra_w2_s3, undefined, 'longue et course : inchangées');
+  assert.equal(JSON.parse(up.extra_w2_s2).shoe, 'Evo SL', 'sortie longue → Evo SL'); assert.equal(up.extra_w2_s3, undefined, 'course : inchangée');
   // relancé : rien à refaire
   const again = plain(app.shoesNov2026Changes(Object.assign({}, st, up), true));
   assert.equal(JSON.parse(again._shoes).length, 4); assert.equal(Object.keys(again).filter((k) => /^extra_/.test(k)).length, 0);
+  // déjà passé aux paires de novembre : seules les sorties longues changent (une paire choisie à la main pour un footing reste)
+  const v3 = Object.assign({}, st, { extra_w2_s0: J({ type: 'ef', km: 9, shoe: 'Salomon Aero Glide 4 GRVL' }) });
+  const only = plain(app.shoesNov2026Changes(v3, true, ['long']));
+  assert.deepEqual(Object.keys(only).filter((k) => /^extra_/.test(k)), ['extra_w2_s2']);
+  assert.equal(JSON.parse(only.extra_w2_s2).shoe, 'Evo SL');
 });
 
 test('texte du Coach affiché comme du texte : balises de l\'IA neutralisées, gras gardé', () => {
