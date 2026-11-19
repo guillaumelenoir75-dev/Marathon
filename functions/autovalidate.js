@@ -63,7 +63,7 @@ async function runAutoValidate(db, uid, nowMs, deps, opts) {
   opts = opts || {};
   const base = `users/${uid}/state`;
   const state = (await db.ref(base).once('value')).val() || {};
-  if (!state._plan_engine) return { skip: 'plan Seine-Eure écrit en dur' };
+  if (!state.plan_start_date) return { skip: 'pas de programme' };
   if ((state._autoval || 'on') === 'off') return { skip: 'désactivée' };
   const list = await deps.runs(uid, Math.floor(nowMs / 1000) - 36 * 3600);
   if (!list) return { skip: 'Strava indisponible' };

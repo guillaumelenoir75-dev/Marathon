@@ -1,6 +1,6 @@
-// Km cumulés d'une paire. Plan Seine-Eure écrit en dur : tableau de référence + séances cochées de la semaine.
-// Prépa générée : km reportés des prépas précédentes (shoe_km_*, figés par prepApplyNew) + séances faites de la prépa en cours.
-const SHOE_KM_HARD=[[16,46,69,87,110,126,142,157,174,192,211,228,247,267,287,305,325,346,367,386,396,416,439,459,479,488,498,508,516,533,541,546],[0,0,0,0,0,9,20,29,39,51,65,77,93,110,128,142,160,180,202,216,230,230,230,245,263,263,263,287,287,303,315,315],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,25,56,66,106,106,115,161]];
+// Km cumulés d'une paire : km reportés des prépas précédentes (shoe_km_*, figés par prepApplyNew) + séances faites de la prépa.
+// Sans report (admin sorti de Seine-Eure) : km de fin de Seine-Eure (Pegasus, Salomon, Zoom Fly).
+const SHOE_KM_SEINE_EURE=[546,315,161];
 function _shoeDoneKm(name, ws){
   let t=0;
   getOrderedWeekSessions(ws).forEach(({s,ei})=>{
@@ -11,18 +11,14 @@ function _shoeDoneKm(name, ws){
   return t;
 }
 function shoeKmTotal(name){
-  const sg=!usesHardPlan()&&shoeStravaFor(name);          // paire reliée à Strava : son compteur fait foi
+  const sg=shoeStravaFor(name);          // paire reliée à Strava : son compteur fait foi
   if(sg&&sg.km!=null) return sg.km;
   const idx=[P,S,Z].indexOf(name);
   let base=parseFloat(state['shoe_km_'+name]), t;
-  if(usesHardPlan()){
-    t=(idx>=0?(SHOE_KM_HARD[idx][CW-2]||0):(isNaN(base)?0:base))+_shoeDoneKm(name,CW);
-  } else {
-    // admin passé à une prépa générée sans report figé : km de fin de Seine-Eure
-    if(isNaN(base)) base=(isAdmin()&&idx>=0)?SHOE_KM_HARD[idx][SHOE_KM_HARD[idx].length-1]:0;
-    t=base;
-    for(let ws=1;ws<=getEffectiveCW();ws++) t+=_shoeDoneKm(name,ws);
-  }
+  // sans report figé (admin sorti de Seine-Eure) : km de fin de Seine-Eure
+  if(isNaN(base)) base=(isAdmin()&&idx>=0)?SHOE_KM_SEINE_EURE[idx]:0;
+  t=base;
+  for(let ws=1;ws<=getEffectiveCW();ws++) t+=_shoeDoneKm(name,ws);
   return Math.round(t*10)/10;
 }
 
@@ -63,7 +59,7 @@ const SHOES_OCT_2026=[
   {name:'Nike Pegasus 41',short:'Pegasus',color:'#1438A8',max:800,km:427.3,retired:true},
   {name:'Kiprun TR2',short:'Kiprun',color:'#888780',max:800,km:180.4,retired:true}];
 function shoesUpdateOct2026(){
-  if(!isAdmin()||usesHardPlan()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v2) return;
+  if(!isAdmin()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v2) return;
   const G=SHOES_OCT_2026[0].name, A=SHOES_OCT_2026[1].name;
   const up={_shoes_v2:true};
   up._shoes=state._shoes=JSON.stringify(SHOES_OCT_2026.map(({km,...sh})=>sh));
@@ -102,7 +98,7 @@ function shoesNov2026Changes(st, withShoes){
   return up;
 }
 function shoesUpdateNov2026(){
-  if(!isAdmin()||usesHardPlan()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v3) return;
+  if(!isAdmin()||(typeof _prepView!=='undefined'&&_prepView)||state._shoes_v3) return;
   const up=shoesNov2026Changes(state,true); up._shoes_v3=true;
   Object.assign(state,up);
   try{ if(dbRef) dbRef.update(up).catch(()=>{}); }catch(e){}
@@ -112,11 +108,6 @@ function shoesUpdateNov2026(){
       ref.once('value').then(function(sn){ const ns=sn.val(); if(!ns) return; const u=shoesNov2026Changes(ns,false); if(Object.keys(u).length) return ref.update(u); }).catch(()=>{}); }
   }catch(e){}
   if(typeof rendered!=='undefined'){ rendered.stats=false; rendered.plan=false; rendered.home=false; }
-}
-function updateShoeMax(name, val){
-  const arr=getShoes();
-  const sh=arr.find(s=>s.name===name);
-  if(sh){sh.max=parseInt(val)||600;saveShoes(arr);rendered.stats=false;renderStats();}
 }
 let _pendingDeleteShoe=null;
 function deleteShoe(name){
@@ -487,7 +478,7 @@ function saveShoesStravaLinks(){
 // avec la plus fraîche). Alterner les paires est associé à moins de blessures (Malisoux et al., 2015).
 const SHOE_FAST=['frac','tempo','race'];
 function shoeDayAdvice(x, date){
-  if(!x||x.type==='rest'||usesHardPlan()) return null;
+  if(!x||x.type==='rest') return null;
   const shoes=getShoes().filter(sh=>!sh.retired); if(!shoes.length) return null;
   const km=n=>shoeKmTotal(n), life=sh=>sh.max?km(sh.name)/sh.max:0, byName=n=>shoes.find(sh=>sh.name===n);
   let r={}; try{ r=JSON.parse(state._shoe_rules||'{}')||{}; }catch(e){}

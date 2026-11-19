@@ -653,7 +653,7 @@ function prFormStore(F){
 function prRenderHomeCard(){
   const el = document.getElementById('home-form-card'); if(!el) return;
   try {
-    if((typeof usesHardPlan === 'function' && usesHardPlan()) || (typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
+    if((typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
     _pdCss();
     const F = prFormScore(), B = prBadges(), on = B.list.filter(function(b){ return b.on; });
     prFormStore(F);

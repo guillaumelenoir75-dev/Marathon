@@ -35,9 +35,7 @@ function renderHome(){
   const navDates = document.getElementById('home-week-dates');
   if(navDates){
     let d0;
-    if(usesHardPlan() && weekDates[w-1]){
-      d0 = new Date(weekDates[w-1]);
-    } else if(state.plan_start_date){
+    if(state.plan_start_date){
       d0 = new Date(state.plan_start_date);
       d0.setDate(d0.getDate()+(w-1)*7);
       // Aller au lundi de cette semaine
@@ -54,7 +52,7 @@ function renderHome(){
     }
   }
   // Flèches : grisées aux extrêmes
-  const maxW = usesHardPlan()?32:getAthleteMaxWeek();
+  const maxW = getAthleteMaxWeek();
   const prevBtn = document.getElementById('home-week-prev');
   const nextBtn = document.getElementById('home-week-next');
   if(prevBtn){ prevBtn.style.opacity = w<=1?'0.3':'1'; prevBtn.style.pointerEvents = w<=1?'none':'auto'; }
@@ -116,14 +114,10 @@ function renderHome(){
   const kpiRestEl=document.getElementById('kpi-rest'); if(kpiRestEl) kpiRestEl.textContent=gt>0?Math.max(0,gt-td).toLocaleString('fr-FR')+' km':'—';
   const weeksLeftEl=document.getElementById('kpi-weeks-left'); if(weeksLeftEl){
     let wVal;
-    if(usesHardPlan()){
-      wVal=Math.max(0,32-CW);
-    } else {
-      let maxW=0;
-      for(let ws=1;ws<=52;ws++){ if(state['extra_w'+ws+'_s0']) maxW=ws; }
-      const ACW=getAthleteCW();
-      wVal=maxW>0?Math.max(0,maxW-ACW+1):null;
-    }
+    let maxW=0;
+    for(let ws=1;ws<=52;ws++){ if(state['extra_w'+ws+'_s0']) maxW=ws; }
+    const ACW=getAthleteCW();
+    wVal=maxW>0?Math.max(0,maxW-ACW+1):null;
     weeksLeftEl.textContent=wVal!=null?wVal+' sem.':'—';
   }
   // KM semaine : basés sur la semaine affichée
@@ -180,13 +174,13 @@ function renderHome(){
   // EF pace
   const efPace=getBestEfPace();
   const efEl=document.getElementById('kpi-ef-pace');
-  if(efEl) efEl.textContent=efPace?efPace:(usesHardPlan()?"6'40":'—');
+  if(efEl) efEl.textContent=efPace?efPace:'—';
 
   // ── Bloc course / KPIs selon rôle ──────────────────────────────────────────
   const ob=state.onboarding||{};
   const userCourse=ob.course||null; // '5 km','10 km','Semi-marathon','Marathon','Plaisir','Autre'
   const isPlaisir=isPlaisirMode();
-  const raceDateStr=usesHardPlan()?null:(ob.date||null);
+  const raceDateStr=(ob.date||null);
   // Date de course
   const raceDateEl=document.getElementById('home-race-date');
   if(raceDateEl){
@@ -195,9 +189,6 @@ function renderHome(){
       const rd=new Date(raceDateStr);
       const courseName=courseLabels[ob.course]||'Course';
       raceDateEl.textContent='🏁 '+courseName+' · '+rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
-      raceDateEl.style.display='block';
-    } else if(usesHardPlan()){
-      raceDateEl.textContent='🏁 Marathon · 18/10/2026';
       raceDateEl.style.display='block';
     } else {
       raceDateEl.style.display='none';
@@ -289,7 +280,7 @@ function renderHome(){
     if(marathonTimeBlock){
       marathonTimeBlock.style.display='block';
       // Restaurer onclick (peut avoir été nullifié par un render Plaisir précédent)
-      marathonTimeBlock.onclick=()=>{ usesHardPlan()?openMarathonPredModal():openTargetTimeModal(); };
+      marathonTimeBlock.onclick=()=>{ openTargetTimeModal(); };
     }
     const mainRowEl=document.getElementById('home-header-main-row');
     if(mainRowEl) mainRowEl.style.display='flex';
@@ -311,7 +302,7 @@ function renderHome(){
     // today-date : sous-label du grand chiffre
     const todayDateElR=document.getElementById('today-date');
     if(todayDateElR){
-      if(!usesHardPlan()&&raceDateStr){
+      if(raceDateStr){
         const rd=new Date(raceDateStr);
         todayDateElR.textContent=rd.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
       } else {
@@ -325,8 +316,7 @@ function renderHome(){
       predBtn.style.cursor='pointer';
       predBtn.style.background=''; predBtn.style.border='';
       // Toujours réassigner onclick (peut avoir été nullifié par le bloc Plaisir)
-      if(usesHardPlan()) predBtn.onclick=()=>openMarathonPredModal();
-      else predBtn.onclick=()=>{ if(typeof openDistancePredModal==='function') openDistancePredModal(userCourse||'Marathon'); };
+      predBtn.onclick=()=>{ if(typeof openDistancePredModal==='function') openDistancePredModal(userCourse||'Marathon'); };
     }
     // AM entraînement : visible pour admin et athlète avec plan
     if(amTrainBtn){
@@ -341,8 +331,7 @@ function renderHome(){
   // Label objectif dynamique selon la course (isPlaisir déjà géré dans son bloc)
   const goalLabelEl=document.getElementById('home-goal-label');
   if(goalLabelEl && !isPlaisir){
-    if(usesHardPlan()) goalLabelEl.textContent='🎯 Objectif marathon';
-    else{
+    {
       const lbl={'5 km':'🎯 Objectif 5 km','10 km':'🎯 Objectif 10 km','Semi-marathon':'🎯 Objectif semi','Marathon':'🎯 Objectif marathon','Autre':'🎯 Mon objectif'}[userCourse]||'🎯 Mon objectif';
       goalLabelEl.textContent=lbl;
     }
@@ -351,7 +340,7 @@ function renderHome(){
   const predLabelEl=document.getElementById('h-pred-label');
   const amTrainLabelEl=document.getElementById('h-am-train-label');
   if(!isPlaisir){
-    if(!usesHardPlan()&&userCourse&&userCourse!=='Plaisir'){
+    if(userCourse&&userCourse!=='Plaisir'){
       const trainLabel=(userCourse==='5 km'||userCourse==='10 km')?'/km fractionné':'/km entraînement';
       if(amTrainLabelEl) amTrainLabelEl.textContent=trainLabel;
       const mtEl=document.getElementById('kpi-marathon-time');
@@ -444,7 +433,7 @@ function renderHome(){
         }
         if(_htb) _htb.style.cursor='pointer';
       }
-    } else if(!usesHardPlan() && !userCourse){
+    } else if(!userCourse){
       // Pas d'onboarding / pas de plan : incitation à créer
       const goalLblNP=document.getElementById('home-goal-label');
       if(goalLblNP) goalLblNP.textContent='🏁 Aucun plan actif';
@@ -473,16 +462,14 @@ function renderHome(){
       // Temps marathon projeté (admin)
       const pred = buildMarathonPrediction();
       const mtEl=document.getElementById('kpi-marathon-time');
-      if(mtEl) mtEl.textContent = pred.tempsStr || (usesHardPlan()?(calcMarathonTime(am)||'—'):'—');
+      if(mtEl) mtEl.textContent = pred.tempsStr || '—';
       const amPredEl = document.getElementById('h-am-pred');
       if(amPredEl) amPredEl.textContent = pred.amPaceRecoStr || '—';
-      const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor=usesHardPlan()?'pointer':'default';
+      const _htb2=document.getElementById('home-marathon-time-block');if(_htb2)_htb2.style.cursor='default';
     }
     const amTrainEl = document.getElementById('kpi-am-training');
     if(amTrainEl){
-      if(usesHardPlan()){
-        amTrainEl.textContent = state._am_training_pace || "5'20";
-      } else {
+      {
         // Base : allure EF (la vraie référence physiologique)
         // Tempo (seuil lactate ~87% VMA) = EF × 0.88  — ex: EF 5'30 → tempo 4'50
         // Fractionné (VO2max ~97% VMA)   = EF × 0.72  — ex: EF 5'30 → frac  3'58
@@ -571,7 +558,7 @@ function renderHome(){
       renfoEl.appendChild(skipCard);
       const renfoProgressEl=document.getElementById('renfo-progress');
       if(renfoProgressEl){renfoProgressEl.style.color='var(--muted)';renfoProgressEl.textContent='—';}
-    } else if(usesHardPlan()?(w>=30&&w<=32):(isAdmin()&&(()=>{try{return !!JSON.parse(state['meta_w'+w]||'{}').isTaper;}catch(e){return false;}})())){   // affûtage : S30-32 Seine-Eure ou semaine d'affûtage du programme
+    } else if(isAdmin()&&(()=>{try{return !!JSON.parse(state['meta_w'+w]||'{}').isTaper;}catch(e){return false;}})()){   // semaine d'affûtage du programme
     // ── Mode Affûtage (S30-S32) ─────────────────────────────────────────────
     const _n=new Date();const _today=_n.getFullYear()*10000+(_n.getMonth()+1)*100+_n.getDate();
     const affData=[
@@ -745,7 +732,7 @@ function renderHome(){
   }
 
   // ── Bannière EF auto-calculée (S1) ──────────────────────────────────────────
-  if(!usesHardPlan()){
+  {
     const efAutoEl=document.getElementById('home-ef-auto-banner');
     if(efAutoEl){
       if(state.ef_pace_auto==='true'&&!state.ef_pace_auto_seen){
@@ -766,7 +753,7 @@ function renderHome(){
   }
 
   // ── Bannière adaptation plan ─────────────────────────────────────────────────
-  if(!usesHardPlan()){
+  {
     let adapted=null;try{adapted=state._plan_adapted?JSON.parse(state._plan_adapted):null;}catch(e){}
     const adaptedEl=document.getElementById('home-adapted-banner');
     if(adapted&&!adapted.seen&&adaptedEl){
@@ -949,9 +936,9 @@ function renderHome(){
 function homeGoalLine(ob, userCourse){
   const lbl = document.getElementById('home-goal-label'), sub = document.getElementById('today-date');
   const raceDateEl = document.getElementById('home-race-date'); if(raceDateEl) raceDateEl.style.display = 'none';
-  if(!lbl || (!usesHardPlan() && !userCourse)) return;                              // pas de plan : libellés d'incitation déjà posés
-  const R = typeof prepRace === 'function' ? prepRace() : {}, tt = usesHardPlan() ? '' : (ob.target_time || state.target_time || '');
-  const name = usesHardPlan() ? 'Marathon' : ({ '5 km': '5 km', '10 km': '10 km', 'Semi-marathon': 'Semi', 'Marathon': 'Marathon' })[userCourse] || 'Course';
+  if(!lbl || (!userCourse)) return;                              // pas de plan : libellés d'incitation déjà posés
+  const R = typeof prepRace === 'function' ? prepRace() : {}, tt = (ob.target_time || state.target_time || '');
+  const name = ({ '5 km': '5 km', '10 km': '10 km', 'Semi-marathon': 'Semi', 'Marathon': 'Marathon' })[userCourse] || 'Course';
   const mt = document.getElementById('kpi-marathon-time'), shown = mt ? mt.textContent.trim() : '';
   const tgt = tt ? homeTimeTxt(tt) : '', bigIsTarget = !!tt && (shown === formatTargetTime(tt) || shown === tgt);
   const parts = ['🎯 ' + name];
@@ -1342,7 +1329,6 @@ function dismissPlanAdapted(){
 }
 
 async function adaptPlanAfterSession(w, ei, kmActual, kmPlanned){
-  if(usesHardPlan()) return;
   if(String(state.plan_version||'').startsWith('import-')) return;   // programme fourni : pas d'adaptation automatique
   if(!kmPlanned||kmPlanned<=0) return;
   const ratio=kmActual/kmPlanned;
@@ -1484,7 +1470,7 @@ async function saveValidationExtra(w,ei){
     }).catch(()=>{});
   }
   // Adaptation automatique du plan si km réels < 80% du prévu (ou champ vide = 0 km)
-  if(!usesHardPlan()){
+  {
     const kmPlanned=sExtra.km||0;
     const kmActual=(!isNaN(km)&&km>=0)?km:0;
     await adaptPlanAfterSession(w, ei, kmActual, kmPlanned);
@@ -1509,12 +1495,12 @@ async function saveValidationExtra(w,ei){
   if(document.getElementById('sc-stats').style.display!=='none') renderStats();
   const amImproved=updateMarathonPace();
   // séance de qualité validée : si ton niveau a bougé, « MAJ le plan » a des propositions
-  if((sExtra.type==='tempo'||sExtra.type==='frac')&&typeof planReviewPending==='function'&&!usesHardPlan()){
+  if((sExtra.type==='tempo'||sExtra.type==='frac')&&typeof planReviewPending==='function'){
     const _prN=planReviewPending();
     if(_prN&&typeof showToast==='function') setTimeout(()=>showToast('🔄 Tes allures évoluent : « MAJ le plan » a '+_prN+' proposition'+(_prN>1?'s':'')),2500);
   }
   // Auto-calcul EF depuis S1 si jamais renseigné
-  if(w===1&&!state.ef_pace&&!usesHardPlan()){
+  if(w===1&&!state.ef_pace){
     window._autoEFChecked=true; // éviter doublon dans renderHome
     tryAutoCalculateEF().then(newEF=>{
       if(newEF){ rendered.plan=false; renderHome(); }

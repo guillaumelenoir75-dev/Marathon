@@ -269,28 +269,7 @@ async function sendCoachMessage(retryMsg, opts){
     const futurPlan = [];
     if(needs.plan_futur || needs.historique_complet) {
       for(let ws=CW; ws<=planTotalWeeks(); ws++){
-        // Séances du plan de base — seulement pour l'ancien format : depuis la migration (et pour une prépa
-        // générée), toutes les séances sont dans extra_w, lues juste après (sinon elles seraient comptées deux fois)
-        const _onlyExtra = state._plan_migrated || !usesHardPlan();
-        const weekSessions = (_onlyExtra ? [] : weeks[ws-1].sessions).map((sess, si) => {
-          if(state['del_w'+ws+'_s'+si]) return null;
-          let ed=null;try{ed=state['edit_w'+ws+'_s'+si]?JSON.parse(state['edit_w'+ws+'_s'+si]):null;}catch(e){}
-          const d = ed ? ed.d : sess.d;
-          const parts = d.split('|');
-          const type = ed ? ed.type : sess.type;
-          const sessionData = getSession(ws, si);
-          const km = parseFloat(sessionData.km) || 0;
-          return {
-            type,
-            titre: normalizeSessionTitle(parts[0], type, parts[1]) || parts[0],
-            detail_allure: parts[1] || null,
-            kmPlan: km,
-            chaussures: ed ? ed.shoe : null,
-            planifie: ed && ed.sched_day
-              ? ((['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'][ed.sched_day]||'') + (ed.sched_time ? ' '+ed.sched_time : ''))
-              : 'non planifié'
-          };
-        }).filter(Boolean);
+        const weekSessions = [];   // toutes les séances sont dans extra_w, lues juste après
 
         // ── Séances extra (ajoutées via "Ajouter une séance") ──
         let ei = 0;
@@ -617,7 +596,7 @@ async function ccCardFor(q, reply, bubble, container){
 function saveCoachHistory(){
   if(!dbRef) return;
   const toSave = coachHistory.slice(-50);
-  dbRef.child('_coach_history').set(JSON.stringify(toSave)).catch(e => console.warn('saveCoachHistory:', e.message));
+  sideSet('_coach_history', JSON.stringify(toSave));   // à part de l'état (sync.js) : pas téléchargé au démarrage
   // Extraire les mémos tous les 6 messages
   if(coachHistory.length % 6 === 0) extractAndSaveMemos();
 }
@@ -1403,8 +1382,8 @@ async function loadCoachHistory(){
   window._coachOpenedFromNotif = false; // reset
   if (_pendingResult && !_needsFullBrief && !_needsWeeklyBilan) {
     try {
-      const _h = await dbRef.child('_coach_history').once('value');
-      if (_h.val()) coachHistory = JSON.parse(_h.val());
+      const _h = await sideGet('_coach_history');
+      if (_h) coachHistory = JSON.parse(_h);
     } catch(e) {}
     let _memos = '';
     try { const _ms = await dbRef.child('_coach_memos').once('value'); _memos = _ms.val()||''; } catch(e) {}
@@ -1485,9 +1464,9 @@ async function loadCoachHistory(){
 
   // Charger l'historique
   try {
-    const snap = await dbRef.child('_coach_history').once('value');
-    if(snap.val()){
-      coachHistory = JSON.parse(snap.val());
+    const _hv = await sideGet('_coach_history');
+    if(_hv){
+      coachHistory = JSON.parse(_hv);
 
       // Message de bienvenue lundi matin / bilan dimanche soir
       const now = new Date();
@@ -1512,11 +1491,11 @@ async function loadCoachHistory(){
     } else {
       // Pas d'historique
       if (!_fromPushNotif) {
-        addCoachMessage('coach', "Bonjour"+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+" ! Je suis ton coach IA. J'ai accès à tout ton plan et ton historique de séances. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
+        addCoachMessage('coach', "Bonjour"+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+" ! Je suis ton coach IA. J'ai accès à tout ton plan et ton historique de séances. Pose-moi toutes tes questions sur ta prépa "+'« '+prepRace().name+' »'+" !");
       }
     }
   } catch(e) {
-    addCoachMessage('coach', "Bonjour"+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+" ! Je suis ton coach IA. Pose-moi toutes tes questions sur ta prépa "+(usesHardPlan()?'marathon':'« '+prepRace().name+' »')+" !");
+    addCoachMessage('coach', "Bonjour"+((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'')+" ! Je suis ton coach IA. Pose-moi toutes tes questions sur ta prépa "+'« '+prepRace().name+' »'+" !");
   }
   // ── TOUJOURS vérifier le brief du matin en fin de loadCoachHistory ──
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)

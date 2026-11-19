@@ -52,20 +52,18 @@ function phView(o, today, nowMin){
 let _phPred = null;
 function _phCollect(today){
   const o = { name: typeof athleteFirstName === 'function' ? athleteFirstName() : '', plaisir: typeof isPlaisirMode === 'function' && isPlaisirMode() };
-  const hard = typeof usesHardPlan === 'function' && usesHardPlan();
   const R = typeof prepRace === 'function' ? (prepRace() || {}) : {};
   const nm = String(R.name || '').trim();
-  o.race = { date: R.date || '', label: hard ? 'Marathon Seine-Eure' : phRaceLabel(R.course, nm) };
+  o.race = { date: R.date || '', label: phRaceLabel(R.course, nm) };
   try { const td = calcTotalDone(), gt = getGrandTotal(); o.pct = gt > 0 ? td / gt * 100 : 0; } catch(e) { diagSilent(e, 'piste-home:pct'); o.pct = 0; }
-  const ob = state.onboarding || {}, tt = hard ? '' : (state.target_time || ob.target_time || '');
-  o.obj = tt && typeof homeTimeTxt === 'function' ? homeTimeTxt(String(tt).replace(/^00:/, '')) : hard ? String(R.objectif || '').replace(/^Sub\s*/i, '< ') : '';
+  const ob = state.onboarding || {}, tt = state.target_time || ob.target_time || '';
+  o.obj = tt && typeof homeTimeTxt === 'function' ? homeTimeTxt(String(tt).replace(/^00:/, '')) : '';
   // temps prévu : la prédiction unique de l'app (gardée 30 s, recalculée après chaque séance par le rendu de l'accueil)
   const pk = today + '|' + (R.date || '') + '|' + (state._server_rev || '') + '|' + o.pct;
   if(!_phPred || _phPred.k !== pk || Date.now() - _phPred.t > 30000){
     let v = '';
     try {
-      if(hard && typeof buildMarathonPrediction === 'function') v = buildMarathonPrediction().tempsStr || '';
-      else if(typeof predRace === 'function' && typeof predRaceCat === 'function'){ const c = predRaceCat(R), P = c ? predRace(c, today) : null; v = P ? phTime(P.sec) : ''; }
+      if(typeof predRace === 'function' && typeof predRaceCat === 'function'){ const c = predRaceCat(R), P = c ? predRace(c, today) : null; v = P ? phTime(P.sec) : ''; }
     } catch(e) { diagSilent(e, 'piste-home:pred'); }
     _phPred = { k: pk, t: Date.now(), v: v };
   }

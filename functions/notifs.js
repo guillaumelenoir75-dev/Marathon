@@ -173,7 +173,7 @@ exports.sessionReminder = onSchedule(
         const prefs=uState._prefs?(typeof uState._prefs==='string'?JSON.parse(uState._prefs):uState._prefs):{};
         if(prefs.notif_seance===false)continue;
         // semaine du plan de l'athlète (d'après son début), pas celle du plan Seine-Eure écrit en dur
-        const ucw=getCurrentWeek(uState.plan_start_date?Object.assign({_plan_engine:'generated'},uState):uState);
+        const ucw=getCurrentWeek(uState);
         let sent=false;
         for(let si=0;si<5;si++){
           const done=!!uState[`s${ucw}i${si}done`];if(done)continue;
@@ -367,7 +367,7 @@ exports.briefAfterFcRepos = onSchedule(
           try{const p=JSON.parse(pr);if((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}
         }
         // prépa générée : séances extra (EF à FC ≤ plafond EF)
-        if(state._plan_engine)for(let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr)continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}}
+        for(let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr)continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);}}catch(e){}}
       }
       if(efPaces.length>0){
         let refSec;
@@ -377,7 +377,7 @@ exports.briefAfterFcRepos = onSchedule(
       }
       efPace=efRefOf(state)||efPace||"6'40";   // référence de l'app sur tout l'historique si récente
 
-      const isDecharge=state._plan_engine?weekTypeFor(state,cw)==='décharge':[8,12,16,20].includes(cw);
+      const isDecharge=weekTypeFor(state,cw)==='décharge';
       const _z=hrZonesOf(state),consignesEf=sit.postRace?`Période post-course : footing très facile, FC < ${_z.efLo} bpm, sensations avant l'allure`:isDecharge?`Semaine DÉCHARGE : allure EF lente, FC < ${_z.efLo} bpm`:`Allure EF de référence : ${efPace}/km — FC ${_z.efLo}-${_z.efHi} bpm`;
       const consigneJour=sit.todaySessions.map(x=>`${x.title} ${x.km} km${x.consigne?' : '+x.consigne:''}`).join(' + ');
       const memos=state['_coach_memos']||'';
@@ -459,7 +459,7 @@ exports.briefAfterFcRepos = onSchedule(
       const system=restDay?restBriefSystem(state, sit):`Tu es le coach running de {{PRENOM}}. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à {{PRENOM}} en le tutoyant ("tu", jamais "{{PRENOM}}" dans le corps du texte).
 
 PROFIL :
-- ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
+- ${prepObjectiveText(state)}
 - FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
 ${coachProfileText(state)}
 

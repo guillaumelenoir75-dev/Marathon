@@ -129,7 +129,7 @@ function fmTsbLabel(t){ return t >= 15 ? ['très frais', 'fresh'] : t >= 5 ? ['f
 function fmRenderStatsCard(){
   const el = document.getElementById('fm-card'); if(!el) return;
   try {
-    if((typeof usesHardPlan === 'function' && usesHardPlan()) || (typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
+    if((typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
     _fmCss();
     const today = prTodayIso(), B = fmSeries(today); if(!B){ el.innerHTML = ''; return; }
     const last = B.last, tsbNow = last.ctl - last.atl, lab = fmTsbLabel(tsbNow);

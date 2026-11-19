@@ -16,22 +16,11 @@ async function getOrCreateCalToken(db) {
   return token;
 }
 
-const typeToTitle = {
-  ef: "Run - EF",
-  ef_long: "Run - Sortie longue",
-  tempo: "Run - Tempo",
-  seuil: "Run - Seuil",
-  vma: "Run - VMA",
-  frac: "Run - Fractionné",
-  long: "Run - Sortie longue",
-  race: "Run - Course",
-  rest: "Récupération"
-};
 
-// Lundi de la semaine weekNum : plan Seine-Eure (9 mars 2026) ou, pour une prépa générée, lundi de plan_start_date
+// Lundi de la semaine weekNum : lundi de plan_start_date
 function getWeekStartDate(weekNum, state) {
   let baseDate = new Date(2026, 2, 9);
-  if (state && state._plan_engine && state.plan_start_date) {
+  if (state && state.plan_start_date) {
     const p = String(state.plan_start_date).slice(0, 10).split('-').map(Number);
     baseDate = new Date(p[0], p[1] - 1, p[2]);
     const dw = baseDate.getDay(); baseDate.setDate(baseDate.getDate() + (dw === 0 ? -6 : 1 - dw));
@@ -73,7 +62,7 @@ const durMin = (t) => { const p = String(t || '').split(':').map(Number); if (p.
 const fmtKm = (k) => String(Math.round((+k || 0) * 10) / 10).replace('.', ',');
 
 // Événements d'une prépa générée : EXACTEMENT les séances de l'app (moteur prSessions : extra_w*, date réelle des séances
-// faites, séances retirées exclues, les anciennes clés edit_w / del_w du plan Seine-Eure ignorées) + renfo planifiés.
+// faites, séances retirées exclues, anciennes clés edit_w / del_w ignorées) + renfo planifiés.
 // UID = prépa + séance + empreinte du contenu : toute modification (date, heure, consigne, km, faite) remplace l'événement
 // (un même UID réutilisé avec un autre contenu restait figé dans Apple Calendrier / Outlook) ; doublons exacts retirés.
 function generatedEvents(state, today) {
@@ -117,41 +106,9 @@ function generatedEvents(state, today) {
   return { events, dups, skipped };
 }
 
-// Ancien plan Seine-Eure écrit en dur (admin qui ne l'a pas quitté) : clés edit_w / extra_w comme avant
-function legacyEvents(state) {
-  const events = [];
-  const extraTypesByWeek = {};
-  Object.keys(state).forEach((k) => { const em = k.match(/^extra_w(\d+)_s(\d+)$/); if (!em) return; try { const s = JSON.parse(state[k]); if (s && s.type) (extraTypesByWeek[em[1]] = extraTypesByWeek[em[1]] || new Set()).add(s.type); } catch (e) {} });
-  const at = (ws, day) => { const w = getWeekStartDate(ws, state); w.setDate(w.getDate() + (day - 1)); return w.getFullYear() + '-' + pad2(w.getMonth() + 1) + '-' + pad2(w.getDate()); };
-  Object.keys(state).forEach((key) => {
-    const m = key.match(/^edit_w(\d+)_s(\d+)$/); if (!m || state[`del_w${m[1]}_s${m[2]}`] || state[`extra_w${m[1]}_s${m[2]}`]) return;
-    try {
-      const s = JSON.parse(state[key]); if (!s.sched_day || !s.sched_time) return;
-      if (extraTypesByWeek[m[1]] && extraTypesByWeek[m[1]].has(s.type)) return;
-      const parts = (s.d || '').split('|');
-      events.push({ uid: `run_w${m[1]}_s${m[2]}`, title: typeToTitle[s.type] || 'Run - EF', desc: [`${s.km} km`, parts[1] || ''].filter(Boolean).join(' · '), date: at(+m[1], s.sched_day), time: s.sched_time, min: 60 });
-    } catch (e) {}
-  });
-  Object.keys(state).forEach((key) => {
-    const m = key.match(/^extra_w(\d+)_s(\d+)$/); if (!m || state[`del_w${m[1]}_s${m[2]}`]) return;
-    try {
-      const b = JSON.parse(state[key]); if (b.type === 'rest' || (!b.sched_date && !b.sched_day)) return;
-      const e = state[`edit_w${m[1]}_s${m[2]}`] ? JSON.parse(state[`edit_w${m[1]}_s${m[2]}`]) : null;
-      const type = (e && e.type) || b.type, km = (e && e.km) || b.km, d = (e && e.d) || b.d, time = (e && e.sched_time) || b.sched_time || '09:00';
-      events.push({ uid: b._uid || `extra_w${m[1]}_s${m[2]}`, seq: b._seq || 0, title: typeToTitle[type] || 'Run - EF', desc: [`${km} km`, (d || '').split('|')[1] || ''].filter(Boolean).join(' · '),
-        date: b.sched_date || at(+m[1], b.sched_day), time, min: 60 });
-    } catch (e) {}
-  });
-  Object.keys(state).forEach((key) => {
-    const m = key.match(/^rf(\d+)r(\d+)sched$/); if (!m) return;
-    try { const sc = JSON.parse(state[key]); if (!sc.day || !sc.time) return;
-      events.push({ uid: `renfo_w${m[1]}_r${m[2]}`, title: `Renfo ${m[2]}`, desc: +m[2] === 1 ? 'Ischio-fessiers · 6 exercices' : 'Bas du dos · 5 exercices', date: at(+m[1], sc.day), time: sc.time, min: 30 });
-    } catch (e) {}
-  });
-  return { events, dups: [], skipped: [] };
-}
 
-function calendarEvents(state, today) { return state && state._plan_engine && state.plan_start_date ? generatedEvents(state, today) : legacyEvents(state || {}); }
+// sans programme (pas de date de début) : aucun événement
+function calendarEvents(state, today) { return state && state.plan_start_date ? generatedEvents(state, today) : { events: [], dups: [], skipped: [] }; }
 
 function calendarIcs(events) {
   const vtimezone = [
@@ -193,7 +150,7 @@ exports.calendar = onRequest({ cors: true, memory: '512MiB', timeoutSeconds: 60 
   const C = calendarEvents(state, today);
   // ?debug=1 : contenu du calendrier en clair (vérification depuis l'app, Compte › Abonnement calendrier)
   if ((req.query || {}).debug === '1') {
-    res.json({ count: C.events.length, plan: state._plan_engine ? 'generated' : 'seine-eure', today,
+    res.json({ count: C.events.length, plan: state.plan_start_date ? 'generated' : 'aucun', today,
       events: C.events.map((e) => ({ uid: e.uid, date: e.date, time: e.time, min: e.min, title: e.title, desc: e.desc, key: e.key || null })), dups: C.dups, skipped: C.skipped });
     return;
   }

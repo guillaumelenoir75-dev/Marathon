@@ -32,6 +32,7 @@
       key: split(p).pop() || null,
       toString: () => 'mock://db/' + p,
       child: (c) => ref(p + '/' + c),
+      get parent() { const s = split(p); s.pop(); return s.length ? ref(s.join('/')) : null; },
       once: (ev, cb) => { if (window.__NO_NET) return new Promise(() => {}); const s = snap(p); if (typeof cb === 'function') cb(s); return Promise.resolve(s); },
       on: (ev, cb) => { listeners.push({ path: p, cb }); setTimeout(() => cb(snap(p)), 0); return cb; },
       off: (ev, cb) => { for (let i = listeners.length - 1; i >= 0; i--) if (listeners[i].path === p && (!cb || listeners[i].cb === cb)) listeners.splice(i, 1); },

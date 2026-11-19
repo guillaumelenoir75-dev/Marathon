@@ -335,7 +335,7 @@ function _liveOfficialFor(R){
 }
 // course de la prépa en cours : nom, date, heure de départ (séance « course »), objectif
 function _livePrepRace(){
-  if(typeof prepRace !== 'function' || usesHardPlan()) return null;
+  if(typeof prepRace !== 'function') return null;
   const R = prepRace(); if(!R || !R.date) return null;
   let sess = null;
   Object.keys(state).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k)){ try { const x = JSON.parse(state[k]); if(x.type === 'race' && (!sess || x.sched_date === R.date)) sess = x; } catch(e) {} } });

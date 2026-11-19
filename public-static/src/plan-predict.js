@@ -7,11 +7,9 @@ function _ppGwDate(gw){ const h=_ppHist(); if(!h.length||typeof prMonday!=='func
 function _ppWk(h){ return h&&h.date?new Date(h.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'S'+(h&&h.ws); }
 function _buildMarathonPredictionLegacy() {
   // Pour les athlètes sans données : retourner vide
-  if(!usesHardPlan()){
-    // Vérifier s'ils ont des séances validées avec perf
-    const hasData=_ppHist().some(h=>h.perf&&(h.perf.pace||h.perf.hr));   // tout l'historique, pas seulement la prépa en cours
-    if(!hasData) return {tempsStr:null,amPaceRecoStr:null,confiance:0};
-  }
+  // sans séance validée avec allure ou FC : rien à prédire
+  const hasData=_ppHist().some(h=>h.perf&&(h.perf.pace||h.perf.hr));   // tout l'historique, pas seulement la prépa en cours
+  if(!hasData) return {tempsStr:null,amPaceRecoStr:null,confiance:0};
   const vo2max = getVo2max();
   const vdotPaceSec = vdotMarathonPaceSec(vo2max);
   const fmtTime = s => { const hh=Math.floor(s/3600),mm=Math.floor((s%3600)/60); return `${hh}h${String(mm).padStart(2,'0')}`; };
@@ -440,12 +438,12 @@ function _buildDistancePredictionLegacy(course) {
 
 // ─── Prédiction unique : le même temps partout (en-tête, fenêtres, Coach, Statistiques, MAJ le plan) ──────────
 // L'ancien modèle (EF / tempo / longues / record 10 km, blocs directs) ne sert plus que s'il n'y a pas encore de niveau
-// (aucune course, record ni séance de qualité) ou pour le plan Seine-Eure écrit en dur. Sinon : predRace (plan-optim.js).
+// (aucune course, record ni séance de qualité). Sinon : predRace (plan-optim.js).
 function buildMarathonPrediction(){ return predUnify(_buildMarathonPredictionLegacy(), 'Marathon'); }
 function buildDistancePrediction(course){ return predUnify(_buildDistancePredictionLegacy(course), course); }
 function predUnify(L, cat){
   L = L || {};
-  if((typeof usesHardPlan === 'function' && usesHardPlan()) || typeof predRace !== 'function') return L;
+  if(typeof predRace !== 'function') return L;
   const P = predRace(cat); if(!P) return L;
   const fT = function(s){ s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + "'" + String(x).padStart(2, '0'); };
   const fP = function(s){ s = Math.round(s); return Math.floor(s / 60) + "'" + String(s % 60).padStart(2, '0'); };

@@ -569,38 +569,6 @@ async function _fetchWeatherCoachAdvice(meteo, impactColor) {
 // ── MAJ AUTOMATIQUE LOCALISATION ────────────────────────────────────────────
 let _lastAutoLocTs = 0;
 
-async function _autoUpdateLocation() {
-  // Mettre à jour la position au maximum une fois par semaine
-  // (et seulement si la permission a déjà été accordée)
-  if (Date.now() - _lastAutoLocTs < 7 * 24 * 60 * 60 * 1000) return;
-
-  // Vérifier via Firebase si une localisation récente existe déjà (< 7 jours)
-  if (typeof dbRef !== 'undefined' && dbRef) {
-    try {
-      const snap = await dbRef.child('_last_location').once('value');
-      const loc = snap.val();
-      if (loc && loc.ts && (Date.now() - loc.ts < 7 * 24 * 60 * 60 * 1000)) {
-        _lastAutoLocTs = Date.now();
-        return; // Position récente en Firebase — pas besoin de re-demander
-      }
-    } catch(e) {}
-  }
-
-  const granted = await _isGeolocationGranted();
-  if (!granted) return;
-  try {
-    const pos = await _getPosition();
-    if (!pos || !dbRef) return;
-    const city = await _getCityFromCoords(pos.lat, pos.lng);
-    await dbRef.child('_last_location').set({
-      lat: Math.round(pos.lat*1000)/1000,
-      lng: Math.round(pos.lng*1000)/1000,
-      ville: city,
-      ts: Date.now()
-    });
-    _lastAutoLocTs = Date.now();
-  } catch(e) {}
-}
 
 // ── FETCH AUTO MÉTÉO HISTORIQUE ─────────────────────────────────────────────
 // Récupère la vraie météo depuis Open-Meteo archive pour toutes les séances
@@ -919,36 +887,17 @@ function calcWeekDoneKm(){
 }
 
 function calcTotalDone(){
-  // Pour les athlètes : seulement les km de leurs séances extra validées
-  if(!usesHardPlan()){
-    let t=0;
-    for(let ws=1;ws<=52;ws++){
-      let ei=0;
-      while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
-        if(state[`extra_w${ws}_s${ei}_done`]){
-          const rv=state[`extra_w${ws}_s${ei}_km`];
-          try{t+=rv!=null?parseFloat(rv):(parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0);}catch(e){}
-        }
-        ei++;
+  // km des séances validées de la prépa en cours
+  let t=0;
+  for(let ws=1;ws<=52;ws++){
+    let ei=0;
+    while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
+      if(state[`extra_w${ws}_s${ei}_done`]){
+        const rv=state[`extra_w${ws}_s${ei}_km`];
+        try{t+=rv!=null?parseFloat(rv):(parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0);}catch(e){}
       }
+      ei++;
     }
-    return Math.round(t);
-  }
-  // Base = km historiques avant le début du tracking dans l'app
-  let kmBase = 0;
-  if(state['_km_historique'] != null) {
-    kmBase = parseFloat(state['_km_historique']);
-  } else {
-    kmBase = KM_HISTORIQUE_BASE; // 243 km au 04/05/2026
-  }
-  const FIRST_TRACKED_WEEK = 9;
-  let t = kmBase;
-  for(let ws = FIRST_TRACKED_WEEK; ws <= CW; ws++){
-    if(!weeks[ws-1]) continue;
-    getOrderedWeekSessions(ws).forEach(({s,ei})=>{
-      const k=`extra_w${ws}_s${ei}`;
-      if(state[k+'_done']){const rv=state[k+'_km'];const _p=parseFloat(rv);t+=(rv!=null&&!isNaN(_p)?_p:s.km);}
-    });
   }
   return Math.round(t);
 }
@@ -1089,11 +1038,6 @@ function checkCoachAlerts(){
   if(badge) badge.style.display = 'none';
 }
 
-function setCoachUnread(){
-  // Badge supprimé — plus de point rouge sur le coach
-  // window._coachHasUnread = true;
-  // if(dbRef) dbRef.child('_coach_unread').set(true);
-}
 
 async function checkCoachUnread(){
   // Badge supprimé définitivement — cette fonction ne fait plus rien

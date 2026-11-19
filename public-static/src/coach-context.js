@@ -334,8 +334,7 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
   return {
     semaine_actuelle: CW,
     date_marathon: prepRace().label,
-    course_objectif: usesHardPlan() ? undefined : prepRace().name + ' (' + (prepRace().course || 'course') + ', objectif ' + prepRace().objectif + ')',
-    semi_marathon: usesHardPlan() && CW >= 24 ? {date:'14/09/2026', semaine:28, nom:"Semi-Marathon Bois d'Arcy", km:21, semaines_avant: 28-CW} : undefined,
+    course_objectif: prepRace().name + ' (' + (prepRace().course || 'course') + ', objectif ' + prepRace().objectif + ')',
     semaines_restantes: planTotalWeeks()-CW,
     infos_importantes_athlete: coachMemos||undefined,
     type_semaine: isDecharge
@@ -357,59 +356,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
     allure_marathon_cible: (()=>{ const p=buildMarathonPrediction(); return p&&p.amPaceRecoStr ? p.amPaceRecoStr : getMarathonPaceStr(); })(),
     temps_marathon_estime: (()=>{ const p=buildMarathonPrediction(); return p&&p.tempsStr ? p.tempsStr : calcMarathonTime(getMarathonPaceStr()); })(),
     // nouvelle prépa sur une autre distance : prédiction sur la distance objectif (les champs « marathon » restent des repères)
-    prediction_course_objectif: (!usesHardPlan() && prepRace().course && prepRace().course!=='Marathon') ? (()=>{ const p=buildDistancePrediction(prepRace().course); return p&&p.tempsStr ? {course:prepRace().course, temps_estime:p.tempsStr, allure_estimee:p.paceStr, confiance:p.confiance, objectif:prepRace().objectif} : {course:prepRace().course, objectif:prepRace().objectif, note:'pas encore assez de séances validées pour estimer'}; })() : undefined,
+    prediction_course_objectif: (prepRace().course && prepRace().course!=='Marathon') ? (()=>{ const p=buildDistancePrediction(prepRace().course); return p&&p.tempsStr ? {course:prepRace().course, temps_estime:p.tempsStr, allure_estimee:p.paceStr, confiance:p.confiance, objectif:prepRace().objectif} : {course:prepRace().course, objectif:prepRace().objectif, note:'pas encore assez de séances validées pour estimer'}; })() : undefined,
     allure_ef_actuelle: getBestEfPace()||"6'40",
     allure_ef_logique: "Fenêtre glissante 3 dernières séances EF valides (FC ≤ "+hrEfMax()+" bpm). Si ≥1 des 3 est meilleure que la référence précédente → meilleure des 3. Si les 3 sont toutes plus lentes → médiane des 3 (adaptation chaleur/fatigue).",
     note_comparaison_allures: "IMPORTANT — convention allure : une allure s'exprime en min:sec PAR KILOMÈTRE. Plus le nombre est GRAND (plus de secondes/km), plus c'est LENT. Ex: 5'46/km est PLUS LENT que 5'30/km. Ne jamais confondre sens de comparaison : réalisé > cible en sec/km = plus lent, pas plus rapide.",
-    projection_sub4h: !usesHardPlan() ? undefined : (()=>{
-      const objectifSec = 4*3600; // 4h00
-      const objectifAllureSec = Math.ceil(objectifSec / 42.195); // ~341 sec = 5'41/km
-      // Tendance EF → projection allure marathon
-      const efPoints = [];
-      _ccHist().forEach(h=>{
-        if(h.sess.type!=='ef' && h.sess.type!=='long') return;
-        const perf=h.perf;
-        if(!perf||!perf.pace||!perf.hr||parseInt(perf.hr)>hrEfMax()) return;
-        efPoints.push({ws:h.ws, sec: paceStrToSec(String(perf.pace))});
-      });
-      const amStr = getMarathonPaceStr();
-      const amSec = amStr ? paceStrToSec(amStr.replace("'",":")) : null;
-      const tempsActuel = amSec ? calcMarathonTime(amStr) : null;
-      const ecartSecondes = amSec ? amSec - objectifAllureSec : null;
-      let tendanceProjection = null;
-      if(efPoints.length >= 4){
-        const last6 = efPoints.slice(-6);
-        const n = last6.length;
-        const sumX = last6.reduce((a,_,i)=>a+i,0);
-        const sumY = last6.reduce((a,p)=>a+p.sec,0);
-        const sumXY = last6.reduce((a,p,i)=>a+i*p.sec,0);
-        const sumX2 = last6.reduce((a,_,i)=>a+i*i,0);
-        const slope = (n*sumXY-sumX*sumY)/(n*sumX2-sumX*sumX); // sec/séance
-        // Projeter : combien de séances EF restantes avant marathon ?
-        const seancesRestantes = (planTotalWeeks()-CW)*2; // ~2 EF par semaine
-        const projectedEfSec = (efPoints[efPoints.length-1].sec) + slope*seancesRestantes;
-        // EF → AM : écart moyen ~20 sec/km
-        const projectedAmSec = projectedEfSec - 20;
-        const projectedTemps = calcMarathonTime(secToPace(projectedAmSec));
-        const gainParSemaine = Math.round(Math.abs(slope)*2*7)/10; // sec/semaine
-        tendanceProjection = {
-          allure_ef_projetee: secToPace(projectedEfSec),
-          allure_marathon_projetee: secToPace(projectedAmSec),
-          temps_projete: projectedTemps,
-          progression_sec_par_semaine: Math.round(slope*2*10)/10,
-        };
-      }
-      return {
-        objectif: prepRace().objectif,
-        objectif_allure_km: secToPace(objectifAllureSec),
-        temps_actuel: tempsActuel,
-        ecart_avec_objectif_sec: ecartSecondes,
-        ecart_avec_objectif_str: ecartSecondes!==null ? (ecartSecondes>0?'+':'') + Math.floor(Math.abs(ecartSecondes)/60)+'min'+(Math.abs(ecartSecondes)%60)+'s '+(ecartSecondes>0?'au-dessus':'en dessous')+" de l'objectif" : null,
-        projection_tendance: tendanceProjection,
-        semaines_restantes: planTotalWeeks()-CW,
-        jours_restants: prepRace().date ? Math.round((new Date(prepRace().date) - new Date()) / (1000*60*60*24)) : null
-      };
-    })(),
     km_semaine_en_cours: {planifie: getWeekTotalKm(CW), realise: calcWeekDoneKm()},
     chaussures: shoesSummary,
     seances_supprimees_semaine: (()=>{
@@ -605,8 +555,8 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       };
     })(),
     logique_allure_marathon: "EF<"+hrEfMax()+"bpm → table: 6'00=5'40 | 5'55=5'35 | 5'50=5'30 | 5'45=5'25 | 5'40=5'20 | 5'35=5'15 | 5'30=5'10 | 5'25=5'05 | 5'20=5'00",
-    chaussures_plan_verite: !usesHardPlan() ? shoeRulesText() : `Zoom Fly : première utilisation planifiée S26 (31/08/2026). JAMAIS avant S26, même si un échange précédent dit le contraire — l'échange précédent était une erreur. Avant S26 : Pegasus + Salomon uniquement.`,
-    contexte_semaines_speciales: usesHardPlan() ? {S21:'Paris', S22:'Sri Lanka', S23:'Sri Lanka', S28:'Semi-Marathon Bois d\'Arcy', S32:'MARATHON'} : {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
+    chaussures_plan_verite: shoeRulesText(),
+    contexte_semaines_speciales: {['S'+planTotalWeeks()]: (prepRace().course || 'COURSE').toUpperCase()},
     note: "Pour avoir plus de détails, précise ta question.",
     activites_fixes_semaine: typeof cpFixedWeek === 'function' ? cpFixedWeek(state) : [],   // fiche « Ce que le Coach sait de toi » (coach-profile.js)
     semaine_suivante: CW < planTotalWeeks() ? {numero:CW+1, km:getWeekTotalKm(CW+1), type:isRecoveryWeek(CW+1)?'DÉCHARGE':'CHARGE'} : null,
@@ -624,16 +574,10 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       const joursAbr=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
       for(let ws=CW+1; ws<=Math.min(CW+4, planTotalWeeks()); ws++){
         // prépa générée : séances réelles de la semaine (ordre, jour et horaire planifiés)
-        const sl = !usesHardPlan() ? getOrderedWeekSessions(ws).map(({s:sess})=>{
+        const sl = getOrderedWeekSessions(ws).map(({s:sess})=>{
           const d = String(sess.d||'').split("|");
           return {type:sess.type, titre:sessionTitle(sess), detail:d[1]||'', km:sess.km,
             planifie: sess.sched_day?(joursAbr[sess.sched_day]||'')+(sess.sched_time?' '+sess.sched_time:''):null};
-        }) : weeks[ws-1].sessions.map((sess,si)=>{
-          const edRaw = state["edit_w"+ws+"_s"+si];
-          let ed=null; try{ if(edRaw) ed=JSON.parse(edRaw); }catch(e){}
-          const d = (ed?ed.d:sess.d).split("|");
-          return {type:ed?ed.type:sess.type, titre:normalizeSessionTitle(d[0], ed?ed.type:sess.type, d[1])||d[0], detail:d[1]||'', km:ed?ed.km:sess.km,
-            planifie: ed&&ed.sched_day?(joursAbr[ed.sched_day]||'')+(ed.sched_time?' '+ed.sched_time:''):null};
         });
         r.push({semaine:ws, km_total:weeks[ws-1].km, sessions:sl, note_chaussures:'chaussures non communiquées pour éviter erreurs — ne pas mentionner de modèles spécifiques'});
       }

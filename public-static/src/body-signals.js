@@ -284,7 +284,7 @@ function bsRenderStatsCard(){
   const lv = document.getElementById('bs-level-card');   // onglet Forme : le niveau du moment, à part
   if(lv) lv.innerHTML = '';
   try {
-    if((typeof usesHardPlan === 'function' && usesHardPlan()) || (typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
+    if((typeof _prepView !== 'undefined' && _prepView && !_prepView.next)){ el.innerHTML = ''; return; }
     if(!_bsPrefetched && typeof prPrefetch === 'function'){ _bsPrefetched = true; prPrefetch().then(function(){ bsRenderStatsCard(); }); }   // dernière prépa : plus de recul
     _bsCss();
     const E = hrZonesEstimate(), S = prStride(), Z = state._hr_zones && state._hr_zones.applied ? state._hr_zones : null;

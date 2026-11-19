@@ -610,11 +610,6 @@ function onObFcMaxAgeInput(){
     resEl.textContent='';
   }
 }
-function onboardingSkipFcMax(){
-  delete _obData.fc_max;
-  delete _obData._fc_max_from_age;
-  onboardingNext();
-}
 function getFcMaxZone(){
   // Zone EF = 70–75% FC max
   const fc=state.fc_max||null;

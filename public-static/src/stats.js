@@ -12,28 +12,8 @@ function renderStats(){
 
   let kmLabels, kmRealized, kmProjected, pointFillR, pointBorderR, pointRadiiR, pointRadiiP, yMax, eCW;
 
-  if(usesHardPlan()){
-    const _cwSess=getOrderedWeekSessions(CW);const cwDoneCount=_cwSess.filter(({ei})=>state[`extra_w${CW}_s${ei}_done`]||state[`extra_w${CW}_s${ei}_km`]!=null).length;
-    const cwTotal=weeks[CW-1].sessions.length;
-    eCW=CW;
-    kmLabels = weeks.map((w, i) => {
-      const parts = w.date.split('/');
-      const wDate = new Date(2026, parseInt(parts[1])-1, parseInt(parts[0]));
-      const month = wDate.getMonth();
-      if(i === 0) return monthNames[month];
-      const prevParts = weeks[i-1].date.split('/');
-      const prevDate = new Date(2026, parseInt(prevParts[1])-1, parseInt(prevParts[0]));
-      return prevDate.getMonth() !== month ? monthNames[month] : '';
-    });
-    kmRealized = weeks.map(w => w.s <= CW ? getWeekTotalKm(w.s) : null);
-    kmProjected = weeks.map(w => w.s >= CW ? getWeekTotalKm(w.s) : null);
-    pointFillR = weeks.map(w => w.s === CW ? '#E8530A' : '#fff');
-    pointBorderR = weeks.map(w => w.s <= CW ? '#E8530A' : 'transparent');
-    pointRadiiR = weeks.map(w => w.s < CW ? 3 : w.s === CW ? 7 : 0);
-    pointRadiiP = weeks.map(w => w.s > CW ? 3 : 0);
-    yMax = Math.max(50, ...weeks.map(w=>getWeekTotalKm(w.s)));
-  } else {
-    // Plan athlète : utilise extra_w* et plan_start_date
+  {
+    // plan : extra_w* et plan_start_date
     eCW=getAthleteCW();
     const maxW=getAthleteMaxWeek();
     const wsNums=Array.from({length:maxW},(_, i)=>i+1);
@@ -141,8 +121,7 @@ function renderStats(){
   // Badge km semaine en cours
   const badge = document.getElementById('chart-km-badge');
   if(badge){
-    if(usesHardPlan()) badge.textContent = getWeekTotalKm(CW) + ' km';
-    else { const _w=getEffectiveCW(), _d=(window._statsDoneKm||{})[_w]||0; badge.textContent = String(Math.round(_d*10)/10).replace('.',',') + ' / ' + getAthleteWeekKm(_w) + ' km'; }
+    { const _w=getEffectiveCW(), _d=(window._statsDoneKm||{})[_w]||0; badge.textContent = String(Math.round(_d*10)/10).replace('.',',') + ' / ' + getAthleteWeekKm(_w) + ' km'; }
   }
   renderShoesList();   // Compte › Mes chaussures (si ouvert)
   // Tableau performances

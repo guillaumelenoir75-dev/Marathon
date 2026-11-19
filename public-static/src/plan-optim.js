@@ -7,7 +7,21 @@
 // couru depuis la 1re séance enregistrée, pas seulement sur la prépa en cours : prAllDone(today) / prDoneLog(today).
 // prPrefetch() charge les copies (une fois par prépa, en parallèle) ; _prPrevSnap = dernière prépa terminée (≤ 120 j).
 let _prAllSnaps = {}, _prPrevSnap = null, _prPrevSnapId = null, _prPrefetching = null;
-const _prShimHard = function(st){ return (!st._plan_engine && !st.plan_start_date) ? Object.assign({}, st, { plan_start_date: '2026-03-09' }) : st; };   // plan Seine-Eure écrit en dur
+// Ancienne prépa Seine-Eure (plan écrit en dur, avant « Nouvelle prépa ») : ses séances sont déjà au format du programme (extra_w*,
+// migration _plan_migrated) — il ne lui manque que le moteur, la date de début, la course et les semaines de décharge / d'affûtage.
+// Appliqué aux copies lues (Mes prépas, historique) et, une fois, à l'état d'un admin resté sur ce plan (firebase.js).
+const PR_LEGACY = { start: '2026-03-09', race: { race_name: 'Marathon Seine-Eure', course: 'Marathon', date: '2026-10-18', race_distance_km: 42.195, target_time: '4:00:00' }, recov: [8, 12, 16, 20], taper: [30, 31, 32] };
+function prepLegacyConvert(st){
+  if(!st || typeof st !== 'object' || st._plan_engine || !(st._plan_migrated || st.extra_w1_s0 != null)) return st;
+  const o = Object.assign({}, st, { _plan_engine: 'generated', _plan_legacy: 'seine-eure' });
+  if(!o.plan_start_date) o.plan_start_date = PR_LEGACY.start;
+  if(!(o.onboarding && o.onboarding.date)) o.onboarding = Object.assign({}, o.onboarding || {}, PR_LEGACY.race);
+  for(let w = 1; w <= 32; w++) if(o['meta_w' + w] == null && o['extra_w' + w + '_s0'] != null)
+    o['meta_w' + w] = JSON.stringify({ phase: w >= 30 ? 'Affûtage' : '', isRecov: PR_LEGACY.recov.indexOf(w) >= 0, isTaper: PR_LEGACY.taper.indexOf(w) >= 0 });
+  return o;
+}
+// clés ajoutées par la conversion (écrites une fois dans la base)
+function prepLegacyKeys(st){ const o = prepLegacyConvert(st), up = {}; if(o === st) return null; Object.keys(o).forEach(function(k){ if(st[k] !== o[k]) up[k] = o[k]; }); return up; }
 // état réel de la prépa en cours (« Voir et modifier » la prépa à venir remplace state)
 function prRealState(){ const V = typeof _prepView !== 'undefined' && _prepView; return V && V.next && V.state ? V.state : state; }
 function prPrefetch(){
@@ -22,7 +36,7 @@ function prPrefetch(){
       if(typeof _prepGetSnap === 'function'){
         await Promise.all(Object.keys(idx).filter(function(k){ return k !== real._prep_id && !_prAllSnaps[k]; }).map(function(id){
           return Promise.race([_prepGetSnap(id), new Promise(function(r){ setTimeout(function(){ r(null); }, 4000); })])
-            .then(function(st){ if(st){ _prAllSnaps[id] = _prShimHard(st); added++; } }).catch(function(){});
+            .then(function(st){ if(st){ _prAllSnaps[id] = prepLegacyConvert(st); added++; } }).catch(function(){});
         }));
       }
       if(!_prStravaHist && await prStravaHistLoad()) added++;                   // courses Strava des années passées
@@ -563,7 +577,6 @@ function prUndoReview(i){
 // ─── 8. Après la validation d'une séance : ajustements proposés ─────────────
 function prAfterValidation(){
   try {
-    if(typeof usesHardPlan === 'function' && usesHardPlan()) return;
     prPrefetch().then(function(){
       const n = planReviewPending(); if(!n) return;
       // attendre que le retour de séance (fenêtre) soit fermé
@@ -583,7 +596,6 @@ function prAfterValidation(){
 // Notification du dimanche (relecture de la semaine) : ouvre la mise à jour et demande l'avis du Coach s'il y a du nouveau
 function prOpenFromNotif(){
   try { history.replaceState(null, '', location.pathname); } catch(e) {}
-  if(typeof usesHardPlan === 'function' && usesHardPlan()) return;
   showScreen('plan');
   openPlanReview({ autoCoach: true });
 }

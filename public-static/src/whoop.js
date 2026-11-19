@@ -506,7 +506,7 @@ async function showCalendarUrl() {
   try {
     const r = await fetch(FUNCTIONS_BASE + '/calendar?debug=1', { headers: { 'Authorization': 'Bearer ' + token } });
     const j = await r.json();
-    if(chk) chk.innerHTML = calCheckHtml(j, typeof prSessions === 'function' && !(typeof usesHardPlan === 'function' && usesHardPlan()) ? prSessions(state) : null, typeof prTodayIso === 'function' ? prTodayIso() : new Date().toISOString().slice(0, 10));
+    if(chk) chk.innerHTML = calCheckHtml(j, typeof prSessions === 'function' ? prSessions(state) : null, typeof prTodayIso === 'function' ? prTodayIso() : new Date().toISOString().slice(0, 10));
   } catch(e) { if(chk) chk.textContent = '❌ Vérification impossible : ' + e.message; }
 }
 function escHtmlCal(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }

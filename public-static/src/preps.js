@@ -108,7 +108,7 @@ async function openPrepsPanel(opts){
 // ─── Copies des prépas : gardées en mémoire, préchargées dès que le doigt se pose sur « Consulter » ───
 const _prepSnapCache = {};
 function _prepGetSnap(id){
-  if(!_prepSnapCache[id]) _prepSnapCache[id] = _prepRef(id === '#next' ? 'prep_next' : 'preps/' + id).once('value').then(function(x){ return x.val(); })
+  if(!_prepSnapCache[id]) _prepSnapCache[id] = _prepRef(id === '#next' ? 'prep_next' : 'preps/' + id).once('value').then(function(x){ const v = x.val(); return id === '#next' || typeof prepLegacyConvert !== 'function' ? v : prepLegacyConvert(v); })   // ancienne prépa Seine-Eure : au format du programme
     .catch(function(e){ delete _prepSnapCache[id]; throw e; });
   return _prepSnapCache[id];
 }
@@ -254,7 +254,7 @@ function _renderPrepsBody(){
   const box = document.getElementById('preps-body'); if(!box) return;
   if(!document.getElementById('prep-css')){ const st = document.createElement('style'); st.id = 'prep-css'; st.textContent = _PREP_CSS; document.head.appendChild(st); }
   const cur = _prepCurrentInfo(state), cs = _prepStats(state);
-  const isCur = function(p){ return !usesHardPlan() && (p.id === state._prep_id || p.title === cur.title); };
+  const isCur = function(p){ return (p.id === state._prep_id || p.title === cur.title); };
   const all = Object.keys(_prepIndex || {}).map(function(k){ return Object.assign({ id: k }, _prepIndex[k]); });
   const already = all.find(function(p){ return p.id === state._prep_id || p.title === cur.title; });
   const saved = all.filter(function(p){ return _prepView || !isCur(p); })                       // la prépa en cours n'est pas listée deux fois
@@ -269,7 +269,7 @@ function _renderPrepsBody(){
   } else {
     // ── Maintenant
     h += '<p class="pp-sec"><span>Maintenant</span></p>';
-    const R = usesHardPlan() ? null : prepRace(), j = _ppDays(cur.date), tot = Math.max(1, cs.weeks);
+    const R = prepRace(), j = _ppDays(cur.date), tot = Math.max(1, cs.weeks);
     const cw = Math.min(tot, Math.max(1, typeof getEffectiveCW === 'function' ? getEffectiveCW() : 1));
     const shape = _prepShape(state), kmPlan = Math.round(shape.reduce(function(a, w){ return a + w[0]; }, 0));
     h += '<section class="pp-card" aria-label="Prépa en cours"><div class="pp-top"><div>'
@@ -286,10 +286,10 @@ function _renderPrepsBody(){
         +   '<div class="pp-stat"><b>' + _ppNum(cs.km) + '</b><span>km réalisés</span></div>'
         +   '<div class="pp-stat"><b>' + _ppNum(kmPlan) + '</b><span>km prévus</span></div></div>';
     }
-    h += (already ? '<p class="pp-note muted"><span style="color:#15803D;">' + PP_ICON.check + '</span><span>Enregistrée ' + (already.savedAt === _prepToday() ? 'aujourd\'hui' : 'le ' + _prepDate(already.savedAt, { day: 'numeric', month: 'long' })) + (already.auto && !usesHardPlan() ? ' · mise à jour chaque jour' : '') + '</span></p>' : '')
+    h += (already ? '<p class="pp-note muted"><span style="color:#15803D;">' + PP_ICON.check + '</span><span>Enregistrée ' + (already.savedAt === _prepToday() ? 'aujourd\'hui' : 'le ' + _prepDate(already.savedAt, { day: 'numeric', month: 'long' })) + (already.auto ? ' · mise à jour chaque jour' : '') + '</span></p>' : '')
       + '<div class="pp-acts">'
       +   '<button class="pp-btn ' + (already ? 'sec' : 'pri') + '" onclick="prepShowForm()">' + (already ? PP_ICON.edit + 'Modifier la fiche' : '📦 Enregistrer cette prépa') + '</button>'
-      +   (!usesHardPlan() && cs.planned > 0 ? '<button class="pp-btn icon" onclick="prepDiscardCurrent()" aria-label="Supprimer cette prépa" title="Supprimer cette prépa">' + PP_ICON.trash + '</button>' : '') + '</div>'
+      +   (cs.planned > 0 ? '<button class="pp-btn icon" onclick="prepDiscardCurrent()" aria-label="Supprimer cette prépa" title="Supprimer cette prépa">' + PP_ICON.trash + '</button>' : '') + '</div>'
       + '<div id="prep-form" class="pp-form">'
       +   '<label>Nom<input id="pf-title" value="' + _prepEsc(already ? already.title : cur.title) + '"></label>'
       +   '<label>Date de la course<input id="pf-date" type="date" value="' + _prepEsc(cur.date) + '"></label>'
@@ -357,12 +357,6 @@ function _renderPrepsBody(){
   if(hs) hs.textContent = _prepView ? (_prepView.next ? 'Prépa à venir ouverte' : 'Consultation en cours')
     : ['1 en cours', _prepNext ? '1 à venir' : '', saved.length ? saved.length + ' terminée' + (saved.length > 1 ? 's' : '') : ''].filter(Boolean).join(' · ');
 }
-// km prévus de la prépa (somme des séances)
-function _prepPlannedKm(st){
-  let t = 0;
-  Object.keys(st).forEach(function(k){ if(/^extra_w\d+_s\d+$/.test(k)){ try { t += parseFloat(JSON.parse(st[k]).km) || 0; } catch(e) {} } });
-  return Math.round(t);
-}
 function prepShowForm(){ const f = document.getElementById('prep-form'); if(!f) return; const open = getComputedStyle(f).display !== 'none'; f.style.display = open ? 'none' : 'flex'; if(!open){ const i = document.getElementById('pf-title'); if(i) i.focus({ preventScroll: true }); f.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } }
 
 async function prepSaveCurrent(){
@@ -383,7 +377,7 @@ async function prepSaveCurrent(){
     await _prepRef('prep_index/' + id).set(meta);
     delete _prepSnapCache[id];
     _prepIndex[id] = meta;
-    if(!usesHardPlan()){ state._prep_id = id; dbRef.update({ _prep_id: id }).catch(function(){}); }
+    state._prep_id = id; dbRef.update({ _prep_id: id }).catch(function(){});
     _renderPrepsBody(); renderPrepsRow();
     if(typeof showToast === 'function') showToast('Prépa enregistrée dans Mes prépas ✓');
   } catch(e) {
@@ -404,7 +398,7 @@ function prepDelete(id){
 // L'assistant de création s'ouvre ; l'ancienne prépa n'est retirée qu'à la validation (prepApplyNew, appelé par saveOnboarding)
 // Prépa en cours abandonnée (ex. un essai) : programme retiré sans copie ; tes réglages sont conservés
 function prepDiscardCurrent(){
-  if(_prepView || usesHardPlan()) return;
+  if(_prepView) return;
   const cur = _prepCurrentInfo(state);
   _showConfirmModal({ icon: '🗑', title: 'Supprimer « ' + cur.title + ' » ?', message: 'Le programme et ses séances sont supprimés définitivement, sans être enregistrés dans Mes prépas. Tes réglages (FC, VO2max, chaussures, Strava…) et tes prépas enregistrées sont conservés.',
     confirmLabel: 'Supprimer', confirmStyle: 'background:#e53e3e;color:#fff;', onConfirm: async function(){
@@ -442,7 +436,7 @@ function prepOpenWizard(){
 }
 // Prépa installée avant la remise à zéro complète : retire les « renfo sauté » et « félicitations envoyées » hérités de Seine-Eure
 function prepLegacyCleanup(){
-  if(!isAdmin() || usesHardPlan() || _prepView || state._prep_clean_v1) return;
+  if(!isAdmin() || _prepView || state._prep_clean_v1) return;
   const up = { _prep_clean_v1: true };
   Object.keys(state).forEach(function(k){ if(/^(rf\d+skip|_congrats_sent_w\d+)$/.test(k)){ up[k] = null; delete state[k]; } });
   state._prep_clean_v1 = true;
@@ -673,7 +667,7 @@ function _prepNextMeta(R){
 }
 // création (une seule fois) de la prépa à venir fournie
 async function _prepSeedNext(){
-  if(!isAdmin() || usesHardPlan() || _prepView) return;
+  if(!isAdmin() || _prepView) return;
   for(const R of PREPS_NEXT){
     if(state._next_seed === R.id || (state.onboarding || {})._import === R.id) continue;
     if(R.date < _prepToday()) continue;
@@ -693,7 +687,7 @@ async function _prepSeedNext(){
 }
 // Enregistrement automatique quotidien de la prépa en cours dans Mes prépas (copie figée mise à jour)
 async function prepAutoSave(force){
-  if(_prepView || (typeof _adminPreviewUid !== 'undefined' && _adminPreviewUid) || !_prepUid() || usesHardPlan()) return;
+  if(_prepView || (typeof _adminPreviewUid !== 'undefined' && _adminPreviewUid) || !_prepUid()) return;
   const cs = _prepStats(state); if(!cs.planned) return;
   const today = _prepToday();
   if(!force && state._prep_autosave === today) return;
@@ -758,6 +752,7 @@ async function prepDailyTasks(){
       Object.assign(state, up); if(dbRef) dbRef.update(up).catch(function(){});
     }
   } catch(e) {}
+  if(!_prepView && typeof sideMigrate === 'function') sideMigrate().catch(function(){});   // historiques lourds sortis de l'état (sync.js)
   if(typeof cpSeed === 'function') cpSeed();   // fiche « Ce que le Coach sait de toi » + prénom pour le serveur (coach-profile.js)
   if(typeof bsSleepDaily === 'function') bsSleepDaily();   // historique des nuits + besoin de sommeil appris (rappel de 21h)
   if(_prepDailyBusy || typeof firebaseReady === 'undefined' || !firebaseReady) return;
@@ -788,7 +783,7 @@ document.addEventListener('visibilitychange', function(){ if(document.visibility
 
 // Consignes courtes (allure d'abord) pour les séances déjà installées de Novemb'Run — une seule fois
 function prepShortDescV1(){
-  if(!isAdmin() || usesHardPlan() || _prepView || state._desc_short_v1) return;
+  if(!isAdmin() || _prepView || state._desc_short_v1) return;
   const R = PREPS_READY.find(function(x){ return x.id === (state.onboarding || {})._import; });
   state._desc_short_v1 = true;
   if(!R) return;
@@ -940,11 +935,11 @@ async function prepSaveRaceResult(time, date){
 function renderCompteHero(){
   const box = document.getElementById('compte-hero-meta'); if(!box) return;
   const cur = _prepCurrentInfo(state), cs = _prepStats(state), j = _ppDays(cur.date), chips = [];
-  if(!usesHardPlan() && cs.planned){
+  if(cs.planned){
     chips.push('<span>🏁 ' + _prepEsc(cur.race || cur.title) + (cur.result ? ' · <b>' + _prepEsc(cur.result) + '</b>' : j != null && j >= 0 ? ' · <b>' + (j === 0 ? 'Jour J' : 'J-' + j) + '</b>' : '') + '</span>');
   }
   if(_prepNext && !_prepView) chips.push('<span>⏭ ' + _prepEsc(_prepNext.title) + ' · ' + _prepDate(_prepNext.date, { day: 'numeric', month: 'short' }) + '</span>');
   box.innerHTML = chips.join(''); box.hidden = !chips.length;
   const ls = document.getElementById('live-row-sub');
-  if(ls && isAdmin() && !usesHardPlan() && cur.date && j != null && j >= 0) ls.textContent = 'Prochaine : ' + (cur.race || cur.title) + ' · ' + _prepDate(cur.date, { weekday: 'short', day: 'numeric', month: 'short' });
+  if(ls && isAdmin() && cur.date && j != null && j >= 0) ls.textContent = 'Prochaine : ' + (cur.race || cur.title) + ' · ' + _prepDate(cur.date, { weekday: 'short', day: 'numeric', month: 'short' });
 }

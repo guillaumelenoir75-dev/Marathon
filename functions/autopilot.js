@@ -12,7 +12,7 @@ const { loadEngine } = require('./engine');
 async function runAutopilot(db, uid, today) {
   const base = `users/${uid}`;
   const state = (await db.ref(base + '/state').once('value')).val() || {};
-  if (!state._plan_engine) return { skip: 'plan Seine-Eure écrit en dur' };
+  if (!state.plan_start_date) return { skip: 'pas de programme' };
   if ((state._autopilot || 'auto') === 'off') return { skip: 'désactivé' };
   const idx = (await db.ref(base + '/prep_index').once('value')).val() || {};
   const snaps = {};

@@ -111,7 +111,7 @@ function updateCoachHeader(){
   // course et objectif de la prépa en cours (temps visé → allure), plus l'ancien marathon Seine-Eure écrit en dur
   const R=prepRace(), _ts=typeof prTimeSec==='function'?prTimeSec(R.objectif):null;
   const _op=_ts&&R.km?(Math.floor(_ts/R.km/60)+"'"+String(Math.round(_ts/R.km%60)).padStart(2,'0')):am;
-  const _rn=usesHardPlan()?'le marathon':(R.name||R.course||'ta course');
+  const _rn=R.name||R.course||'ta course';
   const _nm=((typeof athleteFirstName==='function'&&athleteFirstName())?' '+athleteFirstName():'');
   const msgs=[gr+_nm+' — S'+CW+(dj>=0&&dj<999?' · J-'+dj+' avant '+_rn:''),
     'Allure EF : '+(ef||'---')+'/km · Objectif : '+(_ts?R.objectif+' ('+_op+'/km)':(_op||'---')+'/km'),

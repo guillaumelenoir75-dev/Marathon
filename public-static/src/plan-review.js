@@ -568,7 +568,7 @@ function planReviewPending(){
     if(!window._prPrefetchedOnce){ window._prPrefetchedOnce = true; prPrefetch().then(function(){ if(typeof rendered !== 'undefined'){ rendered.plan = false; try { if(document.getElementById('sc-plan').style.display !== 'none') renderPlan(); } catch(e) { diagSilent(e, 'plan-review:planReviewPending'); } } }); }
     return 0;                                                                    // pastille calculée une fois la prépa précédente chargée
   }
-  try { if(typeof usesHardPlan === 'function' && usesHardPlan()) return 0; const a = prAnalyze(); return a.proposals.length && prSig(a.proposals) !== state._review_seen ? a.proposals.length : 0; } catch(e) { return 0; }
+  try { const a = prAnalyze(); return a.proposals.length && prSig(a.proposals) !== state._review_seen ? a.proposals.length : 0; } catch(e) { return 0; }
 }
 
 // ─── Mes records ────────────────────────────────────────────────────────────

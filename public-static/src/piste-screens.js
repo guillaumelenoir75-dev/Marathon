@@ -68,7 +68,7 @@ let _psPlan = { w: null, day: null };
 function psPlanRender(){
   const el = typeof document !== 'undefined' ? document.getElementById('plan-piste') : null; if(!el) return false;
   try {
-    if(!(typeof phIsOn === 'function' && phIsOn()) || (typeof usesHardPlan === 'function' && usesHardPlan()) || !state.plan_start_date){ el.style.display = 'none'; return false; }
+    if(!(typeof phIsOn === 'function' && phIsOn()) || !state.plan_start_date){ el.style.display = 'none'; return false; }
     _psCss(); el.style.display = 'flex';
     const today = prTodayIso(), weeks = psWeeks(state); if(!weeks.length){ el.style.display = 'none'; return false; }
     const cur = typeof getEffectiveCW === 'function' ? getEffectiveCW() : weeks[0].w;

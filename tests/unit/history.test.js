@@ -56,3 +56,21 @@ test('copie figée consultée en lecture seule : ses seules données', () => {
   require('vm').runInContext('_prepView = { state: {}, meta: {} };', app.ctx);
   assert.equal(app.prAllDone('2026-10-29').length, 1);
 });
+
+// ancienne prépa Seine-Eure (séances déjà au format du programme) : moteur, date de début, course et semaines de décharge ajoutés
+test('ancienne prépa Seine-Eure convertie au format du programme, une seule fois', () => {
+  const { loadApp } = require('../helpers/frontend');
+  const app = loadApp({ now: '2026-11-19T09:00:00+01:00', state: {} });
+  const old = { _plan_migrated: 'v1', extra_w1_s0: '{"type":"ef","km":7}', extra_w8_s0: '{"type":"ef","km":8}', extra_w30_s0: '{"type":"ef","km":8}' };
+  const o = JSON.parse(JSON.stringify(app.prepLegacyConvert(old)));
+  assert.equal(o._plan_engine, 'generated'); assert.equal(o.plan_start_date, '2026-03-09'); assert.equal(o._plan_legacy, 'seine-eure');
+  assert.equal(o.onboarding.race_name, 'Marathon Seine-Eure'); assert.equal(o.onboarding.date, '2026-10-18'); assert.equal(o.onboarding.course, 'Marathon');
+  assert.equal(JSON.parse(o.meta_w8).isRecov, true); assert.equal(JSON.parse(o.meta_w30).isTaper, true); assert.equal(JSON.parse(o.meta_w1).isRecov, false);
+  assert.equal(o.meta_w2, undefined, 'semaine sans séance : rien');
+  assert.equal(old._plan_engine, undefined, 'copie : l\'original reste intact');
+  const gen = { _plan_engine: 'generated', extra_w1_s0: '{}' };
+  assert.equal(app.prepLegacyConvert(gen), gen, 'prépa déjà au format : inchangée');
+  assert.equal(app.prepLegacyKeys(gen), null);
+  const up = JSON.parse(JSON.stringify(app.prepLegacyKeys(old)));
+  assert.deepEqual(Object.keys(up).sort(), ['_plan_engine', '_plan_legacy', 'meta_w1', 'meta_w30', 'meta_w8', 'onboarding', 'plan_start_date']);
+});

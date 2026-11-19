@@ -22,6 +22,10 @@
           ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
           ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
         },
+        "side": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')"
+        },
         "prep_next": {
           ".read": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')",
           ".write": "auth != null && (auth.uid === $uid || auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1')"

@@ -680,7 +680,7 @@ function saveAdd(ws){
   const extraData = { d, km, type, shoe, _uid: 'ex_' + Date.now().toString(36), _seq: 0 };
   if(schedDay)  extraData.sched_day  = schedDay;
   // date de la séance (comme les séances du programme), d'après le lundi de la semaine
-  if(schedDay && state.plan_start_date && (typeof usesHardPlan!=='function' || !usesHardPlan())){
+  if(schedDay && state.plan_start_date){
     const sd=new Date(String(state.plan_start_date).slice(0,10)+'T12:00:00'); const dw=sd.getDay();
     sd.setDate(sd.getDate()+(dw===0?-6:1-dw)+(ws-1)*7+(schedDay-1));
     extraData.sched_date=sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');

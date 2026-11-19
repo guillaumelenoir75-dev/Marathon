@@ -87,6 +87,11 @@ function healthLocalItems(L, nowMs){
   else out.push({ key: 'save', icon: '💾', label: 'Enregistrement', status: 'ok', detail: 'Tout est enregistré' });
   const je = (L.jsErr || []).filter(function(e){ const a = _hlAge(e.at, now); return a != null && a <= 7 * 24 * HL_H; });
   const n = je.reduce(function(t, e){ return t + (e.n || 1); }, 0);
+  // copie hors ligne (sync.js syncCacheState) : allégée ou impossible faute de place sur le téléphone
+  const C = L.cache;
+  if(C && C.mode === 'none') out.push({ key: 'offline', icon: '📴', label: 'Copie hors ligne', status: 'bad', detail: 'Impossible : stockage du téléphone plein (' + C.full + ' Ko)' });
+  else if(C && C.mode === 'slim') out.push({ key: 'offline', icon: '📴', label: 'Copie hors ligne', status: 'warn', detail: 'Allégée (' + C.ko + ' Ko sur ' + C.full + ') : historiques laissés en ligne' });
+  else if(C && C.mode === 'full') out.push({ key: 'offline', icon: '📴', label: 'Copie hors ligne', status: 'ok', detail: C.ko + ' Ko' });
   out.push({ key: 'js', icon: '🩺', label: 'Erreurs de l\'app', status: je.length ? 'warn' : 'ok', detail: je.length ? n + ' en 7 j · ' + String(je[0].m || '').slice(0, 60) : 'Aucune en 7 j', fix: je.length ? 'diag' : null });
   return out;
 }
@@ -119,7 +124,8 @@ function _hlLocal(){
   let pend = null;
   try { const P = typeof syncPendingGet === 'function' ? syncPendingGet() : null; if(P && P.up && Object.keys(P.up).length) pend = { n: Object.keys(P.up).length, at: P.at }; } catch(e) { diagSilent(e, 'health:_hlLocal'); }
   const js = get('pm_errors').filter(function(e){ return !(typeof diagNoise === 'function' && diagNoise(e && e.m)); });   // bruit hors de l'app écarté (diag.js)
-  return { syncErr: get('pm_sync_err'), pending: pend, jsErr: js };
+  let cache = null; try { cache = JSON.parse(localStorage.getItem('pm_cache_info') || 'null'); } catch(e) {}
+  return { syncErr: get('pm_sync_err'), pending: pend, jsErr: js, cache: cache };
 }
 const _hlEsc = function(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 const HL_FIX = { strava: ['Reconnecter', 'healthFix(\'strava\')'], whoop: ['Reconnecter', 'healthFix(\'whoop\')'], push: ['Réactiver', 'healthFix(\'push\')'],

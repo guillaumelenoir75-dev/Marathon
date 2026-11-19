@@ -1,5 +1,5 @@
 // Tests de bout en bout : l'app construite (dist/) dans Chromium, avec une fausse Firebase (firebase-mock.js).
-// Parcours : premier lancement (plan Seine-Eure) → enregistrer la prépa marathon → installer la Novemb'Run →
+// Parcours : ancienne prépa Seine-Eure (copie de référence, convertie au format du programme) → enregistrer la prépa marathon → installer la Novemb'Run →
 // mise à jour du plan (calcul, Coach simulé, application, annulation), imprévu, validation (effort, douleur),
 // plan de course, forme du jour, prépa à venir. Lancer : npm run build && npm run test:e2e
 'use strict';
@@ -14,6 +14,8 @@ const ENGINE = process.env.E2E_BROWSER === 'webkit' ? 'webkit' : 'chromium';
 
 const DIST = path.join(__dirname, '..', '..', 'dist');
 const MOCK = path.join(__dirname, 'firebase-mock.js');
+// admin sur l'ancien plan Seine-Eure (premier lancement de l'ancienne version, séances au format du programme) : point de départ des parcours
+const SEINE = fs.readFileSync(path.join(__dirname, 'fixtures', 'seine-eure.json'), 'utf8');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 let server, base, browser, savedDb = null;
 
@@ -62,13 +64,16 @@ async function openReview(page) {
   await page.waitForFunction(() => typeof _prReview !== 'undefined' && _prReview && document.querySelector('#pr-content .pr-card'), null, { timeout: 15000 });
 }
 
-test('premier lancement (plan Seine-Eure) : tous les écrans sans erreur', async () => {
-  const { ctx, page, errors } = await open('2026-10-27T10:00:00+01:00');
+test('ancienne prépa Seine-Eure convertie au format du programme : tous les écrans sans erreur', async () => {
+  const { ctx, page, errors } = await open('2026-10-27T10:00:00+01:00', SEINE);
+  const conv = await page.evaluate(() => ({ e: state._plan_engine, s: state.plan_start_date, r: prepRace().name, w: weeks.length, db: window.__DB.users.ADMINUID.state._plan_engine }));
+  assert.deepEqual(conv, { e: 'generated', s: '2026-03-09', r: 'Marathon Seine-Eure', w: 32, db: 'generated' }, 'conversion faite et enregistrée');
   for (const s of ['home', 'plan', 'renfo', 'stats', 'coach', 'compte']) { await page.evaluate((x) => showScreen(x), s); await page.waitForTimeout(400); }
   assert.deepEqual(errors, []);
   // enregistrer la prépa marathon (résultat) puis installer la Novemb'Run
   await page.evaluate(async () => { await openPrepsPanel(); }); await page.waitForTimeout(500);
-  await page.click('text=Enregistrer cette prépa'); await page.fill('#pf-result', '3:37:05'); await page.click('#pf-save'); await page.waitForTimeout(700);
+  // fiche de la prépa (enregistrée automatiquement chaque jour, ou pas encore) : temps officiel saisi
+  await page.click('#preps-body .pp-acts .pp-btn:first-child'); await page.fill('#pf-result', '3:37:05'); await page.click('#pf-save'); await page.waitForTimeout(700);
   await page.click('text=Installer cette prépa'); await page.waitForTimeout(300); await page.click('#cm-confirm'); await page.waitForTimeout(1500);
   const st = await page.evaluate(() => state);
   assert.ok(st._plan_engine && st.extra_w1_s0, 'Novemb\'Run installée');

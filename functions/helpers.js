@@ -235,25 +235,9 @@ async function sendPushToUser(db, uid, sub, vapidPublic, vapidPrivate, title, bo
   }
 }
 
-// Semaine en cours : plan Seine-Eure (dates fixes) ou, si st est l'état d'une prépa générée (st._plan_engine), depuis plan_start_date
+// Semaine en cours de la prépa (st = état ou clés de la prépa) : semaines écoulées depuis plan_start_date
 function getCurrentWeek(st) {
-  if (st && typeof st === 'object' && st._plan_engine) return weekFromStart(st.plan_start_date, totalWeeksFor(st));
-  const weekDates = [
-    '2026-03-09','2026-03-16','2026-03-23','2026-03-30',
-    '2026-04-06','2026-04-13','2026-04-20','2026-04-27',
-    '2026-05-04','2026-05-11','2026-05-18','2026-05-25',
-    '2026-06-01','2026-06-08','2026-06-15','2026-06-22',
-    '2026-06-29','2026-07-06','2026-07-13','2026-07-20',
-    '2026-07-27','2026-08-03','2026-08-10','2026-08-17',
-    '2026-08-24','2026-08-31','2026-09-07','2026-09-14',
-    '2026-09-21','2026-09-28','2026-10-05','2026-10-12',
-  ];
-  const now = new Date();
-  const today = now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
-  const dates = weekDates.map(d=>{const p=d.split('-');return parseInt(p[0])*10000+parseInt(p[1])*100+parseInt(p[2]);});
-  let cw=1;
-  for(let i=0;i<dates.length;i++){if(today>=dates[i])cw=i+1;else break;}
-  return Math.min(cw,32);
+  return weekFromStart(st && typeof st === 'object' ? st.plan_start_date : null, totalWeeksFor(st));
 }
 
 // ─── Prépa en cours de l'admin (Compte › Mes prépas › Nouvelle prépa → state._plan_engine = 'generated') ───
@@ -266,13 +250,13 @@ function weekFromStart(start, total) {
   return Math.max(1, Math.min(total || 60, n));
 }
 function totalWeeksFor(st) {
-  if (!st || !st._plan_engine) return 32;
+  if (!st) return 1;
   try { const n = JSON.parse(st.plan_config || '{}').numWeeks; if (n > 0) return n; } catch (e) {}
   let t = 0; for (let ws = 1; ws <= 60; ws++) { if (st['extra_w' + ws + '_s0'] !== undefined) t = ws; else if (ws > t + 4) break; }
   return t || 1;
 }
 function getPrepInfo(st) {
-  if (!st || !st._plan_engine) return { generated: false, total: 32, course: 'Marathon', name: 'Marathon Seine-Eure', date: '2026-10-18', label: '18 octobre 2026', objectif: 'Sub 4h' };
+  st = st || {};
   const ob = st.onboarding || {}, d = ob.date || '';
   const label = d ? new Date(d + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' }) : 'date non définie';
   const tt = String(st.target_time || ob.target_time || '').replace(/^00:/, '').replace(/^0(?=\d:)/, '');
@@ -280,9 +264,9 @@ function getPrepInfo(st) {
 }
 function prepObjectiveText(st) {
   const p = getPrepInfo(st);
-  return `Prépare : ${p.course}${p.name && p.name !== p.course ? ' « ' + p.name + ' »' : ''} le ${p.label}, objectif ${p.objectif}. Programme de ${p.total} semaines (prépa précédente : marathon Seine-Eure du 18 octobre 2026, terminé).`;
+  return `Prépare : ${p.course}${p.name && p.name !== p.course ? ' « ' + p.name + ' »' : ''} le ${p.label}, objectif ${p.objectif}. Programme de ${p.total} semaines.`;
 }
-// Type de semaine d'une prépa générée (lu dans meta_w*) ; le plan Seine-Eure garde sa table fixe
+// Type de semaine de la prépa (lu dans meta_w*)
 function weekTypeFor(st, ws) {
   try { const m = JSON.parse(st['meta_w' + ws] || '{}'); return m.isRecov ? 'décharge' : m.isTaper ? 'affûtage' : 'charge'; } catch (e) { return 'charge'; }
 }
@@ -418,7 +402,7 @@ function restBriefSystem(state, sit) {
   return `Tu es le coach running de {{PRENOM}}. Aujourd'hui est un JOUR DE REPOS : aucune séance ni renfo de prévu. Rédige un brief du matin court, centré sur sa récupération et sur la séance qui vient. Tu le tutoies ("tu", jamais "{{PRENOM}}" dans le texte).
 
 PROFIL :
-- ${state && state._plan_engine ? prepObjectiveText(state) : 'Prépare sa prochaine course.'}
+- ${prepObjectiveText(state)}
 - FC max ${hrZonesOf(state).max} bpm. FC repos > 55 bpm = signe de fatigue.
 
 STRUCTURE OBLIGATOIRE — dans cet ordre, rien d'autre :
@@ -540,7 +524,7 @@ async function buildTrainingSituation(db, state, todayStr, opts) {
     const wk = sess.filter((s) => s.w === cw && s.x.type !== 'rest');
     if (wk.length) lines.push(`Cette semaine : ${wk.filter((s) => s.done).length}/${wk.length} séances faites, ${Math.round(wk.filter((s) => s.done).reduce((a, s) => a + s.km, 0))}/${Math.round(wk.reduce((a, s) => a + (parseFloat(s.x.km) || 0), 0))} km.`);
   } else {
-    lines.push(`Prépa en cours : marathon Seine-Eure (18 octobre 2026), semaine ${cw}/32.`);
+    lines.push('Pas de prépa en cours.');
   }
 
   // courses passées : fiches « Mes prépas » + course de la prépa en cours si elle est courue
@@ -628,36 +612,13 @@ async function buildTrainingSituation(db, state, todayStr, opts) {
 async function buildNotifContext(state, cw) {
   const jours=['','Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const joursLong=['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
-  const typesSemaine=['','','','','','','','','décharge','','','','décharge','','','','décharge','','','','décharge','','','','','','','','','','affûtage','affûtage',''];
   const now=new Date();
   const dayOfWeek=now.getDay()===0?7:now.getDay();
   const todayStr=now.toISOString().slice(0,10);
-  const _gen=state&&state._plan_engine;
-  const typeSem=_gen?weekTypeFor(state,cw):(cw<=32?(typesSemaine[cw]||'charge'):'charge');
+  const typeSem=weekTypeFor(state,cw);
   const fcToday=state[`fc_repos_${todayStr}`]||null;
   const seancesDone=[],seancesRestantes=[],seancesAujourdHui=[],seancesNext=[];
   let seanceRunAujourdhui=null; // premier run non-supprimé non-fait du jour
-  if(!state._plan_migrated){
-    for(let si=0;si<5;si++){
-      const edRaw=state[`edit_w${cw}_s${si}`];
-      const done=!!state[`s${cw}i${si}done`];
-      const deleted=!!state[`del_w${cw}_s${si}`];
-      if(deleted||!edRaw)continue;
-      let ed;try{ed=JSON.parse(edRaw);}catch(e){continue;}
-      if(ed.type==='rest')continue;
-      const titre=sessionTitleOf(ed);
-      const km=ed.km||'';
-      const schedInfo=ed.sched_day?`${jours[ed.sched_day]}${ed.sched_time?' '+ed.sched_time:''}`:''
-      if(done){let perf=null;try{perf=state[`s${cw}i${si}perf`]?JSON.parse(state[`s${cw}i${si}perf`]):null;}catch(e){}seancesDone.push(`${titre} ${km}km${perf&&perf.pace?' — '+perf.pace+'/km FC'+(perf.hr||''):' ✓'}`);}
-      else{
-        seancesRestantes.push(`${titre} ${km}km${schedInfo?' → '+schedInfo:''}`);
-        if(Number(ed.sched_day)===dayOfWeek){
-          seancesAujourdHui.push(`${titre} — ${km}km, prévu à ${ed.sched_time||'horaire non défini'}`);
-          if(!seanceRunAujourdhui) seanceRunAujourdhui={type:ed.type,km:ed.km||0,sched_time:ed.sched_time||null,titre};
-        }
-      }
-    }
-  }
   for(let ri=1;ri<=2;ri++){
     const done=!!state[`rf${cw}r${ri}done`];
     if(done)continue;
@@ -701,7 +662,7 @@ async function buildNotifContext(state, cw) {
     for(let ei=50;ei>=0&&!efPace;ei--){const pr=state[`extra_w${ws}_s${ei}_perf`];if(!pr||!state[`extra_w${ws}_s${ei}`])continue;try{const es=JSON.parse(state[`extra_w${ws}_s${ei}`]),p=JSON.parse(pr);if(es.type==='ef'&&p.pace)efPace=p.pace;}catch(e){}}if(efPace)break;}
   let kmSemaine=0;if(!state._plan_migrated){for(let si=0;si<5;si++){const kmV=state[`s${cw}i${si}km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;}}let _exi=0;while(_exi<=50&&state[`extra_w${cw}_s${_exi}`]){const kmV=state[`extra_w${cw}_s${_exi}_km`];if(kmV!=null)kmSemaine+=parseFloat(kmV)||0;_exi++;}
   const cwNext=Math.min(cw+1,totalWeeksFor(state));
-  const typeSemNext=_gen?weekTypeFor(state,cwNext):(cwNext<=32?(typesSemaine[cwNext]||'charge'):'charge');
+  const typeSemNext=weekTypeFor(state,cwNext);
   if(!state._plan_migrated)for(let si=0;si<5;si++){const er=state[`edit_w${cwNext}_s${si}`];if(!er)continue;let ed;try{ed=JSON.parse(er);}catch(e){continue;}seancesNext.push(`${sessionTitleOf(ed)} ${ed.km||''}km`);}
   if(cwNext>cw)for(let ei=0;ei<=50&&state[`extra_w${cwNext}_s${ei}`];ei++){let es;try{es=JSON.parse(state[`extra_w${cwNext}_s${ei}`]);}catch(e){continue;}if(!es||es.type==='rest')continue;seancesNext.push(`${sessionTitleOf(es)} ${es.km||''}km`);}
   return{cw,typeSem,typeSemNext,cwNext,dayOfWeek,jourAujourdHui:joursLong[dayOfWeek],fcToday,seancesAujourdHui,seancesDone,seancesRestantes,kmSemaine,efPace,memos:state['_coach_memos']||'',seancesNext,semainesRestantes:Math.max(0,totalWeeksFor(state)-cw),seanceRunAujourdhui};
@@ -778,7 +739,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
       if (!pr) continue;
       try { const p=JSON.parse(pr); if ((p.type==='ef'||(!p.type&&state[`edit_w${ws}_s${si}`]&&JSON.parse(state[`edit_w${ws}_s${si}`]).type==='ef'))&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
     }
-    if (state._plan_engine) for (let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++) {   // prépa générée : séances extra
+    for (let ei=0;ei<=50&&state[`extra_w${ws}_s${ei}`];ei++) {   // prépa générée : séances extra
       const pr=state[`extra_w${ws}_s${ei}_perf`]; if (!pr) continue;
       try { const es=JSON.parse(state[`extra_w${ws}_s${ei}`]), p=JSON.parse(pr); if ((es.type==='ef'||es.type==='long')&&p.pace&&p.hr&&parseInt(p.hr)<=efMaxOf(state)){const s=paceStrToSec(p.pace);if(s)efPaces.push(s);} } catch(e){}
     }
@@ -795,7 +756,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   // vision complète : prépas, courses passées et à venir, période post-course, charge récente, séance du jour
   const sit = await buildTrainingSituation(db, state, todayStr);
   const consigneJour = sit.todaySessions.map(x => `${x.title} ${x.km} km${x.consigne ? ' : ' + x.consigne : ''}`).join(' + ');
-  const isDecharge = state._plan_engine ? weekTypeFor(state, cw) === 'décharge' : [8,12,16,20].includes(cw);
+  const isDecharge = weekTypeFor(state, cw) === 'décharge';
   const _z = hrZonesOf(state), consignesEf = sit.postRace ? `Période post-course : footing très facile, FC < ${_z.efLo} bpm, sensations avant l'allure` : isDecharge ? `Semaine DÉCHARGE : allure EF lente, FC < ${_z.efLo} bpm` : `Allure EF de référence : ${efPace}/km — FC ${_z.efLo}-${_z.efHi} bpm`;
   const memos = state['_coach_memos'] || '';
   const seancesStr = ctx.seancesAujourdHui.length > 0 ? ctx.seancesAujourdHui.join(' + ') : 'Récupération';
@@ -860,7 +821,7 @@ async function generateMorningBriefContent(anthropicKey, db, state, cw, todayStr
   const system = restDay ? restBriefSystem(state, sit) : `Tu es le coach running de {{PRENOM}}. Ta mission : rédiger un brief complet et personnalisé du matin, centré uniquement sur la journée d'aujourd'hui. Tu t'adresses DIRECTEMENT à {{PRENOM}} en le tutoyant ("tu", jamais "{{PRENOM}}" dans le corps du texte).
 
 PROFIL :
-- ${state&&state._plan_engine?prepObjectiveText(state):'Prépare un marathon (18 octobre 2026), objectif Sub 4h. Plan structuré depuis février 2026.'}
+- ${prepObjectiveText(state)}
 - FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
 ${coachProfileText(state)}
 
@@ -1028,7 +989,7 @@ async function generateWeeklyBilanContent(anthropicKey, db, state, cw) {
   const system = `Tu es le coach running de {{PRENOM}}. Ta mission : rédiger un bilan de semaine court, personnalisé et direct. Tu t'adresses DIRECTEMENT à lui en le tutoyant ("tu", jamais "{{PRENOM}}" dans le corps du texte).
 
 PROFIL :
-- ${state&&state._plan_engine?prepObjectiveText(state)+' '+(totalWeeksFor(state)-cw)+' semaines restantes.':'Prépare un marathon (18 octobre 2026), objectif Sub 4h. '+(32-cw)+' semaines restantes.'}
+- ${prepObjectiveText(state)+' '+(totalWeeksFor(state)-cw)+' semaines restantes.'}
 - FC max ${hrZonesOf(state).max} bpm. Zone EF : ${hrZonesOf(state).efLo}-${hrZonesOf(state).efHi} bpm. FC repos > 55 bpm = signe de fatigue.
 
 STRUCTURE OBLIGATOIRE — dans cet ordre exact, chaque section séparée par une ligne vide :
@@ -1058,7 +1019,7 @@ RÈGLES :
 - Jamais "{{PRENOM}}" dans le corps du texte.
 - 3 blocs maximum, dans l'ordre exact ci-dessus.`;
 
-  const userMsg = `Semaine S${cw} (${typeSem}) — ${totalWeeksFor(state)-cw} semaines avant ${state&&state._plan_engine?'la course objectif':'le marathon'}.
+  const userMsg = `Semaine S${cw} (${typeSem}) — ${totalWeeksFor(state)-cw} semaines avant la course objectif.
 Séances validées : ${seancesDone.length}/${seancesDone.length + seancesManquees.length}
 Détail : ${seancesDone.join(', ') || 'aucune'}
 Séances manquées : ${seancesManquees.join(', ') || 'aucune'}

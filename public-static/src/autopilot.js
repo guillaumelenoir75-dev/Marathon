@@ -32,7 +32,7 @@ function apDesc(p, today){
 }
 function apRun(today){
   today = today || prTodayIso();
-  const mode = apMode(); if(mode === 'off' || (typeof usesHardPlan === 'function' && usesHardPlan())) return null;
+  const mode = apMode(); if(mode === 'off') return null;
   const a = prAnalyze(), sel = apSelect(a, today), at = new Date().toISOString();
   const res = { date: today, at: at, mode: mode, applied: false, changes: sel.map(function(p){ return apDesc(p, today); }) };
   if(mode === 'auto' && sel.length){

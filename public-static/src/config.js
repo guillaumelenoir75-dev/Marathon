@@ -1,26 +1,6 @@
-// Calcul dynamique de la semaine courante
-const weekDates=[
-  '2026-03-09','2026-03-16','2026-03-23','2026-03-30',
-  '2026-04-06','2026-04-13','2026-04-20','2026-04-27',
-  '2026-05-04','2026-05-11','2026-05-18','2026-05-25',
-  '2026-06-01','2026-06-08','2026-06-15','2026-06-22',
-  '2026-06-29','2026-07-06','2026-07-13','2026-07-20',
-  '2026-07-27','2026-08-03','2026-08-10','2026-08-17',
-  '2026-08-24','2026-08-31','2026-09-07','2026-09-14',
-  '2026-09-21','2026-09-28','2026-10-05','2026-10-12',
-];
-function getCurrentWeek(){
-  const now=new Date();
-  const today=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
-  const dates=weekDates.map(d=>{const p=d.split('-');return parseInt(p[0])*10000+parseInt(p[1])*100+parseInt(p[2]);});
-  let cw=1;
-  for(let i=0;i<dates.length;i++){
-    if(today>=dates[i]) cw=i+1;
-    else break;
-  }
-  return Math.min(cw,32);
-}
-let CW=getCurrentWeek();                 // ajusté par syncPlanCompat() pour une prépa générée
+// Semaines de la prépa en cours : remplies par syncPlanCompat() à partir du programme (extra_w*, meta_w*, plan_start_date)
+const weekDates=[];
+let CW=1;                                // ajusté par syncPlanCompat()
 // Flag global pour ne pas afficher le brief du matin plus d'une fois par session
 let _briefShownToday = false;
 // Semaine affichée sur l'accueil (peut différer de CW via navigation)
@@ -35,7 +15,7 @@ function getAthleteMaxWeek(){
 
 function getEffectiveCW(){
   // programme généré : jamais au-delà de sa dernière semaine (après la course, on reste sur la semaine de course)
-  return usesHardPlan()?CW:Math.min(getAthleteCW(),Math.max(1,getAthleteMaxWeek()));
+  return Math.min(getAthleteCW(),Math.max(1,getAthleteMaxWeek()));
 }
 
 // Km total planifié pour une semaine athlète (extra_w*)
@@ -50,7 +30,7 @@ function getAthleteWeekKm(ws){
 
 function homeNavWeek(dir){
   const newW = homeViewWeek + dir;
-  const maxW = usesHardPlan()?32:getAthleteMaxWeek();
+  const maxW = getAthleteMaxWeek();
   if(newW < 1 || newW > maxW) return;
   const savedScroll = window.scrollY || document.documentElement.scrollTop || 0;
   homeViewWeek = newW;
@@ -60,23 +40,11 @@ function homeNavWeek(dir){
     window.scrollTo(0, savedScroll);
   });
 }
-function homeGoCurrentWeek(){
-  homeViewWeek = getEffectiveCW();
-  renderHome();
-  window.scrollTo(0, 0);
-}
-const KM_AVANT_S7=219;
-// Km réellement courus avant la semaine courante (hors plan + semaines passées)
-// Mis à jour manuellement à chaque début de semaine si nécessaire
-const KM_HISTORIQUE_BASE = 243; // km faits S1-S8 inclus (193 plan + ~50 hors plan)
 function getGrandTotal(){
-  if(!usesHardPlan()){
-    // Pour les athlètes : total des km de leurs séances extra uniquement
-    let t=0;
-    for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
-    return Math.round(t);
-  }
-  return Math.round(weeks.reduce((a,w)=>a+getWeekTotalKm(w.s),0));
+  // total des km prévus de la prépa en cours
+  let t=0;
+  for(let ws=1;ws<=52;ws++){let ei=0;while(ei<=20&&state[`extra_w${ws}_s${ei}`]){try{t+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}ei++;}}
+  return Math.round(t);
 }
 
 const P='Pegasus',S='Salomon',Z='Zoom Fly';
@@ -124,56 +92,17 @@ function normalizeSessionTitle(title, type, detail){
 }
 function sessionTitle(s){ if(!s) return ''; const p = String(s.d || '').split('|'); return normalizeSessionTitle(p[0], s.type, p[1]) || p[0]; }
 
-const weeks=[
-  {s:1,km:23,date:'09/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:null},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},
-  {s:2,km:30,date:'16/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:10,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|11 EF",km:11,type:"long",shoe:"Pegasus"}]},
-  {s:3,km:23,date:'23/03',month:'Mars',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:"Pegasus"},{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Séance EF longue|8 EF",km:8,type:"long",shoe:"Pegasus"}]},
-  {s:4,km:18,date:'30/03',month:'Mars',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:"Pegasus"},{d:"Repos genoux",km:0,type:"rest",shoe:null},{d:"Séance EF longue|9 EF",km:9,type:"long",shoe:"Pegasus"}]},
-  {s:5,km:23,date:'06/04',month:'Avril',sessions:[{d:"Séance EF",km:7,type:"ef",shoe:"Pegasus"},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:7,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|9 EF",km:9,type:"long",shoe:"Pegasus"}]},
-  {s:6,km:25,date:'13/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Tempo 2×6 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|9 EF",km:9,type:"long",shoe:"Salomon"}]},
-  {s:7,km:27,date:'20/04',month:'Avril',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:"Pegasus"},{d:"Tempo 3×8 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|8 EF · 3 AM @ 5'40/km",km:11,type:"long",shoe:S}]},
-  {s:8,km:24,date:'27/04',month:'Avril',sessions:[{d:"Tempo 2×10 min|5'00 — 5'20 /km",km:8,type:"tempo",shoe:"Pegasus"},{d:"Séance EF légère",km:7,type:"ef",shoe:P},{d:"Séance EF longue|7 EF · 2 AM @ 5'40/km",km:9,type:"long",shoe:S}]},
-  {s:9,km:27,date:'04/05',month:'Mai',sessions:[{d:"Tempo 2×12 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"Séance EF légère",km:8,type:"ef",shoe:P},{d:"Séance EF longue|7 EF · 3 AM @ 5'40/km",km:10,type:"long",shoe:S}]},
-  {s:10,km:30,date:'11/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 1×18 min|5:00 — 5:15 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
-  {s:11,km:33,date:'18/05',month:'Mai',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×12 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 4 AM @ 5'40/km",km:14,type:"long",shoe:S}]},
-  {s:12,km:29,date:'25/05',month:'Mai',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
-  {s:13,km:35,date:'01/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|11 EF · 5 AM @ 5'40/km",km:16,type:"long",shoe:S}]},
-  {s:14,km:37,date:'08/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 1×25 min|5:00 — 5:15 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"EF longue|12 EF · 5 AM @ 5'40/km",km:17,type:"long",shoe:S}]},
-  {s:15,km:38,date:'15/06',month:'Juin',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 1×30 min|5:00 — 5:15 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|13 EF · 5 AM @ 5'40/km",km:18,type:"long",shoe:S}]},
-  {s:16,km:32,date:'22/06',month:'Juin',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 4 AM @ 5'40/km",km:14,type:"long",shoe:S}]},
-  {s:17,km:38,date:'29/06',month:'Juin',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"Séance EF longue|13 EF · 5 AM @ 5'40/km",km:18,type:"long",shoe:S}]},
-  {s:18,km:41,date:'06/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"EF longue|16 EF · 4 AM @ 5'40/km",km:20,type:"long",shoe:S}]},
-  {s:19,km:43,date:'13/07',month:'Juillet',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:11,type:"tempo",shoe:"Pegasus"},{d:"EF longue|14 EF · 8 AM @ 5'40/km",km:22,type:"long",shoe:S}]},
-  {s:20,km:33,date:'20/07',month:'Juillet',sessions:[{d:"9 km EF",km:9,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 4 AM @ 5'40/km",km:14,type:"long",shoe:S}]},
-  {s:21,km:30,date:'28/07',month:'Juillet',sessions:[{d:"EF (Paris)",km:10,type:"ef",shoe:P},{d:"Séance EF (Paris)",km:8,type:"ef",shoe:P},{d:"EF longue (Paris)|10 EF · 2 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
-  {s:22,km:22,date:'03/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:10,type:"ef",shoe:P},{d:"Repos",km:0,type:"rest",shoe:null},{d:"EF longue (Sri Lanka)|10 EF · 2 AM @ 5'40/km",km:12,type:"long",shoe:P}]},
-  {s:23,km:28,date:'10/08',month:'Août',sessions:[{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:P},{d:"EF (Sri Lanka)",km:8,type:"ef",shoe:null},{d:"EF longue (Paris)|8 EF · 3 AM @ 5'40/km · 2 EF",km:12,type:"long",shoe:"Pegasus"}]},
-  {s:24,km:35,date:'17/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|10 EF · 3 AM @ 5'40/km · 2 EF",km:15,type:"long",shoe:S}]},
-  {s:25,km:38,date:'24/08',month:'Août',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Pegasus"},{d:"EF longue|12 EF · 4 AM @ 5'40/km · 2 EF",km:18,type:"long",shoe:S}]},
-  {s:26,km:34,date:'31/08',month:'Septembre',sessions:[{d:"Séance EF",km:9,type:"ef",shoe:P},{d:"Tempo 3×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|10 EF · 3 AM @ 5'40/km · 2 EF",km:15,type:"long",shoe:Z}]},
-  {s:27,km:44,date:'07/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|14 EF · 6 AM @ 5'40/km · 4 EF",km:24,type:"long",shoe:S}]},
-  {s:28,km:41,date:'14/09',month:'Septembre',sessions:[{d:"EF 7/3 AM",km:10,type:"ef",shoe:P},{d:"Tempo 2×15 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"Semi-Marathon Bois d'Arcy",km:21,type:"race",shoe:Z}]},
-  {s:29,km:48,date:'21/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×10 min|5'00 — 5'20 /km",km:10,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|18 EF · 4 AM · 4 EF · 4 AM @ 5'40/km",km:30,type:"long",shoe:Z}]},
-  {s:30,km:33,date:'28/09',month:'Septembre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×8 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Pegasus"},{d:"EF longue|11 EF · 3 AM @ 5'40/km · 2 EF",km:16,type:"long",shoe:S}]},
-  {s:31,km:29,date:'05/10',month:'Octobre',sessions:[{d:"Séance EF",km:8,type:"ef",shoe:P},{d:"Tempo 2×5 min|5'00 — 5'20 /km",km:9,type:"tempo",shoe:"Zoom Fly"},{d:"EF longue|9 EF · 3 AM @ 5'40/km",km:12,type:"long",shoe:S}]},
-  {s:32,km:51,date:'12/10',month:'Octobre',sessions:[{d:"Séance EF",km:5,type:"ef",shoe:P},{d:"Séance EF légère",km:4,type:"ef",shoe:Z},{d:"MARATHON",km:42,type:"race",shoe:Z}]},
-];
+const weeks=[];   // semaines de la prépa en cours (syncPlanCompat)
 
 // ─── Prépa en cours de l'admin ────────────────────────────────────────────
-// Tant que usesHardPlan(), CW / weeks / weekDates décrivent le plan Seine-Eure ci-dessus. Après « Nouvelle prépa »,
-// syncPlanCompat() les remplit à partir du programme généré (extra_w*, meta_w*, plan_start_date) : le Coach IA,
-// les stats et la validation, écrits autour de CW et weeks, suivent alors la nouvelle prépa sans réécriture.
-const _HARD_WEEKS = weeks.slice(), _HARD_DATES = weekDates.slice();
+// syncPlanCompat() remplit CW / weeks / weekDates à partir du programme (extra_w*, meta_w*, plan_start_date) : le Coach IA,
+// les stats et la validation, écrits autour de CW et weeks, suivent la prépa en cours.
 const _MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 function syncPlanCompat(){
   // athlète : semaine et plan de SA prépa (plus la semaine du plan Seine-Eure écrit en dur) dès qu'il a un programme
   const _adm = typeof isAdmin === 'function' && isAdmin();
   if(!_adm && !(state && state.plan_start_date && getAthleteMaxWeek() > 0)) return;
   weeks.length = 0; weekDates.length = 0;
-  if(_adm && usesHardPlan()){
-    _HARD_WEEKS.forEach(function(w){ weeks.push(w); }); _HARD_DATES.forEach(function(d){ weekDates.push(d); });
-    CW = getCurrentWeek(); homeViewWeek = CW; return;
-  }
   const max = Math.max(1, getAthleteMaxWeek());
   const start = state.plan_start_date ? new Date(state.plan_start_date + 'T12:00:00') : new Date();
   const mon = new Date(start); const dw = mon.getDay(); mon.setDate(mon.getDate() + (dw === 0 ? -6 : 1 - dw));
@@ -196,7 +125,6 @@ function syncPlanCompat(){
 }
 // Course objectif de la prépa en cours
 function prepRace(){
-  if(usesHardPlan()) return { name: 'Marathon Seine-Eure', course: 'Marathon', date: '2026-10-18', label: '18 octobre 2026', km: 42.195, objectif: 'Sub 4h00' };
   const ob = state.onboarding || {}, d = ob.date || '';
   const km = parseFloat(ob.race_distance_km) || ({ 'Marathon': 42.195, 'Semi-marathon': 21.1, '10 km': 10, '5 km': 5 })[ob.course] || null;
   const tt = state.target_time || ob.target_time || '';
@@ -204,10 +132,9 @@ function prepRace(){
     label: d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'date non définie',
     km: km, objectif: tt ? String(tt).replace(/^00:/, '').replace(/^0/, '') : 'non défini' };
 }
-function planTotalWeeks(){ return usesHardPlan() ? 32 : Math.max(1, weeks.length); }
-// Semaine de décharge (récupération) : S8/12/16/20 pour Seine-Eure, sinon lue dans le programme généré
+function planTotalWeeks(){ return Math.max(1, weeks.length); }
+// Semaine de décharge (récupération) : lue dans le programme
 function isRecoveryWeek(ws){
-  if(usesHardPlan()) return [8, 12, 16, 20].includes(ws);
   try { return !!JSON.parse(state['meta_w' + ws] || '{}').isRecov; } catch(e) { return false; }
 }
 
@@ -296,9 +223,8 @@ const renfoAffutageUnique=[
   {nom:"Extension de jambe",img:RENFO_IMG7,desc:"Assis, tendez une jambe lentement (4 sec) puis repliez doucement. Charge très légère.",series:"2 × 8 rép. par côté"},
   {nom:"Montées sur banc / marche",img:RENFO_IMG6,desc:"Montez puis descendez lentement d'une marche basse en contrôlant l'appui.",series:"2 × 8 rép. par côté"},
 ];
-// Semaine d'affûtage : S30-S32 pour Seine-Eure ; pour une prépa générée de l'admin, lue dans le programme (meta_w.isTaper)
+// Semaine d'affûtage de l'admin : lue dans le programme (meta_w.isTaper)
 function isAffutageWeek(){
-  if(usesHardPlan()) return CW>=30&&CW<=32;
   if(!isAdmin()) return false;
   try{ return !!JSON.parse(state['meta_w'+CW]||'{}').isTaper; }catch(e){ return false; }
 }

@@ -1,5 +1,5 @@
 function getWeekTotalKm(ws){
-  if(!usesHardPlan()||state._plan_migrated){
+  if(!state._plan_migrated){
     // Post-migration ou athlète : toutes les séances sont dans extra_w
     let total=0,ei=0;
     while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){
@@ -49,28 +49,7 @@ function getOrderedWeekSessions(ws){
   }
 }
 
-function moveSession(ws, rowIdx, dir){
-  const orderKey=`order_w${ws}`;
-  const eiList=[]; let _ei=0;
-  while(_ei<=50&&state[`extra_w${ws}_s${_ei}`]!==undefined){eiList.push(_ei);_ei++;}
-  let savedOrd=null;try{const r=state[orderKey];if(r){const p=JSON.parse(r);if(Array.isArray(p)&&p.length>0&&typeof p[0]==='number')savedOrd=p;}}catch(e){}
-  let ordEis;
-  if(savedOrd){ordEis=savedOrd.filter(e=>eiList.includes(e));eiList.forEach(e=>{if(!ordEis.includes(e))ordEis.push(e);});}
-  else{ordEis=[...eiList].sort((a,b)=>{let sa,sb;try{sa=JSON.parse(state[`extra_w${ws}_s${a}`]);}catch(e){return 0;}try{sb=JSON.parse(state[`extra_w${ws}_s${b}`]);}catch(e){return 0;}return _sessDayOf(ws,a,sa)-_sessDayOf(ws,b,sb);});}
-  const swapIdx=rowIdx+dir;
-  if(swapIdx<0||swapIdx>=ordEis.length) return;
-  [ordEis[rowIdx],ordEis[swapIdx]]=[ordEis[swapIdx],ordEis[rowIdx]];
-  state[orderKey]=JSON.stringify(ordEis);
-  save();rendered.plan=false;rendered.stats=false;renderPlan();renderHome();
-}
 
-function toggleWeek(s){
-  const sy=window.scrollY||0;
-  if(openWeeks.has(s))openWeeks.delete(s);else openWeeks.add(s);
-  renderPlan._noScroll=true;
-  renderPlan();
-  setTimeout(()=>window.scrollTo({top:sy,behavior:'instant'}),0);
-}
 
 function scrollToCurrentWeek(){
   if(typeof phIsOn === 'function' && phIsOn() && document.getElementById('plan-piste') && document.getElementById('plan-piste').style.display !== 'none'){ window.scrollTo({ top: 0, behavior: 'instant' }); return; }   // Piste de nuit : la semaine en couloirs est en haut

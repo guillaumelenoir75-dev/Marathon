@@ -179,59 +179,9 @@ function getRecord10kmPredictions() {
 }
 
 
-function previewRecord10km(val) {
-  const prev = state['record_10km'];
-  state['record_10km'] = val;
-  const pred = getRecord10kmPredictions();
-  state['record_10km'] = prev; // restore
-  const container = document.getElementById('record10km-preview');
-  if (!container) return;
-  if (!pred) { container.innerHTML = ''; return; }
-  container.innerHTML = `
-    <div style="margin-top:16px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">
-      <div style="background:var(--bg2);padding:8px 14px;border-bottom:1px solid var(--border);">
-        <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Prédictions calculées</p>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 14px;gap:8px;background:var(--bg);">
-        <div style="text-align:center;">
-          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Record 10km</p>
-          <p style="font-size:16px;font-weight:800;color:var(--text);">${pred.record10kmStr}</p>
-          <p style="font-size:9px;color:var(--muted);margin-top:2px;">${pred.record10kmPaceStr}/km</p>
-        </div>
-        <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border);padding:0 8px;">
-          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Semi estimé</p>
-          <p style="font-size:16px;font-weight:800;color:#1B4FD8;">${pred.semiStr}</p>
-          <p style="font-size:9px;color:var(--muted);margin-top:2px;">${pred.semiPaceStr}/km</p>
-        </div>
-        <div style="text-align:center;">
-          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Marathon estimé</p>
-          <p style="font-size:16px;font-weight:800;color:#1B4FD8;">${pred.marStr}</p>
-          <p style="font-size:9px;color:var(--muted);margin-top:2px;">${pred.marPaceStr}/km</p>
-        </div>
-      </div>
-      <div style="background:var(--bg2);padding:8px 14px;border-top:1px solid var(--border);">
-        <p style="font-size:10px;color:var(--muted);line-height:1.5;">Semi = 10km × 2.15 · Vitesse semi <strong>${pred.semiSpeedKmh} km/h</strong> · Marathon ${pred.semiSpeedKmh} − 1 = <strong>${pred.marSpeedKmh} km/h</strong> → ${pred.marPaceStr}/km</p>
-      </div>
-    </div>`;
-}
 
-function saveRecord10km() {
-  const val = document.getElementById('record10km-input')?.value?.trim();
-  if (!val) return;
-  const clean = val.replace(/'/g, ':').replace(/\s/g, '');
-  const parts = clean.split(':').map(Number);
-  let sec = 0;
-  if (parts.length === 3) { if(parts[1]>=60||parts[2]>=60){alert('Format invalide. Exemples : 48:30 ou 1:02:15');return;} sec = parts[0]*3600 + parts[1]*60 + parts[2]; }
-  else if (parts.length === 2) { if(parts[1]>=60){alert('Format invalide. Les secondes doivent être < 60. Exemple : 48:30');return;} sec = parts[0]*60 + parts[1]; }
-  if (!sec || sec < 1200 || sec > 7200) { alert('Format invalide. Exemples : 48:30 ou 1:02:15'); return; }
-  state['record_10km'] = val;
-  save();
-  closeModal();
-  renderHome();
-}
 
 function openTargetTimeModal(){
-  if(usesHardPlan()) return;
   const ob=state.onboarding||{};
   const course=ob.course||state.race_distance||'Marathon';
   const current=ob.target_time||state.target_time||'';
@@ -308,25 +258,8 @@ function _clearTargetTime(){
 
 
 
-function _showBriefPreparationToast() {
-  const existing = document.getElementById('brief-prep-toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.id = 'brief-prep-toast';
-  toast.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:msg-enter 0.3s ease;max-width:320px;text-align:center;';
-  toast.innerHTML = '<span style="font-size:16px;">💤</span><span id="brief-prep-toast-msg">Brief en préparation… WHOOP traite ton sommeil</span>';
-  document.body.appendChild(toast);
-}
 
-function _updateBriefToast(msg) {
-  const el = document.getElementById('brief-prep-toast-msg');
-  if (el) el.textContent = msg;
-}
 
-function _removeBriefToast() {
-  const el = document.getElementById('brief-prep-toast');
-  if (el) el.remove();
-}
 
 let _briefWaitRunning = false;
 

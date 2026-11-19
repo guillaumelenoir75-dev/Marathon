@@ -1,220 +1,12 @@
+// Au chargement : un admin resté sur l'ancien plan Seine-Eure écrit en dur (séances déjà au format du programme) passe une fois
+// au format du programme (prepLegacyConvert, plan-optim.js : moteur, date de début, course, semaines de décharge / affûtage)
 function migrateState(){
-  const rfDefaults = {1:{day:3,time:'19:00'}, 2:{day:5,time:'18:30'}};
-  // Injection météo séance S11 EF longue 23/05 — Villiers-Saint-Georges 11h canicule
-  // Admin seulement — données personnelles de Guillaume
-  if(usesHardPlan()) (function(){
-    const k = gk(11,2)+'perf';
-    let p = {};
-    try{ p = typeof state[k]==='string' ? JSON.parse(state[k]) : (state[k]||{}); }catch(e){}
-    if(!p.meteo){
-      p.meteo = {
-        date:"2026-05-23", heure_cible:"11h00", ville:"Villiers-Saint-Georges",
-        temperature:29.8, ressenti:32.1, humidite:58, vent_kmh:8.2,
-        conditions:"Ciel dégagé ☀️",
-        impact_performance:{
-          niveau:"ELEVE", ralentissement:"45-55 sec/km",
-          perte_perf_pct:14, ralent_sec_km:50,
-          conseil:"Forte chaleur — allures ralenties normales, hydratation toutes les 20 min.",
-          elevation_fc_bpm:23, zone_ef_ajustee:"163-171 bpm",
-          note_fc:"FC effective = FC mesurée - 23 bpm (Mora-Rodriguez à 32°C). FC 155 mesurée → FC effective 132 bpm → DANS la zone EF ✅. Zone EF chaleur : 163-171 bpm."
-        },
-        note:"MÉTÉO à Villiers-Saint-Georges : 32°C ressenti, 58% humidité. Mora-Rodriguez : FC effective = FC mesurée − 23 bpm. Perte perf : -14%."
-      };
-      state[k] = JSON.stringify(p);
-      // Persister uniquement cette clé dans Firebase (pas tout le state)
-      if(typeof dbRef !== 'undefined' && dbRef) {
-        dbRef.child(k).set(state[k]).catch(()=>{});
-      }
-    }
-  })();
-
-
-
-  // ── Rien ici : la météo historique est récupérée dynamiquement
-  //    par autoFetchMissingMeteo() après le chargement Firebase ──
-
-  // Horaires renfo par défaut — admin seulement
-  if(usesHardPlan()){
-    [CW, Math.min(CW+1,32)].forEach(w => {
-      [1,2].forEach(r => {
-        const k = rfk(w,r)+'sched';
-        if(!state[k]) state[k] = JSON.stringify(rfDefaults[r]);
-      });
-    });
-  }
-  // Inject historical sessions S1-S6 if not already done — admin seulement
-  const historyKey='_history_injected_v6';
-  if(usesHardPlan()&&!state[historyKey]){
-    const history=[
-      {ws:1,si:1,shoe:'Pegasus',km:8},{ws:1,si:2,shoe:'Pegasus',km:8},
-      {ws:2,si:0,shoe:'Pegasus',km:9},{ws:2,si:1,shoe:'Pegasus',km:10},{ws:2,si:2,shoe:'Pegasus',km:11},
-      {ws:3,si:0,shoe:'Pegasus',km:7},{ws:3,si:1,shoe:'Pegasus',km:8},{ws:3,si:2,shoe:'Pegasus',km:8},
-      {ws:4,si:0,shoe:'Pegasus',km:9},{ws:4,si:2,shoe:'Pegasus',km:9},
-      {ws:5,si:0,shoe:'Pegasus',km:7},{ws:5,si:1,shoe:'Pegasus',km:7},{ws:5,si:2,shoe:'Pegasus',km:9},
-      {ws:6,si:0,shoe:'Pegasus',km:8},{ws:6,si:1,shoe:'Pegasus',km:8},{ws:6,si:2,shoe:'Salomon',km:9},
-    ];
-    history.forEach(({ws,si,shoe,km})=>{
-      const dk=gk(ws,si);
-      if(!state[dk+'done']) state[dk+'done']=true;
-      if(state[dk+'km']==null) state[dk+'km']=km;
-      const ek=`edit_w${ws}_s${si}`;
-      const base=weeks[ws-1].sessions[si];
-      if(!state[ek]){
-        state[ek]=JSON.stringify({...base,shoe});
-      } else {
-        try{const obj=JSON.parse(state[ek]);obj.shoe=shoe;state[ek]=JSON.stringify(obj);}catch(e){}
-      }
-    });
-    state[historyKey]=true;
-    // Inject performance data S1-S6
-    const perfData=[
-      {ws:1,si:0,km:7,dur:'37:51',pace:'5:43',hr:158},
-      {ws:1,si:1,km:8,dur:'45:31',pace:'5:41',hr:159},
-      {ws:1,si:2,km:8,dur:'52:02',pace:'6:30',hr:139},
-      {ws:2,si:0,km:9,dur:'59:24',pace:'6:36',hr:142},
-      {ws:2,si:1,km:10,dur:'1:08:31',pace:'6:51',hr:149},
-      {ws:2,si:2,km:11,dur:'1:16:09',pace:'6:55',hr:148},
-      {ws:3,si:0,km:7,dur:'52:23',pace:'6:09',hr:156},
-      {ws:3,si:1,km:8,dur:'52:33',pace:'6:56',hr:141},
-      {ws:3,si:2,km:8,dur:'44:21',pace:'6:20',hr:145},
-      {ws:4,si:0,km:9,dur:'1:00:10',pace:'6:40',hr:144},
-      {ws:4,si:2,km:9,dur:'58:55',pace:'6:31',hr:152,date:'2026-04-04'},
-      {ws:5,si:0,km:7,dur:'45:50',pace:'6:33',hr:146},
-      {ws:5,si:1,km:7,dur:'41:03',pace:'5:52',hr:154},
-      {ws:5,si:2,km:9,dur:'54:56',pace:'5:59',hr:159},
-      {ws:6,si:0,km:8,dur:'51:30',pace:'6:26',hr:146},
-      {ws:6,si:1,km:8,dur:'44:22',pace:'5:31',hr:162},
-      {ws:6,si:2,km:9,dur:'56:39',pace:'6:17',hr:144},
-    ];
-    // Toujours écrire les perfs S1-S6 (écrase les éventuelles valeurs vides)
-    perfData.forEach(({ws,si,km,dur,pace,hr,date})=>{
-      const k=gk(ws,si);
-      state[k+'perf']=JSON.stringify({dur,pace,hr,...(date?{date}:{})});
-    });
-    // Inject orders
-    if(!state['order_w6']) state['order_w6']=JSON.stringify([{"si":1,"extra":false},{"si":0,"extra":false},{"si":2,"extra":false}]);
-    if(!state['order_w7']) state['order_w7']=JSON.stringify([{"si":0,"extra":false},{"si":1,"extra":false},{"si":2,"extra":false}]);
-    // Inject deletion S22 si1
-    if(!state['del_w22_s1']) state['del_w22_s1']=true;
-  }
-  // Fix old tempo sessions stored without | separator
-  const tempoFix=[
-    ["Tempo 2×5 min (5'00-5'20/km)","Tempo 2×5 min|5'00 — 5'20 /km"],
-    ["Tempo 2×6 min (5'00-5'20/km)","Tempo 2×6 min|5'00 — 5'20 /km"],
-    ["Tempo 2×8 min (5'00-5'20/km)","Tempo 2×8 min|5'00 — 5'20 /km"],
-    ["Tempo 3×8 min (5'00-5'20/km)","Tempo 3×8 min|5'00 — 5'20 /km"],
-    ["Tempo 2×10 min (5'00-5'20/km)","Tempo 2×10 min|5'00 — 5'20 /km"],
-    ["Tempo 3×10 min (5'00-5'20/km)","Tempo 3×10 min|5'00 — 5'20 /km"],
-    ["Tempo 2×12 min (5'00-5'20/km)","Tempo 2×12 min|5'00 — 5'20 /km"],
-    ["Tempo 2×15 min (5'00-5'20/km)","Tempo 2×15 min|5'00 — 5'20 /km"],
-    // Also catch variants without pipe but with old allure format
-    ["Tempo 2×5 min ","Tempo 2×5 min|5'00 — 5'20 /km"],
-    ["Tempo 2×6 min ","Tempo 2×6 min|5'00 — 5'20 /km"],
-    ["Tempo 2×8 min ","Tempo 2×8 min|5'00 — 5'20 /km"],
-    ["Tempo 3×8 min ","Tempo 3×8 min|5'00 — 5'20 /km"],
-    ["Tempo 2×10 min ","Tempo 2×10 min|5'00 — 5'20 /km"],
-    ["Tempo 3×10 min ","Tempo 3×10 min|5'00 — 5'20 /km"],
-    ["Tempo 2×12 min ","Tempo 2×12 min|5'00 — 5'20 /km"],
-    ["Tempo 2×15 min ","Tempo 2×15 min|5'00 — 5'20 /km"],
-  ];
-  let changed=false;
-  Object.keys(state).forEach(k=>{
-    if(k.startsWith('edit_')){
-      try{
-        const obj=JSON.parse(state[k]);
-        if(obj.d){
-          tempoFix.forEach(([old,fix])=>{
-            // Ne corriger que si la séance n'a pas déjà une allure personnalisée (pas de |)
-            if(!obj.d.includes('|') && (obj.d===old.trim()||obj.d===old)){
-              obj.d=fix;
-              state[k]=JSON.stringify(obj);
-              changed=true;
-            }
-          });
-        }
-      }catch(e){}
-    }
-  });
-  if(changed) save();
-
-  // Migration plan sessions → extra_w (one-time, admin only)
-  if(usesHardPlan() && !state._plan_migrated && typeof weeks !== 'undefined') {
-    _migratePlanToExtraW();
-  }
-}
-
-// Migration one-time : convertit les séances du plan hardcodé (weeks[] + edit_w + del_w)
-// en entrées extra_w, tout en conservant les clés d'origine pour rétrocompatibilité.
-// Additive uniquement : ne supprime rien. Idempotente grâce au flag _plan_migrated.
-function _migratePlanToExtraW() {
-  const updates = {};
-
-  for(let ws = 1; ws <= weeks.length; ws++) {
-    // Compter les séances extra_w déjà existantes pour cette semaine (ajouts manuels admin)
-    let existingCount = 0;
-    while(existingCount <= 30 && state[`extra_w${ws}_s${existingCount}`] !== undefined) existingCount++;
-
-    let newEi = existingCount;
-    weeks[ws-1].sessions.forEach((base, si) => {
-      if(state[`del_w${ws}_s${si}`]) return; // séance supprimée → ne pas migrer
-      let ed = null;
-      try { const r = state[`edit_w${ws}_s${si}`]; if(r) ed = JSON.parse(r); } catch(e) {}
-
-      const sess = {
-        type: (ed&&ed.type) || base.type,
-        km:   (ed&&ed.km)   || base.km,
-        d:    (ed&&ed.d)    || base.d,
-        sched_day:  (ed&&ed.sched_day)  || base.sched_day,
-        sched_time: (ed&&ed.sched_time) || base.sched_time || '06:30',
-        shoe: (ed&&ed.shoe) || base.shoe || '',
-        _src: 'plan',
-        _modified: !!ed,
-        _plan_si: si,
-        _uid: `plan_w${ws}_s${si}`,
-        _seq: ed ? 1 : 0,
-      };
-      updates[`extra_w${ws}_s${newEi}`] = JSON.stringify(sess);
-
-      // Copier done/perf/km depuis les clés gk() vers les nouvelles clés extra_w
-      const dk = gk(ws, si);
-      if(state[dk+'done']        !== undefined) updates[`extra_w${ws}_s${newEi}_done`]        = state[dk+'done'];
-      if(state[dk+'perf']        !== undefined) updates[`extra_w${ws}_s${newEi}_perf`]        = state[dk+'perf'];
-      if(state[dk+'km']          !== undefined) updates[`extra_w${ws}_s${newEi}_km`]          = state[dk+'km'];
-      if(state[dk+'skip']        !== undefined) updates[`extra_w${ws}_s${newEi}_skip`]        = state[dk+'skip'];
-      if(state[dk+'skip_reason'] !== undefined) updates[`extra_w${ws}_s${newEi}_skip_reason`] = state[dk+'skip_reason'];
-
-      newEi++;
-    });
-  }
-
-  updates._plan_migrated = 'v1';
-  Object.assign(state, updates);
-  if(dbRef) dbRef.update(updates).catch(e => console.error('Migration plan→extra_w:', e));
-}
-
-// Retourne l'index ei de la séance plan (ws,si) dans extra_w, ou null si absent
-function _findExtraEiForPlan(ws, si) {
-  if(!state._plan_migrated) return null;
-  let ei=0;
-  while(ei<=50 && state[`extra_w${ws}_s${ei}`] !== undefined) {
-    try {
-      const s=JSON.parse(state[`extra_w${ws}_s${ei}`]);
-      if(s._src==='plan' && s._plan_si===si) return ei;
-    } catch(e) {}
-    ei++;
-  }
-  return null;
-}
-
-// Synchronise les clés done/perf/km/skip d'une séance plan (gk→extra_w) après validation
-function _syncPlanValidationToExtraW(ws, si, doneKey) {
-  const ei=_findExtraEiForPlan(ws, si);
-  if(ei===null) return;
-  const ek=`extra_w${ws}_s${ei}`;
-  state[ek+'_done']=true;
-  delete state[ek+'_skip']; delete state[ek+'_skip_reason'];
-  if(state[doneKey+'km']!=null) state[ek+'_km']=state[doneKey+'km'];
-  if(state[doneKey+'perf']!=null) state[ek+'_perf']=state[doneKey+'perf'];
+  if(typeof isAdmin !== 'function' || !isAdmin() || (typeof _prepView !== 'undefined' && _prepView) || (typeof _adminPreviewUid !== 'undefined' && _adminPreviewUid)) return;
+  if(typeof prepLegacyKeys !== 'function' || !state) return;
+  const up = prepLegacyKeys(state); if(!up) return;
+  Object.assign(state, up);
+  if(typeof dbRef !== 'undefined' && dbRef) dbRef.update(up).catch(function(e){ console.warn('[prépa] conversion Seine-Eure', e); });
+  if(typeof syncPlanCompat === 'function') syncPlanCompat();
 }
 
 // Table EF → AM (depuis Excel)
@@ -300,7 +92,6 @@ function getBestEfPace(){
 // Regénère ensuite le plan entier pour injecter les allures dans les descriptions S2+.
 async function tryAutoCalculateEF(){
   if(state.ef_pace) return null;
-  if(usesHardPlan()) return null;
   // Plan Découverte : allure inclut la marche → ne pas auto-calculer l'EF
   let cfg=null;try{cfg=state.plan_config?JSON.parse(state.plan_config):null;}catch(e){}
   if(cfg&&cfg.niveau==='Découverte') return null;
@@ -447,7 +238,6 @@ function updateMarathonPace(){
 // Source de vérité unique pour distinguer un coureur "plaisir" d'un coureur avec objectif de course.
 // À utiliser partout à la place de `course === 'Plaisir'` inline.
 function isPlaisirMode(st) {
-  if (usesHardPlan()) return false;
   const course = ((st || state).onboarding || {}).course;
   return !course || course === 'Plaisir';
 }
@@ -457,7 +247,7 @@ function save(){
   // seulement les clés modifiées (sync.js) : une écriture du serveur ou d'un autre appareil n'est pas écrasée ; gardé sans réseau
   if(typeof syncSave==='function') syncSave();
   else if(dbRef) dbRef.set(state).catch(e=>console.error('Firebase save error:',e));
-  if(typeof syncPlanCompat==='function'&&isAdmin()&&!usesHardPlan()) syncPlanCompat();   // séances ajoutées/modifiées
+  if(typeof syncPlanCompat==='function'&&isAdmin()) syncPlanCompat();   // séances ajoutées/modifiées
   setTimeout(checkCoachAlerts, 100);
 }
 function getAmTrainingPace(){
@@ -469,7 +259,6 @@ function getAmTrainingPace(){
 function getMarathonPaceStr(){
   return state._am_pace||calcMarathonPace()||"5'40";
 }
-function gk(w,i){return `s${w}i${i}`;}
 // calcSessionDuration est maintenant un alias de estimateDuration
 // (voir plus bas)
 
@@ -543,9 +332,6 @@ const _GLOSSARY = [
   }
 ];
 
-function _glossTermBadge(termId) {
-  return `<span onclick="openGlossary('${termId}')" role="button" tabindex="0" aria-label="Définition" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#EEF2FD;color:#1B4FD8;font-size:9px;font-weight:800;cursor:pointer;vertical-align:middle;margin-left:4px;flex-shrink:0;border:1px solid #c7d7f8;">?</span>`;
-}
 
 function openGlossary(termId) {
   const mc = document.getElementById('modal-container');

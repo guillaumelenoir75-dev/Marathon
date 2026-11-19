@@ -19,8 +19,6 @@ function cpFixed(st){
   const p = cpGet(st);
   return (p && Array.isArray(p.fixed) ? p.fixed : []).filter(function(f){ return f && f.n && f.day >= 1 && f.day <= 7; });
 }
-function cpHm(t){ return t ? String(t).replace(':', 'h') : ''; }
-function cpFixedLabel(f){ return f.n + ' ' + CP_DAYS[f.day] + (f.t ? ' ' + cpHm(f.t) : ''); }
 // activités fixes de la semaine pour le Coach : faite / à venir à l'instant `now`
 function cpFixedWeek(st, now){
   now = now || new Date();

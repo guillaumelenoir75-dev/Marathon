@@ -57,7 +57,7 @@ async function _progCollect(){
   const idx = _prepIndex || {}, cur = _prepCurrentInfo(state), out = [];
   for(const id of Object.keys(idx)){
     const p = idx[id];
-    if(!usesHardPlan() && (id === state._prep_id || p.title === cur.title)) continue;
+    if((id === state._prep_id || p.title === cur.title)) continue;
     let st = null; try { st = await _prepGetSnap(id); } catch(e) {}
     if(!st) continue;
     out.push({ id: id, title: p.title, date: p.date, dist: p.dist, result: p.result || '', kind: 'done', m: progMetrics(st) });

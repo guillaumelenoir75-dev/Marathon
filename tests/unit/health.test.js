@@ -58,3 +58,11 @@ test('téléphone : écritures refusées par la base, écritures en attente, err
   assert.equal(L.save.status, 'warn'); assert.match(L.save.detail, /2 modifications en attente depuis 20 min/);
   assert.equal(L.js.status, 'ok');
 });
+
+test('copie hors ligne : allégée = à surveiller, impossible = panne, complète = ok', () => {
+  const app = loadApp({ now: '2026-11-11T11:00:00+01:00', state: {} });
+  assert.equal(by(J(app.healthLocalItems({ cache: { mode: 'slim', ko: 900, full: 6200 } }, NOW))).offline.status, 'warn');
+  assert.equal(by(J(app.healthLocalItems({ cache: { mode: 'none', full: 7000 } }, NOW))).offline.status, 'bad');
+  assert.equal(by(J(app.healthLocalItems({ cache: { mode: 'full', ko: 800 } }, NOW))).offline.status, 'ok');
+  assert.equal(by(J(app.healthLocalItems({}, NOW))).offline, undefined);
+});

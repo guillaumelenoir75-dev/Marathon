@@ -99,12 +99,52 @@ function syncApplyPending(){
   return ks.length;
 }
 
+// ─── Données à part : lues seulement quand elles servent, hors de l'état téléchargé au démarrage ───
+// users/{uid}/side/{clé} (database.rules.json : l'utilisateur et l'admin) ; une clé encore dans l'état y est recopiée une fois
+const SIDE_KEYS = ['_coach_history'];
+function sideRef(k){ try { return typeof dbRef !== 'undefined' && dbRef && dbRef.parent ? dbRef.parent.child('side/' + k) : null; } catch(e) { return null; } }
+// valeur : à part, sinon encore dans l'état (avant la recopie)
+async function sideGet(k){
+  const r = sideRef(k); let v = null;
+  try { if(r) v = (await r.once('value')).val(); } catch(e) {}
+  if(v == null && typeof state !== 'undefined' && state && state[k] != null) v = state[k];
+  return v;
+}
+function sideSet(k, v){ const r = sideRef(k); return r ? _syncWrite(function(){ return r.set(_syncClean(v)); }).catch(function(e){ _syncErrLog(e, ['side/' + k]); }) : Promise.resolve(); }
+async function sideMigrate(){
+  if(typeof state === 'undefined' || !state || !_syncOwn()) return 0;
+  let n = 0;
+  for(const k of SIDE_KEYS){
+    if(state[k] == null) continue;
+    const r = sideRef(k); if(!r) continue;
+    try {
+      const cur = (await r.once('value')).val();
+      if(cur == null) await r.set(state[k]);
+      await dbRef.child(k).remove();
+      delete state[k];
+      const b = _syncBases[_syncRefKey(dbRef)]; if(b && b.obj === state && b.map) delete b.map[k];
+      n++;
+    } catch(e) { _syncErrLog(e, ['side/' + k]); }
+  }
+  return n;
+}
+
 // ─── Démarrage sans réseau : copie de l'état et du rôle ───
+// clés inutiles pour démarrer sans réseau : retirées de la copie quand le téléphone manque de place (limite ≈ 5 Mo sur iPhone)
+const SYNC_SLIM = /^(_coach_history|_plan_chat|_sleep_hist|_form_hist|_autoval_log|_coach_fb|_coach_dbg|_plan_reviews|_alcohol_model|_strava_hist|_race_analysis|_season)$/;
+function syncSlimState(st){ const o = {}; Object.keys(st || {}).forEach(function(k){ if(!SYNC_SLIM.test(k)) o[k] = st[k]; }); return o; }
+// copie de l'état : complète, sinon allégée, sinon retirée — l'issue est gardée (pm_cache_info) pour Santé de l'app et Tester l'app
 function syncCacheState(force){
   const L = _syncLs(); if(!L || !_syncOwn()) return;
   const now = Date.now(); if(!force && now - _syncCacheAt < 30000) return;
   _syncCacheAt = now;
-  try { L.setItem('pm_state_' + _syncUid(), JSON.stringify(state)); } catch(e) { try { L.removeItem('pm_state_' + _syncUid()); } catch(e2) {} }
+  const key = 'pm_state_' + _syncUid(), info = function(o){ try { L.setItem('pm_cache_info', JSON.stringify(Object.assign({ at: now }, o))); } catch(e) {} };
+  let full = '';
+  try { full = JSON.stringify(state); L.setItem(key, full); info({ mode: 'full', ko: Math.round(full.length / 1024) }); return; } catch(e) {}
+  try { L.removeItem(key); const s = JSON.stringify(syncSlimState(state)); L.setItem(key, s); info({ mode: 'slim', ko: Math.round(s.length / 1024), full: Math.round(full.length / 1024) }); return; } catch(e) {}
+  try { L.removeItem(key); } catch(e) {}
+  info({ mode: 'none', full: Math.round(full.length / 1024) });
+  if(typeof diagLog === 'function') diagLog('Copie hors ligne impossible : stockage du téléphone plein (' + Math.round(full.length / 1024) + ' Ko)', 'sync:cache');
 }
 function syncCacheRole(uid, role){ const L = _syncLs(); if(L && role) try { L.setItem('pm_role_' + uid, role); } catch(e) {} }
 // lecture de la base, ou de la copie du téléphone si le réseau ne répond pas (hors ligne : tout de suite ; sinon après ms)
