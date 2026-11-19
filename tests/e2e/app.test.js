@@ -35,7 +35,8 @@ test.after(async () => { if (browser) await browser.close(); if (server) server.
 // nouvelle page à une date donnée, avec une base (JSON) éventuelle
 async function open(dateIso, db, opts) {
   opts = opts || {};
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris', geolocation: { latitude: 48.84, longitude: 2.29 }, permissions: ['geolocation'] });
+  // WebKit : les appels passés par le service worker échappent aux réponses simulées → service worker bloqué dans ce moteur
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris', geolocation: { latitude: 48.84, longitude: 2.29 }, permissions: ['geolocation'], serviceWorkers: ENGINE === 'webkit' ? 'block' : 'allow' });
   await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
   // réponses simulées des fonctions : en-têtes d'accès entre sites (CORS) ajoutés — WebKit (Safari) les exige, comme le vrai serveur
   const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
