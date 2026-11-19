@@ -37,7 +37,14 @@ async function open(dateIso, db, opts) {
   opts = opts || {};
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris', geolocation: { latitude: 48.84, longitude: 2.29 }, permissions: ['geolocation'] });
   await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
-  await ctx.route(/cloudfunctions\.net/, (r) => (opts.functions ? opts.functions(r) : r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"ok","reply":"ok","text":"ok"}' })));
+  // réponses simulées des fonctions : en-têtes d'accès entre sites (CORS) ajoutés — WebKit (Safari) les exige, comme le vrai serveur
+  const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
+  await ctx.route(/cloudfunctions\.net/, (route) => {
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    const r = { request: () => route.request(), abort: (e) => route.abort(e), continue: (o) => route.continue(o), fallback: (o) => route.fallback(o),
+      fulfill: (o) => route.fulfill(Object.assign({}, o, { headers: Object.assign({}, CORS, (o && o.headers) || {}) })) };
+    return opts.functions ? opts.functions(r) : r.fulfill({ contentType: 'application/json', body: '{"success":true,"analysis":"ok","reply":"ok","text":"ok"}' });
+  });
   await ctx.route(/firebase-app-compat/, (r) => r.fulfill({ contentType: 'text/javascript', path: MOCK }));
   await ctx.route(/firebase-(auth|database|messaging)-compat/, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
   await ctx.route(/chart\.umd/, (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.Chart=function(){return{destroy(){},update(){},data:{datasets:[]},options:{}}};window.Chart.register=function(){};' }));
@@ -2133,10 +2140,11 @@ test('Navigation : adresse de l\'onglet, retour = ferme la fenêtre du dessus pu
   // glisser depuis le bord gauche (app installée)
   const swipe = (x0, x1) => page.evaluate(([a, b]) => {
     window._navSwipeForce = true;
-    const T = (x) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: 400 });
-    document.dispatchEvent(new TouchEvent('touchstart', { touches: [T(a)], bubbles: true }));
-    for (let x = a; x <= b; x += 20) document.dispatchEvent(new TouchEvent('touchmove', { touches: [T(x)], bubbles: true }));
-    document.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true }));
+    // évènements tactiles simulés sans le constructeur Touch (absent de WebKit sur ordinateur)
+    const ev = (type, x) => { const e = new Event(type, { bubbles: true, cancelable: true }); Object.defineProperty(e, 'touches', { value: x == null ? [] : [{ identifier: 1, target: document.body, clientX: x, clientY: 400 }] }); return e; };
+    document.dispatchEvent(ev('touchstart', a));
+    for (let x = a; x <= b; x += 20) document.dispatchEvent(ev('touchmove', x));
+    document.dispatchEvent(ev('touchend', null));
   }, [x0, x1]);
   await swipe(8, 60); await page.waitForTimeout(500);
   assert.ok(await page.$('#shoes-panel'), 'geste trop court : rien');
