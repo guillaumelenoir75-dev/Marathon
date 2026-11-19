@@ -1522,10 +1522,10 @@ async function loadCoachHistory(){
   // (sauf si un brief pending a déjà été affiché via checkPendingBrief)
   if (!_briefShownToday) {
     if (_needsWeeklyBilan) {
-      try { await generateAndShowWeeklyBilan(); } catch(_e) {}
+      try { await generateAndShowWeeklyBilan(); } catch(_e) { diagSilent(_e, 'coach-ui:weeklyBilan'); }
     } else {
       const _forceBrief = _needsFullBrief || _fromPushNotif;
-      try { await checkMorningBrief(memos, _forceBrief); } catch(_e) {}
+      try { await checkMorningBrief(memos, _forceBrief); } catch(_e) { diagSilent(_e, 'coach-ui:checkMorningBrief'); }
     }
   }
   if (dbRef) {

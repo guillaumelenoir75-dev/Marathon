@@ -8,7 +8,9 @@ const assert = require('node:assert/strict');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require('playwright');
+const playwright = require('playwright');
+// moteur : Chromium par défaut, WebKit (celui de Safari sur iPhone) avec E2E_BROWSER=webkit
+const ENGINE = process.env.E2E_BROWSER === 'webkit' ? 'webkit' : 'chromium';
 
 const DIST = path.join(__dirname, '..', '..', 'dist');
 const MOCK = path.join(__dirname, 'firebase-mock.js');
@@ -24,7 +26,7 @@ test.before(async () => {
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = 'http://127.0.0.1:' + server.address().port + '/';
-  browser = await chromium.launch();
+  browser = await playwright[ENGINE].launch();
 });
 test.after(async () => { if (browser) await browser.close(); if (server) server.close(); });
 
@@ -465,6 +467,34 @@ test('écrans rares chargés à la demande : chaque point d\'entrée charge son 
     assert.ok(!r.err, fn + ' : ' + r.err);
     assert.ok(r.loaded, fn + ' : vraie fonction chargée');
   }
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('Diagnostic : Tester l\'app (base, copie hors ligne, son…), envoi du diagnostic, fonctions utilisées comptées', async () => {
+  const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
+  // compteur d'usage : onglet + toucher d'un bouton à onclick
+  await page.evaluate(() => { localStorage.removeItem('pm_use'); showScreen('stats'); showScreen('compte'); });
+  await page.evaluate(() => { const b = document.createElement('button'); b.id = 'use-t'; b.setAttribute('onclick', 'openGlossary()'); document.body.appendChild(b); b.click(); b.remove(); document.querySelectorAll('#modal-container > *').forEach((x) => x.remove()); });
+  const use = await page.evaluate(() => JSON.parse(localStorage.getItem('pm_use')));
+  assert.ok(use.c['screen:stats'][0] >= 1 && use.c.openGlossary[0] === 1, JSON.stringify(use));
+  await page.evaluate(() => usageOpen());
+  assert.ok(await page.isVisible('#use-modal'), 'fenêtre « Fonctions utilisées »');
+  assert.ok(/Jamais ouvertes/.test(await page.textContent('#use-modal')));
+  await page.evaluate(() => document.getElementById('use-modal').remove());
+  // Tester l'app : chargé à la demande, résultat affiché
+  assert.equal(await page.evaluate(() => [...document.scripts].filter((s) => /lazy-selftest/.test(s.src)).length), 0, 'rien de chargé au démarrage');
+  await page.evaluate(() => { diagOpen(); });
+  await page.click('#dg-modal >> text=Tester l\'app');
+  await page.waitForSelector('#st-modal .st-sum[data-s]', { timeout: 30000 });
+  const txt = await page.textContent('#st-modal');
+  assert.ok(/Base de données/.test(txt) && /Copie hors ligne/.test(txt) && /Son de l'app/.test(txt), txt);
+  assert.equal(await page.evaluate(() => (_stLast.results.find((r) => r.k === 'db') || {}).s), 'ok', 'aller-retour avec la base');
+  // envoi : sans feuille de partage → copié
+  await page.evaluate(() => { window.__copied = null; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } }, configurable: true }); });
+  await page.click('#st-modal >> text=Envoyer le diagnostic'); await page.waitForTimeout(300);
+  const rep = await page.evaluate(() => window.__copied);
+  assert.ok(rep && /Plan Marathon · diagnostic/.test(rep) && /Test : /.test(rep) && /Données : \d+ Ko/.test(rep), rep);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

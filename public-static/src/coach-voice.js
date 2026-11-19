@@ -400,8 +400,8 @@ function _cvMicStop(M){
 function _cvHints(){
   const H = [];
   try { (typeof getShoes === 'function' ? getShoes() : []).forEach(function(x){ if(x && x.name) H.push(String(x.name)); }); } catch(e) {}
-  try { const R = typeof prepRace === 'function' ? prepRace() : null; if(R && R.name) H.push(String(R.name)); } catch(e) {}
-  try { const n = typeof athleteFirstName === 'function' ? athleteFirstName() : ''; if(n) H.push(n); } catch(e) {}
+  try { const R = typeof prepRace === 'function' ? prepRace() : null; if(R && R.name) H.push(String(R.name)); } catch(e) { diagSilent(e, 'coach-voice:_cvHints'); }
+  try { const n = typeof athleteFirstName === 'function' ? athleteFirstName() : ''; if(n) H.push(n); } catch(e) { diagSilent(e, 'coach-voice:_cvHints'); }
   return H.slice(0, 20);
 }
 async function _cvStt(blob, sec){
@@ -821,7 +821,7 @@ function cvCardHtml(kind, reply){
 // tes 6 dernières sorties EF / longues : allure sur plat (pente et météo retirées), FC
 function cvEfPoints(done){
   return (done || []).filter(function(s){ return (s.type === 'ef' || s.type === 'long') && s.perf && s.perf.pace; }).slice(-6).map(function(s){
-    let p = null; try { const E = typeof prEqPace === 'function' ? prEqPace(s.perf, s.km) : null; if(E && E.eq) p = Math.round(E.eq); } catch(e) {}
+    let p = null; try { const E = typeof prEqPace === 'function' ? prEqPace(s.perf, s.km) : null; if(E && E.eq) p = Math.round(E.eq); } catch(e) { diagSilent(e, 'coach-voice:cvEfPoints'); }
     if(!p){ const m = String(s.perf.pace).match(/(\d{1,2})[:'’](\d{2})/); p = m ? +m[1] * 60 + +m[2] : null; }
     return { d: s.date, p: p, hr: parseInt(s.perf.hr) || null };
   }).filter(function(x){ return x.p; });

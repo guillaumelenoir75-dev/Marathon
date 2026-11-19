@@ -130,7 +130,7 @@ async function syncOnReconnect(){
     if(typeof syncPlanCompat === 'function') syncPlanCompat();
     if(typeof prHistoryChanged === 'function') prHistoryChanged();
     await syncSave();
-    try { if(typeof renderHome === 'function') renderHome(); } catch(e) {}
+    try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'sync:renderHome'); }
     syncStatusRender();
     return true;
   } catch(e) { return false; }

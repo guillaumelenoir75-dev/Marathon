@@ -1,7 +1,9 @@
+// Texte du Coach affiché comme du texte : aucune balise venue de l'IA n'est interprétée (seul le gras ** est mis en forme)
+function ccEsc(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function renderCoachText(t, streaming){
   if(!t) return '';
   // Supprimer TOUS les blocs ```...``` et inline `code` avant affichage
-  let cleaned = t;
+  let cleaned = ccEsc(t);
   cleaned = cleaned.replace(/```[\s\S]*?```/g, ''); // Supprimer blocs code
   cleaned = cleaned.replace(/`([^`\n]*)`/g, '$1');   // Supprimer backticks inline
   // Convertir les titres markdown ## → texte stylé (supprimer les # mais garder le contenu)
@@ -33,7 +35,7 @@ function renderBriefText(t, theme){
   const dotFull   = isGreen ? '#16a34a' : '#1B4FD8';
   const dotEmpty  = isGreen ? '#d1fae5' : '#dbeafe';
   const dotBorder = isGreen ? '#86efac' : '#93c5fd';
-  let s = t.replace(/```[\s\S]*?```/g,'').replace(/`([^`\n]*)`/g,'$1');
+  let s = ccEsc(t).replace(/```[\s\S]*?```/g,'').replace(/`([^`\n]*)`/g,'$1');
   s = s.replace(/\n{3,}/g,'\n\n').trim();
   s = fixAccents(s);
   s = s.replace(/\*\*([^*\n]+)\*\*/g,'<strong style="font-weight:700;color:'+accentColor+';">$1</strong>');

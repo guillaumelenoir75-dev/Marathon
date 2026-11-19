@@ -115,3 +115,15 @@ test('chaussures de novembre 2026 : Evo SL (EF) et Adizero Boston (tempo) ajout�
   const again = plain(app.shoesNov2026Changes(Object.assign({}, st, up), true));
   assert.equal(JSON.parse(again._shoes).length, 4); assert.equal(Object.keys(again).filter((k) => /^extra_/.test(k)).length, 0);
 });
+
+test('texte du Coach affiché comme du texte : balises de l\'IA neutralisées, gras gardé', () => {
+  const vm = require('vm'), fs = require('fs'), path = require('path');
+  const T = { fixAccents: (x) => x }; vm.createContext(T);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'public-static', 'src', 'coach-context.js'), 'utf8'), T);
+  const h = T.renderCoachText('Allure < 4\'30 et **bien** <img src=x onerror=alert(1)>');
+  assert.ok(!/<img/.test(h));
+  assert.ok(/&lt;img/.test(h) && /&lt; 4/.test(h));
+  assert.ok(/<strong[^>]*>bien<\/strong>/.test(h));
+  const b = T.renderBriefText('## 😴 NUIT\n<script>x</script> **ok**');
+  assert.ok(!/<script>/.test(b) && /&lt;script&gt;/.test(b));
+});

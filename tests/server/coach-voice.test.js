@@ -27,7 +27,7 @@ test('réponse orale courte : modèle rapide, repli sur le modèle habituel s\'i
   const out = await callStream(F.coach.coachChat, { message: 'Quel temps dimanche ?', responseMode: 'voix', tone: 'encourageant', history, stateContext: { date_reelle: { complet: 'lundi 16 novembre 2026', jour: 'lundi' }, plan_futur: 'x'.repeat(8000) } });
   assert.match(out, /Vise 42'00/);
   assert.equal(bodies[0].model, 'claude-haiku-5-5', 'modèle rapide d\'abord');
-  assert.equal(bodies[1].model, 'claude-sonnet-4-6', 'repli automatique');
+  assert.equal(bodies[1].model, 'claude-sonnet-5-5', 'repli automatique');
   assert.match(bodies[1].system, /TON : chaleureux et encourageant/);
   assert.doesNotMatch(bodies[1].system, /FORMAT VISUEL OBLIGATOIRE/, 'pas de mise en forme écrite en vocal');
   assert.equal(bodies[1].messages.length, 11, '10 derniers échanges + la question');
@@ -36,7 +36,7 @@ test('réponse orale courte : modèle rapide, repli sur le modèle habituel s\'i
   const F2 = loadFunctions({ data: {}, fetch: async (url, o) => { bodies.push(JSON.parse(o.body)); return sse('ok'); } });
   await callStream(F2.coach.coachChat, { message: 'Analyse ma semaine', history, stateContext: { plan_futur: 'x'.repeat(8000) } });
   const last = bodies[bodies.length - 1];
-  assert.equal(last.model, 'claude-sonnet-4-6'); assert.equal(last.messages.length, 31);
+  assert.equal(last.model, 'claude-sonnet-5-5'); assert.equal(last.messages.length, 31);
 });
 
 test('voiceLightCtx : séances récentes gardées (4 dernières, sans splits), gros blocs retirés', () => {
@@ -44,4 +44,29 @@ test('voiceLightCtx : séances récentes gardées (4 dernières, sans splits), g
   const r = F.coach.voiceLightCtx({ date_reelle: { jour: 'lundi' }, plan_futur: 'x'.repeat(5000), seances_recentes_detail: Array.from({ length: 8 }, (_, i) => ({ km: i, strava: { splits: [{ km: 1 }], cadence: 170 } })) });
   assert.equal(r.plan_futur, undefined); assert.equal(r.seances_recentes_detail.length, 4);
   assert.equal(r.seances_recentes_detail[0].strava.splits, undefined); assert.equal(r.seances_recentes_detail[0].strava.cadence, 170);
+  assert.deepEqual(r.seances_recentes_detail.map((s) => s.km), [0, 1, 2, 3], 'les plus récentes (liste envoyée de la plus récente à la plus ancienne)');
+});
+
+test('chatLightCtx : avec les outils, ni historique par mois, ni semaines à venir, ni splits ; 8 séances récentes', () => {
+  const F = loadFunctions({ data: {} });
+  const r = F.coach.chatLightCtx({ date_reelle: { jour: 'lundi' }, historique_complet_par_mois: { a: 1 }, prochaines_semaines: [1], whoop: { rec: 60 },
+    seances_recentes_detail: Array.from({ length: 12 }, (_, i) => ({ km: i, strava: { splits: [{ km: 1 }], cadence: 170 } })) });
+  assert.equal(r.historique_complet_par_mois, undefined); assert.equal(r.prochaines_semaines, undefined);
+  assert.deepEqual(r.whoop, { rec: 60 });
+  assert.deepEqual(r.seances_recentes_detail.map((s) => s.km), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(r.seances_recentes_detail[0].strava.splits, undefined); assert.equal(r.seances_recentes_detail[0].strava.cadence, 170);
+  assert.ok(/outils/.test(r.donnees_par_outils));
+});
+
+// Modèles de la dernière génération : réflexion coupée pour garder le budget de jetons au texte, température jamais envoyée,
+// texte lu dans les blocs « text » (jamais un bloc de réflexion)
+test('modèles d\'IA : réglages propres à chaque modèle et texte des réponses', () => {
+  const H = require('../../functions/helpers');
+  assert.equal(H.AI_MODEL, 'claude-sonnet-5-5'); assert.equal(H.AI_FAST_MODEL, 'claude-haiku-5-5');
+  assert.deepEqual(H.aiParams({ model: H.AI_MODEL, max_tokens: 200, temperature: 0.7 }), { model: 'claude-sonnet-5-5', max_tokens: 200, thinking: { type: 'between_tools' } });
+  assert.deepEqual(H.aiParams({ model: H.AI_FAST_MODEL, max_tokens: 120 }).thinking, { type: 'disabled' });
+  assert.equal(H.aiParams({ max_tokens: 50 }).model, H.AI_MODEL);
+  assert.deepEqual(H.aiParams({ model: H.AI_MODEL, thinking: { type: 'adaptive' } }).thinking, { type: 'adaptive' });
+  assert.equal(H.aiText({ content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: 'Bonjour' }] }), 'Bonjour');
+  assert.equal(H.aiText({ content: [] }), null);
 });

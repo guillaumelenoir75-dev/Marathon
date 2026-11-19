@@ -141,7 +141,7 @@ function navSwipeInit(){
   const wrap = function(){
     if(typeof showScreen !== 'function' || showScreen._nav) return;
     const orig = showScreen;
-    showScreen = function(name){ const r = orig.apply(this, arguments); try { navScreenShown(name); } catch(e) {} return r; };
+    showScreen = function(name){ const r = orig.apply(this, arguments); try { navScreenShown(name); } catch(e) { diagSilent(e, 'nav:showScreen'); } return r; };
     showScreen._nav = true;
   };
   wrap();

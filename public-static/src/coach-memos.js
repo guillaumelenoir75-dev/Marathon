@@ -128,8 +128,7 @@ function animateMemoBtn(){
   setTimeout(()=>{btn.innerHTML=orig;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
 }
 
-function isAtBottom(el){return el.scrollHeight-el.scrollTop-el.clientHeight<80;}
-function smartScroll(el){if(isAtBottom(el))el.scrollTo({top:el.scrollHeight,behavior:'smooth'});}
+// isAtBottom / smartScroll : coach-ui.js
 
 // ── Mémos : helpers ────────────────────────────────────────────────────────
 function _setMemos(val) {

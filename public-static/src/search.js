@@ -65,6 +65,8 @@ const SR_ITEMS = [
   { id: 'glossary', ic: '📖', t: 'Glossaire', g: 'Compte › Aide et outils', k: 'glossaire definitions ef fc vo2max affutage aide', fn: 'openGlossary', run: function(){ openGlossary(); } },
   { id: 'export', ic: '📋', t: 'Exporter le plan', g: 'Compte › Aide et outils', k: 'exporter imprimer document pdf', fn: 'exportPlanDocument', a: true, run: function(){ exportPlanDocument(); } },
   { id: 'health', ic: '🛰️', t: 'Santé de l\'app', g: 'Compte › Aide et outils', k: 'sante pannes branchements taches bug', fn: 'openHealth', a: true, run: function(){ openHealth(); } },
+  { id: 'selftest', ic: '🧪', t: 'Tester l\'app', g: 'Diagnostic', k: 'test verifier micro voix son notifications marche pas bug envoyer diagnostic', fn: 'openSelfTest', run: function(){ openSelfTest(); } },
+  { id: 'usage', ic: '📈', t: 'Fonctions utilisées', g: 'Diagnostic', k: 'usage compteur fonctions jamais utilisees menage', fn: 'usageOpen', run: function(){ usageOpen(); } },
   { id: 'diag', ic: '🩺', t: 'Diagnostic', g: 'Compte › Aide et outils', k: 'diagnostic erreurs bug lenteur demarrage', fn: 'diagOpen', run: function(){ diagOpen(); } },
   // suivi de course, administration
   { id: 'live', ic: '🏁', t: 'Course en direct', g: 'Compte › Suivi de course', k: 'suivi direct live amis gps', fn: 'openLivePanel', a: true, run: function(){ openLivePanel(); } },
@@ -100,6 +102,7 @@ function searchRun(id){
   const x = searchItems().filter(function(y){ return y.id === id; })[0]; if(!x) return false;
   try { const r = _srRecent().filter(function(y){ return y !== id; }); r.unshift(id); localStorage.setItem('pm_sr_recent', JSON.stringify(r.slice(0, 5))); } catch(e) {}
   const ov = document.getElementById('sr-ov'); if(ov) ov.remove();
+  try { const k = typeof usageKeyOf === 'function' ? usageKeyOf(x) : null; if(k && k.indexOf('screen:') !== 0) usageCount(k); } catch(e) {}   // compteur d'usage (usage.js)
   try { x.run(); } catch(e) { console.warn('[recherche]', id, e); }
   return true;
 }

@@ -32,6 +32,33 @@ jobs:
       - name: End-to-end tests
         run: npm run test:e2e
 
+  # Mêmes tests de bout en bout dans WebKit, le moteur de Safari sur iPhone : relevé pour attraper les bugs propres à l'iPhone.
+  # Ne bloque pas encore la mise en ligne (continue-on-error) tant que la suite n'est pas verte dans WebKit.
+  test-webkit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Install WebKit
+        run: npx playwright install --with-deps webkit
+
+      - name: End-to-end tests (WebKit)
+        env:
+          E2E_BROWSER: webkit
+        run: npm run test:e2e
+
   deploy:
     needs: test
     runs-on: ubuntu-latest

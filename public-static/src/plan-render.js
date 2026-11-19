@@ -1,38 +1,4 @@
 
-function onEditTypeChange(){
-  const type=document.getElementById('hm-type').value;
-  const container=document.getElementById('hm-detail-container');
-  const nameContainer=document.querySelector('#hm-detail-container')?.previousElementSibling;
-  if(!container) return;
-  if(type==='long'){
-    // Récupérer le détail existant pour parser les blocs
-    const detailInput=document.getElementById('hm-detail');
-    const existingDetail=detailInput?detailInput.value:'';
-    container.innerHTML=buildLongModalHtml(existingDetail);
-    renderLongBlocks();
-    // Masquer le champ nom standard
-    const hmName=document.getElementById('hm-name');
-    if(hmName) hmName.closest('div').style.display='none';
-  } else if(type==='tempo'){
-    container.innerHTML=buildTempoFieldsHtml('hm',2,8,'3:00','5:00','5:20');
-    const hmName=document.getElementById('hm-name');
-    if(hmName) hmName.closest('div').style.display='none';
-    setTimeout(()=>selectTempoEfPace('hm', document.getElementById('hm-ef-pace')?.value||getBestEfPace()||'6:40'),50);
-  } else if(type==='frac'){
-    container.innerHTML=buildTempoFieldsHtml('hm',6,2,'2:00','4:30','4:50','#C4141B');
-    const hmName=document.getElementById('hm-name');
-    if(hmName) hmName.closest('div').style.display='none';
-    setTimeout(()=>selectTempoEfPace('hm', document.getElementById('hm-ef-pace')?.value||getBestEfPace()||'6:40'),50);
-  } else {
-    container.innerHTML=`<div>
-      <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Détail allure (optionnel)</p>
-      <input type="text" id="hm-detail" value="" placeholder="ex: 10 EF · 3 AM @ 5:40/km" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:14px;color:var(--text);width:100%;outline:none;">
-    </div>`;
-    const hmName=document.getElementById('hm-name');
-    if(hmName) hmName.closest('div').style.display='block';
-  }
-}
-
 function buildTempoFieldsHtml(prefix, reps, dur, recup, pMin, pMax, accentColor, efPaceDefault){
   const showRecup = reps > 1;
   const O = accentColor || '#E8530A';

@@ -85,11 +85,28 @@ async function athleteName() {
   catch (e) { _athName = { v: '', at: Date.now() }; }
   return _athName.v;
 }
+// ─── Modèles d'IA : un seul endroit ───
+// AI_MODEL = Coach (fil écrit, briefs, analyses, relectures) ; AI_FAST_MODEL = réponses courtes (voix, petits messages)
+const AI_MODEL = 'claude-sonnet-5-5', AI_FAST_MODEL = 'claude-haiku-5-5';
+// Réglages propres à chaque modèle : sur la dernière génération, la réflexion est active par défaut et prendrait le budget de jetons
+// des réponses courtes (120 jetons en vocal) → coupée (Sonnet 5.5 : « between_tools » = seulement entre deux recherches, Haiku 5.5 :
+// « disabled ») ; température jamais envoyée (refusée par ces modèles)
+function aiParams(o) {
+  const b = Object.assign({}, o, { model: o.model || AI_MODEL });
+  delete b.temperature; delete b.top_p; delete b.top_k;
+  if (b.thinking === undefined) {
+    if (/^claude-sonnet-5-5/.test(b.model)) b.thinking = { type: 'between_tools' };
+    else if (/^claude-(haiku-5|sonnet-5$|opus-4-[78])/.test(b.model)) b.thinking = { type: 'disabled' };
+  }
+  return b;
+}
+// texte d'une réponse (non flux) : tous les blocs « text », jamais un bloc de réflexion
+function aiText(data) { const t = ((data && data.content) || []).filter((c) => c && c.type === 'text').map((c) => c.text || '').join(''); return t || null; }
 // corps JSON d'un appel direct à l'IA (flux) avec le prénom remplacé (échappé pour le JSON)
-async function aiJson(o) { const n = await athleteName(); return withAthleteName(JSON.stringify(o), JSON.stringify(n || "l'athlète").slice(1, -1)); }
+async function aiJson(o) { const n = await athleteName(); return withAthleteName(JSON.stringify(aiParams(o)), JSON.stringify(n || "l'athlète").slice(1, -1)); }
 function withAthleteName(t, name) { return typeof t === 'string' ? t.replace(/\{\{PRENOM\}\}/g, name || "l'athlète") : t; }
 
-async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claude-sonnet-4-6', opts = {}) {
+async function callAnthropic(apiKey, system, messages, maxTokens, model = AI_MODEL, opts = {}) {
   const _nm = await athleteName();
   system = withAthleteName(system, _nm);
   messages = (messages || []).map((m) => (m && typeof m.content === 'string' ? Object.assign({}, m, { content: withAthleteName(m.content, _nm) }) : m));
@@ -100,17 +117,12 @@ async function callAnthropic(apiKey, system, messages, maxTokens, model = 'claud
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01'
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      system,
-      messages
-    })
+    body: JSON.stringify(aiParams({ model: model || AI_MODEL, max_tokens: maxTokens, system, messages }))
   }, opts.timeout || 55000);
   const data = await response.json();
   console.log('Anthropic status:', response.status, 'data:', JSON.stringify(data).substring(0, 300));
-  if (opts.full) return { text: data.content?.[0]?.text || null, stop: data.stop_reason || null };
-  return data.content?.[0]?.text || null;
+  if (opts.full) return { text: aiText(data), stop: data.stop_reason || null };
+  return aiText(data);
 }
 
 async function getUserPref(db, statePath, key, defaultVal = true) {
@@ -1074,7 +1086,7 @@ ${memos ? 'Notes coach : ' + memos : ''}`;
 }
 
 module.exports = {
-  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf, heatEfText, coachProfileText, coachFixedRules, coachFixedToday, athleteName, withAthleteName, aiJson,
+  pushTooClose, PUSH_GAP_MIN, formScoreFor, hrZonesOf, heatEfText, coachProfileText, coachFixedRules, coachFixedToday, athleteName, withAthleteName, aiJson, aiParams, aiText, AI_MODEL, AI_FAST_MODEL,
   buildTrainingSituation, threadsOpen, threadsText, parisToday, briefTooLateParis, healthMark, efMaxOf, efRefOf, bedtimePlan, autopilotBriefText,
   sessionTitleOf,
   totalWeeksFor, getPrepInfo, prepObjectiveText, weekTypeFor, loadPrepState, adminCurrentWeek,

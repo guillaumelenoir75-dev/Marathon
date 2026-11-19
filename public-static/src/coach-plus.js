@@ -93,7 +93,7 @@ function cfFacts(today){
   try { const R = typeof prepRace === 'function' ? (prepRace() || {}) : {}; F.raceKm = R.km || null;
     const cat = typeof predRaceCat === 'function' ? predRaceCat(R) : null, P = cat && typeof predRace === 'function' ? predRace(cat, today) : null; if(P) F.pred = P.sec; } catch(e) { diagSilent(e, 'coach-plus:cfFacts'); }
   try { [['5', 'record_5km'], ['10', 'record_10km'], ['semi', 'record_semi'], ['marathon', 'record_marathon']].forEach(function(r){ const v = state[r[1]]; const s = v && typeof prTimeSec === 'function' ? prTimeSec(v) : null; if(s) F.rec[r[0]] = s; }); } catch(e) {}
-  try { F.ef = _cfPs(typeof getBestEfPace === 'function' ? getBestEfPace() : null); } catch(e) {}
+  try { F.ef = _cfPs(typeof getBestEfPace === 'function' ? getBestEfPace() : null); } catch(e) { diagSilent(e, 'coach-plus:cfFacts'); }
   return F;
 }
 const CF_PACE_RE = /(\d{1,2})\s?['’](\d{2})(?:\s?(?:\/\s?km|min\/km|au kilom[eè]tre|par km|au km))/gi;
@@ -263,4 +263,4 @@ function cfChatCss(){
     + cfCardCss(M);
   document.head.appendChild(st);
 }
-try { cfChatCss(); } catch(e) {}
+try { cfChatCss(); } catch(e) { diagSilent(e, 'coach-plus:cfChatCss'); }

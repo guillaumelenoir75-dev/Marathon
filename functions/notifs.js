@@ -30,7 +30,7 @@ const {
   efRefOf,
   bedtimePlan,
   parisToday, briefTooLateParis, healthMark, formScoreFor, hrZonesOf, coachProfileText, athleteName, withAthleteName,
-  autopilotBriefText,
+  autopilotBriefText, AI_FAST_MODEL,
   isRestDay, restBriefSystem, restBriefData, restPushPart, whoopNight, WHOOP_MISSING_TEXT, alcoholBriefText,
 } = require('./helpers');
 
@@ -741,7 +741,7 @@ exports.weekCompleteCongrats = onSchedule(
             }
             const perfsStr=perfsDetail.length>0?perfsDetail.join(', '):`${doneRun} séances`;
             const prompt=`Félicitations à {{PRENOM}} pour la semaine S${cw} (${ctx.typeSem}) complète : ${perfsStr} + 2 renfos. Km : ${ctx.kmSemaine>0?ctx.kmSemaine+'km':'semaine complète'}. EF : ${ctx.efPace||'?'}. ${ctx.semainesRestantes} sem. avant ${state._plan_engine?'la course « '+getPrepInfo(state).name+' »':'le marathon'}.\nÉcris EXACTEMENT 2 phrases courtes de félicitations. Maximum 180 caractères au total. Termine toujours sur une phrase complète. 1 emoji max.`;
-            const msg=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running enthousiaste. Réponds en 2 phrases courtes, maximum 180 caractères, jamais de phrase coupée.',[{role:'user',content:prompt}],180,'claude-haiku-4-5-20251001');
+            const msg=await callAnthropic(ANTHROPIC_API_KEY.value(),'Tu es un coach running enthousiaste. Réponds en 2 phrases courtes, maximum 180 caractères, jamais de phrase coupée.',[{role:'user',content:prompt}],180,AI_FAST_MODEL);
             let body = msg || withAthleteName(`S${cw} 100% complète ! Run + renfo : tout validé. Belle semaine {{PRENOM}} 💪`, await athleteName()).replace(/ l'athlète 💪/, ' 💪');
             const lastPunct = Math.max(body.lastIndexOf('.'), body.lastIndexOf('!'), body.lastIndexOf('?'));
             if (lastPunct > 0 && lastPunct < body.length - 1) body = body.slice(0, lastPunct + 1);

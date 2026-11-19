@@ -91,6 +91,15 @@ function healthLocalItems(L, nowMs){
   return out;
 }
 const HL_RANK = { bad: 3, warn: 2, ok: 1, off: 0 };
+// taille des données (Ko) : total et clés les plus lourdes de l'état — Diagnostic, rapport envoyé, copie hors ligne
+function stateSizes(st, n){
+  const rows = []; let tot = 0;
+  Object.keys(st || {}).forEach(function(k){ let s = 0; try { s = JSON.stringify(st[k]).length; } catch(e) {} tot += s + k.length + 4; rows.push({ k: k, b: s }); });
+  // familles de clés (extra_w3_s1… → séances) regroupées
+  const fam = {}; rows.forEach(function(r){ const f = /^(extra|meta|edit|del|perf)_w\d+/.test(r.k) ? 'séances (extra_w…)' : /^fc_repos_/.test(r.k) ? 'fc_repos_…' : /^rf\d+/.test(r.k) ? 'renfo (rf…)' : /^_wakeup_|^_brief_matin_/.test(r.k) ? 'réveils / briefs' : r.k; fam[f] = (fam[f] || 0) + r.b; });
+  const top = Object.keys(fam).map(function(k){ return { k: k, ko: Math.round(fam[k] / 102.4) / 10 }; }).sort(function(a, b){ return b.ko - a.ko; }).slice(0, n || 8);
+  return { totalKo: Math.round(tot / 1024), keys: rows.length, top: top };
+}
 function healthSummary(items){
   const bad = items.filter(function(i){ return i.status === 'bad'; }), warn = items.filter(function(i){ return i.status === 'warn'; });
   return { worst: bad.length ? 'bad' : warn.length ? 'warn' : 'ok', bad: bad.length, warn: warn.length,

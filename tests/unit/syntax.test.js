@@ -30,3 +30,22 @@ test('aucun plafond EF « 148 » ou zone « 140-148 » écrit en dur', () => {
   fs.readdirSync(FN).filter((f) => f.endsWith('.js')).forEach((f) => scan(FN, f));
   assert.deepEqual(bad, []);
 });
+
+// Une fonction globale n'est définie qu'une fois : la 2e définition écrase la 1re sans prévenir (seules exceptions : les
+// points d'entrée des écrans à la demande, définis dans config.js puis remplacés par la vraie fonction du module chargé)
+test('aucune fonction globale définie deux fois (bundle et modules à la demande)', () => {
+  const cfg = fs.readFileSync(path.join(__dirname, '..', '..', 'vite.config.js'), 'utf8');
+  const list = (s) => [...s.matchAll(/'([\w-]+\.js)'/g)].map((m) => m[1]);
+  const bundle = list(cfg.match(/const scriptFiles = \[([\s\S]*?)\];/)[1]);
+  const lazy = list(cfg.match(/const lazyGroups = \{([\s\S]*?)\};/)[1]);
+  const seen = {}, bad = [];
+  bundle.concat(lazy).forEach((f) => {
+    const t = fs.readFileSync(path.join(SRC, f), 'utf8');
+    for (const m of t.matchAll(/^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/gm)) {
+      const n = m[1], prev = seen[n];
+      if (prev && !(prev === 'config.js' && lazy.includes(f))) bad.push(n + ' : ' + prev + ' + ' + f);
+      if (!prev) seen[n] = f;
+    }
+  });
+  assert.deepEqual(bad, []);
+});

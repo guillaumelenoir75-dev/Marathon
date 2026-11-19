@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText, hrZonesOf, heatEfText, coachProfileText, coachFixedRules, coachFixedToday, aiJson } = require('./helpers');
+const { corsHeaders, verifyAdmin, callAnthropic, fetchWithTimeout, checkRateLimit, ADMIN_UID, ADMIN_STATE, sendPush, buildNotifContext, getCurrentWeek, generateMorningBriefContent, generateWeeklyBilanContent, loadPrepState, prepObjectiveText, buildTrainingSituation, alcoholBriefText, hrZonesOf, heatEfText, coachProfileText, coachFixedRules, coachFixedToday, aiJson, aiText, AI_MODEL, AI_FAST_MODEL } = require('./helpers');
 const { defineSecret: _ds2 } = require("firebase-functions/params");
 const VAPID_PUBLIC_KEY = _ds2("VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = _ds2("VAPID_PRIVATE_KEY");
@@ -349,7 +349,7 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
         const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-          body: await aiJson({ model: 'claude-sonnet-4-6', max_tokens: 900, stream: true, system, messages: [{role:'user', content: userMsg}] })
+          body: await aiJson({ model: AI_MODEL, max_tokens: 900, stream: true, system, messages: [{role:'user', content: userMsg}] })
         }, 55000);
         if (!streamRes.ok) {
           res.write('data: ' + JSON.stringify({token: 'Erreur temporaire, réessaie dans quelques secondes.'}) + '\n\n');
@@ -391,7 +391,7 @@ ${_prepSt._plan_engine ? '- PÉRIODISATION : les semaines de décharge et d\'aff
 // ─── Coach vocal : vitesse ───
 // contexte (prépa + situation) lu en parallèle et gardé 90 s : le préchauffage à l'ouverture de l'écran vocal le prépare,
 // les questions suivantes le réutilisent ; modèle rapide pour les réponses courtes (repli automatique si indisponible)
-const VOICE_MODEL = 'claude-haiku-5-5', CHAT_MODEL = 'claude-sonnet-4-6', CC_TTL = 90000;
+const VOICE_MODEL = AI_FAST_MODEL, CHAT_MODEL = AI_MODEL, CC_TTL = 90000;
 let _ccCache = null;
 async function coachCtxLoad(useCache){
   if(useCache && _ccCache && Date.now() - _ccCache.at < CC_TTL) return _ccCache;
@@ -421,18 +421,33 @@ function fbText(fb, now){
   return s;
 }
 exports.fbText = fbText;
-// contexte allégé pour une réponse orale courte : les gros blocs (plan futur, historique détaillé) sont retirés
+// contexte allégé pour une réponse orale courte : les gros blocs (plan futur, historique détaillé) sont retirés ; séances récentes = les 4 premières (la plus récente d'abord)
 function voiceLightCtx(ctx){
   const out = {};
   Object.keys(ctx || {}).forEach((k) => {
     let v = ctx[k];
-    if(k === 'seances_recentes_detail' && Array.isArray(v)) v = v.slice(-4).map((r) => { const c = Object.assign({}, r); if(c.strava) c.strava = Object.assign({}, c.strava, { splits: undefined, splits_par_km: undefined }); return c; });
+    if(k === 'seances_recentes_detail' && Array.isArray(v)) v = v.slice(0, 4).map((r) => { const c = Object.assign({}, r); if(c.strava) c.strava = Object.assign({}, c.strava, { splits: undefined, splits_par_km: undefined }); return c; });
     let n = 0; try { n = JSON.stringify(v).length; } catch(e) {}
     if(n <= 3000 || k === 'date_reelle' || k === 'seances_a_venir' || k === 'seances_recentes_detail' || k === 'whoop' || k === 'forme_du_jour') out[k] = v;
   });
   return out;
 }
 exports.voiceLightCtx = voiceLightCtx;
+// contexte du fil écrit quand le Coach a ses outils : ce qu'il peut aller chercher lui-même n'est plus envoyé à chaque question
+// (historique par mois, plan des semaines à venir, splits km par km) → réponses plus rapides et moins chères, une seule source de chiffres
+const CHAT_DROP = ['historique_complet_par_mois', 'prochaines_semaines'];
+function chatLightCtx(ctx){
+  const out = {};
+  Object.keys(ctx || {}).forEach((k) => {
+    if(CHAT_DROP.includes(k)) return;
+    let v = ctx[k];
+    if(k === 'seances_recentes_detail' && Array.isArray(v)) v = v.slice(0, 8).map((r) => { const c = Object.assign({}, r); if(c.strava) c.strava = Object.assign({}, c.strava, { splits: undefined, splits_par_km: undefined, laps: undefined }); return c; });
+    out[k] = v;
+  });
+  out.donnees_par_outils = 'Splits km par km, tours, séances plus anciennes, plan des semaines à venir, météo, niveau et records : à chercher avec les outils.';
+  return out;
+}
+exports.chatLightCtx = chatLightCtx;
 const { COACH_TOOLS, TOOL_SAY, LIGHT_TOOLS, ctLoad, ctLight, ctRun, ctReset } = require('./coach-tools');
 const OUTILS_REGLE = `OUTILS — tu peux aller chercher les données toi-même (le contexte ne contient que les dernières séances, en résumé) :
 - detail_seance / comparer_seances / seances_faites : dès qu'on te parle d'une séance précise (« mardi », « hier », « ma dernière longue »), de splits, d'une comparaison ou d'une période, APPELLE l'outil au lieu de deviner ou de dire que tu n'as pas l'info.
@@ -480,7 +495,7 @@ exports.coachChat = onRequest(
     try {
       const { message, history, responseMode, tone } = req.body;
       const isVoice = responseMode === 'voix' || responseMode === 'voix_long';
-      const stateContext = responseMode === 'voix' ? voiceLightCtx(req.body.stateContext) : req.body.stateContext;   // réponse orale courte : contexte léger
+      const stateContext = responseMode === 'voix' ? voiceLightCtx(req.body.stateContext) : req.body.noTools ? req.body.stateContext : chatLightCtx(req.body.stateContext);   // réponse orale courte : contexte léger ; avec les outils : sans ce qu'ils donnent
       console.log('coachChat message:', message, '| mode:', responseMode||'chat');
       const isStreaming = req.headers['accept'] === 'text/event-stream';
       // vision complète (prépas, courses passées et à venir, période post-course, charge récente) — lue en parallèle, gardée 90 s en vocal
@@ -910,7 +925,7 @@ exports.quickBrief = onRequest(
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: await aiJson({ model: 'claude-sonnet-4-6', max_tokens: 200, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: await aiJson({ model: AI_MODEL, max_tokens: 200, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 28000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');
@@ -1016,7 +1031,7 @@ Consignes : ${context.consignes_ef||''}${memosLine}${sit ? '\n\n' + sit.text : '
       const streamRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-        body: await aiJson({ model: 'claude-sonnet-4-6', max_tokens: 350, stream: true, system, messages: [{role:'user', content: userMsg}] })
+        body: await aiJson({ model: AI_MODEL, max_tokens: 350, stream: true, system, messages: [{role:'user', content: userMsg}] })
       }, 85000);
       if (!streamRes.ok) {
         res.write('data: ' + JSON.stringify({token: 'Brief indisponible momentanément.'}) + '\n\n');
