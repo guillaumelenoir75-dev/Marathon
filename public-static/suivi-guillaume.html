@@ -98,6 +98,18 @@
   .rp-speeds button[aria-pressed="true"]{background:#E8F0FB;border-color:var(--navy);}
   .rp-exit{margin-top:10px;width:100%;min-height:40px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--muted);font:700 13px/1 system-ui,sans-serif;cursor:pointer;}
   .rp button:focus-visible,#rp-seek:focus-visible{outline:2px solid #1B4FD8;outline-offset:2px;}
+  /* Avant le départ : programme ; après l'arrivée : résultat */
+  .pre h2,.result h2{margin:0 0 6px;}
+  .pre-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:14px;}
+  .pre-row:first-of-type{border-top:none;}
+  .pre-row span{color:var(--muted);}
+  .pre-row b{color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;}
+  .result{background:linear-gradient(160deg,#F0FDF4,#fff);border-color:#BBF7D0;}
+  .res-t{display:block;font-size:clamp(44px,13vw,58px);line-height:1;font-weight:850;color:var(--go-2);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:4px 0 6px;}
+  .res-k{margin:0;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--go-2);}
+  .res-l{margin:0;font-size:14px;color:var(--ink);line-height:1.45;}
+  .res-l b{font-variant-numeric:tabular-nums;}
+  .res-n{margin:8px 0 0;font-size:12.5px;color:var(--muted);}
   .foot{margin:2px 0 0;font-size:11.5px;line-height:1.5;color:var(--muted);text-align:center;}
   @media (min-width:640px){ .hero{padding:20px 24px 22px;} .stats{grid-template-columns:repeat(2,1fr);} }
   @media (prefers-reduced-motion:reduce){ #map .me i,.pill.running::before{animation:none;} }
@@ -112,6 +124,8 @@
     <p id="status-line" class="status">Connexion au suivi en direct…</p>
   </header>
   <div id="net" class="net" hidden>Connexion perdue : les informations reprendront dès le retour du réseau.</div>
+  <section id="pre" class="card pre" hidden aria-label="Avant le départ"></section>
+  <section id="result" class="card result" hidden aria-label="Résultat"></section>
   <div id="replay"></div>
 
   <section class="card" aria-label="Progression sur le parcours">
@@ -139,8 +153,8 @@
   <p class="foot">Mise à jour en direct, sans recharger la page.</p>
 </main>
 <script defer src="/src/suivi-data.js?v=1"></script>
-<script defer src="/src/suivi-core.js?v=11"></script>
-<script defer src="/src/suivi-view.js?v=16"></script>
+<script defer src="/src/suivi-core.js?v=12"></script>
+<script defer src="/src/suivi-view.js?v=17"></script>
 <script defer src="/src/suivi-replay.js?v=2"></script>
 </body>
 </html>

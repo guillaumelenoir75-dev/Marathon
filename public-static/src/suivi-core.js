@@ -242,6 +242,22 @@ function suiviEta(o, live){
   return { at: at, dur: at - t0 };
 }
 
+// compte à rebours avant le départ : « 2 j 03 h », « 1:12:05 », « 4:05 »
+function suiviCountdown(ms){
+  ms = Math.max(0, ms); const s = Math.ceil(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  if(d) return d + ' j ' + String(h).padStart(2, '0') + ' h';
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
+}
+// résultat après l'arrivée : temps officiel (rejeu) sinon chrono du suivi, allure, écart à l'objectif (s, négatif = plus vite)
+function suiviResult(live, race){
+  live = live || {}; race = race || SuiviRace;
+  const rp = race.replay || null, off = rp && rp.official > 0 ? rp.official * 1000 : null;
+  const chrono = live.finishedAt && live.startedAt ? live.finishedAt - live.startedAt : null, ms = off || chrono;
+  if(!ms) return null;
+  const km = (race.official || 10000) / 1000, tgt = race.target > 0 ? race.target * 1000 : null;
+  return { ms: ms, official: !!off, pace: ms / 1000 / km, diff: tgt ? Math.round((ms - tgt) / 1000) : null, target: tgt };
+}
+
 // ─── Formats ────────────────────────────────────────────────────────────────
 const suiviFmt = {
   hhmm: function(t){ const d = new Date(t); return d.getHours() + 'h' + String(d.getMinutes()).padStart(2, '0'); },

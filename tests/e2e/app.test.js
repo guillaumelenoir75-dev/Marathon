@@ -107,16 +107,36 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   assert.equal(L.id, 'novembrun-2026'); assert.match(L.name, /Novemb/); assert.equal(L.date, '2026-11-22'); assert.equal(L.start, '10:00', 'départ officiel'); assert.match(L.place, /avenue Foch/);
   assert.equal(L.official, 10000); assert.ok(L.n > 100, 'tracé officiel posé tout seul : ' + L.n + ' points');
   assert.ok(L.has && Math.abs(L.len - 10000) < 150, 'parcours de ' + L.len + ' m');
+  // panneau rangé en Avant / Pendant / Après, au style Piste de nuit : liste de contrôle, puis l'essai bascule sur « Pendant »
+  const P1 = await page.evaluate(() => ({ tab: document.querySelector('#live-panel .lv-tabs button.on').textContent, items: document.querySelectorAll('#lv-check .lv-ci').length,
+    route: !!document.querySelector('#lv-check .lv-ci.ok'), bg: getComputedStyle(document.querySelector('#live-panel .lv-box')).backgroundColor,
+    pend: document.getElementById('lv-sec-pendant').hidden, start: !!document.querySelector('#lv-act-avant .lv-go') }));
+  assert.equal(P1.tab, 'Avant'); assert.equal(P1.items, 6); assert.ok(P1.route); assert.equal(P1.bg, 'rgb(11, 17, 34)'); assert.equal(P1.pend, true); assert.ok(P1.start, 'bouton Démarrer dans « Avant »');
+  await page.click('#lv-tab-pendant'); assert.equal(await page.evaluate(() => document.getElementById('lv-sec-pendant').hidden), false);
+  await page.evaluate(() => liveTab('avant'));
+  await page.click('#lv-act-avant .lv-ghost'); await page.waitForTimeout(800);   // « Lancer un essai »
+  const P2 = await page.evaluate(() => ({ tab: document.querySelector('#live-panel .lv-tabs button.on').textContent, fin: !!document.querySelector('#lv-act-pendant .lv-fin'), tested: !!window.__DB.live.race.testedAt }));
+  assert.equal(P2.tab, 'Pendant', 'l\'essai ouvre « Pendant »'); assert.ok(P2.fin, '« Je suis arrivé » dans « Pendant »'); assert.ok(P2.tested, 'essai noté pour la liste de contrôle');
+  await page.evaluate(() => { _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null }); }); await page.waitForTimeout(300);
   const saved = await db(page); await ctx.close();
-  // page publique des amis : même course, même tracé
+  // page publique des amis : même course, même tracé ; avant le départ : compte à rebours et programme
   {
-    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await ctx2.addInitScript((t) => { const real = Date.now.bind(Date), off = t - real(), D = Date; class FD extends D { constructor(...a) { if (a.length === 0) super(real() + off); else super(...a); } static now() { return real() + off; } } window.Date = FD; }, new Date('2026-11-22T08:47:55+01:00').getTime());
     await ctx2.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => /firebase-app-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', path: MOCK }) : /firebase-(auth|database)-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', body: '' }) : r.abort());
     await ctx2.addInitScript((j) => { window.__DB = JSON.parse(j); }, saved);
     const p2 = await ctx2.newPage(); const err2 = []; p2.on('pageerror', (e) => err2.push(e.message));
     await p2.goto(base + 'suivi-guillaume.html'); await p2.waitForTimeout(2500);
     const V = await p2.evaluate(() => ({ name: typeof SuiviRace !== 'undefined' ? SuiviRace.name : '', has: typeof SuiviGeo !== 'undefined' && SuiviGeo.has, off: typeof suiviOff === 'function' ? suiviOff() : 0 }));
     assert.match(V.name, /Novemb/, 'la page des amis suit la Novemb\'Run'); assert.ok(V.has, 'tracé affiché'); assert.equal(V.off, 10000);
+    const Pre = await p2.evaluate(() => ({ lab: document.querySelector('.chrono span').textContent, t: document.getElementById('v-time').textContent, pre: !document.getElementById('pre').hidden,
+      txt: document.getElementById('pre').textContent, res: document.getElementById('result').hidden }));
+    assert.equal(Pre.lab, 'Départ dans'); assert.match(Pre.t, /^1:12:0\d$/, 'compte à rebours : ' + Pre.t);
+    assert.ok(Pre.pre); assert.match(Pre.txt, /Le programme/); assert.match(Pre.txt, /10h00/); assert.match(Pre.txt, /Objectif42'00/); assert.match(Pre.txt, /Arrivéevers 10h4\d/); assert.equal(Pre.res, true);
+    // après l'arrivée : temps, allure, écart à l'objectif
+    const R = await p2.evaluate(() => { const r = suiviResult({ startedAt: 1, finishedAt: 1 + 2512000 }, SuiviRace); return { ms: r.ms, diff: r.diff, off: r.official, cd: suiviCountdown(2 * 86400000 + 3 * 3600000) }; });
+    assert.equal(R.ms, 2512000); assert.equal(R.diff, -8, '41\'52 = 8 s sous 42\'00'); assert.equal(R.off, false); assert.equal(R.cd, '2 j 03 h');
+    if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-avant.png', fullPage: true });
     assert.deepEqual(err2, []);
     await ctx2.close();
   }

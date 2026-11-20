@@ -20,6 +20,8 @@ const SuiviView = (function(){
       live = s.val() || {};
       // une autre course vient d'être préparée : la page se recharge sur elle
       if(suiviRacePath === 'live' && ((live.race && live.race.id) || SUIVI_SE_ID) !== SuiviRace.id){ location.reload(); return; }
+      // temps officiel saisi après la course : la page se recharge pour proposer le rejeu
+      if(suiviRacePath === 'live' && live.race && live.race.replay && !SuiviRace.replay){ location.reload(); return; }
       render(true);
     });
     setInterval(function(){ render(false); }, 1000);
@@ -115,9 +117,49 @@ const SuiviView = (function(){
     }
     if($('v-done')) $('v-done').textContent = o.st === 'finished' ? suiviKmLabel(suiviOff()) : suiviFmt.km(dist || 0).replace(/,00$/, '');
     $('v-rest').textContent = o.st === 'finished' ? '0' : suiviFmt.km(Math.max(0, suiviOff() - (dist || 0))).replace(/,00$/, '');
+    preCard(o, t, start); resultCard(o);
     // carte
     last = o;
     drawMap(o, visS(o, t), data);
+  }
+
+  // ─── Avant le départ : compte à rebours dans le chrono + programme (départ, objectif, passages prévus) ───
+  let preKey = null;
+  const tTxt = function(ms){ const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + 'h' + String(m).padStart(2, '0') : m) + "'" + String(x).padStart(2, '0'); };
+  function preCard(o, t, start){
+    const box = $('pre'), lab = document.querySelector('.chrono span'); if(!box) return;
+    const before = o.st === 'idle' && !o.replay && t < start;
+    if(lab) lab.textContent = before ? 'Départ dans' : 'Chrono';
+    if(before){
+      $('v-time').textContent = suiviCountdown(start - t);
+      const day = new Date(start).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      $('v-time-sub').hidden = false; $('v-time-sub').textContent = day + ' à ' + startTxt();
+    }
+    const show = o.st === 'idle' && !o.replay;
+    box.hidden = !show; if(!show){ preKey = null; return; }
+    const key = start + '|' + SuiviRace.place + '|' + SuiviRace.target + '|' + JSON.stringify(SuiviRace.points); if(key === preKey) return; preKey = key;
+    const tot = SuiviPlan.t(suiviOff()) * 1000, at = function(m){ return suiviFmt.hhmm(start + SuiviPlan.t(m) * 1000); };
+    const row = function(k, v){ return '<div class="pre-row"><span>' + k + '</span><b>' + v + '</b></div>'; };
+    const esc = function(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    let h = '<h2>Le programme</h2>' + row('Départ', startTxt() + (SuiviRace.place ? ' · ' + esc(SuiviRace.place) : ''));
+    if(SuiviRace.target) h += row('Objectif', tTxt(SuiviRace.target * 1000) + ' · ' + suiviFmt.pace(SuiviRace.target / (suiviOff() / 1000)));
+    SuiviRace.points.filter(function(p){ return p.id !== 'finish'; }).forEach(function(p){ h += row('km ' + String(p.km).replace('.', ',') + (p.label ? ' · ' + esc(p.label) : ''), 'vers ' + at(p.km * 1000)); });
+    h += row('Arrivée' + (SuiviRace.place ? '' : ''), 'vers ' + suiviFmt.hhmm(start + tot));
+    box.innerHTML = h;
+  }
+  // ─── Après l'arrivée : temps (officiel s'il est saisi), allure, écart à l'objectif, rejeu ───
+  let resKey = null;
+  function resultCard(o){
+    const box = $('result'); if(!box) return;
+    const R = o.st === 'finished' && !live.test && !o.replay ? suiviResult(live, SuiviRace) : null;
+    box.hidden = !R; if(!R){ resKey = null; return; }
+    const key = R.ms + '|' + R.official + '|' + R.diff; if(key === resKey) return; resKey = key;
+    const d = R.diff;
+    box.innerHTML = '<p class="res-k">' + (R.official ? 'Temps officiel' : 'Arrivé ✔') + '</p><b class="res-t">' + tTxt(R.ms) + '</b>'
+      + '<p class="res-l">' + suiviKmLabel(suiviOff()) + ' km à <b>' + suiviFmt.pace(R.pace) + '</b>'
+      + (d === null ? '' : d <= 0 ? ' · <b>' + (d === 0 ? 'pile' : Math.abs(d) >= 60 ? tTxt(-d * 1000) : Math.abs(d) + ' s') + '</b> ' + (d === 0 ? 'sur l\'objectif' : 'sous l\'objectif') + ' 🎉'
+        : ' · ' + (d >= 60 ? tTxt(d * 1000) : d + ' s') + ' au-dessus de l\'objectif') + '</p>'
+      + '<p class="res-n">' + (SuiviRace.replay ? 'Revivez la course en accéléré juste en dessous.' : R.official ? '' : 'Temps du suivi en direct · le temps officiel et le rejeu de la course arrivent bientôt.') + '</p>';
   }
 
   // ─── Carte : le point glisse le long du tracé à l'allure moyenne entre deux positions GPS ─────────

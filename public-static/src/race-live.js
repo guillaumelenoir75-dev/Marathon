@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=11'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=12'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -47,63 +47,62 @@ async function openLivePanel(){
   _liveSyncRace(_liveVal.race);
   const _offKm = suiviOff() / 1000;
   const chips = (_offKm > 30 ? [5, 10, 15, 20, 21.1, 25, 30, 35, 40, _offKm] : _offKm > 15 ? [5, 10, 15, 20, _offKm] : [1, 2, 3, 4, 5, 6, 7, 8, 9, _offKm]).map(function(k){ return '<button type="button" class="lv-chip" onclick="document.getElementById(\'lv-km\').value=\'' + k + '\'">' + String(k).replace('.', ',') + '</button>'; }).join('');
-  ov.innerHTML = '<div class="modal-box" style="max-height:92vh;">'
-    + '<div style="background:linear-gradient(135deg,#0C447C,#15803D);padding:16px;border-radius:24px 24px 0 0;color:#fff;flex-shrink:0;">'
-    +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;"><div>'
-    +     '<p id="lv-race-name" style="font-size:10px;font-weight:800;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px;">' + _prepEsc(SuiviRace.name) + ' · suivi en direct</p>'
-    +     '<p style="font-size:21px;font-weight:900;margin:0;">🏁 Course en direct</p></div>'
-    +     '<button onclick="closeLivePanel()" aria-label="Fermer" style="background:rgba(255,255,255,.2);border:none;cursor:pointer;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;">×</button></div>'
-    +   '<div id="lv-pill" style="display:inline-block;margin-top:8px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.18);font-size:12px;font-weight:800;">…</div>'
+  // trois moments : Avant (liste de contrôle, fiche de la course, réglages repliés), Pendant (chrono, pointages), Après (temps officiel, rejeu)
+  ov.innerHTML = '<div class="modal-box lv-box" style="max-height:92vh;">'
+    + '<div class="lv-head"><div class="lv-hd"><p id="lv-race-name" class="lv-eb">' + _prepEsc(SuiviRace.name) + ' · suivi en direct</p><p class="lv-title">Course en direct</p>'
+    +   '<span id="lv-pill" class="lv-pill">…</span></div>'
+    +   '<button onclick="closeLivePanel()" aria-label="Fermer" class="lv-x"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'
+    + '<div class="lv-tabs" role="tablist" aria-label="Moments de la course">'
+    +   ['avant', 'pendant', 'apres'].map(function(k, i){ return '<button type="button" role="tab" id="lv-tab-' + k + '" aria-controls="lv-sec-' + k + '" aria-selected="false" onclick="liveTab(\'' + k + '\')">' + ['Avant', 'Pendant', 'Après'][i] + '</button>'; }).join('')
     + '</div>'
-    + '<div class="modal-scroll-body"><div style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;">'
+    + '<div class="modal-scroll-body"><div class="lv-body">'
+    // ─ Avant
+    + '<section id="lv-sec-avant" class="lv-sec" role="tabpanel" aria-labelledby="lv-tab-avant">'
+    +   '<div class="lv-card"><div class="lv-ch"><p class="lv-h">Prêt pour le départ ?</p><span id="lv-check-n" class="lv-cnt"></span></div><div id="lv-check"></div></div>'
+    +   '<div id="lv-act-avant" class="lv-acts"></div>'
     +   '<div class="lv-card" id="lv-race"></div>'
+    +   '<details class="lv-more" id="lv-more"><summary>Réglages OwnTracks</summary>'
+    +     '<div class="lv-card"><p class="lv-h">Tester OwnTracks</p>'
+    +       '<p class="lv-note">Vérifie la liaison, le mode Move et la réception de ta position en direct.</p>'
+    +       '<button type="button" class="lv-btn lv-go" onclick="liveTestOt()">Lancer le test</button>'
+    +       '<div id="lv-test" style="margin-top:10px;" hidden></div></div>'
+    +     '<div class="lv-card" id="lv-ot"><p class="lv-h">Position écran verrouillé</p>'
+    +       '<button type="button" class="lv-btn lv-ghost" onclick="liveOwnTracks()">Copier l\'adresse OwnTracks</button>'
+    +       '<div id="lv-ot-man" hidden style="margin-top:8px;"><p class="lv-note">Adresse à coller dans OwnTracks (elle contient ta clé secrète, ne la partage pas) :</p>'
+    +       '<input id="lv-ot-url" class="lv-in" readonly onclick="this.select()">'
+    +       '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveCopyOt()">Copier l\'adresse</button></div></div>'
+    +   '</details>'
+    + '</section>'
+    // ─ Pendant
+    + '<section id="lv-sec-pendant" class="lv-sec" role="tabpanel" aria-labelledby="lv-tab-pendant" hidden>'
+    +   '<div class="lv-live"><span>Temps de course</span><b id="lv-chrono">–</b>'
+    +     '<div id="lv-adj" class="lv-adj" hidden><button type="button" aria-label="Reculer le chrono d\'une seconde" onclick="liveNudge(-1)">− 1 s</button><button type="button" aria-label="Avancer le chrono d\'une seconde" onclick="liveNudge(1)">+ 1 s</button></div></div>'
     +   '<div class="lv-grid">'
-    +     '<div class="lv-stat"><span>Temps de course</span><b id="lv-chrono">–</b>'
-    +       '<div id="lv-adj" class="lv-adj" hidden><button type="button" aria-label="Reculer le chrono d\'une seconde" onclick="liveNudge(-1)">− 1 s</button><button type="button" aria-label="Avancer le chrono d\'une seconde" onclick="liveNudge(1)">+ 1 s</button></div></div>'
     +     '<div class="lv-stat"><span>Distance</span><b id="lv-dist">–</b></div>'
     +     '<div class="lv-stat"><span>Allure moyenne</span><b id="lv-pace">–</b></div>'
-    +     '<div class="lv-stat"><span>Arrivée estimée</span><b id="lv-eta">–</b></div>'
+    +     '<div class="lv-stat lv-wide"><span>Arrivée estimée</span><b id="lv-eta">–</b></div>'
     +   '</div>'
-    +   '<div id="lv-auto" role="status" hidden style="background:#FFF4E5;border:1.5px solid #F59E0B;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;color:#7C2D12;"></div>'
+    +   '<div id="lv-auto" class="lv-warn" role="status" hidden></div>'
     +   '<p id="lv-src" class="lv-note"></p>'
-    +   '<div class="lv-card"><p class="lv-h">🔍 Tester OwnTracks</p>'
-    +     '<p class="lv-note" style="margin:0 0 8px;">Vérifie la liaison, le mode Move et la réception de votre position en direct.</p>'
-    +     '<button type="button" class="lv-btn lv-go" onclick="liveTestOt()">🔍 Lancer le test</button>'
-    +     '<div id="lv-test" style="margin-top:10px;" hidden></div></div>'
-    +   '<div class="lv-card" id="lv-ot"><p class="lv-h">📲 OwnTracks (position écran verrouillé)</p>'
-    +     '<button type="button" class="lv-btn lv-go" onclick="liveOwnTracks()">📲 Copier l\'URL OwnTracks</button>'
-    +     '<div id="lv-ot-man" hidden style="margin-top:8px;"><p class="lv-note" style="margin:0 0 4px;">URL à coller dans OwnTracks (contient votre clé secrète, ne la partagez pas) :</p>'
-    +     '<input id="lv-ot-url" readonly onclick="this.select()" style="width:100%;box-sizing:border-box;font-size:12px;padding:9px;border:1px solid #cbd5e1;border-radius:10px;">'
-    +     '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveCopyOt()">Copier l\'URL</button></div></div>'
-    +   '<div id="lv-actions" style="display:flex;flex-direction:column;gap:8px;"></div>'
-    +   '<div class="lv-card"><p class="lv-h">⏱ Pointage officiel</p>'
-    +     '<p class="lv-note" style="margin:0 0 8px;">Saisissez un km et votre temps de course officiel : distance, allure, passages et page de suivi sont mis à jour.</p>'
-    +     '<div style="display:flex;gap:8px;"><label class="lv-lab">Km<input id="lv-km" type="text" inputmode="decimal" placeholder="21,1"></label>'
-    +     '<label class="lv-lab">Temps<input id="lv-t" type="text" inputmode="numeric" placeholder="1:48:23" oninput="_liveFmtTimeInput(this)"></label></div>'
-    +     '<p class="lv-note" style="margin:6px 0 0;">Tapez seulement les chiffres : 1458 → 14:58 · 14823 → 1:48:23</p>'
-    +     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;">' + chips + '</div>'
+    +   '<div id="lv-act-pendant" class="lv-acts"></div>'
+    +   '<div class="lv-card"><p class="lv-h">Pointage officiel</p>'
+    +     '<p class="lv-note">Un km et ton temps de course officiel : distance, allure et page des amis sont recalées.</p>'
+    +     '<div class="lv-row2"><label class="lv-lab">Km<input id="lv-km" type="text" inputmode="decimal" placeholder="5"></label>'
+    +     '<label class="lv-lab">Temps<input id="lv-t" type="text" inputmode="numeric" placeholder="20:58" oninput="_liveFmtTimeInput(this)"></label></div>'
+    +     '<p class="lv-note">Tape seulement les chiffres : 2058 → 20:58 · 14823 → 1:48:23</p>'
+    +     '<div class="lv-chips">' + chips + '</div>'
     +     '<button type="button" class="lv-btn lv-go" onclick="liveSaveSplit()">Enregistrer le pointage</button>'
     +     '<div id="lv-splits" style="margin-top:10px;"></div></div>'
-    +   '<div class="lv-card"><p class="lv-h">Heure de départ</p>'
-    +     '<div style="display:flex;gap:8px;align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" step="1" value="' + SuiviRace.start + ':00"></label>'
+    +   '<div class="lv-card"><p class="lv-h">Heure du départ</p>'
+    +     '<div class="lv-row2" style="align-items:flex-end;"><label class="lv-lab">Départ donné à<input id="lv-start" type="time" step="1" value="' + SuiviRace.start + ':00"></label>'
     +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStartAt()">Régler le chrono</button></div></div>'
-    +   '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-    +     '<a class="lv-btn lv-ghost" style="flex:1;text-align:center;text-decoration:none;" href="/suivi-guillaume" target="_blank">👀 Page de suivi</a>'
-    + '</div>'
+    + '</section>'
+    // ─ Après
+    + '<section id="lv-sec-apres" class="lv-sec" role="tabpanel" aria-labelledby="lv-tab-apres" hidden><div id="lv-after"></div><div id="lv-act-apres" class="lv-acts"></div></section>'
+    + '<a class="lv-btn lv-ghost lv-link" href="/suivi-guillaume" target="_blank">Voir la page des amis</a>'
     + '</div></div></div>';
   mc.appendChild(ov);
-  if(!document.getElementById('lv-style')){
-    const st = document.createElement('style'); st.id = 'lv-style';
-    st.textContent = '.lv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}'
-      + '.lv-stat{background:#F3F6FA;border-radius:12px;padding:9px 11px;}.lv-stat span{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#5b6675;}.lv-stat b{display:block;font-size:20px;font-weight:900;color:#0C447C;font-variant-numeric:tabular-nums;}'
-      + '.lv-adj{display:flex;gap:6px;margin-top:6px;}.lv-adj button{flex:1;min-height:40px;border:1.5px solid #0C447C;background:#fff;color:#0C447C;border-radius:10px;font:800 15px/1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;}.lv-adj button:active{background:#E8F0FB;}'
-      + '.lv-note{font-size:12px;color:#5b6675;margin:0;line-height:1.4;}.lv-card{border:1px solid #E3EAF4;border-radius:14px;padding:12px;}.lv-h{font-size:14px;font-weight:800;color:#0C447C;margin:0 0 4px;}'
-      + '.lv-lab{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;color:#5b6675;}.lv-lab input{width:100%;min-width:0;box-sizing:border-box;font-size:17px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-variant-numeric:tabular-nums;}'
-      + '.lv-chip{border:1px solid #D6E2F5;background:#fff;color:#0C447C;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;}'
-      + '.lv-btn{border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;display:block;width:100%;box-sizing:border-box;}.lv-go{background:#15803D;color:#fff;}.lv-fin{background:#1D4ED8;color:#fff;}.lv-ghost{background:#fff;color:#0C447C;border:1px solid #D6E2F5;}.lv-danger{background:#fff;color:#B91C1C;border:1px solid #FECACA;}'
-      + '.lv-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #EEF2F7;font-size:13px;}.lv-row b{color:#0C447C;min-width:58px;}.lv-row span{flex:1;font-variant-numeric:tabular-nums;}.lv-row button{border:none;background:none;color:#B91C1C;font-size:16px;cursor:pointer;}';
-    document.head.appendChild(st);
-  }
+  _liveCss();
   if(!_liveRef){
     _liveRef = firebase.database().ref('live');
     firebase.database().ref('.info/serverTimeOffset').on('value', function(s){ _liveOffset = s.val() || 0; });
@@ -123,7 +122,10 @@ const _liveNow = function(){ return Date.now() + _liveOffset; };
 function _liveRender(){
   const L = _liveVal, el = document.getElementById('lv-chrono'); if(!el) return;
   const t = _liveNow(), st = L.status || 'idle';
-  document.getElementById('lv-pill').textContent = st === 'running' ? (L.test ? '🧪 Essai en cours' : '🟢 En course') : st === 'finished' ? '✔ Arrivé' : 'Pas encore parti';
+  const pill = document.getElementById('lv-pill');
+  pill.textContent = st === 'running' ? (L.test ? 'Essai en cours' : 'En course') : st === 'finished' ? (L.test ? 'Essai terminé' : 'Arrivé') : 'Pas encore parti';
+  pill.className = 'lv-pill' + (st === 'running' ? ' run' : st === 'finished' ? ' fin' : '');
+  _liveTabsAuto(st);
   el.textContent = L.startedAt ? suiviFmt.dur((L.finishedAt || t) - L.startedAt) : '–';
   document.getElementById('lv-adj').hidden = st !== 'running';
   const p = L.pos, c = suiviCalc(L, t);
@@ -138,25 +140,168 @@ function _liveRender(){
   auto.hidden = !(st === 'running' && (otOff || c.est));
   const otMode = ot && typeof ot.m === 'number' && ot.m !== 2 ? ({ '-1': 'Quiet', '0': 'Manual', '1': 'Significant' })[String(ot.m)] || 'autre' : null;
   if(!auto.hidden) auto.innerHTML = '<b>📡 ' + (otOff ? (otAge <= 180000 && otMode ? 'OwnTracks n\'est plus en mode Move (mode ' + otMode + ')' : 'OwnTracks déconnecté' + (otAge < Infinity ? ' (dernier contact ' + suiviFmt.ago(otAge) + ')' : '') + (otMode ? ' · mode ' + otMode : '')) : 'Pas de position GPS fiable depuis ' + suiviFmt.ago(c.age).replace('il y a ', '')) + '</b><br>'
-    + 'Suivi en autonome sans le GPS : la position avance selon votre plan de course et vos temps officiels. Saisissez vos pointages pour la recaler.';
+    + 'Suivi en autonome sans le GPS : la position avance selon ton plan de course et tes temps officiels. Saisis tes pointages pour la recaler.';
   document.getElementById('lv-src').innerHTML = (p ? 'Dernière position : ' + suiviFmt.ago(t - p.ts) + (p.src === 'officiel' ? ' (pointage officiel)' : p.src === 'owntracks' ? ' (OwnTracks)' : '') + (c.adj ? ' · allure bornée sur le plan' : '') + ' · ' : '')
-    + 'OwnTracks : ' + (ot && ot.ts ? '<b style="color:' + (t - ot.ts < 300000 ? '#15803D' : '#B91C1C') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b style="color:#B91C1C">aucun contact</b>');
+    + 'OwnTracks : ' + (ot && ot.ts ? '<b class="' + (t - ot.ts < 300000 ? 'lv-ok' : 'lv-bad') + '">' + suiviFmt.ago(t - ot.ts) + '</b>' + (typeof ot.batt === 'number' ? ' · batterie ' + ot.batt + ' %' : '') : '<b class="lv-bad">aucun contact</b>');
   // actions selon l'état (reconstruites seulement si l'état change)
   const key = st + (L.test ? 't' : '');
-  const box = document.getElementById('lv-actions');
+  const box = document.getElementById(st === 'running' ? 'lv-act-pendant' : st === 'finished' ? 'lv-act-apres' : 'lv-act-avant');
+  ['lv-act-avant', 'lv-act-pendant', 'lv-act-apres'].forEach(function(id){ const b = document.getElementById(id); if(b && b !== box && b.innerHTML){ b.innerHTML = ''; b.dataset.k = ''; } });
   if(box.dataset.k !== key){
     box.dataset.k = key;
     box.innerHTML = st === 'running'
-      ? (L.test ? '<button class="lv-btn lv-go" style="font-size:17px;padding:16px;" onclick="liveStart()">▶ Démarrer la course maintenant</button>' : '')
+      ? (L.test ? '<button class="lv-btn lv-go lv-big" onclick="liveStart()">▶ Démarrer la course maintenant</button>' : '')
       + '<button class="lv-btn lv-fin" onclick="liveFinish()">🏁 Je suis arrivé</button><button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler ' + (L.test ? 'l\'essai' : 'le suivi') + ' (tout effacer)</button>'
       : st === 'finished'
-        ? (L.test ? '<button class="lv-btn lv-go" style="font-size:17px;padding:16px;" onclick="liveStart()">▶ Démarrer la course maintenant</button>' : '') + '<button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler (tout effacer)</button>'
-        : '<button class="lv-btn lv-go" style="font-size:17px;padding:16px;" onclick="liveStart()">▶ Démarrer la course maintenant</button><button class="lv-btn lv-ghost" onclick="liveStart(null,true)">🧪 Lancer un essai (annulable)</button>';
+        ? (L.test ? '<button class="lv-btn lv-go lv-big" onclick="liveStart()">▶ Démarrer la course maintenant</button>' : '') + '<button class="lv-btn lv-danger" onclick="liveCancel()">✖ Annuler (tout effacer)</button>'
+        : '<button class="lv-btn lv-go lv-big" onclick="liveStart()">▶ Démarrer la course maintenant</button><button class="lv-btn lv-ghost" onclick="liveStart(null,true)">Lancer un essai (annulable)</button>';
   }
   const sp = L.splits ? Object.keys(L.splits).map(function(k){ return Object.assign({ k: k }, L.splits[k]); }).sort(function(a, b){ return a.km - b.km; }) : [];
   document.getElementById('lv-splits').innerHTML = sp.length ? sp.map(function(x){
     return '<div class="lv-row"><b>km ' + String(+x.km.toFixed(3)).replace('.', ',') + '</b><span>' + suiviFmt.dur(x.el) + ' · ' + suiviFmt.pace(x.el / 1000 / x.km) + '</span><button aria-label="Supprimer" onclick="liveDelSplit(\'' + x.k + '\')">×</button></div>';
   }).join('') : '';
+  _liveCheckRender(); _liveAfterRender();
+}
+
+// ─── Avant / Pendant / Après : l'onglet suit l'état de la course (un choix à la main est gardé tant que l'état ne change pas) ───
+let _liveTabSel = null, _liveTabFor = null;
+function _liveTabsAuto(st){
+  if(_liveTabFor === st && _liveTabSel) return _liveTabsApply();
+  _liveTabFor = st; _liveTabSel = st === 'running' ? 'pendant' : st === 'finished' ? 'apres' : 'avant';
+  _liveTabsApply();
+}
+function liveTab(k){ _liveTabSel = k; _liveTabsApply(); const b = document.querySelector('#live-panel .modal-scroll-body'); if(b) b.scrollTop = 0; }
+function _liveTabsApply(){
+  ['avant', 'pendant', 'apres'].forEach(function(k){
+    const s = document.getElementById('lv-sec-' + k), b = document.getElementById('lv-tab-' + k); if(!s || !b) return;
+    s.hidden = k !== _liveTabSel; b.setAttribute('aria-selected', String(k === _liveTabSel)); b.classList.toggle('on', k === _liveTabSel);
+  });
+}
+// liste de contrôle d'avant la course : chaque point passe au vert tout seul (ok / warn / bad + bouton pour corriger)
+function liveChecklist(L, now){
+  L = L || {}; now = now || Date.now();
+  const r = L.race || null, P = typeof _livePrepRace === 'function' ? _livePrepRace() : null, out = [];
+  const day = function(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : ''; };
+  const same = r && (!P || P.id === r.id);
+  out.push({ k: 'race', st: same ? 'ok' : 'bad', t: 'Course préparée', s: same ? SuiviRace.name + ' · ' + day(SuiviRace.date) : P ? 'Prépare le suivi de « ' + P.name + ' »' : 'Aucune course au programme',
+    fix: !same && P ? { t: 'Préparer', a: 'livePrepareRace()' } : null });
+  out.push({ k: 'route', st: SuiviGeo.has ? 'ok' : 'warn', t: 'Tracé du parcours', s: SuiviGeo.has ? (SuiviGeo.len / 1000).toFixed(2).replace('.', ',') + ' km · arrivée détectée toute seule' : 'Sans tracé : distance au GPS, arrivée à déclarer',
+    fix: !SuiviGeo.has && r && liveRouteOf(r.id) ? { t: 'Ajouter', a: 'liveUsePresetRoute()' } : null });
+  out.push({ k: 'start', st: r && r.start && r.place ? 'ok' : r ? 'warn' : 'bad', t: 'Départ et lieu',
+    s: 'Départ ' + suiviFmt.hhmmTxt(SuiviRace.start) + (SuiviRace.place ? ' · ' + SuiviRace.place : ' · lieu à renseigner') });
+  const o = L.ota || {}, age = o.ts ? now - o.ts : null, move = o.m === 2, batt = typeof o.batt === 'number' ? o.batt : null;
+  const otSt = age === null ? 'bad' : age < 15 * 60000 && move && (batt === null || batt >= 50) ? 'ok' : 'warn';
+  out.push({ k: 'ot', st: otSt, t: 'Position du téléphone (OwnTracks)',
+    s: age === null ? 'Aucune position reçue pour l\'instant' : 'Reçue ' + suiviFmt.ago(age) + (o.m === undefined || o.m === null ? '' : move ? ' · mode Move' : ' · pas en mode Move') + (batt !== null ? ' · batterie ' + batt + ' %' : ''),
+    fix: otSt !== 'ok' ? { t: 'Tester', a: 'liveOtOpen()' } : null });
+  out.push({ k: 'test', st: r && r.testedAt ? 'ok' : 'warn', t: 'Essai de 2 minutes', s: r && r.testedAt ? 'Fait ' + suiviFmt.ago(now - r.testedAt) : 'Lance un essai : la page des amis doit bouger',
+    fix: r && !r.testedAt && (L.status || 'idle') === 'idle' ? { t: 'Essai', a: 'liveStart(null,true)' } : null });
+  out.push({ k: 'share', st: r && r.sharedAt ? 'ok' : 'warn', t: 'Lien envoyé aux amis', s: r && r.sharedAt ? 'Envoyé ' + suiviFmt.ago(now - r.sharedAt) : 'Pas encore envoyé',
+    fix: { t: r && r.sharedAt ? 'Renvoyer' : 'Envoyer', a: 'liveShareLink()' } });
+  return out;
+}
+function liveOtOpen(){ const d = document.getElementById('lv-more'); if(d){ d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } liveTestOt(); }
+const LV_ICO = { ok: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  warn: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>',
+  bad: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>' };
+function _liveCheckRender(){
+  const box = document.getElementById('lv-check'); if(!box) return;
+  const C = liveChecklist(_liveVal, _liveNow()), n = C.filter(function(x){ return x.st === 'ok'; }).length;
+  const cnt = document.getElementById('lv-check-n'); if(cnt){ cnt.textContent = n + ' sur ' + C.length; cnt.className = 'lv-cnt' + (n === C.length ? ' all' : ''); }
+  const h = C.map(function(x){
+    return '<div class="lv-ci ' + x.st + '"><span class="lv-ico">' + LV_ICO[x.st] + '</span><span class="lv-ct"><b>' + _prepEsc(x.t) + '</b><small>' + _prepEsc(x.s) + '</small></span>'
+      + (x.fix ? '<button type="button" class="lv-fix" onclick="' + x.fix.a + '">' + x.fix.t + '</button>' : '') + '</div>'; }).join('');
+  if(box.dataset.h !== h){ box.innerHTML = h; box.dataset.h = h; }
+}
+// séance « course » du plan : la valider = saisir le temps officiel (crée le rejeu pour les amis, liveStoreReplay)
+function _liveRaceSession(){
+  if(typeof state === 'undefined' || !SuiviRace.date) return null;
+  let f = null;
+  Object.keys(state).forEach(function(k){ const m = k.match(/^extra_w(\d+)_s(\d+)$/); if(!m || f) return; try { const x = JSON.parse(state[k]); if(x.type === 'race' && x.sched_date === SuiviRace.date) f = { w: +m[1], ei: +m[2], done: !!state[k + '_done'] }; } catch(e) {} });
+  return f;
+}
+function liveOfficialOpen(){
+  const s = _liveRaceSession(); if(!s || typeof openValidationModalExtra !== 'function'){ alert('Séance « course » introuvable dans le plan.'); return; }
+  closeLivePanel(); openValidationModalExtra(s.w, s.ei);
+}
+function _liveAfterRender(){
+  const box = document.getElementById('lv-after'); if(!box) return;
+  const L = _liveVal, st = L.status || 'idle', r = L.race || {}, rp = r.replay || null, S = _liveRaceSession();
+  let h;
+  if(st !== 'finished' || L.test){
+    h = '<div class="lv-card"><p class="lv-h">Après l\'arrivée</p><p class="lv-note">Ton temps, puis le rejeu accéléré de ta course pour tes amis, dès que tu as saisi ton temps officiel.</p></div>';
+  } else {
+    const chrono = L.finishedAt && L.startedAt ? L.finishedAt - L.startedAt : null, off = rp && rp.official ? rp.official * 1000 : null, ref = off || chrono;
+    const tgt = SuiviRace.target ? SuiviRace.target * 1000 : null, diff = ref && tgt ? Math.round((ref - tgt) / 1000) : null;
+    h = '<div class="lv-card lv-res"><p class="lv-eb2">' + (off ? 'Temps officiel' : 'Chrono du suivi') + '</p><b class="lv-big-t">' + (ref ? suiviFmt.dur(ref) : '–') + '</b>'
+      + '<p class="lv-note">' + (ref ? suiviFmt.pace(ref / 1000 / (suiviOff() / 1000)) : '') + (diff !== null ? ' · ' + (diff <= 0 ? Math.abs(diff) + ' s sous l\'objectif' : diff + ' s au-dessus de l\'objectif') : '') + '</p></div>'
+      + '<div class="lv-card"><div class="lv-ci ' + (off ? 'ok' : 'warn') + '"><span class="lv-ico">' + LV_ICO[off ? 'ok' : 'warn'] + '</span><span class="lv-ct"><b>Temps officiel</b><small>'
+      + (off ? 'Saisi · rejeu prêt pour tes amis' : S && S.done ? 'Course validée : rejeu en attente des temps au km Strava' : 'Valide ta course avec ton temps officiel') + '</small></span>'
+      + (!off && S && !S.done ? '<button type="button" class="lv-fix" onclick="liveOfficialOpen()">Saisir</button>' : '') + '</div>'
+      + '<div class="lv-ci ok"><span class="lv-ico">' + LV_ICO.ok + '</span><span class="lv-ct"><b>Page des amis</b><small>Ton résultat y est affiché' + (off ? ', avec le rejeu' : '') + '</small></span><button type="button" class="lv-fix" onclick="liveShareLink()">Partager</button></div></div>';
+  }
+  if(box.dataset.h !== h){ box.innerHTML = h; box.dataset.h = h; }
+}
+// style « Piste de nuit » du panneau, dans tous les thèmes (feuille marquée data-th : jamais convertie par l'adaptateur sombre)
+function _liveCss(){
+  if(document.getElementById('lv-css')) return;
+  const st = document.createElement('style'); st.id = 'lv-css'; st.dataset.th = '1';
+  const BS = "'Big Shoulders Display',Manrope,system-ui,sans-serif", X = '#live-panel ';
+  st.textContent = X + '.lv-box{background:#0B1122!important;color:#EEF1F8!important;border:none!important;box-shadow:0 -18px 40px rgba(0,0,0,.5)!important;font-family:Manrope,system-ui,sans-serif;}'
+    + X + '.modal-scroll-body{background:#0B1122!important;}'
+    + X + '.lv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 12px;flex-shrink:0;}'
+    + X + '.lv-hd{display:flex;flex-direction:column;gap:4px;min-width:0;}'
+    + X + '.lv-eb{margin:0;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7C87A3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + X + '.lv-title{margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em;color:#EEF1F8;}'
+    + X + '.lv-pill{align-self:flex-start;margin-top:4px;display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;background:#111A2E;color:#9AA4BF;box-shadow:inset 0 0 0 1px #1E2944;}'
+    + X + '.lv-pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;}'
+    + X + '.lv-pill.run{color:#6EE7A0;}' + X + '.lv-pill.fin{color:#F2C14E;}'
+    + X + '.lv-x{width:44px;height:44px;border-radius:50%;border:1px solid #1E2944;background:transparent;color:#9AA4BF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0;}'
+    + X + '.lv-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:0 18px 6px;padding:4px;border-radius:16px;background:#0A1020;box-shadow:inset 0 0 0 1px #1E2944;flex-shrink:0;}'
+    + X + '.lv-tabs button{min-height:40px;border:none;border-radius:12px;background:transparent;color:#9AA4BF;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}'
+    + X + '.lv-tabs button.on{background:#1C2645;color:#EEF1F8;box-shadow:0 4px 12px rgba(0,0,0,.35);}'
+    + X + '.lv-body{padding:10px 18px 24px;display:flex;flex-direction:column;gap:14px;}'
+    + X + '.lv-sec{display:flex;flex-direction:column;gap:14px;}' + X + '.lv-sec[hidden]{display:none!important;}'
+    + X + '.lv-card{background:#111A2E!important;border:none!important;border-radius:20px!important;padding:16px!important;box-shadow:0 8px 22px rgba(0,0,0,.35)!important;display:flex;flex-direction:column;gap:8px;}'
+    + X + '.lv-h{margin:0;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#C9D1E4!important;}'
+    + X + '.lv-ch{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}'
+    + X + '.lv-cnt{font-size:13px;font-weight:700;color:#F2C14E;}' + X + '.lv-cnt.all{color:#6EE7A0;}'
+    + X + '.lv-note{margin:0;font-size:13px;line-height:1.45;color:#9AA4BF!important;}'
+    + X + '.lv-strong{color:#EEF1F8!important;font-weight:700;}' + X + '.lv-ok{color:#6EE7A0!important;}' + X + '.lv-bad{color:#F28B6E!important;}'
+    + X + '.lv-ci{display:flex;align-items:center;gap:12px;min-height:52px;border-bottom:1px solid #1E2944;}' + X + '.lv-ci:last-child{border-bottom:none;}'
+    + X + '.lv-ico{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
+    + X + '.lv-ci.ok .lv-ico{background:rgba(63,207,127,.16);color:#6EE7A0;}' + X + '.lv-ci.warn .lv-ico{background:rgba(242,193,78,.16);color:#F2C14E;}' + X + '.lv-ci.bad .lv-ico{background:rgba(242,139,110,.16);color:#F28B6E;}'
+    + X + '.lv-ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}' + X + '.lv-ct b{font-size:15px;font-weight:700;color:#EEF1F8;}' + X + '.lv-ct small{font-size:13px;color:#9AA4BF;line-height:1.35;}'
+    + X + '.lv-fix{flex-shrink:0;min-height:36px;border-radius:18px;border:1px solid #2A3A63;background:transparent;color:#EEF1F8;font:inherit;font-size:13px;font-weight:700;padding:0 14px;cursor:pointer;}'
+    + X + '.lv-acts{display:flex;flex-direction:column;gap:10px;}' + X + '.lv-acts:empty{display:none;}'
+    + X + '.lv-btn{display:block;width:100%;box-sizing:border-box;min-height:48px;border-radius:24px!important;padding:12px 16px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;text-align:center;text-decoration:none;}'
+    + X + '.lv-go{background:#E0603A!important;color:#1A0A04!important;border:none!important;}' + X + '.lv-big{min-height:56px;font-size:17px;}'
+    + X + '.lv-fin{background:#3FCF7F!important;color:#05210F!important;border:none!important;}'
+    + X + '.lv-ghost{background:transparent!important;color:#EEF1F8!important;border:1px solid #2A3A63!important;}'
+    + X + '.lv-danger{background:transparent!important;color:#F28B6E!important;border:1px solid rgba(242,139,110,.4)!important;}'
+    + X + '.lv-link{margin-top:2px;}'
+    + X + '.lv-live{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:18px 20px;border-radius:24px;background:linear-gradient(160deg,#1C2645,#141D36);box-shadow:0 14px 34px rgba(0,0,0,.45);}'
+    + X + '.lv-live span{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7C87A3;}'
+    + X + '.lv-live b{font-family:' + BS + ';font-weight:800;font-size:60px;line-height:.95;color:#EEF1F8;font-variant-numeric:tabular-nums;}'
+    + X + '.lv-adj{display:flex;gap:8px;margin-top:8px;width:100%;}' + X + '.lv-adj button{flex:1;min-height:44px;border-radius:22px;border:1px solid #2A3A63;background:transparent;color:#EEF1F8;font:inherit;font-size:15px;font-weight:800;cursor:pointer;touch-action:manipulation;}'
+    + X + '.lv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}' + X + '.lv-wide{grid-column:1/-1;}'
+    + X + '.lv-stat{background:#111A2E!important;border:none!important;border-radius:18px;padding:12px 14px;box-shadow:0 8px 22px rgba(0,0,0,.35);}' + X + '.lv-stat span{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7C87A3;}'
+    + X + '.lv-stat b{display:block;margin-top:4px;font-family:' + BS + ';font-weight:800;font-size:26px;color:#EEF1F8;font-variant-numeric:tabular-nums;}'
+    + X + '.lv-warn{border-radius:18px;padding:12px 14px;background:rgba(242,193,78,.10);box-shadow:inset 0 0 0 1px rgba(242,193,78,.4);font-size:13px;line-height:1.45;color:#F2E6C8;}'
+    + X + '.lv-row2{display:flex;gap:8px;}'
+    + X + '.lv-lab{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:#9AA4BF!important;}'
+    + X + '.lv-lab input,' + X + '.lv-in{width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:17px;padding:11px 12px;border-radius:14px;border:1px solid #1E2944!important;background:#0A1020!important;color:#EEF1F8!important;}'
+    + X + '.lv-chips{display:flex;flex-wrap:wrap;gap:6px;}' + X + '.lv-chip{border:1px solid #2A3A63!important;background:transparent!important;color:#C9D1E4!important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
+    + X + '.lv-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #1E2944!important;font-size:13px;color:#C9D1E4!important;}' + X + '.lv-row b{color:#EEF1F8!important;min-width:58px;}'
+    + X + '.lv-row span{flex:1;font-variant-numeric:tabular-nums;}' + X + '.lv-row button{border:none;background:none;color:#7C87A3!important;font-size:16px;cursor:pointer;}'
+    + X + '.lv-more{display:flex;flex-direction:column;gap:12px;}' + X + '.lv-more>summary{list-style:none;cursor:pointer;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;font-size:15px;font-weight:700;color:#C9D1E4;}'
+    + X + '.lv-more>summary::-webkit-details-marker{display:none;}' + X + '.lv-more>summary::after{content:"›";font-size:22px;color:#7C87A3;transition:transform .2s;}' + X + '.lv-more[open]>summary::after{transform:rotate(90deg);}'
+    + X + '.lv-more[open]{gap:12px;}' + X + '.lv-more>.lv-card{margin-top:10px;}'
+    + X + '.lv-res{align-items:flex-start;}' + X + '.lv-eb2{margin:0;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#E0603A;}'
+    + X + '.lv-big-t{font-family:' + BS + ';font-weight:800;font-size:56px;line-height:1;color:#EEF1F8;font-variant-numeric:tabular-nums;}'
+    + X + 'button:focus-visible,' + X + 'summary:focus-visible,' + X + 'a:focus-visible{outline:2px solid #E0603A;outline-offset:2px;}'
+    + '@media (prefers-reduced-motion:reduce){' + X + '.lv-more>summary::after{transition:none;}}';
+  document.head.appendChild(st);
 }
 
 async function liveStart(hm, test){
@@ -172,6 +317,7 @@ async function liveStart(hm, test){
     : real ? 'Une course est déjà enregistrée. La redémarrer à ' + suiviFmt.hhmmss(at || tap) + ' et effacer la trace ?'
     : 'Démarrer la course à ' + suiviFmt.hhmmss(at || tap) + (at ? '' : ' (heure de votre appui)') + ' ?' + (L.test ? ' L\'essai en cours est effacé.' : '') + ' Le suivi devient visible par tous.';
   if(!confirm(msg)) return;
+  if(test && _liveVal.race) _liveRef.child('race/testedAt').set(tap).catch(function(){});   // liste de contrôle : essai fait
   await _liveRef.update({ status: 'running', test: test ? true : null, noAuto: null, rid: tap, startedAt: at || tap, finishedAt: null, passages: null, track: null, pos: null, s0: null, s0t: null, splits: null });
 }
 // « Régler le chrono » : une heure doit être saisie (sinon on n'efface rien)
@@ -231,7 +377,7 @@ function _liveTestRender(){
   const o = _liveVal.ota || {}, t = _liveNow(), T = _liveTest;
   if(!T.got && o.ts && o.ts > T.ts0) T.got = o.ts;
   const waited = Math.round((t - T.start) / 1000), WAIT = 120;
-  const row = function(ok, label, txt){ return '<div class="lv-row"><b style="min-width:22px;">' + (ok === null ? '⏳' : ok ? '✅' : '❌') + '</b><span><b style="color:#1f2d3d;">' + label + '</b> · ' + txt + '</span></div>'; };
+  const row = function(ok, label, txt){ return '<div class="lv-row"><b style="min-width:22px;">' + (ok === null ? '⏳' : ok ? '✅' : '❌') + '</b><span><b class="lv-strong">' + label + '</b> · ' + txt + '</span></div>'; };
   const age = o.ts ? t - o.ts : null, gap = o.ts && o.prev ? Math.round((o.ts - o.prev) / 1000) : null;
   let h = '';
   h += row(age !== null && age < 300000, 'Liaison', age === null ? 'aucune position jamais reçue : vérifiez l\'URL dans OwnTracks' : 'dernière position reçue ' + suiviFmt.ago(age));
@@ -241,14 +387,14 @@ function _liveTestRender(){
   if(T.got) h += row(o.m === 2, 'Mode', mode + (o.m === 2 ? ' (confirmé)' : ' : passez en « Move » en haut de la carte OwnTracks'));
   else if(waited < WAIT) h += row(null, 'Mode', 'confirmation en attente (dernier mode connu : ' + lastMode + ')');
   else h += row(false, 'Mode', 'non confirmé : OwnTracks est peut-être en « Quiet » ou « Manual », ou fermée (dernier mode connu : ' + lastMode + ')');
-  if(gap !== null) h += '<div class="lv-row"><b style="min-width:22px;">ℹ️</b><span><b style="color:#1f2d3d;">Fréquence</b> · ' + gap + ' s entre les deux dernières positions (à l\'arrêt, OwnTracks espace les envois ; en course : environ 1 par minute)</span></div>';
+  if(gap !== null) h += '<div class="lv-row"><b style="min-width:22px;">ℹ️</b><span><b class="lv-strong">Fréquence</b> · ' + gap + ' s entre les deux dernières positions (à l\'arrêt, OwnTracks espace les envois ; en course : environ 1 par minute)</span></div>';
   h += row(typeof o.acc === 'number' ? o.acc <= 50 : null, 'Précision GPS', typeof o.acc === 'number' ? o.acc + ' m' : '–');
   h += row(typeof o.batt === 'number' ? o.batt >= 50 : null, 'Batterie', typeof o.batt === 'number' ? o.batt + ' %' + (o.batt < 50 ? ' : rechargez avant la course' : '') : '–');
   if(T.got) h += row(true, 'En direct', 'nouvelle position reçue pendant le test (' + Math.round((T.got - T.start) / 1000) + ' s après le lancement) 🎉');
   else if(waited < WAIT) h += row(null, 'En direct', 'en attente d\'une nouvelle position… ' + (WAIT - waited) + ' s. Pour accélérer : dans OwnTracks, touchez l\'icône d\'envoi (carré avec flèche, en haut à droite) ou marchez un peu.');
   else h += row(false, 'En direct', 'aucune nouvelle position en ' + WAIT + ' s. Ouvrez OwnTracks : mode « Move » (pas Quiet ni Manual), application non fermée, Réglages iPhone › OwnTracks › Position « Toujours ». Puis relancez le test.');
   const allOk = T.got && o.m === 2 && age !== null && age < 300000;
-  h += '<p class="lv-note" style="margin-top:8px;font-weight:700;color:' + (allOk ? '#15803D' : '#5b6675') + '">' + (allOk ? '✅ Tout fonctionne : vous pouvez verrouiller l\'iPhone.' : T.got || waited >= WAIT ? 'Corrigez les points ❌ puis relancez le test.' : '') + '</p>';
+  h += '<p class="lv-note' + (allOk ? ' lv-ok' : '') + '" style="margin-top:8px;font-weight:700;">' + (allOk ? '✅ Tout fonctionne : tu peux verrouiller l\'iPhone.' : T.got || waited >= WAIT ? 'Corrige les points ❌ puis relance le test.' : '') + '</p>';
   box.innerHTML = h;
   if(T.got || waited >= WAIT){ if(waited >= WAIT || T.got) _liveTest.done = true; }
 }
@@ -348,8 +494,8 @@ function _liveRaceRender(){
   const box = document.getElementById('lv-race'); if(!box) return;
   const r = _liveVal.race || null, P = _livePrepRace(), st = _liveVal.status || 'idle';
   const day = function(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : ''; };
-  let h = '<p class="lv-h">🏁 Course suivie</p>'
-    + '<p class="lv-note" style="margin:0 0 8px;"><b style="color:#0C447C;">' + _prepEsc(SuiviRace.name) + '</b> · ' + day(SuiviRace.date) + ' · départ ' + suiviFmt.hhmmTxt(SuiviRace.start)
+  let h = '<p class="lv-h">La course suivie</p>'
+    + '<p class="lv-note" style="margin:0 0 8px;"><b class="lv-strong">' + _prepEsc(SuiviRace.name) + '</b> · ' + day(SuiviRace.date) + ' · départ ' + suiviFmt.hhmmTxt(SuiviRace.start)
     + ' · ' + suiviKmLabel(suiviOff()) + ' km' + (SuiviGeo.has ? ' · tracé ✓' : ' · sans tracé (distance GPS)') + '</p>';
   // une autre course est au programme : proposer de préparer son suivi
   if(P && P.id !== SuiviRace.id && st !== 'running')
@@ -372,11 +518,12 @@ function _liveRaceRender(){
       + '<label class="lv-lab" style="margin-top:6px;">Lieu<input id="lv-p-lieu" type="text" placeholder="Place de la Bastille"></label>'
       + '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveAddPoint()">＋ Ajouter le point</button>';
   }
-  h += '<button type="button" class="lv-btn lv-ghost" style="margin-top:8px;" onclick="liveShareLink()">🔗 Copier le lien de suivi pour les amis</button>';
+  h += '<button type="button" class="lv-btn lv-ghost" style="margin-top:8px;" onclick="liveShareLink()">Envoyer le lien aux amis</button>';
   if(box.dataset.h !== h){ const keep = document.activeElement && box.contains(document.activeElement); if(!keep){ box.innerHTML = h; box.dataset.h = h; } }
 }
 function liveShareLink(){
   const url = LIVE_PAGE;
+  if(_liveRef && _liveVal.race) _liveRef.child('race/sharedAt').set(_liveNow()).catch(function(){});   // liste de contrôle : lien envoyé
   if(navigator.share) navigator.share({ title: 'Suivi Guillaume · ' + SuiviRace.name, url: url }).catch(function(){});
   else if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){ alert('Lien copié : ' + url); }, function(){ prompt('Lien de suivi :', url); });
   else prompt('Lien de suivi :', url);
