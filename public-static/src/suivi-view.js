@@ -237,6 +237,10 @@ const SuiviView = (function(){
     }
     const K = (st === 'finished' || st === 'replay') ? kmsHtml() : '';
     show('b-kms', !!K); if(K) htm('b-kms', K);
+    // ─ encouragements : avant, pendant, et jusqu'à 6 h après l'arrivée (pas pendant le rejeu)
+    const chOn = !o.replay && (st === 'idle' || st === 'running' || (st === 'finished' && !(live.finishedAt && t - live.finishedAt > 6 * 3600000)));
+    show('b-cheer', chOn);
+    if(chOn) cheerRender(st);
     // ─ carte
     txt('map-title', st === 'running' ? 'Où est Guillaume ?' : st === 'replay' ? 'Sa course' : 'Le parcours');
     const pos = live.pos;
@@ -383,9 +387,45 @@ const SuiviView = (function(){
     // suivi : recentrer quand le point s'approche du bord (pas à chaque pas, pour rester lisible)
     if(follow && (data || !map.getBounds().pad(-0.3).contains(ll))) map.panTo(ll, { animate: true, duration: 0.8 });
   }
+  // ─── Encouragements : envoyés à la fonction liveCheer (contrôle, limites, notification sur son téléphone) ───
+  const CHEER_URL = 'https://us-central1-prepa-marathon.cloudfunctions.net/liveCheer';
+  const CHEER_SUG = { idle: ['Bonne course !', 'Tu vas tout casser 🔥', 'On pense fort à toi 💪'], running: ['Allez Guillaume !', 'Lâche rien 💪', 'On est avec toi 🔥'], finished: ['Bravo champion ! 🎉', 'Énorme course !', 'Fier de toi 👏'] };
+  const ls = function(k, v){ try { if(v === undefined) return localStorage.getItem(k) || ''; localStorage.setItem(k, v); } catch(e) {} return ''; };
+  let chMode = '';
+  function cheerRender(st){
+    const n = +live.cheers || 0;
+    txt('ch-n', n ? n + ' message' + (n > 1 ? 's' : '') + ' envoyé' + (n > 1 ? 's' : '') : '');
+    if(chMode === st) return;
+    chMode = st;
+    txt('ch-title', st === 'finished' ? 'Félicite-le' : 'Encourage-le');
+    txt('ch-lead', st === 'finished' ? 'Il lira ton message après l\'arrivée.' : st === 'running' ? 'Ton message arrive sur son téléphone pendant qu\'il court.' : 'Ton message arrive sur son téléphone, même pendant la course.');
+    htm('ch-sug', (CHEER_SUG[st] || CHEER_SUG.idle).map(function(x){ return '<button type="button" onclick="SuiviView.cheerPick(this)">' + esc(x) + '</button>'; }).join(''));
+    const ne = $('ch-name'); if(ne && !ne.value) ne.value = ls('sv_name');
+  }
+  function cheerCount(){ const e = $('ch-text'); if(e) txt('ch-len', e.value.length + '/140'); }
+  function cheerPick(b){ const e = $('ch-text'); if(!e) return; e.value = b.textContent; cheerCount(); e.focus(); }
+  async function cheer(){
+    const te = $('ch-text'), ne = $('ch-name'), bt = $('ch-send'), msg = $('ch-msg');
+    const text = (te.value || '').trim(), name = (ne.value || '').trim();
+    if(!text){ msg.className = 'msg ko'; msg.textContent = 'Écris un petit mot ou choisis-en un.'; te.focus(); return; }
+    let dev = ls('sv_dev'); if(!dev){ dev = Math.random().toString(36).slice(2, 12); ls('sv_dev', dev); }
+    if(name) ls('sv_name', name);
+    bt.disabled = true; bt.textContent = 'Envoi…'; msg.className = 'msg'; msg.textContent = '';
+    try {
+      const r = await fetch(CHEER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text, name: name, dev: dev }) });
+      const j = await r.json().catch(function(){ return {}; });
+      if(!r.ok) throw new Error(j.error || 'Envoi impossible, réessaie.');
+      te.value = ''; cheerCount();
+      msg.className = 'msg ok'; msg.textContent = j.pushed ? 'Envoyé ! Il le reçoit sur son téléphone.' : 'Envoyé ! Il le lira sur son téléphone.';
+    } catch(e) {
+      msg.className = 'msg ko'; msg.textContent = /fetch|network|load/i.test(e.message) ? 'Pas de réseau : réessaie dans un instant.' : e.message;
+    }
+    bt.disabled = false; bt.textContent = 'Envoyer';
+  }
+
   function glide(){ if(last && last.st === 'running') drawMap(last, visS(last, now()), false); }
 
   function replay(o){ ovr = o; render(false); }
-  return { init: init, center: center, whole: whole, replay: replay, ics: ics, share: share, _ll: function(){ return meLL; } };
+  return { init: init, center: center, whole: whole, replay: replay, ics: ics, share: share, cheer: cheer, cheerPick: cheerPick, cheerCount: cheerCount, _ll: function(){ return meLL; } };
 })();
 document.addEventListener('DOMContentLoaded', function(){ SuiviView.init(); });

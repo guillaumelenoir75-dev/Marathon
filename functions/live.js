@@ -150,3 +150,87 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
   if (typeof fix.s === 'number' && (!lastTrack || t - lastTrack[2] >= 45000 || Math.abs(s - lastTrack[3]) >= 400)) await db.ref('live/track').push([+m.lat.toFixed(5), +m.lon.toFixed(5), t, Math.round(s)]);
   res.json([]);
 });
+
+// ─── Encouragements des amis (page /suivi-guillaume) ─────────────────────────
+// Un ami envoie un message court ; il est rangé dans /live_cheers/<course> (lu par l'admin seulement), le nombre de messages
+// est publié dans /live/cheers (page des amis), et Guillaume reçoit une notification (écran verrouillé, montre) pendant la course
+// et le jour J avant le départ. Aucune écriture publique dans la base : tout passe par cette fonction, qui contrôle et limite.
+const { defineSecret } = require('firebase-functions/params');
+const helpers = require('./helpers');
+const VAPID_PUBLIC_KEY = defineSecret('VAPID_PUBLIC_KEY');
+const VAPID_PRIVATE_KEY = defineSecret('VAPID_PRIVATE_KEY');
+const CHEER_MAX = 140, CHEER_NAME_MAX = 30;
+const CHEER_GAP_MS = 20000;            // un message toutes les 20 s au plus par appareil
+const CHEER_PER_SENDER = 15;           // 15 messages au plus par appareil et par course
+const CHEER_PUSH_PER_MIN = 4;          // au-delà, les messages restent dans l'app sans notification (pas de rafale au poignet)
+const CHEER_PER_IP = 80;               // même adresse réseau (amis sur le même opérateur au bord de la route) : 80 messages au plus
+const CHEER_PER_RACE = 600;            // plafond de la course (protection contre un envoi en masse)
+const CHEER_LATE_MS = 6 * 3600000;     // plus de messages 6 h après l'arrivée
+
+// nettoyage : espaces, caractères de contrôle et balises retirés ; liens refusés (pas de publicité ni d'arnaque)
+function cheerClean(v, max) {
+  const s = String(v == null ? '' : v).replace(/[\u0000-\u001F\u007F<>]/g, ' ').replace(/\s+/g, ' ').trim();
+  return s.length > max ? s.slice(0, max).trim() : s;
+}
+function cheerCheck(body) {
+  const text = cheerClean(body && body.text, CHEER_MAX), name = cheerClean(body && body.name, CHEER_NAME_MAX);
+  if (!text) return { error: 'Écris un petit mot.' };
+  if (/(https?:|www\.|\.(com|fr|net|org|io|ly)\b)/i.test(text + ' ' + name)) return { error: 'Les liens ne passent pas.' };
+  return { text, name };
+}
+// notification seulement quand ça peut le porter : en course, ou le jour J avant le départ (jamais après l'arrivée)
+function cheerPushNow(live, today) {
+  const st = (live && live.status) || 'idle', race = (live && live.race) || {};
+  if (live && live.test) return false;
+  if (st === 'running') return true;
+  return st === 'idle' && !!race.date && race.date === today;
+}
+async function runCheer(db, body, sender, nowMs, send, today, ipKey) {
+  const C = cheerCheck(body);
+  if (C.error) return { status: 400, out: { error: C.error } };
+  const live = (await db.ref('live').once('value')).val() || {};
+  const race = live.race || {};
+  if (!race.id) return { status: 409, out: { error: 'Aucune course suivie en ce moment.' } };
+  if (live.finishedAt && nowMs - live.finishedAt > CHEER_LATE_MS) return { status: 409, out: { error: 'La course est terminée depuis un moment.' } };
+  const rid = String(race.id).replace(/[.#$\[\]\/]/g, '_');
+  const rlRef = db.ref(`live_cheers_rl/${rid}/${sender}`);
+  const rl = (await rlRef.once('value')).val() || { n: 0, at: 0 };
+  if (nowMs - (rl.at || 0) < CHEER_GAP_MS) return { status: 429, out: { error: 'Doucement : un message toutes les 20 secondes.' } };
+  if ((rl.n || 0) >= CHEER_PER_SENDER) return { status: 429, out: { error: 'Merci ! Tu lui as déjà envoyé beaucoup de messages.' } };
+  const ipRef = db.ref(`live_cheers_rl/${rid}/_ip/${ipKey || 'x'}`), ipN = +(await ipRef.once('value')).val() || 0;
+  if (ipN >= CHEER_PER_IP || (+live.cheers || 0) >= CHEER_PER_RACE) return { status: 429, out: { error: 'Trop de messages pour l\'instant, réessaie plus tard.' } };
+  await rlRef.set({ n: (rl.n || 0) + 1, at: nowMs });
+  await ipRef.set(ipN + 1);
+  const id = nowMs.toString(36) + crypto.randomBytes(3).toString('hex');
+  const msg = { t: C.text, at: nowMs, st: live.status || 'idle' };
+  if (C.name) msg.n = C.name;
+  if (live.status === 'running' && live.startedAt) msg.el = nowMs - live.startedAt;      // moment de la course où il est arrivé
+  await db.ref(`live_cheers/${rid}/${id}`).set(msg);
+  await db.ref('live/cheers').transaction((n) => (+n || 0) + 1);
+  let pushed = false;
+  if (cheerPushNow(live, today) && send) {
+    const pr = db.ref(`live_cheers_rl/${rid}/_push`);
+    const recent = ((await pr.once('value')).val() || []).filter((t) => nowMs - t < 60000);
+    if (recent.length < CHEER_PUSH_PER_MIN) {
+      await pr.set(recent.concat(nowMs));
+      try { pushed = !!(await send('💬 ' + (C.name || 'Un ami'), C.text, 'cheer-' + id, '/?action=live')); } catch (e) { console.warn('liveCheer push:', e.message); }
+    }
+  }
+  return { status: 200, out: { ok: true, id, pushed, count: ((await db.ref('live/cheers').once('value')).val() || 0) } };
+}
+exports.runCheer = runCheer;
+exports.cheerCheck = cheerCheck;
+exports.cheerPushNow = cheerPushNow;
+
+exports.liveCheer = onRequest({ cors: true, maxInstances: 3, secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] }, async (req, res) => {
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'POST seulement' }); return; }
+  const ip = String((req.headers && req.headers['x-forwarded-for']) || req.ip || 'x').split(',')[0].trim();
+  const h = (x) => crypto.createHash('sha256').update(x).digest('hex').slice(0, 16);
+  const ipKey = h('cheer-ip|' + ip), sender = h('cheer|' + ip + '|' + String((req.body && req.body.dev) || '').slice(0, 40));
+  try {
+    const r = await runCheer(admin.database(), req.body || {}, sender, Date.now(),
+      (t, b, tag, url) => helpers.sendPush(VAPID_PUBLIC_KEY.value(), VAPID_PRIVATE_KEY.value(), t, b, tag, url), helpers.parisToday(), ipKey);
+    res.status(r.status).json(r.out);
+  } catch (e) { console.error('liveCheer:', e); res.status(500).json({ error: 'Envoi impossible, réessaie.' }); }
+});

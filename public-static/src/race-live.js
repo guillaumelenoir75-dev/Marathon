@@ -60,6 +60,7 @@ async function openLivePanel(){
     + '<section id="lv-sec-avant" class="lv-sec" role="tabpanel" aria-labelledby="lv-tab-avant">'
     +   '<div class="lv-card"><div class="lv-ch"><p class="lv-h">Prêt pour le départ ?</p><span id="lv-check-n" class="lv-cnt"></span></div><div id="lv-check"></div></div>'
     +   '<div id="lv-act-avant" class="lv-acts"></div>'
+    +   '<div class="lv-card lv-cheer-box" hidden></div>'
     +   '<div class="lv-card" id="lv-race"></div>'
     +   '<details class="lv-more" id="lv-more"><summary>Réglages OwnTracks</summary>'
     +     '<div class="lv-card"><p class="lv-h">Tester OwnTracks</p>'
@@ -85,6 +86,7 @@ async function openLivePanel(){
     +   '<div id="lv-auto" class="lv-warn" role="status" hidden></div>'
     +   '<p id="lv-src" class="lv-note"></p>'
     +   '<div id="lv-act-pendant" class="lv-acts"></div>'
+    +   '<div class="lv-card lv-cheer-box" hidden></div>'
     +   '<div class="lv-card"><p class="lv-h">Pointage officiel</p>'
     +     '<p class="lv-note">Un km et ton temps de course officiel : distance, allure et page des amis sont recalées.</p>'
     +     '<div class="lv-row2"><label class="lv-lab">Km<input id="lv-km" type="text" inputmode="decimal" placeholder="5"></label>'
@@ -98,7 +100,7 @@ async function openLivePanel(){
     +     '<button type="button" class="lv-btn lv-ghost" style="flex:1" onclick="liveStartAt()">Régler le chrono</button></div></div>'
     + '</section>'
     // ─ Après
-    + '<section id="lv-sec-apres" class="lv-sec" role="tabpanel" aria-labelledby="lv-tab-apres" hidden><div id="lv-after"></div><div id="lv-act-apres" class="lv-acts"></div></section>'
+    + '<section id="lv-sec-apres" class="lv-sec" role="tabpanel" aria-labelledby="lv-tab-apres" hidden><div id="lv-after"></div><div id="lv-act-apres" class="lv-acts"></div><div class="lv-card lv-cheer-box" hidden></div></section>'
     + '<a class="lv-btn lv-ghost lv-link" href="/suivi-guillaume" target="_blank">Voir la page des amis</a>'
     + '</div></div></div>';
   mc.appendChild(ov);
@@ -116,7 +118,7 @@ function closeLivePanel(){
   clearInterval(_liveTimer); _liveTimer = null;
   const ov = document.getElementById('live-panel'); if(ov) ov.remove();
 }
-function _liveOnValue(s){ _liveVal = s.val() || {}; _liveInfoFix(); _liveSyncRace(_liveVal.race); _liveRender(); _liveRaceRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
+function _liveOnValue(s){ _liveVal = s.val() || {}; _liveInfoFix(); _liveSyncRace(_liveVal.race); liveCheersWatch(); _liveCheersRender(); _liveRender(); _liveRaceRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
 const _liveNow = function(){ return Date.now() + _liveOffset; };
 
 function _liveRender(){
@@ -267,6 +269,9 @@ function _liveCss(){
     + X + '.lv-ch{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}'
     + X + '.lv-cnt{font-size:13px;font-weight:700;color:#F2C14E;}' + X + '.lv-cnt.all{color:#6EE7A0;}'
     + X + '.lv-note{margin:0;font-size:13px;line-height:1.45;color:#9AA4BF!important;}'
+    + X + '.lv-cheers{display:flex;flex-direction:column;}' + X + '.lv-cm{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-bottom:1px solid #1E2944;}' + X + '.lv-cm:last-child{border-bottom:none;}'
+    + X + '.lv-cm p{margin:0;display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#EEF1F8;}' + X + '.lv-cm small{font-size:12px;color:#7C87A3;white-space:nowrap;}'
+    + X + '.lv-cm span{font-size:15px;line-height:1.4;color:#DCE2EF;overflow-wrap:anywhere;}'
     + X + '.lv-strong{color:#EEF1F8!important;font-weight:700;}' + X + '.lv-ok{color:#6EE7A0!important;}' + X + '.lv-bad{color:#F28B6E!important;}'
     + X + '.lv-ci{display:flex;align-items:center;gap:12px;min-height:52px;border-bottom:1px solid #1E2944;}' + X + '.lv-ci:last-child{border-bottom:none;}'
     + X + '.lv-ico{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
@@ -457,8 +462,63 @@ function initLiveHomeBtn(){
   window._liveHomeListen = true;
   _liveLoadCore().then(function(){
     if(!_liveRef) _liveRef = firebase.database().ref('live');
-    _liveRef.on('value', function(s){ _liveVal = s.val() || {}; _liveInfoFix(); _liveSyncRace(_liveVal.race); _liveRenderHomeBtn(); });
+    _liveRef.on('value', function(s){ _liveVal = s.val() || {}; _liveInfoFix(); _liveSyncRace(_liveVal.race); liveCheersWatch(); _liveRenderHomeBtn(); });
   }).catch(function(){});
+}
+
+// ─── Encouragements des amis (page /suivi-guillaume → fonction liveCheer → /live_cheers/<course>, lu par l'admin) ───
+// Notification sur le téléphone (écran verrouillé, montre) envoyée par le serveur ; app ouverte : message affiché et lu à voix haute.
+let _liveCheers = {}, _liveCheerRid = null, _liveCheerRef = null, _liveCheerT0 = 0;
+function liveCheerRid(r){ return r && r.id ? String(r.id).replace(/[.#$\[\]\/]/g, '_') : null; }
+function liveCheerVoiceOn(){ try { return localStorage.getItem('pm_cheer_voice') !== '0'; } catch(e) { return true; } }
+function liveCheerVoice(){ try { localStorage.setItem('pm_cheer_voice', liveCheerVoiceOn() ? '0' : '1'); } catch(e) {} _liveCheersRender(true); }
+// phrase lue : « Message de Marie : Allez Guillaume ! » (émojis retirés)
+function liveCheerSpeech(m){
+  const t = String((m && m.t) || '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '').replace(/\s+/g, ' ').trim();
+  return t ? (m.n ? 'Message de ' + m.n + ' : ' : 'Un message : ') + t : '';
+}
+function liveCheersWatch(){
+  if(!isAdmin() || typeof firebase === 'undefined') return;
+  const rid = liveCheerRid(_liveVal && _liveVal.race);
+  if(rid === _liveCheerRid) return;
+  if(_liveCheerRef) _liveCheerRef.off();
+  _liveCheers = {}; _liveCheerRid = rid; _liveCheerRef = null; _liveCheerT0 = Date.now();
+  if(!rid) return;
+  _liveCheerRef = firebase.database().ref('live_cheers/' + rid);
+  _liveCheerRef.on('child_added', function(sn){
+    const m = sn.val(); if(!m) return;
+    _liveCheers[sn.key] = m;
+    // nouveau message (pas l'historique relu à l'ouverture) : affiché, et lu si l'app est au premier plan
+    if((m.at || 0) > _liveCheerT0 - 5000 && document.visibilityState === 'visible'){
+      if(typeof showToast === 'function') showToast((m.n ? m.n + ' : ' : '') + m.t, '💬');
+      if(liveCheerVoiceOn() && window.speechSynthesis){ try {
+        const u = new SpeechSynthesisUtterance(liveCheerSpeech(m)); u.lang = 'fr-FR';
+        const v = speechSynthesis.getVoices().filter(function(x){ return /^fr/i.test(x.lang); })[0]; if(v) u.voice = v;
+        speechSynthesis.speak(u);
+      } catch(e) {} }
+    }
+    _liveCheersRender();
+  });
+}
+function _liveCheersHtml(){
+  const L = Object.keys(_liveCheers).map(function(k){ return _liveCheers[k]; }).sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  const on = liveCheerVoiceOn();
+  let h = '<div class="lv-ch"><p class="lv-h">💬 Encouragements</p><span class="lv-cnt">' + (L.length || '') + '</span></div>';
+  if(!L.length) h += '<p class="lv-note">Pas encore de message. Tes amis t\'écrivent depuis la page de suivi : tu les reçois en notification, même en courant.</p>';
+  else h += '<div class="lv-cheers">' + L.slice(0, 40).map(function(m){
+      const hm = m.at ? new Date(m.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h') : '';
+      return '<div class="lv-cm"><p><b>' + _prepEsc(m.n || 'Un ami') + '</b><small>' + hm + (m.el ? ' · ' + (m.el < 3600000 ? Math.max(1, Math.round(m.el / 60000)) + ' min' : suiviFmt.hm(m.el)) + ' de course' : '') + '</small></p><span>' + _prepEsc(m.t || '') + '</span></div>';
+    }).join('') + (L.length > 40 ? '<p class="lv-note">+ ' + (L.length - 40) + ' autres</p>' : '') + '</div>';
+  h += '<button type="button" class="lv-btn lv-ghost" aria-pressed="' + on + '" onclick="liveCheerVoice()">' + (on ? '🔊 Lus à voix haute quand l\'app est ouverte' : '🔇 Lecture à voix haute coupée') + '</button>';
+  return h;
+}
+function _liveCheersRender(force){
+  const boxes = document.querySelectorAll('#live-panel .lv-cheer-box'); if(!boxes.length) return;
+  const h = _liveCheersHtml();
+  boxes.forEach(function(b){
+    b.hidden = !_liveCheerRid;
+    if(force || b.dataset.h !== h){ b.innerHTML = h; b.dataset.h = h; }
+  });
 }
 
 // ─── Course suivie : fiche /live/race (nom, date, départ, distance, tracé GPX, points de passage, rejeu) ───

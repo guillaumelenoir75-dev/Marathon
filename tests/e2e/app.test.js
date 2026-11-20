@@ -117,13 +117,25 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   await page.click('#lv-act-avant .lv-ghost'); await page.waitForTimeout(800);   // « Lancer un essai »
   const P2 = await page.evaluate(() => ({ tab: document.querySelector('#live-panel .lv-tabs button.on').textContent, fin: !!document.querySelector('#lv-act-pendant .lv-fin'), tested: !!window.__DB.live.race.testedAt }));
   assert.equal(P2.tab, 'Pendant', 'l\'essai ouvre « Pendant »'); assert.ok(P2.fin, '« Je suis arrivé » dans « Pendant »'); assert.ok(P2.tested, 'essai noté pour la liste de contrôle');
+  // encouragement d'un ami reçu pendant la course : listé dans le panneau, montré et lu à voix haute (app ouverte)
+  await page.evaluate(() => { window.__spoken = []; window.speechSynthesis.speak = (u) => window.__spoken.push(u.text);
+    firebase.database().ref('live_cheers/novembrun-2026/c1').set({ n: 'Marie', t: 'Lâche rien 💪', at: Date.now(), el: 600000, st: 'running' }); });
+  await page.waitForFunction(() => /Marie/.test((document.querySelector('#lv-sec-pendant .lv-cheer-box') || {}).textContent || ''), null, { timeout: 5000 });
+  const CH = await page.evaluate(() => ({ spoken: window.__spoken, box: document.querySelector('#lv-sec-pendant .lv-cheer-box').textContent, hidden: document.querySelector('#lv-sec-pendant .lv-cheer-box').hidden }));
+  assert.deepEqual(CH.spoken, ['Message de Marie : Lâche rien'], 'lu à voix haute, sans émoji'); assert.match(CH.box, /Lâche rien 💪/); assert.match(CH.box, /10 min de course/); assert.equal(CH.hidden, false);
+  await page.click('#lv-sec-pendant .lv-cheer-box .lv-ghost');
+  assert.match(await page.textContent('#lv-sec-pendant .lv-cheer-box .lv-ghost'), /coupée/); assert.equal(await page.evaluate(() => localStorage.getItem('pm_cheer_voice')), '0');
+  assert.equal(await page.evaluate(() => notifRunAction('?action=live', 0)), true, 'la notification d\'un encouragement ouvre la course en direct');
   await page.evaluate(() => { _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null }); }); await page.waitForTimeout(300);
   const saved = await db(page); await ctx.close();
   // page publique des amis : même course, même tracé ; avant le départ : compte à rebours et programme
   {
     const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx2.addInitScript((t) => { const real = Date.now.bind(Date), off = t - real(), D = Date; class FD extends D { constructor(...a) { if (a.length === 0) super(real() + off); else super(...a); } static now() { return real() + off; } } window.Date = FD; }, new Date('2026-11-22T08:47:55+01:00').getTime());
-    await ctx2.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => /firebase-app-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', path: MOCK }) : /firebase-(auth|database)-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', body: '' }) : r.abort());
+    const cheers = [];
+    await ctx2.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => /\/liveCheer$/.test(r.request().url()) ? (r.request().method() === 'OPTIONS' ? r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'POST' } })
+      : (cheers.push(JSON.parse(r.request().postData() || '{}')), r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(cheers.length > 1 ? { error: 'Doucement : un message toutes les 20 secondes.' } : { ok: true, pushed: true, count: 1 }), status: cheers.length > 1 ? 429 : 200 })))
+      : /firebase-app-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', path: MOCK }) : /firebase-(auth|database)-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', body: '' }) : r.abort());
     await ctx2.addInitScript((j) => { window.__DB = JSON.parse(j); }, saved);
     const p2 = await ctx2.newPage(); const err2 = []; p2.on('pageerror', (e) => err2.push(e.message));
     await p2.goto(base + 'suivi-guillaume.html'); await p2.waitForTimeout(2500);
@@ -138,6 +150,17 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
     assert.equal(Pre.obj, "42'00"); assert.match(Pre.eta, /^≈10h4\d$/); assert.match(Pre.pass, /10h00Départ/); assert.match(Pre.pass, /Arrivée/);
     assert.ok(Pre.count && !Pre.live && !Pre.res); assert.equal(Pre.bg, 'rgb(7, 11, 22)', 'univers Piste de nuit');
     if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-avant.png', fullPage: true });
+    // encourager : un mot tout prêt, son prénom, envoyé à la fonction liveCheer ; refus expliqué
+    assert.equal(await p2.textContent('#ch-title'), 'Encourage-le');
+    await p2.click('#ch-sug button:nth-child(2)'); await p2.fill('#ch-name', 'Marie'); await p2.click('#ch-send');
+    await p2.waitForFunction(() => /Envoyé/.test(document.getElementById('ch-msg').textContent), null, { timeout: 5000 });
+    assert.equal(cheers[0].text, 'Tu vas tout casser 🔥'); assert.equal(cheers[0].name, 'Marie'); assert.ok(cheers[0].dev, 'appareil anonyme pour les limites');
+    assert.equal(await p2.inputValue('#ch-text'), '', 'champ vidé'); assert.equal(await p2.evaluate(() => localStorage.getItem('sv_name')), 'Marie');
+    await p2.fill('#ch-text', 'Encore un !'); await p2.click('#ch-send');
+    await p2.waitForFunction(() => /20 secondes/.test(document.getElementById('ch-msg').textContent), null, { timeout: 5000 });
+    await p2.fill('#ch-text', '');
+    await p2.evaluate(() => firebase.database().ref('live').update({ cheers: 3 })); await p2.waitForTimeout(1200);
+    assert.equal(await p2.textContent('#ch-n'), '3 messages envoyés');
     // après l'arrivée : temps, allure, écart à l'objectif
     const R = await p2.evaluate(() => { const r = suiviResult({ startedAt: 1, finishedAt: 1 + 2512000 }, SuiviRace); return { ms: r.ms, diff: r.diff, off: r.official, cd: suiviCountdown(2 * 86400000 + 3 * 3600000) }; });
     assert.equal(R.ms, 2512000); assert.equal(R.diff, -8, '41\'52 = 8 s sous 42\'00'); assert.equal(R.off, false); assert.equal(R.cd, '2 j 03 h');
@@ -148,6 +171,7 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
       count: vis('b-count'), of: document.getElementById('l-of').textContent }; }, VIS);
     assert.equal(Run.title, 'Guillaume en course'); assert.ok(Run.live && Run.next && !Run.count); assert.match(Run.nk, /^Prochain passage/); assert.equal(Run.pt, 'Ses passages');
     assert.ok(Run.mapFirst, 'la carte passe en tête'); assert.equal(Run.of, 'km sur 10');
+    assert.equal(await p2.evaluate(() => !document.getElementById('b-cheer').hidden && document.getElementById('b-cheer').getBoundingClientRect().top < document.getElementById('b-pass').getBoundingClientRect().top), true, 'encourager avant ses passages pendant la course');
     if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-pendant.png', fullPage: true });
     // après : « Comment ça s'est passé ? » — temps, écart à l'objectif, km par km
     await p2.evaluate(() => { const s = Date.now() - 2600000; return firebase.database().ref('live').update({ status: 'finished', startedAt: s, finishedAt: s + 2512000 }); }); await p2.waitForTimeout(1200);
@@ -156,6 +180,7 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
       gap: document.getElementById('r-gap').textContent, share: vis('b-share'), kms: document.querySelectorAll('#b-kms .kms > div').length, best: document.querySelectorAll('#b-kms .kms .best').length,
       sum: (document.querySelector('#b-kms .kmn') || {}).textContent || '', pass: vis('b-pass') }; }, VIS);
     assert.equal(Fin.title, 'Guillaume est arrivé'); assert.equal(Fin.t, "41'52"); assert.match(Fin.gap, /^8 s sous l'objectif de 42'00$/);
+    assert.equal(await p2.textContent('#ch-title'), 'Félicite-le');
     assert.ok(Fin.share); assert.equal(Fin.kms, 10); assert.equal(Fin.best, 1); assert.match(Fin.sum, /2e moitié plus rapide/); assert.equal(Fin.pass, false);
     if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-apres2.png', fullPage: true });
     assert.deepEqual(err2, []);

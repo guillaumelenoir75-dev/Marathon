@@ -20,7 +20,9 @@
   window.__DB_ERRORS = [];
   const guard = (fn, v, path) => { try { check(fn, v, path); } catch (e) { window.__DB_ERRORS.push(e.message); throw e; } };
   function snap(p) { const v = clone(get(p)), ks = split(p); return { val: () => v, exists: () => v != null, key: ks[ks.length - 1] || null, forEach(fn) { if (v && typeof v === 'object') Object.keys(v).forEach((k) => fn(snap(p + '/' + k))); }, child: (c) => snap(p + '/' + c) }; }
-  function notify(p) { listeners.slice().forEach((l) => { if (l.path === p || p.startsWith(l.path + '/') || l.path.startsWith(p + '/')) { try { l.cb(snap(l.path)); } catch (e) {} } }); }
+  // « child_added » : chaque enfant une fois (ceux déjà là à l'écoute, puis chaque nouveau)
+  function fireChildren(l) { const v = get(l.path); if (!v || typeof v !== 'object') return; Object.keys(v).forEach((k) => { if (l.seen.has(k)) return; l.seen.add(k); try { l.cb(snap(l.path + '/' + k)); } catch (e) {} }); }
+  function notify(p) { listeners.slice().forEach((l) => { if (l.path === p || p.startsWith(l.path + '/') || l.path.startsWith(p + '/')) { if (l.seen) { fireChildren(l); return; } try { l.cb(snap(l.path)); } catch (e) {} } }); }
   let pushN = 0;
   // réseau simulé : window.__HOLD = écritures en attente (envoyées par window.__flush()), window.__NO_NET = lectures sans réponse
   const held = [];
@@ -34,7 +36,7 @@
       child: (c) => ref(p + '/' + c),
       get parent() { const s = split(p); s.pop(); return s.length ? ref(s.join('/')) : null; },
       once: (ev, cb) => { if (window.__NO_NET) return new Promise(() => {}); const s = snap(p); if (typeof cb === 'function') cb(s); return Promise.resolve(s); },
-      on: (ev, cb) => { listeners.push({ path: p, cb }); setTimeout(() => cb(snap(p)), 0); return cb; },
+      on: (ev, cb) => { if (ev === 'child_added') { const l = { path: p, cb, seen: new Set() }; listeners.push(l); setTimeout(() => fireChildren(l), 0); return cb; } listeners.push({ path: p, cb }); setTimeout(() => cb(snap(p)), 0); return cb; },
       off: (ev, cb) => { for (let i = listeners.length - 1; i >= 0; i--) if (listeners[i].path === p && (!cb || listeners[i].cb === cb)) listeners.splice(i, 1); },
       set: (v) => { guard('Reference.set', v, p); return write(() => { setAt(p, v); notify(p); }); },
       update: (o) => { Object.keys(o || {}).forEach((k) => guard('Reference.update', o[k], p + '/' + k)); return write(() => { Object.keys(o || {}).forEach((k) => setAt(p + '/' + k, o[k])); notify(p); }); },

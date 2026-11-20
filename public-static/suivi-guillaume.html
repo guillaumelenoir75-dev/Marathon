@@ -143,13 +143,27 @@
   .rp-speeds button[aria-pressed="true"]{border-color:var(--or);color:var(--ink);}
   .rp-exit{width:100%;min-height:44px;border:1px solid var(--line2);border-radius:22px;background:transparent;color:var(--sub);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 
+  /* encouragements */
+  .cheer .lead{margin:0;font-size:14px;line-height:1.45;color:var(--sub);}
+  .cheer .sug{display:flex;flex-wrap:wrap;gap:6px;}
+  .cheer .sug button{min-height:36px;border:1px solid var(--line2);background:transparent;color:var(--ink);border-radius:18px;padding:0 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .cheer input,.cheer textarea{width:100%;border:1px solid var(--line2);background:var(--inset);color:var(--ink);border-radius:14px;padding:12px 14px;font:inherit;font-size:16px;}
+  .cheer textarea{min-height:76px;resize:vertical;}
+  .cheer input::placeholder,.cheer textarea::placeholder{color:var(--muted);}
+  .cheer input:focus-visible,.cheer textarea:focus-visible{outline:2px solid var(--or);outline-offset:1px;}
+  .cheer .row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);}
+  .cheer .btn.or{width:100%;}
+  .cheer .btn.or:disabled{opacity:.55;cursor:default;}
+  .cheer .msg{margin:0;font-size:14px;font-weight:700;min-height:0;}
+  .cheer .msg.ok{color:var(--go2);} .cheer .msg.ko{color:var(--gold);}
+
   .foot{order:99;margin:6px 0 0;font-size:13px;line-height:1.5;color:var(--muted);text-align:center;}
   button:focus-visible,a:focus-visible,#rp-seek:focus-visible{outline:2px solid var(--or);outline-offset:2px;}
 
   /* un ordre par moment */
-  #b-count{order:2;} #b-tiles{order:3;} #b-map{order:4;} #b-pass{order:5;}
-  .st-running #b-map,.st-replay #b-map{order:2;} .st-running #b-live,.st-replay #b-live{order:3;} .st-running #b-next{order:4;} .st-running #b-pass{order:5;}
-  .st-finished #b-res{order:2;} .st-finished #replay,.st-replay #replay{order:4;} .st-finished #b-kms,.st-replay #b-kms{order:5;} .st-finished #b-share{order:6;} .st-finished #b-map{order:3;}
+  #b-count{order:2;} #b-tiles{order:3;} #b-map{order:4;} #b-pass{order:5;} #b-cheer{order:6;}
+  .st-running #b-map,.st-replay #b-map{order:2;} .st-running #b-live,.st-replay #b-live{order:3;} .st-running #b-next{order:4;} .st-running #b-cheer{order:4;} .st-running #b-pass{order:5;}
+  .st-finished #b-res{order:2;} .st-finished #replay,.st-replay #replay{order:4;} .st-finished #b-kms,.st-replay #b-kms{order:5;} .st-finished #b-share{order:6;} .st-finished #b-cheer{order:7;} .st-finished #b-map{order:3;}
   @media (prefers-reduced-motion:reduce){ #map .me i,.pill.running::before{animation:none;} }
 </style>
 </head>
@@ -212,11 +226,25 @@
   </section>
   <section id="b-pass" class="pass" aria-labelledby="pass-title" hidden><h2 id="pass-title">Où le voir passer</h2><div id="pass-list"></div></section>
 
+  <!-- encouragements : reçus par Guillaume sur son téléphone -->
+  <section id="b-cheer" class="card cheer" aria-labelledby="ch-title" hidden>
+    <div class="ch"><h2 id="ch-title">Encourage-le</h2><span id="ch-n"></span></div>
+    <p id="ch-lead" class="lead">Ton message arrive sur son téléphone, même pendant la course.</p>
+    <div id="ch-sug" class="sug"></div>
+    <label for="ch-name" class="sr" style="position:absolute;left:-9999px;">Ton prénom</label>
+    <input id="ch-name" type="text" maxlength="30" autocomplete="given-name" placeholder="Ton prénom">
+    <label for="ch-text" class="sr" style="position:absolute;left:-9999px;">Ton message</label>
+    <textarea id="ch-text" maxlength="140" placeholder="Allez Guillaume !" oninput="SuiviView.cheerCount()"></textarea>
+    <div class="row"><span>Pas de lien, 140 caractères au plus</span><span id="ch-len">0/140</span></div>
+    <button id="ch-send" type="button" class="btn or" onclick="SuiviView.cheer()">Envoyer</button>
+    <p id="ch-msg" class="msg" role="status" aria-live="polite"></p>
+  </section>
+
   <p id="foot" class="foot">La page se met à jour toute seule. Pas besoin de la recharger.</p>
 </main>
 <script defer src="/src/suivi-data.js?v=1"></script>
 <script defer src="/src/suivi-core.js?v=13"></script>
-<script defer src="/src/suivi-view.js?v=19"></script>
+<script defer src="/src/suivi-view.js?v=20"></script>
 <script defer src="/src/suivi-replay.js?v=3"></script>
 </body>
 </html>
