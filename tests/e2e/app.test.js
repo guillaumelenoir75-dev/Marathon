@@ -90,6 +90,34 @@ test('ancienne prépa Seine-Eure convertie au format du programme : tous les éc
   await ctx.close();
 });
 
+test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé officiel déjà fourni, page publique des amis sur ce parcours', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const { ctx, page, errors } = await open('2026-11-20T18:00:00+01:00', savedDb);
+  await page.evaluate(() => openLivePanel());
+  await page.waitForSelector('#lv-race .lv-go', { timeout: 8000 });
+  assert.match(await page.textContent('#lv-race .lv-go'), /Novemb/);
+  await page.click('#lv-race .lv-go'); await page.waitForTimeout(1500);
+  const L = await page.evaluate(() => { const r = window.__DB.live.race; return { id: r.id, name: r.name, date: r.date, start: r.start, official: r.official, n: (r.route || []).length,
+    has: SuiviGeo.has, len: Math.round(SuiviGeo.len), arch: Object.keys(window.__DB.live_archive || {}) }; });
+  assert.equal(L.id, 'novembrun-2026'); assert.match(L.name, /Novemb/); assert.equal(L.date, '2026-11-22'); assert.equal(L.start, '09:00');
+  assert.equal(L.official, 10000); assert.ok(L.n > 100, 'tracé officiel posé tout seul : ' + L.n + ' points');
+  assert.ok(L.has && Math.abs(L.len - 10000) < 150, 'parcours de ' + L.len + ' m');
+  const saved = await db(page); await ctx.close();
+  // page publique des amis : même course, même tracé
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await ctx2.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => /firebase-app-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', path: MOCK }) : /firebase-(auth|database)-compat/.test(r.request().url()) ? r.fulfill({ contentType: 'text/javascript', body: '' }) : r.abort());
+    await ctx2.addInitScript((j) => { window.__DB = JSON.parse(j); }, saved);
+    const p2 = await ctx2.newPage(); const err2 = []; p2.on('pageerror', (e) => err2.push(e.message));
+    await p2.goto(base + 'suivi-guillaume.html'); await p2.waitForTimeout(2500);
+    const V = await p2.evaluate(() => ({ name: typeof SuiviRace !== 'undefined' ? SuiviRace.name : '', has: typeof SuiviGeo !== 'undefined' && SuiviGeo.has, off: typeof suiviOff === 'function' ? suiviOff() : 0 }));
+    assert.match(V.name, /Novemb/, 'la page des amis suit la Novemb\'Run'); assert.ok(V.has, 'tracé affiché'); assert.equal(V.off, 10000);
+    assert.deepEqual(err2, []);
+    await ctx2.close();
+  }
+  assert.deepEqual(errors, []);
+});
+
 test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur', async () => {
   assert.ok(savedDb, 'dépend du test précédent');
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);

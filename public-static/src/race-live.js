@@ -360,6 +360,7 @@ function _liveRaceRender(){
     h += '<div style="display:flex;gap:8px;margin-top:8px;"><label class="lv-lab">Départ<input id="lv-r-start" type="time" value="' + SuiviRace.start + '"></label>'
       + '<label class="lv-lab" style="flex:2;">Lieu de départ<input id="lv-r-place" type="text" placeholder="ex. Bois de Vincennes" value="' + _prepEsc(SuiviRace.place || '') + '"></label></div>'
       + '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveSaveRaceInfo()">Enregistrer départ et lieu</button>'
+      + (!SuiviGeo.has && liveRouteOf(r.id) ? '<button type="button" class="lv-btn lv-go" style="margin-top:8px;" onclick="liveUsePresetRoute()">🗺 Utiliser le tracé officiel (déjà dans l\'app)</button>' : '')
       + '<label class="lv-btn lv-ghost" style="margin-top:8px;text-align:center;cursor:pointer;">🗺 ' + (SuiviGeo.has ? 'Remplacer le tracé (GPX)' : 'Importer le tracé (fichier GPX)')
       +   '<input type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" style="display:none;" onchange="liveImportGpx(this)"></label>'
       + '<p class="lv-note" style="margin:6px 0 0;">' + (SuiviGeo.has ? 'Tracé de ' + (SuiviGeo.len / 1000).toFixed(2).replace('.', ',') + ' km : position projetée sur le parcours, arrivée détectée automatiquement.'
@@ -379,6 +380,16 @@ function liveShareLink(){
   if(navigator.share) navigator.share({ title: 'Suivi Guillaume · ' + SuiviRace.name, url: url }).catch(function(){});
   else if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){ alert('Lien copié : ' + url); }, function(){ prompt('Lien de suivi :', url); });
   else prompt('Lien de suivi :', url);
+}
+// tracés des courses déjà fournis (GPX de l'organisateur) : posés tout seuls à la préparation du suivi, sans import depuis le téléphone
+const LIVE_ROUTES = {
+  'novembrun-2026': [[48.87279,2.28507],[48.87358,2.29198],[48.87347,2.29214],[48.87193,2.27802],[48.87131,2.27768],[48.86612,2.27412],[48.8667,2.27168],[48.86687,2.27182],[48.86739,2.27042],[48.86776,2.26983],[48.86799,2.26911],[48.86798,2.26836],[48.86802,2.26792],[48.86775,2.26742],[48.86735,2.26689],[48.86706,2.26635],[48.86674,2.2659],[48.86661,2.26555],[48.86688,2.26548],[48.86786,2.2662],[48.86828,2.26587],[48.86854,2.2658],[48.86869,2.26552],[48.86863,2.26523],[48.86841,2.26505],[48.86847,2.26479],[48.86848,2.26438],[48.86838,2.26349],[48.86844,2.26264],[48.86808,2.26209],[48.86784,2.26152],[48.86762,2.26078],[48.8673,2.2603],[48.86692,2.25986],[48.86702,2.25972],[48.86739,2.25853],[48.86658,2.2543],[48.8668,2.25397],[48.86694,2.25362],[48.86705,2.25287],[48.86687,2.25264],[48.86633,2.25228],[48.86626,2.25174],[48.86619,2.25165],[48.86604,2.25169],[48.8658,2.25143],[48.86556,2.25106],[48.8655,2.25093],[48.86557,2.2508],[48.86541,2.2505],[48.86521,2.24959],[48.86538,2.24964],[48.86754,2.25111],[48.87185,2.26305],[48.87142,2.26308],[48.87051,2.2635],[48.87039,2.26214],[48.86979,2.26052],[48.86978,2.25992],[48.8697,2.25927],[48.86929,2.25876],[48.86916,2.25831],[48.86902,2.25817],[48.86884,2.25749],[48.8687,2.25721],[48.86861,2.25722],[48.86844,2.25657],[48.86817,2.25486],[48.86785,2.25482],[48.86791,2.25516],[48.86788,2.25569],[48.86795,2.25623],[48.86804,2.25658],[48.86838,2.25736],[48.86818,2.2581],[48.86832,2.25883],[48.86819,2.25965],[48.86827,2.25987],[48.86855,2.26018],[48.86865,2.26078],[48.86888,2.26158],[48.86895,2.26224],[48.86897,2.26302],[48.86962,2.26371],[48.86992,2.26434],[48.8699,2.26463],[48.87006,2.26517],[48.87035,2.26585],[48.87076,2.26638],[48.87135,2.26766],[48.87044,2.26859],[48.86974,2.26721],[48.86888,2.26582],[48.86868,2.26561],[48.86841,2.26591],[48.86828,2.2659],[48.86817,2.26629],[48.8682,2.26686],[48.86963,2.26985],[48.86966,2.27006],[48.86965,2.27055],[48.86932,2.2713],[48.86921,2.27184],[48.8687,2.2733],[48.86884,2.27347],[48.86861,2.27419],[48.87126,2.27621],[48.8714,2.2774],[48.87159,2.27659],[48.8718,2.2765],[48.87229,2.28099]]   // 10km Novemb'Run, 22 nov. 2026 (GPX RunninParis, 9,99 km)
+};
+function liveRouteOf(id){ const r = LIVE_ROUTES[id]; return Array.isArray(r) && r.length > 1 ? r.map(function(p){ return p.slice(); }) : null; }
+async function liveUsePresetRoute(){
+  const r = _liveVal.race || {}, route = liveRouteOf(r.id); if(!route) return;
+  await _liveRef.child('race/route').set(route);
+  if(typeof showToast === 'function') showToast('Tracé enregistré');
 }
 // fiche Seine-Eure pour l'archive (le tracé et les points viennent de suivi-data.js)
 function _liveSeRace(){
@@ -403,7 +414,8 @@ async function livePrepareRace(){
           up['users/' + firebase.auth().currentUser.uid + '/prep_index/' + k + '/replay'] = LIVE_PAGE + '?course=' + oldId;
       });
     }
-    up['live'] = { status: 'idle', race: Object.assign({ place: '', points: [], createdAt: Date.now() }, P), ota: cur.ota || null };
+    const route = liveRouteOf(P.id);                                       // tracé déjà fourni (LIVE_ROUTES)
+    up['live'] = { status: 'idle', race: Object.assign({ place: '', points: [], createdAt: Date.now() }, P, route ? { route: route } : {}), ota: cur.ota || null };
     await db.ref().update(up);
     if(typeof _prepIndex !== 'undefined' && _prepIndex) Object.keys(up).forEach(function(k){ const m = k.match(/prep_index\/([^/]+)\/replay$/); if(m && _prepIndex[m[1]]) _prepIndex[m[1]].replay = up[k]; });
     if(typeof showToast === 'function') showToast('Suivi prêt pour ' + P.name);
