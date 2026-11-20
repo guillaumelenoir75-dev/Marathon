@@ -129,14 +129,35 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
     await p2.goto(base + 'suivi-guillaume.html'); await p2.waitForTimeout(2500);
     const V = await p2.evaluate(() => ({ name: typeof SuiviRace !== 'undefined' ? SuiviRace.name : '', has: typeof SuiviGeo !== 'undefined' && SuiviGeo.has, off: typeof suiviOff === 'function' ? suiviOff() : 0 }));
     assert.match(V.name, /Novemb/, 'la page des amis suit la Novemb\'Run'); assert.ok(V.has, 'tracé affiché'); assert.equal(V.off, 10000);
-    const Pre = await p2.evaluate(() => ({ lab: document.querySelector('.chrono span').textContent, t: document.getElementById('v-time').textContent, pre: !document.getElementById('pre').hidden,
-      txt: document.getElementById('pre').textContent, res: document.getElementById('result').hidden }));
-    assert.equal(Pre.lab, 'Départ dans'); assert.match(Pre.t, /^1:12:0\d$/, 'compte à rebours : ' + Pre.t);
-    assert.ok(Pre.pre); assert.match(Pre.txt, /Le programme/); assert.match(Pre.txt, /10h00/); assert.match(Pre.txt, /Objectif42'00/); assert.match(Pre.txt, /Arrivéevers 10h4\d/); assert.equal(Pre.res, true);
+    // avant le départ : « Quand part-il ? »
+    const VIS = "(id) => { const e = document.getElementById(id); return !!e && !e.hidden && e.offsetParent !== null; }";
+    const Pre = await p2.evaluate((v) => { const vis = eval(v); return { title: document.getElementById('v-title').textContent, k: document.getElementById('c-k').textContent,
+      t: document.getElementById('c-time').textContent, obj: document.getElementById('t-obj').textContent, eta: document.getElementById('t-eta').textContent,
+      pass: document.getElementById('pass-list').textContent, count: vis('b-count'), live: vis('b-live'), res: vis('b-res'), bg: getComputedStyle(document.body).backgroundColor }; }, VIS);
+    assert.equal(Pre.title, 'Guillaume court aujourd\'hui'); assert.equal(Pre.k, 'Départ dans'); assert.match(Pre.t, /^1:12:0\d$/, 'compte à rebours : ' + Pre.t);
+    assert.equal(Pre.obj, "42'00"); assert.match(Pre.eta, /^≈10h4\d$/); assert.match(Pre.pass, /10h00Départ/); assert.match(Pre.pass, /Arrivée/);
+    assert.ok(Pre.count && !Pre.live && !Pre.res); assert.equal(Pre.bg, 'rgb(7, 11, 22)', 'univers Piste de nuit');
+    if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-avant.png', fullPage: true });
     // après l'arrivée : temps, allure, écart à l'objectif
     const R = await p2.evaluate(() => { const r = suiviResult({ startedAt: 1, finishedAt: 1 + 2512000 }, SuiviRace); return { ms: r.ms, diff: r.diff, off: r.official, cd: suiviCountdown(2 * 86400000 + 3 * 3600000) }; });
     assert.equal(R.ms, 2512000); assert.equal(R.diff, -8, '41\'52 = 8 s sous 42\'00'); assert.equal(R.off, false); assert.equal(R.cd, '2 j 03 h');
-    if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-avant.png', fullPage: true });
+    // pendant : « Où est-il ? » — carte en tête, km, prochain passage, ses passages
+    await p2.evaluate(() => firebase.database().ref('live').update({ status: 'running', startedAt: Date.now() - 600000 })); await p2.waitForTimeout(1500);
+    const Run = await p2.evaluate((v) => { const vis = eval(v); return { title: document.getElementById('v-title').textContent, live: vis('b-live'), next: vis('b-next'),
+      nk: document.getElementById('n-k').textContent, pt: document.getElementById('pass-title').textContent, mapFirst: document.getElementById('b-map').getBoundingClientRect().top < document.getElementById('b-live').getBoundingClientRect().top,
+      count: vis('b-count'), of: document.getElementById('l-of').textContent }; }, VIS);
+    assert.equal(Run.title, 'Guillaume en course'); assert.ok(Run.live && Run.next && !Run.count); assert.match(Run.nk, /^Prochain passage/); assert.equal(Run.pt, 'Ses passages');
+    assert.ok(Run.mapFirst, 'la carte passe en tête'); assert.equal(Run.of, 'km sur 10');
+    if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-pendant.png', fullPage: true });
+    // après : « Comment ça s'est passé ? » — temps, écart à l'objectif, km par km
+    await p2.evaluate(() => { const s = Date.now() - 2600000; return firebase.database().ref('live').update({ status: 'finished', startedAt: s, finishedAt: s + 2512000 }); }); await p2.waitForTimeout(1200);
+    await p2.evaluate(() => { SuiviRace.replay = { official: 2512, watchKm: 10, splits: [254, 252, 251, 253, 252, 250, 251, 252, 249, 248], last: null }; }); await p2.waitForTimeout(1300);
+    const Fin = await p2.evaluate((v) => { const vis = eval(v); return { title: document.getElementById('v-title').textContent, t: document.getElementById('r-t').textContent,
+      gap: document.getElementById('r-gap').textContent, share: vis('b-share'), kms: document.querySelectorAll('#b-kms .kms > div').length, best: document.querySelectorAll('#b-kms .kms .best').length,
+      sum: (document.querySelector('#b-kms .kmn') || {}).textContent || '', pass: vis('b-pass') }; }, VIS);
+    assert.equal(Fin.title, 'Guillaume est arrivé'); assert.equal(Fin.t, "41'52"); assert.match(Fin.gap, /^8 s sous l'objectif de 42'00$/);
+    assert.ok(Fin.share); assert.equal(Fin.kms, 10); assert.equal(Fin.best, 1); assert.match(Fin.sum, /2e moitié plus rapide/); assert.equal(Fin.pass, false);
+    if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-apres2.png', fullPage: true });
     assert.deepEqual(err2, []);
     await ctx2.close();
   }

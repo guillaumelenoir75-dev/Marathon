@@ -50,14 +50,14 @@ const SuiviReplay = (function(){
       return '<button type="button" class="rp-bar" data-i="' + i + '" style="flex:' + x.km + ';height:' + h.toFixed(0) + '%" aria-label="' + (i < R.splits.length ? 'km ' + (i + 1) : lastTxt()) + ' en ' + paceTxt(x.pace) + '"></button>';
     }).join('');
     box.innerHTML = '<section class="card rp" aria-labelledby="rp-title">'
-      + '<div class="rp-head"><h2 id="rp-title">🎬 Revoir la course</h2><span>' + suiviFmt.dur(R.official * 1000) + (R.note ? ' · ' + R.note : '') + '</span></div>'
+      + '<div class="rp-head"><h2 id="rp-title">Revivre la course</h2><span>' + suiviFmt.dur(R.official * 1000) + (R.note ? ' · ' + R.note : '') + '</span></div>'
       + '<p class="rp-sub">Rejouez les ' + (OFF / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) + ' km en accéléré, avec l\'allure de chaque kilomètre.</p>'
       + '<div class="rp-chart" id="rp-chart">' + bars + '</div>'
       + '<div class="rp-axis"><span>km 1</span>' + [0.25, 0.5, 0.75].map(function(q){ return '<span>' + Math.round(NK * q) + '</span>'; }).join('') + '<span>🏁</span></div>'
       + '<input type="range" id="rp-seek" min="0" max="' + R.official + '" step="1" value="0" aria-label="Moment de la course">'
-      + '<div class="rp-ctl"><button type="button" id="rp-play" class="rp-play">▶ Revoir la course</button>'
+      + '<div class="rp-ctl"><button type="button" id="rp-play" class="rp-play">▶ Rejouer</button>'
       +   '<div class="rp-speeds" role="group" aria-label="Vitesse">' + SPEEDS.map(function(v){ return '<button type="button" data-v="' + v + '"' + (v === speed ? ' aria-pressed="true"' : '') + '>×' + v + '</button>'; }).join('') + '</div></div>'
-      + '<button type="button" id="rp-exit" class="rp-exit" hidden>✕ Revenir au suivi en direct</button>'
+      + '<button type="button" id="rp-exit" class="rp-exit" hidden>Arrêter le rejeu</button>'
       + '</section>';
     $('rp-play').onclick = toggle;
     $('rp-exit').onclick = exit;
@@ -87,7 +87,7 @@ const SuiviReplay = (function(){
   function exit(){
     playing = false; clearInterval(timer); active = false; tau = 0;
     $('rp-exit').hidden = true; $('rp-seek').value = 0;
-    $('rp-play').textContent = '▶ Revoir la course';
+    $('rp-play').textContent = '▶ Rejouer';
     paint(-1);
     SuiviView.replay(null);
   }
@@ -104,13 +104,13 @@ const SuiviReplay = (function(){
       replay: true, st: done ? 'finished' : 'running', chrono: tau * 1000, d: done ? OFF : dOff, s: s, ll: SuiviGeo.pointAt(s),
       known: a.dw > 0.2, speed: a.dw > 0 ? a.dw * 1000 / tau : 0,
       pill: done ? '🏁 Arrivé · rejeu' : playing ? '▶ Rejeu ×' + speed : '❚❚ Rejeu en pause',
-      status: done ? 'Arrivé en ' + suiviFmt.dur(R.official * 1000) + (R.note ? ' · ' + R.note : '') + ' 🎉' : 'Revoir la course · ×' + speed,
+      status: done ? 'Arrivé en ' + suiviFmt.dur(R.official * 1000) + (R.note ? ' · ' + R.note : '') + ' 🎉' : 'Rejeu · ×' + speed,
       sub: 'il était ' + suiviFmt.hhmm(wall),
       kmLabel: done ? 'Allure du dernier km' : 'Allure du km ' + (a.i < R.splits.length ? a.i + 1 : suiviKmLabel(OFF)),
       kmPace: paceTxt(x.pace), kmSub: done ? (R.last ? lastTxt() : 'km ' + NK) : a.i < R.splits.length ? 'km ' + (a.i + 1) + ' sur ' + NK : lastTxt(),
     });
     $('rp-seek').value = Math.round(tau);
-    $('rp-play').textContent = playing ? '❚❚ Pause' : done ? '↺ Revoir depuis le départ' : '▶ Reprendre';
+    $('rp-play').textContent = playing ? '❚❚ Pause' : done ? '↺ Rejouer depuis le départ' : '▶ Reprendre';
     paint(done ? seg.length : a.i);
   }
 

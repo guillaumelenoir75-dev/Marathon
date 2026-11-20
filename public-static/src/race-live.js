@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=12'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=13'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
