@@ -117,7 +117,7 @@ function closeLivePanel(){
   clearInterval(_liveTimer); _liveTimer = null;
   const ov = document.getElementById('live-panel'); if(ov) ov.remove();
 }
-function _liveOnValue(s){ _liveVal = s.val() || {}; _liveSyncRace(_liveVal.race); _liveRender(); _liveRaceRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
+function _liveOnValue(s){ _liveVal = s.val() || {}; _liveInfoFix(); _liveSyncRace(_liveVal.race); _liveRender(); _liveRaceRender(); _liveRenderHomeBtn(); if(_liveTest && !_liveTest.done) _liveTestRender(); }
 const _liveNow = function(){ return Date.now() + _liveOffset; };
 
 function _liveRender(){
@@ -311,7 +311,7 @@ function initLiveHomeBtn(){
   window._liveHomeListen = true;
   _liveLoadCore().then(function(){
     if(!_liveRef) _liveRef = firebase.database().ref('live');
-    _liveRef.on('value', function(s){ _liveVal = s.val() || {}; _liveSyncRace(_liveVal.race); _liveRenderHomeBtn(); });
+    _liveRef.on('value', function(s){ _liveVal = s.val() || {}; _liveInfoFix(); _liveSyncRace(_liveVal.race); _liveRenderHomeBtn(); });
   }).catch(function(){});
 }
 
@@ -360,7 +360,7 @@ function _liveRaceRender(){
     h += '<div style="display:flex;gap:8px;margin-top:8px;"><label class="lv-lab">Départ<input id="lv-r-start" type="time" value="' + SuiviRace.start + '"></label>'
       + '<label class="lv-lab" style="flex:2;">Lieu de départ<input id="lv-r-place" type="text" placeholder="ex. Bois de Vincennes" value="' + _prepEsc(SuiviRace.place || '') + '"></label></div>'
       + '<button type="button" class="lv-btn lv-ghost" style="margin-top:6px;" onclick="liveSaveRaceInfo()">Enregistrer départ et lieu</button>'
-      + ((!SuiviGeo.has || (LIVE_INFO[r.id] && !r.place)) && liveRouteOf(r.id) ? '<button type="button" class="lv-btn lv-go" style="margin-top:8px;" onclick="liveUsePresetRoute()">🗺 Utiliser le tracé officiel (déjà dans l\'app)</button>' : '')
+      + (!SuiviGeo.has && liveRouteOf(r.id) ? '<button type="button" class="lv-btn lv-go" style="margin-top:8px;" onclick="liveUsePresetRoute()">🗺 Utiliser le tracé officiel (déjà dans l\'app)</button>' : '')
       + '<label class="lv-btn lv-ghost" style="margin-top:8px;text-align:center;cursor:pointer;">🗺 ' + (SuiviGeo.has ? 'Remplacer le tracé (GPX)' : 'Importer le tracé (fichier GPX)')
       +   '<input type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" style="display:none;" onchange="liveImportGpx(this)"></label>'
       + '<p class="lv-note" style="margin:6px 0 0;">' + (SuiviGeo.has ? 'Tracé de ' + (SuiviGeo.len / 1000).toFixed(2).replace('.', ',') + ' km : position projetée sur le parcours, arrivée détectée automatiquement.'
@@ -387,6 +387,19 @@ const LIVE_ROUTES = {
 };
 // lieu et heure officiels (site de l'organisateur, paris.fr) : repris par la fiche du suivi
 const LIVE_INFO = { 'novembrun-2026': { place: 'Jardins de l\'avenue Foch, Paris 16e', finishPlace: 'Jardins de l\'avenue Foch', start: '10:00' } };
+// fiche déjà préparée avant que le lieu / l'heure officiels soient connus (Novemb'Run : 9h00, sans lieu) : mise à jour une fois,
+// seulement avant le départ ; une modification faite ensuite à la main n'est plus retouchée (marque _info)
+let _liveInfoBusy = false;
+function _liveInfoFix(){
+  const r = (_liveVal && _liveVal.race) || null, info = r && LIVE_INFO[r.id];
+  if(!info || !_liveRef || _liveInfoBusy || (_liveVal.status || 'idle') === 'running' || _liveVal.startedAt) return;
+  const mark = JSON.stringify(info); if(r._info === mark) return;
+  if(typeof isAdmin === 'function' && !isAdmin()) return;
+  const up = Object.assign({ _info: mark }, info);
+  if(!(Array.isArray(r.route) && r.route.length > 1)){ const rt = liveRouteOf(r.id); if(rt) up.route = rt; }
+  _liveInfoBusy = true;
+  _liveRef.child('race').update(up).then(function(){ _liveInfoBusy = false; }, function(){ _liveInfoBusy = false; });
+}
 function liveRouteOf(id){ const r = LIVE_ROUTES[id]; return Array.isArray(r) && r.length > 1 ? r.map(function(p){ return p.slice(); }) : null; }
 async function liveUsePresetRoute(){
   const r = _liveVal.race || {}, route = liveRouteOf(r.id); if(!route) return;
@@ -419,7 +432,7 @@ async function livePrepareRace(){
       });
     }
     const route = liveRouteOf(P.id);                                       // tracé déjà fourni (LIVE_ROUTES)
-    up['live'] = { status: 'idle', race: Object.assign({ place: '', points: [], createdAt: Date.now() }, P, LIVE_INFO[P.id] || {}, route ? { route: route } : {}), ota: cur.ota || null };
+    up['live'] = { status: 'idle', race: Object.assign({ place: '', points: [], createdAt: Date.now() }, P, LIVE_INFO[P.id] ? Object.assign({ _info: JSON.stringify(LIVE_INFO[P.id]) }, LIVE_INFO[P.id]) : {}, route ? { route: route } : {}), ota: cur.ota || null };
     await db.ref().update(up);
     if(typeof _prepIndex !== 'undefined' && _prepIndex) Object.keys(up).forEach(function(k){ const m = k.match(/prep_index\/([^/]+)\/replay$/); if(m && _prepIndex[m[1]]) _prepIndex[m[1]].replay = up[k]; });
     if(typeof showToast === 'function') showToast('Suivi prêt pour ' + P.name);

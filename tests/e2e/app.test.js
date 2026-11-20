@@ -120,6 +120,14 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
     assert.deepEqual(err2, []);
     await ctx2.close();
   }
+  // fiche préparée avant la correction (9h00, sans lieu) : remise au lieu et à l'heure officiels dès l'ouverture de l'app
+  const D2 = JSON.parse(saved); Object.assign(D2.live.race, { start: '09:00' }); delete D2.live.race.place; delete D2.live.race._info;
+  const o3 = await open('2026-11-21T08:00:00+01:00', JSON.stringify(D2));
+  await o3.page.waitForFunction(() => window.__DB.live.race.start === '10:00' && /avenue Foch/.test(window.__DB.live.race.place || ''), null, { timeout: 8000 });
+  await o3.page.evaluate(() => openLivePanel()); await o3.page.waitForSelector('#lv-race .lv-note', { timeout: 8000 });
+  assert.match(await o3.page.textContent('#lv-race'), /départ 10h00/);
+  assert.equal(await o3.page.evaluate(() => !!document.querySelector('#lv-race .lv-go[onclick^="liveUsePresetRoute"]')), false, 'plus de bouton : tout est en place');
+  assert.deepEqual(o3.errors, []); await o3.ctx.close();
   assert.deepEqual(errors, []);
 });
 
