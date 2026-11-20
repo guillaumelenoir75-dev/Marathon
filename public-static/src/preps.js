@@ -457,7 +457,7 @@ async function prepApplyNew(){
 // ─── Prépas prêtes à installer (programme fourni, installé en un appui depuis Mes prépas) ────────────
 const _EF_NR = "5'45 — 6'10 /km";
 const PREPS_READY = [{
-  id: 'novembrun-2026', title: "10km Novemb'Run", course: '10 km', date: '2026-11-22', start: '2026-10-26', target: '00:42:00', km: 10, raceTime: '09:00',
+  id: 'novembrun-2026', title: "10km Novemb'Run", course: '10 km', date: '2026-11-22', start: '2026-10-26', target: '00:42:00', km: 10, raceTime: '10:00',   // départ officiel 10h00 (Jardins de l'avenue Foch)
   weeks: [
     { phase: 'Reprise', sessions: [
       { date: '2026-10-27', type: 'ef', km: 5, t: 'Footing de reprise', x: _EF_NR,
@@ -755,6 +755,7 @@ async function prepDailyTasks(){
   if(!_prepView && typeof sideMigrate === 'function') sideMigrate().catch(function(){});   // historiques lourds sortis de l'état (sync.js)
   if(typeof cpSeed === 'function') cpSeed();   // fiche « Ce que le Coach sait de toi » + prénom pour le serveur (coach-profile.js)
   if(typeof bsSleepDaily === 'function') bsSleepDaily();   // historique des nuits + besoin de sommeil appris (rappel de 21h)
+  try { prepRaceTimeFix(); } catch(e) { diagSilent(e, 'preps:prepRaceTimeFix'); }   // heure de départ officielle de la course
   if(_prepDailyBusy || typeof firebaseReady === 'undefined' || !firebaseReady) return;
   _prepDailyBusy = true;
   try { await _prepSeedNext(); } catch(e) { console.warn('[prépa] à venir', e); }
@@ -780,6 +781,25 @@ async function prepDailyTasks(){
   if(typeof alcMaybeAsk === 'function') alcMaybeAsk();
 }
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(prepDailyTasks, 1500); });
+
+// Heure de départ officielle d'une prépa fournie (PREPS_READY.raceTime) remise sur la séance « course » déjà installée,
+// une fois par heure connue (Novemb'Run : 9h00 → 10h00) ; une heure choisie ensuite à la main n'est plus retouchée
+function prepRaceTimeFix(){
+  if(_prepView || typeof isAdmin !== 'function' || !isAdmin()) return;
+  const R = PREPS_READY.find(function(x){ return x.id === (state.onboarding || {})._import; });
+  if(!R || !R.raceTime) return;
+  const mark = R.id + '@' + R.raceTime; if(state._race_time_fix === mark) return;
+  const up = { _race_time_fix: mark };
+  Object.keys(state).forEach(function(k){
+    if(!/^extra_w\d+_s\d+$/.test(k)) return;
+    let x; try { x = JSON.parse(state[k]); } catch(e) { return; }
+    if(!x || x.type !== 'race' || x.sched_date !== R.date) return;
+    if(x.sched_time !== R.raceTime){ x.sched_time = R.raceTime; up[k] = JSON.stringify(x); }
+    let sc = null; try { sc = JSON.parse(state[k + '_sched'] || 'null'); } catch(e) {}
+    if(sc && sc.time && sc.time !== R.raceTime){ sc.time = R.raceTime; up[k + '_sched'] = JSON.stringify(sc); }
+  });
+  Object.assign(state, up); if(dbRef) dbRef.update(up).catch(function(){});
+}
 
 // Consignes courtes (allure d'abord) pour les séances déjà installées de Novemb'Run — une seule fois
 function prepShortDescV1(){

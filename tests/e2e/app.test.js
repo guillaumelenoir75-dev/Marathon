@@ -92,14 +92,19 @@ test('ancienne prépa Seine-Eure convertie au format du programme : tous les éc
 
 test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé officiel déjà fourni, page publique des amis sur ce parcours', async () => {
   assert.ok(savedDb, 'dépend du premier test');
-  const { ctx, page, errors } = await open('2026-11-20T18:00:00+01:00', savedDb);
+  // séance « course » installée avant la correction : départ à 9h00 → remis à l'heure officielle (10h00)
+  const D = JSON.parse(savedDb), S = D.users.ADMINUID.state;
+  const rk = Object.keys(S).find((k) => /^extra_w\d+_s\d+$/.test(k) && JSON.parse(S[k]).type === 'race');
+  S[rk] = JSON.stringify(Object.assign(JSON.parse(S[rk]), { sched_time: '09:00' })); delete S._race_time_fix;
+  const { ctx, page, errors } = await open('2026-11-20T18:00:00+01:00', JSON.stringify(D));
+  await page.waitForFunction((k) => JSON.parse(window.__DB.users.ADMINUID.state[k]).sched_time === '10:00', rk, { timeout: 8000 });
   await page.evaluate(() => openLivePanel());
   await page.waitForSelector('#lv-race .lv-go', { timeout: 8000 });
   assert.match(await page.textContent('#lv-race .lv-go'), /Novemb/);
   await page.click('#lv-race .lv-go'); await page.waitForTimeout(1500);
-  const L = await page.evaluate(() => { const r = window.__DB.live.race; return { id: r.id, name: r.name, date: r.date, start: r.start, official: r.official, n: (r.route || []).length,
+  const L = await page.evaluate(() => { const r = window.__DB.live.race; return { id: r.id, name: r.name, date: r.date, start: r.start, place: r.place, official: r.official, n: (r.route || []).length,
     has: SuiviGeo.has, len: Math.round(SuiviGeo.len), arch: Object.keys(window.__DB.live_archive || {}) }; });
-  assert.equal(L.id, 'novembrun-2026'); assert.match(L.name, /Novemb/); assert.equal(L.date, '2026-11-22'); assert.equal(L.start, '09:00');
+  assert.equal(L.id, 'novembrun-2026'); assert.match(L.name, /Novemb/); assert.equal(L.date, '2026-11-22'); assert.equal(L.start, '10:00', 'départ officiel'); assert.match(L.place, /avenue Foch/);
   assert.equal(L.official, 10000); assert.ok(L.n > 100, 'tracé officiel posé tout seul : ' + L.n + ' points');
   assert.ok(L.has && Math.abs(L.len - 10000) < 150, 'parcours de ' + L.len + ' m');
   const saved = await db(page); await ctx.close();
