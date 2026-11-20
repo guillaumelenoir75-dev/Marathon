@@ -1,7 +1,7 @@
 // Page publique /suivi-guillaume : carte du parcours et position de Guillaume en direct (lecture seule de /live).
 
 const SuiviView = (function(){
-  let live = {}, offset = 0, map = null, me = null, meLL = null, trail = null, follow = true, passedL = null, routeL = null;
+  let live = {}, offset = 0, moved = false, map = null, me = null, meLL = null, trail = null, follow = true, passedL = null, routeL = null;
   const SV2 = typeof document !== 'undefined' && !!document.getElementById('sv2');   // page des amis (/suivi-guillaume) : avant / pendant / après
   const $ = function(id){ return document.getElementById(id); };
   const now = function(){ return Date.now() + offset; };
@@ -44,9 +44,12 @@ const SuiviView = (function(){
     if(!window.L){ $('map').innerHTML = '<p class="nomap">Carte indisponible (pas de connexion).</p>'; return; }
     $('map').innerHTML = '';
     map = L.map('map', { zoomControl: true, zoomSnap: 0.25 });
-    if(SV2) L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd', maxZoom: 19 }).addTo(map);
-    else L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19 }).addTo(map);
+    // fond OpenStreetMap partout (les fonds sombres CARTO exigent désormais une clé) ; la page des amis l'assombrit en CSS (.leaflet-tile-pane)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19 }).addTo(map);
     const R = SuiviGeo.route, off = suiviOff();
+    // départ et arrivée proches (< 400 m) : « Départ » au-dessus de son point, « Arrivée » en dessous, sans se chevaucher
+    const fin = SuiviRace.points.filter(function(p){ return p.id === 'finish' && p.coord; })[0];
+    const closeSF = !!(SuiviGeo.has && fin && L.latLng(R[0]).distanceTo(L.latLng(fin.coord)) < 400);
     passedL = L.polyline([], { color: SV2 ? '#E0603A' : '#15803D', weight: 6, opacity: 1, interactive: false });
     trail = L.polyline([], { color: SV2 ? '#E0603A' : '#1D4ED8', weight: 4, opacity: 0.85, interactive: false }).addTo(map);
     if(SuiviGeo.has){
@@ -60,22 +63,27 @@ const SuiviView = (function(){
         L.marker(SuiviGeo.pointAt(k * 1000 / SuiviGeo.scale), { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11],
           html: '<div class="kmb">' + k + '</div>' }) }).addTo(map);
       }
-      L.marker(R[0], { keyboard: false, icon: L.divIcon({ className: '', iconSize: [64, 24], iconAnchor: [32, 12], html: '<div class="flag start">Départ</div>' }) })
+      L.marker(R[0], { keyboard: false, icon: L.divIcon({ className: '', iconSize: [64, 24], iconAnchor: closeSF ? [32, 30] : [32, 12], html: '<div class="flag start">Départ</div>' }) })
         .bindPopup('<b>Départ</b>' + (SuiviRace.place ? ' · ' + SuiviRace.place : '') + ', ' + startTxt()).addTo(map);
     }
     SuiviRace.points.forEach(function(pt){
       if(!pt.coord) return;
       const lab = pt.id === 'finish' ? '🏁 Arrivée' : pt.id === 'km30' && SuiviRace.seineEure ? '🏠 km 30' : (pt.short || 'km ' + String(pt.km).replace('.', ','));
-      L.marker(pt.coord, { keyboard: false, zIndexOffset: 300, icon: L.divIcon({ className: '', iconSize: [86, 24], iconAnchor: [43, 12], html: '<div class="flag ' + pt.id + '">' + lab + '</div>' }) })
+      L.marker(pt.coord, { keyboard: false, zIndexOffset: 300, icon: L.divIcon({ className: '', iconSize: [86, 24], iconAnchor: closeSF && pt.id === 'finish' ? [43, -6] : [43, 12], html: '<div class="flag ' + pt.id + '">' + lab + '</div>' }) })
         .bindPopup('<b>' + (pt.label || lab) + '</b>' + (pt.lieu ? '<br>' + pt.lieu : '') + (pt.prevu ? '<br>Passage prévu ' + pt.prevu.replace(':', 'h') : '')).addTo(map);
     });
     if(SuiviGeo.has) map.fitBounds(L.polyline(R).getBounds(), { padding: [20, 20] });
     else map.setView([46.6, 2.4], 5);                    // sans tracé : la carte se centre sur Guillaume dès sa première position
-    map.on('dragstart', function(){ follow = false; $('b-follow').hidden = false; });
+    // « Centrer sur lui » seulement quand sa position est connue ; carte déplacée à la main = plus recadrée toute seule
+    map.on('dragstart', function(){ follow = false; moved = true; $('b-follow').hidden = !meLL; });
+    // taille de la carte changée (avant → pendant, police chargée, rotation) : Leaflet remis à la taille, parcours recadré si personne n'a bougé la carte
+    if(typeof ResizeObserver !== 'undefined') new ResizeObserver(function(){
+      if(!map) return; map.invalidateSize(); if(!moved && SuiviGeo.has && !(follow && meLL)) map.fitBounds(L.polyline(R).getBounds(), { padding: [20, 20] });
+    }).observe($('map'));
   }
   function center(){ follow = true; $('b-follow').hidden = true; if(meLL) map.setView(meLL, Math.max(map.getZoom(), 14)); }
   function whole(){
-    follow = false; $('b-follow').hidden = !meLL;
+    follow = false; moved = false; $('b-follow').hidden = !meLL;
     const pts = SuiviGeo.has ? SuiviGeo.route : trail.getLatLngs();
     if(pts.length > 1) map.fitBounds(L.polyline(pts).getBounds(), { padding: [20, 20] }); else if(meLL) map.setView(meLL, 14);
   }

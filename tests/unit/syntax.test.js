@@ -49,3 +49,12 @@ test('aucune fonction globale définie deux fois (bundle et modules à la demand
   });
   assert.deepEqual(bad, []);
 });
+
+test('page des amis : fond de carte sans clé (OpenStreetMap assombri), « Centrer sur lui » seulement avec une position', () => {
+  const v = fs.readFileSync(path.join(SRC, 'suivi-view.js'), 'utf8');
+  const h = fs.readFileSync(path.join(SRC, '..', 'suivi-guillaume.html'), 'utf8');
+  assert.ok(!/cartocdn/.test(v), 'les fonds CARTO exigent une clé : « API KEY REQUIRED » sur la carte');
+  assert.match(h, /\.leaflet-tile-pane\{filter:invert\(1\)/, 'fond OpenStreetMap assombri en CSS');
+  assert.match(v, /dragstart[^\n]*b-follow'\)\.hidden = !meLL/, 'pas de « Centrer sur lui » avant le départ');
+  assert.match(v, /closeSF/, 'départ et arrivée proches : étiquettes séparées');
+});
