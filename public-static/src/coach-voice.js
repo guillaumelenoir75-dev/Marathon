@@ -296,6 +296,8 @@ function _cvHush(){ if(!_cv) return; _cvBargeStop(); _cvStopGoogle(); _cv.q = []
 // renvoie rien alors que tu parles, la fin du tour vient du silence mesuré au micro.
 function cvListen(auto){
   if(!_cv || _cv.closed) return;
+  if(auto && _cv.editing) return;   // phrase en cours de correction dans le champ : le micro ne se rouvre pas tout seul
+  if(!auto) _cv.editing = false;
   const R = _cvRecClass(), G = _cvSttOn();
   if(!R && !G){ _cvSet('idle'); return; }
   _cvBargeStop(); _cvMicStop();
@@ -434,6 +436,7 @@ function _cvCo(text){ const co = document.querySelector('#cv-ov .cv-co'); if(co)
 // question → Coach (mode voix) ; chaque phrase reçue part tout de suite à la lecture
 function cvAsk(text, shown, direct){
   if(!_cv || !text) return;
+  _cv.editing = false;
   try { if(_cv.rec) _cv.rec.abort(); } catch(e) {}
   _cv.finish = null; _cvMicStop();
   try { if(_cv.ac && _cv.ac.state !== 'running' && _cv.ac.resume) _cv.ac.resume(); } catch(e) {}   // micro coupé : son réveillé pour la réponse
@@ -917,6 +920,7 @@ function cvEditYou(){
   const you = document.querySelector('#cv-ov .cv-you'); if(!you || !you.textContent.trim()) return;
   if(_cv.st === 'listen'){ try { if(_cv.rec){ const r = _cv.rec; _cv.rec = null; r.abort(); } } catch(e) {} _cv.finish = null; _cvMicStop(); _cvSet('idle'); }   // micro rouvert : on l'arrête pour corriger
   const i = document.getElementById('cv-in'); if(!i) return;
+  _cv.editing = true;
   i.value = you.textContent; i.focus(); try { i.setSelectionRange(0, i.value.length); } catch(e) {}
   _cvSet(_cv.st === 'speak' ? 'speak' : 'idle', 'Corrige ta phrase en bas puis Envoyer');
 }

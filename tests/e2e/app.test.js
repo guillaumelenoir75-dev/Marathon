@@ -259,6 +259,9 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
   await page.click('#cv-ov .cv-you');
   assert.equal(await page.inputValue('#cv-in'), "Note que j'ai mal au mollet gauche");
   assert.equal(await page.evaluate(() => _cv.st), 'idle');
+  // la réécoute automatique prévue juste avant (350 ms) ne rouvre pas le micro pendant la correction
+  await page.evaluate(() => cvListen(true)); await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => _cv.st), 'idle', 'micro gardé fermé pendant la correction');
   // 💬 = fil écrit (briefs, Mon plan) ; réglage « l'onglet Coach ouvre le fil écrit »
   await page.click('#cv-ov .cv-txt');
   assert.equal(await page.evaluate(() => !document.getElementById('cv-ov') && getComputedStyle(document.getElementById('sc-coach')).display !== 'none'), true, 'fil écrit ouvert');
