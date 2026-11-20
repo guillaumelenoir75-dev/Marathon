@@ -276,7 +276,7 @@ function onPaceInput(el){
 // En production, window.LAZY_BUNDLES (injecté par vite.config.js) donne le fichier minifié de chaque groupe ;
 // en développement, les fichiers sources sont chargés un par un. Les points d'entrée ci-dessous sont remplacés par
 // les vraies fonctions dès que le module est chargé (déclarations globales du même nom).
-const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'], season: ['season.js'], renfo: ['renfo-guide.js'], predict: ['predict-ui.js'], review: ['plan-review-ui.js'], share: ['week-share-ui.js'], charts: ['body-signals-ui.js'], alcui: ['alcohol-ui.js'], raui: ['race-analysis-ui.js'], voice: ['coach-voice.js'], cquality: ['coach-quality-ui.js'], selftest: ['selftest-ui.js'] };
+const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'], season: ['season.js'], renfo: ['renfo-guide.js'], predict: ['predict-ui.js'], review: ['plan-review-ui.js'], share: ['week-share-ui.js'], charts: ['body-signals-ui.js'], alcui: ['alcohol-ui.js'], raui: ['race-analysis-ui.js'], voice: ['coach-voice.js'], cquality: ['coach-quality-ui.js'], selftest: ['selftest-ui.js'], pisteui: ['piste-ui.js'] };
 const _lazyP = {};
 function lazyLoad(g){
   if(_lazyP[g]) return _lazyP[g];
@@ -296,6 +296,7 @@ function openNextRace(){ return _lazyCall('nextrace', 'openNextRace', openNextRa
 // écrans rares sortis du démarrage (fichiers *-ui.js) : la vraie fonction remplace ce point d'entrée une fois chargée
 function openCoachQuality(){ return _lazyCall('cquality', 'openCoachQuality', openCoachQuality, arguments); }
 function openSelfTest(){ return _lazyCall('selftest', 'openSelfTest', openSelfTest, arguments); }
+function phFormOpen(){ return _lazyCall('pisteui', 'phFormOpen', phFormOpen, arguments); }
 function openMarathonPredModal(){ return _lazyCall('predict', 'openMarathonPredModal', openMarathonPredModal, arguments); }
 function openDistancePredModal(){ return _lazyCall('predict', 'openDistancePredModal', openDistancePredModal, arguments); }
 function openPlanReview(){ return _lazyCall('review', 'openPlanReview', openPlanReview, arguments); }

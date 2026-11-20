@@ -6,25 +6,78 @@ const { loadApp, synthPlan } = require('../helpers/frontend');
 
 const J = (o) => JSON.parse(JSON.stringify(o));
 
-test('en-tête : salutation, J-x, date de course, part des km, anneau proportionnel', () => {
+test('en-tête apaisé : salutation, date sans heure, J-x, jour de la course en mots, une phrase pour le temps prévu', () => {
   const app = loadApp({ now: '2026-11-03T19:12:00+01:00', state: synthPlan({ start: '2026-11-02', km: [24, 28, 30] }) });
   assert.equal(app.phGreet(7 * 60), 'Bonjour'); assert.equal(app.phGreet(19 * 60), 'Bonsoir'); assert.equal(app.phGreet(2 * 60), 'Bonsoir');
-  const V = J(app.phView({ name: 'Léa', race: { date: '2026-11-22', label: "10 km Novemb'Run" }, pct: 78.4, obj: "41'40", pred: "42'10", form: 72.4 }, '2026-11-03', 19 * 60 + 12));
+  const V = J(app.phView({ name: 'Léa', race: { date: '2026-11-22', time: '09:00', label: "10 km Novemb'Run" }, pct: 78.4, obj: "41'40", pred: "42'10", form: 72.4 }, '2026-11-03', 19 * 60 + 12));
   assert.equal(V.greet, 'Bonsoir Léa');
-  assert.match(V.eyebrow, /^Mardi 3 nov\.? · 19:12$/);
-  assert.equal(V.big, 'J-19'); assert.equal(V.ring, true);
-  assert.match(V.sub, /^Dim\.? 22 nov\.? · 78 % des km faits$/);
+  assert.match(V.eyebrow, /^Mardi 3 nov\.?$/, 'plus d\'heure dans l\'en-tête');
+  assert.equal(V.big, 'J-19'); assert.equal(V.card, true);
+  assert.match(V.when, /^Dimanche 22 nov\.? à 9h00$/);
+  assert.equal(V.prog, 'Prépa faite à 78 %'); assert.equal(V.pct, 78);
+  assert.equal(V.line, "Tu es prévu en <b>42'10</b>, pour un objectif de 41'40."); assert.equal(V.why, true);
   assert.equal(V.form, '72'); assert.equal(V.formCls, 'ok');
-  assert.equal(V.dash, app.phRingDash(78));
-  assert.equal(app.phRingDash(0), 0); assert.equal(app.phRingDash(150), app.phRingDash(100));
-  assert.ok(Math.abs(app.phRingDash(100) - (2 * 140 + Math.PI * 174)) < 1, 'tour complet = périmètre de la piste');
-  // jour J, après la course, sans course, forme en attente du réveil
+  // course cette semaine : le jour seulement ; demain ; aujourd'hui ; sans temps prévu
+  assert.equal(app.phWhen('2026-11-08', '09:00', '2026-11-03'), 'Dimanche à 9h00');
+  assert.equal(app.phWhen('2026-11-04', '', '2026-11-03'), 'Demain');
+  assert.equal(app.phWhen('2026-11-03', '10:30', '2026-11-03'), 'Aujourd\'hui à 10h30');
+  assert.equal(app.phView({ obj: "41'40", race: { date: '2026-11-22' } }, '2026-11-03', 600).line, "Ton objectif : <b>41'40</b>.");
+  assert.equal(app.phView({ pred: "<x>" }, '2026-11-03', 600).line, 'Tu es prévu en <b>&lt;x&gt;</b>.', 'texte échappé');
+  // jour J, après la course, sans course, mode plaisir, forme en attente
   assert.equal(app.phView({ race: { date: '2026-11-03' } }, '2026-11-03', 600).big, 'Jour J');
-  assert.equal(app.phView({ race: { date: '2026-11-01' } }, '2026-11-03', 600).big, 'J+2');
-  assert.equal(app.phView({}, '2026-11-03', 600).ring, false);
-  assert.equal(app.phView({ race: { date: '2026-11-22' }, plaisir: true }, '2026-11-03', 600).ring, false);
+  const P = J(app.phView({ race: { date: '2026-11-01' } }, '2026-11-03', 600)); assert.equal(P.big, 'J+2'); assert.equal(P.prog, 'Prépa bouclée');
+  assert.equal(app.phView({}, '2026-11-03', 600).card, false);
+  assert.equal(app.phView({ race: { date: '2026-11-22' }, plaisir: true }, '2026-11-03', 600).card, false);
   assert.equal(app.phView({ form: 80, formWait: true }, '2026-11-03', 600).form, '…');
   assert.equal(app.phView({ form: 20 }, '2026-11-03', 600).formCls, 'low');
+});
+
+test('étape du moment en clair : « CE SOIR · 18H00 », séance · km, allure et chaussure en une phrase, bouton annoncé', () => {
+  const app = loadApp({ now: '2026-11-03T12:00:00+01:00', state: synthPlan({ start: '2026-11-02', km: [24] }) });
+  const s = { kind: 'sess', t: 'Footing EF', s: "4 km · 5'45/km", tm: '18:00', at: 18 * 60, shoe: 'Evo SL', btn: '🏁 J\'ai fini' };
+  const a = J(app.phNowView(s, 13 * 60));
+  assert.equal(a.eb, 'CE SOIR · 18H00'); assert.equal(a.title, 'Footing EF · 4 km');
+  assert.equal(a.sub, "À 5'45/km, avec les Evo SL");
+  assert.equal(a.hint, 'Le bouton « J\'ai fini » apparaît à 17h30'); assert.equal(a.btn, false);
+  const b = J(app.phNowView(s, 17 * 60 + 50));
+  assert.equal(b.eb, 'MAINTENANT · 18H00'); assert.equal(b.btn, true); assert.equal(b.hint, '');
+  assert.equal(app.phNowView(Object.assign({}, s, { tm: '07:00', at: 7 * 60 }), 5 * 60).eb, 'CE MATIN · 7H00');
+  assert.equal(app.phNowView(Object.assign({}, s, { s: '6 km · ~40 min', shoe: null }), 13 * 60).sub, 'Environ 40 min');
+  assert.equal(app.phNowView(s, 20 * 60 + 30).eb, 'À VALIDER · 18H00');
+  const w0 = J(app.phNowView({ kind: 'x', t: 'Je suis réveillé', s: 'Lance la synchro', at: 300, btn: 'Réveillé' }, 420));
+  assert.equal(app.phNowView({ kind: 'x', t: 'Renfo', tm: '18:30', at: 18 * 60 + 30, btn: '▶ Guidée' }, 7 * 60).eb, 'CE SOIR · 18H30', 'plus tard dans la journée : le moment, pas « Ensuite »');
+  const w = w0;
+  assert.equal(w.eb, 'MAINTENANT'); assert.equal(w.title, 'Je suis réveillé'); assert.equal(w.btn, true);
+});
+
+test('forme du jour : une note + une phrase ; chaque mesure de la nuit expliquée par rapport à tes 30 dernières nuits', () => {
+  const st = synthPlan({ start: '2026-11-02', km: [24] });
+  const rec = [];
+  for (let i = 1; i <= 20; i++) { const d = new Date('2026-11-20T12:00:00'); d.setDate(d.getDate() - i); const iso = d.toISOString().slice(0, 10); st['fc_repos_' + iso] = 52; rec.push({ date: iso, score: 60, hrv: 80 }); }
+  rec.push({ date: '2026-11-20', score: 93, hrv: 86 }); st['fc_repos_2026-11-20'] = 50;
+  st.whoop_data = { recoveries: rec, sleeps: [] };
+  const app = loadApp({ now: '2026-11-20T12:00:00+01:00', state: st });
+  assert.deepEqual(J(app.phFormHead(88, true)), { t: 'Bonne forme', s: 'Feu vert pour ta séance.' });
+  assert.equal(app.phFormHead(50).t, 'Forme moyenne'); assert.equal(app.phFormHead(20).t, 'Récupération insuffisante');
+  assert.equal(app.phFormLine(88, 0), 'Bien récupéré, pas d\'alcool hier soir.');
+  assert.equal(app.phFormLine(50, 4), 'Récupération moyenne, alcool hier soir (4/10).');
+  assert.equal(app.phFormLine(20, null), 'Peu récupéré.');
+  const B = J(app.phMeasureBase(st, '2026-11-20'));
+  assert.equal(B.rhr, 52); assert.equal(B.hrv, 80, 'la nuit du jour n\'entre pas dans tes repères');
+  const M = J(app.phMeasures({ r: { score: 93, hrv: 86 }, s: { performance_pct: 86 }, fc: 50 }, B));
+  assert.deepEqual(M.map((m) => m.t), ['Récupération', 'Sommeil', 'Pouls au repos', 'Variabilité cardiaque']);
+  assert.equal(M[0].txt, 'Ton corps a bien récupéré cette nuit.'); assert.equal(M[0].v, '93 %'); assert.equal(M[0].c, 'ok');
+  assert.equal(M[1].txt, 'Presque tout le sommeil dont tu avais besoin.');
+  assert.equal(M[2].txt, '2 battements de moins que d\'habitude : bon signe.'); assert.equal(M[2].v, '50');
+  assert.equal(M[3].txt, 'Au-dessus de ta moyenne : tu es reposé.'); assert.equal(M[3].v, '86 ms');
+  const M2 = J(app.phMeasures({ r: { score: 30, hrv: 60 }, s: { performance_pct: 62 }, fc: 58 }, B));
+  assert.equal(M2[0].txt, 'Peu récupéré : privilégie le calme.'); assert.equal(M2[1].txt, 'Nuit courte : couche-toi plus tôt ce soir.');
+  assert.equal(M2[2].txt, '6 battements de plus que d\'habitude : fatigue possible.'); assert.equal(M2[2].c, 'low');
+  assert.equal(M2[3].txt, 'Bien sous ta moyenne : fatigue possible.');
+  assert.equal(app.phMeasures({ fc: 52 }, B)[0].txt, 'Comme d\'habitude.');
+  assert.equal(app.phMeasures({ fc: 53 }, B)[0].txt, '1 battement de plus que d\'habitude.');
+  assert.equal(app.phMeasures({ fc: 50 }, {})[0].txt, 'Ton pouls au repos cette nuit.', 'sans repères : pas de comparaison inventée');
+  assert.equal(app.phMeasureBase({}, '2026-11-20').rhr, null, 'moins de 5 nuits : pas de repère');
 });
 
 test('nom de la course : distance ajoutée une seule fois ; temps au format 41\'40 / 3h29\'45', () => {

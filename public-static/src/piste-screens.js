@@ -87,6 +87,7 @@ function psPlanRender(){
         + '<span class="ps-mid"><span class="ps-t">' + (D.done ? '<i class="ps-ok" aria-hidden="true">✓</i>' : '') + _psE(D.title) + '</span><span class="ps-bar"><i style="width:' + D.pct + '%"></i></span></span>'
         + '<span class="ps-kmd">' + (D.km ? _psKm(D.km) + ' km' : '—') + '</span></button>'; }).join('') + '</div>';
     h += psDayCard(L, L.days[_psPlan.day], today);
+    h += '<button type="button" class="ps-rf" onclick="showScreen(\'renfo\')"><span><b>Renforcement de la semaine</b><small>Exercices et séance guidée</small></span><i aria-hidden="true">›</i></button>';   // l'onglet Renfo est retiré en piste
     h += '<p class="ps-sec">Toutes les semaines</p>';
     el.innerHTML = h;
     const on = el.querySelector('.ps-wk.on'); if(on && on.scrollIntoView && !_psPlan.scrolled){ _psPlan.scrolled = true; try { on.parentNode.scrollLeft = on.offsetLeft - 16; } catch(e) {} }
@@ -269,6 +270,7 @@ function _psCss(){
   st.textContent =
     // Plan
     P + ' #sc-plan > #plan-hero{display:none;}' + P + ' #plan-list{margin-top:0!important;}'
+    + '.ps-rf{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;border:none;border-radius:20px;background:#111A2E;box-shadow:0 8px 22px rgba(0,0,0,.35);color:#EEF1F8;font:inherit;text-align:left;padding:0 18px;cursor:pointer;}.ps-rf span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}.ps-rf b{font-size:15px;font-weight:700;}.ps-rf small{font-size:13px;color:#7C87A3;}.ps-rf i{font-style:normal;font-size:20px;color:#7C87A3;}'
     + '#plan-piste{flex-direction:column;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px 0;color:#F2F4F8;}'
     + '.ps-hd{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;}.ps-hd>div{min-width:0;}'
     + '.ps-eb{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#E0603A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'

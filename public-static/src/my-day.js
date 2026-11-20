@@ -110,7 +110,7 @@ function mjSteps(st, today, nowMin){
     const day = d === 1 ? 'Demain' : (MJ_DAYS[new Date(next.x.sched_date + 'T12:00:00').getDay() || 7] + ' ' + new Date(next.x.sched_date + 'T12:00:00').getDate());
     const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(next.title, next.type, next.detail) : next.title;
     out.push({ id: 'next', ic: '📅', t: day + (tm ? ' ' + tm.replace(/^0(\d)/, '$1').replace(':', 'h') : '') + ' · ' + title, s: next.kmPlan ? next.kmPlan + ' km' : '',
-      at: 23 * 60 + 50, done: false, soft: true, info: true, act: 'homeNextGo(' + next.w + ',' + next.ei + ')' });
+      at: 23 * 60 + 50, done: false, soft: true, info: true, act: 'homeNextGo(' + next.w + ',' + next.ei + ')', date: next.x.sched_date, type: next.type, day: day, title: title, tm: tm });
   }
   out.sort(function(a, b){ return a.at - b.at; });
   // étape « maintenant » : la première non faite, hors repères (coucher / demain seulement le soir ou quand tout est fait)

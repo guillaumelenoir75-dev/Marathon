@@ -31,6 +31,7 @@ const lazyGroups = {
   voice: ['coach-voice.js'],                                  // Coach › parler à la voix
   cquality: ['coach-quality-ui.js'],                          // Diagnostic › Qualité du Coach
   selftest: ['selftest-ui.js'],                               // Diagnostic › Tester l'app
+  pisteui: ['piste-ui.js'],                                   // Piste de nuit › détail de la forme du jour
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

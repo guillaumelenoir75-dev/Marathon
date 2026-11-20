@@ -22,7 +22,7 @@ const SR_ITEMS = [
   { id: 'weather', ic: '🌤️', t: 'Météo', g: 'Accueil', k: 'meteo temperature pluie vent chaleur', fn: 'openHomeWeatherModal', run: function(){ openHomeWeatherModal(); } },
   { id: 'sleep', ic: '🌙', t: 'Ta nuit · heure de coucher', g: 'Accueil', k: 'sommeil coucher dormir reveil nuit', fn: 'openSleepPlan', run: function(){ openSleepPlan(); } },
   // statistiques
-  { id: 'forme', ic: '💚', t: 'Forme du jour', g: 'Statistiques › Forme', k: 'forme recuperation whoop sommeil vfc fc repos score', fn: 'statsTab', run: _srStats('forme') },
+  { id: 'forme', ic: '💚', t: 'Forme du jour', g: 'Statistiques › Forme', k: 'forme recuperation whoop sommeil vfc fc repos score', fn: 'statsTab', run: function(){ if(typeof phIsOn === 'function' && phIsOn() && typeof phFormOpen === 'function') phFormOpen(); else _srStats('forme')(); } },
   { id: 'level', ic: '🎚️', t: 'Niveau du moment', g: 'Statistiques', k: 'niveau vdot progression evolution', fn: 'openLevelChart', run: function(){ openLevelChart(); } },
   { id: 'paces', ic: '📈', t: 'Évolution de mes allures', g: 'Statistiques › Entraînement', k: 'allure ef progression graphique 5 km 10 km semi marathon tempo seuil vma', fn: 'openPaceChart', run: function(){ openPaceChart(); } },
   { id: 'zones', ic: '🫀', t: 'Zones FC et allures', g: 'Statistiques › Entraînement', k: 'zones cardiaque frequence fc allures z2 endurance', fn: 'statsTab', run: _srStats('train', 'bs-stats-card') },

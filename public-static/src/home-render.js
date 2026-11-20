@@ -993,6 +993,7 @@ function homeNextCard(){
 }
 // toucher la carte : la séance dans la liste de la semaine, mise en évidence
 function homeNextGo(w, ei){
+  if(typeof phUnfold === 'function') phUnfold();                    // Piste de nuit : séances faites repliées
   if(homeViewWeek !== w){ homeViewWeek = w; rendered.home = false; renderHome(); }
   const c = document.getElementById('hs-' + w + '-' + ei); if(!c) return;
   if(c.style.display === 'none'){ const r = c.previousElementSibling; if(r && r.classList.contains('hs-row')) homeSessToggle(r); }

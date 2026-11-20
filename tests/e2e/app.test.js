@@ -1122,13 +1122,15 @@ test('Piste de nuit · ouverture : forme du jour jamais dessinée avant la fin d
       document.addEventListener('DOMContentLoaded', hook);
     } });
   assert.deepEqual((await page.evaluate(() => window.__FORM)).filter((x) => !x), [], 'aucun rendu de la forme du jour avant la fin du démarrage (valeur d\'hier)');
-  const box = () => page.evaluate(() => { const f = document.querySelector('#home-form-card .pd-form'); return { cls: f.className, h: Math.round(f.getBoundingClientRect().height), d: getComputedStyle(f).display, mini: f.querySelectorAll('.pd-mini span').length, shadow: getComputedStyle(f).boxShadow }; });
+  // accueil apaisé : la forme du jour est une ligne de « Aujourd'hui » (#ph-fr) ; la grande carte est retirée
+  const box = () => page.evaluate(() => { const f = document.querySelector('#ph-fr .ph-fr'), c = document.querySelector('#home-form-card .pd-form'); return { cls: f.className, h: Math.round(f.getBoundingClientRect().height), txt: f.textContent, card: c ? getComputedStyle(c).display : 'none' }; });
   const L = await box();
-  assert.match(L.cls, /load/); assert.equal(L.d, 'grid'); assert.equal(L.mini, 4); assert.match(L.shadow, /rgba\(0, 0, 0/);
+  assert.match(L.cls, /load/); assert.match(L.txt, /Mise à jour de ta nuit/); assert.equal(L.card, 'none');
   release();
-  await page.waitForFunction(() => !document.querySelector('#home-form-card .pd-form.load'), null, { timeout: 8000 });
+  await page.waitForFunction(() => document.querySelector('#ph-fr .ph-fr') && !document.querySelector('#ph-fr .ph-fr.load'), null, { timeout: 8000 });
   const F = await box();
-  assert.equal(F.d, 'grid'); assert.ok(Math.abs(F.h - L.h) <= 8, 'même hauteur : ' + L.h + ' → ' + F.h);
+  assert.match(F.cls, /ok|mid|low/); assert.match(F.txt, /forme|Récupération/i); assert.equal(F.card, 'none');
+  assert.ok(Math.abs(F.h - L.h) <= 4, 'même hauteur : ' + L.h + ' → ' + F.h);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
@@ -1443,7 +1445,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   await o.ctx.close();
 });
 
-test('thème « Piste de nuit » : 4e choix, bleu nuit + orange, accueil avec anneau J-x, Maintenant, pastilles de l\'en-tête', async () => {
+test('thème « Piste de nuit » : accueil apaisé — Ta course, Outils repliés, Aujourd\'hui, Ensuite, semaine repliée, 5 onglets, détail de la forme', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const { ctx, page, errors } = await open('2026-11-03T19:12:00+01:00', savedDb, { init: () => { localStorage.setItem('pm_theme', 'piste'); } });
   await page.evaluate(() => { showScreen('home'); renderHome(); }); await page.waitForTimeout(600);
@@ -1451,56 +1453,84 @@ test('thème « Piste de nuit » : 4e choix, bleu nuit + orange, accueil avec an
     theme: document.documentElement.dataset.theme, piste: document.documentElement.dataset.piste,
     body: getComputedStyle(document.body).backgroundColor,
     hero: getComputedStyle(document.getElementById('home-hero')).display, ph: getComputedStyle(document.getElementById('home-piste')).display,
+    eb: (document.querySelector('#home-piste .ph-eb') || {}).textContent,
     big: (document.querySelector('#home-piste .ph-big') || {}).textContent, race: (document.querySelector('#home-piste .ph-race') || {}).textContent,
-    tiles: [...document.querySelectorAll('#home-piste .ph-tile small')].map((e) => e.textContent),
-    dash: (document.querySelector('#home-piste .ph-prog') || { getAttribute: () => '' }).getAttribute('stroke-dasharray'),
+    prog: (document.querySelector('#home-piste .ph-pgt') || {}).textContent, line: (document.querySelector('#home-piste .ph-pl') || {}).textContent || '',
     greet: (document.querySelector('#home-piste .ph-hi') || {}).textContent,
-    chips: [...document.querySelectorAll('#ph-chips > [id]')].map((e) => e.id),
+    chips: [...document.querySelectorAll('#ph-chips > [id]')].map((e) => e.id), chipsHidden: document.getElementById('ph-chips').hidden,
+    tiles: document.querySelectorAll('#home-piste .ph-tile').length,
+    fr: !!document.querySelector('#home-day-card #ph-fr'), calm: document.getElementById('sc-home').classList.contains('ph-calm'),
+    card: [...document.querySelectorAll('#home-form-card .pd-form')].filter((e) => getComputedStyle(e).display !== 'none').length,
     now: !!document.querySelector('#home-day-card .ph-now'), dayFirst: !!(document.getElementById('home-day-card').compareDocumentPosition(document.getElementById('home-form-card')) & 4),
-    nav: getComputedStyle(document.querySelector('#nav-home')).color, font: getComputedStyle(document.body).fontFamily
+    nav: getComputedStyle(document.querySelector('#nav-home')).color, font: getComputedStyle(document.body).fontFamily,
+    renfoTab: getComputedStyle(document.getElementById('nav-renfo')).display, stats: document.querySelector('#nav-stats .nav-btn-label').textContent,
+    tabs: [...document.querySelectorAll('#nav-bar .nav-btn')].filter((e) => getComputedStyle(e).display !== 'none').length
   }));
   assert.equal(H.theme, 'dark'); assert.equal(H.piste, '1');
-  assert.equal(H.body, 'rgb(7, 11, 22)', 'page bleu nuit (relief : plus sombre que les cartes)');
+  assert.equal(H.body, 'rgb(7, 11, 22)', 'page bleu nuit');
   assert.equal(H.hero, 'none', 'ancien en-tête masqué'); assert.equal(H.ph, 'flex');
+  assert.match(H.eb, /^Mardi 3 nov\.?$/, 'la date, sans l\'heure');
   assert.match(H.big, /^(J-\d+|Jour J)$/); assert.match(H.race, /Novemb/);
-  assert.deepEqual(H.tiles, ['Objectif', 'Prévu', 'Forme']);
-  assert.match(H.dash, /^\d+ 900$/);
+  assert.match(H.prog, /^Prépa faite à \d+ %$/); assert.match(H.line, /prévu|objectif/);
+  assert.equal(H.tiles, 0, 'plus de tuiles chiffrées');
   assert.match(H.greet, /^Bonsoir/);
   assert.ok(H.chips.includes('home-search-btn') && H.chips.includes('home-ef-pill') && H.chips.includes('notif-btn'), H.chips.join(','));
-  assert.ok(H.now, 'bloc « Maintenant »'); assert.ok(H.dayFirst, 'la journée avant la Forme du jour');
+  assert.equal(H.chipsHidden, true, 'pastilles rangées dans « Outils »');
+  assert.ok(H.fr && H.calm, 'forme du jour dans « Aujourd\'hui »'); assert.equal(H.card, 0, 'grande carte Forme retirée');
+  assert.ok(H.now, 'étape du moment'); assert.ok(H.dayFirst, 'la journée avant la carte Forme');
   assert.equal(H.nav, 'rgb(224, 96, 58)', 'onglet actif orange');
-  // relief : titres de section, barre de la semaine, cartes posées (ombre) plus claires que la page, prochaine séance en avant
+  assert.equal(H.renfoTab, 'none'); assert.equal(H.stats, 'Progrès'); assert.equal(H.tabs, 5, '5 onglets');
+  assert.match(H.font, /Manrope/);
+  // Outils : un toucher ouvre les pastilles, un autre les range
+  await page.click('#ph-top .ph-tools');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('ph-chips')).display !== 'none' && document.querySelector('#ph-top .ph-tools').getAttribute('aria-expanded')), 'true');
+  await page.click('#ph-top .ph-tools');
+  assert.equal(await page.evaluate(() => document.getElementById('ph-chips').hidden), true);
+  // titres, semaine (bilan + séances faites repliées), lignes Renfo / Régularité / Partager
   const R = await page.evaluate(() => ({
     secs: [...document.querySelectorAll('#sc-home .ph-sec h2')].filter((e) => e.offsetParent).map((e) => e.textContent),
-    wb: (document.querySelector('#ph-weekbar .ph-wbk') || {}).textContent || '',
-    card: getComputedStyle(document.querySelector('#home-sessions .hs-card')).boxShadow,
+    wb: (document.querySelector('#ph-weekbar .ph-wbk') || {}).textContent || '', wst: (document.querySelector('#ph-weekbar .ph-wst') || {}).textContent || '',
+    segs: document.querySelectorAll('#ph-weekbar .ph-wsg i').length, cards: document.querySelectorAll('#home-sessions .hs-card').length,
+    rows: document.querySelectorAll('#home-sessions .hs-row').length, rowsShown: [...document.querySelectorAll('#home-sessions .hs-row')].filter((e) => e.offsetParent).length,
+    fold: !!document.getElementById('ph-fold'),
     next: document.querySelectorAll('#home-sessions .hs-card.ph-next').length,
+    more: [...document.querySelectorAll('#ph-more .ph-mr b')].map((e) => e.textContent),
+    extra: getComputedStyle(document.getElementById('home-form-extra')).display, renfo: getComputedStyle(document.getElementById('home-renfo-section')).display,
+    wl: document.getElementById('home-week-label').textContent,
     head: getComputedStyle(document.getElementById('home-sess-head')).display }));
-  assert.deepEqual(R.secs, ['Ta journée'].concat(R.secs.includes('Forme du jour') ? ['Forme du jour'] : []));
-  assert.match(R.wb, /km/); assert.equal(R.head, 'none');
-  assert.match(R.card, /rgba\(0, 0, 0/, 'carte posée : ombre portée'); assert.ok(R.next <= 1);
-  assert.match(H.font, /Manrope/);
-  // le bleu de l'app devient l'orange de piste (bouton « Enregistrer » d'une fenêtre), les fonds blancs deviennent bleu nuit
+  assert.deepEqual(R.secs, ['Aujourd\'hui']);
+  assert.match(R.wb, /^\d/); assert.match(R.wst, /séances? faites? sur \d/); assert.equal(R.segs, R.cards, 'une barre par séance');
+  assert.equal(R.head, 'none'); assert.ok(R.next <= 1); assert.equal(R.wl, 'Cette semaine');
+  if (R.rows) { assert.ok(R.fold, 'ligne « séances faites »'); assert.equal(R.rowsShown, 0, 'séances faites repliées');
+    await page.click('#ph-fold'); assert.ok(await page.evaluate(() => [...document.querySelectorAll('#home-sessions .hs-row')].some((e) => e.offsetParent)), 'dépliées au toucher'); }
+  assert.ok(R.more.includes('Partager ta semaine'), R.more.join(','));
+  assert.equal(R.extra, 'none', 'série et badges : une ligne « Ta régularité »');
+  if (R.more.includes('Renfo de la semaine')) {
+    assert.equal(R.renfo, 'none', 'renfo replié');
+    await page.click('#ph-more .ph-mr:first-child');
+    assert.notEqual(await page.evaluate(() => getComputedStyle(document.getElementById('home-renfo-section')).display), 'none', 'renfo ouvert au toucher');
+  }
+  // le bleu de l'app devient l'orange de piste, les fonds blancs deviennent bleu nuit
   const M = await page.evaluate(() => ({ sw: typeof thMap === 'function' ? thMap('#1B4FD8', 'bg') : '', w: thMap('#FFFFFF', 'bg'), g: thMapValue('linear-gradient(150deg,#0C347A 0%,#1B4FD8 80%)', 'bg') }));
   assert.equal(M.sw, 'rgb(224,96,58)'); assert.match(M.w, /^rgb\((2[0-9]|1[0-9]),/); assert.doesNotMatch(M.g, /224,96,58/, 'dégradés bleus → bleu nuit, pas orange');
-  // toucher l'anneau = fenêtre de prédiction / objectif ; la tuile Forme ouvre Statistiques
-  await page.click('#home-piste .ph-tile:nth-child(3)'); await page.waitForTimeout(300);
-  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('sc-stats')).display !== 'none'), true);
-  // tout tient sur un écran d'iPhone : en-tête, pastilles et « Ta journée » laissent la Forme du jour visible sans défiler
+  // détail de la forme : chargé seulement au toucher, feuille du bas avec ses mesures expliquées, fermée par ×
+  assert.equal(await page.evaluate(() => [...document.scripts].filter((s) => /lazy-pisteui|piste-ui\.js/.test(s.src)).length), 0, 'rien de chargé au démarrage');
+  await page.evaluate(() => phFormOpen()); await page.waitForSelector('#ph-fo .pfo-sh');
+  const S = await page.evaluate(() => ({ t: document.getElementById('pfo-t').textContent, go: (document.querySelector('#ph-fo .pfo-go') || {}).textContent || '' }));
+  assert.ok(S.t.length > 3); assert.match(S.go, /Voir/);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/piste-forme.png' });
+  await page.click('#ph-fo .pfo-x'); assert.equal(await page.evaluate(() => !!document.getElementById('ph-fo')), false);
+  // tout tient sur un écran d'iPhone : la course et « Aujourd'hui » (forme du jour + étape du moment) sans défiler
   await page.evaluate(() => { showScreen('home'); window.scrollTo(0, 0); }); await page.waitForTimeout(300);
-  const Y = await page.evaluate(() => ({ nav: Math.round(document.getElementById('nav-bar').getBoundingClientRect().top), form: Math.round(document.getElementById('home-form-card').getBoundingClientRect().top), chips: document.getElementById('ph-chips').getBoundingClientRect().height }));
-  if (process.env.SHOTS) console.log('[mesure] forme du jour à', Y.form, 'px');
-  if (process.env.SHOTS) console.log('[mesure]', JSON.stringify(await page.evaluate(() => ['ph-top', 'ph-ring', 'ph-chips', 'ph-blocks', 'home-day-card', 'home-form-card'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return id + ':' + Math.round(r.top) + '+' + Math.round(r.height); }))));
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/piste-home-fit.png' });
-  if (process.env.SHOTS) {   // aperçu de la carte Forme du jour avec une nuit WHOOP (données d'exemple, capture seulement)
-    await page.evaluate(() => { document.getElementById('home-form-card').innerHTML = '<div class="pd-home"><div class="pd-form low"><svg viewBox="0 0 64 64" class="pd-gauge"><circle cx="32" cy="32" r="26" class="g-bg"/><circle cx="32" cy="32" r="26" class="g-fg" stroke-dasharray="39 163"/><text x="32" y="37" text-anchor="middle">24</text></svg><div style="flex:1;min-width:0;"><p class="pd-form-l">Forme du jour</p><b>Très basse, surtout à cause de l\'alcool</b><div class="pd-mini"><span class="bad"><i>Récup</i>26 %</span><span class="mid"><i>Sommeil</i>69 %</span><span class="bad"><i>FC repos</i>64</span><span class="bad"><i>VFC</i>48 ms</span></div><small>charge 7 j élevée (2,0×) −10</small></div></div></div>'; });
-    await page.waitForTimeout(200); await page.screenshot({ path: process.env.SHOTS + '/piste-home-form.png' });
-    await page.evaluate(() => { if (typeof prRenderHomeCard === 'function') prRenderHomeCard(); });
-  }
-  assert.ok(Y.form + 190 <= Y.nav, 'forme du jour pas visible en entier : ' + Y.form + ' px (onglets à ' + Y.nav + ')');
-  assert.ok(Y.chips <= 40, 'pastilles sur une seule ligne');
-  if (process.env.SHOTS) { await page.evaluate(() => showScreen('home')); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/piste-home.png' }); await page.screenshot({ path: process.env.SHOTS + '/piste-home-full.png', fullPage: true }); }
+  const Y = await page.evaluate(() => ({ nav: Math.round(document.getElementById('nav-bar').getBoundingClientRect().top), fr: Math.round(document.getElementById('ph-fr').getBoundingClientRect().bottom) }));
+  if (process.env.SHOTS) console.log('[mesure] forme du jour jusqu\'à', Y.fr, 'px, onglets à', Y.nav);
+  assert.ok(Y.fr <= Y.nav, 'forme du jour visible sans défiler : ' + Y.fr + ' px (onglets à ' + Y.nav + ')');
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/piste-home.png' }); await page.screenshot({ path: process.env.SHOTS + '/piste-home-full.png', fullPage: true }); }
   if (process.env.SHOTS) for (const sc of ['plan', 'stats', 'compte']) { await page.evaluate((n) => showScreen(n), sc); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/piste-' + sc + '.png' }); }
+  // Plan : le renfo de la semaine y est accessible (onglet retiré)
+  await page.evaluate(() => showScreen('plan')); await page.waitForTimeout(400);
+  await page.click('#plan-piste .ps-rf'); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('sc-renfo')).display !== 'none'), true, 'Plan › Renforcement de la semaine');
   // réglage : 4 choix, Piste coché
   await page.evaluate(() => themeOpen());
   assert.match(await page.textContent('#th-set .th-opt.on'), /Piste de nuit/);
