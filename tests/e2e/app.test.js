@@ -96,6 +96,9 @@ test('prépa en cours : accueil (forme du jour), plan, stats, compte sans erreur
   for (const s of ['home', 'plan', 'stats', 'compte']) { await page.evaluate((x) => showScreen(x), s); await page.waitForTimeout(400); }
   await page.evaluate(() => { showScreen('home'); renderHome(); });
   assert.ok(await page.evaluate(() => !!document.getElementById('home-form-card')));
+  // total de la semaine = somme des séances du programme, chacune comptée une fois (« Nouvelle prépa » marque _plan_migrated)
+  const wk = await page.evaluate(() => { let s = 0; for (let ei = 0; state['extra_w1_s' + ei] !== undefined; ei++) s += parseFloat(JSON.parse(state['extra_w1_s' + ei]).km) || 0; return { mig: !!state._plan_migrated, tot: getWeekTotalKm(1), sum: Math.round(s * 10) / 10, txt: document.getElementById('week-total-km').textContent }; });
+  assert.ok(wk.mig, 'marque posée par Nouvelle prépa'); assert.equal(wk.tot, wk.sum, JSON.stringify(wk)); assert.ok(new RegExp(String(wk.sum).replace('.', '[.,]') + ' km$').test(wk.txt), wk.txt);
   // Compte rangé par thème : sections dans l'ordre, 5 lignes visibles au plus par section, rien de vide
   await page.evaluate(() => showScreen('compte')); await page.waitForTimeout(300);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/compte.png', fullPage: true });

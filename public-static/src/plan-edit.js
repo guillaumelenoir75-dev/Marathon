@@ -1,23 +1,7 @@
+// km prévus de la semaine : toutes les séances sont dans extra_w (programme) — chacune comptée une seule fois
 function getWeekTotalKm(ws){
-  if(!state._plan_migrated){
-    // Post-migration ou athlète : toutes les séances sont dans extra_w
-    let total=0,ei=0;
-    while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){
-      try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}
-      ei++;
-    }
-    return Math.round(total*10)/10;
-  }
-  const w=weeks[ws-1];
-  let total=0;
-  w.sessions.forEach((_,si)=>{
-    if(!state[`del_w${ws}_s${si}`]){
-      const s=getSession(ws,si);
-      total+=s.km;
-    }
-  });
-  let ei=0;
-  while(ei<=20&&state[`extra_w${ws}_s${ei}`]){
+  let total=0,ei=0;
+  while(ei<=50&&state[`extra_w${ws}_s${ei}`]!==undefined){
     try{total+=parseFloat(JSON.parse(state[`extra_w${ws}_s${ei}`]).km)||0;}catch(e){}
     ei++;
   }
