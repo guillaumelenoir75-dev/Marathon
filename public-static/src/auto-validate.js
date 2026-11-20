@@ -340,9 +340,9 @@ function avFeelSave(){
   ov.remove();
   let x = {}; try { x = JSON.parse(state[k] || '{}'); } catch(e) {}
   if(typeof renderHome === 'function'){ rendered.home = false; renderHome(); }
-  if(typeof isAdmin === 'function' && isAdmin() && typeof showCoachFeedback === 'function'){ window._lastValidatedPerf = p; try { showCoachFeedback(x, parseFloat(state[k + '_km']) || 0, p.pace || '', p.hr || null, false, null, p.meteo || null, p.whoop || null); } catch(e) { diagSilent(e, 'auto-validate:avFeelSave'); } }
+  if(typeof isAdmin === 'function' && isAdmin() && typeof showCoachFeedback === 'function'){ window._lastValidatedPerf = p; window._lastValidatedKey = k; try { showCoachFeedback(x, parseFloat(state[k + '_km']) || 0, p.pace || '', p.hr || null, false, null, p.meteo || null, p.whoop || null); } catch(e) { diagSilent(e, 'auto-validate:avFeelSave'); } }
   if(typeof prAfterValidation === 'function') prAfterValidation();
-  if(typeof ssOffer === 'function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance »
+  if(!(typeof isAdmin === 'function' && isAdmin()) && typeof ssOffer === 'function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance » (admin : dans la carte d'analyse)
   if(typeof sessionChanged === 'function') sessionChanged();
 }
 // blocs saisis dans « Mon ressenti » : remplacent ceux lus dans les tours Strava (marqués saisis à la main)

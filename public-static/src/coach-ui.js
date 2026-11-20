@@ -1619,6 +1619,7 @@ async function loadCoachHistory(){
               + '</div>'
               + _statsRow
             + '</div>'
+            + '<div class="cf-ssimg"></div>'
             + '<div style="background:var(--bg,#fff);padding:14px 16px 6px;color:var(--text,#1a1a1a);font-size:14px;line-height:1.55;">'
               + renderBriefText(_la.content, 'green')
             + '</div>'
@@ -1627,6 +1628,8 @@ async function loadCoachHistory(){
             + '</div>'
             + '</div>';
           _laContainer.appendChild(_laWrap);
+          const _laImg = _laWrap.querySelector('.cf-ssimg');   // image de la séance analysée (week-share.js)
+          if(_laImg && !(_la.key && typeof ssCardInto === 'function' && ssCardInto(_laImg, _la.key))) _laImg.remove();
           _laContainer.scrollTop = _laContainer.scrollHeight;
         }
       }

@@ -1535,10 +1535,10 @@ async function saveValidationExtra(w,ei){
     if(dbRef) dbRef.child(perfKey).set(state[perfKey]).catch(()=>{});
     rendered.stats=false;
   }
-  if(isAdmin()){ closeModal(); window._lastValidatedPerf=(()=>{try{return JSON.parse(state[k+'_perf']||'{}');}catch(e){return perf;}})(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
+  if(isAdmin()){ closeModal(); window._lastValidatedKey=k; window._lastValidatedPerf=(()=>{try{return JSON.parse(state[k+'_perf']||'{}');}catch(e){return perf;}})(); showCoachFeedback(sExtra,km,pace,hr,amImproved,null,meteoSeance,whoopChargeExtra); }
   else { closeModal(); showAthleteFeedback(sExtra,km,pace,hr,perf,meteoSeance); }
   if(typeof prAfterValidation==='function') prAfterValidation();   // ajustements du plan proposés (plan-optim.js)
-  if(typeof ssOffer==='function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance » (week-share.js)
+  if(!isAdmin()&&typeof ssOffer==='function') setTimeout(function(){ ssOffer(k); }, 600);   // « 📸 Image de ta séance » (week-share.js) ; compte admin : dans la carte d'analyse du Coach
   // tout ce qui dépend des séances faites, avec la météo et WHOOP de celle-ci (analyse de course refaite avec la météo)
   if(typeof sessionChanged==='function') sessionChanged({ race: sExtra.type==='race' && !!_offVal });
 }

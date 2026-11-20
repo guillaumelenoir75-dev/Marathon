@@ -742,6 +742,7 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
         + '</div>'
         + (_stats.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">'+_stats.join('')+'</div>' : '')
       + '</div>'
+      + '<div class="cf-ssimg"></div>'   // image de la séance, dès le chargement (week-share.js ssCardInto)
       + '<div style="background:var(--bg,#fff);padding:14px 16px 6px;">'
         + '<div id="coach-analysis-stream" style="color:var(--text,#1a1a1a);font-size:14px;line-height:1.55;"><div class="coach-typing"><span>Le Coach analyse ta séance</span><div class="coach-typing-dots"><i></i><i></i><i></i></div></div></div>'
       + '</div>'
@@ -750,6 +751,9 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
       + '</div>'
       + '</div>';
     container.appendChild(wrap);
+    const _ssKey = window._lastValidatedKey || null; window._lastValidatedKey = null; window._lastAnalysisKey = _ssKey;
+    const _ssEl = wrap.querySelector('.cf-ssimg');
+    if(_ssEl && !(_ssKey && typeof ssCardInto === 'function' && ssCardInto(_ssEl, _ssKey))) _ssEl.remove();
     container.scrollTop = container.scrollHeight;
   })();
 

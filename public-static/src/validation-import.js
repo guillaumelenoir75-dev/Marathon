@@ -153,6 +153,7 @@ async function fetchCoachAnalysis(s, km, pace, hr, analysisContext, historyData)
           date: _today,
           time: _timeLabel,
           stats_html: _statsHtmlSaved,
+          key: window._lastAnalysisKey || null,   // séance analysée : son image est réaffichée avec l'analyse
           stats_raw: { km: window._lastAnalysisKm||null, pace: window._lastAnalysisPace||null, hr: window._lastAnalysisHr||null, type: window._lastAnalysisType||null }
         });
       } catch(e) {}

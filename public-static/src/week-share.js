@@ -154,6 +154,11 @@ function _wsCss(){
     + '.ws-b{flex:1;padding:12px;border-radius:14px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}.ws-b.main{background:#6366F1;border-color:#6366F1;}'
     + '.ws-n{font-size:11px;color:rgba(255,255,255,.55);text-align:center;margin:0;max-width:420px;}'
     + '.ss-img{display:block;width:100%;max-width:420px;aspect-ratio:1/1;border-radius:18px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);}'
+    + '.cf-ssimg{padding:12px 16px 0;background:var(--bg,#fff);display:flex;flex-direction:column;align-items:center;gap:6px;}'
+    + '.cf-ss-wait{width:100%;max-width:340px;aspect-ratio:1/1;border-radius:14px;background:#EEF2F7;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#64748B;}'
+    + '.cf-ss-btn{display:block;width:100%;max-width:340px;border:none;background:none;padding:0;cursor:pointer;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(15,23,42,.18);}'
+    + '.cf-ss-btn img{display:block;width:100%;height:auto;}'
+    + '.cf-ss-cap{margin:0;font-size:12px;font-weight:600;color:#64748B;text-align:center;}'
     + '#ss-offer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:10050;display:flex;align-items:center;gap:4px;background:#0F172A;border-radius:24px;padding:4px 4px 4px 4px;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:calc(100vw - 32px);}'
     + '#ss-offer .ss-go{border:none;background:linear-gradient(90deg,#10B981,#6366F1);color:#fff;font:inherit;font-size:14px;font-weight:800;padding:10px 16px;border-radius:20px;cursor:pointer;white-space:nowrap;}#ss-offer .ss-go span{opacity:.8;}'
     + '#ss-offer .ss-no{border:none;background:transparent;color:rgba(255,255,255,.7);font-size:20px;width:34px;height:34px;cursor:pointer;}'
@@ -187,6 +192,28 @@ function sessionShareData(key, today){
 }
 const SS_TYPE_LBL = { ef: 'FOOTING EF', long: 'SORTIE LONGUE', tempo: 'TEMPO', frac: 'FRACTIONNÉ', race: 'COURSE' };
 let _ssData = null, _ssUrl = null, _ssFile = null;
+// image de la séance DANS la carte d'analyse du Coach (dès la validation, pendant que le Coach prépare le débrief, et après) :
+// emplacement carré pendant le dessin (module à la demande « share »), puis l'image ; toucher = partager / enregistrer
+function ssCardInto(el, key, tries){
+  if(!el || !key || typeof document === 'undefined') return false;
+  let D = null; try { D = sessionShareData(key); } catch(e) { diagSilent(e, 'week-share:ssCardInto'); }
+  _wsCss();
+  el.className = 'cf-ssimg'; el.dataset.k = key;
+  if(!el.firstChild) el.innerHTML = '<div class="cf-ss-wait" aria-busy="true">📸 Ton image de séance arrive…</div>';
+  // juste après la validation, la séance n'est pas toujours encore marquée faite : nouvel essai (3 s au plus)
+  if(!D){ tries = tries || 0; if(tries < 10){ setTimeout(function(){ if(el.isConnected) ssCardInto(el, key, tries + 1); }, 300); return true; } el.remove(); return false; }
+  const go = function(){
+    try {
+      const url = ssDraw(D).toDataURL('image/png');
+      el.innerHTML = '<button type="button" class="cf-ss-btn" onclick="openSessionShare(\'' + key + '\')" aria-label="Partager ou enregistrer l\'image de ta séance"><img src="' + url + '" alt="Image de ta séance : ' + String(D.title || '').replace(/[&<>"]/g, '') + '"></button>'
+        + '<p class="cf-ss-cap">📸 Touche l\'image pour la partager ou l\'enregistrer</p>';
+    } catch(e) { diagSilent(e, 'week-share:ssCardInto'); el.remove(); }
+  };
+  if(typeof ssDraw === 'function') go();
+  else if(typeof lazyLoad === 'function') lazyLoad('share').then(go, function(){ el.remove(); });
+  else el.remove();
+  return true;
+}
 // juste après une validation : petite proposition en bas de l'écran (15 s), seulement si la séance est bien validée
 function ssOffer(key){
   if(typeof document === 'undefined' || !sessionShareData(key)) return;

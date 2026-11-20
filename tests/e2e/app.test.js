@@ -2125,9 +2125,13 @@ test('image carrée de la séance : bouton 📸 sur la séance faite de l\'accue
   // validation (Strava importé) → proposition « 📸 Image de ta séance »
   await page.evaluate(() => { openValidationModalExtra(2, 0); _applyStravaToValidation({ activityId: '9001', date: '2026-11-03', distanceKm: 8.1, duree: '46:20', allure: '5:43', fcMoyenne: 141, fcMax: 158, splits: Array.from({ length: 8 }, (_, i) => ({ km: i + 1, distanceKm: 1, allure: '5:' + String(35 + (i * 3) % 14).padStart(2, '0'), fc: 135 + i })) }); window._meteoValidationData = { temperature: 12.4, date: '2026-11-03' }; });
   await page.evaluate(async () => { prRpePick(4); await saveValidationExtra(2, 0); });
-  await page.waitForSelector('#ss-offer', { timeout: 5000 });
+  // compte admin : l'image s'affiche dans la carte d'analyse du Coach, dès le chargement, et y reste
+  await page.waitForSelector('#coach-analysis-card .cf-ssimg img', { timeout: 6000 });
+  assert.equal(await page.locator('#ss-offer').count(), 0, 'plus de bandeau en double pour le compte admin');
+  await page.waitForTimeout(1500);
+  assert.ok(await page.evaluate(() => { const i = document.querySelector('#coach-analysis-card .cf-ssimg img'); return !!i && i.naturalWidth === 1080 && i.getBoundingClientRect().width > 200; }), 'image visible dans la carte, après l\'analyse aussi');
   await page.evaluate(() => document.querySelectorAll('#modal-container .modal-overlay').forEach((x) => x.remove()));
-  await page.click('#ss-offer .ss-go');
+  await page.click('#coach-analysis-card .cf-ss-btn');
   await page.waitForSelector('#ss-share .ss-img');
   assert.ok(await page.evaluate(() => { const i = document.querySelector('#ss-share .ss-img'); return i.src.startsWith('data:image/png') && i.naturalWidth === 1080 && i.naturalHeight === 1080; }), 'image carrée 1080 × 1080');
   assert.match(await page.getAttribute('#ss-share .ss-img', 'alt'), /8,1 km à 5'43 \/km/);
