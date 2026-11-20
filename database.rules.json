@@ -50,7 +50,7 @@
     },
     "live_cheers": {
       ".read": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'",
-      ".write": false
+      ".write": "auth != null && auth.uid === 'WkEWrmnYWuUNkGLrwXf9HhaJWfh1'"
     },
     "$other": {
       ".read": false,

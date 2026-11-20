@@ -16,7 +16,7 @@ test('message nettoyé, rangé pour Guillaume, compté pour la page des amis, no
   const m = Object.values(F.db.data.live_cheers['novembrun-2026'])[0];
   assert.equal(m.n, 'Marie'); assert.equal(m.t, 'Allez Guillaume b ! /b', 'balises neutralisées'); assert.equal(m.el, 1200000); assert.equal(m.st, 'running');
   assert.equal(F.db.data.live.cheers, 1);
-  assert.deepEqual(sent[0], { t: '💬 Marie', b: m.t, tag: 'cheer-' + r.out.id, url: '/?action=live' });
+  assert.deepEqual(sent[0], { t: '💬 Marie t\'encourage', b: m.t, tag: 'cheer-' + r.out.id, url: '/?action=live' });
 });
 
 test('refusés : message vide, lien, trop rapproché, trop nombreux ; pas de course = rien', async () => {
@@ -34,13 +34,12 @@ test('refusés : message vide, lien, trop rapproché, trop nombreux ; pas de cou
   assert.equal((await G.live.runCheer(G.db, { text: 'Go' }, 'd', T0, send, '2026-11-22', 'ip')).status, 409);
 });
 
-test('notification : en course et le jour J avant le départ ; jamais la veille, pendant un essai ni après l\'arrivée ; 4 par minute au plus', async () => {
-  const P = (live, today) => loadFunctions({ modules: ['live.js'] }).live.cheerPushNow(Object.assign({ race: RACE }, live), today);
-  assert.equal(P({ status: 'running' }, '2026-11-22'), true);
-  assert.equal(P({ status: 'idle' }, '2026-11-22'), true);
-  assert.equal(P({ status: 'idle' }, '2026-11-21'), false);
-  assert.equal(P({ status: 'running', test: true }, '2026-11-22'), false);
-  assert.equal(P({ status: 'finished' }, '2026-11-22'), false);
+test('notification pour chaque message, avec le prénom et le texte, quel que soit le moment ; 4 par minute au plus', async () => {
+  const L0 = loadFunctions({ modules: ['live.js'] }).live;
+  assert.equal(L0.cheerTitle('Marie'), '💬 Marie t\'encourage'); assert.equal(L0.cheerTitle(''), '💬 Un ami t\'encourage');
+  const V = load({ status: 'idle' }), sent = [];
+  const r = await V.live.runCheer(V.db, { text: 'On pense fort à toi 💪' }, 'd', T0, async (t, b) => { sent.push(t + ' | ' + b); return true; }, '2026-11-20', 'ip');
+  assert.equal(r.out.pushed, true, 'la veille aussi'); assert.deepEqual(sent, ['💬 Un ami t\'encourage | On pense fort à toi 💪']);
   const F = load({ status: 'running', startedAt: T0 }); let n = 0;
   const send = async () => { n++; return true; };
   for (let i = 0; i < 6; i++) await F.live.runCheer(F.db, { text: 'Go ' + i }, 'dev' + i, T0 + i * 1000, send, '2026-11-22', 'ip' + i);

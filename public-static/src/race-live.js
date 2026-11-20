@@ -272,6 +272,8 @@ function _liveCss(){
     + X + '.lv-cheers{display:flex;flex-direction:column;}' + X + '.lv-cm{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-bottom:1px solid #1E2944;}' + X + '.lv-cm:last-child{border-bottom:none;}'
     + X + '.lv-cm p{margin:0;display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#EEF1F8;}' + X + '.lv-cm small{font-size:12px;color:#7C87A3;white-space:nowrap;}'
     + X + '.lv-cm span{font-size:15px;line-height:1.4;color:#DCE2EF;overflow-wrap:anywhere;}'
+    + X + '.lv-cm p{align-items:center;}' + X + '.lv-cm b{flex:1;min-width:0;}'
+    + X + '.lv-cdel{flex:none;width:32px;height:32px;margin:-6px -6px -6px 0;border:none;border-radius:50%;background:transparent;color:#7C87A3;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}'
     + X + '.lv-strong{color:#EEF1F8!important;font-weight:700;}' + X + '.lv-ok{color:#6EE7A0!important;}' + X + '.lv-bad{color:#F28B6E!important;}'
     + X + '.lv-ci{display:flex;align-items:center;gap:12px;min-height:52px;border-bottom:1px solid #1E2944;}' + X + '.lv-ci:last-child{border-bottom:none;}'
     + X + '.lv-ico{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
@@ -499,15 +501,25 @@ function liveCheersWatch(){
     }
     _liveCheersRender();
   });
+  _liveCheerRef.on('child_removed', function(sn){ if(sn && sn.key && _liveCheers[sn.key]){ delete _liveCheers[sn.key]; _liveCheersRender(); } });
+}
+// supprimer un message (essai, message déplacé) : retiré de la liste et du compteur de la page des amis
+function liveCheerDel(id){
+  if(!_liveCheerRid || !_liveCheers[id] || !confirm('Supprimer ce message ?')) return;
+  delete _liveCheers[id]; _liveCheersRender();
+  const db = firebase.database();
+  db.ref('live_cheers/' + _liveCheerRid + '/' + id).remove().catch(function(e){ diagSilent(e, 'race-live:liveCheerDel'); });
+  db.ref('live/cheers').transaction(function(n){ return Math.max(0, (+n || 0) - 1); }).catch(function(e){ diagSilent(e, 'race-live:liveCheerDel'); });
 }
 function _liveCheersHtml(){
-  const L = Object.keys(_liveCheers).map(function(k){ return _liveCheers[k]; }).sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  const L = Object.keys(_liveCheers).map(function(k){ return Object.assign({ _id: k }, _liveCheers[k]); }).sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
   const on = liveCheerVoiceOn();
   let h = '<div class="lv-ch"><p class="lv-h">💬 Encouragements</p><span class="lv-cnt">' + (L.length || '') + '</span></div>';
   if(!L.length) h += '<p class="lv-note">Pas encore de message. Tes amis t\'écrivent depuis la page de suivi : tu les reçois en notification, même en courant.</p>';
   else h += '<div class="lv-cheers">' + L.slice(0, 40).map(function(m){
       const hm = m.at ? new Date(m.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h') : '';
-      return '<div class="lv-cm"><p><b>' + _prepEsc(m.n || 'Un ami') + '</b><small>' + hm + (m.el ? ' · ' + (m.el < 3600000 ? Math.max(1, Math.round(m.el / 60000)) + ' min' : suiviFmt.hm(m.el)) + ' de course' : '') + '</small></p><span>' + _prepEsc(m.t || '') + '</span></div>';
+      return '<div class="lv-cm"><p><b>' + _prepEsc(m.n || 'Un ami') + '</b><small>' + hm + (m.el ? ' · ' + (m.el < 3600000 ? Math.max(1, Math.round(m.el / 60000)) + ' min' : suiviFmt.hm(m.el)) + ' de course' : '') + '</small>'
+        + '<button type="button" class="lv-cdel" aria-label="Supprimer le message de ' + _prepEsc(m.n || 'un ami') + '" onclick="liveCheerDel(\'' + m._id + '\')"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></p><span>' + _prepEsc(m.t || '') + '</span></div>';
     }).join('') + (L.length > 40 ? '<p class="lv-note">+ ' + (L.length - 40) + ' autres</p>' : '') + '</div>';
   h += '<button type="button" class="lv-btn lv-ghost" aria-pressed="' + on + '" onclick="liveCheerVoice()">' + (on ? '🔊 Lus à voix haute quand l\'app est ouverte' : '🔇 Lecture à voix haute coupée') + '</button>';
   return h;

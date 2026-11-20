@@ -153,8 +153,8 @@ exports.owntracks = onRequest({ maxInstances: 3 }, async (req, res) => {
 
 // ─── Encouragements des amis (page /suivi-guillaume) ─────────────────────────
 // Un ami envoie un message court ; il est rangé dans /live_cheers/<course> (lu par l'admin seulement), le nombre de messages
-// est publié dans /live/cheers (page des amis), et Guillaume reçoit une notification (écran verrouillé, montre) pendant la course
-// et le jour J avant le départ. Aucune écriture publique dans la base : tout passe par cette fonction, qui contrôle et limite.
+// est publié dans /live/cheers (page des amis), et Guillaume reçoit une notification (écran verrouillé, montre) avec le prénom
+// et le message. Aucune écriture publique dans la base : tout passe par cette fonction, qui contrôle et limite.
 const { defineSecret } = require('firebase-functions/params');
 const helpers = require('./helpers');
 const VAPID_PUBLIC_KEY = defineSecret('VAPID_PUBLIC_KEY');
@@ -178,13 +178,9 @@ function cheerCheck(body) {
   if (/(https?:|www\.|\.(com|fr|net|org|io|ly)\b)/i.test(text + ' ' + name)) return { error: 'Les liens ne passent pas.' };
   return { text, name };
 }
-// notification seulement quand ça peut le porter : en course, ou le jour J avant le départ (jamais après l'arrivée)
-function cheerPushNow(live, today) {
-  const st = (live && live.status) || 'idle', race = (live && live.race) || {};
-  if (live && live.test) return false;
-  if (st === 'running') return true;
-  return st === 'idle' && !!race.date && race.date === today;
-}
+// notification pour chaque message (prénom + texte), avant, pendant et après la course ; seule limite : 4 par minute
+function cheerPushNow(live) { return !!(live && live.race && live.race.id); }
+function cheerTitle(name) { return '💬 ' + (name ? name + ' t\'encourage' : 'Un ami t\'encourage'); }
 async function runCheer(db, body, sender, nowMs, send, today, ipKey) {
   const C = cheerCheck(body);
   if (C.error) return { status: 400, out: { error: C.error } };
@@ -208,12 +204,12 @@ async function runCheer(db, body, sender, nowMs, send, today, ipKey) {
   await db.ref(`live_cheers/${rid}/${id}`).set(msg);
   await db.ref('live/cheers').transaction((n) => (+n || 0) + 1);
   let pushed = false;
-  if (cheerPushNow(live, today) && send) {
+  if (cheerPushNow(live) && send) {
     const pr = db.ref(`live_cheers_rl/${rid}/_push`);
     const recent = ((await pr.once('value')).val() || []).filter((t) => nowMs - t < 60000);
     if (recent.length < CHEER_PUSH_PER_MIN) {
       await pr.set(recent.concat(nowMs));
-      try { pushed = !!(await send('💬 ' + (C.name || 'Un ami'), C.text, 'cheer-' + id, '/?action=live')); } catch (e) { console.warn('liveCheer push:', e.message); }
+      try { pushed = !!(await send(cheerTitle(C.name), C.text, 'cheer-' + id, '/?action=live')); } catch (e) { console.warn('liveCheer push:', e.message); }
     }
   }
   return { status: 200, out: { ok: true, id, pushed, count: ((await db.ref('live/cheers').once('value')).val() || 0) } };
@@ -221,6 +217,7 @@ async function runCheer(db, body, sender, nowMs, send, today, ipKey) {
 exports.runCheer = runCheer;
 exports.cheerCheck = cheerCheck;
 exports.cheerPushNow = cheerPushNow;
+exports.cheerTitle = cheerTitle;
 
 exports.liveCheer = onRequest({ cors: true, maxInstances: 3, secrets: [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY] }, async (req, res) => {
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }

@@ -125,6 +125,11 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   assert.deepEqual(CH.spoken, ['Message de Marie : Lâche rien'], 'lu à voix haute, sans émoji'); assert.match(CH.box, /Lâche rien 💪/); assert.match(CH.box, /10 min de course/); assert.equal(CH.hidden, false);
   await page.click('#lv-sec-pendant .lv-cheer-box .lv-ghost');
   assert.match(await page.textContent('#lv-sec-pendant .lv-cheer-box .lv-ghost'), /coupée/); assert.equal(await page.evaluate(() => localStorage.getItem('pm_cheer_voice')), '0');
+  // message d'essai supprimé : retiré de la liste et du compteur de la page des amis
+  await page.evaluate(() => firebase.database().ref('live').update({ cheers: 1 }));
+  await page.click('#lv-sec-pendant .lv-cheer-box .lv-cdel'); await page.waitForTimeout(300);
+  const DEL = await page.evaluate(() => ({ db: Object.keys((window.__DB.live_cheers || {})['novembrun-2026'] || {}).length, n: window.__DB.live.cheers, box: document.querySelector('#lv-sec-pendant .lv-cheer-box').textContent }));
+  assert.equal(DEL.db, 0); assert.equal(DEL.n, 0); assert.match(DEL.box, /Pas encore de message/);
   assert.equal(await page.evaluate(() => notifRunAction('?action=live', 0)), true, 'la notification d\'un encouragement ouvre la course en direct');
   await page.evaluate(() => { _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null }); }); await page.waitForTimeout(300);
   const saved = await db(page); await ctx.close();
