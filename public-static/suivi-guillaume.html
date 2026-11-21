@@ -45,6 +45,12 @@
   .btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:24px;border:1px solid var(--line2);background:transparent;color:var(--ink);font:inherit;font-size:15px;font-weight:700;text-decoration:none;cursor:pointer;padding:0 18px;}
   .btn.or{border:none;background:var(--or);color:#1A0A04;font-weight:800;}
   .hero .btn{margin-top:12px;}
+  /* avant le départ : compte à rebours compact, la carte reste visible sans faire défiler */
+  #b-count{padding:14px 16px;gap:2px;}
+  #b-count .big{font-size:clamp(36px,11vw,46px);line-height:1;}
+  #b-count .l1{margin:4px 0 0;font-size:14px;}
+  #b-count .l2{font-size:13px;}
+  #b-count .btn{margin-top:10px;min-height:40px;font-size:14px;align-self:flex-start;padding:0 14px;}
 
   .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
   .tile{border-radius:18px;background:var(--card);padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0;}

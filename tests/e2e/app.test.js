@@ -154,6 +154,8 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
     assert.equal(Pre.title, 'Guillaume court aujourd\'hui'); assert.equal(Pre.k, 'Départ dans'); assert.match(Pre.t, /^1:12:0\d$/, 'compte à rebours : ' + Pre.t);
     assert.equal(Pre.obj, "42'00"); assert.match(Pre.eta, /^≈10h4\d$/); assert.match(Pre.pass, /10h00Départ/); assert.match(Pre.pass, /Arrivée/);
     assert.ok(Pre.count && !Pre.live && !Pre.res); assert.equal(Pre.bg, 'rgb(7, 11, 22)', 'univers Piste de nuit');
+    const mapTop = await p2.evaluate(() => document.getElementById('map').getBoundingClientRect().top);
+    assert.ok(mapTop < 844 - 120, 'compte à rebours compact : la carte se voit sans faire défiler (haut à ' + Math.round(mapTop) + ' px)');
     if (process.env.SHOTS) await p2.screenshot({ path: process.env.SHOTS + '/suivi-avant.png', fullPage: true });
     // encourager : un mot tout prêt, son prénom, envoyé à la fonction liveCheer ; refus expliqué
     assert.equal(await p2.textContent('#ch-title'), 'Encourage-le');
