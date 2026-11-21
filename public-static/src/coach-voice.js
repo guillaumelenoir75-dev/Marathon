@@ -493,6 +493,7 @@ function cvAsk(text, shown, direct){
       clearTimeout(_cv.flushT);
       if(/[.!?…]["»)]?\s*$/.test(_cv.buf)) _cv.flushT = setTimeout(flush, 600);
     },
+    onPlanAsk: function(d){ if(_cv && _cv.turn === turn) _cv.planAsk = d; },   // le Coach veut modifier le plan : préparé après sa phrase
     onTool: function(o){                                          // il va chercher une séance, la météo… : une petite phrase en attendant
       if(!_cv || _cv.turn !== turn || _cv.mute || _cv.cut) return;
       clearTimeout(_cv.fillT);
@@ -513,6 +514,7 @@ function cvAsk(text, shown, direct){
       if(typeof cfLog === 'function'){ const fid = cfLog({ q: text, a: _cv.said, m: 'voix', cut: _cv.cut, lat: tSay, fix: _cv.nFix, tools: meta && meta.tools }); const vb = document.querySelector('#cv-ov .cv-vote'); if(vb) vb.innerHTML = cfVoteHtml(fid); }   // note 👍 / 👎
       _cvShowCard(cvCardKind(text), _cv.said);                    // montrer en parlant : plan de course, séance, forme, prédiction
       if(!long && /d[ée]taill?e?\b[^.?!]*\?\s*$/i.test(_cv.said)) _cv.lastCut = true;   // « Tu veux que je détaille ? » → « oui » = détail
+      if(_cv.planAsk && typeof pcSend === 'function'){ const d = _cv.planAsk; _cv.planAsk = null; _cv.after = function(){ _cvPlanAction(d, turn); }; }   // changements préparés puis dits : « Je valide ? »
       _cv.streamDone = true; _cvNext();
     } };
   if(typeof _cv.memos === 'string') opts.memos = _cv.memos;
@@ -837,7 +839,7 @@ function _cvShowCard(kind, reply){
 // ─── 3 · Le Coach agit : modifier le plan à la voix, avec confirmation (annulable), « note que… » → mémo ───
 const CV_NO_RE = /^(non|nan|pas maintenant|laisse|laisse tomber|non merci|surtout pas|oublie|pas la peine)\b/i;
 const CV_UNDO_RE = /^(annule|annuler|reviens en arri[eè]re|remets comme avant|finalement non|non finalement|d[ée]fais)\b/i;
-const CV_ACT_VERB = /\b(d[ée]cal(e|er|es)|d[ée]plac(e|er|es)|repouss(e|er|es)|avanc(e|er|es)|all[eè]g(e|er|es)|all[ée]ger|supprim(e|er|es)|retir(e|er|es)|enl[eè]v(e|er|es)|remplac(e|er|es)|ajout(e|er|es)|rajout(e|er|es)|chang(e|er|es)|modifi(e|er|es)|transform(e|er|es)|raccourci(s|r)|rallong(e|er|es)|r[ée]dui(s|re)|intervertis|inverse|mets|mettre)\b/i;
+const CV_ACT_VERB = /\b(d[ée]cal(e|er|es)|d[ée]plac(e|er|es)|repouss(e|er|es)|avanc(e|er|es)|all[eè]g(e|er|es)|all[ée]ger|supprim(e|er|es)|retir(e|er|es)|enl[eè]v(e|er|es)|remplac(e|er|es)|ajout(e|er|es)|rajout(e|er|es)|chang(e|er|es)|modifi(e|er|es)|transform(e|er|es)|raccourci(s|r)|rallong(e|er|es)|r[ée]dui(s|re)|intervertis|inverse|mets|mettre|d[ée]coup(e|er|es)|divis(e|er|es)|s[ée]par(e|er|es)|scind(e|er|es)|ajust(e|er|es)|adapt(e|er|es)|int[ée]gr(e|er|es)|planifi(e|er|es)|programm(e|er|es))\b/i;
 const CV_ACT_OBJ = /(s[ée]ance|footing|sortie|fractionn|tempo|longue|seuil|vma|plan|semaine|repos|renfo|\bkm\b|kilom[eè]tre|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain|apr[eè]s-demain)/i;
 function cvActionIntent(text){
   const t = String(text || '').trim().toLowerCase().replace(/[’]/g, "'");

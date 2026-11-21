@@ -342,13 +342,15 @@ test('Coach à la voix : 🎧 du brief dans « Ma journée », commandes vocales
 
 test('Coach à la voix : il parle en premier, montre une carte, modifie le plan à la voix (oui → appliqué, annule), note un mémo', async () => {
   assert.ok(savedDb, 'dépend du premier test');
-  let target = null, warm = 0, memoNote = null;
+  let target = null, warm = 0, memoNote = null; const planAsks = [];
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
     functions: async (r) => {
       const url = r.request().url(), pd = r.request().postData() || '';
       if (/coachChat/.test(url) && /"warm":true/.test(pd)) { warm++; return r.fulfill({ contentType: 'application/json', body: '{"ok":true,"warm":true}' }); }
+      // demande de modification dite autrement (« peux-tu utiliser… ») : le Coach appelle modifier_plan → l'app reçoit planAsk
+      if (/coachChat/.test(url) && /utiliser/.test(pd)) return r.fulfill({ contentType: 'text/event-stream', body: [{ tool: 'modifier_plan', say: 'Je prépare le changement.' }, { planAsk: 'Séance de demain : 2 km de moins' }, { token: 'Je te prépare le changement à valider.' }].map((e) => 'data: ' + JSON.stringify(e) + '\n\n').join('') + 'data: [DONE]\n\n' });
       if (/coachChat/.test(url)) return r.fulfill({ contentType: 'text/event-stream', body: ['Vise 42\'00, soit 4\'12/km. ', 'Pars prudent.'].map((t) => 'data: ' + JSON.stringify({ token: t }) + '\n\n').join('') + 'data: [DONE]\n\n' });
-      if (/planChat/.test(url)) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, reply: 'OK, on allège un peu.', changes: [{ ref: target.key, km: target.km - 2, reason: 'fatigue' }], auto: [] }) });
+      if (/planChat/.test(url)) { planAsks.push(JSON.parse(pd).message); return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, reply: 'OK, on allège un peu.', changes: [{ ref: target.key, km: target.km - 2, reason: 'fatigue' }], auto: [] }) }); }
       if (/addMemo/.test(url)) { memoNote = JSON.parse(pd).note; return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ memos: '- Mal au mollet gauche (29/10)' }) }); }
       return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
     },
@@ -387,6 +389,20 @@ test('Coach à la voix : il parle en premier, montre une carte, modifie le plan 
   await page.fill('#cv-in', 'Annule'); await page.click('#cv-ov .cv-bot button');
   await page.waitForFunction(() => window.__said.some((t) => /C'est annulé/.test(t)), null, { timeout: 5000 });
   assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, target.key), target.km, 'annulé');
+  // demande dite autrement : c'est le Coach qui décide de modifier le plan (outil modifier_plan) → mêmes changements à valider
+  await page.waitForFunction(() => _cv && _cv.streamDone && !_cv.speaking && !_cv.q.length, null, { timeout: 5000 });
+  await page.evaluate(() => { window.__said = []; });
+  await page.fill('#cv-in', 'Peux-tu utiliser demain la séance pour en faire un peu moins'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /Je valide \?/.test(t)), null, { timeout: 8000 });
+  assert.deepEqual(planAsks.slice(-1), ['Séance de demain : 2 km de moins'], 'demande du Coach transmise à « Mon plan »');
+  const said = await page.evaluate(() => window.__said.join(' '));
+  assert.ok(said.indexOf('Je te prépare le changement') < said.indexOf('Je valide'), 'sa phrase d\'abord, puis les changements à valider');
+  assert.match(await page.textContent('#cv-ov .cv-card'), new RegExp((target.km - 2) + ' km au lieu de ' + target.km + ' km'));
+  await page.fill('#cv-in', 'Oui'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /C'est fait/.test(t)), null, { timeout: 5000 });
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, target.key), target.km - 2, 'plan modifié après validation');
+  await page.fill('#cv-in', 'Annule'); await page.click('#cv-ov .cv-bot button');
+  await page.waitForFunction(() => window.__said.some((t) => /C'est annulé/.test(t)), null, { timeout: 5000 });
   // « note que… » → mémo du Coach
   await page.fill('#cv-in', "Note que j'ai mal au mollet gauche"); await page.click('#cv-ov .cv-bot button');
   await page.waitForFunction(() => window.__said.some((t) => /C'est noté, je m'en souviendrai/.test(t)), null, { timeout: 5000 });
@@ -462,14 +478,17 @@ test('Coach à la voix : voix Google (naturelle) lue phrase par phrase, repli su
 
 test('Coach · fil écrit en relief : recherche annoncée, chiffres vérifiés, carte, note 👎 avec raison, points suivis, qualité du Coach', async () => {
   assert.ok(savedDb, 'dépend du premier test');
-  let n = 0;
+  let n = 0, pcAsk = null, tgt = null;
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb, {
     functions: async (r) => {
       const url = r.request().url();
       if (/coachChat/.test(url)) { n++;
         const ev = n === 1 ? [{ tool: 'niveau_et_records', say: 'Je regarde ton niveau.' }, { token: "Ton record sur 10 km est 41'00." }, { threads: { t1: { t: 'Mollet gauche qui tire', k: 'douleur', at: Date.now(), due: '2026-10-30', src: 'coach' } } }]
+          : n === 3 ? [{ tool: 'modifier_plan', say: 'Je prépare le changement.' }, { planAsk: 'Séance de demain : 2 km de moins' }, { token: 'Je te prépare le changement à valider.' }]
           : [{ token: "Vise 42'00, soit 4'12/km." }];
         return r.fulfill({ contentType: 'text/event-stream', body: ev.map((e) => 'data: ' + JSON.stringify(e) + '\n\n').join('') + 'data: [DONE]\n\n' }); }
+      if (/planChat/.test(url)) { pcAsk = JSON.parse(r.request().postData()).message;
+        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, reply: 'OK, on allège un peu.', changes: [{ ref: tgt.key, km: tgt.km - 2, reason: 'demande' }], auto: [] }) }); }
       return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
     } });
   await page.evaluate(() => { state.record_10km = '45:00'; save(); localStorage.setItem('pm_coach_tab', 'text'); showScreen('coach'); }); await page.waitForTimeout(300);
@@ -492,6 +511,15 @@ test('Coach · fil écrit en relief : recherche annoncée, chiffres vérifiés, 
   await page.waitForSelector('#coach-messages .cc-card .cv-sp', { timeout: 8000 });
   assert.match(await page.textContent('#coach-messages .cc-card .cv-cdh'), /42'00 · 4'12\/km/);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/coach-fil.png' });
+  // le Coach modifie le plan (outil modifier_plan) : « Mon plan » prépare le changement, à appliquer d'un geste
+  tgt = await page.evaluate(() => { const s = prSessions(state).filter((x) => !x.done && x.type !== 'race' && x.date > prTodayIso() && x.kmPlan >= 5).shift(); return { key: s.key, km: s.kmPlan }; });
+  await page.fill('#coach-input', 'Peux-tu utiliser demain la séance pour en faire un peu moins ?'); await page.click('#coach-send-btn');
+  await page.waitForSelector('#pc-panel [onclick^="pcApply"]', { timeout: 10000 });
+  assert.equal(pcAsk, 'Séance de demain : 2 km de moins', 'demande du Coach préparée dans « Mon plan »');
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, tgt.key), tgt.km, 'rien de modifié avant validation');
+  await page.evaluate(() => { const b = document.querySelector('#pc-panel [onclick^="pcApply"]'); b.click(); }); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).km, tgt.key), tgt.km - 2, 'appliqué après validation');
+  await page.evaluate(() => coachMode('chat'));
   // Mes mémos : ce que le Coach suit, « Réglé »
   await page.evaluate(() => openMemosModal()); await page.waitForSelector('#follow-t1');
   await page.click('#follow-t1 button');

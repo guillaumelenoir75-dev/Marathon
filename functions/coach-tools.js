@@ -25,10 +25,12 @@ const COACH_TOOLS = [
   { name: 'suivi_ouvrir', description: 'Ouvre un point à suivre (douleur ou gêne, essai d\'une chaussure / d\'un gel / d\'une routine, fatigue inhabituelle, question à revoir) : tu en reprendras des nouvelles plus tard.',
     input_schema: { type: 'object', properties: { texte: { type: 'string', description: 'Court, ≤ 100 caractères (ex. « Mollet gauche qui tire depuis la sortie longue »)' }, type: { type: 'string', enum: ['douleur', 'essai', 'fatigue', 'question', 'autre'] }, relancer_le: D }, required: ['texte', 'type'] } },
   { name: 'suivi_fermer', description: 'Ferme un point à suivre réglé (id de la liste « Points à suivre »), avec une conclusion courte.',
-    input_schema: { type: 'object', properties: { id: { type: 'string' }, conclusion: { type: 'string' } }, required: ['id'] } }
+    input_schema: { type: 'object', properties: { id: { type: 'string' }, conclusion: { type: 'string' } }, required: ['id'] } },
+  { name: 'modifier_plan', description: 'Prépare une modification du plan d\'entraînement (déplacer, alléger, découper, changer la consigne, les km, ajouter un échauffement, retirer une séance…). L\'app calcule les changements et les montre à valider (Valider / Non merci) : c\'est la SEULE façon de changer le plan. À appeler dès qu\'une modification est demandée ou acceptée (« oui », « fais-le »).',
+    input_schema: { type: 'object', properties: { demande: { type: 'string', description: 'La modification complète et autonome, avec la séance, son jour et ce qui change (ex. « Séance course de dimanche 22 novembre : 2,5 km d\'échauffement EF + 3 accélérations, puis 10 km de course à 4\'12/km, soit 12,5 km au total »)' } }, required: ['demande'] } }
 ];
 // libellé court annoncé à l'app pendant la recherche (petite phrase d'attente du Coach à la voix)
-const TOOL_SAY = { detail_seance: 'Je regarde ta séance.', comparer_seances: 'Je compare les deux.', seances_faites: 'Je regarde tes séances.', seances_prevues: 'Je regarde ton plan.', meteo: 'Je regarde la météo.', niveau_et_records: 'Je regarde ton niveau.' };
+const TOOL_SAY = { modifier_plan: 'Je prépare le changement.', detail_seance: 'Je regarde ta séance.', comparer_seances: 'Je compare les deux.', seances_faites: 'Je regarde tes séances.', seances_prevues: 'Je regarde ton plan.', meteo: 'Je regarde la météo.', niveau_et_records: 'Je regarde ton niveau.' };
 
 const pace = (sec) => sec > 0 ? Math.floor(sec / 60) + "'" + String(Math.round(sec % 60)).padStart(2, '0') : null;
 const paceSec = (p) => { const m = String(p || '').match(/(\d{1,2})\s*[:'’]\s*(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
@@ -61,7 +63,13 @@ async function ctLight(db, uid, today) {
   const th = (await db.ref(base + '/state/_coach_threads').once('value')).val() || {};
   return { uid, today, db, base, state: { _coach_threads: th }, light: true };
 }
-const LIGHT_TOOLS = ['suivi_ouvrir', 'suivi_fermer'];
+const LIGHT_TOOLS = ['suivi_ouvrir', 'suivi_fermer', 'modifier_plan'];
+// modification du plan : transmise à l'app (événement planAsk), qui la fait préparer par « Mon plan » (fonction planChat) et la montre à valider
+function ctPlanAsk(input) {
+  const d = String((input && input.demande) || '').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 400);
+  if (d.length < 6) return { erreur: 'demande trop vague : précise la séance, le jour et ce qui change' };
+  return { planAsk: d, transmis: true, consigne: 'L\'app prépare ce changement et le montre à valider (Valider / Non merci). Dis seulement, en une phrase, que tu prépares le changement à valider. Ne dis JAMAIS que c\'est fait, noté ou mis à jour : c\'est la validation qui l\'applique.' };
+}
 
 // ─── séances ───
 function ctLine(s, E) {
@@ -208,6 +216,7 @@ async function ctRun(T, name, input, deps) {
     if (name === 'niveau_et_records') return ctLevel(T);
     if (name === 'suivi_ouvrir') return await ctThreadOpen(T, input);
     if (name === 'suivi_fermer') return await ctThreadClose(T, input);
+    if (name === 'modifier_plan') return ctPlanAsk(input);
     return { erreur: 'outil inconnu' };
   } catch (e) {
     console.warn('coach tool', name, e.message);
@@ -215,4 +224,4 @@ async function ctRun(T, name, input, deps) {
   }
 }
 
-module.exports = { COACH_TOOLS, TOOL_SAY, LIGHT_TOOLS, ctLoad, ctLight, ctReset, ctRun, ctFind, ctDetail, ctLine };
+module.exports = { COACH_TOOLS, TOOL_SAY, LIGHT_TOOLS, ctLoad, ctLight, ctReset, ctRun, ctFind, ctDetail, ctLine, ctPlanAsk };

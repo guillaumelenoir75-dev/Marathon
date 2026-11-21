@@ -452,6 +452,7 @@ const OUTILS_REGLE = `OUTILS — tu peux aller chercher les données toi-même (
 - seances_prevues : le plan au-delà de ce que montre le contexte. meteo : temps prévu un jour et une heure donnés. niveau_et_records : niveau, temps prévu, records, allures par zone.
 - Si le contexte suffit, réponds directement (plus rapide). Ne parle jamais d'« outil » ; au plus « Je regarde. » avant de chercher.
 - Chaque chiffre que tu donnes (allure, temps, km, FC) doit venir du contexte ou d'un outil ; sinon ne le donne pas.
+PLAN — tu PEUX modifier son plan, avec modifier_plan (et seulement avec lui) : dès qu'il demande un changement de séance (déplacer, alléger, découper, ajouter un échauffement, changer la consigne ou les km, retirer…) ou accepte celui que tu proposes (« oui », « fais-le »), appelle modifier_plan avec la demande complète (séance, jour, ce qui change). L'app montre alors le changement à valider. Ne dis jamais « c'est noté », « c'est fait » ou « je l'ai mis dans ton plan » sans cet appel, et ne dis jamais que tu ne peux pas modifier le plan.
 SUIVI — quand {{PRENOM}} évoque quelque chose à reprendre plus tard (douleur ou gêne, essai d'une chaussure, d'un gel ou d'une routine, fatigue inhabituelle, question qu'il veut revoir), appelle suivi_ouvrir. Quand sa réponse montre qu'un point de la liste « Points à suivre » est réglé, appelle suivi_fermer avec son id. Relance due : prends-en des nouvelles en une phrase courte, une seule fois (pas si c'est déjà fait aujourd'hui ou dans l'historique), sans en faire le sujet principal.`;
 const VOICE_TONES = { direct: 'TON : direct et factuel, va droit au but.', encourageant: 'TON : chaleureux et encourageant, valorise ce qui va bien avant de corriger.' };
 
@@ -588,6 +589,7 @@ LONGUEUR : 1 ou 2 phrases courtes, 30 mots AU TOTAL au maximum. Réponds directe
 UN SEUL chiffre clé par réponse (le plus utile). S'il y a plus à dire, arrête-toi et propose : « Tu veux que je détaille ? »
 CHIFFRES TOUJOURS EN CHIFFRES, JAMAIS EN LETTRES (l'app les prononce elle-même) : 42'00, 4'12/km, 145 bpm, 80 %, 12 km, S3, J-5. INTERDIT : « quarante-deux minutes », « quatre minutes douze ».
 STYLE PARLÉ : tutoiement, phrases simples, comme un coach qui parle. INTERDIT : listes, titres, markdown, gras, émojis, symboles, balises [FEU:…], formules écrites (« Ma recommandation : », « En résumé »).
+Tu lui parles directement (« tu ») : jamais de lui à la 3e personne (« {{PRENOM}} demande… »), jamais de commentaire sur « le contexte » ou les données reçues.
 Exemple de bonne réponse : « Vise 42'00, soit 4'12/km. Pars prudent, accélère après le 5e km si tu te sens bien. »
 Tu peux finir par une courte question qui relance l'échange, pas à chaque fois.`;
         maxTokens = 120;
@@ -685,7 +687,7 @@ ${coachFixedRules(_prepSt, '   ')}
 
 16. QUAND L'ATHLÈTE DEMANDE UNE MODIFICATION — RÈGLE ABSOLUE : Quand {{PRENOM}} demande explicitement de modifier une séance (changer les km, l'heure, le jour, les blocs, l'allure, etc.), tu DOIS TOUJOURS proposer la modification, même si tu penses que c'est une mauvaise idée. Format en 2 parties : (1) 1-2 phrases max sur ton avis si tu es contre, (2) la proposition de modification quand même. {{PRENOM}} est adulte et décide — ton rôle est d'informer ET de laisser le choix.
 
-17. PLANIFICATION SÉANCES FUTURES — RÈGLE : Quand {{PRENOM}} demande de planifier une séance, ta réponse DOIT contenir une de ces formulations : 'je planifie', 'c est note', 'je note dans ton plan'. Terminer obligatoirement par 'C est note dans ton plan.' ou 'Je planifie ta seance au mardi 12h00.' pour que le bouton de confirmation apparaisse dans l'interface.
+17. PLANIFICATION SÉANCES FUTURES — RÈGLE (fil écrit seulement, jamais en mode vocal ; seulement le JOUR ou l'HEURE d'une séance — pour son contenu : km, consigne, échauffement, découpage, allègement, utilise modifier_plan) : Quand {{PRENOM}} demande de planifier une séance, ta réponse DOIT contenir une de ces formulations : 'je planifie', 'c est note', 'je note dans ton plan'. Terminer obligatoirement par 'C est note dans ton plan.' ou 'Je planifie ta seance au mardi 12h00.' pour que le bouton de confirmation apparaisse dans l'interface.
 `;
 
       const rappelPlanification = String(hasUnscheduled ? " Seances non planifiees." : "");
@@ -699,7 +701,7 @@ ${coachFixedRules(_prepSt, '   ')}
       const rappelTemporel = dr ? `\nContexte temporel : Nous sommes ${dr.complet}. Jours encore disponibles cette semaine : ${joursRestants || 'aucun'}. Ne propose JAMAIS une séance un jour déjà passé.` : '';
 
       // mode vocal : pas de mise en forme écrite (émojis, gras, blocs) — la consigne orale prime
-      const reglesTour = (responseMode === 'voix' || responseMode === 'voix_long') ? reglesCommunes.replace(/FORMAT VISUEL OBLIGATOIRE :[\s\S]*?Texte fluide, pas de tirets\n/, 'FORMAT : texte oral, voir MODE VOCAL.\n') : reglesCommunes;
+      const reglesTour = (responseMode === 'voix' || responseMode === 'voix_long') ? reglesCommunes.replace(/FORMAT VISUEL OBLIGATOIRE :[\s\S]*?Texte fluide, pas de tirets\n/, 'FORMAT : texte oral, voir MODE VOCAL.\n').replace(/\n17\. PLANIFICATION SÉANCES FUTURES[^\n]*\n/, '\n') : reglesCommunes;   // à la voix, aucun bouton « c'est noté » : les changements passent par modifier_plan
       const system = `${profilAthlete}
 ${_situation ? '\n' + _situation + '\nCette situation est à jour : elle prime sur les dates ou phases plus anciennes évoquées dans l\'historique. En période post-course, conseils de reprise progressive.\n' : ''}
 ${reglesTour}
@@ -838,6 +840,7 @@ ${modeInstructions}${isVoice && VOICE_TONES[tone] ? '\n' + VOICE_TONES[tone] : '
             try { out = await ctRun(LIGHT_TOOLS.includes(b.name) && !T ? await ctLight(admin.database(), ADMIN_UID, require('./helpers').parisToday()) : await getT(), b.name, b.input); } catch(e) { out = { erreur: 'donnée indisponible' }; }
             used.push(b.name);
             if(out && out.changed){ send({ threads: out.changed }); delete out.changed; _ccCache = null; }   // point à suivre : l'app le garde, la situation sera relue
+            if(out && out.planAsk) send({ planAsk: out.planAsk });   // modification du plan : l'app la prépare (planChat) et la montre à valider
             results.push({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(out).slice(0, 12000) });
           }
           convo.push({ role: 'assistant', content: blocks.filter(Boolean).map((b) => b.type === 'tool_use' ? { type: 'tool_use', id: b.id, name: b.name, input: b.input } : b.type === 'text' ? { type: 'text', text: b.text } : b).filter((b) => b.type !== 'text' || b.text) });

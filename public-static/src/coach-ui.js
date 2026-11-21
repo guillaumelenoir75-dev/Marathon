@@ -501,7 +501,7 @@ async function sendCoachMessage(retryMsg, opts){
     if(!response.ok || !response.body) throw new Error('HTTP ' + response.status);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let fullText = '', buffer = '', tFirst = 0, nTools = 0;
+    let fullText = '', buffer = '', tFirst = 0, nTools = 0, planAsk = null;
 
     while(true) {
       const {done, value} = await reader.read();
@@ -517,6 +517,7 @@ async function sendCoachMessage(retryMsg, opts){
         if(parsed && parsed.token){ if(!tFirst) tFirst = Date.now() - t0; fullText += parsed.token; if(opts.onToken) try { opts.onToken(parsed.token); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); } }
         if(parsed && parsed.tool){ nTools++; const lb = loader.querySelector('.coach-typing span'); if(lb) lb.textContent = 'Le Coach regarde tes données'; if(opts.onTool) try { opts.onTool(parsed); } catch(e) { diagSilent(e, 'coach-ui:sendCoachMessage'); } }   // il va chercher une séance, la météo… (coach-tools.js)
         if(parsed && parsed.threads && typeof cfThreadsAdopt === 'function') cfThreadsAdopt(parsed.threads);   // point à suivre ouvert / fermé par le Coach
+        if(parsed && parsed.planAsk){ planAsk = String(parsed.planAsk); if(opts.onPlanAsk) try { opts.onPlanAsk(planAsk); } catch(e) { diagSilent(e, 'coach-ui:planAsk'); } }   // modification du plan demandée (outil modifier_plan)
       }
     }
 
@@ -546,6 +547,9 @@ async function sendCoachMessage(retryMsg, opts){
       const fid = cfLog({ q: msg, a: cleanedFullText, m: 'chat', lat: tFirst, fix: _fixes.length, tools: nTools });
       const v = document.createElement('div'); v.innerHTML = cfVoteHtml(fid); bubble.appendChild(v.firstChild);
     }
+
+    // fil écrit : le Coach a demandé une modification du plan → préparée dans « Mon plan » (planChat), à valider d'un geste
+    if(planAsk && !opts.voice && !opts.onPlanAsk) coachPlanAsk(planAsk);
 
     // Crossfade atomique : ajouter bulle au DOM opacity:0, puis fade-in/out simultané
     container.appendChild(bubbleWrap); // ajoute avec opacity:0 déjà défini
@@ -1642,3 +1646,12 @@ async function loadCoachHistory(){
 // (voir instructions dans index.js)
 const VAPID_PUBLIC_KEY = 'BBuZrddbAa1bRVH27VTuKV5cUpAVa6tOQ5oznjLHcQ0iQBJ5afidjJOLTSmebGdi1v2vdnnPjR022492YoIH4J0';
 
+// Modification du plan demandée par le Coach (outil modifier_plan) : « Mon plan » prépare les changements (fonction planChat)
+// et les montre avant → après avec « Appliquer » / « Non merci » — rien n'est modifié sans validation
+function coachPlanAsk(demande){
+  if(!demande || (typeof coachAI === 'function' && !coachAI())) return;
+  setTimeout(function(){
+    try { if(typeof openPlanChat === 'function') openPlanChat(); } catch(e) { diagSilent(e, 'coach-ui:coachPlanAsk'); }
+    setTimeout(function(){ try { if(typeof pcSend === 'function') pcSend(demande); } catch(e) { diagSilent(e, 'coach-ui:coachPlanAsk'); } }, 400);
+  }, 900);
+}

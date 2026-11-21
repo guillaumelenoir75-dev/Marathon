@@ -189,3 +189,23 @@ test('réflexion du modèle (thinking) gardée telle quelle pour le tour suivant
   assert.deepEqual(a[0], { type: 'thinking', thinking: 'Il veut sa séance.', signature: 'SIG' });
   assert.equal(a[1].type, 'tool_use');
 });
+
+test('modifier le plan : le Coach appelle modifier_plan, l\'app reçoit la demande à faire valider ; consignes « c\'est noté » retirées à la voix', async () => {
+  const data = { users: { [UID]: { state: stateFixture() } } };
+  let n = 0; const bodies = [];
+  const F = loadFunctions({ data, fetch: async (url, o) => { n++; bodies.push(JSON.parse(o.body));
+    if (n === 1) return sse([{ tool: 'modifier_plan', input: { demande: 'Course de dimanche 22 novembre : 2,5 km d\'échauffement puis 10 km de course, 12,5 km au total' } }], 'tool_use');
+    return sse([{ text: 'Je te prépare le changement, valide-le.' }]); } });
+  const out = await callStream(F.coach.coachChat, { message: 'Découpe la course de demain : 2,5 km d\'échauffement et 10 km de course', stateContext: {}, responseMode: 'voix' });
+  const ev = events(out);
+  assert.ok(ev.find((e) => e.tool === 'modifier_plan' && e.say === 'Je prépare le changement.'), 'petite phrase d\'attente');
+  const pa = ev.find((e) => e.planAsk); assert.ok(pa, 'demande transmise à l\'app'); assert.match(pa.planAsk, /2,5 km d'échauffement puis 10 km/);
+  assert.equal(JSON.stringify(data.users[UID].state).includes('12,5 km au total'), false, 'rien n\'est modifié sans validation');
+  const sys = bodies[0].system.map ? bodies[0].system.map((b) => b.text || '').join('\n') : String(bodies[0].system);
+  assert.match(sys, /tu PEUX modifier son plan, avec modifier_plan/); assert.ok(bodies[0].tools.some((t) => t.name === 'modifier_plan'));
+  assert.doesNotMatch(sys, /C est note dans ton plan/, 'à la voix : plus de « c\'est noté » sans effet');
+  const res2 = JSON.parse(bodies[1].messages[bodies[1].messages.length - 1].content[0].content);
+  assert.match(res2.consigne, /Ne dis JAMAIS que c'est fait/);
+  const { ctPlanAsk } = require('../../functions/coach-tools');
+  assert.match(ctPlanAsk({ demande: 'ok' }).erreur, /trop vague/);
+});
