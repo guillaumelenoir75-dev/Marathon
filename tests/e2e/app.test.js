@@ -117,6 +117,15 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   await page.click('#lv-act-avant .lv-ghost'); await page.waitForTimeout(800);   // « Lancer un essai »
   const P2 = await page.evaluate(() => ({ tab: document.querySelector('#live-panel .lv-tabs button.on').textContent, fin: !!document.querySelector('#lv-act-pendant .lv-fin'), tested: !!window.__DB.live.race.testedAt }));
   assert.equal(P2.tab, 'Pendant', 'l\'essai ouvre « Pendant »'); assert.ok(P2.fin, '« Je suis arrivé » dans « Pendant »'); assert.ok(P2.tested, 'essai noté pour la liste de contrôle');
+  // pointage officiel au km 5 (comme au marathon) : km + temps tapé sans « : », distance et page des amis recalées, sans alerte d'allure
+  const dialogs = []; page.on('dialog', (d) => dialogs.push(d.message()));
+  await page.fill('#lv-km', '5'); await page.fill('#lv-t', '2058');
+  assert.equal(await page.inputValue('#lv-t'), '20:58', 'saisie au pavé numérique');
+  await page.click('#lv-sec-pendant .lv-card .lv-go'); await page.waitForTimeout(600);
+  const PT = await page.evaluate(() => { const L = window.__DB.live, sp = L.splits && L.splits.k05000; return { sp, d: Math.round(suiviCalc(L, Date.now()).d), list: document.getElementById('lv-splits').textContent }; });
+  assert.ok(PT.sp && PT.sp.km === 5 && PT.sp.el === 1258000, 'pointage enregistré : ' + JSON.stringify(PT.sp));
+  assert.ok(PT.d >= 4990 && PT.d < 5400, 'distance recalée sur le pointage : ' + PT.d + ' m');
+  assert.match(PT.list, /km 5/); assert.deepEqual(dialogs, [], 'aucune alerte : 20:58 au km 5 = allure du plan');
   // encouragement d'un ami reçu pendant la course : listé dans le panneau, montré et lu à voix haute (app ouverte)
   await page.evaluate(() => { window.__spoken = []; window.speechSynthesis.speak = (u) => window.__spoken.push(u.text);
     firebase.database().ref('live_cheers/novembrun-2026/c1').set({ n: 'Marie', t: 'Lâche rien 💪', at: Date.now(), el: 600000, st: 'running' }); });
