@@ -450,14 +450,17 @@ function liveHomeView(L, now, prepDate){
   L = L || {};
   const st = L.status || 'idle', d = new Date(now);
   const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  const race = L.race || {}, day = race.date || prepDate || '';
-  if(st === 'running') return { show: true, run: true, sub: L.test ? 'Essai en cours' : 'En course · ' + (typeof suiviCalc !== 'undefined' && (L.pos || L.splits) ? suiviFmt.km(suiviCalc(L, now).d) + ' km' : 'chrono lancé') };
+  const race = L.race || {};
+  // course lancée : bouton tant qu'elle dure (12 h au plus — « Je suis arrivé » oublié : il ne reste pas affiché les jours suivants)
+  if(st === 'running' && (!L.startedAt || now - L.startedAt < 12 * 3600000)) return { show: true, run: true, sub: L.test ? 'Essai en cours' : 'En course · ' + (typeof suiviCalc !== 'undefined' && (L.pos || L.splits) ? suiviFmt.km(suiviCalc(L, now).d) + ' km' : 'chrono lancé') };
   if(st === 'finished' && L.finishedAt && now - L.finishedAt < 6 * 3600000 && !L.test)
     return { show: true, sub: race.replay ? 'Arrivé ✔ · résultat partagé avec tes amis' : 'Arrivé ✔ · saisis ton temps officiel' };
-  if(day !== today) return { show: false, sub: '' };
-  const hm = /^\d{1,2}:\d{2}$/.test(race.start || '') ? race.start.replace(':', 'h') : '';
-  const n = (+L.cheers || 0);
-  return { show: true, day: true, sub: (race.id ? (hm ? 'Départ ' + hm + ' · ' : '') + 'Démarrer le suivi de tes amis' : 'Prépare le suivi de tes amis') + (n ? ' · ' + n + ' 💬' : '') };
+  // jour de la course suivie (/live/race) ou de la course de la prépa en cours (pas encore préparée pour le suivi) ; sinon rien
+  const raceDay = race.id && race.date === today;
+  if(!raceDay && prepDate !== today) return { show: false, sub: '' };
+  const hm = raceDay && /^\d{1,2}:\d{2}$/.test(race.start || '') ? race.start.replace(':', 'h') : '';
+  const n = raceDay ? (+L.cheers || 0) : 0;
+  return { show: true, day: true, sub: (raceDay ? (hm ? 'Départ ' + hm + ' · ' : '') + 'Démarrer le suivi de tes amis' : 'Prépare le suivi de tes amis') + (n ? ' · ' + n + ' 💬' : '') };
 }
 function _liveRenderHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;

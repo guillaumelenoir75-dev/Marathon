@@ -212,8 +212,17 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   assert.equal(await o4.page.evaluate(() => document.querySelector('#live-panel .lv-tabs button.on').textContent), 'Avant', 'le bouton ouvre le panneau sur « Avant » (Démarrer)');
   assert.ok(await o4.page.evaluate(() => !!document.querySelector('#lv-act-avant .lv-go')), 'bouton Démarrer présent');
   // après l'arrivée : toujours là (saisir le temps officiel), puis plus le lendemain
-  const V = await o4.page.evaluate(() => { const n = Date.now(); return [liveHomeView({ status: 'finished', finishedAt: n - 3600000, race: { date: '2026-11-22' } }, n, ''), liveHomeView({ status: 'idle', race: { date: '2026-11-22' } }, n + 86400000, ''), liveHomeView({ status: 'idle' }, n, '2026-11-22')]; });
+  const V = await o4.page.evaluate(() => { const n = Date.now(), D = 86400000, R = { id: 'novembrun-2026', date: '2026-11-22', start: '10:00' }; return [
+    liveHomeView({ status: 'finished', finishedAt: n - 3600000, race: R }, n, '2026-11-22'),
+    liveHomeView({ status: 'idle', race: R }, n + D, '2026-11-22'),
+    liveHomeView({ status: 'idle' }, n, '2026-11-22'),
+    liveHomeView({ status: 'finished', startedAt: n + 5400000, finishedAt: n + 8000000, race: R }, n + D, '2026-11-22'),
+    liveHomeView({ status: 'running', startedAt: n + 5400000, race: R }, n + D, '2026-11-22'),
+    liveHomeView({ status: 'finished', finishedAt: n + 8000000, race: R }, n + 29 * D, '2026-12-21'),
+    liveHomeView({ status: 'finished', finishedAt: n + 8000000, race: R }, n + 28 * D, '2026-12-21')]; });
   assert.equal(V[0].show, true); assert.match(V[0].sub, /saisis ton temps officiel/); assert.equal(V[1].show, false); assert.equal(V[2].show, true, 'course pas encore préparée : bouton quand même'); assert.match(V[2].sub, /Prépare le suivi/);
+  assert.equal(V[3].show, false, 'lundi : plus de bouton après l\'arrivée'); assert.equal(V[4].show, false, 'lundi : plus de bouton même si « Je suis arrivé » a été oublié');
+  assert.equal(V[5].show, true, 'jour de la course suivante, pas encore préparée pour le suivi : bouton de retour'); assert.match(V[5].sub, /Prépare le suivi/); assert.equal(V[6].show, false, 'la veille de la course suivante : rien');
   assert.deepEqual(o4.errors, []); await o4.ctx.close();
   assert.deepEqual(errors, []);
 });
