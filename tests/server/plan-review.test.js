@@ -59,3 +59,20 @@ test('planChat / planReview : titre accordé à la consigne (accélérations ret
   assert.equal(by.extra_w1_s2.title, 'Footing EF', 'fractionné devenu footing');
   assert.equal(by.extra_w1_s3.title, undefined, 'titre déjà juste : pas de changement');
 });
+
+test('planChat : tous les accès — créer une séance, retirer une séance, km de la course ; entrées invalides écartées', async () => {
+  const F = loadFunctions({ ai: JSON.stringify({ reply: 'Je sépare l\'échauffement.', changes: [
+    { add: { date: '2026-11-08', time: '9:30', type: 'ef', title: 'Échauffement', detail: '2,5 km EF\n+ 3 accélérations', km: 2.5 }, reason: 'à part' },
+    { add: { date: '2026-10-20', type: 'ef', title: 'Passé', km: 5 } }, { add: { date: '2026-11-09', type: 'ef', title: 'Trop long', km: 80 } }, { add: { date: '2026-11-09', title: '', km: 5 } },
+    { ref: 'extra_w1_s3', km: 10, detail: '10 km course', reason: 'course seule' },
+    { ref: 'extra_w1_s0', skip: true, reason: 'repos avant la course' }, { ref: 'extra_w1_s4', skip: true }] }) });
+  const r = (await callHttp(F.coach.planChat, { today: '2026-11-01', plan, message: 'Sépare l\'échauffement de la course' })).out;
+  assert.equal(r.success, true);
+  const adds = r.changes.filter((c) => c.add);
+  assert.equal(adds.length, 1, 'date passée, km aberrants, titre vide : écartés');
+  assert.deepEqual(adds[0].add, { date: '2026-11-08', time: '09:30', type: 'ef', title: 'Échauffement', detail: '2,5 km EF + 3 accélérations', km: 2.5 });
+  assert.ok(r.changes.find((c) => c.ref === 'extra_w1_s0' && c.skip), 'séance retirée');
+  assert.ok(!r.changes.find((c) => c.ref === 'extra_w1_s4'), 'séance faite : jamais retirée');
+  const race = r.changes.find((c) => c.ref === 'extra_w1_s3'); assert.equal(race.km, 10); assert.equal(race.title, undefined);
+  assert.match(F.calls.ai[0].system, /CRÉER une séance/); assert.match(F.calls.ai[0].system, /RETIRER une séance/);
+});

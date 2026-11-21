@@ -768,11 +768,22 @@ async function prCoachBody(a, R, force){
   return body;
 }
 // changements renvoyés par le Coach → propositions (séances à venir non faites ; un champ par proposition)
+// semaine du plan (1, 2…) d'une date, d'après le lundi de début de la prépa
+function prWeekOfDate(st, date){
+  if(!st || !st.plan_start_date || !date) return null;
+  const d = Math.round((new Date(date + 'T12:00:00') - new Date(prIso(prMonday(st.plan_start_date)) + 'T12:00:00')) / 864e5);
+  return d >= 0 ? Math.floor(d / 7) + 1 : null;
+}
 function prCoachItems(changes){
   const byKey = {}; prSessions(state).forEach(function(s){ byKey[s.key] = s; });
   const items = [];
-  (changes || []).forEach(function(c){
+  (changes || []).forEach(function(c, i){
+    // séance créée par le Coach : clé attribuée à l'application ; séance retirée : « non prévue »
+    if(c && c.add){ const a = c.add, w = prWeekOfDate(state, a.date); if(!w) return;
+      items.push({ on: true, key: 'new:' + a.date + ':' + i, w: w, date: a.date, field: 'add', title: a.title, type: a.type, before: null,
+        after: { t: a.title, d: a.detail || '', km: a.km, type: a.type, date: a.date, time: a.time || null }, reason: c.reason || '', src: 'coach' }); return; }
     const s = byKey[c.ref]; if(!s || s.done) return;
+    if(c.skip === true){ if(!s.skip) items.push({ on: true, key: s.key, w: s.w, date: s.date, field: 'skip', title: s.title, type: s.type, before: 'prévue', after: 'retirée par le Coach', reason: c.reason || '', src: 'coach' }); return; }
     const push = function(field, before, after){ if(after === undefined || after === null || String(after) === String(before)) return; items.push({ on: true, key: s.key, w: s.w, date: s.date, field: field, title: s.title, type: s.type, before: before, after: after, reason: c.reason || '', src: 'coach' }); };
     push('detail', s.detail, c.detail); push('title', s.title, c.title); push('km', s.kmPlan, c.km != null ? Math.round(+c.km * 10) / 10 : null); push('type', s.type, c.type);
   });
@@ -818,6 +829,19 @@ function prApplyChanges(sel, meta){
   // consigne déjà réécrite pour cette séance (Coach : consigne + km ensemble) : les km ne la retouchent pas
   const newDet = {}; sel.forEach(function(p){ if(p.field === 'detail' || p.field === 'session') newDet[p.key] = 1; });
   sel.forEach(function(p){
+    // nouvelle séance : rangée dans sa semaine, après les séances existantes (clé libre suivante)
+    if(p.field === 'add'){
+      const a = p.after || {}, w = prWeekOfDate(state, a.date); if(!w || !a.t) return;
+      let idx = 0; while(idx <= 60 && state['extra_w' + w + '_s' + idx] !== undefined) idx++;
+      const key = 'extra_w' + w + '_s' + idx;
+      state[key] = JSON.stringify({ type: ['ef', 'long', 'tempo', 'frac', 'race'].indexOf(a.type) >= 0 ? a.type : 'ef', km: +a.km || 0, d: a.t + (a.d ? '|' + a.d : ''),
+        sched_date: a.date, sched_day: prWeekday(a.date), sched_time: a.time || undefined, _added: true, _modified: true, _seq: 1 });
+      p.key = key; p.w = w; touched[key] = 1; n++; return;
+    }
+    if(p.field === 'skip'){
+      if(state[p.key + '_done'] || state[p.key + '_skip']) return;
+      state[p.key + '_skip'] = true; state[p.key + '_skip_reason'] = p.after || 'retirée'; touched[p.key] = 1; n++; return;
+    }
     let x; try { x = JSON.parse(state[p.key]); } catch(e) { return; }
     if(!x || state[p.key + '_done']) return;
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');

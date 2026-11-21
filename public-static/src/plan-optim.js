@@ -554,6 +554,14 @@ function prUndoReview(i){
   (h.changes || []).slice().reverse().forEach(function(c){   // dernier appliqué, premier annulé (titre accordé après la consigne)
     let x; try { x = JSON.parse(state[c.ref]); } catch(e) { skip++; return; }
     if(!x || state[c.ref + '_done'] || state[c.ref + '_km'] != null){ skip++; return; }
+    // séance créée : retirée (clé supprimée si c'est la dernière de sa semaine, sinon marquée « non prévue » pour ne pas trouer la semaine)
+    if(c.field === 'add'){
+      const m = String(c.ref).match(/^extra_w(\d+)_s(\d+)$/);
+      if(!x._added || !m){ skip++; return; }
+      if(state['extra_w' + m[1] + '_s' + (+m[2] + 1)] === undefined){ delete state[c.ref]; delete state[c.ref + '_skip']; delete state[c.ref + '_skip_reason']; }
+      else { state[c.ref + '_skip'] = true; state[c.ref + '_skip_reason'] = 'annulée'; }
+      ok++; return;
+    }
     if(c.field === 'skip'){ if(state[c.ref + '_skip'] && state[c.ref + '_skip_reason'] === c.after){ delete state[c.ref + '_skip']; delete state[c.ref + '_skip_reason']; ok++; } else skip++; return; }
     if(c.field === 'date'){ if(x.sched_date === c.after){ x.sched_date = c.before; x.sched_day = prWeekday(c.before); x._seq = (x._seq || 0) + 1; state[c.ref] = JSON.stringify(x); ok++; } else skip++; return; }
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');

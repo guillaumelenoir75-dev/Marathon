@@ -452,7 +452,7 @@ const OUTILS_REGLE = `OUTILS — tu peux aller chercher les données toi-même (
 - seances_prevues : le plan au-delà de ce que montre le contexte. meteo : temps prévu un jour et une heure donnés. niveau_et_records : niveau, temps prévu, records, allures par zone.
 - Si le contexte suffit, réponds directement (plus rapide). Ne parle jamais d'« outil » ; au plus « Je regarde. » avant de chercher.
 - Chaque chiffre que tu donnes (allure, temps, km, FC) doit venir du contexte ou d'un outil ; sinon ne le donne pas.
-PLAN — tu PEUX modifier son plan, avec modifier_plan (et seulement avec lui) : dès qu'il demande un changement de séance (déplacer, alléger, découper, ajouter un échauffement, changer la consigne ou les km, retirer…) ou accepte celui que tu proposes (« oui », « fais-le »), appelle modifier_plan avec la demande complète (séance, jour, ce qui change). L'app montre alors le changement à valider. Ne dis jamais « c'est noté », « c'est fait » ou « je l'ai mis dans ton plan » sans cet appel, et ne dis jamais que tu ne peux pas modifier le plan.
+PLAN — tu PEUX modifier son plan, avec modifier_plan (et seulement avec lui) : changer une séance, en CRÉER une nouvelle (ex. un échauffement à part, le même jour), en RETIRER une. Dès qu'il demande un changement (déplacer, alléger, découper en deux séances, ajouter, changer la consigne ou les km, retirer…) ou accepte celui que tu proposes (« oui », « fais-le »), appelle modifier_plan avec la demande complète (séance, jour, ce qui change). L'app montre alors le changement à valider. Ne dis jamais « c'est noté », « c'est fait » ou « je l'ai mis dans ton plan » sans cet appel, et ne dis jamais que tu ne peux pas modifier, créer ou retirer une séance.
 SUIVI — quand {{PRENOM}} évoque quelque chose à reprendre plus tard (douleur ou gêne, essai d'une chaussure, d'un gel ou d'une routine, fatigue inhabituelle, question qu'il veut revoir), appelle suivi_ouvrir. Quand sa réponse montre qu'un point de la liste « Points à suivre » est réglé, appelle suivi_fermer avec son id. Relance due : prends-en des nouvelles en une phrase courte, une seule fois (pas si c'est déjà fait aujourd'hui ou dans l'historique), sans en faire le sujet principal.`;
 const VOICE_TONES = { direct: 'TON : direct et factuel, va droit au but.', encourageant: 'TON : chaleureux et encourageant, valorise ce qui va bien avant de corriger.' };
 
@@ -1312,16 +1312,32 @@ ${JSON.stringify(compact)}`;
 // moteur de l'app (titres cohérents), chargé une fois par instance
 let _planEngine = null;
 function planEngine(){ if (!_planEngine) _planEngine = require('./engine').loadEngine({}); return _planEngine; }
-function planCleanChanges(list, editable){
+function planCleanChanges(list, editable, opts){
+  opts = opts || {};
   const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
   const clean = (v, n) => { const x = str(v, n); return x ? x.replace(/\|/g, '·').replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ') : undefined; };
-  const seenRef = Object.create(null);
-  return (Array.isArray(list) ? list : []).filter((c) => c && typeof c.ref === 'string' && editable[c.ref] && !seenRef[c.ref] && (seenRef[c.ref] = 1)).slice(0, 12).map((c) => {
+  const seenRef = Object.create(null), all = Array.isArray(list) ? list : [];
+  // séance créée : date à venir (aujourd'hui compris, 120 jours au plus), heure, type, titre, consigne, km (0,5 à 42,2)
+  const iso = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? String(d) : null;
+  const adds = !opts.today ? [] : all.filter((c) => c && c.add && typeof c.add === 'object').slice(0, 4).map((c) => {
+    const a = c.add, date = iso(a.date), km = Math.round((parseFloat(a.km) || 0) * 10) / 10, title = clean(a.title, 80);
+    const max = new Date(Date.parse(opts.today + 'T12:00:00Z') + 120 * 864e5).toISOString().slice(0, 10);
+    if (!date || date < opts.today || date > max || !title || !(km >= 0.5 && km <= 42.2)) return null;
+    const type = ['ef', 'long', 'tempo', 'frac', 'race'].includes(a.type) ? a.type : 'ef';
+    const time = /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(a.time || '')) ? String(a.time).padStart(5, '0') : null;
+    return { add: { date, time, type, title, detail: clean(a.detail, 300) || '', km }, reason: clean(c.reason, 160) || '' };
+  }).filter(Boolean);
+  // séance retirée (« non prévue ») : séance modifiable seulement
+  const skips = all.filter((c) => c && c.skip === true && typeof c.ref === 'string' && editable[c.ref] && !seenRef[c.ref] && (seenRef[c.ref] = 1)).slice(0, 6)
+    .map((c) => ({ ref: c.ref, skip: true, reason: clean(c.reason, 160) || '' }));
+  return adds.concat(skips, all.filter((c) => c && !c.add && c.skip !== true && typeof c.ref === 'string' && editable[c.ref] && !seenRef[c.ref] && (seenRef[c.ref] = 1)).slice(0, 12).map((c) => {
     const s = editable[c.ref], o = { ref: c.ref, reason: clean(c.reason, 160) || '' }, race = s.type === 'race', km0 = parseFloat(s.km) || 0;
     const d = clean(c.detail, 300); if (d) o.detail = d;
     const t = clean(c.title, 80); if (t && !race) o.title = t;
-    // km : bornés autour du plan (au plus ×1,5 ou +6 km, au moins ×0,4), 42 km maximum
-    const km = parseFloat(c.km); if (isFinite(km) && km > 0 && !race){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
+    // km : bornés autour du plan (au plus ×1,5 ou +6 km, au moins ×0,4), 42 km maximum ; course : sa distance (1 à 42,2 km, échauffement compris ou non)
+    const km = parseFloat(c.km);
+    if (isFinite(km) && km > 0 && race){ if (opts.raceKm && km >= 1 && km <= 42.2) o.km = Math.round(km * 10) / 10; }   // « Mon plan » seulement (relecture : course intouchable)
+    else if (isFinite(km) && km > 0){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
     // type : seulement avec une nouvelle consigne qui va avec
     if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && c.type !== s.type && !race && o.detail) o.type = c.type;
     // titre accordé à la consigne et au type (même règle que l'app, prTitleFor du moteur)
@@ -1333,7 +1349,7 @@ function planCleanChanges(list, editable){
       } catch (e) {}
     }
     return o;
-  }).filter((o) => o.detail || o.title || o.km || o.type);
+  }).filter((o) => o.detail || o.title || o.km || o.type));
 }
 
 exports.planReview = onRequest(
@@ -1403,7 +1419,7 @@ CONVERSATION :
 - Réponds à ce qu'il dit, en 2 à 5 phrases, tutoiement, chaleureux et concret : appuie-toi sur ses chiffres (km faits / prévus, allures, charge, semaines). Pas de titres ni de listes ; **gras** pour les chiffres clés seulement.
 - Son ressenti compte. S'il dit que ça s'est bien passé et qu'il voudrait plus, vérifie dans ses données (charge réelle 7 j / 28 j, volume habituel, recette, WHOOP, douleurs, récupération après course) : si c'est sûr, propose une hausse RAISONNABLE et chiffrée ; sinon explique pourquoi pas maintenant et propose une alternative (plus tard, ou autrement).
 - S'il veut moins, ou annonce une contrainte (jour indisponible, fatigue, voyage, douleur), adapte le plan.
-- Tout changement utile va dans "changes" : il les verra comme des propositions à valider d'un geste. Annonce-les dans ta réponse en une phrase (« je te propose de passer la sortie longue de dimanche de 12 à 14 km »). N'annonce JAMAIS un changement que tu ne renvoies pas, et ne renvoie pas un changement sans l'annoncer.
+- Tout changement utile va dans "changes" (modifier, créer ou retirer des séances) : il les verra comme des propositions à valider d'un geste. Annonce-les dans ta réponse en une phrase (« je te propose de passer la sortie longue de dimanche de 12 à 14 km »). N'annonce JAMAIS un changement que tu ne renvoies pas, et ne renvoie pas un changement sans l'annoncer.
 - Propositions automatiques de l'app (calcul) : si tu les approuves dans ce contexte, mets leur "ref:champ" dans "auto" ; elles seront proposées avec les tiennes (dis-le en une phrase).
 - S'il manque une information indispensable, pose UNE question courte au lieu de proposer.
 - Hors sujet (autre chose que le plan) : réponds en une phrase et rappelle que ce fil sert au plan (le reste : onglet Coach).
@@ -1411,7 +1427,12 @@ CONVERSATION :
 
 RÉPONSE : uniquement un objet JSON valide, sans texte autour :
 {"reply":"ta réponse (900 caractères max)","changes":[{"ref":"extra_w3_s1","detail":"nouvelle consigne (facultatif)","title":"nouveau titre (facultatif)","km":12,"type":"ef|long|tempo|frac (facultatif)","reason":"10 à 15 mots"}],"auto":["ref:champ"]}
-Règles : uniquement des "ref" marquées modifiable ; dans chaque objet, seulement les champs qui changent ; 8 changements au plus ; ne modifie jamais la séance de course elle-même sauf sa consigne.`;
+Tu as TOUS les accès au plan à venir :
+- MODIFIER une séance : objet avec sa "ref" et seulement les champs qui changent.
+- CRÉER une séance : {"add":{"date":"AAAA-MM-JJ","time":"HH:MM","type":"ef|long|tempo|frac|race","title":"Échauffement","detail":"consigne","km":2.5},"reason":"…"} (date à partir d'aujourd'hui).
+- RETIRER une séance : {"ref":"extra_w3_s1","skip":true,"reason":"…"}.
+- Séance de course : tu peux changer sa consigne et ses km (jamais son titre ni son type). Exemple — il veut valider l'échauffement à part (deux activités Strava) : la course passe à sa vraie distance (10 km) et tu CRÉES une séance « Échauffement » le même jour, 30 min avant le départ, avec ses km.
+Règles : uniquement des "ref" marquées modifiable ; 8 changements au plus. Ne dis jamais que tu ne peux pas créer, retirer ou modifier une séance.`;
       const thread = (Array.isArray(b.thread) ? b.thread : []).slice(-12).map((m) => {
         const who = m && m.r === 'u' ? '{{PRENOM}}' : 'Coach';
         const ch = m && Array.isArray(m.ch) && m.ch.length ? ' [propositions : ' + m.ch.slice(0, 8).map((c) => (c.title || c.ref) + ' — ' + c.field + ' : ' + c.before + ' → ' + c.after).join(' ; ') + ' — ' + (m.st === 'applied' ? 'APPLIQUÉES' : m.st === 'dismissed' ? 'REFUSÉES' : m.st === 'undone' ? 'ANNULÉES' : 'en attente') + ']' : '';
@@ -1426,7 +1447,7 @@ Règles : uniquement des "ref" marquées modifiable ; dans chaque objet, seuleme
       try { const t = String(raw).replace(/^```(?:json)?\s*|\s*```$/g, ''); j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch(e) { j = null; }
       // réponse en texte libre (JSON raté) : la réponse est gardée, sans changement
       if (!j || typeof j.reply !== 'string') j = { reply: String(raw).replace(/^```[\s\S]*?```$/g, '').trim().slice(0, 1200), changes: [] };
-      const changes = planCleanChanges(j.changes, editable);
+      const changes = planCleanChanges(j.changes, editable, { today: String(b.today || '').slice(0, 10) || require('./helpers').parisToday(), raceKm: true });
       const autoRefs = new Set((Array.isArray(b.proposals) ? b.proposals : []).map((p) => p && p.ref && p.ref + ':' + p.champ).filter(Boolean));
       const auto = (Array.isArray(j.auto) ? j.auto : []).filter((r) => typeof r === 'string' && autoRefs.has(r)).slice(0, 20);
       res.json({ success: true, reply: String(j.reply || '').trim().slice(0, 1200), changes, auto });

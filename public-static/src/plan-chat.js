@@ -46,9 +46,9 @@ function openPlanChat(prefill){
 }
 
 // ─── Affichage ───
-const _pcFieldLabel = { detail: 'consigne', km: 'km', title: 'titre', type: 'type', session: 'séance' };
+const _pcFieldLabel = { detail: 'consigne', km: 'km', title: 'titre', type: 'type', session: 'séance', add: 'nouvelle séance', skip: 'séance' };
 const _pcTypeLabel = { ef: 'Footing', long: 'Sortie longue', tempo: 'Tempo', frac: 'Fractionné', race: 'Course', rest: 'Repos' };
-const _pcVal = function(f, v){ if(v && typeof v === 'object') return (v.t || 'Séance') + (v.km ? ' · ' + v.km + ' km' : ''); if(f === 'km') return String(v).replace('.', ',') + ' km'; if(f === 'type') return _pcTypeLabel[v] || v; return String(v == null ? '' : v); };
+const _pcVal = function(f, v){ if(v == null && f === 'add') return 'rien'; if(v && typeof v === 'object') return (v.time ? v.time.replace(':', 'h') + ' · ' : '') + (v.t || 'Séance') + (v.km ? ' · ' + String(v.km).replace('.', ',') + ' km' : ''); if(f === 'km') return String(v).replace('.', ',') + ' km'; if(f === 'type') return _pcTypeLabel[v] || v; return String(v == null ? '' : v); };
 const _pcDay = function(d){ if(!d) return ''; const s = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''); return s.charAt(0).toUpperCase() + s.slice(1); };
 function _pcText(t){ return prEsc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>'); }
 
@@ -148,7 +148,13 @@ function pcApply(id){
   const byKey = {}; prSessions(state).forEach(function(s){ byKey[s.key] = s; });
   const cur = function(s, f){ return f === 'detail' ? s.detail : f === 'title' ? s.title : f === 'km' ? s.kmPlan : f === 'type' ? s.type : null; };
   // toujours valable : séance pas encore faite, valeur inchangée depuis la proposition
-  const sel = m.ch.filter(function(c){ const s = byKey[c.key]; return !c.off && s && !s.done && (c.field === 'session' || String(cur(s, c.field)) === String(c.before)); })
+  const today = typeof prTodayIso === 'function' ? prTodayIso() : '';
+  const sel = m.ch.filter(function(c){
+    if(c.off) return false;
+    if(c.field === 'add') return !!(c.after && c.after.date && c.after.date >= today);                  // séance à créer : date pas encore passée
+    const s = byKey[c.key]; if(!s || s.done) return false;
+    if(c.field === 'skip') return !s.skip;                                                                // séance à retirer : encore prévue
+    return c.field === 'session' || String(cur(s, c.field)) === String(c.before); })
     .map(function(c){ return Object.assign({}, c); });
   if(!sel.length){ alert('Ces séances ont changé depuis (faites ou déjà modifiées) : demande au Coach de refaire sa proposition.'); return; }
   const at = new Date().toISOString();

@@ -858,6 +858,7 @@ function cvChangeLine(c){
   if(c.field === 'km') return head + ' : ' + v(c.after) + (/km/.test(v(c.after)) ? '' : ' km') + ' au lieu de ' + v(c.before) + (/km/.test(v(c.before)) ? '' : ' km');
   if(c.field === 'date' || c.field === 'session') return head + ' : déplacée' + (c.after && /^\d{4}-/.test(String(c.after)) ? ' au ' + new Date(String(c.after).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long' }) : '');
   if(c.field === 'skip') return head + ' : retirée';
+  if(c.field === 'add') return 'Nouvelle séance' + (day ? ' ' + day : '') + ' : ' + (c.after && c.after.time ? c.after.time.replace(':', 'h') + ', ' : '') + (c.after && c.after.t || c.title || 'séance') + (c.after && c.after.km ? ', ' + String(c.after.km).replace('.', ',') + ' km' : '');
   if(c.field === 'detail') return head + ' : ' + String(v(c.after)).slice(0, 80);
   return head + ' : ' + String(v(c.after)).slice(0, 60);
 }
