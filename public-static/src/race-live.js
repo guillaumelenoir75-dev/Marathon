@@ -444,19 +444,37 @@ async function liveSaveSplit(){
   document.getElementById('lv-km').value = ''; document.getElementById('lv-t').value = '';
 }
 
-// bouton de l'accueil (admin) : reflète l'état du suivi
+// bouton de l'accueil (admin) : visible tout le jour de la course (avant le départ pour démarrer le suivi des amis,
+// pendant la course, et jusqu'à 6 h après l'arrivée), et à tout moment pendant une course ou un essai lancé
+function liveHomeView(L, now, prepDate){
+  L = L || {};
+  const st = L.status || 'idle', d = new Date(now);
+  const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const race = L.race || {}, day = race.date || prepDate || '';
+  if(st === 'running') return { show: true, run: true, sub: L.test ? 'Essai en cours' : 'En course · ' + (typeof suiviCalc !== 'undefined' && (L.pos || L.splits) ? suiviFmt.km(suiviCalc(L, now).d) + ' km' : 'chrono lancé') };
+  if(st === 'finished' && L.finishedAt && now - L.finishedAt < 6 * 3600000 && !L.test)
+    return { show: true, sub: race.replay ? 'Arrivé ✔ · résultat partagé avec tes amis' : 'Arrivé ✔ · saisis ton temps officiel' };
+  if(day !== today) return { show: false, sub: '' };
+  const hm = /^\d{1,2}:\d{2}$/.test(race.start || '') ? race.start.replace(':', 'h') : '';
+  const n = (+L.cheers || 0);
+  return { show: true, day: true, sub: (race.id ? (hm ? 'Départ ' + hm + ' · ' : '') + 'Démarrer le suivi de tes amis' : 'Prépare le suivi de tes amis') + (n ? ' · ' + n + ' 💬' : '') };
+}
 function _liveRenderHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
-  const L = _liveVal, st = L.status || 'idle';
-  b.style.display = isAdmin() && st === 'running' ? 'flex' : 'none';
+  let pd = '';
+  try { pd = typeof prepRace === 'function' ? prepRace().date || '' : ''; } catch(e) { diagSilent(e, 'race-live:_liveRenderHomeBtn'); }
+  const V = liveHomeView(_liveVal, _liveNow(), pd);
+  b.style.display = isAdmin() && V.show ? 'flex' : 'none';
+  // Piste de nuit : le bouton est rangé dans #ph-blocks, masqué s'il était vide au dernier rendu de l'accueil → réaffiché ici
+  const pb = b.parentElement;
+  if(pb && pb.id === 'ph-blocks') pb.style.display = [].some.call(pb.children, function(c){ return getComputedStyle(c).display !== 'none'; }) ? '' : 'none';
   const sub = document.getElementById('home-live-sub');
-  if(sub) sub.textContent = st === 'running' ? (L.test ? 'Essai en cours' : 'En course · ' + (typeof suiviCalc !== 'undefined' && (L.pos || L.splits) ? suiviFmt.km(suiviCalc(L, _liveNow()).d) + ' km' : 'chrono lancé'))
-    : st === 'finished' ? 'Arrivé ✔' : 'Démarrer, pointages officiels, suivi des amis';
+  if(sub && sub.textContent !== V.sub) sub.textContent = V.sub || 'Démarrer, pointages officiels, suivi des amis';
 }
 function initLiveHomeBtn(){
   const b = document.getElementById('home-live-btn'); if(!b) return;
   if(typeof firebase === 'undefined'){ b.style.display = 'none'; return; }      // mode aperçu hors ligne
-  // visible sur l'accueil seulement pendant une course lancée (sinon : Compte) — état connu réappliqué à chaque rafraîchissement
+  // visible sur l'accueil le jour de la course et pendant une course lancée (sinon : Compte) — état connu réappliqué à chaque rafraîchissement
   // de l'accueil (avant : masqué à chaque renderHome, et ne revenait qu'au prochain changement de /live)
   if(window._liveHomeListen && typeof _liveVal !== 'undefined' && _liveVal){ _liveRenderHomeBtn(); return; }
   b.style.display = 'none';

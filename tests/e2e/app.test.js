@@ -200,7 +200,21 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   await o3.page.evaluate(() => openLivePanel()); await o3.page.waitForSelector('#lv-race .lv-note', { timeout: 8000 });
   assert.match(await o3.page.textContent('#lv-race'), /départ 10h00/);
   assert.equal(await o3.page.evaluate(() => !!document.querySelector('#lv-race .lv-go[onclick^="liveUsePresetRoute"]')), false, 'plus de bouton : tout est en place');
+  await o3.page.evaluate(() => closeLivePanel());
+  assert.equal(await o3.page.evaluate(() => getComputedStyle(document.getElementById('home-live-btn')).display), 'none', 'la veille : pas de bouton sur l\'accueil');
   assert.deepEqual(o3.errors, []); await o3.ctx.close();
+  // jour de la course, avant le départ (Piste de nuit) : bouton « Course en direct » sur l'accueil pour démarrer le suivi des amis
+  const o4 = await open('2026-11-22T08:30:00+01:00', saved, { init: () => { localStorage.setItem('pm_theme', 'piste'); } });
+  await o4.page.waitForFunction(() => { const b = document.getElementById('home-live-btn'); return b && getComputedStyle(b).display !== 'none' && b.offsetParent !== null; }, null, { timeout: 8000 });
+  assert.match(await o4.page.textContent('#home-live-sub'), /^Départ 10h00 · Démarrer le suivi de tes amis/);
+  if (process.env.SHOTS) await o4.page.screenshot({ path: process.env.SHOTS + '/jourj-accueil.png' });
+  await o4.page.click('#home-live-btn'); await o4.page.waitForSelector('#live-panel #lv-check', { timeout: 8000 });
+  assert.equal(await o4.page.evaluate(() => document.querySelector('#live-panel .lv-tabs button.on').textContent), 'Avant', 'le bouton ouvre le panneau sur « Avant » (Démarrer)');
+  assert.ok(await o4.page.evaluate(() => !!document.querySelector('#lv-act-avant .lv-go')), 'bouton Démarrer présent');
+  // après l'arrivée : toujours là (saisir le temps officiel), puis plus le lendemain
+  const V = await o4.page.evaluate(() => { const n = Date.now(); return [liveHomeView({ status: 'finished', finishedAt: n - 3600000, race: { date: '2026-11-22' } }, n, ''), liveHomeView({ status: 'idle', race: { date: '2026-11-22' } }, n + 86400000, ''), liveHomeView({ status: 'idle' }, n, '2026-11-22')]; });
+  assert.equal(V[0].show, true); assert.match(V[0].sub, /saisis ton temps officiel/); assert.equal(V[1].show, false); assert.equal(V[2].show, true, 'course pas encore préparée : bouton quand même'); assert.match(V[2].sub, /Prépare le suivi/);
+  assert.deepEqual(o4.errors, []); await o4.ctx.close();
   assert.deepEqual(errors, []);
 });
 
