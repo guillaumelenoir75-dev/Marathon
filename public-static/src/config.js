@@ -259,17 +259,18 @@ function getShoeOptions(currentShoe){
 }
 
 /* Fix 4 : formatage automatique des champs durée mm:ss et allure mm:ss */
+// Saisie d'un temps au pavé numérique, sans « : » : les chiffres se lisent depuis la droite (secondes, minutes, heures)
+// 540 → 5:40 · 4255 → 42:55 · 10530 → 1:05:30 ; « : » tapés à la main acceptés (ignorés puis remis au bon endroit)
+function fmtClockDigits(v, max){
+  const d = String(v == null ? '' : v).replace(/\D/g, '').slice(0, max || 6);
+  return d.length <= 2 ? d : d.length <= 4 ? d.slice(0, -2) + ':' + d.slice(-2) : d.slice(0, -4) + ':' + d.slice(-4, -2) + ':' + d.slice(-2);
+}
 function onDurInput(el){
-  let v=el.value.replace(/[^\d:]/g,'');
-  el.value=v;
+  el.value=fmtClockDigits(el.value,6);
   if(typeof calcPerfEditPace==='function') calcPerfEditPace();
   if(typeof calcPace==='function'&&document.getElementById('val-km')) calcPace();   // fenêtre de validation
 }
-function onPaceInput(el){
-  let v=el.value.replace(/[^\d:]/g,'');
-  if(!v.includes(':')&&v.length>=2) v=v.slice(0,v.length>2?2:1)+':'+v.slice(v.length>2?2:1);
-  el.value=v;
-}
+function onPaceInput(el){ el.value=fmtClockDigits(el.value,4); }   // 540 → 5:40 (avant : « 54:0 »)
 
 
 // ─── Écrans rares chargés à la demande ──────────────────────────────────────

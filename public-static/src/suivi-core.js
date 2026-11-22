@@ -251,7 +251,9 @@ function suiviCountdown(ms){
 // résultat après l'arrivée : temps officiel (rejeu) sinon chrono du suivi, allure, écart à l'objectif (s, négatif = plus vite)
 function suiviResult(live, race){
   live = live || {}; race = race || SuiviRace;
-  const rp = race.replay || null, off = rp && rp.official > 0 ? rp.official * 1000 : null;
+  // temps officiel : rejeu, sinon temps final saisi à la main (fiche /live/race, lue en direct), sinon chrono du suivi
+  const fin = (live.race && live.race.final > 0 && live.race.final) || (race.final > 0 && race.final) || null;
+  const rp = race.replay || null, off = rp && rp.official > 0 ? rp.official * 1000 : fin ? fin * 1000 : null;
   const chrono = live.finishedAt && live.startedAt ? live.finishedAt - live.startedAt : null, ms = off || chrono;
   if(!ms) return null;
   const km = (race.official || 10000) / 1000, tgt = race.target > 0 ? race.target * 1000 : null;

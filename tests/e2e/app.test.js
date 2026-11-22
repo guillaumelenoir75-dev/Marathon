@@ -140,7 +140,26 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   const DEL = await page.evaluate(() => ({ db: Object.keys((window.__DB.live_cheers || {})['novembrun-2026'] || {}).length, n: window.__DB.live.cheers, box: document.querySelector('#lv-sec-pendant .lv-cheer-box').textContent }));
   assert.equal(DEL.db, 0); assert.equal(DEL.n, 0); assert.match(DEL.box, /Pas encore de message/);
   assert.equal(await page.evaluate(() => notifRunAction('?action=live', 0)), true, 'la notification d\'un encouragement ouvre la course en direct');
-  await page.evaluate(() => { _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null }); }); await page.waitForTimeout(300);
+  await page.waitForTimeout(500); assert.equal(await page.evaluate(() => document.querySelectorAll('#live-panel').length), 1, 'un seul panneau, même ouvert deux fois');
+  // arrivée : chrono du suivi faux (43:20) → temps final tapé à la main, chiffre par chiffre, « : » posé pendant la frappe
+  await page.evaluate(() => { const s = Date.now() - 3000000; return _liveRef.update({ status: 'finished', test: null, startedAt: s, finishedAt: s + 2600000 }); }); await page.waitForTimeout(500);
+  await page.evaluate(() => liveTab('apres')); await page.waitForSelector('#lv-final', { timeout: 5000 });
+  const typed = [];
+  for (const c of '4255') { await page.type('#lv-final', c); typed.push(await page.inputValue('#lv-final')); }
+  assert.deepEqual(typed, ['4', '42', '4:25', '42:55'], 'minutes, puis « : », puis secondes');
+  await page.click('#lv-after button[onclick="liveSetFinal()"]'); await page.waitForTimeout(600);
+  const FN = await page.evaluate(() => { const L = window.__DB.live; return { fin: L.race.final, el: L.finishedAt - L.startedAt, st: L.status, txt: document.getElementById('lv-after').textContent, res: suiviResult(L, L.race).ms }; });
+  assert.equal(FN.fin, 2575); assert.equal(FN.el, 2575000, 'heure d\'arrivée recalée'); assert.equal(FN.st, 'finished');
+  assert.match(FN.txt, /42:55/); assert.match(FN.txt, /Corriger/); assert.equal(FN.res, 2575000, 'page des amis : temps saisi');
+  assert.deepEqual(dialogs.filter((m) => !/^Supprimer/.test(m)), [], 'aucune alerte');
+  // course déjà validée (cas réel) : la correction met aussi à jour le temps officiel de la séance et le résultat de la prépa
+  await page.evaluate((k) => { state[k + '_done'] = true; state[k + '_perf'] = JSON.stringify({ dist: 10, official: '43:20' }); save(); _liveAfterRender(); }, rk);
+  await page.fill('#lv-final', ''); await page.type('#lv-final', '4250'); assert.equal(await page.inputValue('#lv-final'), '42:50');
+  await page.click('#lv-after button[onclick="liveSetFinal()"]'); await page.waitForTimeout(1200);
+  const FV = await page.evaluate((k) => ({ off: JSON.parse(state[k + '_perf']).official, res: state._race_result && prepTimeSec(state._race_result.time), fin: window.__DB.live.race.final }), rk);
+  assert.equal(FV.off, '42:50'); assert.equal(FV.res, 2570, 'résultat de la prépa corrigé'); assert.equal(FV.fin, 2570);
+  await page.evaluate((k) => { delete state[k + '_done']; delete state[k + '_perf']; delete state._race_result; save(); }, rk);
+  await page.evaluate(() => { _liveRef.update({ status: 'idle', test: null, rid: null, startedAt: null, finishedAt: null, 'race/final': null, passages: null }); }); await page.waitForTimeout(300);
   const saved = await db(page); await ctx.close();
   // page publique des amis : même course, même tracé ; avant le départ : compte à rebours et programme
   {

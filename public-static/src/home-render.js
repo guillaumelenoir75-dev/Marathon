@@ -1185,7 +1185,7 @@ function openValidationModalExtra(w,ei){
       </div>
       ${s.type==='race'?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;">
         <p style="font-size:12px;font-weight:800;color:#92400E;margin-bottom:6px;">🏁 Temps officiel (puce)</p>
-        <input type="text" inputmode="numeric" id="val-official" value="${(state._race_result||{}).time||''}" placeholder="${(prepRace().km||10)>=20?'1:29:45':'41:30'}" maxlength="8"
+        <input type="text" inputmode="numeric" id="val-official" value="${(state._race_result||{}).time||''}" placeholder="${(prepRace().km||10)>=20?'1:29:45':'41:30'}" maxlength="8" oninput="this.value=fmtClockDigits(this.value,6)"
           style="background:#fff;border:2px solid #FDE68A;border-radius:10px;padding:10px;font-size:22px;font-weight:900;color:#92400E;width:100%;outline:none;text-align:center;font-variant-numeric:tabular-nums;">
         <p style="font-size:11px;color:#92400E;margin-top:5px;line-height:1.35;">Sur ${prepRace().km||''} km, sans l'échauffement : il est enregistré dans ta prépa et compare tes records.</p>
       </div>`:''}
@@ -1217,7 +1217,7 @@ function openValidationModalExtra(w,ei){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Allure moy. <span style="font-size:10px;font-weight:400;">(calculée auto)</span></p>
-          <input type="text" id="val-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5"
+          <input type="text" inputmode="numeric" id="val-pace" value="${prev.pace||''}" placeholder="5:40" maxlength="5" oninput="onPaceInput(this)"
             style="background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:11px;font-size:20px;font-weight:800;color:var(--text);width:100%;outline:none;text-align:center;">
           <p style="font-size:10px;color:var(--muted);margin-top:3px;text-align:center;">/km</p>
         </div>

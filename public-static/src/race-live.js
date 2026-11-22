@@ -8,7 +8,7 @@ function _liveLoadCore(){
   if(typeof SuiviGeo !== 'undefined') return Promise.resolve();
   if(_liveCoreP) return _liveCoreP;                                  // un seul chargement, même si appelé deux fois
   const load = function(src){ return new Promise(function(ok, ko){ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); };
-  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=13'); }).catch(function(e){ _liveCoreP = null; throw e; });
+  _liveCoreP = load('/src/suivi-data.js?v=1').then(function(){ return load('/src/suivi-core.js?v=14'); }).catch(function(e){ _liveCoreP = null; throw e; });
   return _liveCoreP;
 }
 // Temps de course → millisecondes. Saisie au pavé numérique (sans « : ») : les chiffres se lisent depuis la droite
@@ -33,13 +33,14 @@ function _liveParseTime(v){
 // mise en forme pendant la frappe : 1 → 1 · 145 → 1:45 · 1458 → 14:58 · 14823 → 1:48:23
 function _liveFmtTimeInput(el){
   if(/h/i.test(el.value)) return;                       // saisie « 1h42 » laissée telle quelle
-  const d = el.value.replace(/\D/g, '').slice(0, 6);
-  el.value = d.length <= 2 ? d : d.length <= 4 ? d.slice(0, -2) + ':' + d.slice(-2) : d.slice(0, -4) + ':' + d.slice(-4, -2) + ':' + d.slice(-2);
+  el.value = fmtClockDigits(el.value, 6);
 }
 
 async function openLivePanel(){
   if(!isAdmin()) return;
   try { await _liveLoadCore(); } catch(e) { alert('Impossible de charger le suivi (réseau).'); return; }
+  // déjà ouvert (notification d'un encouragement, bouton de l'accueil) : remplacé, jamais deux panneaux l'un sur l'autre
+  if(document.getElementById('live-panel')) closeLivePanel();
   const mc = document.getElementById('modal-container');
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'live-panel';
@@ -233,16 +234,44 @@ function _liveAfterRender(){
   if(st !== 'finished' || L.test){
     h = '<div class="lv-card"><p class="lv-h">Après l\'arrivée</p><p class="lv-note">Ton temps, puis le rejeu accéléré de ta course pour tes amis, dès que tu as saisi ton temps officiel.</p></div>';
   } else {
-    const chrono = L.finishedAt && L.startedAt ? L.finishedAt - L.startedAt : null, off = rp && rp.official ? rp.official * 1000 : null, ref = off || chrono;
+    const chrono = L.finishedAt && L.startedAt ? L.finishedAt - L.startedAt : null, off = rp && rp.official ? rp.official * 1000 : r.final > 0 ? r.final * 1000 : null, ref = off || chrono;
     const tgt = SuiviRace.target ? SuiviRace.target * 1000 : null, diff = ref && tgt ? Math.round((ref - tgt) / 1000) : null;
     h = '<div class="lv-card lv-res"><p class="lv-eb2">' + (off ? 'Temps officiel' : 'Chrono du suivi') + '</p><b class="lv-big-t">' + (ref ? suiviFmt.dur(ref) : '–') + '</b>'
       + '<p class="lv-note">' + (ref ? suiviFmt.pace(ref / 1000 / (suiviOff() / 1000)) : '') + (diff !== null ? ' · ' + (diff <= 0 ? Math.abs(diff) + ' s sous l\'objectif' : diff + ' s au-dessus de l\'objectif') : '') + '</p></div>'
       + '<div class="lv-card"><div class="lv-ci ' + (off ? 'ok' : 'warn') + '"><span class="lv-ico">' + LV_ICO[off ? 'ok' : 'warn'] + '</span><span class="lv-ct"><b>Temps officiel</b><small>'
-      + (off ? 'Saisi · rejeu prêt pour tes amis' : S && S.done ? 'Course validée : rejeu en attente des temps au km Strava' : 'Valide ta course avec ton temps officiel') + '</small></span>'
+      + (rp && rp.official ? 'Saisi · rejeu prêt pour tes amis' : off ? 'Saisi · affiché sur la page des amis' : S && S.done ? 'Course validée : saisis ton temps final ci-dessous' : 'Valide ta course avec ton temps officiel') + '</small></span>'
       + (!off && S && !S.done ? '<button type="button" class="lv-fix" onclick="liveOfficialOpen()">Saisir</button>' : '') + '</div>'
-      + '<div class="lv-ci ok"><span class="lv-ico">' + LV_ICO.ok + '</span><span class="lv-ct"><b>Page des amis</b><small>Ton résultat y est affiché' + (off ? ', avec le rejeu' : '') + '</small></span><button type="button" class="lv-fix" onclick="liveShareLink()">Partager</button></div></div>';
+      + '<div class="lv-ci ok"><span class="lv-ico">' + LV_ICO.ok + '</span><span class="lv-ct"><b>Page des amis</b><small>Ton résultat y est affiché' + (rp && rp.official ? ', avec le rejeu' : '') + '</small></span><button type="button" class="lv-fix" onclick="liveShareLink()">Partager</button></div></div>'
+      // temps final saisi à la main (puce) : remplace le chrono du suivi partout (panneau, page des amis, prépa, records)
+      + '<div class="lv-card"><p class="lv-h">Temps final</p>'
+      + '<div class="lv-row2" style="align-items:flex-end;"><label class="lv-lab">Ton temps (puce)<input id="lv-final" type="text" inputmode="numeric" placeholder="41:50" value="' + (off ? _liveClock(off) : '') + '" oninput="_liveFmtTimeInput(this)"></label>'
+      + '<button type="button" class="lv-btn lv-go" style="flex:1" onclick="liveSetFinal()">' + (off ? 'Corriger' : 'Enregistrer') + '</button></div>'
+      + '<p class="lv-note">Tape seulement les chiffres : 4255 → 42:55 · 13512 → 1:35:12</p></div>';
   }
   if(box.dataset.h !== h){ box.innerHTML = h; box.dataset.h = h; }
+}
+// temps en « 42:55 » ou « 1:35:12 » (sans 0 devant les minutes d'une course de moins d'une heure)
+function _liveClock(ms){ const t = Math.round(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), x = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); }
+// Temps final saisi après l'arrivée : fiche /live (page des amis, rejeu), séance « course » validée (temps officiel, prépa, records)
+async function liveSetFinal(){
+  const el = document.getElementById('lv-final'), ms = _liveParseTime(el && el.value);
+  if(!ms){ alert('Temps invalide. Tape seulement les chiffres : 4255 = 42:55 · 13512 = 1:35:12'); return; }
+  const L = _liveVal || {}, sec = Math.round(ms / 1000), txt = _liveClock(ms);
+  const up = { 'race/final': sec };
+  if(L.race && L.race.replay) up['race/replay/official'] = sec;
+  if(L.startedAt){ up.finishedAt = L.startedAt + ms; up['passages/finish'] = L.startedAt + ms; }
+  if(!L.status || L.status === 'running') up.status = 'finished';
+  try { await _liveRef.update(up); } catch(e) { alert('Enregistrement impossible (réseau). Réessaie.'); return; }
+  // séance « course » déjà validée : temps officiel corrigé (fiche de la prépa, records, rejeu)
+  const S = _liveRaceSession();
+  if(S && S.done){
+    const k = 'extra_w' + S.w + '_s' + S.ei;
+    try { const p = JSON.parse(state[k + '_perf'] || '{}'); p.official = txt; state[k + '_perf'] = JSON.stringify(p); save(); } catch(e) { diagSilent(e, 'race-live:liveSetFinal'); }
+    if(typeof prepSaveRaceResult === 'function'){ try { await prepSaveRaceResult(txt, SuiviRace.date || null); } catch(e) { diagSilent(e, 'race-live:liveSetFinal'); } }
+    if(typeof sessionChanged === 'function') sessionChanged({ race: true });
+  }
+  if(typeof showToast === 'function') showToast('Temps final enregistré : ' + txt, '🏁');
+  _liveAfterRender();
 }
 // style « Piste de nuit » du panneau, dans tous les thèmes (feuille marquée data-th : jamais convertie par l'adaptateur sombre)
 function _liveCss(){
