@@ -104,7 +104,7 @@ function prepDebriefAll(){
   _pdDebriefBusy = (async function(){
     if((typeof _prepView !== 'undefined' && _prepView) || typeof _prepRef !== 'function') return false;
     if(!_prepIndex) _prepIndex = (await _prepRef('prep_index').once('value')).val() || {};
-    const today = prTodayIso(), ids = Object.keys(_prepIndex).filter(function(id){ const p = _prepIndex[id]; return p && p.date && p.date < today && id !== state._prep_id; });
+    const today = prTodayIso(), ids = Object.keys(_prepIndex).filter(function(id){ const p = _prepIndex[id]; return p && p.date && p.date <= today && id !== state._prep_id; });   // le soir de la course, une fois la prépa suivante ouverte
     let changed = false;
     for(const id of ids){
       const p = _prepIndex[id];

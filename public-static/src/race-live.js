@@ -269,9 +269,30 @@ async function liveSetFinal(){
     try { const p = JSON.parse(state[k + '_perf'] || '{}'); p.official = txt; state[k + '_perf'] = JSON.stringify(p); save(); } catch(e) { diagSilent(e, 'race-live:liveSetFinal'); }
     if(typeof prepSaveRaceResult === 'function'){ try { await prepSaveRaceResult(txt, SuiviRace.date || null); } catch(e) { diagSilent(e, 'race-live:liveSetFinal'); } }
     if(typeof sessionChanged === 'function') sessionChanged({ race: true });
+  } else if(!S && SuiviRace.date) {
+    // prépa déjà terminée (la suivante est ouverte) : temps corrigé dans Mes prépas (fiche + copie figée), records relus
+    try { await _liveFixArchivedPrep(SuiviRace.date, txt); } catch(e) { diagSilent(e, 'race-live:liveSetFinal'); }
   }
   if(typeof showToast === 'function') showToast('Temps final enregistré : ' + txt, '🏁');
   _liveAfterRender();
+}
+async function _liveFixArchivedPrep(date, txt){
+  if(typeof _prepRef !== 'function') return;
+  const idx = (await _prepRef('prep_index').once('value')).val() || {};
+  const id = Object.keys(idx).find(function(k){ return idx[k] && idx[k].date === date; }); if(!id) return;
+  const snap = (await _prepRef('preps/' + id).once('value')).val() || {}, up = { ['prep_index/' + id + '/result']: txt, ['prep_index/' + id + '/debrief']: null };   // bilan refait
+  Object.keys(snap).forEach(function(k){
+    if(!/^extra_w\d+_s\d+$/.test(k) || !snap[k + '_done']) return;
+    let x; try { x = JSON.parse(snap[k]); } catch(e) { return; }
+    if(!x || x.type !== 'race' || x._season || x.sched_date !== date) return;
+    let p = {}; try { p = JSON.parse(snap[k + '_perf'] || '{}'); } catch(e) {}
+    p.official = txt; up['preps/' + id + '/' + k + '_perf'] = JSON.stringify(p);
+  });
+  await firebase.database().ref('users/' + _prepUid()).update(up);
+  if(typeof _prepIndex !== 'undefined' && _prepIndex && _prepIndex[id]){ _prepIndex[id].result = txt; delete _prepIndex[id].debrief; }
+  if(typeof _prepSnapCache !== 'undefined') delete _prepSnapCache[id];
+  if(typeof prPrefetch === 'function') await prPrefetch();
+  if(typeof sessionChanged === 'function') sessionChanged();
 }
 // style « Piste de nuit » du panneau, dans tous les thèmes (feuille marquée data-th : jamais convertie par l'adaptateur sombre)
 function _liveCss(){

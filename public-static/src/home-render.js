@@ -788,8 +788,11 @@ function renderHome(){
     }
     // "Aujourd'hui" seulement sur semaine en cours
     const todayDayRun=(new Date()).getDay()===0?7:(new Date()).getDay();
+    // date réelle de la séance quand elle est connue : le jour de la semaine seul marquait « Aujourd'hui » le dimanche
+    // d'une semaine qui n'a pas encore commencé (prépa suivante ouverte le soir de la course)
+    const _todayIso=(typeof prTodayIso==='function')?prTodayIso():'';
     const isRunToday=isCurrent&&!done&&(
-      s2.sched_day===todayDayRun
+      s2.sched_date&&_todayIso ? s2.sched_date===_todayIso : s2.sched_day===todayDayRun
     );
     // Boutons : actifs sur semaine en cours et futures, lecture seule sur passées
     const canEdit = isCurrent || isFuture;

@@ -345,7 +345,7 @@ function _renderPrepsBody(){
       + (p.note && !(p.result && shortNote) ? '<p class="pp-note" style="color:#B45309;">🏅 <span>' + _prepEsc(p.note) + '</span></p>' : '')
       + (p.shape && p.shape.length ? '<div class="pp-chart">' + _ppBars(p.shape, 'done') + '</div>' : '')
       + '<div class="pp-acts"><button class="pp-btn sec" data-prep-open="' + p.id + '" onclick="prepView(\'' + p.id + '\')">' + PP_ICON.book + 'Consulter</button>'
-      +   (typeof openPrepDebrief === 'function' && p.date && p.date < _prepToday() ? '<button class="pp-btn sec" onclick="openPrepDebrief(\'' + p.id + '\')">📋 Bilan</button>' : '')
+      +   (typeof openPrepDebrief === 'function' && p.date && (p.date < _prepToday() || (p.date === _prepToday() && p.id !== state._prep_id)) ? '<button class="pp-btn sec" onclick="openPrepDebrief(\'' + p.id + '\')">📋 Bilan</button>' : '')
       +   (p.replay ? '<a class="pp-btn warm" href="' + _prepEsc(p.replay) + '" target="_blank" rel="noopener">' + PP_ICON.play + 'Revoir</a>' : '')
       +   (_prepView ? '' : '<button class="pp-btn icon" onclick="prepDelete(\'' + p.id + '\')" aria-label="Supprimer ' + _prepEsc(p.title) + '" title="Supprimer">' + PP_ICON.trash + '</button>') + '</div></section>';
   });
@@ -702,12 +702,22 @@ async function prepAutoSave(force){
   state._prep_id = id; state._prep_autosave = today;
   Object.keys(state).forEach(function(k){ if(!_PREP_SKIP.test(k) && state[k] !== undefined) snap[k] = state[k]; });
   const meta = { title: old.title || cur.title, race: cur.race, dist: cur.dist, date: cur.date || old.date || '', start: cur.start || '',
-    result: old.result || cur.result || '', note: old.note || '', replay: old.replay || '', stats: cs, shape: _prepShape(state), savedAt: today, auto: true, admin: false };
+    result: old.result || cur.result || '', note: old.note || '', replay: old.replay || (await _prepReplayOf(cur)), stats: cs, shape: _prepShape(state), savedAt: today, auto: true, admin: false };
+  if(old.ra) meta.ra = old.ra;                                           // analyse de la course (raStore) gardée
   await _prepRef('preps/' + id).set(snap);
   await _prepRef('prep_index/' + id).set(meta);
   delete _prepSnapCache[id];
   if(_prepIndex) _prepIndex[id] = meta;
   await dbRef.update({ _prep_id: id, _prep_autosave: today });
+}
+// Lien « Revoir » de la course : page des amis de cette course suivie en direct (/live, archivée plus tard sous le même id)
+async function _prepReplayOf(cur){
+  if(!cur || !cur.date || cur.date > _prepToday() || typeof isAdmin !== 'function' || !isAdmin()) return '';
+  try {
+    const r = (await firebase.database().ref('live/race').once('value')).val();
+    if(r && r.id && r.date === cur.date) return (typeof LIVE_PAGE !== 'undefined' ? LIVE_PAGE : location.origin + '/suivi-guillaume') + '?course=' + encodeURIComponent(r.id);
+  } catch(e) {}
+  return '';
 }
 // Course de la prépa en cours validée ?
 function _prepRaceDone(st){
@@ -722,7 +732,11 @@ async function _prepMaybeAdvance(){
   const meta = (await _prepRef('prep_next/meta').once('value')).val(); _prepNext = meta;
   if(!meta) return;
   const today = _prepToday(), cur = _prepCurrentInfo(state);
-  if(today < meta.start || (cur.date && cur.date >= meta.start)) return;
+  if(cur.date && cur.date >= meta.start) return;
+  // course de la prépa en cours validée, le jour même ou après : la prépa suivante s'ouvre tout de suite (programme visible
+  // dès le soir de la course), sans attendre son 1er jour
+  const early = !!cur.date && today >= cur.date && _prepRaceDone(state);
+  if(today < meta.start && !early) return;
   if(_prepStats(state).planned && !_prepRaceDone(state) && today < meta.first) return;
   await prepActivateNext();
 }

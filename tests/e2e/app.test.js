@@ -252,6 +252,44 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
   assert.equal(V[3].show, false, 'lundi : plus de bouton après l\'arrivée'); assert.equal(V[4].show, false, 'lundi : plus de bouton même si « Je suis arrivé » a été oublié');
   assert.equal(V[5].show, true, 'jour de la course suivante, pas encore préparée pour le suivi : bouton de retour'); assert.match(V[5].sub, /Prépare le suivi/); assert.equal(V[6].show, false, 'la veille de la course suivante : rien');
   assert.deepEqual(o4.errors, []); await o4.ctx.close();
+  // le soir de la course, course validée : la prépa du semi s'ouvre tout de suite, le 10 km est gardé dans Mes prépas avec « Revoir »
+  {
+    const D5 = JSON.parse(saved), S5 = D5.users.ADMINUID.state;
+    assert.ok(D5.users.ADMINUID.prep_next && D5.users.ADMINUID.prep_next.meta.id === 'semi-paris-2027', 'semi prévu');
+    S5[rk + '_done'] = true; S5[rk + '_perf'] = JSON.stringify({ dist: 10, dur: '43:20', official: '43:20', date: '2026-11-22' });
+    S5._race_result = { time: '43:20', date: '2026-11-22', dist: '10km' };
+    Object.values(D5.users.ADMINUID.prep_index || {}).forEach((P) => { if (P.date === '2026-11-22') delete P.result; });   // temps de l'essai précédent retiré
+    Object.assign(D5.live, { status: 'finished', startedAt: new Date('2026-11-22T10:00:00+01:00').getTime(), finishedAt: new Date('2026-11-22T10:43:20+01:00').getTime() });
+    const o5 = await open('2026-11-22T15:00:00+01:00', JSON.stringify(D5), { init: () => { localStorage.setItem('pm_theme', 'piste'); } });
+    await o5.page.waitForFunction(() => { const U = window.__DB.users.ADMINUID; return !U.prep_next && U.state.plan_start_date === '2026-11-23'; }, null, { timeout: 10000 });
+    const B = await o5.page.evaluate(() => { const U = window.__DB.users.ADMINUID, id = Object.keys(U.prep_index).find((k) => U.prep_index[k].date === '2026-11-22'), P = U.prep_index[id] || {};
+      const snap = (U.preps || {})[id] || {}; return { id, res: P.result, replay: P.replay, raceDone: Object.keys(snap).some((k) => /_done$/.test(k) && /^extra/.test(k) && JSON.parse(snap[k.replace(/_done$/, '')]).type === 'race'),
+        cw: wsCurrentWeek(), mode: wsModeFor(wsCurrentWeek()), n: wsWeekList().length, race: (state.onboarding || {}).race_name || '' }; });
+    assert.equal(B.res, '43:20'); assert.equal(B.replay, 'https://prepa-marathon.web.app/suivi-guillaume?course=novembrun-2026'); assert.ok(B.raceDone, 'copie figée avec la course validée');
+    assert.equal(B.cw, 1, 'la semaine prochaine (S1 du semi) s\'ouvre en image'); assert.equal(B.mode, 'plan'); assert.ok(B.n >= 14, B.n + ' semaines');
+    for (const sc of ['plan', 'home']) { await o5.page.evaluate((x) => showScreen(x), sc); await o5.page.waitForTimeout(500); }
+    const H5 = await o5.page.evaluate(() => document.getElementById('sc-home').innerText.replace(/\s+/g, ' '));
+    assert.match(H5, /Semi Paris 2027/); assert.match(H5, /23 – 29 nov/, 'semaine prochaine du semi sur l\'accueil'); assert.match(H5, /Mer\.? 25/);
+    assert.doesNotMatch(H5, /Aujourd'hui 🏃 Dim/, 'le dimanche de la semaine prochaine n\'est pas « aujourd\'hui »');
+    // flèche › de l'accueil : semaine suivante du semi
+    assert.equal(await o5.page.evaluate(() => { const b = document.getElementById('home-week-next'); return !!b && b.offsetParent !== null; }), true, 'flèche › visible');
+    await o5.page.click('#home-week-next'); await o5.page.waitForTimeout(400);
+    assert.match(await o5.page.evaluate(() => document.getElementById('sc-home').innerText.replace(/\s+/g, ' ')), /30 nov\.? – 6 déc/, 'semaine 2 du semi');
+    await o5.page.click('#home-week-prev'); await o5.page.waitForTimeout(300);
+    await o5.page.evaluate(() => openWeekShare()); await o5.page.waitForSelector('#ws-share .ws-nav', { timeout: 8000 });
+    assert.match(await o5.page.textContent('#ws-share .ws-nav'), /Semaine 1/, 'flèches : semaine prochaine du semi');
+    await o5.page.evaluate(async () => { document.getElementById('ws-share').remove(); showScreen('compte'); await openPrepsPanel(); }); await o5.page.waitForTimeout(800);
+    const PP = await o5.page.textContent('#preps-body');
+    assert.match(PP, /43:20/); assert.match(PP, /Revoir/); assert.match(PP, /Bilan/);
+    // temps final corrigé après coup : la fiche de la prépa terminée suit
+    await o5.page.evaluate(() => { const p = document.getElementById('preps-panel'); if (p) p.remove(); openLivePanel(); });
+    await o5.page.waitForSelector('#lv-final', { timeout: 8000 }); await o5.page.evaluate(() => liveTab('apres'));
+    await o5.page.fill('#lv-final', ''); await o5.page.type('#lv-final', '4250');
+    await o5.page.click('#lv-after button[onclick="liveSetFinal()"]');
+    await o5.page.waitForFunction((id) => window.__DB.users.ADMINUID.prep_index[id].result === '42:50', B.id, { timeout: 8000 });
+    assert.equal(JSON.parse(await o5.page.evaluate((id) => { const sn = window.__DB.users.ADMINUID.preps[id]; const k = Object.keys(sn).find((x) => /^extra_w\d+_s\d+$/.test(x) && JSON.parse(sn[x]).type === 'race'); return sn[k + '_perf']; }, B.id)).official, '42:50');
+    assert.deepEqual(o5.errors, []); await o5.ctx.close();
+  }
   assert.deepEqual(errors, []);
 });
 
