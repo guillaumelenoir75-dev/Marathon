@@ -71,6 +71,7 @@ async function renderPrepsRow(){
   const sub = document.getElementById('preps-subtitle'); if(!sub || !_prepUid()) return;
   try {
     _prepIndex = (await _prepRef('prep_index').once('value')).val() || {};
+    if(typeof liveRacesRowsRender === 'function') liveRacesRowsRender(_prepIndex);   // Compte › Suivi de course : courses suivies terminées
     const n = Object.keys(_prepIndex).length;
     sub.textContent = 'Prépa en cours' + (n ? ' · ' + n + ' prépa' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '') : ' · aucune archivée');
   } catch(e) { sub.textContent = 'Prépa en cours et prépas archivées'; }

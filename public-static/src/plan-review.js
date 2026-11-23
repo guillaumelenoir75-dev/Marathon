@@ -329,8 +329,12 @@ function prPaceProposals(st, fit, opt){
   const racePace = curRace ? (goalPace ? Math.max(goalPace, curRace * 0.98) : curRace) : null;
   const vPlan = prPlanVdot(st), efObs = opt.efPace || null, orig = prOrigPaces(st);
   // consigne fixée par le Coach (dernier changement non annulé) : le calcul ne la retouche pas, le Coach la gère
-  const byCoach = {};
-  (st._plan_reviews || []).forEach(function(h){ if(h.undone) return; (h.changes || []).forEach(function(c){ if(c.field === 'detail') byCoach[c.ref] = c.src === 'coach' ? c.after : null; }); });
+  // … sauf si une course plus récente que cette consigne a donné un nouveau repère (ex. 10 km juste couru)
+  const byCoach = {}, lastRace = opt.lastRace && opt.lastRace.date ? opt.lastRace.date : null;
+  (st._plan_reviews || []).forEach(function(h){ if(h.undone) return; const old = lastRace && h.date && h.date < lastRace;
+    (h.changes || []).forEach(function(c){ if(c.field === 'detail') byCoach[c.ref] = c.src === 'coach' && !old ? c.after : null; }); });
+  // course récente (≤ 3 semaines) = repère sûr, comme le veut Daniels : l'écart est rattrapé en une fois (30 s/km au plus)
+  const freshRace = !opt.auto && !!lastRace && prDays(lastRace, today) >= 0 && prDays(lastRace, today) <= 21;
   prSessions(st).forEach(function(s){
     if(s.done || s.skip || !s.pace || (s.date && s.date < today) || (byCoach[s.key] != null && byCoach[s.key] === s.detail)) return;
     const it = prIntent(s); if(!it) return;
@@ -359,7 +363,7 @@ function prPaceProposals(st, fit, opt){
     if(opt.calib === 'prudent' && nmid < mid && it !== 'E') nmid += 3;          // allures proposées souvent pas tenues : un peu plus prudent
     if(Math.abs(mid - nmid) < 4) return;                                       // écart < 4 s/km : on laisse
     let capped = false;
-    const capF = opt.calib === 'prudent' ? 5 : opt.calib === 'confiant' ? 12 : 10;
+    const capF = freshRace && it !== 'E' ? 30 : opt.calib === 'prudent' ? 5 : opt.calib === 'confiant' ? 12 : 10;
     if(nmid < mid - capF){ nmid = mid - capF; capped = true; }                 // progression prudente : 10 s/km au plus par mise à jour (5 si prudent, 12 si confiant)
     const lo = nmid - half, hi = nmid + half;
     const txt = s.pace.range ? prPace(lo) + ' — ' + prPace(hi) + ' /km' : prPace(nmid) + '/km';
@@ -495,7 +499,7 @@ function prObservedEf(st, today){
   return v.length >= 2 ? v[Math.floor(v.length / 2)] : null;
 }
 // analyse complète de la prépa affichée (en cours, ou à venir ouverte avec « Voir et modifier »)
-function prAnalyze(){
+function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage d'allure en grand, il applique sans te demander)
   const today = prTodayIso(), R = typeof prepRace === 'function' ? prepRace() : {};
   const raceCat = PR_RACE_M[R.course] ? R.course : (R.km ? (Math.abs(R.km - 21.1) < 0.6 ? 'Semi-marathon' : Math.abs(R.km - 42.2) < 0.6 ? 'Marathon' : Math.abs(R.km - 10) < 0.6 ? '10 km' : Math.abs(R.km - 5) < 0.6 ? '5 km' : null) : null);
   const goalSec = prTimeSec(state.target_time || (state.onboarding || {}).target_time);
@@ -513,7 +517,7 @@ function prAnalyze(){
   }
   const lp = prLastPrep(today);
   const opt = { today: today, raceCat: raceCat, goalSec: goalSec, efPace: prObservedEf(state, today), postRace: !!postRaceUntil, postRaceUntil: postRaceUntil, noFasterUntil: noFasterUntil,
-    habitual: lp ? lp.vol.avg : null, habitualFrom: lp ? (lp.race || lp.title) : null, habitualPeak: lp ? lp.vol.peak : null, lastRace: last ? { cat: last.cat, date: last.date } : null };
+    habitual: lp ? lp.vol.avg : null, habitualFrom: lp ? (lp.race || lp.title) : null, habitualPeak: lp ? lp.vol.peak : null, lastRace: last ? { cat: last.cat, date: last.date } : null, auto: !!(mode && mode.auto) };
   const opt2 = typeof prLoad === 'function';                                     // plan-optim.js chargé
   const a = { fit: fit, opt: opt, race: R };
   if(opt2){

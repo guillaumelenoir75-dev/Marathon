@@ -292,6 +292,18 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
     assert.equal(RA.fiche, '40:21', 'analyse de la course refaite'); if (RA.home) assert.equal(RA.home, '40:21', 'carte de l\'accueil à jour');
     await o5.page.waitForFunction(() => /^0?40:21/.test(String(state.record_10km || '')), null, { timeout: 5000 }).catch(() => {});
     assert.match(String(await o5.page.evaluate(() => state.record_10km)), /40:21|40'21/, 'record 10 km');
+    // Compte › Suivi de course : une ligne pour le 10 km, comme le Marathon Seine-Eure (temps + suivi)
+    await o5.page.evaluate(async () => { closeLivePanel(); showScreen('compte'); renderCompteScreen(); await renderPrepsRow(); }); await o5.page.waitForTimeout(400);
+    const ROW = await o5.page.evaluate(() => { const r = document.querySelector('#sc-compte .lv-past-row'); return r ? { t: r.textContent, before: r.nextElementSibling && r.nextElementSibling.id } : null; });
+    assert.ok(ROW, 'ligne de la course suivie'); assert.match(ROW.t, /Novemb/); assert.match(ROW.t, /40:21/); assert.equal(ROW.before, 'se-org-row', 'au-dessus du Marathon Seine-Eure');
+    await o5.page.click('#sc-compte .lv-past-row'); await o5.page.waitForFunction(() => /Allure/.test((document.getElementById('lvp-body') || {}).textContent || ''), null, { timeout: 5000 });
+    const SH = await o5.page.evaluate(() => ({ body: document.getElementById('lvp-body').textContent, href: document.querySelector('#lv-past-sheet .ros-acts a').getAttribute('href') }));
+    assert.match(SH.body, /40:21/); assert.match(SH.body, /4'02\/km/); assert.match(SH.href, /suivi-guillaume\?course=novembrun-2026$/);
+    if (process.env.SHOTS) { await o5.page.waitForTimeout(500); await o5.page.screenshot({ path: process.env.SHOTS + '/course-suivie.png' }); }
+    await o5.page.evaluate(() => closeLivePastRace()); await o5.page.waitForTimeout(300);
+    // MAJ du plan tout de suite après la course : allures de qualité recalées sur le 10 km, plus de 10 s/km d'un coup
+    const MA = await o5.page.evaluate(() => { const a = prAnalyze(); return { last: a.opt.lastRace, q: a.proposals.filter((p) => p.intent === 'T' || p.intent === 'I').map((p) => p.delta) }; });
+    assert.equal(MA.last.date, '2026-11-22'); assert.ok(MA.q.length && MA.q.some((d) => d < -10), 'rattrapage en une fois : ' + MA.q.join(','));
     assert.deepEqual(o5.errors, []); await o5.ctx.close();
   }
   assert.deepEqual(errors, []);

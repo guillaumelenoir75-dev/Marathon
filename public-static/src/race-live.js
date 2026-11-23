@@ -827,3 +827,83 @@ function closeRaceOrgSheet(){
   ov.classList.add('out'); setTimeout(done, 190);
 }
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && document.getElementById('race-org-sheet') && !(typeof _raceMapFullscreen !== 'undefined' && _raceMapFullscreen)) closeRaceOrgSheet(); });
+
+// ─── Compte › Suivi de course : une ligne par course suivie terminée, comme le Marathon Seine-Eure ───
+// Source : fiches des prépas (prep_index) qui ont un lien « Revoir » ?course=<id> ; Seine-Eure garde sa ligne (parcours et trajets).
+function livePastRaces(idx){
+  return Object.keys(idx || {}).map(function(k){
+    const p = idx[k] || {}, m = String(p.replay || '').match(/[?&]course=([^&#]+)/);
+    return m ? { prep: k, id: decodeURIComponent(m[1]), title: p.title || p.race || 'Course', date: p.date || '', result: p.result || '', note: p.note || '', dist: p.dist || '' } : null;
+  }).filter(function(r){ return r && r.id !== 'seine-eure-2026'; })
+    .sort(function(a, b){ return String(b.date).localeCompare(String(a.date)); }).slice(0, 3);
+}
+let _livePast = [];
+function liveRacesRowsRender(idx){
+  const anchor = document.getElementById('se-org-row'); if(!anchor) return;
+  document.querySelectorAll('#sc-compte .lv-past-row').forEach(function(e){ e.remove(); });
+  if(typeof isAdmin !== 'function' || !isAdmin()) return;
+  _livePast = livePastRaces(idx);
+  _livePast.forEach(function(r, i){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'cp-row lv-past-row'; b.setAttribute('onclick', 'openLivePastRace(' + i + ')');
+    const d = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    b.innerHTML = '<span class="cp-ic" style="background:#FFEDD5;">🏅</span><span class="cp-txt"><b>' + _prepEsc(r.title) + '</b><span>' + _prepEsc([d, 'temps et suivi'].filter(Boolean).join(' · ')) + '</span></span>'
+      + (r.result ? '<span class="cp-chip">' + _prepEsc(r.result) + '</span>' : '')
+      + '<svg class="cp-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+    anchor.parentNode.insertBefore(b, anchor);
+  });
+}
+// Fiche d'une course suivie : temps, allure, objectif, km par km, encouragements, « Revoir la course » (page des amis)
+async function openLivePastRace(i){
+  const r = _livePast[i]; if(!r || document.getElementById('lv-past-sheet')) return;
+  const url = LIVE_PAGE + '?course=' + encodeURIComponent(r.id);
+  const ov = document.createElement('div'); ov.id = 'lv-past-sheet'; ov.className = 'ros';
+  const day = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  ov.innerHTML = '<div class="ros-box" role="dialog" aria-modal="true" aria-labelledby="lvp-title">'
+    + '<div class="ros-head"><div class="ros-top"><button type="button" class="ros-x" onclick="closeLivePastRace()" aria-label="Fermer">×</button>'
+    +   '<div style="min-width:0;"><p class="ros-eb">Suivi de course · terminé</p><p class="ros-title" id="lvp-title">' + _prepEsc(r.title) + '</p>'
+    +   '<p class="ros-sub">' + _prepEsc([day.charAt(0).toUpperCase() + day.slice(1), r.result, r.note ? r.note.toLowerCase() : ''].filter(Boolean).join(' · ')) + '</p></div></div>'
+    + '<div class="ros-acts"><button type="button" onclick="liveShareUrl(\'' + url + '\')">↗ Partager</button><a href="' + url + '" target="_blank" rel="noopener">🎬 Revoir la course</a></div></div>'
+    + '<div class="ros-body" id="lvp-body"><p class="lvp-n">Chargement…</p></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) closeLivePastRace(); });
+  document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+  let race = null, live = null;
+  try {
+    const db = firebase.database(), a = (await db.ref('live_archive/' + r.id).once('value')).val();
+    if(a && a.race) { live = a; race = a.race; }
+    else { const l = (await db.ref('live').once('value')).val(); if(l && l.race && l.race.id === r.id){ live = l; race = l.race; } }
+  } catch(e) {}
+  const body = document.getElementById('lvp-body'); if(!body) return;
+  body.innerHTML = livePastRaceHtml(r, race, live);
+}
+function livePastRaceHtml(r, race, live){
+  race = race || {}; live = live || {};
+  const T = function(sec){ sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  const P = function(sec){ sec = Math.round(sec); return Math.floor(sec / 60) + "'" + String(sec % 60).padStart(2, '0') + '/km'; };
+  const rp = race.replay || {}, chrono = live.finishedAt && live.startedAt ? (live.finishedAt - live.startedAt) / 1000 : null;
+  const sec = (typeof prepTimeSec === 'function' && prepTimeSec(r.result)) || rp.official || race.final || chrono || null;
+  const km = race.official ? race.official / 1000 : ({ '10 km': 10, '5 km': 5, 'Semi-marathon': 21.0975, 'Marathon': 42.195 })[r.dist] || null;
+  const gap = sec && race.target ? Math.round(sec - race.target) : null;
+  const tile = function(k, v, s){ return '<div class="lvp-t"><small>' + k + '</small><b>' + v + '</b>' + (s ? '<span>' + s + '</span>' : '') + '</div>'; };
+  let h = '<div class="lvp-card"><div class="lvp-tiles">'
+    + tile('Temps', sec ? T(sec) : '–', r.note || '')
+    + tile('Allure', sec && km ? P(sec / km) : '–', km ? String(Math.round(km * 100) / 100).replace('.', ',') + ' km' : '')
+    + (race.target ? tile('Objectif', T(race.target), gap == null ? '' : gap <= 0 ? Math.abs(gap) + ' s plus vite' : gap + ' s de plus') : '')
+    + tile('Encouragements', String(live.cheers || 0), 'de tes amis') + '</div>'
+    + ([race.place, race.start ? 'départ ' + race.start.replace(':', 'h') : ''].filter(Boolean).length ? '<p class="lvp-n">📍 ' + _prepEsc([race.place, race.start ? 'départ ' + race.start.replace(':', 'h') : ''].filter(Boolean).join(' · ')) + '</p>' : '') + '</div>';
+  const sp = (rp.splits || []).filter(function(x){ return x > 0; });
+  if(sp.length){
+    const f = sec && rp.official ? sec / rp.official : 1, lo = Math.min.apply(null, sp), hi = Math.max.apply(null, sp);
+    h += '<div class="lvp-card"><p class="lvp-h">Km par km</p>' + sp.map(function(x, k){
+      const w = hi > lo ? 55 + 45 * (hi - x) / (hi - lo) : 100;
+      return '<div class="lvp-km"><span>' + (k + 1) + '</span><i style="width:' + w.toFixed(0) + '%"' + (x === lo ? ' class="best"' : '') + '></i><b>' + P(x * f) + '</b></div>'; }).join('') + '</div>';
+  } else h += '<div class="lvp-card"><p class="lvp-n">Km par km : dès que les temps au km Strava de la course sont lus.</p></div>';
+  h += '<div class="lvp-acts">'
+    + (typeof openPrepDebrief === 'function' ? '<button type="button" onclick="closeLivePastRace();openPrepDebrief(\'' + r.prep + '\')">📋 Bilan de la prépa</button>' : '')
+    + '<button type="button" onclick="closeLivePastRace();openLivePanel()">⏱ Corriger le temps</button></div>';
+  return h;
+}
+function closeLivePastRace(){ const ov = document.getElementById('lv-past-sheet'); if(!ov) return; ov.classList.add('out'); setTimeout(function(){ ov.remove(); document.body.style.overflow = ''; }, 190); }
+function liveShareUrl(url){
+  if(navigator.share){ navigator.share({ url: url }).catch(function(){}); return; }
+  try { navigator.clipboard.writeText(url); if(typeof showToast === 'function') showToast('Lien copié', '🔗'); } catch(e) {}
+}

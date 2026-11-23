@@ -33,7 +33,7 @@ function apDesc(p, today){
 function apRun(today){
   today = today || prTodayIso();
   const mode = apMode(); if(mode === 'off') return null;
-  const a = prAnalyze(), sel = apSelect(a, today), at = new Date().toISOString();
+  const a = prAnalyze({ auto: true }), sel = apSelect(a, today), at = new Date().toISOString();
   const res = { date: today, at: at, mode: mode, applied: false, changes: sel.map(function(p){ return apDesc(p, today); }) };
   if(mode === 'auto' && sel.length){
     const r = prApplyChanges(sel, { auto: true, kind: 'autopilot', vdot: a.fit && a.fit.vdot, at: at });

@@ -84,6 +84,23 @@ test('allures : une consigne fixée par le Coach n\'est plus retouchée par le c
   assert.ok(!app.prPaceProposals(st, fit, { today: '2026-10-29' }).some((x) => x.key === p.key));
 });
 
+test('allures : une course récente redonne la main au calcul et l\'écart est rattrapé en une fois', () => {
+  const st = synthPlan();
+  const app = loadApp({ now: NOW, state: st });
+  const fit = { vdot: 54, paces: {}, preds: {} };
+  const base = app.prPaceProposals(st, fit, { today: '2026-10-29' }).filter((p) => p.intent === 'T' || p.intent === 'I');
+  assert.ok(base.length && base.every((p) => p.delta >= -10), 'sans course récente : 10 s/km au plus');
+  const p = base[0];
+  st._plan_reviews = [{ date: '2026-10-20', changes: [{ ref: p.key, field: 'detail', before: 'x', after: p.before, src: 'coach' }] }];
+  assert.ok(!app.prPaceProposals(st, fit, { today: '2026-10-29', lastRace: { cat: '10 km', date: '2026-10-18' } }).some((x) => x.key === p.key), 'consigne du Coach plus récente que la course : gardée');
+  const fresh = app.prPaceProposals(st, fit, { today: '2026-10-29', lastRace: { cat: '10 km', date: '2026-10-26' } });
+  const q = fresh.find((x) => x.key === p.key);
+  assert.ok(q, 'consigne du Coach antérieure à la course : recalculée');
+  assert.ok(fresh.some((x) => (x.intent === 'T' || x.intent === 'I') && x.delta < -10), 'course de 3 jours : plus de 10 s/km d\'un coup');
+  assert.ok(fresh.every((x) => x.delta >= -30), 'jamais plus de 30 s/km');
+  assert.ok(app.prPaceProposals(st, fit, { today: '2026-10-29', lastRace: { cat: '10 km', date: '2026-09-20' } }).filter((x) => x.intent === 'T' || x.intent === 'I').every((x) => x.delta >= -10), 'course de plus de 3 semaines : 10 s/km');
+});
+
 test('séance retirée (imprévu) : ni allure proposée, ni comptée dans la semaine', () => {
   const st = synthPlan(); st.extra_w3_s1_skip = true; st.extra_w3_s1_skip_reason = 'Indisponible';
   const app = loadApp({ now: NOW, state: st });
