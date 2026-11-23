@@ -286,8 +286,14 @@ async function _liveFixArchivedPrep(date, txt){
     let x; try { x = JSON.parse(snap[k]); } catch(e) { return; }
     if(!x || x.type !== 'race' || x._season || x.sched_date !== date) return;
     let p = {}; try { p = JSON.parse(snap[k + '_perf'] || '{}'); } catch(e) {}
-    p.official = txt; up['preps/' + id + '/' + k + '_perf'] = JSON.stringify(p);
+    p.official = txt; up['preps/' + id + '/' + k + '_perf'] = snap[k + '_perf'] = JSON.stringify(p);
   });
+  // analyse de la course refaite avec le bon temps (fiche de la prépa + carte de l'accueil)
+  const A = typeof raFromSnap === 'function' ? raFromSnap(snap, Object.assign({}, idx[id], { result: txt })) : null;
+  if(A){
+    up['prep_index/' + id + '/ra'] = A;
+    if(state._race_analysis && state._race_analysis.date === date){ state._race_analysis = A; save(); }
+  }
   await firebase.database().ref('users/' + _prepUid()).update(up);
   if(typeof _prepIndex !== 'undefined' && _prepIndex && _prepIndex[id]){ _prepIndex[id].result = txt; delete _prepIndex[id].debrief; }
   if(typeof _prepSnapCache !== 'undefined') delete _prepSnapCache[id];

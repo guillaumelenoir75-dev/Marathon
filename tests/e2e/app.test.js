@@ -284,10 +284,14 @@ test('suivi en direct de la Novemb\'Run : préparé depuis l\'app avec le tracé
     // temps final corrigé après coup : la fiche de la prépa terminée suit
     await o5.page.evaluate(() => { const p = document.getElementById('preps-panel'); if (p) p.remove(); openLivePanel(); });
     await o5.page.waitForSelector('#lv-final', { timeout: 8000 }); await o5.page.evaluate(() => liveTab('apres'));
-    await o5.page.fill('#lv-final', ''); await o5.page.type('#lv-final', '4250');
+    await o5.page.fill('#lv-final', ''); await o5.page.type('#lv-final', '4021');
     await o5.page.click('#lv-after button[onclick="liveSetFinal()"]');
-    await o5.page.waitForFunction((id) => window.__DB.users.ADMINUID.prep_index[id].result === '42:50', B.id, { timeout: 8000 });
-    assert.equal(JSON.parse(await o5.page.evaluate((id) => { const sn = window.__DB.users.ADMINUID.preps[id]; const k = Object.keys(sn).find((x) => /^extra_w\d+_s\d+$/.test(x) && JSON.parse(sn[x]).type === 'race'); return sn[k + '_perf']; }, B.id)).official, '42:50');
+    await o5.page.waitForFunction((id) => window.__DB.users.ADMINUID.prep_index[id].result === '40:21', B.id, { timeout: 8000 });
+    assert.equal(JSON.parse(await o5.page.evaluate((id) => { const sn = window.__DB.users.ADMINUID.preps[id]; const k = Object.keys(sn).find((x) => /^extra_w\d+_s\d+$/.test(x) && JSON.parse(sn[x]).type === 'race'); return sn[k + '_perf']; }, B.id)).official, '40:21');
+    const RA = await o5.page.evaluate((id) => ({ fiche: (window.__DB.users.ADMINUID.prep_index[id].ra || {}).time, home: (state._race_analysis || {}).time, rec: state.record_10km }), B.id);
+    assert.equal(RA.fiche, '40:21', 'analyse de la course refaite'); if (RA.home) assert.equal(RA.home, '40:21', 'carte de l\'accueil à jour');
+    await o5.page.waitForFunction(() => /^0?40:21/.test(String(state.record_10km || '')), null, { timeout: 5000 }).catch(() => {});
+    assert.match(String(await o5.page.evaluate(() => state.record_10km)), /40:21|40'21/, 'record 10 km');
     assert.deepEqual(o5.errors, []); await o5.ctx.close();
   }
   assert.deepEqual(errors, []);
