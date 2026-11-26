@@ -312,6 +312,14 @@ function prOrigPaces(st){
   }); });
   return orig;
 }
+// niveau des allures écrites aujourd'hui (après les mises à jour) : ce que montre la tuile « plan »
+function prPlanVdotNow(st){
+  const v = [];
+  prSessions(st).forEach(function(s){ const it = prIntent(s); if(!PR_PCT[it] || !s.pace || s.done || s.skip) return; v.push(prVo2((s.pace.lo + s.pace.hi) / 2) / PR_PCT[it]); });
+  if(!v.length) return null;
+  v.sort(function(a, b){ return a - b; });
+  return v[Math.floor(v.length / 2)];
+}
 function prPlanVdot(st){
   const v = [], orig = prOrigPaces(st);
   prSessions(st).forEach(function(s){
@@ -333,14 +341,20 @@ function prPaceProposals(st, fit, opt){
   const vPlan = prPlanVdot(st), efObs = opt.efPace || null, orig = prOrigPaces(st);
   // consigne fixée par le Coach (dernier changement non annulé) : le calcul ne la retouche pas, le Coach la gère
   // … sauf si une course plus récente que cette consigne a donné un nouveau repère (ex. 10 km juste couru)
-  const byCoach = {}, lastRace = opt.lastRace && opt.lastRace.date ? opt.lastRace.date : null;
-  (st._plan_reviews || []).forEach(function(h){ if(h.undone) return; const old = lastRace && h.date && h.date < lastRace;
-    (h.changes || []).forEach(function(c){ if(c.field === 'detail') byCoach[c.ref] = c.src === 'coach' && !old ? c.after : null; }); });
+  // … et plus du tout dès que ton niveau a bougé d'un point depuis, ou après 4 semaines : le plan suit toujours ton niveau
+  const byCoach = {}, coachAt = {}, lastRace = opt.lastRace && opt.lastRace.date ? opt.lastRace.date : null;
+  (st._plan_reviews || []).forEach(function(h){ if(h.undone) return;
+    const old = (lastRace && h.date && h.date < lastRace) || (h.date && prDays(h.date, today) > 28) || (h.vdot && Math.abs(fit.vdot - h.vdot) >= 1);
+    (h.changes || []).forEach(function(c){ if(c.field === 'detail'){ byCoach[c.ref] = c.src === 'coach' && !old ? c.after : null; coachAt[c.ref] = h.date; } }); });
+  // pourquoi chaque séance de qualité à venir bouge ou non (affiché quand rien n'est proposé)
+  const trace = opt.trace || null, tr = function(s, it, st0, extra){ if(trace && it && it !== 'E' && s.date && prDays(today, s.date) <= 28) trace.push(Object.assign({ key: s.key, title: s.title, date: s.date, intent: it, st: st0, cur: s.pace ? s.pace.text.replace(/\s*\/\s*km$/, '') : null }, extra || {})); };
   // course récente (≤ 3 semaines) = repère sûr, comme le veut Daniels : l'écart est rattrapé en une fois (30 s/km au plus)
   const freshRace = !opt.auto && !!lastRace && prDays(lastRace, today) >= 0 && prDays(lastRace, today) <= 21;
   prSessions(st).forEach(function(s){
-    if(s.done || s.skip || !s.pace || (s.date && s.date < today) || (byCoach[s.key] != null && byCoach[s.key] === s.detail)) return;
+    if(s.done || s.skip || (s.date && s.date < today)) return;
     const it = prIntent(s); if(!it) return;
+    if(!s.pace){ tr(s, it, 'nopace'); return; }
+    if(byCoach[s.key] != null && byCoach[s.key] === s.detail){ tr(s, it, 'coach', { since: coachAt[s.key] }); return; }
     const mid = (s.pace.lo + s.pace.hi) / 2, half = Math.max(2, (s.pace.hi - s.pace.lo) / 2);
     let nmid, why, short;
     if(it === 'E'){
@@ -364,7 +378,7 @@ function prPaceProposals(st, fit, opt){
       short = { T: 'Seuil', I: 'Fractionné', R: 'Vitesse' }[it] + ' : même effort que prévu, à ton niveau actuel.';
     }
     if(opt.calib === 'prudent' && nmid < mid && it !== 'E') nmid += 3;          // allures proposées souvent pas tenues : un peu plus prudent
-    if(Math.abs(mid - nmid) < 4) return;                                       // écart < 4 s/km : on laisse
+    if(Math.abs(mid - nmid) < 4){ tr(s, it, 'ok', { target: prPace(nmid) }); return; }   // écart < 4 s/km : on laisse
     let capped = false;
     const capF = freshRace && it !== 'E' ? 30 : opt.calib === 'prudent' ? 5 : opt.calib === 'confiant' ? 12 : 10;
     if(nmid < mid - capF){ nmid = mid - capF; capped = true; }                 // progression prudente : 10 s/km au plus par mise à jour (5 si prudent, 12 si confiant)
@@ -376,6 +390,7 @@ function prPaceProposals(st, fit, opt){
     if(repM) det = det.replace(/\((\d{1,2})['’](\d{2})\s*[—–-]\s*(\d{1,2})['’](\d{2})\)/, '(' + prPace(lo * repM / 1000) + ' — ' + prPace(hi * repM / 1000) + ')');
     const d = Math.round(nmid - mid);
     const held = d < 0 && opt.noFasterUntil && s.date && s.date <= opt.noFasterUntil;   // début de récupération post-course : mise en attente
+    tr(s, it, held ? 'held' : 'change', { target: txt.replace(/\s*\/\s*km$/, ''), delta: d });
     out.push({ held: !!held, key: s.key, w: s.w, date: s.date, field: 'detail', title: s.title, type: s.type, before: s.detail, after: det, intent: it, delta: d,
       reason: (d < 0 ? 'Plus rapide de ' + (-d) : 'Plus lent de ' + d) + ' s/km : ' + why + (capped ? ' (ajustement limité à ' + capF + ' s/km par mise à jour, la suite viendra aux prochaines)' : '') + '.', src: 'calcul',
       short: short + (capped ? ' Limité à ' + capF + ' s/km cette fois, la suite à la prochaine mise à jour.' : ''),
@@ -535,7 +550,9 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
     opt.drift = a.drift; opt.calib = a.calib.n >= 2 || !(a.recette && a.recette.calib) ? a.calib.mode : a.recette.calib;   // sans recul dans cette prépa : réglage de ta recette
     a.volume = prVolumePlan(state, a); opt.volumeManaged = !!a.volume; opt.volumeWeeks = a.volume ? a.volume.horizonWeeks : null;
   }
+  opt.trace = [];
   const all = prPaceProposals(state, fit, opt);
+  a.paceTrace = opt.trace; delete opt.trace;
   // échelles des séances de qualité (plan-adapt.js) : la séance change de palier avec l'allure du jour déjà dedans
   const ladder = opt2 && typeof paLadderProposals === 'function' ? paLadderProposals(state, a, all) : [];
   // une proposition par séance et par champ : douleur > WHOOP > séance test > palier > volume / allure
@@ -548,7 +565,7 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
   });
   merged.sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
   a.proposals = merged.filter(function(p){ return !p.held; }); a.held = merged.filter(function(p){ return p.held; });
-  a.warnings = prChecks(state, fit, opt); a.planVdot = prPlanVdot(state);
+  a.warnings = prChecks(state, fit, opt); a.planVdot = prPlanVdot(state); a.planVdotNow = prPlanVdotNow(state);
   if(opt2) a.trajectory = prTrajectory(a);
   return a;
 }

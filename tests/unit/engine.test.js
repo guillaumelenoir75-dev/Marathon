@@ -101,6 +101,39 @@ test('allures : une course récente redonne la main au calcul et l\'écart est r
   assert.ok(app.prPaceProposals(st, fit, { today: '2026-10-29', lastRace: { cat: '10 km', date: '2026-09-20' } }).filter((x) => x.intent === 'T' || x.intent === 'I').every((x) => x.delta >= -10), 'course de plus de 3 semaines : 10 s/km');
 });
 
+test('allures : une consigne du Coach se recalcule dès que ton niveau a bougé d\'1 point ; « pourquoi rien » expliqué', () => {
+  const st = synthPlan();
+  const app = loadApp({ now: NOW, state: st });
+  const fit = { vdot: 51, paces: {}, preds: {} };
+  const p = app.prPaceProposals(st, fit, { today: '2026-10-29' })[0];
+  // fixée par le Coach quand le niveau était 50,5 : gardée, et la raison est donnée
+  st._plan_reviews = [{ date: '2026-10-27', vdot: 50.5, changes: [{ ref: p.key, field: 'detail', before: 'x', after: p.before, src: 'coach' }] }];
+  const tr = [];
+  assert.ok(!app.prPaceProposals(st, fit, { today: '2026-10-29', trace: tr }).some((x) => x.key === p.key));
+  assert.equal(tr.find((t) => t.key === p.key).st, 'coach');
+  // fixée quand le niveau était 46 : ton niveau a pris 5 points → recalculée
+  st._plan_reviews[0].vdot = 46;
+  assert.ok(app.prPaceProposals(st, fit, { today: '2026-10-29' }).some((x) => x.key === p.key));
+  // fixée il y a plus de 4 semaines : recalculée
+  st._plan_reviews[0].vdot = 50.8; st._plan_reviews[0].date = '2026-09-20';
+  assert.ok(app.prPaceProposals(st, fit, { today: '2026-10-29' }).some((x) => x.key === p.key));
+});
+
+test('allures déjà à ton niveau : rien de proposé, la tuile « plan » montre le niveau des allures actuelles', () => {
+  const st = synthPlan();
+  const app = loadApp({ now: NOW, state: st });
+  const v0 = app.prPlanVdot(st), fit = { vdot: v0 + 4, paces: {}, preds: {} };
+  const P = app.prPaceProposals(st, fit, { today: '2026-10-29', lastRace: { cat: '10 km', date: '2026-10-26' } }).filter((x) => x.intent === 'T');
+  const changes = [];
+  P.forEach((p) => { const x = JSON.parse(st[p.key]); x.d = x.d.split('|')[0] + '|' + p.after; st[p.key] = JSON.stringify(x); changes.push({ ref: p.key, field: 'detail', before: p.before, after: p.after, src: 'calcul' }); });
+  st._plan_reviews = [{ date: '2026-10-29', changes }];
+  assert.ok(Math.abs(app.prPlanVdot(st) - v0) < 0.05, 'niveau d\'origine du plan inchangé (calcul)');
+  assert.ok(app.prPlanVdotNow(st) > v0 + 2, 'niveau des allures actuelles : ' + app.prPlanVdotNow(st));
+  const tr = [];
+  assert.equal(app.prPaceProposals(st, fit, { today: '2026-10-29', trace: tr }).filter((x) => x.intent === 'T').length, 0);
+  assert.ok(tr.filter((t) => t.intent === 'T').every((t) => t.st === 'ok'), JSON.stringify(tr.map((t) => t.st)));
+});
+
 test('séance retirée (imprévu) : ni allure proposée, ni comptée dans la semaine', () => {
   const st = synthPlan(); st.extra_w3_s1_skip = true; st.extra_w3_s1_skip_reason = 'Indisponible';
   const app = loadApp({ now: NOW, state: st });

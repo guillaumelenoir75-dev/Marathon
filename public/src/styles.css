@@ -235,3 +235,10 @@ html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark]
 .pe-w i{display:block;height:9px;border-radius:5px;background:#93C5FD;}.pe-w i.past{background:#CBD5E1;}.pe-w i.chg{background:#22C55E;}
 .pr-evo-b{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px 14px;margin-bottom:10px;cursor:pointer;font-family:inherit;color:#0F172A;}
 .pr-evo-b > span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}.pr-evo-b b{font-size:14.5px;}.pr-evo-b small{font-size:12px;color:#64748B;}.pr-evo-b > span:first-child{font-size:20px;}
+
+/* MAJ le plan : pourquoi les séances de qualité ne bougent pas (plan-review-ui.js _prTraceHtml) */
+.pr-trace{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:10px 14px;margin:-4px 0 12px;}
+.pr-trace-h{font-size:11px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.07em;margin:2px 0 4px;}
+.pr-tr{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid #EEF2F8;}.pr-tr:first-of-type{border-top:none;}
+.pr-tr-i{flex-shrink:0;width:20px;text-align:center;font-size:14px;}.pr-tr > span:last-child{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.pr-tr b{font-size:13.5px;color:#0F172A;}.pr-tr small{font-size:12px;color:#64748B;line-height:1.4;}

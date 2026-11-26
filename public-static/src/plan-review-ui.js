@@ -231,13 +231,13 @@ function _prRender(){
         + '<div class="pr-swap"><span class="pr-p cur">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p sug">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span></div>'
         + '<button type="button" class="pr-btn sec pr-held-b" onclick="_prUnhold(' + i + ')">⚡ Accélérer quand même</button></div>';
     });
-  } else h += '<div class="pr-card pr-uptodate"><span class="pr-big ok">✓</span><div><b>Ton plan est à jour</b><span>Rien à changer pour l\'instant</span></div></div>';
+  } else h += '<div class="pr-card pr-uptodate"><span class="pr-big ok">✓</span><div><b>Ton plan est à jour</b><span>Rien à changer pour l\'instant</span></div></div>' + _prTraceHtml(a);
 
   // ── 2. Points clés : 4 tuiles au plus
   const tiles = [], TJ = a.trajectory;
   if(f.vdot){
-    const gap = a.planVdot ? f.vdot - a.planVdot : 0;
-    tiles.push({ ico: gap > 0.4 ? '📈' : gap < -0.4 ? '🧭' : '👌', v: prV(f.vdot), l: a.planVdot ? 'niveau · plan ' + prV(a.planVdot) : 'ton niveau', c: gap > 0.4 ? 'ok' : gap < -0.4 ? 'mid' : 'ok' });
+    const pv = a.planVdotNow || a.planVdot, gap = pv ? f.vdot - pv : 0;   // niveau des allures écrites aujourd'hui (après mises à jour)
+    tiles.push({ ico: gap > 0.4 ? '📈' : gap < -0.4 ? '🧭' : '👌', v: prV(f.vdot), l: pv ? 'niveau · plan ' + prV(pv) : 'ton niveau', c: gap > 0.4 ? 'ok' : gap < -0.4 ? 'mid' : 'ok' });
   }
   const tq = function(sec){ return prTime(sec).replace(/:(\d\d)$/, "'$1").replace(/^(\d+):(\d\d)'/, '$1h$2\''); };
   if(TJ && TJ.race) tiles.push({ ico: '🏁', v: tq(TJ.race.lo) + '–' + tq(TJ.race.hi), l: 'prévu · objectif ' + (a.opt.goalSec ? tq(a.opt.goalSec) : prEsc(a.race.objectif || '')), c: TJ.verdict === 'atteignable' ? 'ok' : TJ.verdict === 'à portée' ? 'mid' : 'low', sm: true });
@@ -446,3 +446,17 @@ function openPlanEvolution(){
   document.body.appendChild(ov); document.body.style.overflow = 'hidden';
 }
 function closePlanEvolution(){ const ov = document.getElementById('pe-ov'); if(!ov) return; ov.remove(); if(!document.getElementById('plan-review')) document.body.style.overflow = ''; }
+
+// « Rien à changer » : pour chaque séance de qualité des 4 prochaines semaines, pourquoi elle ne bouge pas (prPaceProposals → a.paceTrace)
+const PR_TRACE = { ok: ['✓', 'déjà à ton niveau'], coach: ['🔒', 'fixée par le Coach'], held: ['⏸', 'en attente : récup après ta course'], nopace: ['·', 'pas d\'allure lisible dans la consigne'] };
+function _prTraceHtml(a){
+  const L = (a.paceTrace || []).filter(function(t){ return t.st !== 'change'; }).sort(function(x, y){ return String(x.date).localeCompare(String(y.date)); }).slice(0, 5);
+  if(!L.length) return '';
+  return '<div class="pr-trace"><p class="pr-trace-h">Tes séances de qualité à venir</p>' + L.map(function(t){
+    const T = PR_TRACE[t.st] || ['·', ''];
+    const why = t.st === 'ok' ? T[1] + (t.target ? ' (ton niveau vise ' + t.target + ')' : '')
+      : t.st === 'coach' ? T[1] + (t.since ? ' le ' + prFmtDate(t.since, { day: 'numeric', month: 'short' }) : '') + ' · recalculée dès que ton niveau bouge d\'1 point'
+      : T[1];
+    return '<div class="pr-tr"><span class="pr-tr-i">' + T[0] + '</span><span><b>' + prEsc(t.title) + '</b><small>' + prFmtDate(t.date, { weekday: 'short', day: 'numeric', month: 'short' }) + (t.cur ? ' · ' + prEsc(t.cur) : '') + ' · ' + prEsc(why) + '</small></span></div>';
+  }).join('') + '</div>';
+}
