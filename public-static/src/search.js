@@ -70,6 +70,7 @@ const SR_ITEMS = [
   { id: 'diag', ic: '🩺', t: 'Diagnostic', g: 'Compte › Aide et outils', k: 'diagnostic erreurs bug lenteur demarrage', fn: 'diagOpen', run: function(){ diagOpen(); } },
   // suivi de course, administration
   { id: 'live', ic: '🏁', t: 'Course en direct', g: 'Compte › Suivi de course', k: 'suivi direct live amis gps', fn: 'openLivePanel', a: true, run: function(){ openLivePanel(); } },
+  { id: 'planevo', ic: '📈', t: 'Comment mon plan évolue', g: 'Plan › MAJ le plan', k: 'progression paliers volume absorption seances faciles dures adaptation', fn: 'openPlanEvolution', run: function(){ showScreen('plan'); openPlanEvolution(); } },
   { id: 'pastrace', ic: '🏅', t: 'Ma dernière course suivie', g: 'Compte › Suivi de course', k: 'resultat temps revoir rejeu 10 km course passee', fn: 'openLivePastRace', a: true,
     run: async function(){ showScreen('compte'); if(typeof renderPrepsRow === 'function') await renderPrepsRow(); if(_livePast.length) openLivePastRace(0); } },
   { id: 'users', ic: '👥', t: 'Comptes des athlètes', g: 'Compte › Administration', k: 'athletes comptes utilisateurs vue coach', fn: 'openUsersListModal', a: true, run: function(){ openUsersListModal(); } },

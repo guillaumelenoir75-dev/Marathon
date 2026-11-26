@@ -270,6 +270,9 @@ function _prRender(){
 
   // ── 5. Détails, repliés
   h += '<p class="pr-sec"><span>Détails</span></p>';
+  // comment le plan suit ce que tu encaisses (plan-adapt.js)
+  if(typeof openPlanEvolution === 'function'){ const ab = a.absorb, V = ab && ab.verdict && typeof PA_VERDICT !== 'undefined' ? PA_VERDICT[ab.verdict] : null;
+    h += '<button type="button" class="pr-evo-b" onclick="openPlanEvolution()"><span>📈</span><span><b>Comment ton plan évolue</b><small>' + (V ? V[1] + ' séances récentes : ' + V[0].toLowerCase() + ' · ' : '') + 'paliers, volume, changements</small></span><span>›</span></button>'; }
   if(TJ && TJ.race){
     h += fold('tj', '📈', 'Trajectoire', tq(TJ.race.lo) + '–' + tq(TJ.race.hi) + (TJ.verdict ? ' · ' + TJ.verdict : '') + ' · et si… ?',
       prTrajectorySvg(TJ) + '<p class="pr-tj-leg"><span><i class="lg-race"></i>courses</span><span><i class="lg-ses"></i>séances</span><span><i class="lg-proj"></i>projection</span></p>'
@@ -390,3 +393,56 @@ function applyPlanReview(){
   try { renderHome(); } catch(e) { diagSilent(e, 'plan-review:applyPlanReview'); }
   if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour');
 }
+
+// ─── Comment ton plan évolue (plan-adapt.js : paEvolution) ─────────────────
+const PE_KIND = { maj: 'MAJ le plan', autopilot: 'Pilote de nuit', after: 'Après une séance', chat: 'Mon plan (Coach)', coach: 'Coach', adapt: 'Séance écourtée', taper: 'Affûtage', imprevu: 'Imprévu' };
+function openPlanEvolution(){
+  if(document.getElementById('pe-ov')) return;
+  const today = prTodayIso(), a = (_prReview && _prReview.a) || prAnalyze(), E = paEvolution(a, today);
+  const esc = prEsc, T = E.trend || {}, V = T.verdict ? PA_VERDICT[T.verdict] : null;
+  const tile = function(k, v, sub){ return '<div class="lvp-t"><small>' + k + '</small><b>' + v + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>'; };
+  let h = '<div class="lvp-card"><div class="lvp-tiles">'
+    + tile('Niveau', E.fit ? prV(E.fit) : '–', E.level && E.level.delta != null ? (E.level.delta >= 0 ? '+' : '') + prV(E.level.delta) + ' en 4 semaines' : '')
+    + tile('Le plan', E.planVdot ? prV(E.planVdot) : '–', E.fit && E.planVdot ? (E.fit - E.planVdot >= 1 ? 'en retard sur toi : ça monte' : E.planVdot - E.fit >= 1 ? 'au-dessus de toi' : 'à ton niveau') : '')
+    + tile('Tes séances', V ? V[1] + ' ' + V[0] : '–', T.n ? T.n + ' sur 3 semaines' : 'pas encore de ressenti')
+    + tile('Volume visé', E.volume ? E.volume.peak + ' km' : '–', E.volume ? 'au pic · habitude ' + E.volume.base + ' km' + (E.volume.goalPeak && E.volume.goalPeak > E.volume.base ? ' · objectif ' + E.volume.goalPeak : '') : '')
+    + '</div>' + (E.traj ? '<p class="lvp-n">🎯 Prévu le jour J : ' + prTime(E.traj.mid) + (E.goal ? ' pour un objectif de ' + prTime(E.goal) : '') + (E.traj.verdict ? ' · ' + E.traj.verdict : '') + '</p>' : '')
+    + '<p class="lvp-n">' + (T.verdict === 'easy' ? 'Tu encaisses bien : le plan monte d\'un cran (paliers, volume).' : T.verdict === 'hard' ? 'Séances récentes dures : le plan ne monte pas tant que ça ne passe pas mieux.' : 'Le plan suit son rythme ; il monte dès que tes séances passent facilement.') + '</p></div>';
+  // séances récentes
+  if(T.list && T.list.length){
+    h += '<div class="lvp-card"><p class="lvp-h">Tes dernières séances</p>' + T.list.slice(0, 8).map(function(x){
+      const v = PA_VERDICT[x.verdict];
+      return '<div class="pe-row"><span class="pe-chip pe-' + x.verdict + '">' + v[1] + ' ' + v[0] + '</span><span class="pe-tx"><b>' + esc(x.title) + '</b><small>' + prFmtDate(x.date, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + esc(x.parts.slice(0, 2).map(function(p){ return p.t; }).join(' · ')) + '</small></span></div>';
+    }).join('') + '<p class="lvp-n">Note faite avec ton allure, ta FC, ton effort ressenti, la dérive cardiaque, une douleur et ta récup WHOOP du lendemain.</p></div>';
+  }
+  // paliers
+  if(E.ladders.length){
+    h += '<div class="lvp-card"><p class="lvp-h">Tes paliers</p>' + E.ladders.map(function(L){
+      const cur = L.next && L.next.rung != null ? L.next.rung : L.last ? L.last.rung : 0, to = L.next && L.next.prop ? L.next.prop.rung : null;
+      const bar = '<div class="pe-lad">' + Array.from({ length: L.rungs }).map(function(_, i){ return '<i class="' + (i <= cur ? 'on' : '') + (to != null && i === to ? ' to' : '') + '"></i>'; }).join('') + '</div>';
+      return '<div class="pe-l"><p><b>' + L.ic + ' ' + L.label + '</b>' + (to != null ? '<span class="pe-chip pe-' + (L.next.prop.up ? 'easy' : 'hard') + '">' + (L.next.prop.up ? '↑ palier suivant' : '↓ on souffle') + '</span>' : '') + '</p>' + bar
+        + '<small>' + [L.last ? 'Dernière : ' + esc(L.last.title) + (L.last.verdict ? ' (' + PA_VERDICT[L.last.verdict][0].toLowerCase() + ')' : '') : '', L.next ? 'Prochaine : ' + esc(L.next.prop ? L.next.prop.title : L.next.title) + ' · ' + prFmtDate(L.next.date, { weekday: 'short', day: 'numeric' }) : ''].filter(Boolean).join('<br>') + '</small></div>';
+    }).join('') + (E.ladders.some(function(L){ return L.next && L.next.prop; }) ? '<button type="button" class="pr-btn" style="width:100%;margin-top:8px;" onclick="closePlanEvolution();if(!document.getElementById(\'plan-review\'))openPlanReview()">Voir les changements proposés</button>' : '') + '</div>';
+  }
+  // volume semaine par semaine
+  if(E.volume && E.volume.weeks && E.volume.weeks.length){
+    const W = E.volume.weeks.slice(-12), mx = Math.max.apply(null, W.map(function(w){ return Math.max(w.plan || 0, w.after || 0, w.done || 0, w.target || 0); }).concat([1]));
+    h += '<div class="lvp-card"><p class="lvp-h">Volume semaine par semaine</p>' + W.map(function(w){
+      const val = w.past ? w.done : (w.after != null ? w.after : w.plan), pct = Math.round(val / mx * 100);
+      return '<div class="pe-w' + (w.now ? ' now' : '') + '"><span>S' + w.w + '</span><i style="width:' + pct + '%" class="' + (w.past ? 'past' : w.changed ? 'chg' : '') + '"></i><b>' + (w.past ? val + ' / ' + w.plan : (w.changed ? w.plan + ' → ' : '') + val) + ' km</b></div>';
+    }).join('') + '<p class="lvp-n">Progression ' + (E.volume.prog && E.volume.prog > 1 ? '≤ +' + Math.round((E.volume.prog - 1) * 100) + ' % par semaine' : 'en pause (séances dures)') + ', semaines allégées et affûtage gardés.</p></div>';
+  }
+  // changements
+  if(E.changes.length){
+    h += '<div class="lvp-card"><p class="lvp-h">Ce qui a changé</p>' + E.changes.map(function(c){
+      return '<div class="pe-row"><span class="pe-tx"><b>' + esc(PE_KIND[c.kind] || 'Mise à jour') + (c.undone ? ' · annulé' : '') + '</b><small>' + prFmtDate(c.date, { day: 'numeric', month: 'short' }) + ' · ' + c.n + ' séance' + (c.n > 1 ? 's' : '') + (c.kinds.ladder ? ' · ' + c.kinds.ladder + ' palier' + (c.kinds.ladder > 1 ? 's' : '') : '') + '</small></span></div>';
+    }).join('') + '</div>';
+  }
+  const ov = document.createElement('div'); ov.id = 'pe-ov'; ov.className = 'ros pe';
+  ov.innerHTML = '<div class="ros-box" role="dialog" aria-modal="true" aria-labelledby="pe-title"><div class="ros-head"><div class="ros-top"><button type="button" class="ros-x" onclick="closePlanEvolution()" aria-label="Fermer">×</button>'
+    + '<div style="min-width:0;"><p class="ros-eb">Plan</p><p class="ros-title" id="pe-title">Comment ton plan évolue</p><p class="ros-sub">Il suit ce que tu encaisses, séance après séance</p></div></div></div>'
+    + '<div class="ros-body">' + h + '</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) closePlanEvolution(); });
+  document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+}
+function closePlanEvolution(){ const ov = document.getElementById('pe-ov'); if(!ov) return; ov.remove(); if(!document.getElementById('plan-review')) document.body.style.overflow = ''; }

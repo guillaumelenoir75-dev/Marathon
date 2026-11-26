@@ -201,6 +201,9 @@ function prFitness(st, opt){
     const pct = it === 'I' ? 0.975 : it === 'race' ? 0.9 : 0.88;
     let v = vdotFromPaceAt(avg, pct);
     if(hr && hr > 0.93 * hrMax) v -= 0.8;
+    // marge ressentie (plan-adapt.js) : séance tenue avec de la réserve (effort, FC) = signal plus fort, à la limite = plus faible
+    const ab = st === state && typeof paAbsorb === 'function' ? paAbsorb(s, st, { today: today }) : null;
+    if(ab && ab.margin >= 1) v += 0.4; else if(ab && ab.margin <= -1) v -= 0.3;
     // blocs nettement plus lents que la consigne (corrigée de la chaleur) : allure non tenue
     const missed = !!(s.pace && avg > s.pace.hi + 3);
     recent.push({ kind: 'séance', label: s.title + (s.perf._blocsAuto || s.perf.blocsAuto ? ' (tours Strava)' : '') + (wx >= 1 ? ' (corrigé chaleur +' + prV(wx) + ' %)' : ''), date: s.date, pace: prPace(avg), hr: hr, vdot: v, missed: missed });
@@ -525,13 +528,18 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
     if(typeof prInternal === 'function') a.internal = prInternal(today);
     if(typeof prStride === 'function') a.stride = prStride(today);              // FC à allure égale et cadence (body-signals.js)
     a.recette = state._recette || null; opt.recette = a.recette;              // ce que tes prépas précédentes ont appris (prep-debrief.js)
+    // ce que tu encaisses (plan-adapt.js) : tendance des 3 dernières semaines, objectif → volume visé
+    if(typeof paTrend === 'function'){ a.absorb = paTrend(state, today); opt.absorb = a.absorb; }
+    if(goalSec && raceCat && PR_RACE_M[raceCat]) opt.goalVdot = vdotFromRace(PR_RACE_M[raceCat], goalSec);
     opt.noVolumeUp = !!(a.whoop && a.whoop.tired) || !!(a.internal && a.internal.pains.some(function(x){ return x.level >= 2; })) || !!(a.stride && a.stride.level >= 2);
     opt.drift = a.drift; opt.calib = a.calib.n >= 2 || !(a.recette && a.recette.calib) ? a.calib.mode : a.recette.calib;   // sans recul dans cette prépa : réglage de ta recette
     a.volume = prVolumePlan(state, a); opt.volumeManaged = !!a.volume; opt.volumeWeeks = a.volume ? a.volume.horizonWeeks : null;
   }
   const all = prPaceProposals(state, fit, opt);
-  // une proposition par séance et par champ : WHOOP > séance test > volume / allure
-  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(a.volume ? a.volume.proposals : []) : [];
+  // échelles des séances de qualité (plan-adapt.js) : la séance change de palier avec l'allure du jour déjà dedans
+  const ladder = opt2 && typeof paLadderProposals === 'function' ? paLadderProposals(state, a, all) : [];
+  // une proposition par séance et par champ : douleur > WHOOP > séance test > palier > volume / allure
+  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(ladder).concat(a.volume ? a.volume.proposals : []) : [];
   const seen = {}, merged = [];
   extra.concat(all).forEach(function(p){
     const k = p.key + '|' + (p.field === 'session' ? 'session' : p.field), ks = p.key + '|session';
@@ -691,6 +699,7 @@ const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C
   + '.pr-undo{display:block;margin:6px 0 2px;font-size:12px;}'
   + '.pr-snack{position:fixed;left:16px;right:16px;margin:0 auto;width:max-content;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:450;display:flex;align-items:center;gap:12px;background:#0F172A;color:#fff;border-radius:16px;padding:10px 10px 10px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100vw - 32px);animation:_prFade .3s ease both;}'
   + '.pr-snack button{flex-shrink:0;background:#3B82F6;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:800;font-size:13px;font-family:inherit;cursor:pointer;}'
+  + '.pr-snack .pr-snack-t{display:flex;flex-direction:column;gap:2px;min-width:0;}.pr-snack .pr-snack-t small{font-size:12px;font-weight:600;opacity:.85;}.pr-snack button.sec{background:rgba(255,255,255,.14);}'
   + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
 const PR_CSS2 = '.pr-top{display:flex;align-items:center;gap:10px;padding:2px 2px 0;}.pr-top b{font-size:17px;font-weight:900;color:#0F172A;flex:1;}.pr-top-n{min-width:34px;height:34px;padding:0 8px;border-radius:11px;background:#1D4ED8;color:#fff;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}'
   + '.pr-uptodate{display:flex;align-items:center;gap:12px;}.pr-uptodate b{display:block;font-size:17px;color:#0F172A;}.pr-uptodate span{font-size:12.5px;color:#64748B;}'
@@ -760,6 +769,7 @@ async function prCoachBody(a, R, force){
     recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
     dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     derniere_course: state._race_analysis ? (function(A){ return { course: A.name || A.cat, date: A.date, temps: A.time, objectif: A.target ? prTime(A.target.sec) : null, niveau_la_veille: A.pred ? prTime(A.pred) : null, verdict: A.verdict.t, depart_pct_vs_prevu: A.start ? Math.round(A.start.pct * 10) / 10 : null, seconde_moitie_pct: A.halves ? A.halves.pct : null, coup_de_mou_km: A.fade ? A.fade.km : null, derive_cardio_pct: A.drift ? A.drift.pct : null, meteo_pct: A.heat ? A.heat.pct : null, lecons: A.lessons }; })(state._race_analysis) : null,
+    absorption: a.absorb && a.absorb.n ? { tendance_3_semaines: a.absorb.verdict, score_moyen: a.absorb.mean, seances: a.absorb.list.slice(0, 8).map(function(x){ return { date: x.date, seance: x.title, verdict: x.verdict, pourquoi: x.parts.map(function(p){ return p.t; }).join(' ; ') }; }) } : null,
     effort_ressenti: a.internal && a.internal.rpes.length ? { seances_14j: a.internal.rpes, charge_ressentie_ratio_7j_28j: a.internal.ratio ? Math.round(a.internal.ratio * 100) / 100 : null } : null,
     douleurs: a.internal && a.internal.pains.length ? a.internal.pains : null,
     derive_cardiaque: a.drift ? { moyenne_pct: Math.round(a.drift.avg * 10) / 10, sorties: a.drift.n, endurance: a.drift.label } : null,

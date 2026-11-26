@@ -220,3 +220,18 @@ html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark]
 .dg-list b{display:block;font-size:12.5px;color:var(--bad);word-break:break-word;}.dg-list small{font-size:11px;color:var(--muted-2);}
 .dg-ok{margin:0;text-align:center;font-weight:800;color:var(--ok);padding:10px;}
 .dg-btns{display:flex;gap:8px;}.dg-btns button{flex:1;padding:11px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);font-weight:800;font-family:inherit;cursor:pointer;color:var(--ink);}
+
+/* Comment ton plan évolue (plan-review-ui.js) */
+.pe .ros-head{background:linear-gradient(135deg,#1B4FD8,#0B1F4D);}
+.pe-row{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-top:1px solid #EEF2F8;}.pe-row:first-of-type{border-top:none;}
+.pe-tx{display:flex;flex-direction:column;gap:2px;min-width:0;}.pe-tx b{font-size:13.5px;color:#0F172A;}.pe-tx small{font-size:12px;color:#64748B;}
+.pe-chip{flex-shrink:0;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 8px;white-space:nowrap;}
+.pe-easy{background:#DCFCE7;color:#166534;}.pe-ok{background:#DBEAFE;color:#1E40AF;}.pe-hard{background:#FFEDD5;color:#9A3412;}
+.pe-l{padding:8px 0;border-top:1px solid #EEF2F8;}.pe-l:first-of-type{border-top:none;}
+.pe-l p{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px;font-size:14px;}.pe-l small{font-size:12px;color:#64748B;line-height:1.45;}
+.pe-lad{display:flex;gap:4px;margin-bottom:6px;}.pe-lad i{flex:1;height:8px;border-radius:4px;background:#E2E8F0;}.pe-lad i.on{background:#3B82F6;}.pe-lad i.to{background:#22C55E;}
+.pe-w{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;margin:5px 0;font-size:12.5px;font-variant-numeric:tabular-nums;}
+.pe-w span{color:#64748B;font-weight:700;}.pe-w b{color:#0F172A;font-weight:700;}.pe-w.now span,.pe-w.now b{color:#1B4FD8;}
+.pe-w i{display:block;height:9px;border-radius:5px;background:#93C5FD;}.pe-w i.past{background:#CBD5E1;}.pe-w i.chg{background:#22C55E;}
+.pr-evo-b{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px 14px;margin-bottom:10px;cursor:pointer;font-family:inherit;color:#0F172A;}
+.pr-evo-b > span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}.pr-evo-b b{font-size:14.5px;}.pr-evo-b small{font-size:12px;color:#64748B;}.pr-evo-b > span:first-child{font-size:20px;}

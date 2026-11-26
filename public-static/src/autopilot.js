@@ -17,7 +17,8 @@ function apSelect(a, today){
   return ((a && a.proposals) || []).filter(function(p){
     if(!p.key || !p.date || p.date < today || p.date > end || p.held || p.revert) return false;
     if(p.kind === 'test' || p.field === 'skip' || p.field === 'date') return false;
-    if(p.field === 'session' && p.kind !== 'whoop' && p.kind !== 'pain') return false;
+    // séance remplacée : fatigue WHOOP, douleur, ou un palier de plus / de moins (plan-adapt.js, un seul cran la nuit)
+    if(p.field === 'session' && p.kind !== 'whoop' && p.kind !== 'pain' && !(p.kind === 'ladder' && Math.abs(p.delta || 0) <= 1)) return false;
     return !undone[p.key + '|' + p.field];
   });
 }

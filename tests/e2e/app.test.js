@@ -1679,6 +1679,12 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   await page.waitForFunction(() => typeof _prReview !== 'undefined' && _prReview && document.querySelector('#pr-content .pr-card, #pr-content .pr-top'), null, { timeout: 15000 });
   const tick = await page.evaluate(() => { const t = document.querySelector('.pr-tick[aria-pressed=true]'); return t ? getComputedStyle(t).backgroundColor : null; });
   if (tick) assert.match(tick, /rgb\(27, 79, 216\)/, 'coche bleue');
+  // « Comment ton plan évolue » : ouvert depuis MAJ le plan, tendance, volume, changements
+  await page.click('#pr-content .pr-evo-b'); await page.waitForSelector('#pe-ov .ros-body', { timeout: 5000 });
+  const PE = await page.evaluate(() => document.querySelector('#pe-ov .ros-body').textContent);
+  assert.match(PE, /Niveau/); assert.match(PE, /Tes séances/); assert.match(PE, /Volume visé/);
+  if (process.env.SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: process.env.SHOTS + '/plan-evolue.png' }); }
+  await page.evaluate(() => closePlanEvolution()); assert.equal(await page.locator('#pe-ov').count(), 0);
   // réglage
   await page.evaluate(() => { closePlanReview(); themeOpen(); });
   assert.equal(await page.locator('#th-set .th-opt').count(), 4);

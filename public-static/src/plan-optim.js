@@ -237,15 +237,22 @@ function prVolumePlan(st, a){
   const today = a.opt.today, W = prWeeks(st, today), weeks = Object.keys(W).map(Number).sort(function(x, y){ return x - y; }).map(function(w){ return W[w]; });
   const base = a.opt.habitual || (a.load && a.load.chronic >= 12 ? a.load.chronic : null);
   if(!base || !weeks.length) return null;
-  const cat = a.opt.raceCat, peak = base * (PR_PEAK[cat] || 1.1), longRace = cat === 'Marathon' || cat === 'Semi-marathon';
+  const cat = a.opt.raceCat, longRace = cat === 'Marathon' || cat === 'Semi-marathon';
+  // pic visé : ton volume habituel × repère de la distance, relevé vers ce que demande ton objectif à ton niveau (plan-adapt.js),
+  // sans dépasser +60 % de ton habitude dans une seule prépa
+  const perWeek = (function(){ const c = Object.keys(W).map(function(w){ return W[w].sess.filter(function(s){ return s.type !== 'rest' && s.type !== 'race'; }).length; }).filter(function(n){ return n > 0; }).sort(); return c.length ? c[Math.floor(c.length / 2)] : null; })();
+  const goalPeak = typeof paGoalPeak === 'function' ? paGoalPeak(cat, Math.max(a.opt.goalVdot || 0, (a.fit && a.fit.vdot) || 0), perWeek) : null;
+  const peak = Math.max(base * (PR_PEAK[cat] || 1.1), goalPeak ? Math.min(goalPeak, base * 1.6) : 0);
   const raceW = weeks.filter(function(o){ return o.race; }).map(function(o){ return o.w; }).pop();
   const lr = a.opt.lastRace, recD = lr && (lr.cat === 'Marathon' || lr.cat === 'Semi-marathon') ? PR_REC_DAYS[lr.cat] : null;
-  const longCap = PR_LONG_CAP[cat] || 20;
+  const longCap = (PR_LONG_CAP[cat] || 20) + (peak >= ({ 'Semi-marathon': 50, 'Marathon': 70, '10 km': 45, '5 km': 40 }[cat] || 999) ? 2 : 0);   // objectif ambitieux : sortie longue un peu plus longue
   // plus longue sortie des 8 dernières semaines (prépa précédente comprise) : une sortie déjà encaissée n'est pas un risque
   const recentLong = Math.max.apply(null, (a.load ? a.load.log : []).filter(function(x){ return x.type === 'long' && prDays(x.date, today) <= 56; }).map(function(x){ return x.km; }).concat([0]));
-  const out = { base: Math.round(base), peak: Math.round(peak), weeks: [], proposals: [], horizonWeeks: [] };
+  const out = { base: Math.round(base), peak: Math.round(peak), goalPeak: goalPeak, weeks: [], proposals: [], horizonWeeks: [] };
   const noUp = !!a.opt.noVolumeUp;                                                // fatigue WHOOP / douleur : pas de hausse cette semaine
-  const REC = a.opt.recette || null, PROG = REC && REC.progression >= 1.03 && REC.progression <= 1.2 ? REC.progression : 1.12;   // recette : progression encaissée
+  const REC = a.opt.recette || null, PROG0 = REC && REC.progression >= 1.03 && REC.progression <= 1.2 ? REC.progression : 1.12;   // recette : progression encaissée
+  // ce que tu encaisses (3 semaines) : facile → un cran de plus, dur → pas de hausse (plan-adapt.js)
+  const PROG = typeof paProg === 'function' ? paProg(PROG0, a.opt.absorb) : PROG0; out.prog = PROG;
   // progression mesurée depuis la dernière semaine de charge (pas depuis une semaine allégée) ; propositions de km sur 4 semaines
   let lastBuild = null, prevT = null, prevLong = null, buildLong = null, prevPast = null, firstFuture = true, nFuture = 0;
   weeks.forEach(function(o){
@@ -273,7 +280,7 @@ function prVolumePlan(st, a){
     if(RT){ const own = [RT.w0, RT.w1, RT.w2]; TAPER = TAPER.map(function(f, i){ const x = own[i]; return x > 0 ? Math.max(f - 0.15, Math.min(f + 0.15, x)) : f; }); }
     if(toRace != null && toRace >= 0 && toRace < TAPER.length){ t = peak * TAPER[toRace]; why = toRace === 0 ? 'semaine de course' : toRace === TAPER.length - 1 ? 'début d\'affûtage' : 'affûtage'; }
     else if(o.kind === 'recov'){ t = lastBuild ? lastBuild * 0.78 : o.km; why = 'semaine allégée'; }   // sans semaine de charge avant : le plan fait foi
-    else { t = Math.min(peak, (lastBuild || o.km) * PROG); why = t >= peak - 0.5 ? 'pic de la prépa (~' + Math.round(peak) + ' km)' : 'progression ≤ +' + Math.round((PROG - 1) * 100) + ' %/semaine' + (PROG !== 1.12 ? ' (ta recette)' : ''); }
+    else { t = Math.min(peak, (lastBuild || o.km) * PROG); why = t >= peak - 0.5 ? 'pic de la prépa (~' + Math.round(peak) + ' km)' : (PROG <= 1 ? 'séances récentes dures : volume stable' : 'progression ≤ +' + Math.round((PROG - 1) * 100) + ' %/semaine') + (PROG > PROG0 ? ' (séances récentes faciles)' : PROG0 !== 1.12 && PROG > 1 ? ' (ta recette)' : ''); }
     // reprise après un marathon / semi : pourcentage de ta base selon le nombre de jours depuis la course
     const ds = recD && o.from ? prDays(lr.date, o.from) : null;
     if(ds != null && ds >= 0 && ds < recD * 1.08){
@@ -296,7 +303,7 @@ function prVolumePlan(st, a){
     }
     firstFuture = false;
     t = Math.round(t);
-    const horizon = nFuture++ < 4;                                               // km proposés sur les 4 prochaines semaines
+    const horizon = nFuture++ < 26;                                              // km proposés jusqu'à la fin de la prépa
     if(horizon) out.horizonWeeks.push(o.w);
     const build = o.kind !== 'recov' && !(toRace != null && toRace < TAPER.length) && !(ds != null && ds < recD * 1.08);
     // sortie longue : progression depuis la précédente (+2 km), repère 32-40 % du volume, plafond selon la course
@@ -371,7 +378,7 @@ function prTestProposal(st, a){
   (a.fit.sources || []).forEach(function(x){ if(x.kind === 'course' && x.date && x.date <= today && (!lastB || x.date > lastB)) lastB = x.date; });
   (st === state && typeof prAllDone === 'function' ? prAllDone(today) : sess).forEach(function(s){ if(s.done && /^Test\b/i.test(s.title) && s.date && (!lastB || s.date > lastB)) lastB = s.date; });
   if(raceDate <= today) return null;
-  const W = prWeeks(st, today), due = lastB ? prAddDays(lastB, 42) : today, latest = prAddDays(raceDate, -21), soon = prAddDays(today, 5);
+  const W = prWeeks(st, today), due = lastB ? prAddDays(lastB, 35) : today, latest = prAddDays(raceDate, -21), soon = prAddDays(today, 5);
   const cand = sess.filter(function(s){ const o = W[s.w]; return !s.done && !s.skip && (s.type === 'tempo' || s.type === 'frac') && s.date && s.date >= soon && s.date >= due && s.date <= latest && o && o.kind !== 'recov' && o.kind !== 'taper' && !o.race; })
     .sort(function(x, y){ return x.date.localeCompare(y.date); });
   if(!cand.length) return null;
@@ -586,7 +593,17 @@ function prUndoReview(i){
 function prAfterValidation(){
   try {
     prPrefetch().then(function(){
-      const n = planReviewPending(); if(!n) return;
+      // ce que la séance validée dit de toi (plan-adapt.js) + l'ajustement le plus utile des 10 prochains jours, appliqué en un geste
+      let ab = null, top = null, n = 0;
+      try {
+        const k = window._lastValidatedKey, s = k ? prSessions(state).filter(function(x){ return x.key === k; })[0] : null;
+        ab = s && typeof paAbsorb === 'function' ? paAbsorb(s, state) : null;
+        const a = prAnalyze(), end = prAddDays(a.opt.today, 10), rank = { ladder: 0, volume: 2 };
+        const P = a.proposals.filter(function(p){ return p.date && p.date >= a.opt.today && p.date <= end && !p.revert && p.kind !== 'test'; })
+          .sort(function(x, y){ return ((rank[x.kind] != null ? rank[x.kind] : 1) - (rank[y.kind] != null ? rank[y.kind] : 1)) || x.date.localeCompare(y.date); });
+        top = P[0] || null; n = planReviewPending();
+      } catch(e) { diagSilent(e, 'plan-optim:prAfterValidation'); }
+      if(!top && !n && !(ab && ab.verdict)) return;
       // attendre que le retour de séance (fenêtre) soit fermé
       let tries = 0;
       (function show(){
@@ -594,12 +611,29 @@ function prAfterValidation(){
       if(typeof rendered !== 'undefined') rendered.plan = false;
       const old = document.getElementById('pr-snack'); if(old) old.remove();
       const el = document.createElement('div'); el.id = 'pr-snack'; el.className = 'pr-snack';
-      el.innerHTML = '<span>🔄 ' + n + ' ajustement' + (n > 1 ? 's' : '') + ' proposé' + (n > 1 ? 's' : '') + ' pour ton plan</span><button type="button" onclick="document.getElementById(\'pr-snack\').remove();showScreen(\'plan\');openPlanReview()">Voir</button>';
+      const V = ab && ab.verdict && typeof PA_VERDICT !== 'undefined' ? PA_VERDICT[ab.verdict] : null;
+      window._prSnackProp = top;
+      const what = top ? prFmtDate(top.date, { weekday: 'long' }).replace(/^./, function(c){ return c.toUpperCase(); }) + ' : ' + (top.field === 'session' && top.after ? top.after.t : top.field === 'km' ? top.title + ' ' + top.before + ' → ' + top.after + ' km' : top.title + ' ' + (top.pa || '')) : n ? n + ' ajustement' + (n > 1 ? 's' : '') + ' proposé' + (n > 1 ? 's' : '') : '';
+      el.innerHTML = '<span class="pr-snack-t">' + (V ? '<b>' + V[1] + ' ' + V[2] + '</b>' : '') + (what ? '<small>🔄 ' + prEsc(what) + '</small>' : '') + '</span>'
+        + (top ? '<button type="button" onclick="prSnackApply()">Appliquer</button>' : '')
+        + (n || top ? '<button type="button" class="sec" onclick="document.getElementById(\'pr-snack\').remove();showScreen(\'plan\');openPlanReview()">Voir</button>' : '');
       _prCss(); document.body.appendChild(el);
-      setTimeout(function(){ if(el.parentNode) el.remove(); }, 9000);
+      setTimeout(function(){ if(el.parentNode) el.remove(); }, top ? 15000 : 7000);
       })();
     });
   } catch(e) {}
+}
+// « Appliquer » du bandeau après validation : un seul ajustement, annulable comme les autres (Plan › MAJ le plan › dernières mises à jour)
+function prSnackApply(){
+  const p = window._prSnackProp, el = document.getElementById('pr-snack'); if(el) el.remove();
+  if(!p) return;
+  const r = prApplyChanges([p], { kind: 'after', at: new Date().toISOString() });
+  window._prSnackProp = null;
+  if(!r || !r.n){ if(typeof showToast === 'function') showToast('Séance déjà modifiée entre-temps', 'ℹ️'); return; }
+  save();
+  if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
+  try { renderHome(); } catch(e) { diagSilent(e, 'plan-optim:prSnackApply'); }
+  if(typeof showToast === 'function') showToast('Plan ajusté · annulable dans MAJ le plan', '📅');
 }
 // Notification du dimanche (relecture de la semaine) : ouvre la mise à jour et demande l'avis du Coach s'il y a du nouveau
 function prOpenFromNotif(){

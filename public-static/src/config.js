@@ -301,6 +301,7 @@ function phFormOpen(){ return _lazyCall('pisteui', 'phFormOpen', phFormOpen, arg
 function openMarathonPredModal(){ return _lazyCall('predict', 'openMarathonPredModal', openMarathonPredModal, arguments); }
 function openDistancePredModal(){ return _lazyCall('predict', 'openDistancePredModal', openDistancePredModal, arguments); }
 function openPlanReview(){ return _lazyCall('review', 'openPlanReview', openPlanReview, arguments); }
+function openPlanEvolution(){ return _lazyCall('review', 'openPlanEvolution', openPlanEvolution, arguments); }
 function openRecordsModal(){ return _lazyCall('review', 'openRecordsModal', openRecordsModal, arguments); }
 function openWeekShare(){ return _lazyCall('share', 'openWeekShare', openWeekShare, arguments); }
 function openSessionShare(){ return _lazyCall('share', 'openSessionShare', openSessionShare, arguments); }
