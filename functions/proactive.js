@@ -33,8 +33,12 @@ function weekDigest(state, today) {
     const key = N.star ? N.sessions.find((s) => s.star) : null;
     body += ` → S${N.w} : ${km(N.kmPlan)} km` + (key ? ` · clé : ${key.title}${key.date ? ' (' + DAY[new Date(key.date + 'T12:00:00Z').getUTCDay()] + ')' : ''}` : '');
   }
+  // semaine prochaine préparée par le moteur (paNextWeek) : ajustements prêts à valider dans MAJ le plan
+  let adjust = 0;
+  try { const NW = E.prAnalyze().nextWeek; adjust = NW ? NW.props.length : 0; } catch (e) { adjust = 0; }
+  if (adjust) body += ` · ${adjust} ajustement${adjust > 1 ? 's' : ''} prêt${adjust > 1 ? 's' : ''}`;
   body += ' · 📸 à partager';
-  return { title, body, digest: { date: today, w: D.w, kmDone: D.kmDone, kmPlan: D.kmPlan, nDone: D.nDone, nPlan: D.nPlan, rec: recAvg, next: N ? { w: N.w, km: N.kmPlan } : null } };
+  return { title, body, digest: { date: today, w: D.w, kmDone: D.kmDone, kmPlan: D.kmPlan, nDone: D.nDone, nPlan: D.nPlan, rec: recAvg, next: N ? { w: N.w, km: N.kmPlan } : null, adjust } };
 }
 exports.weekDigest = weekDigest;
 

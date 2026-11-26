@@ -73,7 +73,7 @@ function paAbsorb(s, st, opt){
     }
   }
   // effort ressenti vs attendu
-  const rpe = parseInt(p.rpe) || null, R = PA_RPE[s.type];
+  const rpe = parseInt(p.rpe) || null, R = s.type === 'long' && paLongRaceKm(s.detail) ? [4, 7] : PA_RPE[s.type];   // longue avec allure course : plus d'effort attendu
   if(rpe && R){
     if(rpe < R[0]) add('rpe', 1, 'effort ' + rpe + '/10 (attendu ' + R[0] + '-' + R[1] + ')');
     else if(rpe >= R[1] + 2) add('rpe', -1, 'effort ' + rpe + '/10 (attendu ' + R[0] + '-' + R[1] + ')');
@@ -160,7 +160,7 @@ function paLadderProposals(st, a, pace){
       const mine = hist.filter(function(x){ return paFam(x) === fam; }).map(function(x){ const rr = paParseReps(x.title + ' ' + x.detail); return rr && rr.unit === r.unit ? { s: x, r: rr, ab: paAbsorb(x, st, { today: today }) } : null; }).filter(Boolean).slice(0, 2);
       if(!mine.length || !mine[0].ab || !mine[0].ab.verdict) return;
       const v0 = mine[0].ab.verdict, v1 = mine[1] && mine[1].ab ? mine[1].ab.verdict : null;
-      const adapt = v0 === 'hard' ? -1 : v0 === 'easy' && v1 !== 'hard' ? 1 : 0;
+      const adapt = paAdapt(v0, v1, (a.ladderCalib || {}).mode);               // réglage appris : franc / normal / prudent
       if(!adapt) return;
       if(adapt > 0 && a.opt.noFasterUntil && s.date <= a.opt.noFasterUntil) return;           // récup d'une course : on ne monte pas
       if(adapt > 0 && a.opt.noVolumeUp) return;                                               // fatigue WHOOP, douleur, foulée : pas de hausse
@@ -234,6 +234,156 @@ function paEvolution(a, today){
     return { date: h.date, n: h.n || 0, undone: !!h.undone, kind: h.kind || (h.coach ? 'coach' : h.auto ? 'autopilot' : 'maj'), kinds: kinds };
   });
   const T = a.trajectory || null;
-  return { trend: trend, ladders: ladders, level: lvl, fit: a.fit && a.fit.vdot, planVdot: a.planVdotNow || a.planVdot, volume: V ? { base: V.base, peak: V.peak, goalPeak: V.goalPeak || null, prog: V.prog || null, weeks: V.weeks } : null,
+  const calib = a.ladderCalib || paLadderCalib(state, today), habits = paHabits(state, today);
+  const longP = (a.proposals || []).filter(function(p){ return p.fam === 'long'; })[0] || null;
+  return { calib: calib, habits: habits, longNext: longP ? { title: longP.short, date: longP.date, up: longP.delta > 0 } : null, trend: trend, ladders: ladders, level: lvl, fit: a.fit && a.fit.vdot, planVdot: a.planVdotNow || a.planVdot, volume: V ? { base: V.base, peak: V.peak, goalPeak: V.goalPeak || null, prog: V.prog || null, weeks: V.weeks } : null,
     changes: changes, goal: a.opt.goalSec || null, traj: T && T.race ? { mid: T.race.mid, lo: T.race.lo, hi: T.race.hi, verdict: T.verdict || null } : null };
+}
+
+// ─── 3. Le plan s'évalue lui-même : quand il a fait monter une séance, l'as-tu tenue ? ─────────────────
+// changements « palier » (kind ladder, delta > 0) appliqués et non annulés → séance faite sans être dure = réussie
+function paLadderCalib(st, today){
+  st = st || state; today = today || prTodayIso();
+  const byKey = {}; prSessions(st).forEach(function(s){ byKey[s.key] = s; });
+  const fams = {}; let n = 0, ok = 0;
+  (st._plan_reviews || []).forEach(function(h){ if(h.undone) return; (h.changes || []).forEach(function(c){
+    if(c.kind !== 'ladder' || !(c.delta > 0)) return;
+    const s = byKey[c.ref]; if(!s || !s.date || s.date > today) return;
+    if(!s.done && !s.skip) return;                                         // pas encore jouée
+    const ab = s.done ? paAbsorb(s, st, { today: today }) : null, good = !!(s.done && (!ab || ab.verdict !== 'hard'));
+    const f = c.fam || paFam(s) || '?'; fams[f] = fams[f] || { n: 0, ok: 0 }; fams[f].n++; if(good) fams[f].ok++;
+    n++; if(good) ok++;
+  }); });
+  const rate = n ? ok / n : null;
+  const mode = n >= 3 && rate >= 0.8 ? 'bold' : n >= 3 && rate <= 0.6 ? 'careful' : 'normal';
+  return { n: n, ok: ok, rate: rate, mode: mode, fams: fams };
+}
+// palier suivant selon les 2 dernières séances et le réglage appris : franc (une séance facile suffit, deux = +2),
+// normal (une facile sans dure avant), prudent (deux faciles de suite)
+function paAdapt(v0, v1, mode){
+  if(v0 === 'hard') return -1;
+  if(v0 !== 'easy') return 0;
+  if(mode === 'bold') return v1 === 'easy' ? 2 : v1 === 'hard' ? 0 : 1;
+  if(mode === 'careful') return v1 === 'easy' ? 1 : 0;
+  return v1 !== 'hard' ? 1 : 0;
+}
+
+// ─── 1. Sortie longue : l'allure course entre dans la sortie longue, par paliers ───────────────────────
+// km à allure course dans la sortie longue (total), à partir de N semaines de la course, jamais en semaine allégée / affûtage
+const PA_LONG = { 'Semi-marathon': { tag: 'AS21', steps: [0, 2, 4, 6, 8], weeks: 10, share: 0.45 }, 'Marathon': { tag: 'AM', steps: [0, 3, 6, 10, 14, 16], weeks: 12, share: 0.6 }, '10 km': { tag: 'AS10', steps: [0, 2, 3, 4], weeks: 8, share: 0.3 } };
+function paLongRaceKm(text){
+  const t = String(text || '');
+  const m2 = t.match(/(\d+)\s*[×x]\s*(\d+(?:[,.]\d+)?)\s*km\s*(?:à\s*)?(?:l['’])?(AS21|AS10|AS42|AM)\b/i); if(m2) return +m2[1] * parseFloat(m2[2].replace(',', '.'));
+  const m1 = t.match(/(\d+(?:[,.]\d+)?)\s*km\s*(?:à\s*)?(?:l['’])?(AS21|AS10|AS42|AM)\b/i); return m1 ? parseFloat(m1[1].replace(',', '.')) : 0;
+}
+function paLongProposals(st, a, pace){
+  st = st || state;
+  const cat = a.opt.raceCat, L = PA_LONG[cat]; if(!L) return [];
+  const today = a.opt.today, W = prWeeks(st, today), raceW = Object.keys(W).map(Number).filter(function(w){ return W[w].race; }).pop(); if(raceW == null) return [];
+  const m = PR_RACE_M[cat] / 1000, gp = a.opt.goalSec ? a.opt.goalSec / m : a.fit && a.fit.preds && a.fit.preds[cat] ? a.fit.preds[cat] / m : null; if(!gp) return [];
+  const s = prSessions(st).filter(function(x){ return x.type === 'long' && !x.done && !x.skip && x.date && x.date >= today && prDays(today, x.date) <= 14; }).sort(function(x, y){ return x.date.localeCompare(y.date); })[0];
+  if(!s) return [];
+  const o = W[s.w], toRace = raceW - s.w;
+  if(!o || o.kind === 'recov' || o.kind === 'taper' || o.race || toRace < 2 || toRace > L.weeks) return [];
+  if(a.opt.noVolumeUp || (a.opt.noFasterUntil && s.date <= a.opt.noFasterUntil)) return [];
+  const last = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st)).filter(function(x){ return x.done && x.type === 'long' && x.date && x.date <= today && prDays(x.date, today) <= 21 && !x.ext; })
+    .sort(function(x, y){ return y.date.localeCompare(x.date); }).slice(0, 2).map(function(x){ return { s: x, ab: paAbsorb(x, st, { today: today }) }; });
+  if(!last.length || !last[0].ab || !last[0].ab.verdict) return [];
+  const rungOf = function(km){ return L.steps.reduce(function(b, k, i){ return k <= km ? i : b; }, 0); };
+  const cur = paLongRaceKm(s.detail), P = rungOf(cur), Ldone = rungOf(paLongRaceKm(last[0].s.detail));
+  const adapt = paAdapt(last[0].ab.verdict, last[1] && last[1].ab ? last[1].ab.verdict : null, (a.ladderCalib || {}).mode);
+  if(!adapt) return [];
+  let to = Math.max(0, Math.min(L.steps.length - 1, Ldone + Math.max(-1, Math.min(1, adapt))));   // un palier à la fois depuis la dernière longue faite
+  while(to > 0 && L.steps[to] > s.kmPlan * L.share) to--;                    // jamais plus de 45 % de la sortie à allure semi
+  if(adapt > 0 ? to <= P : to >= P) return [];
+  const q = L.steps[to];
+  const pp = (pace || []).filter(function(p){ return p.key === s.key && p.field === 'detail' && typeof p.after === 'string'; })[0];   // nouvelle allure EF du jour gardée
+  const base = (pp ? pp.after : s.detail).replace(/\s*·?\s*dont\s+[^·|]*?(AS21|AS10|AS42|AM)[^·|]*/i, '').trim();
+  const seg = q >= 6 && cat !== 'Marathon' ? '2 × ' + String(q / 2).replace('.', ',') + ' km à ' + L.tag + ' (récup 1 km EF)' : q + ' km à ' + L.tag;
+  const after = q ? base + ' · dont ' + seg + ' en fin de sortie (' + prPace(gp) + '/km)' : base;
+  const why = adapt > 0 ? 'ta dernière sortie longue a été facile (' + last[0].ab.parts.filter(function(x){ return x.v > 0; }).map(function(x){ return x.t; }).slice(0, 2).join(', ') + ')'
+    : 'ta dernière sortie longue a été dure (' + last[0].ab.parts.filter(function(x){ return x.v < 0; }).map(function(x){ return x.t; }).slice(0, 2).join(', ') + ')';
+  return [{ key: s.key, w: s.w, date: s.date, field: 'detail', title: s.title, type: 'long', kind: 'ladder', fam: 'long', src: 'calcul', delta: to - P, rung: to, rungs: L.steps.length,
+    before: s.detail, after: after,
+    reason: (q > cur ? 'Allure course dans la sortie longue : ' + (cur ? cur + ' → ' : '') + q + ' km' : q ? 'Moins d\'allure course : ' + cur + ' → ' + q + ' km' : 'Sortie longue tout en endurance') + ', car ' + why + '.',
+    short: (q > cur ? 'Sortie longue + ' + seg : q ? 'Sortie longue : ' + seg + ' seulement' : 'Sortie longue sans allure course') + ', car ' + why + '.' }];
+}
+
+// ─── 2. L'objectif qui se réajuste (toutes les 4 semaines au plus, jamais à moins de 4 semaines de la course) ───
+function paGoalCheck(a, st){
+  st = st || state;
+  const T = a.trajectory, g = a.opt.goalSec, cat = a.opt.raceCat;
+  if(!T || !T.race || !g || !PR_RACE_M[cat] || T.race.days < 28) return null;
+  const gc = st._goal_check || {}; if(gc.at && prDays(gc.at, a.opt.today) < 28) return null;
+  const step = PR_RACE_M[cat] >= 21000 ? 30 : 10, rnd = function(x){ return Math.round(x / step) * step; }, mid = T.race.mid;
+  if(mid <= g * 0.985) return { dir: 'up', from: g, to: rnd(mid * 1.005), mid: mid, cat: cat };
+  if(mid >= g * 1.03 && T.verdict === 'ambitieux') return { dir: 'down', from: g, to: rnd(mid), mid: mid, cat: cat };
+  return null;
+}
+const paHms = function(sec){ sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
+function paGoalSet(sec, keep){
+  const today = prTodayIso(), a = typeof _prReview !== 'undefined' && _prReview && _prReview.a, g = a && a.goalCheck;
+  if(keep){ state._goal_check = { at: today, from: g ? g.from : null, to: g ? g.to : null, answer: 'kept' }; }
+  else {
+    const t = paHms(sec); state.target_time = t;
+    if(state.onboarding && typeof state.onboarding === 'object') state.onboarding = Object.assign({}, state.onboarding, { target_time: t });
+    state._goal_check = { at: today, from: g ? g.from : null, to: sec, answer: 'changed' };
+  }
+  save();
+  if(typeof prHistoryChanged === 'function') prHistoryChanged();
+  if(typeof showToast === 'function') showToast(keep ? 'Objectif gardé' : 'Nouvel objectif : ' + prTime(sec), '🎯');
+  if(typeof openPlanReview === 'function' && document.getElementById('plan-review')){ closePlanReview(); openPlanReview(); }
+}
+
+// ─── 5. Ta vraie semaine : les jours où tu fais vraiment tes séances clés ──────────────────────────────
+// au moins 3 des 4 dernières séances d'un type faites un même jour de la semaine, différent du jour prévu → séances des 2 prochaines
+// semaines déplacées sur ce jour (échangées avec un footing s'il y en a un), sans deux séances dures à moins de 48 h, ni sur une activité fixe
+function paHabits(st, today){
+  st = st || state; today = today || prTodayIso();
+  const out = {};
+  ['tempo', 'frac', 'long'].forEach(function(ty){
+    const done = prSessions(st).filter(function(s){ return s.done && s.type === ty && s.date && s.date <= today && prDays(s.date, today) <= 70; }).sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 4);
+    if(done.length < 3) return;
+    const c = {}; done.forEach(function(s){ const d = prWeekday(s.date); c[d] = (c[d] || 0) + 1; });
+    const d = +Object.keys(c).sort(function(a, b){ return c[b] - c[a]; })[0];
+    if(c[d] >= 3) out[ty] = { day: d, n: c[d], of: done.length };
+  });
+  return out;
+}
+const PA_DAYS = ['', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+function paHabitProposals(st, a){
+  st = st || state;
+  const today = a.opt.today, H = paHabits(st, today), out = [], used = {};
+  const all = prSessions(st).filter(function(s){ return !s.done && !s.skip && s.date; });
+  const hard = function(s){ return ['tempo', 'frac', 'long', 'race'].indexOf(s.type) >= 0; };
+  const fixedHard = function(date){ return typeof cpFixedOn === 'function' ? cpFixedOn(st, prWeekday(date)).some(function(f){ return (f.gap || 0) >= 12; }) : false; };
+  Object.keys(H).forEach(function(ty){
+    const day = H[ty].day;
+    all.filter(function(s){ return s.type === ty && s.date > today && prDays(today, s.date) <= 14 && prWeekday(s.date) !== day && !used[s.key]; }).forEach(function(s){
+      const target = prAddDays(s.date, day - prWeekday(s.date)); if(target <= today || fixedHard(target)) return;
+      const week = all.filter(function(x){ return x.w === s.w && x.key !== s.key; });
+      if(week.some(function(x){ return hard(x) && Math.abs(prDays(x.date, target)) <= 1; })) return;   // 48 h entre deux séances dures
+      const there = week.filter(function(x){ return x.date === target; });
+      if(there.some(function(x){ return x.type !== 'ef'; })) return;
+      const why = 'tu fais tes séances de ce type le ' + PA_DAYS[day] + ' (' + H[ty].n + ' des ' + H[ty].of + ' dernières)';
+      const pair = 'habit-' + s.key;
+      out.push({ key: s.key, w: s.w, date: s.date, field: 'date', title: s.title, type: s.type, before: s.date, after: target, src: 'calcul', kind: 'habit', pair: there.length ? pair : undefined, reason: 'Déplacée au ' + PA_DAYS[day] + ' : ' + why + '.', short: 'Au ' + PA_DAYS[day] + ', ton jour habituel pour cette séance.' });
+      there.forEach(function(x){ used[x.key] = 1; out.push({ key: x.key, w: x.w, date: x.date, field: 'date', title: x.title, type: x.type, before: x.date, after: s.date, src: 'calcul', kind: 'habit', pair: pair, reason: 'Échangée avec ' + s.title + ' (' + why + ').', short: 'Échangée avec ' + s.title + '.' }); });
+      used[s.key] = 1;
+    });
+  });
+  return out;
+}
+
+// ─── 6. La semaine prochaine préparée (samedi, dimanche) ──────────────────────────────────────────────
+function paNextWeek(a, today){
+  today = today || a.opt.today;
+  const wd = prWeekday(today); if(wd < 6) return null;
+  const from = prAddDays(today, 8 - wd), to = prAddDays(from, 6);
+  const props = (a.proposals || []).filter(function(p){ return p.date && p.date >= from && p.date <= to; });
+  const sess = prSessions(state).filter(function(s){ return s.date && s.date >= from && s.date <= to && !s.skip && s.type !== 'rest'; }).sort(function(x, y){ return x.date.localeCompare(y.date); });
+  if(!sess.length) return null;
+  let km = sess.reduce(function(x, s){ return x + (s.type === 'race' ? 0 : s.kmPlan); }, 0);
+  props.forEach(function(p){ if(p.field === 'km') km += p.after - p.before; else if(p.field === 'session' && p.after) km += (+p.after.km || 0) - (+p.before.km || 0); });
+  return { from: from, to: to, km: Math.round(km), props: props, sessions: sess.map(function(s){ const p = props.filter(function(x){ return x.key === s.key; })[0]; return { key: s.key, date: s.date, title: p && p.field === 'session' && p.after ? p.after.t : s.title, km: s.kmPlan, changed: !!p }; }) };
 }

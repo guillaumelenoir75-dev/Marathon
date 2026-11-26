@@ -130,7 +130,11 @@ function _prUnhold(i){
 function _prToggle(i){
   const it = _prReview && _prReview.items[i]; if(!it) return;
   it.on = !it.on;
-  const el = document.getElementById('pr-it-' + i); if(el){ el.classList.toggle('off', !it.on); const t = el.querySelector('.pr-tick'); t.setAttribute('aria-pressed', it.on ? 'true' : 'false'); }
+  _prReview.items.forEach(function(x, j){                                   // échange de jours : les deux séances ensemble
+    if(j !== i && it.pair && x.pair === it.pair) x.on = it.on;
+    if(j !== i && !(it.pair && x.pair === it.pair)) return;
+    const el = document.getElementById('pr-it-' + j); if(el){ el.classList.toggle('off', !x.on); const t = el.querySelector('.pr-tick'); if(t) t.setAttribute('aria-pressed', x.on ? 'true' : 'false'); }
+  });
   _prFoot();
 }
 // une proposition : séance, changement en grand (allure, km, titre), raison en une phrase
@@ -155,13 +159,16 @@ function _prItem(p, i, wo){
     full = '<details class="pr-full"><summary>Consigne</summary><p class="pr-old">' + prEsc(p.before.d) + '</p><p class="pr-new">' + prEsc(p.after.d) + '</p></details>';
   } else if(p.field === 'km'){
     swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.before) + ' km</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.after) + ' km</span></div>';
+  } else if(p.field === 'date'){
+    const D = function(d){ return prFmtDate(d, { weekday: 'short', day: 'numeric' }); };
+    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(D(p.before)) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(D(p.after)) + '</span></div>';
   } else if(p.field === 'type'){
     const L = function(t){ return (typeof typeLabel !== 'undefined' && typeLabel[t]) || t; };
     swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(L(p.before)) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(L(p.after)) + '</span></div>';
   } else {
     swap = '<div class="pr-txt"><p class="pr-old">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.before) + '</p><p class="pr-new">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.after) + '</p></div>';
   }
-  const kindTag = p.kind === 'pain' ? ' · <span class="pr-tag rev">🩹 Douleur</span>' : p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : '';
+  const kindTag = p.kind === 'pain' ? ' · <span class="pr-tag rev">🩹 Douleur</span>' : p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : p.kind === 'ladder' ? ' · <span class="pr-tag vo">' + (p.delta > 0 ? '↑ Palier' : '↓ Palier') + '</span>' : p.kind === 'habit' ? ' · <span class="pr-tag ts">📅 Ta semaine</span>' : '';
   const why = _prShortWhy(p.short || p.reason || '');
   const K = wo && PR_KIND[wo.kind], wk = 'S' + p.w + (K && wo.kind !== 'load' ? ' · ' + K[1] + ' ' + K[0] : '');
   return '<div class="pr-chg' + (p.on ? '' : ' off') + '" id="pr-it-' + i + '">'
@@ -215,6 +222,23 @@ function _prRender(){
   const admin = typeof isAdmin === 'function' && isAdmin();
   const fold = function(id, ico, title, sub, body, open){ return '<details class="pr-more" id="pr-more-' + id + '"' + (open ? ' open' : '') + '><summary><span class="pr-more-i">' + ico + '</span><span class="pr-more-t"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="pr-more-c" aria-hidden="true">›</span></summary><div class="pr-more-b">' + body + '</div></details>'; };
 
+  // ── 0. Objectif à revoir (toutes les 4 semaines au plus) et semaine prochaine (week-end)
+  const GC = a.goalCheck;
+  if(GC){
+    h += '<div class="pr-goal ' + GC.dir + '" id="pr-goal"><p class="pr-goal-h">🎯 ' + (GC.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif est loin') + '</p>'
+      + '<div class="pr-swap"><span class="pr-p old">' + prTime(GC.from) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prTime(GC.to) + '</span></div>'
+      + '<p class="pr-goal-s">Prévu le jour J : ' + prTime(GC.mid) + (GC.dir === 'up' ? '. Relever l\'objectif fait monter les allures du plan.' : '. Un objectif réaliste garde des allures que tu tiens.') + '</p>'
+      + '<div class="pr-actions"><button type="button" class="pr-btn pri" onclick="paGoalSet(' + GC.to + ')">' + (GC.dir === 'up' ? 'Relever à ' : 'Viser ') + prTime(GC.to) + '</button><button type="button" class="pr-btn sec" onclick="paGoalSet(0, true)">Garder ' + prTime(GC.from) + '</button></div></div>';
+  }
+  const NW = a.nextWeek;
+  if(NW && state._week_ok !== NW.from){
+    const nP = NW.props.length;
+    h += '<div class="pr-nw" id="pr-nw"><p class="pr-goal-h">📅 Ta semaine prochaine · ' + prFmtDate(NW.from) + ' – ' + prFmtDate(NW.to) + '</p>'
+      + '<p class="pr-goal-s"><b>' + NW.km + ' km</b> · ' + NW.sessions.length + ' séance' + (NW.sessions.length > 1 ? 's' : '') + (nP ? ' · ' + nP + ' ajustement' + (nP > 1 ? 's' : '') : ' · rien à changer') + '</p>'
+      + '<div class="pr-nw-l">' + NW.sessions.map(function(x){ return '<span' + (x.changed ? ' class="chg"' : '') + '>' + prEsc(prFmtDate(x.date, { weekday: 'short' })) + ' · ' + prEsc(x.title) + (x.km ? ' · ' + x.km + ' km' : '') + '</span>'; }).join('') + '</div>'
+      + '<button type="button" class="pr-btn pri" style="width:100%;margin-top:8px;" onclick="prValidateWeek()">✓ Valider la semaine</button></div>';
+  }
+
   // ── 1. Les changements proposés, tout en haut (ou « plan à jour »)
   const nH = (R.held || []).length;
   if(nI || nH){
@@ -250,6 +274,7 @@ function _prRender(){
 
   // ── 3. À surveiller : seulement ce qui compte (3 au plus, une ligne chacun)
   const alerts = [];
+  if(a.greenLight) alerts.push(['🟢', a.greenLight.text, 'ok']);
   const pn = a.internal && a.internal.pains[0];
   if(pn && pn.level >= 2) alerts.push(['🩹', 'Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' · ' + pn.zone.toLowerCase() + ' → allégé', 'low']);
   if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) alerts.push(['🛌', 'Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées' : ''), 'mid']);
@@ -394,8 +419,22 @@ function applyPlanReview(){
   if(typeof showToast === 'function') showToast(k + ' séance' + (k > 1 ? 's' : '') + ' mise' + (k > 1 ? 's' : '') + ' à jour');
 }
 
+// « Valider la semaine » : ajustements de la semaine prochaine appliqués (ceux cochés), semaine marquée vue
+function prValidateWeek(){
+  if(!_prReview || !_prReview.a.nextWeek) return;
+  const NW = _prReview.a.nextWeek;
+  const sel = _prReview.items.filter(function(x){ return x.on && x.date && x.date >= NW.from && x.date <= NW.to; });
+  const r = sel.length ? prApplyChanges(sel, { kind: 'week', vdot: _prReview.a.fit.vdot || null, at: new Date().toISOString() }) : { n: 0 };
+  state._week_ok = NW.from;
+  save();
+  if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
+  closePlanReview();
+  try { renderHome(); } catch(e) { diagSilent(e, 'plan-review:prValidateWeek'); }
+  if(typeof showToast === 'function') showToast('Semaine validée' + (r.n ? ' · ' + r.n + ' séance' + (r.n > 1 ? 's' : '') + ' ajustée' + (r.n > 1 ? 's' : '') : ''), '📅');
+}
+
 // ─── Comment ton plan évolue (plan-adapt.js : paEvolution) ─────────────────
-const PE_KIND = { maj: 'MAJ le plan', autopilot: 'Pilote de nuit', after: 'Après une séance', chat: 'Mon plan (Coach)', coach: 'Coach', adapt: 'Séance écourtée', taper: 'Affûtage', imprevu: 'Imprévu' };
+const PE_KIND = { maj: 'MAJ le plan', autopilot: 'Pilote de nuit', after: 'Après une séance', chat: 'Mon plan (Coach)', coach: 'Coach', adapt: 'Séance écourtée', taper: 'Affûtage', imprevu: 'Imprévu', week: 'Semaine validée' };
 function openPlanEvolution(){
   if(document.getElementById('pe-ov')) return;
   const today = prTodayIso(), a = (_prReview && _prReview.a) || prAnalyze(), E = paEvolution(a, today);
@@ -423,6 +462,19 @@ function openPlanEvolution(){
       return '<div class="pe-l"><p><b>' + L.ic + ' ' + L.label + '</b>' + (to != null ? '<span class="pe-chip pe-' + (L.next.prop.up ? 'easy' : 'hard') + '">' + (L.next.prop.up ? '↑ palier suivant' : '↓ on souffle') + '</span>' : '') + '</p>' + bar
         + '<small>' + [L.last ? 'Dernière : ' + esc(L.last.title) + (L.last.verdict ? ' (' + PA_VERDICT[L.last.verdict][0].toLowerCase() + ')' : '') : '', L.next ? 'Prochaine : ' + esc(L.next.prop ? L.next.prop.title : L.next.title) + ' · ' + prFmtDate(L.next.date, { weekday: 'short', day: 'numeric' }) : ''].filter(Boolean).join('<br>') + '</small></div>';
     }).join('') + (E.ladders.some(function(L){ return L.next && L.next.prop; }) ? '<button type="button" class="pr-btn" style="width:100%;margin-top:8px;" onclick="closePlanEvolution();if(!document.getElementById(\'plan-review\'))openPlanReview()">Voir les changements proposés</button>' : '') + '</div>';
+  }
+  // le plan s'évalue : les hausses d'avant ont-elles été tenues ?
+  const CB = E.calib;
+  if(CB){
+    const M = { bold: ['Franc', 'tu tiens tes hausses : une séance facile suffit pour monter, deux = deux paliers'], careful: ['Prudent', 'plusieurs hausses mal passées : il faut deux séances faciles de suite pour monter'], normal: ['Normal', CB.n < 3 ? 'pas encore assez de hausses pour juger (3 au moins)' : 'une séance facile sans séance dure avant pour monter'] }[CB.mode];
+    h += '<div class="lvp-card"><p class="lvp-h">Le plan s\'évalue</p><div class="pe-row"><span class="pe-chip pe-' + (CB.mode === 'bold' ? 'easy' : CB.mode === 'careful' ? 'hard' : 'ok') + '">' + M[0] + '</span><span class="pe-tx"><b>' + (CB.n ? CB.ok + ' hausse' + (CB.ok > 1 ? 's' : '') + ' tenue' + (CB.ok > 1 ? 's' : '') + ' sur ' + CB.n : 'Aucune hausse encore jouée') + '</b><small>' + esc(M[1]) + '</small></span></div>'
+      + Object.keys(CB.fams).map(function(f){ const x = CB.fams[f]; return '<div class="pe-row"><span class="pe-tx"><b>' + esc((typeof PA_FAM !== 'undefined' && PA_FAM[f]) || (f === 'long' ? 'Sortie longue' : f)) + '</b><small>' + x.ok + ' / ' + x.n + ' tenue' + (x.ok > 1 ? 's' : '') + '</small></span></div>'; }).join('')
+      + (E.longNext ? '<p class="lvp-n">🏃 Sortie longue : ' + esc(E.longNext.title) + '</p>' : '') + '</div>';
+  }
+  const HB = E.habits ? Object.keys(E.habits) : [];
+  if(HB.length){
+    const TL = { tempo: 'Tempo', frac: 'Fractionné', long: 'Sortie longue' };
+    h += '<div class="lvp-card"><p class="lvp-h">Ta vraie semaine</p>' + HB.map(function(t){ const x = E.habits[t]; return '<div class="pe-row"><span class="pe-tx"><b>' + TL[t] + ' le ' + PA_DAYS[x.day] + '</b><small>' + x.n + ' des ' + x.of + ' dernières · le plan les place ce jour-là</small></span></div>'; }).join('') + '</div>';
   }
   // volume semaine par semaine
   if(E.volume && E.volume.weeks && E.volume.weeks.length){

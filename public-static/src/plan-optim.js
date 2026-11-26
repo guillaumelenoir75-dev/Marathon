@@ -437,12 +437,44 @@ function prWhoopProposals(st, a, wh){
   const today = a.opt.today, end = prAddDays(today, 3), eased = prEasedSince(st, prAddDays(today, -4));
   const efTxt = (function(){ const c = {}; prSessions(st).forEach(function(s){ if(s.type === 'ef' && s.pace) c[s.pace.text] = (c[s.pace.text] || 0) + 1; }); const k = Object.keys(c).sort(function(x, y){ return c[y] - c[x]; })[0]; return k || (a.fit.paces ? prPace(a.fit.paces.E[0]) + ' — ' + prPace(a.fit.paces.E[1]) + ' /km' : 'allure très facile'); })();
   const why = 'WHOOP : récupération ' + wh.scores.map(function(x){ return x + ' %'; }).join(', ') + (wh.hrvDrop != null && wh.hrvDrop < 0 ? ', VFC ' + wh.hrvDrop + ' % vs ta moyenne' : '');
-  return prSessions(st).filter(function(s){ return !s.done && s.date && s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest' && !s.skip && !eased[s.key]; }).map(function(s){
+  const S = prSessions(st), open = S.filter(function(s){ return !s.done && !s.skip && s.date; }), swapped = {}, out = [];
+  const hardT = function(x){ return ['tempo', 'frac', 'long', 'race'].indexOf(x.type) >= 0; };
+  // plutôt que d'alléger : la séance de qualité passe à un jour facile plus loin dans la semaine (≥ 2 jours, 48 h avant et après une autre séance dure),
+  // le footing de ce jour-là prend sa place
+  const swapFor = function(s){
+    if(prWeeks(st, today)[s.w] && prWeeks(st, today)[s.w].kind === 'taper') return null;
+    return open.filter(function(x){ return x.w === s.w && x.type === 'ef' && !swapped[x.key] && !eased[x.key] && x.date > s.date && prDays(today, x.date) >= 2
+      && !open.some(function(y){ return y.key !== s.key && y.key !== x.key && hardT(y) && Math.abs(prDays(y.date, x.date)) <= 1; })
+      && !(typeof cpFixedOn === 'function' && cpFixedOn(st, prWeekday(x.date)).some(function(f){ return (f.gap || 0) >= 12; })); })
+      .sort(function(x, y){ return x.date.localeCompare(y.date); })[0] || null;
+  };
+  open.filter(function(s){ return s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest' && !eased[s.key]; }).forEach(function(s){
+    if(s.type !== 'tempo' && s.type !== 'frac') return;
+    const x = swapFor(s); if(!x) return;
+    swapped[s.key] = swapped[x.key] = 1;
+    const day = function(d){ return prFmtDate(d, { weekday: 'long' }); }, pair = 'swap-' + s.key;
+    out.push({ key: s.key, w: s.w, date: s.date, field: 'date', title: s.title, type: s.type, before: s.date, after: x.date, src: 'calcul', kind: 'whoop', pair: pair,
+      reason: why + ' : ' + s.title + ' décalée au ' + day(x.date) + ', le temps de récupérer (rien n\'est retiré).', short: why + ' : décalée au ' + day(x.date) + ', rien n\'est retiré.' });
+    out.push({ key: x.key, w: x.w, date: x.date, field: 'date', title: x.title, type: x.type, before: x.date, after: s.date, src: 'calcul', kind: 'whoop', pair: pair,
+      reason: 'Échangée avec ' + s.title + ' (fatigue WHOOP).', short: 'Échangée avec ' + s.title + '.' });
+  });
+  return out.concat(S.filter(function(s){ return !s.done && s.date && s.date >= today && s.date <= end && s.type !== 'race' && s.type !== 'rest' && !s.skip && !eased[s.key] && !swapped[s.key]; }).map(function(s){
     if(s.type === 'tempo' || s.type === 'frac') return { key: s.key, w: s.w, date: s.date, field: 'session', title: s.title, type: s.type, before: { t: s.title, d: s.detail, km: s.kmPlan, type: s.type },
       after: { t: 'Footing EF', d: efTxt, km: Math.max(4, Math.round(s.kmPlan * 0.8)), type: 'ef' }, src: 'calcul', kind: 'whoop', reason: why + ' : séance de qualité remplacée par un footing.', short: why + ' : on remplace l\'intensité par un footing.' };
     const to = Math.min(s.kmPlan, Math.max(3, Math.round(s.kmPlan * 0.8)));
     return to === s.kmPlan ? null : { key: s.key, w: s.w, date: s.date, field: 'km', title: s.title, type: s.type, before: s.kmPlan, after: to, src: 'calcul', kind: 'whoop', delta: to - s.kmPlan, reason: why + ' : volume allégé de 20 %.', short: why + ' : −20 % de volume.' };
-  }).filter(Boolean);
+  }).filter(Boolean));
+}
+// feu vert : très bonne récup les 3 dernières nuits (WHOOP) avant une séance clé aujourd'hui ou demain → vise le haut de la fourchette
+function prGreenLight(st, a, wh){
+  if(!wh || !wh.fresh || wh.tired || (a.opt && a.opt.noVolumeUp)) return null;
+  const today = a.opt.today, end = prAddDays(today, 1);
+  const s = prSessions(st).filter(function(x){ return !x.done && !x.skip && x.date && x.date >= today && x.date <= end && ['tempo', 'frac', 'long'].indexOf(x.type) >= 0; })
+    .sort(function(x, y){ return x.date.localeCompare(y.date); })[0];
+  if(!s) return null;
+  const fast = s.pace && s.pace.range ? prPace(Math.min(s.pace.lo, s.pace.hi)) : null;
+  return { key: s.key, date: s.date, title: s.title, when: s.date === today ? 'aujourd\'hui' : 'demain', pace: fast,
+    text: 'Feu vert pour ' + s.title + (s.date === today ? ' aujourd\'hui' : ' demain') + ' : récup ' + wh.avg3 + ' % sur 3 nuits' + (fast ? ', vise le haut de la fourchette (' + fast + '/km)' : ', tu peux viser le haut de la fourchette') + '.' };
 }
 
 // ─── 9. Trajectoire vers l'objectif ─────────────────────────────────────────

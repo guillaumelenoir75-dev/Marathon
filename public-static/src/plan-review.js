@@ -554,19 +554,29 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
   const all = prPaceProposals(state, fit, opt);
   a.paceTrace = opt.trace; delete opt.trace;
   // échelles des séances de qualité (plan-adapt.js) : la séance change de palier avec l'allure du jour déjà dedans
-  const ladder = opt2 && typeof paLadderProposals === 'function' ? paLadderProposals(state, a, all) : [];
+  if(opt2 && typeof paLadderCalib === 'function') a.ladderCalib = paLadderCalib(state, today);   // les paliers d'avant ont-ils été tenus ?
+  const ladder = opt2 && typeof paLadderProposals === 'function' ? paLadderProposals(state, a, all).concat(paLongProposals(state, a, all)) : [];
+  const habit = opt2 && typeof paHabitProposals === 'function' ? paHabitProposals(state, a) : [];
   // une proposition par séance et par champ : douleur > WHOOP > séance test > palier > volume / allure
-  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(ladder).concat(a.volume ? a.volume.proposals : []) : [];
+  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(ladder).concat(habit).concat(a.volume ? a.volume.proposals : []) : [];
   const seen = {}, merged = [];
   extra.concat(all).forEach(function(p){
     const k = p.key + '|' + (p.field === 'session' ? 'session' : p.field), ks = p.key + '|session';
     if(seen[k] || (p.field !== 'session' && seen[ks]) || (p.field === 'session' && Object.keys(seen).some(function(x){ return x.indexOf(p.key + '|') === 0; }))) return;
     seen[k] = 1; merged.push(p);
   });
+  // échanges de jours (WHOOP, vraie semaine) : les deux séances ensemble ou aucune ; une séance déplacée une seule fois
+  const pairs = {}; merged.forEach(function(p){ if(p.pair) pairs[p.pair] = (pairs[p.pair] || 0) + 1; });
+  for(let i = merged.length - 1; i >= 0; i--){ const p = merged[i]; if(p.pair && pairs[p.pair] !== 2) merged.splice(i, 1); }
   merged.sort(function(x, y){ return (x.date || '').localeCompare(y.date || '') || x.w - y.w; });
   a.proposals = merged.filter(function(p){ return !p.held; }); a.held = merged.filter(function(p){ return p.held; });
   a.warnings = prChecks(state, fit, opt); a.planVdot = prPlanVdot(state); a.planVdotNow = prPlanVdotNow(state);
-  if(opt2) a.trajectory = prTrajectory(a);
+  if(opt2){
+    a.trajectory = prTrajectory(a);
+    a.greenLight = prGreenLight(state, a, a.whoop);
+    if(typeof paGoalCheck === 'function') a.goalCheck = paGoalCheck(a, state);
+    if(typeof paNextWeek === 'function') a.nextWeek = paNextWeek(a, today);
+  }
   return a;
 }
 // « données nouvelles » pour le Coach : séances réalisées (km, allure, FC, blocs), records, résultat de course.
@@ -723,7 +733,10 @@ const PR_CSS2 = '.pr-top{display:flex;align-items:center;gap:10px;padding:2px 2p
   + '.pr-keys{display:grid;grid-template-columns:1fr 1fr;gap:8px;}.pr-key{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:9px 11px;display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center;min-width:0;}'
   + '.pr-key-i{grid-row:span 2;font-size:20px;line-height:1;}.pr-key b{font-size:18px;font-weight:900;color:#0F172A;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.pr-key b.sm{font-size:14.5px;}.pr-key small{font-size:11px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
   + '.pr-key.ok{border-color:#BBF7D0;background:#F0FDF4;}.pr-key.mid{border-color:#FDE68A;background:#FFFBEB;}.pr-key.low{border-color:#FECACA;background:#FEF2F2;}'
-  + '.pr-alerts{display:flex;flex-direction:column;gap:6px;}.pr-alerts p{margin:0;display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700;border-radius:12px;padding:8px 11px;}.pr-alerts p.low{background:#FEF2F2;color:#991B1B;}.pr-alerts p.mid{background:#FFFBEB;color:#92400E;}.pr-alerts i{font-style:normal;}'
+  + '.pr-alerts{display:flex;flex-direction:column;gap:6px;}.pr-alerts p{margin:0;display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700;border-radius:12px;padding:8px 11px;}.pr-alerts p.low{background:#FEF2F2;color:#991B1B;}.pr-alerts p.mid{background:#FFFBEB;color:#92400E;}.pr-alerts p.ok{background:#ECFDF5;color:#065F46;}'
+  + '.pr-goal,.pr-nw{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px 14px;margin-bottom:10px;}.pr-goal.up{border-color:#A7F3D0;background:#F0FDF7;}.pr-goal.down{border-color:#FDE68A;background:#FFFBEB;}'
+  + '.pr-goal-h{margin:0 0 6px;font-size:14px;font-weight:800;color:#0F172A;}.pr-goal-s{margin:6px 0 0;font-size:12.5px;color:#475569;line-height:1.4;}.pr-goal .pr-actions{margin-top:10px;}'
+  + '.pr-nw-l{display:flex;flex-direction:column;gap:4px;margin-top:8px;}.pr-nw-l span{font-size:12.5px;color:#334155;background:#F5F8FD;border-radius:9px;padding:6px 9px;}.pr-nw-l span.chg{background:#EEF3FC;color:#1B4FD8;font-weight:700;}.pr-alerts i{font-style:normal;}'
   + '.pr-actions{display:flex;gap:8px;}.pr-actions .pr-btn{flex:1;margin:0;padding:11px 8px;font-size:14px;}.pr-chat-b{background:#EEF2FF;color:#3730A3;border:1.5px solid #C7D2FE;}.pr-mini{margin:0;font-size:11.5px;color:#64748B;font-weight:600;}'
   + '.pr-more{background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;}.pr-more>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;}.pr-more>summary::-webkit-details-marker{display:none;}'
   + '.pr-more-i{font-size:18px;}.pr-more-t{flex:1;min-width:0;display:flex;flex-direction:column;}.pr-more-t b{font-size:14px;color:#0F172A;}.pr-more-t small{font-size:11.5px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
@@ -786,6 +799,9 @@ async function prCoachBody(a, R, force){
     recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
     dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     derniere_course: state._race_analysis ? (function(A){ return { course: A.name || A.cat, date: A.date, temps: A.time, objectif: A.target ? prTime(A.target.sec) : null, niveau_la_veille: A.pred ? prTime(A.pred) : null, verdict: A.verdict.t, depart_pct_vs_prevu: A.start ? Math.round(A.start.pct * 10) / 10 : null, seconde_moitie_pct: A.halves ? A.halves.pct : null, coup_de_mou_km: A.fade ? A.fade.km : null, derive_cardio_pct: A.drift ? A.drift.pct : null, meteo_pct: A.heat ? A.heat.pct : null, lecons: A.lessons }; })(state._race_analysis) : null,
+    reglage_paliers: a.ladderCalib && a.ladderCalib.n ? { mode: a.ladderCalib.mode, hausses_tenues: a.ladderCalib.ok, hausses: a.ladderCalib.n } : null,
+    feu_vert: a.greenLight ? a.greenLight.text : null,
+    objectif_a_revoir: a.goalCheck ? { sens: a.goalCheck.dir, objectif: prTime(a.goalCheck.from), propose: prTime(a.goalCheck.to), prevu: prTime(a.goalCheck.mid) } : null,
     absorption: a.absorb && a.absorb.n ? { tendance_3_semaines: a.absorb.verdict, score_moyen: a.absorb.mean, seances: a.absorb.list.slice(0, 8).map(function(x){ return { date: x.date, seance: x.title, verdict: x.verdict, pourquoi: x.parts.map(function(p){ return p.t; }).join(' ; ') }; }) } : null,
     effort_ressenti: a.internal && a.internal.rpes.length ? { seances_14j: a.internal.rpes, charge_ressentie_ratio_7j_28j: a.internal.ratio ? Math.round(a.internal.ratio * 100) / 100 : null } : null,
     douleurs: a.internal && a.internal.pains.length ? a.internal.pains : null,
@@ -880,6 +896,7 @@ function prApplyChanges(sel, meta){
     else if(p.field === 'title') x.d = p.after + (det ? '|' + det : '');
     else if(p.field === 'km'){ const nd = newDet[p.key] ? det : prKmDetail(det, x.type, x.km, p.after); x.km = +p.after; if(nd !== det){ x.d = title + '|' + nd; p.detBefore = det; p.detAfter = nd; } }
     else if(p.field === 'type' && ['ef', 'long', 'tempo', 'frac'].indexOf(p.after) >= 0) x.type = p.after;
+    else if(p.field === 'date' && /^\d{4}-\d\d-\d\d$/.test(String(p.after))){ x.sched_date = p.after; x.sched_day = prWeekday(p.after); }
     else if(p.field === 'session' && p.after && p.after.t){ x.d = p.after.t + '|' + p.after.d; x.km = +p.after.km; if(['ef', 'long', 'tempo', 'frac', 'rest'].indexOf(p.after.type) >= 0) x.type = p.after.type; }
     else return;
     x._modified = true; x._seq = (x._seq || 0) + 1;
@@ -901,7 +918,7 @@ function prApplyChanges(sel, meta){
   const hist = (state._plan_reviews || []).slice(-5);
   const entry = { date: prTodayIso(), n: Object.keys(touched).length, coach: !!meta.coach, vdot: meta.vdot || null, sig: prDataSig() };
   if(meta.auto) entry.auto = true; if(meta.kind) entry.kind = meta.kind; if(meta.at) entry.at = meta.at;
-  entry.changes = sel.filter(function(p){ return touched[p.key]; }).slice(0, 200).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, kind: p.kind || null, detBefore: p.detBefore, detAfter: p.detAfter, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, reason: String(p.short || p.reason || p.why || '').slice(0, 140) }; });
+  entry.changes = sel.filter(function(p){ return touched[p.key]; }).slice(0, 200).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, kind: p.kind || null, detBefore: p.detBefore, detAfter: p.detAfter, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, delta: p.delta != null ? p.delta : undefined, fam: p.fam || undefined, reason: String(p.short || p.reason || p.why || '').slice(0, 140) }; });
   hist.push(entry);
   state._plan_reviews = hist;
   return { n: Object.keys(touched).length, touched: touched, index: hist.length - 1, entry: entry };

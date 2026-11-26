@@ -14,17 +14,21 @@ function apSelect(a, today){
   (state._plan_reviews || []).forEach(function(h){
     if((h.auto && h.undone) || (!h.undone && h.date >= since)) (h.changes || []).forEach(function(c){ undone[c.ref + '|' + c.field] = 1; });
   });
-  return ((a && a.proposals) || []).filter(function(p){
+  const sel = ((a && a.proposals) || []).filter(function(p){
     if(!p.key || !p.date || p.date < today || p.date > end || p.held || p.revert) return false;
-    if(p.kind === 'test' || p.field === 'skip' || p.field === 'date') return false;
+    if(p.kind === 'test' || p.field === 'skip') return false;
+    if(p.field === 'date' && !(p.kind === 'whoop' && p.pair)) return false;          // seul déplacement de nuit : l'échange après une mauvaise nuit
     // séance remplacée : fatigue WHOOP, douleur, ou un palier de plus / de moins (plan-adapt.js, un seul cran la nuit)
     if(p.field === 'session' && p.kind !== 'whoop' && p.kind !== 'pain' && !(p.kind === 'ladder' && Math.abs(p.delta || 0) <= 1)) return false;
     return !undone[p.key + '|' + p.field];
   });
+  const n = {}; sel.forEach(function(p){ if(p.pair) n[p.pair] = (n[p.pair] || 0) + 1; });
+  return sel.filter(function(p){ return !p.pair || n[p.pair] === 2; });               // un échange : les deux séances ou rien
 }
 const _apVal = function(v, field){
   if(v && typeof v === 'object') return (v.t || 'séance') + (v.km ? ' · ' + v.km + ' km' : '');
   if(field === 'km') return v + ' km';
+  if(field === 'date' && /^\d{4}-\d\d-\d\d$/.test(String(v)) && typeof prFmtDate === 'function') return prFmtDate(v, { weekday: 'long', day: 'numeric' });
   return String(v == null ? '' : v);
 };
 function apDesc(p, today){

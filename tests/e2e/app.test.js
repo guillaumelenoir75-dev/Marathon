@@ -1660,6 +1660,30 @@ test('validation automatique : pastille « ressenti ? » sur l\'accueil, ressent
 });
 
 
+test('MAJ le plan le week-end : semaine prochaine à valider, objectif à revoir', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  const o = await open('2026-11-07T15:00:00+01:00', savedDb), page = o.page;   // samedi
+  await openReview(page);
+  await page.waitForSelector('#pr-nw', { timeout: 5000 });
+  const t = await page.evaluate(() => document.getElementById('pr-nw').textContent);
+  assert.match(t, /Ta semaine prochaine/); assert.match(t, /\d+ km/);
+  if (process.env.SHOTS) { await page.evaluate(() => { _prReview.a.goalCheck = { dir: 'up', from: 2520, to: 2460, mid: 2450, cat: '10 km' }; _prRender(); }); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/maj-weekend.png' }); }
+  await page.click('#pr-nw .pr-btn');
+  await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => window.__DB.users.ADMINUID.state._week_ok), '2026-11-09', 'semaine marquée validée');
+  await openReview(page);
+  assert.equal(await page.locator('#pr-nw').count(), 0, 'plus proposée une fois validée');
+  // objectif relevé depuis la carte : enregistré, plus redemandé avant 4 semaines
+  await page.evaluate(() => { _prReview.a.goalCheck = { dir: 'up', from: 2520, to: 2460, mid: 2450, cat: '10 km' }; _prRender(); });
+  await page.click('#pr-goal .pr-btn.pri');
+  await page.waitForTimeout(400);
+  const g = await page.evaluate(() => ({ t: state.target_time, c: state._goal_check && state._goal_check.answer, ob: (state.onboarding || {}).target_time }));
+  assert.equal(g.t, '00:41:00'); assert.equal(g.c, 'changed');
+  assert.equal(await page.evaluate(() => prAnalyze().goalCheck || null), null);
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
+});
+
 test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches intacts ; clair par défaut inchangé', async () => {
   assert.ok(savedDb, 'dépend du premier test');
   const lum = (c) => { const m = c.match(/\d+(\.\d+)?/g).map(Number); return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; };
@@ -1683,7 +1707,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   // « Comment ton plan évolue » : ouvert depuis MAJ le plan, tendance, volume, changements
   await page.click('#pr-content .pr-evo-b'); await page.waitForSelector('#pe-ov .ros-body', { timeout: 5000 });
   const PE = await page.evaluate(() => document.querySelector('#pe-ov .ros-body').textContent);
-  assert.match(PE, /Niveau/); assert.match(PE, /Tes séances/); assert.match(PE, /Volume visé/);
+  assert.match(PE, /Niveau/); assert.match(PE, /Tes séances/); assert.match(PE, /Volume visé/); assert.match(PE, /Le plan s'évalue/);
   if (process.env.SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: process.env.SHOTS + '/plan-evolue.png' }); }
   await page.evaluate(() => closePlanEvolution()); assert.equal(await page.locator('#pe-ov').count(), 0);
   // réglage
