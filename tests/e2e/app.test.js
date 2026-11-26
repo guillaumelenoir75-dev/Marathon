@@ -59,6 +59,7 @@ async function open(dateIso, db, opts) {
   page.on('console', (m) => { if (m.type() === 'warning' && /^\[attrapée\]/.test(m.text())) errors.push(m.text()); });
   page.on('dialog', (d) => d.accept());
   await page.goto(base + (opts.query || ''));
+  if (opts.noWait) return { ctx, page, errors };
   await page.waitForFunction(() => typeof firebaseReady !== 'undefined' && firebaseReady, null, { timeout: 15000 });
   await page.waitForTimeout(1500);
   // écran de réveil (6h-14h) : retiré pour ne pas gêner les tests, ou seulement masqué (opts.keepWakeup)
@@ -2319,6 +2320,25 @@ test('image carrée de la séance : bouton 📸 sur la séance faite de l\'accue
   assert.equal(await page.locator('.hs-row.open').count(), 0, 'le bouton n\'ouvre pas la carte de la séance');
   assert.deepEqual(errors, []);
   await ctx.close();
+});
+
+test('session perdue par le téléphone (iPhone, après un changement de thème) : nouvel essai avant l\'écran de connexion', async () => {
+  assert.ok(savedDb, 'dépend du premier test');
+  // session introuvable au 1er chargement seulement (base locale de Safari perdue un instant) : l'app se recharge et reste connectée
+  let o = await open('2026-11-03T19:12:00+01:00', savedDb, { init: () => { localStorage.setItem('pm_last_uid', 'ADMINUID'); localStorage.setItem('pm_theme', 'piste'); window.__AUTH_LOST_LOADS = 1; } });
+  const A = await o.page.evaluate(() => ({ lost: sessionStorage.getItem('__auth_lost'), retry: sessionStorage.getItem('pm_auth_retry'), login: !!document.getElementById('login-form'), piste: document.documentElement.dataset.piste }));
+  assert.equal(A.lost, '1', 'session perdue au 1er chargement'); assert.equal(A.login, false, 'toujours connecté après le nouvel essai'); assert.equal(A.retry, null); assert.equal(A.piste, '1');
+  assert.deepEqual(o.errors, []); await o.ctx.close();
+  // session vraiment absente : 2 nouveaux essais au plus, puis l'écran de connexion
+  o = await open('2026-11-03T19:12:00+01:00', savedDb, { noWait: true, init: () => { localStorage.setItem('pm_last_uid', 'ADMINUID'); window.__NO_USER = true; } });
+  await o.page.waitForSelector('#login-form', { timeout: 15000 });
+  assert.equal(await o.page.evaluate(() => sessionStorage.getItem('pm_auth_retry')), '2');
+  await o.ctx.close();
+  // jamais connecté sur ce téléphone (ou déconnexion voulue) : écran de connexion tout de suite, sans rechargement
+  o = await open('2026-11-03T19:12:00+01:00', savedDb, { noWait: true, init: () => { window.__NO_USER = true; } });
+  await o.page.waitForSelector('#login-form', { timeout: 8000 });
+  assert.equal(await o.page.evaluate(() => sessionStorage.getItem('pm_auth_retry')), null);
+  await o.ctx.close();
 });
 
 test('compte athlète : pas de Coach IA ni de brief du matin, débrief automatique sans IA après la validation', async () => {

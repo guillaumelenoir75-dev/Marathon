@@ -24,6 +24,18 @@ async function authHeaders(stream){
   return h;
 }
 
+// session perdue par le téléphone (pas une déconnexion voulue) : nouvel essai par rechargement, 2 au plus par lancement
+function authRetry(){
+  let known=null, tries=0;
+  try{ known=localStorage.getItem('pm_last_uid'); tries=+(sessionStorage.getItem('pm_auth_retry')||0); }catch(e){ return false; }
+  if(!known||tries>=2) return false;
+  try{ sessionStorage.setItem('pm_auth_retry',String(tries+1)); }catch(e){ return false; }
+  if(typeof diagLog==='function') diagLog('Session introuvable au démarrage : nouvel essai '+(tries+1),'firebase:authRetry');
+  setTimeout(function(){ if(!(firebase.auth&&firebase.auth().currentUser)) location.reload(); }, tries?1500:600);
+  return true;
+}
+// déconnexion voulue : plus de nouvel essai au prochain lancement
+function authForget(){ try{ localStorage.removeItem('pm_last_uid'); sessionStorage.removeItem('pm_auth_retry'); }catch(e){} }
 function initFirebase(){
   const globalTimeout=setTimeout(()=>{
     if(!firebaseReady){
@@ -66,6 +78,7 @@ function initFirebase(){
           if(user){
             clearTimeout(globalTimeout);
             currentUserId=user.uid;
+            try{ localStorage.setItem('pm_last_uid',user.uid); sessionStorage.removeItem('pm_auth_retry'); }catch(e){}
             const db=firebase.database();
 
             // Charger ou initialiser le rôle
@@ -82,6 +95,7 @@ function initFirebase(){
             }
 
             if(!currentUserRole){
+              authForget();
               firebase.auth().signOut();
               showLoginScreen('Compte non autorisé. Contacte l\'administrateur.');
               return;
@@ -236,6 +250,10 @@ function initFirebase(){
             });
           } else {
             clearTimeout(globalTimeout);
+            // Ce téléphone était connecté mais Firebase ne retrouve pas la session : sur iPhone, la base locale où elle est
+            // gardée (IndexedDB) est parfois perdue un instant après un rechargement (changement de thème) ou un
+            // redémarrage de l'app. On recharge (2 fois au plus) avant de montrer l'écran de connexion.
+            if(authRetry()) return;
             currentUserRole=null;
             currentUserId=null;
             showLoginScreen();

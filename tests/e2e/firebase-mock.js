@@ -48,7 +48,10 @@
     ['orderByChild', 'orderByKey', 'orderByValue', 'limitToLast', 'limitToFirst', 'equalTo', 'startAt', 'endAt'].forEach((m) => { r[m] = () => r; });
     return r;
   }
-  const user = { uid: window.__UID || 'ADMINUID', email: window.__EMAIL || 'guillaumelenoir75@gmail.com', getIdToken: () => Promise.resolve('test-token') };
+  // session perdue par le téléphone : __NO_USER (toujours) ou __AUTH_LOST_LOADS (les N premiers chargements)
+  let noUser = !!window.__NO_USER;
+  try { const n = +(sessionStorage.getItem('__auth_lost') || 0); if (window.__AUTH_LOST_LOADS && n < window.__AUTH_LOST_LOADS) { noUser = true; sessionStorage.setItem('__auth_lost', String(n + 1)); } } catch (e) {}
+  const user = noUser ? null : { uid: window.__UID || 'ADMINUID', email: window.__EMAIL || 'guillaumelenoir75@gmail.com', getIdToken: () => Promise.resolve('test-token') };
   const authObj = { currentUser: user, onAuthStateChanged(cb) { setTimeout(() => cb(user), 0); return () => {}; }, signOut: () => Promise.resolve(), signInWithEmailAndPassword: () => Promise.resolve({ user }), setPersistence: () => Promise.resolve() };
   const auth = () => authObj; auth.EmailAuthProvider = { credential: () => ({}) }; auth.Auth = { Persistence: { LOCAL: 'local', SESSION: 'session' } };
   const database = () => ({ ref }); database.ServerValue = { TIMESTAMP: 0 };

@@ -212,5 +212,6 @@ function thPisteCss(){
     + P + " #plan-title," + P + " .modal-stat-value{font-family:'Big Shoulders Display',Manrope,sans-serif;letter-spacing:.01em;}";
   document.head.appendChild(st);
 }
-function themeSet(p){ try { localStorage.setItem(TH_KEY, p); } catch(e) {} location.reload(); }
+// petite attente avant le rechargement : les écritures en cours (session Firebase, base locale) se terminent d'abord
+function themeSet(p){ try { localStorage.setItem(TH_KEY, p); } catch(e) {} setTimeout(function(){ location.reload(); }, 250); }
 if(typeof document !== 'undefined' && document.documentElement && typeof window !== 'undefined' && window.MutationObserver) themeInit();

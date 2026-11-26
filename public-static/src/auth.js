@@ -225,6 +225,7 @@ function logoutUser(){
           ]);
         }
       }catch(e){console.warn('Cleanup push sub:',e);}
+      if(typeof authForget==='function') authForget();
       firebase.auth().signOut();
     },
   });
@@ -568,6 +569,7 @@ async function deleteAccount() {
       } catch(e) {
         if (e.code === 'auth/requires-recent-login') {
           alert('Pour des raisons de sécurité, reconnecte-toi puis retente la suppression.');
+          if(typeof authForget==='function') authForget();
           firebase.auth().signOut();
         } else {
           if (btn) { btn.disabled = false; btn.textContent = 'Supprimer mon compte'; }
