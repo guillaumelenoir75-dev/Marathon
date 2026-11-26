@@ -242,7 +242,10 @@ function prVolumePlan(st, a){
   // sans dépasser +60 % de ton habitude dans une seule prépa
   const perWeek = (function(){ const c = Object.keys(W).map(function(w){ return W[w].sess.filter(function(s){ return s.type !== 'rest' && s.type !== 'race'; }).length; }).filter(function(n){ return n > 0; }).sort(); return c.length ? c[Math.floor(c.length / 2)] : null; })();
   const goalPeak = typeof paGoalPeak === 'function' ? paGoalPeak(cat, Math.max(a.opt.goalVdot || 0, (a.fit && a.fit.vdot) || 0), perWeek) : null;
-  const peak = Math.max(base * (PR_PEAK[cat] || 1.1), goalPeak ? Math.min(goalPeak, base * 1.6) : 0);
+  // … et jamais sous le pic écrit dans ton plan : ce qui le borne, c'est la progression semaine après semaine depuis ce que tu as
+  // vraiment couru (+12 à 15 %), pas ton volume de la prépa précédente
+  const planPeak = Math.max.apply(null, weeks.filter(function(o){ return !o.past && !o.race && o.kind !== 'taper'; }).map(function(o){ return o.km; }).concat([0]));
+  const peak = Math.max(base * (PR_PEAK[cat] || 1.1), goalPeak ? Math.min(goalPeak, base * 1.6) : 0, planPeak);
   const raceW = weeks.filter(function(o){ return o.race; }).map(function(o){ return o.w; }).pop();
   const lr = a.opt.lastRace, recD = lr && (lr.cat === 'Marathon' || lr.cat === 'Semi-marathon') ? PR_REC_DAYS[lr.cat] : null;
   const longCap = (PR_LONG_CAP[cat] || 20) + (peak >= ({ 'Semi-marathon': 50, 'Marathon': 70, '10 km': 45, '5 km': 40 }[cat] || 999) ? 2 : 0);   // objectif ambitieux : sortie longue un peu plus longue
@@ -303,7 +306,9 @@ function prVolumePlan(st, a){
     }
     firstFuture = false;
     t = Math.round(t);
-    const horizon = nFuture++ < 26;                                              // km proposés jusqu'à la fin de la prépa
+    // km proposés jusqu'à la fin de la prépa ; au-delà des 4 prochaines semaines, la cible n'est qu'une projection
+    // de ta charge actuelle : elle peut faire monter le plan, jamais le raboter (le plan écrit fait foi)
+    const far = nFuture >= 4, horizon = nFuture++ < 26;
     if(horizon) out.horizonWeeks.push(o.w);
     const build = o.kind !== 'recov' && !(toRace != null && toRace < TAPER.length) && !(ds != null && ds < recD * 1.08);
     // sortie longue : progression depuis la précédente (+2 km), repère 32-40 % du volume, plafond selon la course
@@ -315,7 +320,7 @@ function prVolumePlan(st, a){
       if(o.kind === 'recov' || (toRace != null && toRace < TAPER.length - 1)) up = Math.min(up, (refLong || longS.kmPlan) * 0.85);   // allégée / affûtage (10 km : semaine de course seulement)
       up = Math.max(up, 6);
       if(!horizon || (noUp && o.now && longS.kmPlan <= up + 1)){}
-      else if(longS.kmPlan > up + 1){ longTo = Math.round(up); longWhy = 'sortie longue : ' + (refLong != null && Math.round(up) === Math.round(refLong + 2) && recentLong * 0.75 <= refLong + 2 ? '+2 km max après ' + refLong + ' km' : up === longCap ? 'plafond ' + longCap + ' km pour ta course' : 'pas plus de ~' + Math.round(up) + ' km cette semaine'); }
+      else if(longS.kmPlan > up + 1 && !far){ longTo = Math.round(up); longWhy = 'sortie longue : ' + (refLong != null && Math.round(up) === Math.round(refLong + 2) && recentLong * 0.75 <= refLong + 2 ? '+2 km max après ' + refLong + ' km' : up === longCap ? 'plafond ' + longCap + ' km pour ta course' : 'pas plus de ~' + Math.round(up) + ' km cette semaine'); }
       else if(o.kind !== 'recov' && !(toRace != null && toRace <= 2) && longS.kmPlan < up * 0.75 - 1){ longTo = Math.round(Math.min(up, longS.kmPlan + 3)); longWhy = 'sortie longue un peu courte pour ta base'; }
     }
     // répartition : sortie longue d'abord, puis footings EF au prorata
@@ -323,7 +328,7 @@ function prVolumePlan(st, a){
     // zone conseillée = cible ± 15 % : seules les semaines qui en sortent sont corrigées (jusqu'au bord de la zone)
     // en construction, la hausse reste proche de +12 %/semaine (+4 % de tolérance, +10 % au pic) ; ailleurs ± 15 %
     const hiZ = t * (build ? (t >= peak - 0.5 ? 1.1 : 1.04) : 1.15), loZ = t * 0.85;
-    let goal = o.km > hiZ ? hiZ : o.km < loZ ? Math.min(loZ, o.km * 1.25) : null;
+    let goal = o.km > hiZ ? (far ? null : hiZ) : o.km < loZ ? Math.min(loZ, o.km * 1.25) : null;
     if(goal != null && goal > o.km && ((noUp && o.now) || (toRace != null && toRace < TAPER.length))) goal = null;   // affûtage / fatigue : jamais de hausse
     const changes = {};
     let target = Math.round(o.km);

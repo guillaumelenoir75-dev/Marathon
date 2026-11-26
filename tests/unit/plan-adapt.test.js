@@ -84,16 +84,31 @@ test('volume : le pic visé suit l\'objectif et le niveau, la progression suit c
   assert.equal(app.paProg(1.12, { verdict: 'easy' }), 1.15);
   assert.equal(app.paProg(1.12, { verdict: 'hard' }), 1);
   assert.equal(app.paProg(1.12, { verdict: 'ok' }), 1.12);
-  const st = synthPlan({ km: [30, 34, 38, 40, 42, 44, 30, 20] });
+  const st = synthPlan({ km: [20, 22, 24, 26, 28, 30, 20, 15] });
   const app2 = loadApp({ now: '2026-10-27T09:00:00+01:00', state: st });
   const base = { today: '2026-10-27', raceCat: 'Semi-marathon', habitual: 30, lastRace: null };
   const A = (opt) => ({ opt: Object.assign({}, base, opt), load: { chronic: 38, acwr: 1, log: [] } });
   const v0 = app2.prVolumePlan(st, A({}));
   const v1 = app2.prVolumePlan(st, A({ goalVdot: 52 }));
   assert.equal(v0.peak, 35); assert.equal(v1.goalPeak, 42, '3 séances par semaine'); assert.equal(v1.peak, 42, 'objectif ambitieux : pic relevé');
+  // plan écrit plus ambitieux que ton volume habituel : son pic est gardé
+  const st3 = synthPlan({ km: [30, 34, 38, 44, 50, 58, 30, 20] });
+  const app3 = loadApp({ now: '2026-10-27T09:00:00+01:00', state: st3 });
+  assert.equal(app3.prVolumePlan(st3, A({})).peak, 58, 'jamais sous le pic du plan');
   const v2 = app2.prVolumePlan(st, A({ absorb: { verdict: 'hard' } }));
-  assert.equal(v2.prog, 1); assert.ok(v2.weeks.filter((w) => !w.past).every((w) => /dures|affûtage|course|allégée|pic/.test(w.why) || w.target <= 30), 'pas de hausse');
+  assert.equal(v2.prog, 1); assert.ok(v2.weeks.filter((w) => !w.past).every((w) => /dures|affûtage|course|allégée|pic/.test(w.why) || w.target <= 30 || w.after <= w.plan), 'pas de hausse');
   assert.ok(v1.horizonWeeks.length > 4, 'toute la prépa est recalculée');
+});
+
+test('volume : au-delà des 4 prochaines semaines, le plan écrit n\'est jamais raboté (seulement relevé)', () => {
+  // plan qui monte vite (sorties longues 20-21 km au loin) à partir d'un volume habituel bas : rien ne baisse après 4 semaines
+  const st = synthPlan({ km: [26, 30, 34, 38, 42, 48, 54, 60, 62, 64, 40, 25] });
+  const app = loadApp({ now: '2026-10-27T09:00:00+01:00', state: st });
+  const v = app.prVolumePlan(st, { opt: { today: '2026-10-27', raceCat: 'Semi-marathon', habitual: 30, lastRace: null }, load: { chronic: 30, acwr: 1, log: [] } });
+  const far = v.proposals.filter((p) => +p.key.match(/_w(\d+)_/)[1] > 4);
+  const down = far.filter((p) => p.after < p.before).map((p) => p.key + ' ' + p.before + '→' + p.after);
+  assert.equal(down.length, 0, 'aucune baisse au loin : ' + down.join(', '));
+  assert.equal(v.peak, 64, 'pic du plan gardé');
 });
 
 test('pilote de nuit : un palier à la fois, jamais deux', () => {
