@@ -444,7 +444,7 @@ function prValidateWeek(){
 }
 
 // ─── Comment ton plan évolue (plan-adapt.js : paEvolution) ─────────────────
-const PE_KIND = { maj: 'MAJ le plan', autopilot: 'Pilote de nuit', after: 'Après une séance', chat: 'Mon plan (Coach)', coach: 'Coach', adapt: 'Séance écourtée', taper: 'Affûtage', imprevu: 'Imprévu', week: 'Semaine validée' };
+const PE_KIND = { maj: 'MAJ le plan', autopilot: 'Pilote de nuit', after: 'Après une séance', chat: 'Mon plan (Coach)', coach: 'Coach', adapt: 'Séance écourtée', taper: 'Affûtage', imprevu: 'Imprévu', week: 'Semaine validée', hist: 'Recalé sur ton historique' };
 function openPlanEvolution(){
   if(document.getElementById('pe-ov')) return;
   const today = prTodayIso(), a = (_prReview && _prReview.a) || prAnalyze(), E = paEvolution(a, today);
@@ -457,6 +457,21 @@ function openPlanEvolution(){
     + tile('Volume visé', E.volume ? E.volume.peak + ' km' : '–', E.volume ? 'au pic · habitude ' + E.volume.base + ' km' + (E.volume.goalPeak && E.volume.goalPeak > E.volume.base ? ' · objectif ' + E.volume.goalPeak : '') : '')
     + '</div>' + (E.traj ? '<p class="lvp-n">🎯 Prévu le jour J : ' + prTime(E.traj.mid) + (E.goal ? ' pour un objectif de ' + prTime(E.goal) : '') + (E.traj.verdict ? ' · ' + E.traj.verdict : '') + '</p>' : '')
     + '<p class="lvp-n">' + (T.verdict === 'easy' ? 'Tu encaisses bien : le plan monte d\'un cran (paliers, volume).' : T.verdict === 'hard' ? 'Séances récentes dures : le plan ne monte pas tant que ça ne passe pas mieux.' : 'Le plan suit son rythme ; il monte dès que tes séances passent facilement.') + '</p></div>';
+  // ce que tout ton historique a appris au plan (plan-adapt.js : paHist)
+  const HI = E.hist;
+  if(HI && HI.n){
+    const P = HI.pred || {}, V = HI.vol || {}, RP = HI.rpe || {}, TL = { ef: 'Footing', long: 'Sortie longue', tempo: 'Tempo', frac: 'Fractionné' };
+    const yr = HI.first ? prFmtDate(HI.first, { month: 'short', year: 'numeric' }) : '';
+    h += '<div class="lvp-card"><p class="lvp-h">Ce que ton historique lui apprend</p>'
+      + '<p class="lvp-n">' + HI.n + ' séances · ' + HI.km.toLocaleString('fr-FR') + ' km depuis ' + esc(yr) + ', toutes rejouées.</p>'
+      + (P.n ? P.races.slice(0, 4).map(function(r){ return '<div class="pe-row"><span class="pe-chip pe-' + (Math.abs(r.err) < 0.5 ? 'ok' : r.err > 0 ? 'easy' : 'hard') + '">' + (r.err > 0 ? '+' : '') + prV(r.err) + '</span><span class="pe-tx"><b>' + esc(r.label) + '</b><small>' + prFmtDate(r.date, { day: 'numeric', month: 'short', year: '2-digit' }) + ' · prévu ' + prTime(r.projSec) + ' 6 sem. avant · fait ' + prTime(r.sec) + '</small></span></div>'; }).join('')
+        + '<p class="lvp-n">' + (Math.abs(P.bias) >= 0.1 ? (P.bias > 0 ? 'Tu fais mieux que prévu : temps prévus recalés de +' : 'Tu fais moins bien que prévu : temps prévus recalés de ') + prV(P.bias) + ' de niveau.' : 'Les temps prévus tombaient juste : rien à recaler.') + '</p>' : '<p class="lvp-n">Pas encore assez de courses avec de l\'entraînement connu avant pour vérifier les prédictions.</p>')
+      + (V.prog ? '<div class="pe-row"><span class="pe-tx"><b>Hausse de volume que tu tiens : +' + Math.round((V.prog - 1) * 100) + ' % par semaine</b><small>' + V.safe + ' hausse' + (V.safe > 1 ? 's' : '') + ' bien passée' + (V.safe > 1 ? 's' : '') + (V.bad ? ', ' + V.bad + ' suivie' + (V.bad > 1 ? 's' : '') + ' d\'une douleur ou d\'un arrêt' : '') + '</small></span></div>' : '')
+      + (V.best4 ? '<div class="pe-row"><span class="pe-tx"><b>Meilleur volume tenu : ' + V.best4 + ' km par semaine</b><small>sur 4 semaines, ces 2 dernières années</small></span></div>' : '')
+      + (Object.keys(RP).length ? '<div class="pe-row"><span class="pe-tx"><b>Ton effort habituel</b><small>' + Object.keys(RP).map(function(t){ return TL[t] + ' ' + String(RP[t].med).replace('.', ',') + '/10'; }).join(' · ') + '</small></span></div>' : '')
+      + (E.recal && !E.recal.undone && E.recal.n ? '<p class="lvp-n">🧬 Recalé le ' + prFmtDate(E.recal.date) + ' : ' + E.recal.n + ' séance' + (E.recal.n > 1 ? 's' : '') + ' ajustée' + (E.recal.n > 1 ? 's' : '') + '. <button type="button" class="pr-link" onclick="paHistUndo();closePlanEvolution()">Annuler</button></p>' : '')
+      + '</div>';
+  }
   // séances récentes
   if(T.list && T.list.length){
     h += '<div class="lvp-card"><p class="lvp-h">Tes dernières séances</p>' + T.list.slice(0, 8).map(function(x){
@@ -477,7 +492,7 @@ function openPlanEvolution(){
   const CB = E.calib;
   if(CB){
     const M = { bold: ['Franc', 'tu tiens tes hausses : une séance facile suffit pour monter, deux = deux paliers'], careful: ['Prudent', 'plusieurs hausses mal passées : il faut deux séances faciles de suite pour monter'], normal: ['Normal', CB.n < 3 ? 'pas encore assez de hausses pour juger (3 au moins)' : 'une séance facile sans séance dure avant pour monter'] }[CB.mode];
-    h += '<div class="lvp-card"><p class="lvp-h">Le plan s\'évalue</p><div class="pe-row"><span class="pe-chip pe-' + (CB.mode === 'bold' ? 'easy' : CB.mode === 'careful' ? 'hard' : 'ok') + '">' + M[0] + '</span><span class="pe-tx"><b>' + (CB.n ? CB.ok + ' hausse' + (CB.ok > 1 ? 's' : '') + ' tenue' + (CB.ok > 1 ? 's' : '') + ' sur ' + CB.n : 'Aucune hausse encore jouée') + '</b><small>' + esc(M[1]) + '</small></span></div>'
+    h += '<div class="lvp-card"><p class="lvp-h">Le plan s\'évalue</p><div class="pe-row"><span class="pe-chip pe-' + (CB.mode === 'bold' ? 'easy' : CB.mode === 'careful' ? 'hard' : 'ok') + '">' + M[0] + '</span><span class="pe-tx"><b>' + (CB.n ? CB.ok + ' hausse' + (CB.ok > 1 ? 's' : '') + ' tenue' + (CB.ok > 1 ? 's' : '') + ' sur ' + CB.n + (CB.hist ? ' (dont ' + CB.hist + ' dans ton historique)' : '') : 'Aucune hausse encore jouée') + '</b><small>' + esc(M[1]) + '</small></span></div>'
       + Object.keys(CB.fams).map(function(f){ const x = CB.fams[f]; return '<div class="pe-row"><span class="pe-tx"><b>' + esc((typeof PA_FAM !== 'undefined' && PA_FAM[f]) || (f === 'long' ? 'Sortie longue' : f)) + '</b><small>' + x.ok + ' / ' + x.n + ' tenue' + (x.ok > 1 ? 's' : '') + '</small></span></div>'; }).join('')
       + (E.longNext ? '<p class="lvp-n">🏃 Sortie longue : ' + esc(E.longNext.title) + '</p>' : '') + '</div>';
   }

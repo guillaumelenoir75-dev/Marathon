@@ -780,6 +780,8 @@ async function prepDailyTasks(){
   try {
     if(typeof stravaHistSync === 'function') await stravaHistSync();            // courses Strava : toutes les années, puis les nouvelles chaque jour
     if(typeof prPrefetch === 'function') await prPrefetch();                    // historique complet (toutes les prépas) pour les analyses
+    // une fois : le plan est recalé sur tout ton historique rejoué (plan-adapt.js), annulable depuis la carte « Ton plan »
+    if(!_prepView && typeof paHistRecal === 'function' && paHistRecal() && typeof planCardRender === 'function') planCardRender();
     // allure EF de référence calculée sur tout l'historique : reprise telle quelle par les briefs du Coach (serveur : efRefOf)
     if(!_prepView && typeof getBestEfPace === 'function'){
       const p = getBestEfPace(), r = state._ef_ref || {}, t = _prepToday();

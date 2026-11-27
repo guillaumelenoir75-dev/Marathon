@@ -859,6 +859,30 @@ test('accueil : carte « Ton plan » avec les propositions en clair, ouvre MAJ l
   await o.ctx.close();
 });
 
+test('plan recalé une fois sur tout l\'historique rejoué : annulable, expliqué dans « Comment ton plan évolue »', async () => {
+  const o = await open('2026-11-28T09:00:00+01:00', savedDb), page = o.page;
+  await page.waitForFunction(() => state._hist_cal_v === 1, null, { timeout: 15000 });
+  const H = await page.evaluate(() => { const t0 = performance.now(), h = paHist(prTodayIso()); _paHistCache = null; const t1 = performance.now(); paHist(prTodayIso()); return { n: h.n, first: h.first, ms: Math.round(performance.now() - t1), rc: state._hist_recal, db: window.__DB.users.ADMINUID.state._hist_cal_v }; });
+  assert.ok(H.n >= 15, 'toutes les prépas rejouées : ' + H.n); assert.ok(H.first < '2026-06-01', 'depuis la 1re séance : ' + H.first);
+  assert.ok(H.ms < 3000, 'rejeu en ' + H.ms + ' ms');
+  assert.equal(H.db, 1, 'fait une seule fois (enregistré)');
+  if (H.rc.n) {
+    await page.evaluate(() => showScreen('home'));
+    await page.waitForSelector('#home-plan-card .hp-rc', { timeout: 8000 });
+    assert.match(await page.evaluate(() => document.querySelector('#home-plan-card .hp-rc').textContent), /Recalé sur tout ton historique/);
+    const before = await page.evaluate(() => state._plan_reviews.filter((h) => h.kind === 'hist' && !h.undone).length);
+    assert.equal(before, 1);
+    await page.click('#home-plan-card .hp-rc button'); await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => state._plan_reviews.filter((h) => h.kind === 'hist' && !h.undone).length), 0, 'annulé');
+    assert.equal(await page.locator('#home-plan-card .hp-rc').count(), 0);
+  }
+  await page.evaluate(() => openPlanEvolution()); await page.waitForSelector('#pe-ov .ros-body', { timeout: 8000 });
+  assert.match(await page.evaluate(() => document.querySelector('#pe-ov .ros-body').textContent), /Ce que ton historique lui apprend/);
+  if (process.env.SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: process.env.SHOTS + '/evo-hist.png', fullPage: false }); }
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
+});
+
 test('mise à jour du plan : analyse, application, historique, annulation', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await openReview(page);

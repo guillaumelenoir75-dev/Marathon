@@ -542,7 +542,9 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
     a.load = prLoad(today); a.drift = prDrift(today); a.whoop = prWhoop(today); a.calib = prCalib(state);
     if(typeof prInternal === 'function') a.internal = prInternal(today);
     if(typeof prStride === 'function') a.stride = prStride(today);              // FC à allure égale et cadence (body-signals.js)
-    a.recette = state._recette || null; opt.recette = a.recette;              // ce que tes prépas précédentes ont appris (prep-debrief.js)
+    a.recette = state._recette || null; opt.recette = a.recette;
+    // tout l'historique rejoué (plan-adapt.js) : progression tenue, meilleur volume, recalage des temps prévus, effort habituel
+    if(typeof paHist === 'function'){ a.hist = paHist(today); const HV = a.hist && a.hist.vol; opt.histProg = HV && HV.prog || null; opt.histBest4 = HV && HV.best4 || null; }              // ce que tes prépas précédentes ont appris (prep-debrief.js)
     // ce que tu encaisses (plan-adapt.js) : tendance des 3 dernières semaines, objectif → volume visé
     if(typeof paTrend === 'function'){ a.absorb = paTrend(state, today); opt.absorb = a.absorb; }
     if(goalSec && raceCat && PR_RACE_M[raceCat]) opt.goalVdot = vdotFromRace(PR_RACE_M[raceCat], goalSec);
@@ -803,6 +805,9 @@ async function prCoachBody(a, R, force){
     recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
     dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     derniere_course: state._race_analysis ? (function(A){ return { course: A.name || A.cat, date: A.date, temps: A.time, objectif: A.target ? prTime(A.target.sec) : null, niveau_la_veille: A.pred ? prTime(A.pred) : null, verdict: A.verdict.t, depart_pct_vs_prevu: A.start ? Math.round(A.start.pct * 10) / 10 : null, seconde_moitie_pct: A.halves ? A.halves.pct : null, coup_de_mou_km: A.fade ? A.fade.km : null, derive_cardio_pct: A.drift ? A.drift.pct : null, meteo_pct: A.heat ? A.heat.pct : null, lecons: A.lessons }; })(state._race_analysis) : null,
+    historique_appris: a.hist ? { depuis: a.hist.first, seances: a.hist.n, km: a.hist.km,
+      courses_rejouees: a.hist.pred ? a.hist.pred.races.map(function(r){ return { course: r.label, date: r.date, prevu_6_sem_avant: prTime(r.projSec), reel: prTime(r.sec), ecart_niveau: r.err }; }) : [],
+      recalage_temps_prevus: a.hist.pred ? a.hist.pred.bias : 0, hausse_volume_tenue: a.hist.vol ? a.hist.vol.prog : null, meilleur_volume_4_sem: a.hist.vol ? a.hist.vol.best4 : null, effort_habituel: a.hist.rpe } : null,
     reglage_paliers: a.ladderCalib && a.ladderCalib.n ? { mode: a.ladderCalib.mode, hausses_tenues: a.ladderCalib.ok, hausses: a.ladderCalib.n } : null,
     feu_vert: a.greenLight ? a.greenLight.text : null,
     objectif_a_revoir: a.goalCheck ? { sens: a.goalCheck.dir, objectif: prTime(a.goalCheck.from), propose: prTime(a.goalCheck.to), prevu: prTime(a.goalCheck.mid) } : null,

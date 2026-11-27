@@ -73,7 +73,7 @@ function paAbsorb(s, st, opt){
     }
   }
   // effort ressenti vs attendu
-  const rpe = parseInt(p.rpe) || null, R = s.type === 'long' && paLongRaceKm(s.detail) ? [4, 7] : PA_RPE[s.type];   // longue avec allure course : plus d'effort attendu
+  const rpe = parseInt(p.rpe) || null, R = s.type === 'long' && paLongRaceKm(s.detail) ? [4, 7] : paRpeRange(s.type);   // longue avec allure course : plus d'effort attendu ; sinon ton effort habituel (historique)
   if(rpe && R){
     if(rpe < R[0]) add('rpe', 1, 'effort ' + rpe + '/10 (attendu ' + R[0] + '-' + R[1] + ')');
     else if(rpe >= R[1] + 2) add('rpe', -1, 'effort ' + rpe + '/10 (attendu ' + R[0] + '-' + R[1] + ')');
@@ -236,7 +236,7 @@ function paEvolution(a, today){
   const T = a.trajectory || null;
   const calib = a.ladderCalib || paLadderCalib(state, today), habits = paHabits(state, today);
   const longP = (a.proposals || []).filter(function(p){ return p.fam === 'long'; })[0] || null;
-  return { calib: calib, habits: habits, longNext: longP ? { title: longP.short, date: longP.date, up: longP.delta > 0 } : null, trend: trend, ladders: ladders, level: lvl, fit: a.fit && a.fit.vdot, planVdot: a.planVdotNow || a.planVdot, volume: V ? { base: V.base, peak: V.peak, goalPeak: V.goalPeak || null, prog: V.prog || null, weeks: V.weeks } : null,
+  return { hist: a.hist || null, recal: state._hist_recal || null, calib: calib, habits: habits, longNext: longP ? { title: longP.short, date: longP.date, up: longP.delta > 0 } : null, trend: trend, ladders: ladders, level: lvl, fit: a.fit && a.fit.vdot, planVdot: a.planVdotNow || a.planVdot, volume: V ? { base: V.base, peak: V.peak, goalPeak: V.goalPeak || null, prog: V.prog || null, weeks: V.weeks } : null,
     changes: changes, goal: a.opt.goalSec || null, traj: T && T.race ? { mid: T.race.mid, lo: T.race.lo, hi: T.race.hi, verdict: T.verdict || null } : null };
 }
 
@@ -254,9 +254,17 @@ function paLadderCalib(st, today){
     const f = c.fam || paFam(s) || '?'; fams[f] = fams[f] || { n: 0, ok: 0 }; fams[f].n++; if(good) fams[f].ok++;
     n++; if(good) ok++;
   }); });
+  // paliers franchis dans tout l'historique (séances pas déjà comptées ci-dessus)
+  const seenK = {}; (st._plan_reviews || []).forEach(function(h){ (h.changes || []).forEach(function(c){ if(c.kind === 'ladder' && byKey[c.ref]) seenK[c.ref + '|' + byKey[c.ref].date] = 1; }); });
+  const H = st === state && typeof paHist === 'function' ? paHist(today) : null; let hn = 0;
+  (H && H.ladder ? H.ladder.list : []).forEach(function(x){
+    if(seenK[x.key + '|' + x.date]) return;
+    fams[x.fam] = fams[x.fam] || { n: 0, ok: 0 }; fams[x.fam].n++; if(x.ok) fams[x.fam].ok++;
+    n++; hn++; if(x.ok) ok++;
+  });
   const rate = n ? ok / n : null;
   const mode = n >= 3 && rate >= 0.8 ? 'bold' : n >= 3 && rate <= 0.6 ? 'careful' : 'normal';
-  return { n: n, ok: ok, rate: rate, mode: mode, fams: fams };
+  return { n: n, ok: ok, rate: rate, mode: mode, fams: fams, hist: hn };
 }
 // palier suivant selon les 2 dernières séances et le réglage appris : franc (une séance facile suffit, deux = +2),
 // normal (une facile sans dure avant), prudent (deux faciles de suite)
@@ -452,7 +460,8 @@ function planNews(a, st){
   const lines = P.map(function(p){ const L = paLine(p); counts[L.dir]++; return { key: p.key, date: p.date, title: p.title, dir: L.dir, t: L.t, pair: p.pair || null }; })
     .filter(function(x, i, arr){ return !x.pair || arr.findIndex(function(y){ return y.pair === x.pair; }) === i; });   // un échange = une ligne
   const NW = a.nextWeek && st._week_ok !== a.nextWeek.from ? a.nextWeek : null;
-  return { n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
+  const RC = st._hist_recal && !st._hist_recal.undone && st._hist_recal.n && prDays(st._hist_recal.date, a.opt.today) <= 7 ? st._hist_recal : null;
+  return { recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
     green: a.greenLight ? a.greenLight.text : null, unseen: !!P.length && typeof prSig === 'function' && prSig(a.proposals) !== st._review_seen };
 }
 // carte « Ton plan » de l'accueil (#home-plan-card) : calcul gardé tant que les données ne changent pas
@@ -466,7 +475,7 @@ function planCardRender(){
   let N;
   try {
     const today = prTodayIso(), R = state._plan_reviews || [], last = R[R.length - 1] || {};
-    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', Object.keys(state).length].join('|');
+    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', JSON.stringify(state._hist_recal || null), Object.keys(state).length].join('|');
     if(_hpCache && _hpCache.key === key && Date.now() - _hpCache.t < 300000) N = _hpCache.n;
     else { N = planNews(prAnalyze(), state); _hpCache = { key: key, t: Date.now(), n: N }; }
   } catch(e) { diagSilent(e, 'plan-adapt:planCardRender'); return hide(); }
@@ -475,7 +484,9 @@ function planCardRender(){
   const esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   const D = function(d){ return d ? prFmtDate(d, { weekday: 'short', day: 'numeric' }).replace('.', '') : ''; };
   const evo = typeof openPlanEvolution === 'function';
+  const recal = N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '';
   if(!N.n && !N.goal && !N.next){
+    if(recal){ el.innerHTML = '<section class="hp">' + recal + '<button type="button" class="hp-h" style="margin-top:8px" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button></section>'; return; }
     el.innerHTML = '<button type="button" class="hp hp-ok" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button>';
     return;
   }
@@ -486,7 +497,7 @@ function planCardRender(){
   if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + ' · à valider</small></span></button>');
   const more = N.lines.length - 3;
   const C = N.counts, chips = ['up', 'down', 'move'].filter(function(k){ return C[k]; }).map(function(k){ return '<span class="hp-c ' + k + '">' + PA_DIR[k][0] + ' ' + C[k] + '</span>'; }).join('');
-  el.innerHTML = '<section class="hp" aria-label="Ton plan">'
+  el.innerHTML = '<section class="hp" aria-label="Ton plan">' + recal
     + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>Ton plan s\'adapte' + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
     + (chips ? '<div class="hp-cs">' + chips + '<span class="hp-cl">' + N.n + ' changement' + (N.n > 1 ? 's' : '') + ' proposé' + (N.n > 1 ? 's' : '') + '</span></div>' : '')
     + '<div class="hp-l">' + rows.join('') + (more > 0 ? '<button type="button" class="hp-more" onclick="openPlanReview()">+ ' + more + ' autre' + (more > 1 ? 's' : '') + '</button>' : '') + '</div>'
@@ -512,6 +523,157 @@ function _hpCss(){
     + '.hp-x{flex:1;min-width:0;display:flex;flex-direction:column;}.hp-x b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hp-x small{font-size:12px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
     + '.hp-more{background:none;border:0;color:#1B4FD8;font:inherit;font-size:12.5px;font-weight:800;padding:2px 0;text-align:left;cursor:pointer;}'
     + '.hp-g{margin:8px 0 0;font-size:12.5px;color:#065F46;background:#ECFDF5;border-radius:10px;padding:7px 10px;}'
+    + '.hp-rc{display:flex;align-items:center;gap:8px;background:#F5F3FF;color:#5B21B6;border-radius:12px;padding:7px 10px;margin-bottom:10px;font-size:12.5px;font-weight:700;}.hp-rc span{flex:1;min-width:0;}.hp-rc button{border:0;background:#fff;color:#5B21B6;border-radius:9px;padding:4px 9px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;}'
     + '.hp-a{display:flex;gap:8px;margin-top:10px;}.hp-b{flex:1;border:1px solid #DCE5F3;background:#F5F8FD;color:#1B4FD8;border-radius:12px;padding:10px 6px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;}.hp-b.pri{background:#1B4FD8;border-color:#1B4FD8;color:#fff;}';
   document.head.appendChild(s);
+}
+
+
+// ─── N. Ce que tout ton historique apprend au plan ────────────────────────────────────────────────────
+// Le moteur est rejoué sur tout ce que tu as couru (prépas enregistrées, prépa en cours, historique Strava complet) :
+//  • prédiction : pour chaque course passée, le temps que le plan aurait prévu 6 semaines avant (prTrajectory à cette date, sans rien
+//    savoir de la suite) comparé au vrai temps → écart médian = recalage des temps prévus (paHistBias, lu par prTrajectory) ;
+//  • progression de volume : hausses d'une semaine à l'autre encaissées ou suivies d'une douleur / d'un arrêt → la hausse que tu tiens
+//    (remplace les +12 % par défaut de prVolumePlan) et ton meilleur volume tenu 4 semaines (le pic peut y monter) ;
+//  • effort ressenti habituel par type de séance (paRpeRange : un 5/10 en footing n'est pas « dur » si c'est ton habitude) ;
+//  • paliers des séances de qualité déjà franchis dans le passé, tenus ou non (ajoutés au réglage franc / prudent, paLadderCalib).
+const PA_HIST_V = 1;
+let _paHistCache = null;
+const paMed = function(a){ if(!a.length) return null; const b = a.slice().sort(function(x, y){ return x - y; }), m = Math.floor(b.length / 2); return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+const paQuant = function(a, q){ if(!a.length) return null; const b = a.slice().sort(function(x, y){ return x - y; }); return b[Math.min(b.length - 1, Math.max(0, Math.round(q * (b.length - 1))))]; };
+function paHist(today){
+  today = today || (typeof prTodayIso === 'function' ? prTodayIso() : null);
+  if(!today || typeof prAllDone !== 'function' || typeof state === 'undefined' || !state) return null;
+  let done;
+  try { done = prAllDone(today).filter(function(x){ return x.date && x.date <= today; }).sort(function(a, b){ return a.date.localeCompare(b.date); }); } catch(e) { return null; }
+  const races = typeof prKnownRaces === 'function' ? prKnownRaces() : [];
+  const key = today + '|' + done.length + '|' + (done.length ? done[done.length - 1].date + ':' + done[done.length - 1].km : '') + '|' + races.length;
+  if(_paHistCache && _paHistCache.key === key) return _paHistCache.v;
+  _paHistCache = { key: key, v: null };                                         // en cours de calcul : pas de recalage pendant le rejeu
+  let v = null;
+  try {
+    v = { v: PA_HIST_V, first: done.length ? done[0].date : null, n: done.length, km: Math.round(done.reduce(function(a, x){ return a + (+x.km || 0); }, 0)),
+      pred: paHistPred(done, races, today), vol: paHistVol(done, today), rpe: paHistRpe(done, today), ladder: paHistLadder(done, today) };
+  } catch(e) { if(typeof diagSilent === 'function') diagSilent(e, 'plan-adapt:paHist'); v = null; }
+  _paHistCache = { key: key, v: v };
+  return v;
+}
+// rejeu des courses : niveau la veille, et temps prévu 6 semaines avant
+function paHistPred(done, races, today){
+  const out = [];
+  races.filter(function(r){ return r && r.date && r.date < today && PR_RACE_M[r.cat] && prDays(r.date, today) <= 1095; })
+    .sort(function(a, b){ return b.date.localeCompare(a.date); }).slice(0, 12).forEach(function(r){
+      const sec = prTimeSec(r.time); if(!sec) return;
+      const actual = vdotFromRace(PR_RACE_M[r.cat], sec), d1 = prAddDays(r.date, -1), d6 = prAddDays(r.date, -42);
+      const before = done.filter(function(x){ return x.date <= d6; });
+      if(before.length < 10) return;                                                  // trop peu d'entraînement connu avant
+      const f1 = prFitness(state, { today: d1, races: races, done: done }), f6 = prFitness(state, { today: d6, races: races, done: done });
+      let proj = null;
+      if(f6 && f6.vdot){ const T = prTrajectory({ fit: f6, opt: { today: d6, raceCat: r.cat, noHist: true }, race: { date: r.date } }); proj = T && T.race ? T.race.v : null; }
+      if(proj == null) return;
+      out.push({ cat: r.cat, date: r.date, label: r.label || r.cat, sec: sec, actual: Math.round(actual * 10) / 10, eve: f1 && f1.vdot ? Math.round(f1.vdot * 10) / 10 : null,
+        proj: Math.round(proj * 10) / 10, projSec: Math.round(raceTimeFromVdot(proj, PR_RACE_M[r.cat])), err: Math.round((actual - proj) * 10) / 10 });
+    });
+  const errs = out.map(function(x){ return x.err; }), n = errs.length, med = n ? paMed(errs) : 0;
+  // peu de courses : on ne recale qu'une partie de l'écart (n / (n + 2)), 1,2 point au plus
+  const bias = n ? Math.max(-1.2, Math.min(1.2, med * n / (n + 2))) : 0;
+  return { races: out, n: n, med: Math.round(med * 10) / 10, bias: Math.round(bias * 10) / 10, mae: n ? Math.round(errs.reduce(function(a, e){ return a + Math.abs(e); }, 0) / n * 10) / 10 : null };
+}
+function paHistBias(today){ const H = paHist(today); return H && H.pred && H.pred.n ? H.pred.bias : 0; }
+// volume semaine après semaine (lundi → dimanche) depuis la 1re séance
+function paHistWeeks(done, today){
+  const iso = prIso;
+  const wk = {}; done.forEach(function(x){ const m = iso(prMonday(x.date)); wk[m] = (wk[m] || 0) + (+x.km || 0); });
+  const cur = iso(prMonday(today)), out = [];
+  if(!done.length) return out;
+  for(let m = iso(prMonday(done[0].date)); m < cur; m = prAddDays(m, 7)) out.push({ m: m, km: Math.round((wk[m] || 0) * 10) / 10 });
+  return out;
+}
+function paHistVol(done, today){
+  const W = paHistWeeks(done, today); if(W.length < 6) return null;
+  const pain = done.filter(function(x){ return x.perf && x.perf.pain && (+x.perf.pain.level || 0) >= 2; }).map(function(x){ return x.date; });
+  const racesD = done.filter(function(x){ return x.type === 'race'; }).map(function(x){ return x.date; });
+  const days = done.map(function(x){ return x.date; });
+  const safe = [], bad = [];
+  for(let i = 1; i < W.length; i++){
+    const a = W[i - 1].km, b = W[i].km; if(a < 15 || b < a * 1.03) continue;
+    const from = W[i].m, to = prAddDays(from, 20);
+    if(racesD.some(function(d){ return d >= prAddDays(from, -7) && d <= to; })) continue;   // autour d'une course : rien à conclure
+    const hurt = pain.some(function(d){ return d >= from && d <= to; });
+    // arrêt : 10 jours ou plus sans courir qui commencent dans les 3 semaines
+    const nxt = days.filter(function(d){ return d >= from; });
+    let stop = false; for(let j = 1; j < nxt.length; j++){ if(nxt[j - 1] > to) break; if(prDays(nxt[j - 1], nxt[j]) >= 10){ stop = true; break; } }
+    if(!stop && nxt.length && nxt[nxt.length - 1] <= to && prDays(nxt[nxt.length - 1], today) >= 10) stop = true;
+    (hurt || stop ? bad : safe).push(Math.round(b / a * 100) / 100);
+  }
+  let prog = null;
+  if(safe.length + bad.length >= 6 && safe.length >= 4){
+    prog = paQuant(safe, 0.6);
+    const minBad = bad.length ? Math.min.apply(null, bad) : null;
+    if(minBad && minBad > 1.05) prog = Math.min(prog, minBad - 0.02);
+    prog = Math.round(Math.max(1.05, Math.min(1.18, prog)) * 100) / 100;
+  }
+  const recent = W.filter(function(w){ return prDays(w.m, today) <= 730; });
+  let best4 = 0; for(let i = 3; i < recent.length; i++){ const s = (recent[i].km + recent[i - 1].km + recent[i - 2].km + recent[i - 3].km) / 4; if(s > best4) best4 = s; }
+  return { weeks: W.length, ups: safe.length + bad.length, safe: safe.length, bad: bad.length, prog: prog, worstBad: bad.length ? Math.min.apply(null, bad) : null, best4: Math.round(best4) || null };
+}
+// effort ressenti habituel par type (12 derniers mois, 6 séances notées au moins)
+function paHistRpe(done, today){
+  const out = {};
+  ['ef', 'long', 'tempo', 'frac'].forEach(function(t){
+    const r = done.filter(function(x){ return x.type === t && x.perf && +x.perf.rpe >= 1 && prDays(x.date, today) <= 365 && !(t === 'long' && paLongRaceKm(x.detail)); }).map(function(x){ return +x.perf.rpe; });
+    if(r.length >= 6) out[t] = { med: paMed(r), n: r.length };
+  });
+  return out;
+}
+function paRpeRange(type){
+  const def = PA_RPE[type]; if(!def) return def;
+  const H = _paHistCache && _paHistCache.v, r = H && H.rpe && H.rpe[type];              // jamais de calcul ici : seulement ce qui est déjà appris
+  if(!r) return def;
+  const c = (def[0] + def[1]) / 2; if(Math.abs(r.med - c) > 2.5) return def;          // trop loin du repère : on garde le repère
+  return [Math.max(1, Math.round(r.med) - 1), Math.min(10, Math.round(r.med) + 1)];
+}
+// paliers de qualité franchis dans le passé (même famille, même unité, à 21 jours au plus) : tenus ou non
+function paHistLadder(done, today){
+  const list = [], fams = {};
+  const Q = done.filter(function(x){ return (x.type === 'tempo' || x.type === 'frac') && !x.ext && x.perf && prDays(x.date, today) <= 365 && !/^Test\b/i.test(x.title || ''); });
+  const last = {};
+  Q.forEach(function(x){
+    const fam = paFam(x); if(!fam || fam === 'E' || fam === 'race') return;
+    const r = paParseReps((x.title || '') + ' ' + (x.detail || '')); if(!r) return;
+    const k = paLadderKey(fam, r.unit), L = PA_LADDERS[k]; if(!L) return;
+    const rung = paRung(L, r), prev = last[k];
+    if(prev && prDays(prev.date, x.date) <= 21 && rung > prev.rung){
+      const ab = paAbsorb(x, state, { today: today }), ok = !ab || ab.verdict !== 'hard';
+      list.push({ key: x.key, date: x.date, fam: fam, ok: ok });
+      fams[fam] = fams[fam] || { n: 0, ok: 0 }; fams[fam].n++; if(ok) fams[fam].ok++;
+    }
+    last[k] = { date: x.date, rung: rung };
+  });
+  return { n: list.length, ok: list.filter(function(x){ return x.ok; }).length, list: list, fams: fams };
+}
+// recalage du plan, une fois, dès que l'historique est appris : propositions appliquées (annulable d'un geste)
+const PA_HIST_FROM = '2026-11-27';
+function paHistRecal(){
+  try {
+    if(typeof state === 'undefined' || !state || !state._plan_engine || (typeof _prepView !== 'undefined' && _prepView) || (typeof _adminPreviewUid !== 'undefined' && _adminPreviewUid)) return null;
+    const today = prTodayIso(); if(today < PA_HIST_FROM || state._hist_cal_v === PA_HIST_V || !window._prPrefetchDone) return null;
+    const H = paHist(today); if(!H || H.n < 10) return null;
+    const a = prAnalyze(), at = new Date().toISOString();
+    const sel = (a.proposals || []).filter(function(p){ return !p.held && !p.revert && p.kind !== 'test' && p.kind !== 'habit' && ['date', 'skip', 'add'].indexOf(p.field) < 0 && p.date && p.date >= today; });
+    const r = sel.length ? prApplyChanges(sel, { kind: 'hist', vdot: a.fit && a.fit.vdot, at: at }) : { n: 0 };
+    state._hist_cal_v = PA_HIST_V;
+    state._hist_recal = { at: at, date: today, n: r.n || 0, bias: H.pred ? H.pred.bias : 0, prog: H.vol ? H.vol.prog : null };
+    save();
+    if(r.n && typeof showToast === 'function') showToast('Plan recalé sur tout ton historique : ' + r.n + ' séance' + (r.n > 1 ? 's' : ''), '🧬');
+    return state._hist_recal;
+  } catch(e) { if(typeof diagSilent === 'function') diagSilent(e, 'plan-adapt:paHistRecal'); return null; }
+}
+function paHistUndo(){
+  const R = state._hist_recal; if(!R) return;
+  const i = (state._plan_reviews || []).findIndex(function(h){ return h.at === R.at && h.kind === 'hist'; });
+  if(i >= 0 && typeof prUndoReview === 'function') prUndoReview(i);
+  state._hist_recal = Object.assign({}, R, { undone: true }); save();
+  if(typeof showToast === 'function') showToast('Recalage annulé', '↩');
+  if(typeof renderHome === 'function') try { renderHome(); } catch(e) { diagSilent(e, 'plan-adapt:paHistUndo'); }
 }

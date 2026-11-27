@@ -245,7 +245,9 @@ function prVolumePlan(st, a){
   // … et jamais sous le pic écrit dans ton plan : ce qui le borne, c'est la progression semaine après semaine depuis ce que tu as
   // vraiment couru (+12 à 15 %), pas ton volume de la prépa précédente
   const planPeak = Math.max.apply(null, weeks.filter(function(o){ return !o.past && !o.race && o.kind !== 'taper'; }).map(function(o){ return o.km; }).concat([0]));
-  const peak = Math.max(base * (PR_PEAK[cat] || 1.1), goalPeak ? Math.min(goalPeak, base * 1.6) : 0, planPeak);
+  // meilleur volume déjà tenu 4 semaines (2 dernières années, tout l'historique) : le pic peut y remonter, sans dépasser ce que demande l'objectif
+  const best4 = a.opt.histBest4 || 0;
+  const peak = Math.max(base * (PR_PEAK[cat] || 1.1), goalPeak ? Math.min(goalPeak, base * 1.6) : 0, planPeak, best4 ? Math.min(best4, goalPeak || best4, base * 1.6) : 0);
   const raceW = weeks.filter(function(o){ return o.race; }).map(function(o){ return o.w; }).pop();
   const lr = a.opt.lastRace, recD = lr && (lr.cat === 'Marathon' || lr.cat === 'Semi-marathon') ? PR_REC_DAYS[lr.cat] : null;
   const longCap = (PR_LONG_CAP[cat] || 20) + (peak >= ({ 'Semi-marathon': 50, 'Marathon': 70, '10 km': 45, '5 km': 40 }[cat] || 999) ? 2 : 0);   // objectif ambitieux : sortie longue un peu plus longue
@@ -253,7 +255,9 @@ function prVolumePlan(st, a){
   const recentLong = Math.max.apply(null, (a.load ? a.load.log : []).filter(function(x){ return x.type === 'long' && prDays(x.date, today) <= 56; }).map(function(x){ return x.km; }).concat([0]));
   const out = { base: Math.round(base), peak: Math.round(peak), goalPeak: goalPeak, weeks: [], proposals: [], horizonWeeks: [] };
   const noUp = !!a.opt.noVolumeUp;                                                // fatigue WHOOP / douleur : pas de hausse cette semaine
-  const REC = a.opt.recette || null, PROG0 = REC && REC.progression >= 1.03 && REC.progression <= 1.2 ? REC.progression : 1.12;   // recette : progression encaissée
+  // hausse que tu encaisses : apprise sur tout ton historique (hausses suivies ou non d'une douleur / d'un arrêt), sinon ta recette, sinon +12 %
+  const REC = a.opt.recette || null, HP = a.opt.histProg || null;
+  const PROG0 = HP ? HP : REC && REC.progression >= 1.03 && REC.progression <= 1.2 ? REC.progression : 1.12;
   // ce que tu encaisses (3 semaines) : facile → un cran de plus, dur → pas de hausse (plan-adapt.js)
   const PROG = typeof paProg === 'function' ? paProg(PROG0, a.opt.absorb) : PROG0; out.prog = PROG;
   // progression mesurée depuis la dernière semaine de charge (pas depuis une semaine allégée) ; propositions de km sur 4 semaines
@@ -283,7 +287,7 @@ function prVolumePlan(st, a){
     if(RT){ const own = [RT.w0, RT.w1, RT.w2]; TAPER = TAPER.map(function(f, i){ const x = own[i]; return x > 0 ? Math.max(f - 0.15, Math.min(f + 0.15, x)) : f; }); }
     if(toRace != null && toRace >= 0 && toRace < TAPER.length){ t = peak * TAPER[toRace]; why = toRace === 0 ? 'semaine de course' : toRace === TAPER.length - 1 ? 'début d\'affûtage' : 'affûtage'; }
     else if(o.kind === 'recov'){ t = lastBuild ? lastBuild * 0.78 : o.km; why = 'semaine allégée'; }   // sans semaine de charge avant : le plan fait foi
-    else { t = Math.min(peak, (lastBuild || o.km) * PROG); why = t >= peak - 0.5 ? 'pic de la prépa (~' + Math.round(peak) + ' km)' : (PROG <= 1 ? 'séances récentes dures : volume stable' : 'progression ≤ +' + Math.round((PROG - 1) * 100) + ' %/semaine') + (PROG > PROG0 ? ' (séances récentes faciles)' : PROG0 !== 1.12 && PROG > 1 ? ' (ta recette)' : ''); }
+    else { t = Math.min(peak, (lastBuild || o.km) * PROG); why = t >= peak - 0.5 ? 'pic de la prépa (~' + Math.round(peak) + ' km)' : (PROG <= 1 ? 'séances récentes dures : volume stable' : 'progression ≤ +' + Math.round((PROG - 1) * 100) + ' %/semaine') + (PROG > PROG0 ? ' (séances récentes faciles)' : HP && PROG > 1 ? ' (ton historique)' : PROG0 !== 1.12 && PROG > 1 ? ' (ta recette)' : ''); }
     // reprise après un marathon / semi : pourcentage de ta base selon le nombre de jours depuis la course
     const ds = recD && o.from ? prDays(lr.date, o.from) : null;
     if(ds != null && ds >= 0 && ds < recD * 1.08){
@@ -520,7 +524,7 @@ function prTrajectory(a){
   const pts = [];
   (f.sources || []).forEach(function(x){ if(x.kind === 'course' && x.date && prDays(x.date, today) <= 180 && prDays(x.date, today) >= 0) pts.push({ date: x.date, v: x.vdot, kind: 'course', label: x.label }); });
   prDoneLog(today).forEach(function(x){
-    if(prDays(x.date, today) > 180) return;
+    if(prDays(x.date, today) > 180 || x.date > today) return;                     // rien d'après la date (rejeu de l'historique)
     if(/^Test\b/i.test(x.s.title)) return;                                          // déjà compté via les sources du niveau
     const v = prSessionVdot(x.s, f.hrMax || 196); if(v) pts.push({ date: x.date, v: v, kind: 'séance', label: x.s.title });
   });
@@ -538,7 +542,9 @@ function prTrajectory(a){
   const m = PR_RACE_M[a.opt.raceCat];
   if(R.date && R.date > today && m){
     const days = prDays(today, R.date), gain = Math.max(-1.5, Math.min(3, slope * days));
-    const v = f.vdot + gain;
+    // recalage appris en rejouant tes courses passées (plan-adapt.js : écart médian entre le temps prévu 6 semaines avant et le vrai temps)
+    const hb = a.opt.noHist || typeof paHistBias !== 'function' ? 0 : paHistBias(today);
+    const v = f.vdot + gain + hb; out.histBias = hb;
     out.race = { date: R.date, days: days, v: v, lo: raceTimeFromVdot(v + 0.6, m), hi: raceTimeFromVdot(v - 0.6, m), mid: raceTimeFromVdot(v, m) };
     if(a.opt.goalSec){
       out.need = vdotFromRace(m, a.opt.goalSec);

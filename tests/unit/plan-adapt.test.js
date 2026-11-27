@@ -301,3 +301,64 @@ test('propositions dites simplement : sens, phrase, raison principale, résumé 
   assert.equal(N.lines[0].t, 'Déplacée au vendredi'); assert.equal(N.next.km, 40); assert.equal(N.unseen, true);
   assert.equal(app.planNews({ fit: {}, opt: {}, proposals: [], nextWeek: { from: '2026-11-16', km: 40, props: [] } }, { _week_ok: '2026-11-16' }).next, null, 'semaine déjà validée');
 });
+
+// ─── N. Tout l'historique rejoué ───
+// un an d'historique Strava : 3 sorties / semaine, des hausses bien passées, une grosse hausse suivie d'un arrêt de 2 semaines,
+// trois 10 km de plus en plus rapides (le plan, qui ne sait pas la suite, les prévoit trop lents)
+function histStrava(){
+  const H = {}; let id = 1;
+  const add = (d, km, w, el) => { H[id] = { d, km, n: w === 1 ? '10 km' : 'Sortie', w: w || 0, mv: el || Math.round(km * 330), el: el || Math.round(km * 330), t: '08:00' }; id++; };
+  const mon = new Date('2025-11-03T12:00:00');
+  const day = (w, k) => { const x = new Date(mon); x.setDate(x.getDate() + w * 7 + k); return x.toISOString().slice(0, 10); };
+  let km = 24;
+  for (let w = 0; w < 53; w++) {
+    if (w === 30 || w === 31) continue;                              // arrêt de 2 semaines après la grosse hausse
+    if (w === 29) km = Math.round(km * 1.4);                         // grosse hausse
+    else if (w === 32) km = 26;
+    else if (w % 4 === 3) km = Math.round(km * 0.8);                 // semaine allégée
+    else km = Math.min(48, Math.round(km * 1.08));                   // hausse tenue
+    add(day(w, 1), Math.round(km * 0.3), 0); add(day(w, 3), Math.round(km * 0.3), 0); add(day(w, 6), Math.round(km * 0.4), 0);
+  }
+  add(day(10, 5), 10.0, 1, 2400); add(day(26, 5), 10.0, 1, 2330); add(day(44, 5), 10.0, 1, 2280);
+  return H;
+}
+test('historique rejoué : temps prévus recalés, hausse tenue, meilleur volume, rien d\'après la date', () => {
+  const st = synthPlan({ km: [30, 34, 38, 40, 42, 44, 30, 20] });
+  const app = loadApp({ now: '2026-11-10T09:00:00+01:00', state: st, strava: histStrava() });
+  const H = app.paHist('2026-11-10');
+  assert.ok(H && H.n > 100, 'tout l\'historique : ' + (H && H.n));
+  assert.equal(H.first, '2025-11-04');
+  // prédiction : chaque course rejouée avec ce qu'on savait 6 semaines avant
+  assert.ok(H.pred.n >= 2, JSON.stringify(H.pred));
+  assert.ok(H.pred.races.every((r) => r.err > 0), 'le plan prévoyait trop lent : ' + JSON.stringify(H.pred.races.map((r) => r.err)));
+  assert.ok(H.pred.bias > 0 && H.pred.bias <= 1.2, 'recalage borné : ' + H.pred.bias);
+  // la trajectoire du jour J intègre le recalage
+  const T = app.prTrajectory({ fit: { vdot: 50, sources: [] }, opt: { today: '2026-11-10', raceCat: '10 km' }, race: { date: '2027-01-10' } });
+  const T0 = app.prTrajectory({ fit: { vdot: 50, sources: [] }, opt: { today: '2026-11-10', raceCat: '10 km', noHist: true }, race: { date: '2027-01-10' } });
+  assert.equal(Math.round((T.race.v - T0.race.v) * 10) / 10, H.pred.bias); assert.ok(T.race.mid < T0.race.mid);
+  // volume : hausses tenues vs grosse hausse suivie d'un arrêt
+  assert.ok(H.vol.bad >= 1, 'la grosse hausse est vue : ' + JSON.stringify(H.vol));
+  assert.ok(H.vol.prog >= 1.05 && H.vol.prog < H.vol.worstBad, 'hausse tenue sous celle qui a cassé : ' + JSON.stringify(H.vol));
+  assert.ok(H.vol.best4 >= 28 && H.vol.best4 <= 48, 'meilleur volume sur 4 semaines : ' + H.vol.best4);
+  // MAJ le plan s'en sert
+  const a = app.prAnalyze();
+  assert.equal(a.opt.histProg, H.vol.prog); assert.equal(a.opt.histBest4, H.vol.best4);
+  assert.ok(a.trajectory && a.trajectory.histBias === H.pred.bias);
+});
+
+test('historique rejoué : effort habituel personnel et paliers déjà franchis', () => {
+  const st = synthPlan({ km: [30, 34, 38, 40, 42, 44, 30, 20] });
+  // footings toujours notés 5/10 : c'est ton habitude, pas un signe de fatigue
+  ['extra_w1_s0', 'extra_w2_s0', 'extra_w3_s0', 'extra_w4_s0', 'extra_w5_s0', 'extra_w6_s0'].forEach((k) => { st[k + '_done'] = true; st[k + '_km'] = 8; st[k + '_perf'] = JSON.stringify({ date: JSON.parse(st[k]).sched_date, rpe: 5, pace: "5'50" }); });
+  // tempos : 3 × 6 → 3 × 8 → 4 × 8, tenus
+  const T = [['Tempo 3×6 min', "3 km EF · 3 × 6 min à 4'35 — 4'40 /km"], ['Tempo 3×8 min', "3 km EF · 3 × 8 min à 4'35 — 4'40 /km"], ['Tempo 4×8 min', "3 km EF · 4 × 8 min à 4'35 — 4'40 /km"]];
+  T.forEach((t, i) => { const k = 'extra_w' + (i + 1) + '_s1', x = JSON.parse(st[k]); x.d = t[0] + '|' + t[1]; st[k] = JSON.stringify(x); st[k + '_done'] = true; st[k + '_km'] = 10; st[k + '_perf'] = JSON.stringify({ date: x.sched_date, blocsAllure: ["4'36", "4'37", "4'36"], rpe: 6 }); });
+  const app = loadApp({ now: '2026-12-08T09:00:00+01:00', state: st });
+  const H = app.paHist('2026-12-08');
+  assert.equal(H.rpe.ef.med, 5);
+  assert.equal(app.paRpeRange('ef').join('-'), '4-6', 'ton 5/10 habituel devient la norme');
+  assert.equal(app.paRpeRange('frac').join('-'), '6-8', 'sans habitude connue : le repère');
+  assert.equal(H.ladder.n, 2); assert.equal(H.ladder.ok, 2);
+  const C = app.paLadderCalib(st, '2026-12-08');
+  assert.equal(C.hist, 2); assert.equal(C.n, 2, 'paliers de l\'historique comptés dans le réglage');
+});
