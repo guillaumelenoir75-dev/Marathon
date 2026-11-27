@@ -743,7 +743,7 @@ const PR_CSS2 = '.pr-top{display:flex;align-items:center;gap:10px;padding:2px 2p
   + '.pr-goal,.pr-nw{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px 14px;margin-bottom:10px;}.pr-goal.up{border-color:#A7F3D0;background:#F0FDF7;}.pr-goal.down{border-color:#FDE68A;background:#FFFBEB;}'
   + '.pr-goal-h{margin:0 0 6px;font-size:14px;font-weight:800;color:#0F172A;}.pr-goal-s{margin:6px 0 0;font-size:12.5px;color:#475569;line-height:1.4;}.pr-goal .pr-actions{margin-top:10px;}'
   + '.pr-nw-l{display:flex;flex-direction:column;gap:4px;margin-top:8px;}.pr-nw-l span{font-size:12.5px;color:#334155;background:#F5F8FD;border-radius:9px;padding:6px 9px;}.pr-nw-l span.chg{background:#EEF3FC;color:#1B4FD8;font-weight:700;}.pr-alerts i{font-style:normal;}'
-  + '.pr-actions{display:flex;gap:8px;}.pr-actions .pr-btn{flex:1;margin:0;padding:11px 8px;font-size:14px;}.pr-chat-b{background:#EEF2FF;color:#3730A3;border:1.5px solid #C7D2FE;}.pr-mini{margin:0;font-size:11.5px;color:#64748B;font-weight:600;}'
+  + '.pr-actions{display:flex;gap:8px;}.pr-chat-w{width:100%;margin:0 0 6px;}.pr-actions .pr-btn{flex:1;margin:0;padding:11px 8px;font-size:14px;}.pr-chat-b{background:#EEF2FF;color:#3730A3;border:1.5px solid #C7D2FE;}.pr-mini{margin:0;font-size:11.5px;color:#64748B;font-weight:600;}'
   + '.pr-more{background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;}.pr-more>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;}.pr-more>summary::-webkit-details-marker{display:none;}'
   + '.pr-more-i{font-size:18px;}.pr-more-t{flex:1;min-width:0;display:flex;flex-direction:column;}.pr-more-t b{font-size:14px;color:#0F172A;}.pr-more-t small{font-size:11.5px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
   + '.pr-more-c{color:#94A3B8;font-size:18px;transition:transform .2s;}.pr-more[open] .pr-more-c{transform:rotate(90deg);}.pr-more-b{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;}.pr-coach-t{margin:0;font-size:13px;line-height:1.45;color:#334155;}'
@@ -845,6 +845,48 @@ function prCoachItems(changes){
   });
   return items;
 }
+// Relecture automatique du Coach le week-end (compte admin) : la semaine prochaine relue sans rien demander, une fois par
+// week-end et seulement s'il y a du nouveau. D'accord avec le calcul → « ✓ Relu par le Coach » ; pas d'accord → ligne sur
+// la carte « Ton plan » de l'accueil et ses changements prêts dans MAJ le plan (_prRestoreCoach).
+let _prCoachAutoBusy = false;
+async function prCoachAuto(){
+  if(_prCoachAutoBusy || typeof coachAI !== 'function' || !coachAI() || (typeof _prepView !== 'undefined' && _prepView) || !state._plan_engine || !window._prPrefetchDone) return null;
+  const today = prTodayIso(), wd = prWeekday(today); if(wd < 6) return null;
+  const week = prAddDays(today, 8 - wd), c = state._coach_review || {};
+  if(state._coach_auto_week === week) return null;
+  if(c.sig === prDataSig() && c.date && prDays(c.date, today) <= 7){ state._coach_auto_week = week; if(dbRef) dbRef.child('_coach_auto_week').set(week).catch(function(){}); return null; }   // rien de nouveau
+  _prCoachAutoBusy = true;
+  state._coach_auto_week = week; if(dbRef) dbRef.child('_coach_auto_week').set(week).catch(function(){});
+  try {
+    const a = prAnalyze(), R = { items: a.proposals.map(function(p){ return Object.assign({ on: true }, p); }) };
+    const body = await prCoachBody(a, R, false);
+    const token = await getAuthToken();
+    const r = await fetch(FUNCTIONS_BASE + '/planReview', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if(!r.ok || !j.success) throw new Error(j.error || 'HTTP ' + r.status);
+    const items = prCoachItems(j.changes || []);
+    // ce que le Coach change par rapport au calcul (même séance, même champ, même valeur = d'accord)
+    const same = function(x){ return a.proposals.some(function(p){ return p.key === x.key && p.field === x.field && JSON.stringify(p.after) === JSON.stringify(x.after); }); };
+    const diff = items.filter(function(x){ return !same(x); }), rej = (j.rejected || []).slice(0, 30);
+    state._coach_review = { date: today, at: new Date().toISOString(), sig: prDataSig(), assessment: j.assessment || '', rejected: rej, auto: true, week: week,
+      agree: !diff.length && !rej.length, diff: diff.length + rej.length,
+      changes: items.map(function(x){ return { key: x.key, w: x.w, date: x.date, field: x.field, title: x.title, type: x.type, before: x.before, after: x.after, reason: x.reason }; }), applied: !items.length };
+    if(dbRef) dbRef.child('_coach_review').set(state._coach_review).catch(function(){});
+    return state._coach_review;
+  } catch(e) {
+    console.warn('[Coach] relecture du week-end', e && e.message);
+    return null;
+  } finally { _prCoachAutoBusy = false; }
+}
+// ce que dit la dernière relecture du Coach (carte « Ton plan », MAJ le plan) : null si elle date ou si de nouvelles séances ont été faites
+function prCoachVerdict(){
+  const c = state._coach_review; if(!c || !c.date || prDays(c.date, prTodayIso()) > 7) return null;
+  const fresh = c.sig === prDataSig();
+  const first = (c.changes || []).filter(function(x){ return x.field !== 'title'; })[0] || null;
+  return { date: c.date, auto: !!c.auto, agree: c.agree != null ? c.agree : !(c.changes || []).length, n: c.diff != null ? c.diff : (c.changes || []).length, applied: !!c.applied, fresh: fresh,
+    first: first, text: (String(c.assessment || '').match(/^[^.!?]*[.!?]?/) || [''])[0].trim().slice(0, 110) };
+}
+
 // Fusion des changements du Coach avec les propositions calculées, en gardant les choix déjà faits (coché / décoché,
 // « Accélérer quand même »). Une consigne du Coach sur une séance remplacée (footing WHOOP, test…) s'applique à la
 // nouvelle séance ; tout autre changement du Coach sur cette séance retire le remplacement. « ref » ou « ref:champ » écartés.

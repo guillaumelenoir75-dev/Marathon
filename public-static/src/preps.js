@@ -782,6 +782,8 @@ async function prepDailyTasks(){
     if(typeof prPrefetch === 'function') await prPrefetch();                    // historique complet (toutes les prépas) pour les analyses
     // une fois : le plan est recalé sur tout ton historique rejoué (plan-adapt.js), annulable depuis la carte « Ton plan »
     if(!_prepView && typeof paHistRecal === 'function' && paHistRecal() && typeof planCardRender === 'function') planCardRender();
+    // le week-end, le Coach relit la semaine prochaine tout seul (en arrière-plan, compte admin) ; la carte « Ton plan » le dit
+    if(!_prepView && typeof prCoachAuto === 'function') prCoachAuto().then(function(r){ if(r && typeof planCardRender === 'function') planCardRender(); }).catch(function(){});
     // allure EF de référence calculée sur tout l'historique : reprise telle quelle par les briefs du Coach (serveur : efRefOf)
     if(!_prepView && typeof getBestEfPace === 'function'){
       const p = getBestEfPace(), r = state._ef_ref || {}, t = _prepToday();

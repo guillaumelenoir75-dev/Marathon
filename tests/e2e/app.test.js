@@ -924,7 +924,8 @@ test('avis du Coach (simulé) : fusion, application, avis réaffiché tant qu\'i
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, assessment: 'Avis test.', changes: [{ ref: s.ref, km: s.km + 1, reason: 'test' }], rejected: [] }) });
   } });
   await openReview(page);
-  await page.click('#pr-coach-btn'); await page.waitForFunction(() => _prReview && _prReview.coach === 'Avis test.', null, { timeout: 10000 });
+  assert.equal(await page.locator('#pr-coach-btn').count(), 0, 'plus de bouton « Avis du Coach » : il relit seul le week-end');
+  await page.evaluate(() => askCoachPlanReview()); await page.waitForFunction(() => _prReview && _prReview.coach === 'Avis test.', null, { timeout: 10000 });
   await page.evaluate(() => closePlanReview());
   await openReview(page);
   assert.equal(await page.evaluate(() => _prReview.coach), 'Avis test.', 'avis réaffiché');
@@ -935,6 +936,38 @@ test('avis du Coach (simulé) : fusion, application, avis réaffiché tant qu\'i
   assert.equal(calls, 1);
   assert.deepEqual(errors, []);
   await ctx.close();
+});
+
+test('relecture du Coach le week-end, toute seule : pas d\'accord → carte « Ton plan » ; une seule fois par week-end', async () => {
+  let calls = 0;
+  const fn = async (r) => {
+    if (!/planReview/.test(r.request().url())) return r.fulfill({ contentType: 'application/json', body: '{"success":true}' });
+    calls++;
+    const b = JSON.parse(r.request().postData()), s = [].concat(...b.plan.map((w) => w.sessions)).find((x) => !x.done && x.type === 'ef' && x.date >= b.today);
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, assessment: 'Mardi est trop chargé après ton foot. Le reste est bon.', changes: [{ ref: s.ref, km: s.km + 2, reason: 'test' }], rejected: [] }) });
+  };
+  let o = await open('2026-11-07T15:00:00+01:00', savedDb, { functions: fn }), page = o.page;   // samedi
+  await page.waitForFunction(() => state._coach_review && state._coach_review.auto, null, { timeout: 15000 });
+  const C = await page.evaluate(() => ({ agree: state._coach_review.agree, n: state._coach_review.diff, week: state._coach_auto_week }));
+  assert.equal(C.agree, false); assert.equal(C.n, 1); assert.equal(C.week, '2026-11-09');
+  await page.evaluate(() => { showScreen('home'); planCardRender(); });
+  await page.waitForSelector('#home-plan-card .hp-r.coach', { timeout: 8000 });
+  assert.match(await page.evaluate(() => document.querySelector('#home-plan-card .hp-r.coach').textContent), /Le Coach propose autre chose/);
+  await page.click('#home-plan-card .hp-r.coach');
+  await page.waitForFunction(() => typeof _prReview !== 'undefined' && _prReview && document.querySelector('#pr-content .pr-lead'), null, { timeout: 15000 });
+  assert.ok(await page.evaluate(() => _prReview.items.some((x) => x.src === 'coach')), 'ses changements prêts dans MAJ le plan');
+  assert.match(await page.evaluate(() => document.getElementById('pr-content').textContent), /Relu par le Coach aujourd'hui · 1 changement à lui/);
+  assert.equal(await page.locator('#pr-coach-btn').count(), 0);
+  assert.deepEqual(o.errors, []);
+  const db1 = await db(page);
+  await o.ctx.close();
+  assert.equal(calls, 1);
+  // relancement le dimanche : pas de 2e relecture ce week-end
+  o = await open('2026-11-08T10:00:00+01:00', db1, { functions: fn });
+  await o.page.waitForTimeout(2500);
+  assert.equal(calls, 1, 'une seule relecture par week-end');
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
 });
 
 test('imprévu : séance clé déplacée, annulable', async () => {

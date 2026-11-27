@@ -460,8 +460,10 @@ function planNews(a, st){
   const lines = P.map(function(p){ const L = paLine(p); counts[L.dir]++; return { key: p.key, date: p.date, title: p.title, dir: L.dir, t: L.t, pair: p.pair || null }; })
     .filter(function(x, i, arr){ return !x.pair || arr.findIndex(function(y){ return y.pair === x.pair; }) === i; });   // un échange = une ligne
   const NW = a.nextWeek && st._week_ok !== a.nextWeek.from ? a.nextWeek : null;
+  const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
+  const coach = CV && CV.fresh && !CV.agree && !CV.applied && CV.n ? { n: CV.n, text: CV.text, first: CV.first ? { title: CV.first.title, date: CV.first.date, t: paLine(CV.first).t } : null } : null;
   const RC = st._hist_recal && !st._hist_recal.undone && st._hist_recal.n && prDays(st._hist_recal.date, a.opt.today) <= 7 ? st._hist_recal : null;
-  return { recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
+  return { coach: coach, coachOk: !!(CV && CV.fresh && CV.agree), recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
     green: a.greenLight ? a.greenLight.text : null, unseen: !!P.length && typeof prSig === 'function' && prSig(a.proposals) !== st._review_seen };
 }
 // carte « Ton plan » de l'accueil (#home-plan-card) : calcul gardé tant que les données ne changent pas
@@ -475,7 +477,7 @@ function planCardRender(){
   let N;
   try {
     const today = prTodayIso(), R = state._plan_reviews || [], last = R[R.length - 1] || {};
-    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', JSON.stringify(state._hist_recal || null), Object.keys(state).length].join('|');
+    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', JSON.stringify(state._hist_recal || null), (state._coach_review || {}).at || '', (state._coach_review || {}).applied ? 1 : 0, Object.keys(state).length].join('|');
     if(_hpCache && _hpCache.key === key && Date.now() - _hpCache.t < 300000) N = _hpCache.n;
     else { N = planNews(prAnalyze(), state); _hpCache = { key: key, t: Date.now(), n: N }; }
   } catch(e) { diagSilent(e, 'plan-adapt:planCardRender'); return hide(); }
@@ -485,7 +487,8 @@ function planCardRender(){
   const D = function(d){ return d ? prFmtDate(d, { weekday: 'short', day: 'numeric' }).replace('.', '') : ''; };
   const evo = typeof openPlanEvolution === 'function';
   const recal = N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '';
-  if(!N.n && !N.goal && !N.next){
+  const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">🤖</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
+  if(!N.n && !N.goal && !N.next && !N.coach){
     if(recal){ el.innerHTML = '<section class="hp">' + recal + '<button type="button" class="hp-h" style="margin-top:8px" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button></section>'; return; }
     el.innerHTML = '<button type="button" class="hp hp-ok" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button>';
     return;
@@ -493,8 +496,9 @@ function planCardRender(){
   const rows = N.lines.slice(0, 3).map(function(x){
     return '<button type="button" class="hp-r ' + x.dir + '" onclick="openPlanReview()"><i aria-hidden="true">' + PA_DIR[x.dir][0] + '</i><span class="hp-d">' + esc(D(x.date)) + '</span><span class="hp-x"><b>' + esc(x.title) + '</b><small>' + esc(x.t) + '</small></span></button>';
   });
+  if(coachRow) rows.unshift(coachRow);
   if(N.goal) rows.unshift('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">🎯</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
-  if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + ' · à valider</small></span></button>');
+  if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + (N.coachOk ? ' · relue par le Coach' : '') + ' · à valider</small></span></button>');
   const more = N.lines.length - 3;
   const C = N.counts, chips = ['up', 'down', 'move'].filter(function(k){ return C[k]; }).map(function(k){ return '<span class="hp-c ' + k + '">' + PA_DIR[k][0] + ' ' + C[k] + '</span>'; }).join('');
   el.innerHTML = '<section class="hp" aria-label="Ton plan">' + recal
@@ -515,7 +519,7 @@ function _hpCss(){
     + '.hp-new{font-style:normal;font-size:10.5px;font-weight:800;color:#fff;background:#1B4FD8;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:2px;}'
     + '.hp-go{font-size:22px;color:#94A3B8;}'
     + '.hp-cs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 2px;}.hp-c{font-size:12px;font-weight:800;border-radius:9px;padding:2px 8px;}.hp-cl{font-size:12px;color:#64748B;}'
-    + '.hp-c.up,.hp-r.up i{background:#ECFDF5;color:#047857;}.hp-c.down,.hp-r.down i{background:#FFFBEB;color:#B45309;}.hp-c.move,.hp-r.move i{background:#EEF3FC;color:#1B4FD8;}.hp-r.other i,.hp-r.goal i,.hp-r.next i{background:#F1F5F9;color:#334155;}'
+    + '.hp-c.up,.hp-r.up i{background:#ECFDF5;color:#047857;}.hp-c.down,.hp-r.down i{background:#FFFBEB;color:#B45309;}.hp-c.move,.hp-r.move i{background:#EEF3FC;color:#1B4FD8;}.hp-r.other i,.hp-r.goal i,.hp-r.next i,.hp-r.coach i{background:#F1F5F9;color:#334155;}'
     + '.hp-l{display:flex;flex-direction:column;gap:6px;margin-top:8px;}'
     + '.hp-r{display:flex;align-items:center;gap:9px;width:100%;background:#F5F8FD;border:0;border-radius:12px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer;min-width:0;}'
     + '.hp-r i{flex:0 0 26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:14px;}'

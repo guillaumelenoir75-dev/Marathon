@@ -238,6 +238,7 @@ function _prRender(){
     h += '<div class="pr-nw" id="pr-nw"><p class="pr-goal-h">📅 Ta semaine prochaine · ' + prFmtDate(NW.from) + ' – ' + prFmtDate(NW.to) + '</p>'
       + '<p class="pr-goal-s"><b>' + NW.km + ' km</b> · ' + NW.sessions.length + ' séance' + (NW.sessions.length > 1 ? 's' : '') + (nP ? ' · ' + nP + ' ajustement' + (nP > 1 ? 's' : '') : ' · rien à changer') + '</p>'
       + '<div class="pr-nw-l">' + NW.sessions.map(function(x){ return '<span' + (x.changed ? ' class="chg"' : '') + '>' + prEsc(prFmtDate(x.date, { weekday: 'short' })) + ' · ' + prEsc(x.title) + (x.km ? ' · ' + x.km + ' km' : '') + '</span>'; }).join('') + '</div>'
+      + (function(){ const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null; return CV && CV.fresh && CV.agree ? '<p class="pr-goal-s">✓ Relue par le Coach : d\'accord</p>' : ''; })()
       + '<button type="button" class="pr-btn pri" style="width:100%;margin-top:8px;" onclick="prValidateWeek()">✓ Valider la semaine</button></div>';
   }
 
@@ -292,15 +293,13 @@ function _prRender(){
   a.warnings.filter(function(x){ return !x.goal && x.level === 'warn'; }).forEach(function(x){ alerts.push(['⚠️', x.short || x.text, 'low']); });
   if(alerts.length) h += '<div class="pr-alerts">' + alerts.slice(0, 3).map(function(x){ return '<p class="' + x[2] + '"><i>' + x[0] + '</i><span>' + prEsc(x[1]) + '</span></p>'; }).join('') + '</div>';
 
-  // ── 4. Coach (admin) : avis replié + deux boutons côte à côte
+  // ── 4. Coach (admin) : il relit tout seul le week-end ; ici son avis s'il en a un, et la discussion
   if(R.coach) h += fold('coach', '🤖', 'Avis du Coach', 'lire', '<p class="pr-coach-t">' + prEsc(R.coach) + '</p>');
-  const lastC = state._coach_review, same = !R.coach && lastC && lastC.sig === prDataSig();
   if(admin){
-    h += '<div class="pr-actions">'
-      + (same ? '<button type="button" id="pr-coach-btn" class="pr-btn sec" onclick="askCoachPlanReview(true)">🤖 Relancer le Coach</button>'
-        : '<button type="button" id="pr-coach-btn" class="pr-btn pri" onclick="askCoachPlanReview()">🤖 ' + (R.coach ? 'Redemander' : 'Avis du Coach') + '</button>')
-      + (typeof openPlanChat === 'function' ? '<button type="button" class="pr-btn pr-chat-b" onclick="openPlanChat(_prReview && _prReview.items.length ? \'À propos des ajustements proposés par la mise à jour : \' : \'\')">💬 En parler</button>' : '') + '</div>';
-    if(same) h += '<p class="pr-mini">🤖 Relu ' + (lastC.date === a.opt.today ? 'aujourd\'hui' : 'le ' + prFmtDate(lastC.date, { day: 'numeric', month: 'short' })) + ' · rien de nouveau depuis</p>';
+    const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
+    if(typeof openPlanChat === 'function') h += '<button type="button" class="pr-btn pr-chat-b pr-chat-w" onclick="openPlanChat(_prReview && _prReview.items.length ? \'À propos des ajustements proposés par la mise à jour : \' : \'\')">💬 En parler au Coach</button>';
+    if(CV && CV.fresh) h += '<p class="pr-mini">🤖 Relu par le Coach ' + (CV.date === a.opt.today ? 'aujourd\'hui' : 'le ' + prFmtDate(CV.date, { day: 'numeric', month: 'short' })) + ' · ' + (CV.agree ? 'd\'accord avec ces ajustements' : CV.applied ? 'ses changements sont appliqués' : CV.n + ' changement' + (CV.n > 1 ? 's' : '') + ' à lui, marqués « Coach »') + '</p>';
+    else h += '<p class="pr-mini">🤖 Le Coach relit ton plan tout seul le week-end</p>';
   }
 
   // ── 5. Détails, repliés
