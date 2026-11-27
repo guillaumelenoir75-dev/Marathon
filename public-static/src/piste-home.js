@@ -174,6 +174,8 @@ function _phInit(el){
   const sec = function(id, title){ const d = document.createElement('div'); d.className = 'ph-sec'; d.id = id; d.innerHTML = '<h2>' + title + '</h2><span id="' + id + '-n"></span>'; return d; };
   if(day && day.parentNode) day.parentNode.insertBefore(sec('ph-sec-day', 'Aujourd\'hui'), day);
   if(form && form.parentNode) form.parentNode.insertBefore(sec('ph-sec-form', 'Forme du jour'), form);
+  const pc = document.getElementById('home-plan-card');
+  if(pc && pc.parentNode){ const sp = sec('ph-sec-plan', 'Ton plan'); sp.style.display = pc.style.display === 'none' ? 'none' : ''; pc.parentNode.insertBefore(sp, pc); }
   const sh = document.getElementById('home-sess-head');
   if(sh && sh.parentNode){ const wb = document.createElement('div'); wb.id = 'ph-weekbar'; wb.className = 'ph-weekbar'; sh.parentNode.insertBefore(wb, sh.nextSibling); }
   // sous les séances : renfo, régularité, partage en lignes simples (le renfo et la série s'ouvrent au toucher)

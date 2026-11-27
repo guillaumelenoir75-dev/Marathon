@@ -835,6 +835,30 @@ test('bilan de la prépa terminée et recette appliquée à la mise à jour du p
   await ctx.close();
 });
 
+test('accueil : carte « Ton plan » avec les propositions en clair, ouvre MAJ le plan ; aussi en Piste de nuit', async () => {
+  let o = await open('2026-10-29T09:00:00+01:00', savedDb), page = o.page;
+  await page.evaluate(() => showScreen('home'));
+  await page.waitForSelector('#home-plan-card .hp', { timeout: 8000 });
+  const t = await page.evaluate(() => document.getElementById('home-plan-card').textContent);
+  assert.match(t, /Ton plan s'adapte/); assert.match(t, /Nouveau/); assert.match(t, /Voir et valider/);
+  assert.ok(await page.locator('#home-plan-card .hp-r').count() >= 1, 'les changements en une ligne');
+  if (process.env.SHOTS) { await page.locator('#home-plan-card').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.locator('#home-plan-card').screenshot({ path: process.env.SHOTS + '/home-plan.png' }); }
+  await page.click('#home-plan-card .hp-b.pri');
+  await page.waitForFunction(() => typeof _prReview !== 'undefined' && _prReview && document.querySelector('#pr-content .pr-lead'), null, { timeout: 15000 });
+  if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/maj-groupes.png' }); }
+  await page.evaluate(() => closePlanReview()); await page.waitForTimeout(300);
+  assert.doesNotMatch(await page.evaluate(() => document.getElementById('home-plan-card').textContent), /Nouveau/, 'vu une fois ouvert');
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
+  o = await open('2026-10-29T09:00:00+01:00', savedDb, { init: () => { localStorage.setItem('pm_theme', 'piste'); } }); page = o.page;
+  await page.evaluate(() => showScreen('home'));
+  await page.waitForSelector('#home-plan-card .hp', { timeout: 8000 });
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('ph-sec-plan')).display !== 'none'), true, 'titre « Ton plan » en piste');
+  if (process.env.SHOTS) { await page.locator('#home-plan-card').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.locator('#home-plan-card').screenshot({ path: process.env.SHOTS + '/home-plan-piste.png' }); }
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
+});
+
 test('mise à jour du plan : analyse, application, historique, annulation', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await openReview(page);
@@ -842,10 +866,14 @@ test('mise à jour du plan : analyse, application, historique, annulation', asyn
   assert.ok(n > 0, 'des propositions');
   // écran clair : les changements d'abord, points clés courts, détails repliés
   const order = await page.evaluate(() => [...document.querySelectorAll('#pr-content > *')].filter((e) => e.offsetParent).map((e) => e.className.split(' ')[0]));
-  assert.equal(order[0], 'pr-top', 'les changements en premier : ' + order.join(','));
-  assert.equal(order[1], 'pr-chg');
+  assert.equal(order[0], 'pr-lead', 'la raison en une phrase d\'abord : ' + order.join(','));
+  assert.equal(order[1], 'pr-top', 'puis les changements : ' + order.join(','));
+  assert.equal(order[2], 'pr-grp', 'rangés par sens');
+  assert.equal(order[3], 'pr-chg');
   assert.ok(await page.locator('#pr-content .pr-key').count() <= 4, '4 points clés au plus');
-  assert.ok(await page.locator('#pr-content > .pr-chg').count() <= 4, '4 changements visibles, les autres repliés');
+  const nG = await page.locator('#pr-content > .pr-grp').count();
+  assert.ok(await page.locator('#pr-content > .pr-chg').count() <= 3 * nG, '3 changements visibles par groupe, les autres repliés');
+  assert.equal(await page.locator('#pr-content .pr-hl').count(), n, 'chaque changement dit en une phrase');
   assert.equal(await page.locator('#pr-content .pr-chg').count(), n);
   assert.equal(await page.locator('#pr-content details.pr-more[open]').count(), 0, 'détails repliés');
   assert.ok(await page.evaluate(() => [...document.querySelectorAll('#pr-content .pr-why-t')].every((e) => e.textContent.length <= 72)), 'raisons courtes');
@@ -1776,7 +1804,7 @@ test('thème « Piste de nuit » : accueil apaisé — Ta course, Outils replié
     extra: getComputedStyle(document.getElementById('home-form-extra')).display, renfo: getComputedStyle(document.getElementById('home-renfo-section')).display,
     wl: document.getElementById('home-week-label').textContent,
     head: getComputedStyle(document.getElementById('home-sess-head')).display }));
-  assert.deepEqual(R.secs, ['Aujourd\'hui']);
+  assert.deepEqual(R.secs.filter((x) => x !== 'Ton plan'), ['Aujourd\'hui'], 'Forme du jour dans Aujourd\'hui ; « Ton plan » selon les propositions');
   assert.match(R.wb, /^\d/); assert.match(R.wst, /séances? faites? sur \d/); assert.equal(R.segs, R.cards, 'une barre par séance');
   assert.equal(R.head, 'none'); assert.ok(R.next <= 1); assert.equal(R.wl, 'Cette semaine');
   if (R.rows) { assert.ok(R.fold, 'ligne « séances faites »'); assert.equal(R.rowsShown, 0, 'séances faites repliées');

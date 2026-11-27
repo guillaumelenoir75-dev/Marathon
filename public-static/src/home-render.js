@@ -513,6 +513,7 @@ function renderHome(){
   }
   if(!isPlaisir) homeGoalLine(ob, userCourse);
   homeNextCard();
+  if (typeof planCardRender === 'function') setTimeout(planCardRender, 0);   // « Ton plan » : propositions d'ajustement (plan-adapt.js)
   const amRefEl=document.getElementById('kpi-am-ref');
   if(amRefEl) amRefEl.textContent=am;
   const vo2El = document.getElementById('kpi-vo2max');

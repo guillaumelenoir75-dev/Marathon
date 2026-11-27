@@ -272,3 +272,32 @@ test('semaine prochaine : prête le week-end, avec ses ajustements', () => {
   assert.equal(N.sessions.length, 3); assert.ok(N.sessions[0].changed);
   assert.equal(app.paNextWeek({ opt: { today: '2026-11-12' }, proposals: [] }, '2026-11-12'), null, 'pas en semaine');
 });
+
+test('propositions dites simplement : sens, phrase, raison principale, résumé de l\'accueil', () => {
+  const app = loadApp({ now: '2026-11-10T09:00:00+01:00' });
+  const L = (p) => { const r = app.paLine(p); return r.dir + ' | ' + r.t; };
+  assert.equal(L({ field: 'km', before: 10, after: 12 }), 'up | +2 km · 12 km au total');
+  assert.equal(L({ field: 'km', before: 12, after: 9.5 }), 'down | −2,5 km · 9,5 km au total');
+  assert.equal(L({ field: 'session', kind: 'ladder', delta: 1, before: { t: '3 × 8 min tempo', km: 10 }, after: { t: '4 × 8 min tempo', km: 11 } }), 'up | Un cran plus dur : 4 × 8 min tempo · 11 km');
+  assert.equal(L({ field: 'session', kind: 'whoop', before: { t: 'Tempo', km: 10 }, after: { t: 'Footing EF', km: 8 } }), 'down | Remplacée par Footing EF · 8 km');
+  assert.match(L({ field: 'date', before: '2026-11-11', after: '2026-11-13' }), /^move \| Déplacée au vendredi$/);
+  assert.equal(L({ field: 'detail', pb: "4'40", pa: "4'30", delta: -10 }), "up | Plus rapide de 10 s/km · 4'30/km");
+  assert.equal(L({ field: 'detail', before: "3 km EF · 3 × 8 min à 4'35 — 4'45 /km", after: "3 km EF · 3 × 8 min à 4'45 — 4'55 /km" }), "down | Plus lente de 10 s/km · 4'45 — 4'55/km");
+  assert.equal(L({ field: 'detail', fam: 'long', kind: 'ladder', delta: 1, short: 'Sortie longue + 2 km à AS21, car ta dernière…' }), 'up | Sortie longue + 2 km à AS21');
+  assert.equal(L({ field: 'session', kind: 'test', before: { t: 'Tempo', km: 10 }, after: { t: 'Test 5 km', km: 9 } }), 'other | Test 5 km pour mesurer ton niveau');
+  // raison principale : douleur > WHOOP > récup > progression > ressenti
+  assert.match(app.paLead({ internal: { pains: [{ level: 2 }] }, whoop: { tired: true } }).t, /Douleur/);
+  assert.match(app.paLead({ whoop: { tired: true } }).t, /Récup basse/);
+  assert.equal(app.paLead({ fit: { vdot: 51.2 }, planVdotNow: 46, opt: {} }).t, 'Tu as progressé : niveau 51,2, ton plan est à 46.');
+  assert.match(app.paLead({ fit: {}, opt: {}, absorb: { verdict: 'easy' } }).t, /passent bien/);
+  assert.equal(app.paLead({ fit: {}, opt: {}, proposals: [] }).t, 'Ton plan est à ton niveau.');
+  // résumé : un échange de jours = une seule ligne, comptes par sens, semaine prochaine pas encore validée
+  const N = app.planNews({ fit: {}, opt: {}, proposals: [
+    { key: 'a', date: '2026-11-11', field: 'date', before: '2026-11-11', after: '2026-11-13', pair: 'x', title: 'Tempo' },
+    { key: 'b', date: '2026-11-13', field: 'date', before: '2026-11-13', after: '2026-11-11', pair: 'x', title: 'Footing' },
+    { key: 'c', date: '2026-11-12', field: 'km', before: 8, after: 9, title: 'Footing EF' }],
+    nextWeek: { from: '2026-11-16', km: 40, props: [1] } }, { _week_ok: null });
+  assert.equal(N.n, 3); assert.equal(N.lines.length, 2); assert.equal(N.counts.move, 2); assert.equal(N.counts.up, 1);
+  assert.equal(N.lines[0].t, 'Déplacée au vendredi'); assert.equal(N.next.km, 40); assert.equal(N.unseen, true);
+  assert.equal(app.planNews({ fit: {}, opt: {}, proposals: [], nextWeek: { from: '2026-11-16', km: 40, props: [] } }, { _week_ok: '2026-11-16' }).next, null, 'semaine déjà validée');
+});

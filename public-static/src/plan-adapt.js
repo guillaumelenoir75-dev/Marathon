@@ -387,3 +387,131 @@ function paNextWeek(a, today){
   props.forEach(function(p){ if(p.field === 'km') km += p.after - p.before; else if(p.field === 'session' && p.after) km += (+p.after.km || 0) - (+p.before.km || 0); });
   return { from: from, to: to, km: Math.round(km), props: props, sessions: sess.map(function(s){ const p = props.filter(function(x){ return x.key === s.key; })[0]; return { key: s.key, date: s.date, title: p && p.field === 'session' && p.after ? p.after.t : s.title, km: s.kmPlan, changed: !!p }; }) };
 }
+
+// ─── M. Les propositions dites simplement (accueil « Ton plan », MAJ le plan) ──────────────────────────
+// sens d'un changement : monte / s'allège / bouge / autre ; phrase courte de ce qui change
+function paPaceDelta(p){
+  if(p.pb && p.pa && p.delta) return p.delta;
+  if(p.field !== 'detail' || typeof PR_PACE_RE === 'undefined') return 0;
+  const m1 = String(p.before || '').match(PR_PACE_RE), m2 = String(p.after || '').match(PR_PACE_RE);
+  if(!m1 || !m2 || m1[0] === m2[0]) return 0;
+  const mid = function(m){ const x = +m[1] * 60 + +m[2], y = m[3] ? +m[3] * 60 + +m[4] : x; return (x + y) / 2; };
+  return Math.round(mid(m2) - mid(m1));
+}
+function paDir(p){
+  if(p.kind === 'test') return 'other';
+  if(p.field === 'date') return 'move';
+  if(p.field === 'skip') return 'down';
+  if(p.field === 'add') return 'up';
+  if(p.field === 'km') return +p.after > +p.before ? 'up' : +p.after < +p.before ? 'down' : 'other';
+  if(p.kind === 'ladder') return p.delta > 0 ? 'up' : 'down';
+  if(p.field === 'session'){
+    if(p.kind === 'whoop' || p.kind === 'pain') return 'down';
+    const a = +((p.after || {}).km) || 0, b = +((p.before || {}).km) || 0; return a > b ? 'up' : a < b ? 'down' : 'other';
+  }
+  const d = paPaceDelta(p); return d < 0 ? 'up' : d > 0 ? 'down' : 'other';
+}
+const PA_DIR = { up: ['↑', 'Ça monte'], down: ['↓', 'On allège'], move: ['⇄', 'Ça bouge'], other: ['•', 'Autres ajustements'] };
+function paLine(p){
+  const f = p.field, A = p.after || {}, dir = paDir(p);
+  const day = function(d){ return typeof prFmtDate === 'function' ? prFmtDate(d, { weekday: 'long' }) : d; };
+  let t;
+  if(p.kind === 'test') t = 'Test 5 km pour mesurer ton niveau';
+  else if(f === 'date') t = 'Déplacée au ' + day(p.after);
+  else if(f === 'km'){ const d = Math.round((+p.after - +p.before) * 10) / 10; t = (d > 0 ? '+' : '−') + String(Math.abs(d)).replace('.', ',') + ' km · ' + String(p.after).replace('.', ',') + ' km au total'; }
+  else if(f === 'session') t = (p.kind === 'ladder' ? (p.delta > 0 ? 'Un cran plus dur : ' : 'Un cran plus facile : ') : p.kind === 'whoop' || p.kind === 'pain' ? 'Remplacée par ' : 'Devient ') + (A.t || 'séance') + (A.km ? ' · ' + A.km + ' km' : '');
+  else if(f === 'detail' && p.fam === 'long') t = String(p.short || '').split(', car')[0];
+  else if(f === 'skip') t = 'Retirée du plan';
+  else if(f === 'add') t = 'Ajoutée : ' + (A.t || 'séance');
+  else if(f === 'type') t = 'Devient ' + ((typeof typeLabel !== 'undefined' && typeLabel[p.after]) || p.after);
+  else if(f === 'title') t = 'Nouveau nom : ' + p.after;
+  else {
+    const d = paPaceDelta(p), pa = p.pa || ((String(p.after || '').match(PR_PACE_RE) || [''])[0]).replace(/\s*\/\s*km$/, '');
+    t = d ? (d < 0 ? 'Plus rapide de ' : 'Plus lente de ') + Math.abs(d) + ' s/km · ' + pa + '/km' : 'Consigne revue';
+  }
+  return { dir: dir, t: t };
+}
+// la raison principale en une phrase (tête de la carte de l'accueil et de MAJ le plan)
+function paLead(a){
+  const pn = a.internal && a.internal.pains && a.internal.pains[0], f = a.fit || {}, pv = a.planVdotNow || a.planVdot;
+  const V = function(x){ return String(Math.round(x * 10) / 10).replace('.', ','); };
+  if(pn && pn.level >= 2) return { ic: '🩹', t: 'Douleur signalée : le plan s\'allège quelques jours.' };
+  if(a.whoop && a.whoop.tired) return { ic: '😮‍💨', t: 'Récup basse ces nuits : on lève le pied.' };
+  if(a.opt && a.opt.postRace) return { ic: '🛌', t: 'Récup après ta course : on reprend doucement.' };
+  if(f.vdot && pv && f.vdot - pv >= 1) return { ic: '📈', t: 'Tu as progressé : niveau ' + V(f.vdot) + ', ton plan est à ' + V(pv) + '.' };
+  if(a.absorb && a.absorb.verdict === 'easy') return { ic: '💪', t: 'Tes séances passent bien : le plan monte d\'un cran.' };
+  if(a.absorb && a.absorb.verdict === 'hard') return { ic: '🧘', t: 'Séances récentes dures : le plan ne monte pas.' };
+  if(f.vdot && pv && pv - f.vdot >= 1) return { ic: '🧭', t: 'Ton plan est au-dessus de ton niveau : on le recale.' };
+  return (a.proposals || []).length ? { ic: '🔧', t: 'Petits ajustements pour coller à ton niveau.' } : { ic: '✓', t: 'Ton plan est à ton niveau.' };
+}
+// résumé pour la carte de l'accueil
+function planNews(a, st){
+  st = st || state;
+  const P = (a.proposals || []).slice().sort(function(x, y){ return (x.date || '').localeCompare(y.date || ''); });
+  const counts = { up: 0, down: 0, move: 0, other: 0 };
+  const lines = P.map(function(p){ const L = paLine(p); counts[L.dir]++; return { key: p.key, date: p.date, title: p.title, dir: L.dir, t: L.t, pair: p.pair || null }; })
+    .filter(function(x, i, arr){ return !x.pair || arr.findIndex(function(y){ return y.pair === x.pair; }) === i; });   // un échange = une ligne
+  const NW = a.nextWeek && st._week_ok !== a.nextWeek.from ? a.nextWeek : null;
+  return { n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
+    green: a.greenLight ? a.greenLight.text : null, unseen: !!P.length && typeof prSig === 'function' && prSig(a.proposals) !== st._review_seen };
+}
+// carte « Ton plan » de l'accueil (#home-plan-card) : calcul gardé tant que les données ne changent pas
+let _hpCache = null;
+function planCardRender(){
+  if(typeof document === 'undefined') return;
+  const el = document.getElementById('home-plan-card'); if(!el) return;
+  const sec = document.getElementById('ph-sec-plan');
+  const hide = function(){ el.innerHTML = ''; el.style.display = 'none'; if(sec) sec.style.display = 'none'; };
+  if(!state || !state._plan_engine || (typeof _prepView !== 'undefined' && _prepView) || (typeof _adminPreviewUid !== 'undefined' && _adminPreviewUid) || !window._prPrefetchDone || typeof prAnalyze !== 'function') return hide();
+  let N;
+  try {
+    const today = prTodayIso(), R = state._plan_reviews || [], last = R[R.length - 1] || {};
+    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', Object.keys(state).length].join('|');
+    if(_hpCache && _hpCache.key === key && Date.now() - _hpCache.t < 300000) N = _hpCache.n;
+    else { N = planNews(prAnalyze(), state); _hpCache = { key: key, t: Date.now(), n: N }; }
+  } catch(e) { diagSilent(e, 'plan-adapt:planCardRender'); return hide(); }
+  _hpCss();
+  el.style.display = ''; if(sec) sec.style.display = '';
+  const esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  const D = function(d){ return d ? prFmtDate(d, { weekday: 'short', day: 'numeric' }).replace('.', '') : ''; };
+  const evo = typeof openPlanEvolution === 'function';
+  if(!N.n && !N.goal && !N.next){
+    el.innerHTML = '<button type="button" class="hp hp-ok" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button>';
+    return;
+  }
+  const rows = N.lines.slice(0, 3).map(function(x){
+    return '<button type="button" class="hp-r ' + x.dir + '" onclick="openPlanReview()"><i aria-hidden="true">' + PA_DIR[x.dir][0] + '</i><span class="hp-d">' + esc(D(x.date)) + '</span><span class="hp-x"><b>' + esc(x.title) + '</b><small>' + esc(x.t) + '</small></span></button>';
+  });
+  if(N.goal) rows.unshift('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">🎯</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
+  if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + ' · à valider</small></span></button>');
+  const more = N.lines.length - 3;
+  const C = N.counts, chips = ['up', 'down', 'move'].filter(function(k){ return C[k]; }).map(function(k){ return '<span class="hp-c ' + k + '">' + PA_DIR[k][0] + ' ' + C[k] + '</span>'; }).join('');
+  el.innerHTML = '<section class="hp" aria-label="Ton plan">'
+    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>Ton plan s\'adapte' + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
+    + (chips ? '<div class="hp-cs">' + chips + '<span class="hp-cl">' + N.n + ' changement' + (N.n > 1 ? 's' : '') + ' proposé' + (N.n > 1 ? 's' : '') + '</span></div>' : '')
+    + '<div class="hp-l">' + rows.join('') + (more > 0 ? '<button type="button" class="hp-more" onclick="openPlanReview()">+ ' + more + ' autre' + (more > 1 ? 's' : '') + '</button>' : '') + '</div>'
+    + (N.green ? '<p class="hp-g">🟢 ' + esc(N.green) + '</p>' : '')
+    + '<div class="hp-a"><button type="button" class="hp-b pri" onclick="openPlanReview()">Voir et valider</button>' + (evo ? '<button type="button" class="hp-b" onclick="openPlanEvolution()">Comment il évolue</button>' : '') + '</div></section>';
+}
+function _hpCss(){
+  if(document.getElementById('hp-css')) return;
+  const s = document.createElement('style'); s.id = 'hp-css';
+  s.textContent = '.hp{display:block;width:100%;box-sizing:border-box;background:#fff;border:1px solid #DCE5F3;border-radius:18px;padding:12px;margin:0 0 4px;font-family:inherit;color:#0F172A;text-align:left;}'
+    + 'button.hp{cursor:pointer;display:flex;align-items:center;gap:10px;}'
+    + '.hp-h{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;}'
+    + '.hp-ic{flex:0 0 36px;height:36px;border-radius:12px;background:#EEF3FC;display:flex;align-items:center;justify-content:center;font-size:18px;}.hp-ic.ok{background:#ECFDF5;color:#047857;font-weight:900;}'
+    + '.hp-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}.hp-t b{font-size:15px;font-weight:800;}.hp-t small{font-size:12.5px;color:#475569;line-height:1.35;}'
+    + '.hp-new{font-style:normal;font-size:10.5px;font-weight:800;color:#fff;background:#1B4FD8;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:2px;}'
+    + '.hp-go{font-size:22px;color:#94A3B8;}'
+    + '.hp-cs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 2px;}.hp-c{font-size:12px;font-weight:800;border-radius:9px;padding:2px 8px;}.hp-cl{font-size:12px;color:#64748B;}'
+    + '.hp-c.up,.hp-r.up i{background:#ECFDF5;color:#047857;}.hp-c.down,.hp-r.down i{background:#FFFBEB;color:#B45309;}.hp-c.move,.hp-r.move i{background:#EEF3FC;color:#1B4FD8;}.hp-r.other i,.hp-r.goal i,.hp-r.next i{background:#F1F5F9;color:#334155;}'
+    + '.hp-l{display:flex;flex-direction:column;gap:6px;margin-top:8px;}'
+    + '.hp-r{display:flex;align-items:center;gap:9px;width:100%;background:#F5F8FD;border:0;border-radius:12px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer;min-width:0;}'
+    + '.hp-r i{flex:0 0 26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:14px;}'
+    + '.hp-d{flex:0 0 auto;font-size:12px;font-weight:800;color:#475569;text-transform:capitalize;min-width:44px;}'
+    + '.hp-x{flex:1;min-width:0;display:flex;flex-direction:column;}.hp-x b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hp-x small{font-size:12px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '.hp-more{background:none;border:0;color:#1B4FD8;font:inherit;font-size:12.5px;font-weight:800;padding:2px 0;text-align:left;cursor:pointer;}'
+    + '.hp-g{margin:8px 0 0;font-size:12.5px;color:#065F46;background:#ECFDF5;border-radius:10px;padding:7px 10px;}'
+    + '.hp-a{display:flex;gap:8px;margin-top:10px;}.hp-b{flex:1;border:1px solid #DCE5F3;background:#F5F8FD;color:#1B4FD8;border-radius:12px;padding:10px 6px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;}.hp-b.pri{background:#1B4FD8;border-color:#1B4FD8;color:#fff;}';
+  document.head.appendChild(s);
+}

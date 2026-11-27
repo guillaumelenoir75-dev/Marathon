@@ -75,7 +75,7 @@ function openPlanReview(opts){
   })();
   try { if(typeof renderPlan === 'function'){ rendered.plan = false; } } catch(e) { diagSilent(e, 'plan-review:openPlanReview'); }
 }
-function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); if(_prReview && _prReview.clTimer) clearInterval(_prReview.clTimer); _prReview = null; try { renderPlan(); } catch(e) { diagSilent(e, 'plan-review:closePlanReview'); } }
+function closePlanReview(){ const ov = document.getElementById('plan-review'); if(ov) ov.remove(); if(_prReview && _prReview.clTimer) clearInterval(_prReview.clTimer); _prReview = null; try { renderPlan(); if(typeof planCardRender === 'function') planCardRender(); } catch(e) { diagSilent(e, 'plan-review:closePlanReview'); } }
 // Analyse affichée étape par étape, avec les chiffres réellement calculés (records, séances, base, plan), puis le résultat
 function _prLoading(a){
   const box = document.getElementById('pr-content'); if(!box) return;
@@ -169,13 +169,14 @@ function _prItem(p, i, wo){
     swap = '<div class="pr-txt"><p class="pr-old">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.before) + '</p><p class="pr-new">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.after) + '</p></div>';
   }
   const kindTag = p.kind === 'pain' ? ' · <span class="pr-tag rev">🩹 Douleur</span>' : p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : p.kind === 'ladder' ? ' · <span class="pr-tag vo">' + (p.delta > 0 ? '↑ Palier' : '↓ Palier') + '</span>' : p.kind === 'habit' ? ' · <span class="pr-tag ts">📅 Ta semaine</span>' : '';
-  const why = _prShortWhy(p.short || p.reason || '');
+  const why = _prShortWhy(p.short || p.reason || ''), LN = paLine(p);
+  if(p.field === 'km') LN.t = LN.t.split(' · ')[0];                       // le total est déjà dans « avant → après »
   const K = wo && PR_KIND[wo.kind], wk = 'S' + p.w + (K && wo.kind !== 'load' ? ' · ' + K[1] + ' ' + K[0] : '');
   return '<div class="pr-chg' + (p.on ? '' : ' off') + '" id="pr-it-' + i + '">'
     + '<div class="pr-chg-h"><span class="pr-dot" style="background:' + bg + ';color:' + col + ';">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[ty]) || '•') + '</span>'
     + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'short' }) : '') + ' · ' + wk + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + kindTag + (p.revert ? ' · <span class="pr-tag rev">↩ annule ' + prFmtDate(p.revert) + '</span>' : '') + '</small></div>'
     + '<button type="button" class="pr-tick" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="Retenir ce changement" onclick="_prToggle(' + i + ')"></button></div>'
-    + swap + '<p class="pr-why">' + delta + (why ? '<span class="pr-why-t">' + prEsc(why) + '</span>' : '') + '</p>' + full + '</div>';
+    + '<p class="pr-hl ' + LN.dir + '">' + prEsc(LN.t) + '</p>' + swap + '<p class="pr-why">' + delta + (why ? '<span class="pr-why-t">' + prEsc(why) + '</span>' : '') + '</p>' + full + '</div>';
 }
 // raison d'une proposition en quelques mots : 1re phrase, sans la partie « type : » redondante, 70 caractères au plus
 function _prShortWhy(t){
@@ -222,8 +223,9 @@ function _prRender(){
   const admin = typeof isAdmin === 'function' && isAdmin();
   const fold = function(id, ico, title, sub, body, open){ return '<details class="pr-more" id="pr-more-' + id + '"' + (open ? ' open' : '') + '><summary><span class="pr-more-i">' + ico + '</span><span class="pr-more-t"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="pr-more-c" aria-hidden="true">›</span></summary><div class="pr-more-b">' + body + '</div></details>'; };
 
-  // ── 0. Objectif à revoir (toutes les 4 semaines au plus) et semaine prochaine (week-end)
+  // ── 0. La raison en une phrase, objectif à revoir (toutes les 4 semaines au plus) et semaine prochaine (week-end)
   const GC = a.goalCheck;
+  if(nI || (R.held || []).length || GC || a.nextWeek){ const LD = paLead(a); h += '<div class="pr-lead"><span>' + LD.ic + '</span><p>' + prEsc(LD.t) + '</p></div>'; }
   if(GC){
     h += '<div class="pr-goal ' + GC.dir + '" id="pr-goal"><p class="pr-goal-h">🎯 ' + (GC.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif est loin') + '</p>'
       + '<div class="pr-swap"><span class="pr-p old">' + prTime(GC.from) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prTime(GC.to) + '</span></div>'
@@ -239,16 +241,24 @@ function _prRender(){
       + '<button type="button" class="pr-btn pri" style="width:100%;margin-top:8px;" onclick="prValidateWeek()">✓ Valider la semaine</button></div>';
   }
 
-  // ── 1. Les changements proposés, tout en haut (ou « plan à jour »)
+  // ── 1. Les changements proposés, tout en haut (ou « plan à jour »), après la raison en une phrase
   const nH = (R.held || []).length;
   if(nI || nH){
     h += '<div class="pr-top"><span class="pr-top-n">' + (nI || '⏳') + '</span><b>' + (nI ? 'séance' + (nI > 1 ? 's' : '') + ' à ajuster' : 'en attente') + '</b>'
       + (nI > 1 ? '<button class="pr-link" onclick="const on=_prReview.items.some(function(x){return !x.on;});_prReview.items.forEach(function(x){x.on=on;});_prRender()">' + (R.items.every(function(x){ return x.on; }) ? 'Tout décocher' : 'Tout cocher') + '</button>' : '') + '</div>';
+    // rangés par sens : ce qui monte, ce qui s'allège, ce qui bouge (3 visibles par groupe, le reste replié)
     const ord = R.items.map(function(p, i){ return [p, i]; }).sort(function(x, y){ return (x[0].date || '').localeCompare(y[0].date || '') || x[0].w - y[0].w; });
-    ord.slice(0, 4).forEach(function(x){ h += _prItem(x[0], x[1], W[x[0].w]); });
-    if(ord.length > 4){ const rest = ord.slice(4), ws = rest.map(function(x){ return x[0].w; });
-      h += '<details class="pr-rest"' + (R.restOpen ? ' open' : '') + ' ontoggle="if(_prReview)_prReview.restOpen=this.open"><summary>+ ' + rest.length + ' autre' + (rest.length > 1 ? 's' : '') + ' · S' + Math.min.apply(null, ws) + (Math.max.apply(null, ws) !== Math.min.apply(null, ws) ? '–S' + Math.max.apply(null, ws) : '') + '</summary><div class="pr-rest-b">'
-        + rest.map(function(x){ return _prItem(x[0], x[1], W[x[0].w]); }).join('') + '</div></details>'; }
+    const G = { up: [], down: [], move: [], other: [] }; ord.forEach(function(x){ G[paDir(x[0])].push(x); });
+    const GW = { up: 'tu encaisses, le plan monte', down: 'pour récupérer ou te protéger', move: 'même séance, autre jour', other: '' };
+    R.open = R.open || {};
+    ['up', 'down', 'move', 'other'].forEach(function(g){
+      const L = G[g]; if(!L.length) return;
+      h += '<p class="pr-grp ' + g + '"><i>' + PA_DIR[g][0] + '</i><b>' + PA_DIR[g][1] + '</b><span>' + L.length + (GW[g] ? ' · ' + GW[g] : '') + '</span></p>';
+      L.slice(0, 3).forEach(function(x){ h += _prItem(x[0], x[1], W[x[0].w]); });
+      if(L.length > 3){ const rest = L.slice(3);
+        h += '<details class="pr-rest"' + (R.open[g] ? ' open' : '') + ' ontoggle="if(_prReview)_prReview.open.' + g + '=this.open"><summary>+ ' + rest.length + ' autre' + (rest.length > 1 ? 's' : '') + '</summary><div class="pr-rest-b">'
+          + rest.map(function(x){ return _prItem(x[0], x[1], W[x[0].w]); }).join('') + '</div></details>'; }
+    });
     (R.held || []).forEach(function(p, i){
       const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, p.before) || p.title : p.title;
       h += '<div class="pr-held"><div class="pr-held-t"><b>⏳ ' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' : '') + 'en attente (récup)</small></div>'
