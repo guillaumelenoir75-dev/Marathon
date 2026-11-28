@@ -19,7 +19,8 @@ function apSelect(a, today){
     if(p.kind === 'test' || p.field === 'skip') return false;
     if(p.field === 'date' && !(p.kind === 'whoop' && p.pair)) return false;          // seul déplacement de nuit : l'échange après une mauvaise nuit
     // séance remplacée : fatigue WHOOP, douleur, ou un palier de plus / de moins (plan-adapt.js, un seul cran la nuit)
-    if(p.field === 'session' && p.kind !== 'whoop' && p.kind !== 'pain' && !(p.kind === 'ladder' && Math.abs(p.delta || 0) <= 1)) return false;
+    if(p.field === 'session' && p.kind !== 'whoop' && p.kind !== 'pain' && !(p.kind === 'ladder' && Math.abs(p.delta || 0) <= 1)
+      && !(p.kind === 'lib' && (p.sub === 'refresh' || (p.sub === 'step' && Math.abs(p.delta || 0) <= 1)))) return false;   // bibliothèque : allures recalées ou un palier, la nuit
     return !undone[p.key + '|' + p.field];
   });
   const n = {}; sel.forEach(function(p){ if(p.pair) n[p.pair] = (n[p.pair] || 0) + 1; });

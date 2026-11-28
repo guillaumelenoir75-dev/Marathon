@@ -62,7 +62,7 @@ function mjSteps(st, today, nowMin){
       let shoe = null; try { shoe = typeof shoeDayAdvice === 'function' ? shoeDayAdvice(s.x, today) : null; } catch(e) { diagSilent(e, 'my-day:mjSteps'); }
       out.push({ id: 'sess-' + s.key, kind: 'sess', ic: ic, t: title, s: [s.kmPlan ? s.kmPlan + ' km' : '', pace || (dur ? '~' + dur : '')].filter(Boolean).join(' · '),
         tm: tm, at: at, done: false, key: s.key, w: s.w, ei: s.ei, x: s.x, shoe: shoe && shoe.name ? shoe.name : null,
-        act: 'homeNextGo(' + s.w + ',' + s.ei + ')', btn: fin ? '🏁 J\'ai fini' : '✓ Valider', btnAct: fin ? 'avFinish()' : 'toggleDoneExtra(' + s.w + ',' + s.ei + ')' });
+        act: 'openSessionDetail(\'' + s.key + '\')', btn: fin ? '🏁 J\'ai fini' : '✓ Valider', btnAct: fin ? 'avFinish()' : 'toggleDoneExtra(' + s.w + ',' + s.ei + ')' });
     }
   });
   // ── renfo du jour ──
@@ -110,7 +110,7 @@ function mjSteps(st, today, nowMin){
     const day = d === 1 ? 'Demain' : (MJ_DAYS[new Date(next.x.sched_date + 'T12:00:00').getDay() || 7] + ' ' + new Date(next.x.sched_date + 'T12:00:00').getDate());
     const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(next.title, next.type, next.detail) : next.title;
     out.push({ id: 'next', ic: '📅', t: day + (tm ? ' ' + tm.replace(/^0(\d)/, '$1').replace(':', 'h') : '') + ' · ' + title, s: next.kmPlan ? next.kmPlan + ' km' : '',
-      at: 23 * 60 + 50, done: false, soft: true, info: true, act: 'homeNextGo(' + next.w + ',' + next.ei + ')', date: next.x.sched_date, type: next.type, day: day, title: title, tm: tm });
+      at: 23 * 60 + 50, done: false, soft: true, info: true, act: 'openSessionDetail(\'' + next.key + '\')', date: next.x.sched_date, type: next.type, day: day, title: title, tm: tm });
   }
   out.sort(function(a, b){ return a.at - b.at; });
   // étape « maintenant » : la première non faite, hors repères (coucher / demain seulement le soir ou quand tout est fait)

@@ -78,12 +78,16 @@ function generatedEvents(state, today) {
     const same = [s.date, s.title, s.kmPlan, s.type, s.done ? 1 : 0].join('|');
     if (!s.done && seen[same]) { dups.push({ key: s.key, same: seen[same], date: s.date, title: s.title }); return; }
     seen[same] = s.key;
-    let min = null;
+    let min = null, lib = null;
+    // séance de la bibliothèque : étapes détaillées (allures, FC) dans l'agenda, durée calculée
+    if (!s.done && s.x && s.x.lib && typeof E.slOfSession === 'function') { try { lib = E.slOfSession(s, state); } catch (e) { lib = null; } }
     if (s.done) min = durMin(s.perf && s.perf.dur);
+    if (!min && lib && lib.min) min = lib.min;
     if (!min) { const pace = s.pace ? (s.pace.lo + s.pace.hi) / 2 : TYPE_PACE[s.type] || 375; min = (s.kmPlan || s.km || 8) * pace / 60 + (s.type === 'frac' || s.type === 'tempo' ? 15 : 0); }
     min = Math.max(20, Math.min(300, Math.round(min / 5) * 5));
     const lines = [];
-    if (s.detail) lines.push(s.detail);
+    if (lib) { lines.push(E.slStepsText(lib)); const L = E.SL_BY_ID[lib.id]; if (L) lines.push('Pourquoi : ' + L.why, 'Réussie si : ' + L.ok); }
+    else if (s.detail) lines.push(s.detail);
     lines.push(fmtKm(s.kmPlan) + ' km · ~' + (min >= 60 ? Math.floor(min / 60) + 'h' + pad2(min % 60) : min + ' min'));
     if (s.done) { const p = s.perf || {}; lines.push('✓ Faite : ' + [fmtKm(s.km) + ' km', p.pace ? p.pace + '/km' : '', p.hr ? 'FC ' + p.hr : ''].filter(Boolean).join(' · ')); }
     const title = (s.done ? '✓ ' : (TYPE_ICON[s.type] || '🏃') + ' ') + (s.title || 'Séance');

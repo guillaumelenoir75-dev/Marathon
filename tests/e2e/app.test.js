@@ -883,13 +883,50 @@ test('plan recalé une fois sur tout l\'historique rejoué : annulable, expliqu�
   await o.ctx.close();
 });
 
+test('séances de pro : version pro proposée sur l\'accueil, aperçu bloc par bloc, appliquée ; détail d\'une séance, profil, bibliothèque', async () => {
+  const o = await open('2026-10-29T09:00:00+01:00', savedDb), page = o.page;
+  await page.evaluate(() => showScreen('home'));
+  await page.waitForSelector('#home-plan-card .hp-r.lib', { timeout: 10000 });
+  assert.match(await page.evaluate(() => document.querySelector('#home-plan-card .hp-r.lib').textContent), /Ta prépa en version pro/);
+  await page.click('#home-plan-card .hp-r.lib');
+  await page.waitForSelector('#sl-prev .sl-wk', { timeout: 10000 });
+  const prev = await page.evaluate(() => document.getElementById('sl-prev').textContent);
+  assert.match(prev, /séances clés/); assert.match(prev, /Base|Développement|Spécifique|Affûtage/);
+  if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/lib-preview.png' }); }
+  await page.click('#sl-prev .sl-acts .pri'); await page.waitForTimeout(500);
+  const on = await page.evaluate(() => ({ on: !!state._lib_on, n: prSessions(state).filter((s) => s.x && s.x.lib && !s.done).length, db: !!window.__DB.users.ADMINUID.state._lib_on }));
+  assert.ok(on.on && on.db, 'adoptée et enregistrée'); assert.ok(on.n >= 5, on.n + ' séances de la bibliothèque');
+  // détail de la prochaine séance clé
+  const key = await page.evaluate(() => prSessions(state).filter((s) => s.x && s.x.lib && !s.done && (s.type === 'tempo' || s.type === 'frac')).sort((a, b) => a.date.localeCompare(b.date))[0].key);
+  await page.evaluate((k) => openSessionDetail(k), key);
+  await page.waitForSelector('#sl-ov .sl-st', { timeout: 10000 });
+  const det = await page.evaluate(() => document.getElementById('sl-ov').textContent);
+  assert.match(det, /Échauffement/); assert.match(det, /Pourquoi cette séance/); assert.match(det, /Réussie si/); assert.match(det, /\/km/);
+  if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/lib-detail.png' }); }
+  // changer de séance pour une autre du même effet recherché (annulable)
+  const alt = await page.locator('#sl-ov .sl-alt button').count();
+  if (alt) { await page.click('#sl-ov .sl-alt button >> nth=0'); await page.waitForTimeout(400); assert.equal(await page.evaluate(() => state._plan_reviews.slice(-1)[0].kind), 'lib'); }
+  await page.evaluate(() => document.getElementById('sl-ov').remove());
+  // profil et bibliothèque
+  await page.evaluate(() => openRunnerProfile()); await page.waitForSelector('#sl-prof .ros-body', { timeout: 10000 });
+  assert.match(await page.evaluate(() => document.getElementById('sl-prof').textContent), /Tes forces et tes points faibles/);
+  await page.evaluate(() => { document.getElementById('sl-prof').remove(); openLibCatalog(); }); await page.waitForSelector('#sl-cat .sl-cat', { timeout: 10000 });
+  assert.ok(await page.locator('#sl-cat details.sl-cat').count() >= 45);
+  // MAJ le plan : l'offre a disparu, les séances de la bibliothèque ne reçoivent plus d'allures « classiques »
+  await page.evaluate(() => document.getElementById('sl-cat').remove());
+  await openReview(page);
+  assert.equal(await page.locator('#pr-lib').count(), 0);
+  assert.deepEqual(o.errors, []);
+  await o.ctx.close();
+});
+
 test('mise à jour du plan : analyse, application, historique, annulation', async () => {
   const { ctx, page, errors } = await open('2026-10-29T09:00:00+01:00', savedDb);
   await openReview(page);
   const n = await page.evaluate(() => _prReview.items.length);
   assert.ok(n > 0, 'des propositions');
   // écran clair : les changements d'abord, points clés courts, détails repliés
-  const order = await page.evaluate(() => [...document.querySelectorAll('#pr-content > *')].filter((e) => e.offsetParent).map((e) => e.className.split(' ')[0]));
+  const order = await page.evaluate(() => [...document.querySelectorAll('#pr-content > *')].filter((e) => e.offsetParent).map((e) => e.className.split(' ')[0]).filter((c) => c !== 'pr-goal' && c !== 'pr-nw'));   // cartes facultatives (objectif, semaine prochaine, version pro)
   assert.equal(order[0], 'pr-lead', 'la raison en une phrase d\'abord : ' + order.join(','));
   assert.equal(order[1], 'pr-top', 'puis les changements : ' + order.join(','));
   assert.equal(order[2], 'pr-grp', 'rangés par sens');

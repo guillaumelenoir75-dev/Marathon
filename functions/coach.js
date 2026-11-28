@@ -1266,6 +1266,7 @@ PRINCIPES :
 - DONNÉES RÉELLES : appuie-toi sur la charge réelle (ratio 7 j / 28 j idéalement 0,8-1,3), le volume conseillé par semaine (il tient compte de ta base, de la reprise après course et de l'affûtage ; les propositions de km correspondantes sont déjà dans les propositions automatiques), la dérive cardiaque (> 5 % : ne pas accélérer l'endurance), WHOOP (fatigue = alléger les 3 prochains jours) et les allures tenues ou non (souvent pas tenues = plus prudent). Effort ressenti élevé sur des footings (RPE ≥ 7) = fatigue ; douleur gênante ou forte = pas d'intensité ni de hausse de volume tant qu'elle persiste (conseille de consulter si elle dure). Si la trajectoire rend l'objectif « ambitieux », dis-le franchement et propose ce qui peut le rapprocher.
 - Ne change que ce qui a un vrai effet sur la performance ou le risque : pas de retouche de 1 km, pas de changement cosmétique. Mieux vaut 0 à 5 changements forts que 10 petits. Tu peux AUGMENTER (volume, intensité) autant que réduire.
 
+BIBLIOTHÈQUE DE SÉANCES : les données contiennent « bibliotheque » (modèles de séances de coach : id, nom, effet, phases, paliers). Pour remplacer une séance de qualité, une sortie longue ou un footing, tu peux choisir un modèle : {"ref": "...", "lib": "<id>", "palier": 1, "reason": "..."} — l'application écrit alors la séance détaillée (échauffement, blocs, allures, FC) aux allures de {{PRENOM}}. Varie les modèles : jamais le même en 3 semaines, l'effet recherché suit la phase (base : force, seuil ; développement : VO₂max, seuil ; spécifique : allure course ; affûtage : rappels courts). Une séance dont « lib » est déjà renseigné vient de la bibliothèque : n'en réécris pas la consigne à la main, change de modèle ou de palier.
 FORMAT DES CONSIGNES (champ "detail") — identique au plan : court, l'allure d'abord, ex. « 3 km EF · 4 × 1000 m à 4'12 — 4'16 /km · récup 2 min » ou « 5'30 — 6'10 /km ». Allures au format m'ss avec « — » entre deux bornes et « /km ».
 
 `;
@@ -1274,7 +1275,7 @@ function planEditable(b){
   const editable = Object.create(null);
   b.plan.forEach((w) => (w.sessions || []).forEach((s) => { if (s && /^extra_w\d+_s\d+$/.test(String(s.ref)) && !s.done && s.type !== 'rest' && (!s.date || !b.today || s.date >= b.today)) editable[s.ref] = s; }));
   const compact = b.plan.map((w) => ({ semaine: w.w, phase: w.meta && w.meta.phase, recup: !!(w.meta && w.meta.isRecov), pic: !!(w.meta && w.meta.isPeak), affutage: !!(w.meta && w.meta.isTaper),
-    seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km },
+    seances: (w.sessions || []).map((s) => Object.assign({ ref: s.ref, date: s.date, type: s.type, titre: s.title, consigne: s.detail, km: s.km }, s.lib ? { lib: String(s.lib).slice(0, 40) } : {},
       s.done ? { fait: true, resultat: s.result } : { modifiable: !!editable[s.ref] })) }));
   return { editable, compact };
 }
@@ -1302,6 +1303,11 @@ Ta dernière relecture : ${b.lastCoachReview ? JSON.stringify(b.lastCoachReview)
 Données nouvelles depuis ta dernière relecture (séances réalisées) : ${b.lastCoachReview ? (Array.isArray(b.newSince) && b.newSince.length ? JSON.stringify(b.newSince.slice(-15)) : 'AUCUNE') : 'première relecture'}
 Historique des modifications déjà appliquées (la plus récente en dernier) : ${Array.isArray(b.reviewHistory) && b.reviewHistory.length ? JSON.stringify(b.reviewHistory.slice(-4).map((h) => Object.assign({}, h, { changements: (h.changements || []).slice(0, 25) }))) : 'aucune'}
 Contrôles automatiques : ${JSON.stringify((Array.isArray(b.warnings) ? b.warnings : []).slice(0, 20))}
+Ce qu'il encaisse (séances récentes : facile / juste / dure) : ${b.absorption ? JSON.stringify(Object.assign({}, b.absorption, { seances: (b.absorption.seances || []).slice(0, 8) })) : 'pas encore mesuré'}
+Réglage des paliers (hausses tenues ou non) : ${b.reglage_paliers ? JSON.stringify(b.reglage_paliers) : 'aucun recul'}
+${b.feu_vert ? 'Feu vert : ' + String(b.feu_vert).slice(0, 200) + '\n' : ''}${b.objectif_a_revoir ? 'Objectif à revoir : ' + JSON.stringify(b.objectif_a_revoir) + '\n' : ''}Tout son historique rejoué (prédictions vérifiées, hausse de volume tenue, meilleur volume, effort habituel) : ${b.historique_appris ? JSON.stringify(Object.assign({}, b.historique_appris, { courses_rejouees: (b.historique_appris.courses_rejouees || []).slice(0, 6) })) : 'non calculé'}
+Profil de coureur (forces, faiblesses, priorités) : ${b.profil_coureur ? JSON.stringify(b.profil_coureur) : 'non calculé'}
+Bibliothèque de séances : ${Array.isArray(b.bibliotheque) ? JSON.stringify(b.bibliotheque.slice(0, 80)) : 'indisponible'}
 ${b.force ? 'Relecture REDEMANDÉE PAR L\'ATHLÈTE (mêmes données que ta dernière relecture) : il attend un regard neuf.\n' : ''}${b.next ? 'PRÉPA À VENIR, pas encore commencée (début ' + String(b.startDate || '').slice(0, 10) + ') : la situation actuelle (semaine en cours, récupération, charge) ne s\'applique pas à ses premières semaines ; raisonne depuis son démarrage.\n' : ''}Propositions automatiques : ${JSON.stringify((Array.isArray(b.proposals) ? b.proposals : []).slice(0, 40))}
 Séances mises en attente (non accélérées automatiquement car tôt dans la récupération ; à toi de juger, change leur "detail" si l'accélération est justifiée) : ${JSON.stringify(Array.isArray(b.held) ? b.held.slice(0, 20) : [])}
 ${b.memos ? 'Mémos du coach : ' + String(b.memos).slice(-1500) + '\n' : ''}${situation ? '\n' + situation + '\n' : ''}
@@ -1340,6 +1346,8 @@ function planCleanChanges(list, editable, opts){
     else if (isFinite(km) && km > 0){ const hi = Math.min(42, Math.max(km0 * 1.5, km0 + 6)), lo = km0 ? km0 * 0.4 : 1; if (km <= hi && km >= lo) o.km = Math.round(km * 10) / 10; }
     // type : seulement avec une nouvelle consigne qui va avec
     if (['ef', 'long', 'tempo', 'frac'].includes(c.type) && c.type !== s.type && !race && o.detail) o.type = c.type;
+    // séance de la bibliothèque (session-lib.js de l'app) : modèle + palier, l'app écrit la séance détaillée aux allures du coureur
+    if (!race && typeof c.lib === 'string' && /^[a-z0-9-]{2,30}$/.test(c.lib)) { o.lib = c.lib; const r = parseInt(c.palier); if (r >= 1 && r <= 8) o.r = r - 1; delete o.detail; delete o.title; delete o.type; delete o.km; return o; }
     // titre accordé à la consigne et au type (même règle que l'app, prTitleFor du moteur)
     if (!race && (o.detail || o.type || o.title)) {
       try {
@@ -1349,7 +1357,7 @@ function planCleanChanges(list, editable, opts){
       } catch (e) {}
     }
     return o;
-  }).filter((o) => o.detail || o.title || o.km || o.type));
+  }).filter((o) => o.detail || o.title || o.km || o.type || o.lib));
 }
 
 exports.planReview = onRequest(

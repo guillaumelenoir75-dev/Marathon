@@ -277,7 +277,7 @@ function onPaceInput(el){ el.value=fmtClockDigits(el.value,4); }   // 540 → 5:
 // En production, window.LAZY_BUNDLES (injecté par vite.config.js) donne le fichier minifié de chaque groupe ;
 // en développement, les fichiers sources sont chargés un par un. Les points d'entrée ci-dessous sont remplacés par
 // les vraies fonctions dès que le module est chargé (déclarations globales du même nom).
-const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'], season: ['season.js'], renfo: ['renfo-guide.js'], predict: ['predict-ui.js'], review: ['plan-review-ui.js'], share: ['week-share-ui.js'], charts: ['body-signals-ui.js'], alcui: ['alcohol-ui.js'], raui: ['race-analysis-ui.js'], voice: ['coach-voice.js'], cquality: ['coach-quality-ui.js'], selftest: ['selftest-ui.js'], pisteui: ['piste-ui.js'] };
+const LAZY_GROUPS = { course: ['race-nav-data.js', 'race-nav.js', 'race-map.js'], progress: ['prep-progress.js'], whatif: ['plan-whatif.js'], nextrace: ['next-race.js'], planchat: ['plan-chat.js'], season: ['season.js'], renfo: ['renfo-guide.js'], predict: ['predict-ui.js'], review: ['plan-review-ui.js'], share: ['week-share-ui.js'], charts: ['body-signals-ui.js'], alcui: ['alcohol-ui.js'], raui: ['race-analysis-ui.js'], voice: ['coach-voice.js'], cquality: ['coach-quality-ui.js'], selftest: ['selftest-ui.js'], pisteui: ['piste-ui.js'], sdui: ['session-lib-ui.js'], admin: ['plan-admin.js'] };
 const _lazyP = {};
 function lazyLoad(g){
   if(_lazyP[g]) return _lazyP[g];
@@ -302,6 +302,24 @@ function openMarathonPredModal(){ return _lazyCall('predict', 'openMarathonPredM
 function openDistancePredModal(){ return _lazyCall('predict', 'openDistancePredModal', openDistancePredModal, arguments); }
 function openPlanReview(){ return _lazyCall('review', 'openPlanReview', openPlanReview, arguments); }
 function openPlanEvolution(){ return _lazyCall('review', 'openPlanEvolution', openPlanEvolution, arguments); }
+// bibliothèque de séances (session-lib-ui.js) : détail d'une séance, ton profil de coureur, la bibliothèque, ta prépa version pro
+// interface admin (plan-admin.js, chargée à la demande) : gestion des comptes, vue Coach sur un athlète, FC max, export
+let _adminPreviewUid = null, _adminPreviewName = null;   // athlète consulté par l'admin (lu partout au démarrage)
+function openProfileModal(){ return _lazyCall('admin', 'openProfileModal', openProfileModal, arguments); }
+function _refreshAthleteCoachView(){ return _lazyCall('admin', '_refreshAthleteCoachView', _refreshAthleteCoachView, arguments); }
+function openAthleteCoachView(){ return _lazyCall('admin', 'openAthleteCoachView', openAthleteCoachView, arguments); }
+function cvRegeneratePlan(){ return _lazyCall('admin', 'cvRegeneratePlan', cvRegeneratePlan, arguments); }
+function openRegenFromDateModal(){ return _lazyCall('admin', 'openRegenFromDateModal', openRegenFromDateModal, arguments); }
+function adminUpdateAllPlans(){ return _lazyCall('admin', 'adminUpdateAllPlans', adminUpdateAllPlans, arguments); }
+function cvDeletePlan(){ return _lazyCall('admin', 'cvDeletePlan', cvDeletePlan, arguments); }
+function renderAthletePanel(){ return _lazyCall('admin', 'renderAthletePanel', renderAthletePanel, arguments); }
+function openFcMaxEdit(){ return _lazyCall('admin', 'openFcMaxEdit', openFcMaxEdit, arguments); }
+function deleteAthletePlan(){ return _lazyCall('admin', 'deleteAthletePlan', deleteAthletePlan, arguments); }
+function exportPlanDocument(){ return _lazyCall('admin', 'exportPlanDocument', exportPlanDocument, arguments); }
+function openSessionDetail(){ return _lazyCall('sdui', 'openSessionDetail', openSessionDetail, arguments); }
+function openRunnerProfile(){ return _lazyCall('sdui', 'openRunnerProfile', openRunnerProfile, arguments); }
+function openLibCatalog(){ return _lazyCall('sdui', 'openLibCatalog', openLibCatalog, arguments); }
+function openLibPreview(){ return _lazyCall('sdui', 'openLibPreview', openLibPreview, arguments); }
 function openRecordsModal(){ return _lazyCall('review', 'openRecordsModal', openRecordsModal, arguments); }
 function openWeekShare(){ return _lazyCall('share', 'openWeekShare', openWeekShare, arguments); }
 function openSessionShare(){ return _lazyCall('share', 'openSessionShare', openSessionShare, arguments); }

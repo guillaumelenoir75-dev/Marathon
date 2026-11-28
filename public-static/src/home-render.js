@@ -813,7 +813,7 @@ function renderHome(){
     if(!done&&!skip){ const durC=estimateDuration(s2); div.innerHTML=`
       ${isRunToday?`<span class="hs-tag" style="background:${typeC};">Aujourd'hui</span>`:isPast?'<span class="hs-tag" style="background:#aaa;">Non faite</span>':''}
       <div class="hs-ic" style="background:${typeBgC};border-color:${typeC}25;">${(typeof typeEmoji!=='undefined'&&typeEmoji[s2.type])||lbl}</div>
-      <div class="hs-b">
+      <div class="hs-b" role="button" tabindex="0" style="cursor:pointer;" onclick="openSessionDetail('extra_w${w}_s${ei}')" title="Détail de la séance">
         <p class="hs-h">${dayTxt?`<span class="hs-dy" style="color:${typeC};">${dayTxt}</span>`:''}<b>${title}</b></p>
         ${detail?`<p class="hs-dt" style="color:${typeC};">${detail}</p>`:''}
         <div class="hs-km"><span><b>${s2.km} km</b>${durC?' · ~'+durC:''}</span>${typeof shoeDayHtml==='function'?shoeDayHtml(s2,w,ei):(s2.shoe?shoeFullBadge(s2.shoe):'')}</div>
@@ -984,7 +984,7 @@ function homeNextCard(){
     const dur = typeof estimateDuration === 'function' ? estimateDuration(s.x) : '';
     const info = [s.kmPlan ? s.kmPlan + ' km' : '', s.pace ? s.pace.text.replace(/\s+/g, ' ') : (dur ? '~' + dur : '')].filter(Boolean).join(' · ');
     const canValidate = d === 0 && s.w === getEffectiveCW();
-    el.innerHTML = '<div class="hn-card" style="--c:' + C + ';--bg:' + bg + ';" role="button" tabindex="0" onclick="homeNextGo(' + s.w + ',' + s.ei + ')">'
+    el.innerHTML = '<div class="hn-card" style="--c:' + C + ';--bg:' + bg + ';" role="button" tabindex="0" onclick="openSessionDetail(\'' + s.key + '\')">'
       + '<span class="hn-ico">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[s.type]) || '🏃') + '</span>'
       + '<div class="hn-txt"><p class="hn-eb">Prochaine · <b>' + when + '</b></p><p class="hn-t">' + title + '</p>' + (info ? '<p class="hn-i">' + info + '</p>' : '')
       + (typeof prWeatherLine === 'function' ? prWeatherLine(s.x) : '') + '</div>'

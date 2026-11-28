@@ -5,11 +5,11 @@ import { resolve } from 'path';
 // Ordre de chargement exact des scripts classiques (dépendances respectées)
 const scriptFiles = [
   'theme.js', 'diag.js', 'config.js', 'firebase.js', 'sync.js', 'auth.js', 'onboarding.js',
-  'plan-generate.js', 'plan-admin.js', 'race-live.js', 'plan-state.js', 'plan-predict.js',
+  'plan-generate.js', 'race-live.js', 'plan-state.js', 'plan-predict.js',
   'weather.js', 'home-render.js', 'validation-feedback.js', 'validation-import.js',
   'validation-modals.js', 'plan-render.js', 'plan-edit.js', 'session-edit.js',
   'shoes.js', 'stats.js', 'coach-context.js', 'coach-plan-modif.js',
-  'coach-memos.js', 'coach-plus.js', 'coach-ui.js', 'coach-profile.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-adapt.js', 'plan-daily.js', 'prep-debrief.js',
+  'coach-memos.js', 'coach-plus.js', 'coach-ui.js', 'coach-profile.js', 'notifs.js', 'whoop.js', 'preps.js', 'plan-review.js', 'plan-optim.js', 'plan-adapt.js', 'session-lib.js', 'plan-daily.js', 'prep-debrief.js',
   'body-signals.js', 'journal.js', 'week-share.js', 'quick-validate.js', 'fitness-model.js', 'autopilot.js', 'race-analysis.js', 'alcohol.js', 'auto-validate.js', 'health.js', 'session-flow.js', 'my-day.js', 'piste-home.js', 'piste-screens.js', 'search.js', 'nav.js', 'usage.js',
 ];
 
@@ -32,6 +32,8 @@ const lazyGroups = {
   cquality: ['coach-quality-ui.js'],                          // Diagnostic › Qualité du Coach
   selftest: ['selftest-ui.js'],                               // Diagnostic › Tester l'app
   pisteui: ['piste-ui.js'],                                   // Piste de nuit › détail de la forme du jour
+  admin: ['plan-admin.js'],                                  // Compte › Administration, vue Coach sur un athlète, FC max, export
+  sdui: ['session-lib-ui.js'],                                // détail d'une séance, ton profil, la bibliothèque, ta prépa version pro
 };
 
 // Conservés aussi en fichier séparé : chargés seuls par la page publique /parcours

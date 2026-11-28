@@ -352,6 +352,7 @@ function prPaceProposals(st, fit, opt){
   const freshRace = !opt.auto && !!lastRace && prDays(lastRace, today) >= 0 && prDays(lastRace, today) <= 21;
   prSessions(st).forEach(function(s){
     if(s.done || s.skip || (s.date && s.date < today)) return;
+    if(s.x && s.x.lib) return;                                                    // séance de la bibliothèque : allures recalées par slProposals
     const it = prIntent(s); if(!it) return;
     if(!s.pace){ tr(s, it, 'nopace'); return; }
     if(byCoach[s.key] != null && byCoach[s.key] === s.detail){ tr(s, it, 'coach', { since: coachAt[s.key] }); return; }
@@ -559,8 +560,11 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
   if(opt2 && typeof paLadderCalib === 'function') a.ladderCalib = paLadderCalib(state, today);   // les paliers d'avant ont-ils été tenus ?
   const ladder = opt2 && typeof paLadderProposals === 'function' ? paLadderProposals(state, a, all).concat(paLongProposals(state, a, all)) : [];
   const habit = opt2 && typeof paHabitProposals === 'function' ? paHabitProposals(state, a) : [];
+  // bibliothèque de séances (session-lib.js) : profil de coureur, séances proposées / recalées / montées d'un palier
+  if(opt2 && typeof slProfile === 'function'){ try { a.profile = slProfile(state, a); a.libOffer = slOffer(state); } catch(e) { diagSilent(e, 'plan-review:slProfile'); } }
+  const lib = opt2 && typeof slProposals === 'function' ? (function(){ try { return slProposals(state, a); } catch(e) { diagSilent(e, 'plan-review:slProposals'); return []; } })() : [];
   // une proposition par séance et par champ : douleur > WHOOP > séance test > palier > volume / allure
-  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(ladder).concat(habit).concat(a.volume ? a.volume.proposals : []) : [];
+  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(lib).concat(ladder).concat(habit).concat(a.volume ? a.volume.proposals : []) : [];
   const seen = {}, merged = [];
   extra.concat(all).forEach(function(p){
     const k = p.key + '|' + (p.field === 'session' ? 'session' : p.field), ks = p.key + '|session';
@@ -738,8 +742,8 @@ const PR_CSS2 = '.pr-top{display:flex;align-items:center;gap:10px;padding:2px 2p
   + '.pr-alerts{display:flex;flex-direction:column;gap:6px;}.pr-alerts p{margin:0;display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700;border-radius:12px;padding:8px 11px;}.pr-alerts p.low{background:#FEF2F2;color:#991B1B;}.pr-alerts p.mid{background:#FFFBEB;color:#92400E;}.pr-alerts p.ok{background:#ECFDF5;color:#065F46;}'
   + '.pr-lead{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #DCE5F3;border-radius:14px;padding:10px 12px;margin-bottom:10px;}.pr-lead span{font-size:20px;}.pr-lead p{margin:0;font-size:14px;font-weight:700;color:#0F172A;line-height:1.35;}'
   + '.pr-grp{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-size:13px;}.pr-grp i{font-style:normal;font-weight:900;width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;}.pr-grp b{font-weight:800;color:#0F172A;}.pr-grp span{color:#64748B;font-size:12px;min-width:0;}'
-  + '.pr-grp.up i{background:#ECFDF5;color:#047857;}.pr-grp.down i{background:#FFFBEB;color:#B45309;}.pr-grp.move i{background:#EEF3FC;color:#1B4FD8;}.pr-grp.other i{background:#F1F5F9;color:#334155;}'
-  + '.pr-hl{margin:6px 0 2px;font-size:13.5px;font-weight:800;}.pr-hl.up{color:#047857;}.pr-hl.down{color:#B45309;}.pr-hl.move{color:#1B4FD8;}.pr-hl.other{color:#334155;}'
+  + '.pr-grp.up i{background:#ECFDF5;color:#047857;}.pr-grp.down i{background:#FFFBEB;color:#B45309;}.pr-grp.move i{background:#EEF3FC;color:#1B4FD8;}.pr-grp.lib i{background:#F5F3FF;color:#6D28D9;}.pr-grp.other i{background:#F1F5F9;color:#334155;}'
+  + '.pr-hl{margin:6px 0 2px;font-size:13.5px;font-weight:800;}.pr-hl.up{color:#047857;}.pr-hl.down{color:#B45309;}.pr-hl.move{color:#1B4FD8;}.pr-hl.lib{color:#6D28D9;}.pr-hl.other{color:#334155;}'
   + '.pr-goal,.pr-nw{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px 14px;margin-bottom:10px;}.pr-goal.up{border-color:#A7F3D0;background:#F0FDF7;}.pr-goal.down{border-color:#FDE68A;background:#FFFBEB;}'
   + '.pr-goal-h{margin:0 0 6px;font-size:14px;font-weight:800;color:#0F172A;}.pr-goal-s{margin:6px 0 0;font-size:12.5px;color:#475569;line-height:1.4;}.pr-goal .pr-actions{margin-top:10px;}'
   + '.pr-nw-l{display:flex;flex-direction:column;gap:4px;margin-top:8px;}.pr-nw-l span{font-size:12.5px;color:#334155;background:#F5F8FD;border-radius:9px;padding:6px 9px;}.pr-nw-l span.chg{background:#EEF3FC;color:#1B4FD8;font-weight:700;}.pr-alerts i{font-style:normal;}'
@@ -786,7 +790,7 @@ async function prCoachBody(a, R, force){
   const weeks = {};
   prSessions(state).forEach(function(s){
     const w = weeks[s.w] = weeks[s.w] || { w: s.w, meta: (function(){ try { return JSON.parse(state['meta_w' + s.w] || '{}'); } catch(e) { return {}; } })(), sessions: [] };
-    w.sessions.push({ ref: s.key, date: s.date, type: s.type, title: s.title, detail: s.detail, km: s.kmPlan, done: s.done,
+    w.sessions.push({ ref: s.key, date: s.date, type: s.type, title: s.title, detail: s.detail, km: s.kmPlan, done: s.done, lib: s.x && s.x.lib ? s.x.lib.id + ' (palier ' + (s.x.lib.r + 1) + ')' : undefined,
       result: s.done ? (s.date && prDays(s.date, today) <= 56 ? { km: s.km, pace: s.perf.pace || null, hr: s.perf.hr || null, blocs: s.perf.blocsAllure || null, note: s.perf.note || null, rpe: s.perf.rpe || null } : { km: s.km }) : undefined });
   });
   const body = { today: today, race: { name: a.race.name, course: a.race.course, date: a.race.date, objectif: a.race.objectif },
@@ -805,6 +809,8 @@ async function prCoachBody(a, R, force){
     recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
     dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     derniere_course: state._race_analysis ? (function(A){ return { course: A.name || A.cat, date: A.date, temps: A.time, objectif: A.target ? prTime(A.target.sec) : null, niveau_la_veille: A.pred ? prTime(A.pred) : null, verdict: A.verdict.t, depart_pct_vs_prevu: A.start ? Math.round(A.start.pct * 10) / 10 : null, seconde_moitie_pct: A.halves ? A.halves.pct : null, coup_de_mou_km: A.fade ? A.fade.km : null, derive_cardio_pct: A.drift ? A.drift.pct : null, meteo_pct: A.heat ? A.heat.pct : null, lecons: A.lessons }; })(state._race_analysis) : null,
+    bibliotheque: typeof SL_LIB !== 'undefined' ? SL_LIB.map(function(L){ return { id: L.id, nom: L.n, effet: L.stim, type: L.type, phases: L.ph, paliers: L.prog.length }; }) : null,
+    profil_coureur: a.profile ? { priorites: a.profile.focus, points: a.profile.items.map(function(x){ return x.t + ' (' + (x.tone === 'weak' ? 'à travailler' : x.tone === 'strong' ? 'force' : 'équilibré') + ') : ' + x.v; }) } : null,
     historique_appris: a.hist ? { depuis: a.hist.first, seances: a.hist.n, km: a.hist.km,
       courses_rejouees: a.hist.pred ? a.hist.pred.races.map(function(r){ return { course: r.label, date: r.date, prevu_6_sem_avant: prTime(r.projSec), reel: prTime(r.sec), ecart_niveau: r.err }; }) : [],
       recalage_temps_prevus: a.hist.pred ? a.hist.pred.bias : 0, hausse_volume_tenue: a.hist.vol ? a.hist.vol.prog : null, meilleur_volume_4_sem: a.hist.vol ? a.hist.vol.best4 : null, effort_habituel: a.hist.rpe } : null,
@@ -839,6 +845,12 @@ function prCoachItems(changes){
       items.push({ on: true, key: 'new:' + a.date + ':' + i, w: w, date: a.date, field: 'add', title: a.title, type: a.type, before: null,
         after: { t: a.title, d: a.detail || '', km: a.km, type: a.type, date: a.date, time: a.time || null }, reason: c.reason || '', src: 'coach' }); return; }
     const s = byKey[c.ref]; if(!s || s.done) return;
+    // modèle de la bibliothèque choisi par le Coach : séance détaillée écrite aux allures du jour (session-lib.js)
+    if(c.lib && typeof SL_BY_ID !== 'undefined' && SL_BY_ID[c.lib]){
+      const ctx = slCtx(state, {}), b = ctx ? slFit(c.lib, c.r != null ? c.r : 0, ctx, s.kmPlan) : null;
+      if(b){ const A = slAsSession(b); A.lib.at = prTodayIso(); items.push({ on: true, key: s.key, w: s.w, date: s.date, field: 'session', title: s.title, type: s.type, kind: 'lib', sub: 'coach', before: { t: s.title, d: s.detail, km: s.kmPlan, type: s.type }, after: A, reason: c.reason || '', src: 'coach' }); }
+      return;
+    }
     if(c.skip === true){ if(!s.skip) items.push({ on: true, key: s.key, w: s.w, date: s.date, field: 'skip', title: s.title, type: s.type, before: 'prévue', after: 'retirée par le Coach', reason: c.reason || '', src: 'coach' }); return; }
     const push = function(field, before, after){ if(after === undefined || after === null || String(after) === String(before)) return; items.push({ on: true, key: s.key, w: s.w, date: s.date, field: field, title: s.title, type: s.type, before: before, after: after, reason: c.reason || '', src: 'coach' }); };
     push('detail', s.detail, c.detail); push('title', s.title, c.title); push('km', s.kmPlan, c.km != null ? Math.round(+c.km * 10) / 10 : null); push('type', s.type, c.type);
@@ -945,11 +957,20 @@ function prApplyChanges(sel, meta){
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');
     if(p.field === 'detail') x.d = title + '|' + p.after;
     else if(p.field === 'title') x.d = p.after + (det ? '|' + det : '');
-    else if(p.field === 'km'){ const nd = newDet[p.key] ? det : prKmDetail(det, x.type, x.km, p.after); x.km = +p.after; if(nd !== det){ x.d = title + '|' + nd; p.detBefore = det; p.detAfter = nd; } }
+    else if(p.field === 'km'){
+      let nd = newDet[p.key] ? det : prKmDetail(det, x.type, x.km, p.after);
+      // footing / sortie longue de la bibliothèque : consigne réécrite pour les nouveaux km (étapes recalculées)
+      if(!newDet[p.key] && x.lib && (x.type === 'ef' || x.type === 'long') && typeof slBuild === 'function'){ const b = slBuild(x.lib.id, x.lib.r, slCtx(state, { v: x.lib.v, ef: x.lib.ef, cat: x.lib.cat }), +p.after); if(b) nd = b.text; }
+      x.km = +p.after; if(nd !== det){ x.d = title + '|' + nd; p.detBefore = det; p.detAfter = nd; } }
     else if(p.field === 'type' && ['ef', 'long', 'tempo', 'frac'].indexOf(p.after) >= 0) x.type = p.after;
     else if(p.field === 'date' && /^\d{4}-\d\d-\d\d$/.test(String(p.after))){ x.sched_date = p.after; x.sched_day = prWeekday(p.after); }
     else if(p.field === 'session' && p.after && p.after.t){ x.d = p.after.t + '|' + p.after.d; x.km = +p.after.km; if(['ef', 'long', 'tempo', 'frac', 'rest'].indexOf(p.after.type) >= 0) x.type = p.after.type; }
     else return;
+    // séance de la bibliothèque (session-lib.js) : modèle + palier gardés avec la séance ; une consigne réécrite autrement la retire
+    if(p.field === 'session' || p.field === 'detail' || p.field === 'type'){
+      p.libBefore = x.lib || null;
+      if(p.field === 'session' && p.after && p.after.lib) x.lib = p.after.lib; else delete x.lib;
+    }
     x._modified = true; x._seq = (x._seq || 0) + 1;
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;
   });
@@ -969,7 +990,7 @@ function prApplyChanges(sel, meta){
   const hist = (state._plan_reviews || []).slice(-5);
   const entry = { date: prTodayIso(), n: Object.keys(touched).length, coach: !!meta.coach, vdot: meta.vdot || null, sig: prDataSig() };
   if(meta.auto) entry.auto = true; if(meta.kind) entry.kind = meta.kind; if(meta.at) entry.at = meta.at;
-  entry.changes = sel.filter(function(p){ return touched[p.key]; }).slice(0, 200).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, kind: p.kind || null, detBefore: p.detBefore, detAfter: p.detAfter, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, delta: p.delta != null ? p.delta : undefined, fam: p.fam || undefined, reason: String(p.short || p.reason || p.why || '').slice(0, 140) }; });
+  entry.changes = sel.filter(function(p){ return touched[p.key]; }).slice(0, 200).map(function(p){ return { ref: p.key, title: p.title, type: p.type || null, kind: p.kind || null, detBefore: p.detBefore, detAfter: p.detAfter, date: p.date || null, field: p.field, before: p.before, after: p.after, src: p.src, delta: p.delta != null ? p.delta : undefined, fam: p.fam || undefined, libBefore: p.libBefore !== undefined ? p.libBefore : undefined, libAfter: p.after && p.after.lib ? p.after.lib.id : undefined, reason: String(p.short || p.reason || p.why || '').slice(0, 140) }; });
   hist.push(entry);
   state._plan_reviews = hist;
   return { n: Object.keys(touched).length, touched: touched, index: hist.length - 1, entry: entry };

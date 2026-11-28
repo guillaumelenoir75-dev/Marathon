@@ -107,7 +107,8 @@ function psDayCard(L, D, today){
     if(x.done) h += '<button type="button" class="ps-b pri" onclick="openSessionPiste(\'' + x.key + '\')">Voir la séance</button>';
     else if(!ro && !x.skip){
       if(D.date <= today && x.w === (typeof getEffectiveCW === 'function' ? getEffectiveCW() : x.w)) h += '<button type="button" class="ps-b pri" onclick="toggleDoneExtra(' + x.w + ',' + x.ei + ')">✓ Valider</button>';
-      if(x.kind !== 'race') h += '<button type="button" class="ps-b' + (D.date <= today ? '' : ' pri') + '" onclick="openEditExtraModal(' + x.w + ',' + x.ei + ')">Modifier</button>';
+      if(x.kind !== 'race') h += '<button type="button" class="ps-b' + (D.date <= today ? '' : ' pri') + '" onclick="openSessionDetail(\'' + x.key + '\')">Détail</button>';
+      if(x.kind !== 'race') h += '<button type="button" class="ps-b" onclick="openEditExtraModal(' + x.w + ',' + x.ei + ')">Modifier</button>';
     }
     if(coach && !ro && typeof openPlanChat === 'function') h += '<button type="button" class="ps-b" onclick="openPlanChat(' + _psE(JSON.stringify('Ma séance du ' + when + ' : ' + x.title + '. ')) + ')">En parler au Coach</button>';
     h += '</div>';

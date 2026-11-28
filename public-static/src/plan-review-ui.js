@@ -226,6 +226,8 @@ function _prRender(){
   // ── 0. La raison en une phrase, objectif à revoir (toutes les 4 semaines au plus) et semaine prochaine (week-end)
   const GC = a.goalCheck;
   if(nI || (R.held || []).length || GC || a.nextWeek){ const LD = paLead(a); h += '<div class="pr-lead"><span>' + LD.ic + '</span><p>' + prEsc(LD.t) + '</p></div>'; }
+  // ── 0 bis. Ta prépa version pro (bibliothèque de séances, session-lib.js) : proposée une fois par prépa
+  if(a.libOffer) h += '<div class="pr-goal up" id="pr-lib" style="border-color:#DDD6FE;background:#F5F3FF;"><p class="pr-goal-h">✦ Ta prépa en version pro</p><p class="pr-goal-s">Des séances de coach toutes différentes (seuil norvégien, 30/30, Michigan, Canova…), choisies selon ta phase et ton profil.</p><div class="pr-actions"><button type="button" class="pr-btn pri" onclick="openLibPreview()">Voir ma prépa</button><button type="button" class="pr-btn sec" onclick="openRunnerProfile()">Mon profil</button></div></div>';
   if(GC){
     h += '<div class="pr-goal ' + GC.dir + '" id="pr-goal"><p class="pr-goal-h">🎯 ' + (GC.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif est loin') + '</p>'
       + '<div class="pr-swap"><span class="pr-p old">' + prTime(GC.from) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prTime(GC.to) + '</span></div>'
@@ -249,10 +251,10 @@ function _prRender(){
       + (nI > 1 ? '<button class="pr-link" onclick="const on=_prReview.items.some(function(x){return !x.on;});_prReview.items.forEach(function(x){x.on=on;});_prRender()">' + (R.items.every(function(x){ return x.on; }) ? 'Tout décocher' : 'Tout cocher') + '</button>' : '') + '</div>';
     // rangés par sens : ce qui monte, ce qui s'allège, ce qui bouge (3 visibles par groupe, le reste replié)
     const ord = R.items.map(function(p, i){ return [p, i]; }).sort(function(x, y){ return (x[0].date || '').localeCompare(y[0].date || '') || x[0].w - y[0].w; });
-    const G = { up: [], down: [], move: [], other: [] }; ord.forEach(function(x){ G[paDir(x[0])].push(x); });
-    const GW = { up: 'tu encaisses, le plan monte', down: 'pour récupérer ou te protéger', move: 'même séance, autre jour', other: '' };
+    const G = { up: [], down: [], move: [], lib: [], other: [] }; ord.forEach(function(x){ G[paDir(x[0])].push(x); });
+    const GW = { up: 'tu encaisses, le plan monte', down: 'pour récupérer ou te protéger', move: 'même séance, autre jour', lib: 'nouvelles séances, allures recalées', other: '' };
     R.open = R.open || {};
-    ['up', 'down', 'move', 'other'].forEach(function(g){
+    ['up', 'down', 'move', 'lib', 'other'].forEach(function(g){
       const L = G[g]; if(!L.length) return;
       h += '<p class="pr-grp ' + g + '"><i>' + PA_DIR[g][0] + '</i><b>' + PA_DIR[g][1] + '</b><span>' + L.length + (GW[g] ? ' · ' + GW[g] : '') + '</span></p>';
       L.slice(0, 3).forEach(function(x){ h += _prItem(x[0], x[1], W[x[0].w]); });
@@ -456,6 +458,12 @@ function openPlanEvolution(){
     + tile('Volume visé', E.volume ? E.volume.peak + ' km' : '–', E.volume ? 'au pic · habitude ' + E.volume.base + ' km' + (E.volume.goalPeak && E.volume.goalPeak > E.volume.base ? ' · objectif ' + E.volume.goalPeak : '') : '')
     + '</div>' + (E.traj ? '<p class="lvp-n">🎯 Prévu le jour J : ' + prTime(E.traj.mid) + (E.goal ? ' pour un objectif de ' + prTime(E.goal) : '') + (E.traj.verdict ? ' · ' + E.traj.verdict : '') + '</p>' : '')
     + '<p class="lvp-n">' + (T.verdict === 'easy' ? 'Tu encaisses bien : le plan monte d\'un cran (paliers, volume).' : T.verdict === 'hard' ? 'Séances récentes dures : le plan ne monte pas tant que ça ne passe pas mieux.' : 'Le plan suit son rythme ; il monte dès que tes séances passent facilement.') + '</p></div>';
+  // séances de pro (session-lib.js) : profil et bibliothèque
+  if(typeof openRunnerProfile === 'function'){
+    const PF = a.profile || null, foc = PF && PF.focus && PF.focus.length ? PF.focus.join(', ') : null;
+    h += '<div class="lvp-card"><p class="lvp-h">Tes séances</p><p class="lvp-n">' + (state._lib_on ? '✦ Prépa en version pro : séances de la bibliothèque, choisies et montées au fil des semaines.' : 'Prépa classique : passe-la en version pro pour des séances de coach variées.') + (foc ? ' Priorité : ' + esc(PF.focus.map(function(k){ return ({ vitesse: 'vitesse', specifique: 'endurance spécifique', aerobie: 'base aérobie' })[k] || k; }).join(', ')) + '.' : '') + '</p>'
+      + '<div class="sl-acts" style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="pr-btn sec" style="flex:1" onclick="openRunnerProfile()">Ton profil</button><button type="button" class="pr-btn sec" style="flex:1" onclick="openLibCatalog()">La bibliothèque</button>' + (state._lib_on ? '' : '<button type="button" class="pr-btn pri" style="flex:1" onclick="openLibPreview()">Version pro</button>') + '</div></div>';
+  }
   // ce que tout ton historique a appris au plan (plan-adapt.js : paHist)
   const HI = E.hist;
   if(HI && HI.n){

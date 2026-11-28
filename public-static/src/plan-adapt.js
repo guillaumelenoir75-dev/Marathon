@@ -149,7 +149,7 @@ function paLadderProposals(st, a, pace){
   const lastRace = a.opt.lastRace && a.opt.lastRace.date, byCoach = {};
   (st._plan_reviews || []).forEach(function(h){ if(h.undone || (lastRace && h.date && h.date < lastRace)) return; (h.changes || []).forEach(function(c){ if(c.src === 'coach') byCoach[c.ref] = 1; }); });
   const out = [], seen = {};
-  prSessions(st).filter(function(s){ return !s.done && !s.skip && s.date && s.date >= today && prDays(today, s.date) <= 14 && (s.type === 'tempo' || s.type === 'frac'); })
+  prSessions(st).filter(function(s){ return !s.done && !s.skip && s.date && s.date >= today && prDays(today, s.date) <= 14 && (s.type === 'tempo' || s.type === 'frac') && !(s.x && s.x.lib); })
     .sort(function(x, y){ return x.date.localeCompare(y.date); }).forEach(function(s){
       const fam = paFam(s); if(!fam || fam === 'E' || seen[fam]) return;
       const r = paParseReps(s.title + ' ' + s.detail); if(!r || !s.pace || /^Test\b/i.test(s.title) || byCoach[s.key]) return;
@@ -289,7 +289,7 @@ function paLongProposals(st, a, pace){
   const cat = a.opt.raceCat, L = PA_LONG[cat]; if(!L) return [];
   const today = a.opt.today, W = prWeeks(st, today), raceW = Object.keys(W).map(Number).filter(function(w){ return W[w].race; }).pop(); if(raceW == null) return [];
   const m = PR_RACE_M[cat] / 1000, gp = a.opt.goalSec ? a.opt.goalSec / m : a.fit && a.fit.preds && a.fit.preds[cat] ? a.fit.preds[cat] / m : null; if(!gp) return [];
-  const s = prSessions(st).filter(function(x){ return x.type === 'long' && !x.done && !x.skip && x.date && x.date >= today && prDays(today, x.date) <= 14; }).sort(function(x, y){ return x.date.localeCompare(y.date); })[0];
+  const s = prSessions(st).filter(function(x){ return x.type === 'long' && !x.done && !x.skip && x.date && x.date >= today && prDays(today, x.date) <= 14 && !(x.x && x.x.lib); }).sort(function(x, y){ return x.date.localeCompare(y.date); })[0];
   if(!s) return [];
   const o = W[s.w], toRace = raceW - s.w;
   if(!o || o.kind === 'recov' || o.kind === 'taper' || o.race || toRace < 2 || toRace > L.weeks) return [];
@@ -408,6 +408,7 @@ function paPaceDelta(p){
 }
 function paDir(p){
   if(p.kind === 'test') return 'other';
+  if(p.kind === 'lib') return p.sub === 'step' ? (p.delta > 0 ? 'up' : 'down') : 'lib';
   if(p.field === 'date') return 'move';
   if(p.field === 'skip') return 'down';
   if(p.field === 'add') return 'up';
@@ -419,12 +420,13 @@ function paDir(p){
   }
   const d = paPaceDelta(p); return d < 0 ? 'up' : d > 0 ? 'down' : 'other';
 }
-const PA_DIR = { up: ['↑', 'Ça monte'], down: ['↓', 'On allège'], move: ['⇄', 'Ça bouge'], other: ['•', 'Autres ajustements'] };
+const PA_DIR = { up: ['↑', 'Ça monte'], down: ['↓', 'On allège'], move: ['⇄', 'Ça bouge'], lib: ['✦', 'Séances de pro'], other: ['•', 'Autres ajustements'] };
 function paLine(p){
   const f = p.field, A = p.after || {}, dir = paDir(p);
   const day = function(d){ return typeof prFmtDate === 'function' ? prFmtDate(d, { weekday: 'long' }) : d; };
   let t;
   if(p.kind === 'test') t = 'Test 5 km pour mesurer ton niveau';
+  else if(p.kind === 'lib') t = p.sub === 'refresh' ? 'Allures recalées sur ton niveau' : (p.sub === 'step' ? (p.delta > 0 ? 'Un cran plus dur : ' : 'Un cran plus facile : ') : 'Devient : ') + (A.t || '');
   else if(f === 'date') t = 'Déplacée au ' + day(p.after);
   else if(f === 'km'){ const d = Math.round((+p.after - +p.before) * 10) / 10; t = (d > 0 ? '+' : '−') + String(Math.abs(d)).replace('.', ',') + ' km · ' + String(p.after).replace('.', ',') + ' km au total'; }
   else if(f === 'session') t = (p.kind === 'ladder' ? (p.delta > 0 ? 'Un cran plus dur : ' : 'Un cran plus facile : ') : p.kind === 'whoop' || p.kind === 'pain' ? 'Remplacée par ' : 'Devient ') + (A.t || 'séance') + (A.km ? ' · ' + A.km + ' km' : '');
@@ -456,14 +458,14 @@ function paLead(a){
 function planNews(a, st){
   st = st || state;
   const P = (a.proposals || []).slice().sort(function(x, y){ return (x.date || '').localeCompare(y.date || ''); });
-  const counts = { up: 0, down: 0, move: 0, other: 0 };
+  const counts = { up: 0, down: 0, move: 0, lib: 0, other: 0 };
   const lines = P.map(function(p){ const L = paLine(p); counts[L.dir]++; return { key: p.key, date: p.date, title: p.title, dir: L.dir, t: L.t, pair: p.pair || null }; })
     .filter(function(x, i, arr){ return !x.pair || arr.findIndex(function(y){ return y.pair === x.pair; }) === i; });   // un échange = une ligne
   const NW = a.nextWeek && st._week_ok !== a.nextWeek.from ? a.nextWeek : null;
   const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
   const coach = CV && CV.fresh && !CV.agree && !CV.applied && CV.n ? { n: CV.n, text: CV.text, first: CV.first ? { title: CV.first.title, date: CV.first.date, t: paLine(CV.first).t } : null } : null;
   const RC = st._hist_recal && !st._hist_recal.undone && st._hist_recal.n && prDays(st._hist_recal.date, a.opt.today) <= 7 ? st._hist_recal : null;
-  return { coach: coach, coachOk: !!(CV && CV.fresh && CV.agree), recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
+  return { offer: !!a.libOffer, libOn: !!st._lib_on, coach: coach, coachOk: !!(CV && CV.fresh && CV.agree), recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
     green: a.greenLight ? a.greenLight.text : null, unseen: !!P.length && typeof prSig === 'function' && prSig(a.proposals) !== st._review_seen };
 }
 // carte « Ton plan » de l'accueil (#home-plan-card) : calcul gardé tant que les données ne changent pas
@@ -477,7 +479,7 @@ function planCardRender(){
   let N;
   try {
     const today = prTodayIso(), R = state._plan_reviews || [], last = R[R.length - 1] || {};
-    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', JSON.stringify(state._hist_recal || null), (state._coach_review || {}).at || '', (state._coach_review || {}).applied ? 1 : 0, Object.keys(state).length].join('|');
+    const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', JSON.stringify(state._hist_recal || null), (state._coach_review || {}).at || '', (state._coach_review || {}).applied ? 1 : 0, state._lib_on || '', JSON.stringify(state._lib_offer || null), Object.keys(state).length].join('|');
     if(_hpCache && _hpCache.key === key && Date.now() - _hpCache.t < 300000) N = _hpCache.n;
     else { N = planNews(prAnalyze(), state); _hpCache = { key: key, t: Date.now(), n: N }; }
   } catch(e) { diagSilent(e, 'plan-adapt:planCardRender'); return hide(); }
@@ -488,7 +490,8 @@ function planCardRender(){
   const evo = typeof openPlanEvolution === 'function';
   const recal = N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '';
   const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">🤖</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
-  if(!N.n && !N.goal && !N.next && !N.coach){
+  const offerRow = N.offer ? '<button type="button" class="hp-r lib" onclick="openLibPreview()"><i aria-hidden="true">✦</i><span class="hp-x"><b>Ta prépa en version pro</b><small>Séances de coach variées, choisies pour toi · Voir</small></span></button>' : '';
+  if(!N.n && !N.goal && !N.next && !N.coach && !N.offer){
     if(recal){ el.innerHTML = '<section class="hp">' + recal + '<button type="button" class="hp-h" style="margin-top:8px" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button></section>'; return; }
     el.innerHTML = '<button type="button" class="hp hp-ok" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button>';
     return;
@@ -497,12 +500,13 @@ function planCardRender(){
     return '<button type="button" class="hp-r ' + x.dir + '" onclick="openPlanReview()"><i aria-hidden="true">' + PA_DIR[x.dir][0] + '</i><span class="hp-d">' + esc(D(x.date)) + '</span><span class="hp-x"><b>' + esc(x.title) + '</b><small>' + esc(x.t) + '</small></span></button>';
   });
   if(coachRow) rows.unshift(coachRow);
+  if(offerRow) rows.unshift(offerRow);
   if(N.goal) rows.unshift('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">🎯</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
   if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + (N.coachOk ? ' · relue par le Coach' : '') + ' · à valider</small></span></button>');
   const more = N.lines.length - 3;
-  const C = N.counts, chips = ['up', 'down', 'move'].filter(function(k){ return C[k]; }).map(function(k){ return '<span class="hp-c ' + k + '">' + PA_DIR[k][0] + ' ' + C[k] + '</span>'; }).join('');
+  const C = N.counts, chips = ['up', 'down', 'move', 'lib'].filter(function(k){ return C[k]; }).map(function(k){ return '<span class="hp-c ' + k + '">' + PA_DIR[k][0] + ' ' + C[k] + '</span>'; }).join('');
   el.innerHTML = '<section class="hp" aria-label="Ton plan">' + recal
-    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>Ton plan s\'adapte' + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
+    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>' + (N.n ? 'Ton plan s\'adapte' : 'Ton plan') + '' + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
     + (chips ? '<div class="hp-cs">' + chips + '<span class="hp-cl">' + N.n + ' changement' + (N.n > 1 ? 's' : '') + ' proposé' + (N.n > 1 ? 's' : '') + '</span></div>' : '')
     + '<div class="hp-l">' + rows.join('') + (more > 0 ? '<button type="button" class="hp-more" onclick="openPlanReview()">+ ' + more + ' autre' + (more > 1 ? 's' : '') + '</button>' : '') + '</div>'
     + (N.green ? '<p class="hp-g">🟢 ' + esc(N.green) + '</p>' : '')
@@ -519,7 +523,7 @@ function _hpCss(){
     + '.hp-new{font-style:normal;font-size:10.5px;font-weight:800;color:#fff;background:#1B4FD8;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:2px;}'
     + '.hp-go{font-size:22px;color:#94A3B8;}'
     + '.hp-cs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 2px;}.hp-c{font-size:12px;font-weight:800;border-radius:9px;padding:2px 8px;}.hp-cl{font-size:12px;color:#64748B;}'
-    + '.hp-c.up,.hp-r.up i{background:#ECFDF5;color:#047857;}.hp-c.down,.hp-r.down i{background:#FFFBEB;color:#B45309;}.hp-c.move,.hp-r.move i{background:#EEF3FC;color:#1B4FD8;}.hp-r.other i,.hp-r.goal i,.hp-r.next i,.hp-r.coach i{background:#F1F5F9;color:#334155;}'
+    + '.hp-c.up,.hp-r.up i{background:#ECFDF5;color:#047857;}.hp-c.down,.hp-r.down i{background:#FFFBEB;color:#B45309;}.hp-c.move,.hp-r.move i{background:#EEF3FC;color:#1B4FD8;}.hp-c.lib,.hp-r.lib i{background:#F5F3FF;color:#6D28D9;}.hp-r.other i,.hp-r.goal i,.hp-r.next i,.hp-r.coach i{background:#F1F5F9;color:#334155;}'
     + '.hp-l{display:flex;flex-direction:column;gap:6px;margin-top:8px;}'
     + '.hp-r{display:flex;align-items:center;gap:9px;width:100%;background:#F5F8FD;border:0;border-radius:12px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer;min-width:0;}'
     + '.hp-r i{flex:0 0 26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:14px;}'

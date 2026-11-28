@@ -623,6 +623,7 @@ function prUndoReview(i){
     else if(c.field === 'km'){ x.km = +c.before; if(c.detAfter != null && det === c.detAfter) x.d = title + '|' + c.detBefore; }
     else if(c.field === 'type') x.type = c.before;
     else if(c.field === 'session'){ x.d = c.before.t + (c.before.d ? '|' + c.before.d : ''); x.km = +c.before.km; if(c.before.type) x.type = c.before.type; }
+    if(c.libBefore !== undefined){ if(c.libBefore) x.lib = c.libBefore; else delete x.lib; }   // séance de la bibliothèque d'avant rétablie
     x._seq = (x._seq || 0) + 1; state[c.ref] = JSON.stringify(x); ok++;
   });
   h.undone = prTodayIso(); state._plan_reviews = hist;

@@ -567,6 +567,11 @@ function buildCompactContext(coachMemos, seancesAujourdhui, jourActuel, heureAct
       return _ccHist(8).reverse().slice(0,15).map(h=>{ const perf=h.perf||{}; return {date:h.date,semaine:h.cur?h.w:null,type:h.sess.type,titre:sessionTitle(h.sess),km:h.km,allure:perf.pace||null,fc_moy:perf.hr||null,dur:perf.dur||null,strava:perf.strava||null}; });
     })(),
     whoop: typeof buildWhoopContext==='function' ? buildWhoopContext() : null,
+    seances_detaillees: (function(){ try {   // séance du jour et de demain en étapes (bibliothèque de séances, session-lib.js)
+      if(typeof slDetail !== 'function' || typeof prSessions !== 'function') return null;
+      const t = prTodayIso(), t1 = prAddDays(t, 1);
+      const L = prSessions(state).filter(function(x){ return !x.done && !x.skip && (x.date === t || x.date === t1) && x.type !== 'rest'; }).map(function(x){ const D = slDetail(x, state); return D ? { date: x.date, titre: x.title, etapes: slStepsText(D.b), but: D.why, reussie_si: D.ok, duree_min: D.b.min } : null; }).filter(Boolean);
+      return L.length ? L : null; } catch(e) { diagSilent(e, 'coach-context:seances_detaillees'); return null; } })(),
     forme_du_jour: (state._form_today && typeof prTodayIso==='function' && state._form_today.date===prTodayIso()) ? state._form_today : null,   // note du jour de l'accueil (récup, sommeil, FC repos, VFC + ajustements)
     absences_semaine: state['absences_cw'+CW]||null,
     prochaines_semaines: (()=>{
