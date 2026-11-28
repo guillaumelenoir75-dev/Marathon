@@ -522,74 +522,122 @@ function slPickChange(st, s, C, mode){
     before: { t: s.title, d: s.detail || '', km: s.kmPlan, type: s.type }, after: mode === 'pro' ? to : { t: to.t, d: to.d || '', km: to.km, type: to.type },
     reason: mode === 'pro' ? 'Version pro choisie : ' + (L ? L.n : to.t) : 'Version classique choisie', short: mode === 'pro' ? 'Version pro : ' + (L ? L.n : to.t) : 'Version classique : ' + to.t };
 }
-// pastille de la ligne de la séance (accueil) : version en cours, et l'autre possible
+// pastille de la ligne de la séance (accueil) : version en cours, et le conseil s'il y en a un (slAdvice, gardé par prAnalyze)
 function slChipHtml(s2, key){
   if(!s2 || ['ef', 'long', 'tempo', 'frac'].indexOf(s2.type) < 0) return '';
   const t = String(s2.d || '').split('|')[0]; if(/^Test\b/i.test(t) || s2._season) return '';
-  const pro = !!s2.lib;
-  return '<span class="sl-vchip' + (pro ? ' pro' : '') + '" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:800;white-space:nowrap;'
-    + (pro ? 'background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;' : 'background:#F8FAFC;color:#64748B;border:1px solid #E2E8F0;') + '">' + (pro ? '✦ Pro' : 'Classique · ⇄ Pro') + '</span>';
+  const pro = !!s2.lib, A = key ? slAdviceOf(key) : null;
+  const v = pro ? (A && A.rec === 'classic' && A.k === 'block' ? ['✦ Pro · classique conseillée', 'pro'] : ['✦ Pro', 'pro']) : A && A.rec === 'pro' ? ['✦ Pro conseillée', 'adv'] : ['Classique', ''];
+  const css = v[1] === 'pro' ? 'background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;' : v[1] === 'adv' ? 'background:#fff;color:#6D28D9;border:1.5px solid #7C3AED;' : 'background:#F8FAFC;color:#64748B;border:1px solid #E2E8F0;';
+  return '<span class="sl-vchip' + (v[1] ? ' ' + v[1] : '') + '"' + (key ? ' data-k="' + key + '"' : '') + ' style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:800;white-space:nowrap;' + css + '">' + v[0] + '</span>';
 }
 
-// ─── Détail d'une séance (bibliothèque ou classique) : étapes + but + conseils + version courte + ravito ───
-function slDetail(s, st){
-  st = st || state; if(!s) return null;
-  let b = slOfSession(s, st);
-  const ctx = b ? b.ctx : slCtx(st, {});
-  if(!b && ctx) b = slClassic(s, ctx);
-  if(!b) return null;
-  const L = SL_BY_ID[b.id] || null;
-  const it = typeof prIntent === 'function' ? prIntent(s) : null;
-  const gen = SL_GENERIC[s.type] || SL_GENERIC.ef;
-  const out = { b: b, L: L, why: L && L.why || gen.why, tips: L && L.tips || gen.tips, ok: L && L.ok || gen.ok, stim: b.stim, phase: null,
-    rpe: typeof paRpeRange === 'function' ? paRpeRange(s.type) : null };
-  // version courte (fatigue) : un palier en dessous, ou 20 % de moins
-  if(L && b.r > 0) out.short = slBuild(L.id, b.r - 1, b.ctx, s.kmPlan);
-  out.shortTxt = out.short ? out.short.title + ' · ~' + out.short.min + ' min' : 'Raccourcir de 20 % et rester en endurance si les jambes sont lourdes.';
-  // ravito, chaussure, météo
-  if(b.min >= 75) out.fuel = 'Boire 400-600 ml par heure, un gel à 45 min puis toutes les 30-40 min. C\'est l\'occasion de tester le ravito du jour J.';
-  else if(b.min >= 60) out.fuel = 'Une petite bouteille si chaud ; rien à manger.';
-  if(typeof shoeDayAdvice === 'function'){ try { const sh = shoeDayAdvice(s.x || {}, s.date); if(sh && sh.name) out.shoe = sh.name; } catch(e) {} }
-  if(typeof prWxAt === 'function' && s.date){ const m = prWxAt(s.date, (s.x && s.x.sched_time) || '12:00'); if(m && typeof prWxAdj === 'function'){ const adj = prWxAdj(m); out.wx = { t: Math.round(m.t), pct: adj.pct, why: adj.why }; } }
-  return out;
-}
-const SL_GENERIC = {
-  ef: { why: 'Développer le moteur aérobie sans fatigue.', tips: ['Conversation possible', 'FC sous le plafond d\'endurance'], ok: 'FC sous le plafond du début à la fin.' },
-  long: { why: 'Endurance, économie de course et mental des longues distances.', tips: ['Départ très facile', 'Boire toutes les 20 min si plus de 1h15'], ok: 'Finir avec de la réserve.' },
-  tempo: { why: 'Repousser ton seuil.', tips: ['Régulier du premier au dernier bloc'], ok: 'Blocs dans la fourchette.' },
-  frac: { why: 'Développer ta VO₂max.', tips: ['Ne pas partir trop vite', 'Récup trottinée'], ok: 'Toutes les répétitions dans la fourchette.' },
-  race: { why: 'Le jour J.', tips: ['Partir à ton allure, pas à celle des autres'], ok: 'Négative split.' }
-};
-// séance classique → étapes (lecture de la consigne : « 15 min EF », « N × Q », « récup R min », « retour au calme »)
-function slClassic(s, ctx){
-  const t = (s.title || '') + ' · ' + (s.detail || ''), km = s.kmPlan || s.km || 8;
-  const out = { id: null, r: 0, rungs: 1, name: s.title, title: s.title, type: s.type, stim: s.type === 'long' || s.type === 'ef' ? 'endurance' : s.type === 'tempo' ? 'seuil' : s.type === 'frac' ? 'vo2' : 'specifique', ctx: ctx, steps: [] };
-  const pace = s.pace ? [s.pace.lo, s.pace.hi] : null;
-  if(s.type === 'ef' || s.type === 'long' || s.type === 'race'){
-    out.steps = [Object.assign(sEf({ d: km * 1000 }, s.type === 'race' ? 'Course' : s.type === 'long' ? 'Sortie longue' : 'Footing'), pace ? { p: null, pace: pace } : {})];
-  } else {
-    const wm = t.match(/(\d+)\s*(?:-\s*\d+\s*)?min\s+(?:EF|d'échauffement)/i), wk = t.match(/(\d+(?:[,.]\d+)?)\s*km\s+EF/i), rp = typeof paParseReps === 'function' ? paParseReps(t) : null;
-    const rc = t.match(/récup\s+(\d+(?:[,.]\d+)?)\s*(min|s|'|’)/i), cool = /retour au calme/i.test(t);
-    out.steps.push(wk ? sEf({ d: parseFloat(wk[1].replace(',', '.')) * 1000 }, 'Échauffement') : sW(wm ? +wm[1] : 15));
-    out.steps.push(sDr());
-    if(rp){ const wkS = Object.assign({ k: 'work', n: 'Bloc', p: null, pace: pace }, rp.unit === 'm' ? { d: rp.q } : { s: rp.q * 60 });
-      const rec = rc ? sRc(/min|'|’/.test(rc[2]) ? { s: Math.round(parseFloat(rc[1].replace(',', '.')) * 60) } : { s: +rc[1] }) : sRc({ s: 120 });
-      out.steps.push(sRep(rp.n, [wkS, rec])); }
-    else out.steps.push({ k: 'work', n: 'Partie principale', p: null, pace: pace, eff: s.detail });
-    if(cool) out.steps.push(sC(10));
+// ─── La version pro seulement quand elle sert : conseil séance par séance ───────
+// effet recherché d'une séance (pro : celui du modèle ; classique : d'après son type)
+const SL_FOCUS_STIM = { vitesse: ['vo2', 'vitesse', 'force'], specifique: ['specifique'], aerobie: ['seuil', 'endurance'] };
+const SL_FOCUS_LBL = { vitesse: 'ta vitesse', specifique: 'ton endurance à allure course', aerobie: 'ta base aérobie' };
+const SL_INTENS = { endurance: 0, recup: 0, seuil: 1, specifique: 1, mixte: 1.5, force: 1.5, vo2: 2, vitesse: 2.5, test: 2 };
+function slStimOf(s){ const l = s && s.x && s.x.lib; if(l && SL_BY_ID[l.id]) return SL_BY_ID[l.id].stim; return s.type === 'tempo' ? 'seuil' : s.type === 'frac' ? 'vo2' : 'endurance'; }
+// structure d'une séance de qualité classique (« 4 × 1000 m ») : sert à repérer la même séance qui revient
+function slShape(s){ const r = typeof paParseReps === 'function' ? paParseReps((s.title || '') + ' · ' + (s.detail || '')) : null; return r ? r.n + '×' + r.q + r.unit : String(s.title || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+// pro ou classique : ce que chaque version t'apporte (séances de qualité faites, 6 mois) — ressenti et niveau 3 semaines après
+let _slVsCache = null;
+function slVersionStats(st, today){
+  st = st || state; today = today || prTodayIso();
+  const sig = today + '|' + (typeof prDataSig === 'function' ? prDataSig() : '');
+  if(st === state && _slVsCache && _slVsCache.sig === sig) return _slVsCache.out;
+  const done = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : prSessions(st).filter(function(s){ return s.done; }))
+    .filter(function(s){ return (s.type === 'tempo' || s.type === 'frac') && s.date && s.date <= today && prDays(s.date, today) <= 183 && !/^Test\b/i.test(s.title || ''); });
+  let H = [];
+  if(st === state && typeof bsLevelHistory === 'function'){ try { H = bsLevelHistory(today); } catch(e) { H = []; } }
+  const lvl = function(d, after){ let best = null; H.forEach(function(p){ if(after ? p.date >= d && (!best || p.date < best.date) : p.date <= d && (!best || p.date > best.date)) best = p; }); return best ? best.v : null; };
+  const out = { pro: { n: 0, easy: 0, hard: 0, gain: 0, gn: 0 }, classic: { n: 0, easy: 0, hard: 0, gain: 0, gn: 0 }, best: null };
+  done.forEach(function(s){
+    const V = out[s.x && s.x.lib ? 'pro' : 'classic'], ab = typeof paAbsorb === 'function' ? paAbsorb(s, st, { today: today }) : null;
+    V.n++; if(ab && ab.verdict === 'easy') V.easy++; if(ab && ab.verdict === 'hard') V.hard++;
+    const d3 = prAddDays(s.date, 21); if(d3 <= today){ const a0 = lvl(s.date, false), a1 = lvl(d3, true); if(a0 != null && a1 != null){ V.gain += a1 - a0; V.gn++; } }
+  });
+  ['pro', 'classic'].forEach(function(k){ const V = out[k]; V.gain = V.gn ? Math.round(V.gain / V.gn * 10) / 10 : null; V.bal = V.n ? (V.easy - V.hard) / V.n : 0; });
+  const P = out.pro, C = out.classic;
+  if(P.n >= 3 && C.n >= 3){
+    const dg = P.gain != null && C.gain != null && P.gn >= 3 && C.gn >= 3 ? P.gain - C.gain : null;
+    if(dg != null && Math.abs(dg) >= 0.2) out.best = dg > 0 ? 'pro' : 'classic';
+    else if(Math.abs(P.bal - C.bal) >= 0.3 && dg == null) out.best = P.bal > C.bal ? 'pro' : 'classic';
   }
-  let d = 0, sec = 0; out.steps.forEach(function(x){ const m = slMeasure(x, ctx); d += m.d; sec += m.s; });
-  out.km = km; out.min = Math.round(sec / 60) || Math.round(km * 5.5); out.workMin = 0; out.text = s.detail;
+  if(st === state) _slVsCache = { sig: sig, out: out };
   return out;
 }
-// texte d'une séance détaillée pour l'agenda, le Coach (étapes une par ligne)
-function slStepsText(b){
-  const ctx = b.ctx, lines = [];
-  const one = function(x, ind){
-    if(x.rep){ lines.push(ind + x.rep + ' ×'); x.steps.forEach(function(y){ one(y, ind + '   '); }); if(x.gap) lines.push(ind + '(entre les séries : ' + slStepTxt(x.gap, ctx, false) + ')'); return; }
-    const pr = x.pace || slPaceOf(x, ctx), hr = slHrOf(x, ctx);
-    lines.push(ind + '• ' + x.n + (x.d || x.s ? ' ' + slQ(x) : '') + (pr ? ' · ' + slPx(pr[0]) + '–' + slPx(pr[1]) + '/km' : '') + (hr ? ' · FC ' + hr[0] + '-' + hr[1] : '') + (x.eff && !pr ? ' · ' + x.eff : ''));
-  };
-  b.steps.forEach(function(x){ one(x, ''); });
-  return lines.join('\n');
+// conseil pour chaque séance des 4 prochaines semaines : { rec: 'pro' | 'classic', why, k, cur, reasons, score, need }
+// la pro n'est conseillée qu'avec une vraie raison (plafond, point faible, séance qui revient, moment clé) ; jamais sous fatigue,
+// douleur, récupération de course, semaine allégée ni en affûtage (sauf l'activation de la veille)
+function slAdvice(st, a){
+  st = st || state; if(!a || !a.opt) return {};
+  const today = a.opt.today, end = prAddDays(today, 28), cat = a.opt.raceCat || 'Semi-marathon';
+  const PH = slPhases(st, today, cat), prof = a.profile || slProfile(st, a);
+  const S = prSessions(st), byPro = {};
+  slSelectCached(st, a).forEach(function(p){ byPro[p.key] = p.after; });
+  const done = (st === state && typeof prAllDone === 'function' ? prAllDone(today) : S.filter(function(s){ return s.done; }))
+    .filter(function(s){ return s.date && s.date <= today && prDays(s.date, today) <= 42; }).sort(function(x, y){ return y.date.localeCompare(x.date); });
+  const verdict = {}; const ab = function(s){ const k = s.date + '|' + s.type + '|' + s.km; if(!(k in verdict)){ const r = typeof paAbsorb === 'function' ? paAbsorb(s, st, { today: today }) : null; verdict[k] = r && r.verdict; } return verdict[k]; };
+  const VS = slVersionStats(st, today), ref = st._lib_refuse || {}, out = {}, weekFirst = {}, lastPro = {};
+  S.forEach(function(s){ if(s.x && s.x.lib && s.date && !s.skip && (!lastPro[s.type] || s.date > lastPro[s.type])) lastPro[s.type] = s.date; });
+  const fresh = function(s){ const d = lastPro[s.type]; return !d || d >= s.date || prDays(d, s.date) > 13; };   // pas de pro de ce type dans les 13 jours d'avant
+  S.filter(function(s){ return slChoosable(s, today) && s.date <= end; }).sort(function(x, y){ return x.date.localeCompare(y.date); }).forEach(function(s){
+    const cur = s.x && s.x.lib ? 'pro' : 'classic', pro = cur === 'pro' ? { lib: s.x.lib } : byPro[s.key];
+    if(!pro || !pro.lib || !SL_BY_ID[pro.lib.id]) return;
+    const L = SL_BY_ID[pro.lib.id], wk = PH[s.w] || {}, soon = prDays(today, s.date) <= 7;
+    let block = null;
+    if(a.opt.noVolumeUp && soon) block = 'Fatigue ou douleur en ce moment : garde simple';
+    else if(a.opt.noFasterUntil && s.date <= a.opt.noFasterUntil) block = 'Tu récupères de ta course : garde simple';
+    else if(wk.recov) block = 'Semaine allégée : garde simple';
+    else if(wk.phase === 'taper' && L.id !== 'activation') block = 'Affûtage : rien de nouveau avant la course';
+    if(block){ out[s.key] = { rec: 'classic', why: block, k: 'block', cur: cur, reasons: [], score: 0, need: 0 }; return; }
+    const R = [];
+    if(s.type === 'ef'){
+      if(L.id === 'activation') R.push({ k: 'key', s: 2, t: 'Veille de course : de quoi réveiller les jambes sans fatigue' });
+      else if(L.id === 'ef-recup') R.push({ k: 'recov', s: 1, t: 'Lendemain de séance dure : un vrai footing de récupération' });
+    } else if(s.type === 'long'){
+      const lg = done.filter(function(x){ return x.type === 'long'; }).slice(0, 2);
+      if(lg.length === 2 && fresh(s) && lg.every(function(x){ return ab(x) === 'easy'; })) R.push({ k: 'plateau', s: 2, t: 'Tes 2 dernières sorties longues sont passées facilement : un peu de relief' });
+    } else {
+      const lbl = s.type === 'tempo' ? 'seuil' : 'fractionné';
+      const same = done.filter(function(x){ return x.type === s.type; }).slice(0, 3), easy = same.filter(function(x){ return ab(x) === 'easy'; }).length;
+      if(same.length >= 2 && easy >= 2 && fresh(s)) R.push({ k: 'plateau', s: 2, t: 'Tes ' + easy + ' dernières séances de ' + lbl + ' étaient faciles : il faut un stimulus nouveau' });
+      const f = (prof.focus || []).filter(function(k){ return (SL_FOCUS_STIM[k] || []).indexOf(L.stim) >= 0; })[0];
+      if(f){ const wkKey = s.w + '|' + f, first = !weekFirst[wkKey]; weekFirst[wkKey] = 1;
+        R.push({ k: 'weak', s: f === prof.focus[0] && first ? 2 : 1, t: 'Point à travailler : ' + SL_FOCUS_LBL[f] }); }
+      if(cur === 'classic'){
+        const sh = slShape(s), n = S.filter(function(x){ return x.key !== s.key && x.type === s.type && x.date && x.date < s.date && prDays(x.date, s.date) <= 21 && !(x.x && x.x.lib) && slShape(x) === sh; }).length;
+        if(n >= 2 && fresh(s)) R.push({ k: 'monotony', s: 2, t: 'Même séance (' + s.title + ') pour la ' + (n + 1) + 'e fois en 3 semaines' });
+      }
+      const prev = PH[s.w - 1] || {};
+      if(wk.phase === 'spec' && prev.phase && prev.phase !== 'spec' && !weekFirst['spec|' + s.w]){ weekFirst['spec|' + s.w] = 1; R.push({ k: 'key', s: L.stim === 'specifique' ? 2 : 1, t: 'Début de la phase spécifique : place à l\'allure course' }); }
+    }
+    let need = VS.best === 'pro' ? 1 : VS.best === 'classic' ? 3 : 2;
+    if((ref[s.type] || 0) >= 3) need++;
+    R.sort(function(x, y){ return y.s - x.s; });
+    const score = R.reduce(function(t, r){ return t + r.s; }, 0), rec = score >= need ? 'pro' : 'classic';
+    const dflt = s.type === 'ef' ? 'Footing simple : la classique suffit' : s.type === 'long' ? 'La sortie longue classique fait le travail' : 'Tes séances passent comme prévu : la classique suffit';
+    if(rec === 'pro' && s.type !== 'ef') lastPro[s.type] = s.date;
+    out[s.key] = { rec: rec, why: rec === 'pro' ? R[0].t : dflt, k: rec === 'pro' ? R[0].k : 'ok', cur: cur, reasons: R, score: score, need: need };
+  });
+  return out;
 }
+// dernier conseil calculé (prAnalyze) : lu par les pastilles de l'accueil sans refaire le calcul
+let _slAdvLast = null;
+function slAdviceOf(key){ const A = _slAdvLast; if(!A || A.st !== (typeof state !== 'undefined' ? state : null) || A.date !== (typeof prTodayIso === 'function' ? prTodayIso() : '')) return null; return A.map[key] || null; }
+function slAdviceStore(st, a, map){ _slAdvLast = { st: st, date: a.opt.today, map: map }; }
+// propositions : passer en pro les séances où c'est conseillé, revenir à la classique quand il faut garder simple (14 jours)
+// jamais avec « tout en pro », jamais contre un choix que tu as fait toi-même
+function slAdviceProposals(st, a, adv){
+  st = st || state; if(!a || !a.opt || st._lib_on) return [];
+  const today = a.opt.today, end = prAddDays(today, 13), picks = slPicks(st), out = [];
+  prSessions(st).forEach(function(s){
+    const A = adv[s.key]; if(!A || A.rec === A.cur || picks[s.key] || !s.date || s.date > end) return;
+    if(A.cur === 'pro' && A.k !== 'block') return;                                    // une séance déjà pro n'est retirée que pour garder simple
+    const C = slChoice(st, s, a), ch = slPickChange(st, s, C, A.rec); if(!ch) return;
+    out.push(Object.assign(ch, { advice: true, why: A.why, reason: (A.rec === 'pro' ? 'Pro conseillée : ' : 'Classique conseillée : ') + A.why, short: A.why }));
+  });
+  return out;
+}
+// Détail d'une séance (slDetail, slClassic, slStepsText) : session-lib-ui.js (écran chargé à la demande, aussi dans le moteur du serveur)

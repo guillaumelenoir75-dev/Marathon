@@ -222,6 +222,7 @@ async function sendCoachMessage(retryMsg, opts){
   const input = document.getElementById('coach-input');
   const msg = retryMsg || (input ? input.value.trim() : '');
   if(!msg){ if(opts.onDone) opts.onDone(null); return; }
+  if(typeof slDetail !== 'function' && typeof lazyLoad === 'function') lazyLoad('sdui').catch(function(){});   // séances détaillées du contexte (session-lib-ui.js), prêtes pour la suite
   if(input && !retryMsg){ input.value = ''; input.style.height='auto'; }
   if(input && !opts.voice) setTimeout(()=>input.focus(),100);   // mode vocal : pas de clavier
   addCoachMessage('user', msg);

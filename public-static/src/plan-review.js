@@ -563,8 +563,11 @@ function prAnalyze(mode){   // mode.auto : pilote de nuit (jamais de rattrapage 
   // bibliothèque de séances (session-lib.js) : profil de coureur, séances proposées / recalées / montées d'un palier
   if(opt2 && typeof slProfile === 'function'){ try { a.profile = slProfile(state, a); a.libOffer = slOffer(state); } catch(e) { diagSilent(e, 'plan-review:slProfile'); } }
   const lib = opt2 && typeof slProposals === 'function' ? (function(){ try { return slProposals(state, a); } catch(e) { diagSilent(e, 'plan-review:slProposals'); return []; } })() : [];
+  // version pro seulement quand elle sert (session-lib.js) : conseil séance par séance, proposé dans les 14 jours
+  let advice = [];
+  if(opt2 && typeof slAdvice === 'function'){ try { a.advice = slAdvice(state, a); slAdviceStore(state, a, a.advice); advice = slAdviceProposals(state, a, a.advice); } catch(e) { diagSilent(e, 'plan-review:slAdvice'); } }
   // une proposition par séance et par champ : douleur > WHOOP > séance test > palier > volume / allure
-  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(lib).concat(ladder).concat(habit).concat(a.volume ? a.volume.proposals : []) : [];
+  const extra = opt2 ? (typeof prPainProposals === 'function' ? prPainProposals(state, a, a.internal) : []).concat(prWhoopProposals(state, a, a.whoop)).concat([prTestProposal(state, a)].filter(Boolean)).concat(lib).concat(ladder).concat(advice).concat(habit).concat(a.volume ? a.volume.proposals : []) : [];
   const seen = {}, merged = [];
   extra.concat(all).forEach(function(p){
     const k = p.key + '|' + (p.field === 'session' ? 'session' : p.field), ks = p.key + '|session';
@@ -809,6 +812,7 @@ async function prCoachBody(a, R, force){
     recette: a.recette ? { progression_max_pct: Math.round((a.recette.progression - 1) * 100), raison: a.recette.progWhy, affutage: a.recette.taper, allures: a.recette.calib, base_km_sem: a.recette.base, sortie_longue_max: a.recette.longest, tiree_de: a.recette.from } : null,
     dernier_bilan: (function(){ const IX = (typeof _prepIndex !== 'undefined' && _prepIndex) || {}; const L = Object.keys(IX).map(function(k){ return IX[k]; }).filter(function(p){ return p && p.debrief; }).sort(function(x, y){ return String(y.date || '').localeCompare(String(x.date || '')); })[0]; return L ? { prepa: L.title, date: L.date, resultat: L.result || null, lecons: L.debrief.lessons } : null; })(),
     derniere_course: state._race_analysis ? (function(A){ return { course: A.name || A.cat, date: A.date, temps: A.time, objectif: A.target ? prTime(A.target.sec) : null, niveau_la_veille: A.pred ? prTime(A.pred) : null, verdict: A.verdict.t, depart_pct_vs_prevu: A.start ? Math.round(A.start.pct * 10) / 10 : null, seconde_moitie_pct: A.halves ? A.halves.pct : null, coup_de_mou_km: A.fade ? A.fade.km : null, derive_cardio_pct: A.drift ? A.drift.pct : null, meteo_pct: A.heat ? A.heat.pct : null, lecons: A.lessons }; })(state._race_analysis) : null,
+    pro_conseillee: a.advice ? Object.keys(a.advice).filter(function(k){ return a.advice[k].rec === 'pro' || a.advice[k].k === 'block'; }).slice(0, 12).map(function(k){ const A = a.advice[k]; return { ref: k, conseil: A.rec === 'pro' ? 'version pro' : 'version classique', version_actuelle: A.cur, pourquoi: A.why }; }) : undefined,
     bibliotheque: typeof SL_LIB !== 'undefined' ? SL_LIB.map(function(L){ return { id: L.id, nom: L.n, effet: L.stim, type: L.type, phases: L.ph, paliers: L.prog.length }; }) : null,
     profil_coureur: a.profile ? { priorites: a.profile.focus, points: a.profile.items.map(function(x){ return x.t + ' (' + (x.tone === 'weak' ? 'à travailler' : x.tone === 'strong' ? 'force' : 'équilibré') + ') : ' + x.v; }) } : null,
     historique_appris: a.hist ? { depuis: a.hist.first, seances: a.hist.n, km: a.hist.km,

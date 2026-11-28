@@ -427,7 +427,7 @@ function paLine(p){
   const day = function(d){ return typeof prFmtDate === 'function' ? prFmtDate(d, { weekday: 'long' }) : d; };
   let t;
   if(p.kind === 'test') t = 'Test 5 km pour mesurer ton niveau';
-  else if(p.kind === 'pick') t = (p.sub === 'pro' ? 'Version pro : ' : 'Version classique : ') + (A.t || '');
+  else if(p.kind === 'pick') t = (p.advice ? (p.sub === 'pro' ? '✦ Pro conseillée : ' : 'Classique conseillée : ') : (p.sub === 'pro' ? 'Version pro : ' : 'Version classique : ')) + (A.t || '');
   else if(p.kind === 'lib') t = p.sub === 'refresh' ? 'Allures recalées sur ton niveau' : (p.sub === 'step' ? (p.delta > 0 ? 'Un cran plus dur : ' : 'Un cran plus facile : ') : 'Devient : ') + (A.t || '');
   else if(f === 'date') t = 'Déplacée au ' + day(p.after);
   else if(f === 'km'){ const d = Math.round((+p.after - +p.before) * 10) / 10; t = (d > 0 ? '+' : '−') + String(Math.abs(d)).replace('.', ',') + ' km · ' + String(p.after).replace('.', ',') + ' km au total'; }
@@ -483,7 +483,8 @@ function planCardRender(){
     const today = prTodayIso(), R = state._plan_reviews || [], last = R[R.length - 1] || {};
     const key = [today, prDataSig(), R.length, last.at || last.date || '', last.undone ? 1 : 0, state.target_time || '', state._week_ok || '', (state._goal_check || {}).at || '', state._review_seen || '', JSON.stringify(state._hist_recal || null), (state._coach_review || {}).at || '', (state._coach_review || {}).applied ? 1 : 0, state._lib_on || '', JSON.stringify(state._lib_offer || null), Object.keys(state).length].join('|');
     if(_hpCache && _hpCache.key === key && Date.now() - _hpCache.t < 300000) N = _hpCache.n;
-    else { N = planNews(prAnalyze(), state); _hpCache = { key: key, t: Date.now(), n: N }; }
+    else { N = planNews(prAnalyze(), state); _hpCache = { key: key, t: Date.now(), n: N };
+      try { document.querySelectorAll('.sl-vchip[data-k]').forEach(function(el){ let x = null; try { x = JSON.parse(state[el.dataset.k]); } catch(e) { return; } const h = slChipHtml(x, el.dataset.k); if(h) el.outerHTML = h; }); } catch(e) { diagSilent(e, 'plan-adapt:chips'); } }
   } catch(e) { diagSilent(e, 'plan-adapt:planCardRender'); return hide(); }
   _hpCss();
   el.style.display = ''; if(sec) sec.style.display = '';

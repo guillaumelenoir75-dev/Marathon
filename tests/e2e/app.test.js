@@ -895,6 +895,8 @@ test('séances de pro : deux versions par séance (classique ou pro) dans le dé
   await page.evaluate((k) => openSessionDetail(k), k0);
   await page.waitForSelector('#sl-ov .sl-ch .sl-cv', { timeout: 10000 });
   assert.equal(await page.locator('#sl-ov .sl-cv').count(), 2);
+  // conseil : « Pro conseillée » ou « La classique suffit », avec sa raison
+  assert.match(await page.evaluate(() => document.querySelector('#sl-ov .sl-adv').textContent), /Pro conseillée|La classique suffit/);
   assert.match(await page.evaluate(() => document.querySelector('#sl-ov .sl-cv.view').textContent), /Classique.*Ta séance|Ta séance.*Classique/);
   await page.click('#sl-ov .sl-cv.pro'); await page.waitForSelector('#sl-ov .sl-cv.pro.view', { timeout: 10000 });
   assert.match(await page.evaluate(() => document.getElementById('sl-ov').textContent), /Prendre la version pro/);
@@ -914,7 +916,20 @@ test('séances de pro : deux versions par séance (classique ou pro) dans le dé
   const prev = await page.evaluate(() => document.getElementById('sl-prev').textContent);
   assert.match(prev, /Classique/); assert.match(prev, /Pro/); assert.match(prev, /Base|Développement|Spécifique|Affûtage/);
   assert.ok(await page.locator('#sl-prev .sl-pk-2 button.pro').count() >= 5);
+  assert.match(prev, /pilote de nuit/);
   if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/lib-preview.png' }); }
+  // « Non merci » sur une séance où la pro est conseillée : classique gardée, refus retenu
+  const kAdv = await page.evaluate(() => { const A = prAnalyze().advice || {}; return Object.keys(A).find((k) => A[k].rec === 'pro' && A[k].cur === 'classic') || null; });
+  if (kAdv) {
+    await page.evaluate((k) => { document.getElementById('sl-prev').remove(); openSessionDetail(k); }, kAdv);
+    await page.waitForSelector('#sl-ov .sl-adv.pro', { timeout: 10000 });
+    if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/lib-advice.png' }); }
+    await page.click('#sl-ov .sl-adv-b button:not(.pri)'); await page.waitForTimeout(400);
+    const no = await page.evaluate((k) => ({ pick: slPicks(state)[k], ref: state._lib_refuse }), kAdv);
+    assert.equal(no.pick, 'classic'); assert.ok(Object.values(no.ref || {}).some((n) => n >= 1));
+    await page.evaluate(() => { document.getElementById('sl-ov').remove(); openLibPreview(); });
+    await page.waitForSelector('#sl-prev .sl-pk', { timeout: 10000 });
+  }
   const k1 = await page.evaluate(() => document.querySelectorAll('#sl-prev .sl-pk')[1].dataset.k);
   await page.click('#sl-prev .sl-pk >> nth=1 >> button.pro'); await page.waitForTimeout(500);
   assert.ok(await page.evaluate((k) => !!JSON.parse(state[k]).lib, k1), 'choisie pro depuis la liste');

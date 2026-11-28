@@ -79,6 +79,9 @@ function _slCss(){
     + '.sl-ch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 6px;}.sl-cv{position:relative;display:flex;flex-direction:column;gap:2px;text-align:left;background:#fff;border:1.5px solid #DCE5F3;border-radius:14px;padding:9px 10px 10px;font:inherit;color:#0F172A;cursor:pointer;min-width:0;}'
     + '.sl-cv em{font-style:normal;font-size:10.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#64748B;}.sl-cv.pro em{color:#6D28D9;}.sl-cv b{font-size:13px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}.sl-cv small{font-size:11.5px;color:#64748B;font-variant-numeric:tabular-nums;}'
     + '.sl-cv.view{border-color:#1B4FD8;box-shadow:0 0 0 3px rgba(27,79,216,.12);}.sl-cv.pro.view{border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,.14);}.sl-cv .sl-cur{position:absolute;top:-8px;right:8px;font-size:10px;font-weight:900;border-radius:8px;padding:1px 7px;background:#0F172A;color:#fff;}'
+    + '.sl-adv{display:flex;flex-direction:column;gap:6px;border-radius:12px;padding:9px 11px;margin:0 0 8px;font-size:13px;line-height:1.4;background:#F8FAFC;border:1px solid #E2E8F0;color:#334155;}.sl-adv.pro{background:#F5F3FF;border-color:#DDD6FE;color:#4C1D95;}.sl-adv b{font-weight:900;}.sl-adv small{font-size:12px;color:#64748B;}'
+    + '.sl-adv-b{display:flex;gap:6px;flex-wrap:wrap;}.sl-adv-b button{border:1px solid #DDD6FE;background:#fff;color:#6D28D9;border-radius:10px;padding:5px 10px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}.sl-adv-b button.pri{background:#7C3AED;border-color:#7C3AED;color:#fff;}'
+    + '.sl-pk-a{margin:6px 2px 0;font-size:11.5px;font-weight:700;color:#6D28D9;}.sl-pk-a.cl{color:#64748B;}.sl-pk-2 button.adv{border-style:dashed;border-color:#7C3AED;}'
     + '.sl-chn{margin:0 0 10px;font-size:12px;color:#64748B;}.sl-acts button.pro{background:#7C3AED;border-color:#7C3AED;color:#fff;}'
     + '.sl-pk{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:8px;margin-top:6px;}.sl-pk-h{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:0 2px 6px;font-size:12px;font-weight:800;color:#64748B;}.sl-pk-h button{border:0;background:none;font:inherit;font-size:12px;font-weight:800;color:#1B4FD8;cursor:pointer;padding:0;}'
     + '.sl-pk-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}.sl-pk-2 button{display:flex;flex-direction:column;gap:1px;text-align:left;border:1.5px solid #E2E8F0;background:#F8FAFC;border-radius:10px;padding:6px 8px;font:inherit;color:#64748B;cursor:pointer;min-width:0;}.sl-pk-2 button small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;}.sl-pk-2 button span{font-size:12.5px;font-weight:700;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}'
@@ -123,10 +126,29 @@ function _slAltSession(s, v){
   let pace = null; if(pm && typeof prParsePace === 'function'){ const a = prParsePace(pm[1], pm[2]), b = pm[3] ? prParsePace(pm[3], pm[4]) : a; pace = { lo: Math.min(a, b), hi: Math.max(a, b), range: !!pm[3], text: pm[0] }; }
   return Object.assign({}, s, { title: v.t, detail: det, kmPlan: +v.km || s.kmPlan, type: v.type || s.type, x: x, pace: pace });
 }
-function _slSum(s){ let D = null; try { D = slDetail(s, state); } catch(e) { diagSilent(e, 'session-lib-ui:_slSum'); } const b = D && D.b; return String(b ? b.km : s.kmPlan).replace('.', ',') + ' km' + (b && b.min ? ' · ~' + b.min + ' min' : '') + (D && D.L ? ' · ' + SL_STIM[D.L.stim].toLowerCase() : ''); }
+function _slBOf(s){ let D = null; try { D = slDetail(s, state); } catch(e) { diagSilent(e, 'session-lib-ui:_slBOf'); } return D; }
+function _slSum(s){ const D = _slBOf(s), b = D && D.b; return String(b ? b.km : s.kmPlan).replace('.', ',') + ' km' + (b && b.min ? ' · ~' + b.min + ' min' : '') + (b && b.workMin ? ' · ' + b.workMin + ' min de travail' : '') + (D && D.L ? ' · ' + SL_STIM[D.L.stim].toLowerCase() : ''); }
+let _slA = null;   // analyse du plan (prAnalyze) gardée quelques secondes pendant les choix
+function _slAnalyze(){ if(_slA && _slA.st === state && Date.now() - _slA.t < 20000) return _slA.a; const a = prAnalyze(); _slA = { st: state, t: Date.now(), a: a }; return a; }
 function _slChoiceOf(s){
   if(typeof _prepView !== 'undefined' && _prepView && !_prepView.next) return null;      // prépa consultée en lecture seule
-  try { return slChoice(state, s, s.x && s.x.lib ? null : prAnalyze()); } catch(e) { diagSilent(e, 'session-lib-ui:_slChoiceOf'); return null; }
+  try { const a = _slAnalyze(), C = slChoice(state, s, a); if(C) C.adv = (a.advice || {})[s.key] || null; return C; } catch(e) { diagSilent(e, 'session-lib-ui:_slChoiceOf'); return null; }
+}
+// classique vs pro : minutes de travail et intensité (une phrase)
+function _slCompare(s0, C){
+  const sc = C.cur === 'classic' ? s0 : _slAltSession(s0, C.classic), sp = C.cur === 'pro' ? s0 : _slAltSession(s0, C.pro);
+  const dc = _slBOf(sc), dp = _slBOf(sp); if(!dc || !dp) return '';
+  const ic = SL_INTENS[dc.b.stim] || 0, ip = SL_INTENS[dp.L ? dp.L.stim : dp.b.stim] || 0, wc = dc.b.workMin || 0, wp = dp.b.workMin || 0;
+  if(!wc && !wp) return dp.b.min && dc.b.min && Math.abs(dp.b.min - dc.b.min) >= 5 ? 'La pro : ~' + dp.b.min + ' min contre ~' + dc.b.min + ' min.' : '';
+  return 'Travail : ' + (wc ? wc + ' min' : 'continu') + ' en classique, ' + (wp ? wp + ' min' : 'continu') + ' en pro' + (ip > ic ? ' (plus intense)' : ip < ic ? ' (moins intense)' : '') + '.';
+}
+function _slAdvHtml(s0, C, alt){
+  const A = C && C.adv; if(!A) return '';
+  const cmp = C.classic && C.pro ? _slCompare(s0, C) : '';
+  const pro = A.rec === 'pro', btn = [];
+  if(pro && C.cur === 'classic' && !alt) btn.push('<button type="button" class="pri" onclick="openSessionDetail(\'' + s0.key + '\',\'alt\')">Voir la pro</button>', '<button type="button" onclick="slAdviceNo(\'' + s0.key + '\')">Non merci</button>');
+  return '<div class="sl-adv' + (pro ? ' pro' : '') + '"><span><b>' + (pro ? '✦ Pro conseillée' : 'La classique suffit') + '</b> · ' + _slEsc(A.why) + '</span>'
+    + (cmp ? '<small>' + _slEsc(cmp) + '</small>' : '') + (btn.length ? '<div class="sl-adv-b">' + btn.join('') + '</div>' : '') + '</div>';
 }
 function _slChoiceHtml(s0, C, alt){
   if(!C || !C.classic || !C.pro) return '';
@@ -135,7 +157,7 @@ function _slChoiceHtml(s0, C, alt){
     const mine = C.cur === v[0], view = alt ? !mine : mine, ss = mine ? s0 : _slAltSession(s0, v[2]);
     return '<button type="button" class="sl-cv' + (v[0] === 'pro' ? ' pro' : '') + (view ? ' view' : '') + '" aria-pressed="' + view + '" onclick="openSessionDetail(\'' + s0.key + '\'' + (mine ? '' : ',\'alt\'') + ')">'
       + (mine ? '<span class="sl-cur">✓ Ta séance</span>' : '') + '<em>' + v[1] + '</em><b>' + _slEsc(v[2].t) + '</b><small>' + _slEsc(_slSum(ss)) + '</small></button>';
-  }).join('') + '</div><p class="sl-chn">' + (alt ? 'Tu regardes l\'autre version. Elle remplace ta séance si tu la prends.' : 'Deux versions possibles : touche l\'autre pour la voir.') + '</p>';
+  }).join('') + '</div>' + _slAdvHtml(s0, C, alt) + '<p class="sl-chn">' + (alt ? 'Tu regardes l\'autre version. Elle remplace ta séance si tu la prends.' : 'Deux versions possibles : touche l\'autre pour la voir.') + '</p>';
 }
 function openSessionDetail(key, view){
   const s0 = _slFindSession(key); if(!s0) return;
@@ -198,8 +220,17 @@ function _slPickSet(keys, mode){
   const k = Object.assign({}, P.k || {}); keys.forEach(function(x){ k[x] = mode; });
   state._lib_pick = { prep: P.prep, k: k };
 }
+function _slRefuse(type){ const R = Object.assign({}, state._lib_refuse || {}); R[type] = (R[type] || 0) + 1; state._lib_refuse = R; }
+// « Non merci » sur un conseil : la séance reste classique, le moteur ne la repropose plus, et conseille moins ce type de séance
+function slAdviceNo(key){
+  const s = _slFindSession(key); if(!s) return;
+  _slRefuse(s.type); _slPickSet([key], 'classic'); _slAfterPick();
+  if(typeof showToast === 'function') showToast('C\'est noté : tu gardes la classique', '✓');
+  openSessionDetail(key);
+}
+function slAutoSet(on){ state._lib_auto = !!on; save(); openLibPreview(); }
 function _slAfterPick(){
-  _slSelCache = null; save();
+  _slSelCache = null; _slA = null; save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; }
   try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'session-lib-ui:_slAfterPick'); }
 }
@@ -209,6 +240,7 @@ function slPick(key, mode, from){
   if(!ch){ if(typeof showToast === 'function') showToast(C && C.cur === mode ? 'C\'est déjà ta séance' : 'Pas d\'autre version pour cette séance', 'ℹ️'); return; }
   const r = prApplyChanges([ch], { kind: 'pick', at: new Date().toISOString() });
   if(!r.n){ if(typeof showToast === 'function') showToast('Séance déjà faite ou modifiée : rien changé', 'ℹ️'); return; }
+  if(mode === 'classic' && C && C.adv && C.adv.rec === 'pro') _slRefuse(s.type);           // conseil refusé : retenu pour ce type de séance
   _slPickSet([key], mode); _slAfterPick();
   if(typeof showToast === 'function') showToast(mode === 'pro' ? 'Version pro : ' + ch.after.t : 'Version classique : ' + ch.after.t, mode === 'pro' ? '✦' : '✓');
   if(from === 'list') openLibPreview(); else openSessionDetail(key);
@@ -262,24 +294,37 @@ function openLibCatalog(){
 }
 
 // ─── Tes séances : classique ou pro — les deux versions de chaque séance à venir, choix séance par séance ───
+// ce que chaque version t'apporte (slVersionStats) : une ligne, dès 3 séances de chaque
+function _slVsHtml(a){
+  let V = null; try { V = slVersionStats(state, a.opt.today); } catch(e) { diagSilent(e, 'session-lib-ui:_slVsHtml'); }
+  if(!V || (!V.pro.n && !V.classic.n)) return '';
+  const g = function(x){ return x.gain == null ? '' : ', ' + (x.gain >= 0 ? '+' : '') + String(x.gain).replace('.', ',') + ' de niveau en 3 sem.'; };
+  const one = function(lbl, x){ return lbl + ' : ' + x.n + ' séance' + (x.n > 1 ? 's' : '') + (x.n ? ' (' + x.easy + ' facile' + (x.easy > 1 ? 's' : '') + g(x) + ')' : ''); };
+  return '<p class="sl-p" style="margin-top:6px;font-size:12.5px;">' + _slEsc(one('Pro', V.pro) + ' · ' + one('Classique', V.classic)) + (V.best ? ' → <b>' + (V.best === 'pro' ? 'la pro te réussit : conseillée un peu plus souvent' : 'la classique te réussit : la pro est conseillée plus rarement') + '</b>' : '') + '</p>';
+}
 function openLibPreview(){
-  const a = prAnalyze(), today = a.opt.today, sel = slSelectCached(state, a), PH = slPhases(state, today, a.opt.raceCat || 'Semi-marathon');
+  const a = _slAnalyze(), today = a.opt.today, sel = slSelectCached(state, a), PH = slPhases(state, today, a.opt.raceCat || 'Semi-marathon');
   const proOf = {}; sel.forEach(function(p){ proOf[p.key] = p.after; });
   const S = prSessions(state).filter(function(s){ return slChoosable(s, today); }).sort(function(x, y){ return x.date.localeCompare(y.date); });
   const rows = S.map(function(s){ const pro = !!(s.x && s.x.lib); return { s: s, pro: pro, cl: pro ? slClassicOf(state, s) : { t: s.title }, pr: pro ? { t: s.title } : proOf[s.key] || null }; })
     .filter(function(r){ return r.cl && r.pr; });
-  const nPro = rows.filter(function(r){ return r.pro; }).length;
+  const nPro = rows.filter(function(r){ return r.pro; }).length, ADV = a.advice || {};
+  const nAdv = rows.filter(function(r){ const A = ADV[r.s.key]; return A && A.rec === 'pro' && !r.pro; }).length;
   let h = '<div class="lvp-card"><p class="sl-p">Pour chaque séance, deux versions : <b>la classique</b> du plan, ou <b>une séance de coach</b> choisie pour ta phase et ton profil' + (a.profile && a.profile.focus.length ? ' (priorité : ' + _slEsc(a.profile.focus.map(function(k){ return SL_FOCUS[k] || k; }).join(', ')) + ')' : '') + '. Mêmes jours, volume proche. Tu choisis séance par séance.</p>'
-    + '<p class="sl-p" style="margin-top:6px;font-weight:800;color:#0F172A;">' + nPro + ' en pro · ' + (rows.length - nPro) + ' en classique</p></div>';
+    + '<p class="sl-p" style="margin-top:6px;font-weight:800;color:#0F172A;">' + nPro + ' en pro · ' + (rows.length - nPro) + ' en classique' + (nAdv ? ' · <span style="color:#6D28D9;">' + nAdv + ' pro conseillée' + (nAdv > 1 ? 's' : '') + '</span>' : '') + '</p>'
+    + '<p class="sl-p" style="margin-top:4px;font-size:12.5px;color:#64748B;">La pro n\'est conseillée que quand elle sert : tu plafonnes, un point faible à travailler, la même séance qui revient, un moment clé.</p>' + _slVsHtml(a) + '</div>'
+    + '<div class="sl-tog" style="margin-bottom:8px;"><span>🤖 Le pilote de nuit passe en pro les séances conseillées</span><button type="button" onclick="slAutoSet(' + (!state._lib_auto) + ')">' + (state._lib_auto ? 'Oui' : 'Non') + '</button></div>';
   if(!rows.length) h += '<p class="sl-p">Pas encore de version pro possible pour tes prochaines séances (niveau inconnu, ou séances de récupération et d\'affûtage).</p>';
   const byW = {}; rows.forEach(function(r){ (byW[r.s.w] = byW[r.s.w] || []).push(r); });
   Object.keys(byW).map(Number).sort(function(x, y){ return x - y; }).forEach(function(w){
     const wk = PH[w] || {};
     h += '<div class="sl-wk"><h4>S' + w + (wk.from ? ' · ' + _slEsc(prFmtDate(wk.from)) : '') + '<span>' + (SL_PHASE[wk.phase] || '') + (wk.recov ? ' · allégée' : '') + '</span></h4>'
       + byW[w].map(function(r){ const k = r.s.key;
+        const A = ADV[k], ap = A && A.rec === 'pro';
         return '<div class="sl-pk" data-k="' + k + '"><p class="sl-pk-h"><span>' + _slEsc(prFmtDate(r.s.date, { weekday: 'short', day: 'numeric', month: 'short' })) + ' · ' + String(r.s.kmPlan).replace('.', ',') + ' km</span><button type="button" onclick="openSessionDetail(\'' + k + '\')">Détail ›</button></p><div class="sl-pk-2">'
           + '<button type="button" class="' + (r.pro ? '' : 'on') + '" aria-pressed="' + !r.pro + '" onclick="slPick(\'' + k + '\',\'classic\',\'list\')"><small>Classique</small><span>' + _slEsc(r.cl.t) + '</span></button>'
-          + '<button type="button" class="pro' + (r.pro ? ' on' : '') + '" aria-pressed="' + r.pro + '" onclick="slPick(\'' + k + '\',\'pro\',\'list\')"><small>✦ Pro</small><span>' + _slEsc(r.pr.t) + '</span></button></div></div>'; }).join('') + '</div>';
+          + '<button type="button" class="pro' + (r.pro ? ' on' : '') + (ap && !r.pro ? ' adv' : '') + '" aria-pressed="' + r.pro + '" onclick="slPick(\'' + k + '\',\'pro\',\'list\')"><small>✦ Pro' + (ap ? ' conseillée' : '') + '</small><span>' + _slEsc(r.pr.t) + '</span></button></div>'
+          + (A && (ap || (A.k === 'block' && r.pro)) ? '<p class="sl-pk-a' + (ap ? '' : ' cl') + '">' + (ap ? '✦ ' : '') + _slEsc(A.why) + '</p>' : '') + '</div>'; }).join('') + '</div>';
   });
   if(rows.length) h += '<div class="sl-acts"><button type="button" class="pro" onclick="slPickAll(\'pro\')">✦ Tout en pro</button><button type="button" onclick="slPickAll(\'classic\')">Tout en classique</button></div>';
   h += '<div class="sl-acts"><button type="button" onclick="openRunnerProfile()">Ton profil</button><button type="button" onclick="openLibCatalog()">La bibliothèque</button>' + (slOffer(state) ? '<button type="button" onclick="slLibLater()">Pas maintenant</button>' : '') + '</div>';
@@ -288,7 +333,7 @@ function openLibPreview(){
 }
 function slLibOn(){
   const a = prAnalyze(), sel = slSelect(state, a), at = new Date().toISOString();
-  const r = sel.length ? prApplyChanges(sel, { kind: 'libplan', vdot: a.fit && a.fit.vdot, at: at }) : { n: 0 };
+  const r = sel.length ? prApplyChanges(sel, { kind: 'libplan', vdot: a.fit && a.fit.vdot, at: at }) : { n: 0 }; _slA = null;
   state._lib_on = slOfferKey(state); state._lib_on_at = at; state._lib_offer = { key: slOfferKey(state), answer: 'yes', at: at };
   _slPickSet(sel.map(function(p){ return p.key; }), 'pro'); _slSelCache = null;
   save();
@@ -305,4 +350,68 @@ function slLibOff(){
   save();
   const ov = document.getElementById('sl-prev'); if(ov) ov.remove();
   try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'session-lib-ui:slLibOff'); }
+}
+
+// ─── Détail d'une séance (bibliothèque ou classique) : étapes + but + conseils + version courte + ravito ───
+function slDetail(s, st){
+  st = st || state; if(!s) return null;
+  let b = slOfSession(s, st);
+  const ctx = b ? b.ctx : slCtx(st, {});
+  if(!b && ctx) b = slClassic(s, ctx);
+  if(!b) return null;
+  const L = SL_BY_ID[b.id] || null;
+  const it = typeof prIntent === 'function' ? prIntent(s) : null;
+  const gen = SL_GENERIC[s.type] || SL_GENERIC.ef;
+  const out = { b: b, L: L, why: L && L.why || gen.why, tips: L && L.tips || gen.tips, ok: L && L.ok || gen.ok, stim: b.stim, phase: null,
+    rpe: typeof paRpeRange === 'function' ? paRpeRange(s.type) : null };
+  // version courte (fatigue) : un palier en dessous, ou 20 % de moins
+  if(L && b.r > 0) out.short = slBuild(L.id, b.r - 1, b.ctx, s.kmPlan);
+  out.shortTxt = out.short ? out.short.title + ' · ~' + out.short.min + ' min' : 'Raccourcir de 20 % et rester en endurance si les jambes sont lourdes.';
+  // ravito, chaussure, météo
+  if(b.min >= 75) out.fuel = 'Boire 400-600 ml par heure, un gel à 45 min puis toutes les 30-40 min. C\'est l\'occasion de tester le ravito du jour J.';
+  else if(b.min >= 60) out.fuel = 'Une petite bouteille si chaud ; rien à manger.';
+  if(typeof shoeDayAdvice === 'function'){ try { const sh = shoeDayAdvice(s.x || {}, s.date); if(sh && sh.name) out.shoe = sh.name; } catch(e) {} }
+  if(typeof prWxAt === 'function' && s.date){ const m = prWxAt(s.date, (s.x && s.x.sched_time) || '12:00'); if(m && typeof prWxAdj === 'function'){ const adj = prWxAdj(m); out.wx = { t: Math.round(m.t), pct: adj.pct, why: adj.why }; } }
+  return out;
+}
+const SL_GENERIC = {
+  ef: { why: 'Développer le moteur aérobie sans fatigue.', tips: ['Conversation possible', 'FC sous le plafond d\'endurance'], ok: 'FC sous le plafond du début à la fin.' },
+  long: { why: 'Endurance, économie de course et mental des longues distances.', tips: ['Départ très facile', 'Boire toutes les 20 min si plus de 1h15'], ok: 'Finir avec de la réserve.' },
+  tempo: { why: 'Repousser ton seuil.', tips: ['Régulier du premier au dernier bloc'], ok: 'Blocs dans la fourchette.' },
+  frac: { why: 'Développer ta VO₂max.', tips: ['Ne pas partir trop vite', 'Récup trottinée'], ok: 'Toutes les répétitions dans la fourchette.' },
+  race: { why: 'Le jour J.', tips: ['Partir à ton allure, pas à celle des autres'], ok: 'Négative split.' }
+};
+// séance classique → étapes (lecture de la consigne : « 15 min EF », « N × Q », « récup R min », « retour au calme »)
+function slClassic(s, ctx){
+  const t = (s.title || '') + ' · ' + (s.detail || ''), km = s.kmPlan || s.km || 8;
+  const out = { id: null, r: 0, rungs: 1, name: s.title, title: s.title, type: s.type, stim: s.type === 'long' || s.type === 'ef' ? 'endurance' : s.type === 'tempo' ? 'seuil' : s.type === 'frac' ? 'vo2' : 'specifique', ctx: ctx, steps: [] };
+  const pace = s.pace ? [s.pace.lo, s.pace.hi] : null;
+  if(s.type === 'ef' || s.type === 'long' || s.type === 'race'){
+    out.steps = [Object.assign(sEf({ d: km * 1000 }, s.type === 'race' ? 'Course' : s.type === 'long' ? 'Sortie longue' : 'Footing'), pace ? { p: null, pace: pace } : {})];
+  } else {
+    const wm = t.match(/(\d+)\s*(?:-\s*\d+\s*)?min\s+(?:EF|d'échauffement)/i), wk = t.match(/(\d+(?:[,.]\d+)?)\s*km\s+EF/i), rp = typeof paParseReps === 'function' ? paParseReps(t) : null;
+    const rc = t.match(/récup\s+(\d+(?:[,.]\d+)?)\s*(min|s|'|’)/i), cool = /retour au calme/i.test(t);
+    out.steps.push(wk ? sEf({ d: parseFloat(wk[1].replace(',', '.')) * 1000 }, 'Échauffement') : sW(wm ? +wm[1] : 15));
+    out.steps.push(sDr());
+    if(rp){ const wkS = Object.assign({ k: 'work', n: 'Bloc', p: null, pace: pace }, rp.unit === 'm' ? { d: rp.q } : { s: rp.q * 60 });
+      const rec = rc ? sRc(/min|'|’/.test(rc[2]) ? { s: Math.round(parseFloat(rc[1].replace(',', '.')) * 60) } : { s: +rc[1] }) : sRc({ s: 120 });
+      out.steps.push(sRep(rp.n, [wkS, rec])); }
+    else out.steps.push({ k: 'work', n: 'Partie principale', p: null, pace: pace, eff: s.detail });
+    if(cool) out.steps.push(sC(10));
+  }
+  let d = 0, sec = 0; out.steps.forEach(function(x){ const m = slMeasure(x, ctx); d += m.d; sec += m.s; });
+  const work = function(x){ if(x.rep) return x.steps.reduce(function(t, y){ return t + work(y); }, 0) * x.rep; return x.k === 'work' && (x.d || x.s) ? slMeasure(x, ctx).s : 0; };
+  out.km = km; out.min = Math.round(sec / 60) || Math.round(km * 5.5); out.workMin = Math.round(out.steps.reduce(function(t, x){ return t + work(x); }, 0) / 60); out.text = s.detail;
+  return out;
+}
+// texte d'une séance détaillée pour l'agenda, le Coach (étapes une par ligne)
+function slStepsText(b){
+  const ctx = b.ctx, lines = [];
+  const one = function(x, ind){
+    if(x.rep){ lines.push(ind + x.rep + ' ×'); x.steps.forEach(function(y){ one(y, ind + '   '); }); if(x.gap) lines.push(ind + '(entre les séries : ' + slStepTxt(x.gap, ctx, false) + ')'); return; }
+    const pr = x.pace || slPaceOf(x, ctx), hr = slHrOf(x, ctx);
+    lines.push(ind + '• ' + x.n + (x.d || x.s ? ' ' + slQ(x) : '') + (pr ? ' · ' + slPx(pr[0]) + '–' + slPx(pr[1]) + '/km' : '') + (hr ? ' · FC ' + hr[0] + '-' + hr[1] : '') + (x.eff && !pr ? ' · ' + x.eff : ''));
+  };
+  b.steps.forEach(function(x){ one(x, ''); });
+  return lines.join('\n');
 }

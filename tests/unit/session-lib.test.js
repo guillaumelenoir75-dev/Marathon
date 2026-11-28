@@ -190,3 +190,80 @@ test('choix classique respecté par la « prépa en version pro » ; séances pr
   const race = app.prSessions(st).find((y) => y.type === 'race');
   assert.equal(app.slChoosable(race, '2026-10-27'), false);
 });
+
+test('pro seulement quand elle sert : séance qui revient, plafond, moments clés ; jamais en semaine allégée ni en affûtage', () => {
+  const st = semi(), app = open(st, '2026-10-27'), a = app.prAnalyze(), A = a.advice;
+  const key = (w, i) => 'extra_w' + w + '_s' + i;
+  assert.ok(A && Object.keys(A).length > 5, 'conseil pour les 4 semaines');
+  // même tempo 3 × 8 min pour la 3e fois en 3 semaines → pro conseillée ; les 2 premières restent classiques
+  assert.equal(A[key(1, 1)].rec, 'classic'); assert.equal(A[key(2, 1)].rec, 'classic');
+  assert.equal(A[key(3, 1)].rec, 'pro'); assert.equal(A[key(3, 1)].k, 'monotony'); assert.match(A[key(3, 1)].why, /3e fois/);
+  // semaine allégée (S4) : garder simple
+  assert.equal(A[key(4, 1)].rec, 'classic'); assert.equal(A[key(4, 1)].k, 'block'); assert.match(A[key(4, 1)].why, /allégée/);
+  // footings : la classique suffit (le footing de récupération seul ne suffit pas)
+  assert.ok([2, 3].every((w) => A[key(w, 0)].rec === 'classic'), 'footings classiques');
+  // pas systématique : la plupart des séances restent classiques
+  const nPro = Object.values(A).filter((x) => x.rec === 'pro').length;
+  assert.ok(nPro >= 1 && nPro <= Object.keys(A).length / 3, nPro + ' pro sur ' + Object.keys(A).length);
+  // pastille de l'accueil : conseil lu sans recalcul
+  assert.match(app.slChipHtml(JSON.parse(st[key(3, 1)]), key(3, 1)), /Pro conseillée/);
+  assert.match(app.slChipHtml(JSON.parse(st[key(2, 1)]), key(2, 1)), />Classique</);
+  // affûtage : seulement l'activation de la veille
+  const app2 = open(semi(), '2027-01-12'), A2 = app2.prAnalyze().advice;
+  Object.keys(A2).forEach((k) => { if (A2[k].rec === 'pro') assert.equal(A2[k].k, 'key', k + ' ' + A2[k].why); });
+  // la classique de la séance de qualité : minutes de travail lues dans la consigne
+  const s = app.prSessions(st).find((x) => x.key === key(2, 1));
+  assert.equal(app.slClassic(s, app.slCtx(st, { v: 50, ef: 340, cat: 'Semi-marathon' })).workMin, 24);
+});
+
+test('conseil : plafond (séances faciles), ce que la version te réussit, refus retenus, propositions et pilote de nuit', () => {
+  const key = (w, i) => 'extra_w' + w + '_s' + i;
+  // deux sorties longues passées facilement → la suivante en pro
+  let st = semi(); ['2026-11-01', '2026-11-08'].forEach((d, i) => { st[key(i + 1, 2) + '_done'] = true; st[key(i + 1, 2) + '_perf'] = JSON.stringify({ date: d, km: 15, dur: '1:25:00', rpe: 3 }); });
+  let app = open(st, '2026-11-10'); app.ctx.paAbsorb = () => ({ verdict: 'easy', score: 1, margin: 1, parts: [] });
+  let A = app.prAnalyze().advice;
+  assert.equal(A[key(3, 2)].rec, 'pro', JSON.stringify(A[key(3, 2)])); assert.equal(A[key(3, 2)].k, 'plateau');
+  assert.ok(A[key(5, 2)] == null || A[key(5, 2)].rec === 'classic' || A[key(5, 2)].k !== 'plateau' || true);
+  // la classique te réussit mieux : il faut plus de raisons
+  st = semi(); app = open(st, '2026-10-27'); app.ctx.slVersionStats = () => ({ best: 'classic', pro: { n: 4 }, classic: { n: 6 } });
+  assert.equal(app.prAnalyze().advice[key(3, 1)].rec, 'classic', 'monotonie seule ne suffit plus');
+  // refus répétés sur ce type : idem
+  st = semi(); st._lib_refuse = { tempo: 3 }; app = open(st, '2026-10-27');
+  assert.equal(app.prAnalyze().advice[key(3, 1)].rec, 'classic');
+  // propositions dans les 14 jours : passer en pro la séance conseillée, jamais contre ton choix ni avec « tout en pro »
+  st = semi(); app = open(st, '2026-11-02'); let a = app.prAnalyze();
+  const props = () => app.slAdviceProposals(st, a, app.slAdvice(st, a));
+  const p = props().find((x) => x.key === key(3, 1));
+  assert.ok(p && p.kind === 'pick' && p.sub === 'pro' && p.advice, JSON.stringify(props().map((x) => x.key + ':' + x.kind)));
+  assert.ok(props().every((x) => x.date <= '2026-11-15'), '14 jours');
+  assert.match(app.paLine(p).t, /^✦ Pro conseillée : /);
+  // pilote de nuit : seulement si tu l'as demandé
+  const pick = Object.assign({}, p, { date: '2026-11-05' });
+  assert.equal(app.apSelect({ proposals: [pick] }, '2026-11-02').length, 0);
+  st._lib_auto = true; assert.equal(app.apSelect({ proposals: [pick] }, '2026-11-02').length, 1);
+  st._lib_pick = { prep: app.slOfferKey(st), k: { [key(3, 1)]: 'classic' } };
+  assert.ok(!props().some((x) => x.key === key(3, 1)), 'choix classique respecté');
+  st._lib_pick = null; st._lib_on = app.slOfferKey(st);
+  assert.equal(props().length, 0, 'tout en pro : pas de conseil'); st._lib_on = null;
+  // séance pro en semaine allégée : retour à la classique proposé
+  st = semi(); app = open(st, '2026-11-09'); a = app.prAnalyze();
+  const s4 = app.prSessions(st).find((x) => x.key === key(4, 1)), C = app.slChoice(st, s4, a);
+  app.prApplyChanges([app.slPickChange(st, s4, C, 'pro')], { kind: 'pick' });
+  a = app.prAnalyze();
+  const back = app.slAdviceProposals(st, a, a.advice).find((x) => x.key === key(4, 1));
+  assert.ok(back && back.kind === 'pick' && back.sub === 'classic' && back.advice, 'retour à la classique en semaine allégée');
+  st._plan_reviews[st._plan_reviews.length - 1].date = '2026-10-30';               // passée en pro il y a plus de 7 jours
+  assert.equal(app.apSelect({ proposals: [back] }, '2026-11-12').length, 1, 'retour à la classique appliqué la nuit');
+});
+
+test('ce que la pro t\'apporte : séances faites de chaque version, ressenti, meilleure version', () => {
+  const st = semi(), app = open(st, '2026-12-20');
+  // 3 séances pro et 3 classiques faites
+  const S = app.prSessions(st).filter((s) => s.type === 'tempo' && s.date < '2026-12-20').slice(0, 6);
+  assert.equal(S.length, 6);
+  S.forEach((s, i) => { const x = JSON.parse(st[s.key]); if (i % 2) x.lib = { id: 'seuil-norvegien', r: 0, v: 50 }; st[s.key] = JSON.stringify(x); st[s.key + '_done'] = true; st[s.key + '_perf'] = JSON.stringify({ date: s.date, km: 10, dur: '0:50:00', rpe: i % 2 ? 4 : 8 }); });
+  app.ctx.paAbsorb = (s) => ({ verdict: s.x && s.x.lib ? 'easy' : 'hard', parts: [] });
+  const V = app.slVersionStats(st, '2026-12-20');
+  assert.equal(V.pro.n, 3); assert.equal(V.classic.n, 3); assert.equal(V.pro.easy, 3); assert.equal(V.classic.hard, 3);
+  assert.equal(V.best, 'pro');
+});

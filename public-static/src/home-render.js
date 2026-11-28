@@ -816,7 +816,7 @@ function renderHome(){
       <div class="hs-b" role="button" tabindex="0" style="cursor:pointer;" onclick="openSessionDetail('extra_w${w}_s${ei}')" title="Détail de la séance">
         <p class="hs-h">${dayTxt?`<span class="hs-dy" style="color:${typeC};">${dayTxt}</span>`:''}<b>${title}</b></p>
         ${detail?`<p class="hs-dt" style="color:${typeC};">${detail}</p>`:''}
-        <div class="hs-km"><span><b>${s2.km} km</b>${durC?' · ~'+durC:''}${canEdit&&typeof slChipHtml==='function'?slChipHtml(s2):''}</span>${typeof shoeDayHtml==='function'?shoeDayHtml(s2,w,ei):(s2.shoe?shoeFullBadge(s2.shoe):'')}</div>
+        <div class="hs-km"><span><b>${s2.km} km</b>${durC?' · ~'+durC:''}${canEdit&&typeof slChipHtml==='function'?slChipHtml(s2,'extra_w'+w+'_s'+ei):''}</span>${typeof shoeDayHtml==='function'?shoeDayHtml(s2,w,ei):(s2.shoe?shoeFullBadge(s2.shoe):'')}</div>
         ${typeof prWeatherLine==='function'?prWeatherLine(s2):''}
       </div>
       <div class="hs-act">
