@@ -955,6 +955,7 @@ function prApplyChanges(sel, meta){
     let x; try { x = JSON.parse(state[p.key]); } catch(e) { return; }
     if(!x || state[p.key + '_done']) return;
     const parts = String(x.d || '').split('|'), title = parts[0], det = parts.slice(1).join('|');
+    const cl0 = { t: title, d: det, km: x.km, type: x.type };                     // version classique, gardée si la séance passe en pro
     if(p.field === 'detail') x.d = title + '|' + p.after;
     else if(p.field === 'title') x.d = p.after + (det ? '|' + det : '');
     else if(p.field === 'km'){
@@ -969,7 +970,10 @@ function prApplyChanges(sel, meta){
     // séance de la bibliothèque (session-lib.js) : modèle + palier gardés avec la séance ; une consigne réécrite autrement la retire
     if(p.field === 'session' || p.field === 'detail' || p.field === 'type'){
       p.libBefore = x.lib || null;
-      if(p.field === 'session' && p.after && p.after.lib) x.lib = p.after.lib; else delete x.lib;
+      if(p.field === 'session' && p.after && p.after.lib){
+        const cl = p.libBefore ? p.libBefore.cl : cl0;                            // l'autre version de la séance reste disponible (choix classique / pro)
+        x.lib = Object.assign({}, p.after.lib); if(cl && cl.t) x.lib.cl = cl; else delete x.lib.cl;
+      } else delete x.lib;
     }
     x._modified = true; x._seq = (x._seq || 0) + 1;
     state[p.key] = JSON.stringify(x); touched[p.key] = 1; n++;

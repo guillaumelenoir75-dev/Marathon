@@ -436,7 +436,7 @@ function slSelect(st, a, opt){
 // au fil de la prépa (bibliothèque adoptée) : allures recalées, palier selon ta réponse, nouvelles séances pour les créneaux classiques
 function slProposals(st, a){
   st = st || state;
-  if(!st._lib_on || !a || !a.fit || !a.fit.vdot) return [];
+  if(!a || !a.fit || !a.fit.vdot) return [];
   const today = a.opt.today, cat = a.opt.raceCat || 'Semi-marathon', out = [];
   const ctx = slCtx(st, { v: a.fit.vdot, ef: a.opt.efPace, cat: cat, today: today }); if(!ctx) return [];
   const S = prSessions(st), R = slResponse(st, today), seenStim = {}, calib = (a.ladderCalib || {}).mode;
@@ -463,12 +463,73 @@ function slProposals(st, a){
         short: sub === 'step' ? (b.r > lib.r ? 'Ça monte : ' : 'On souffle : ') + why + '.' : 'Allures recalées sur ton niveau (' + _slV(ctx.v) + ').' });
     });
   // créneaux encore classiques dans les 3 semaines (séance ajoutée, nouvelle semaine…) : séance de la bibliothèque proposée
-  const fresh = slSelect(st, a, { from: prAddDays(today, 1), until: prAddDays(today, 21), keepLib: true });
+  if(!st._lib_on) return out;
+  const pick = slPicks(st);
+  const fresh = slSelect(st, a, { from: prAddDays(today, 1), until: prAddDays(today, 21), keepLib: true }).filter(function(p){ return pick[p.key] !== 'classic'; });
   return out.concat(fresh.map(function(p){ return Object.assign(p, { sub: 'new' }); }));
 }
-// proposition « Ta prépa version pro » (une fois par prépa) : affichée tant que ni adoptée ni refusée
+// proposition « Ta prépa version pro » (une fois par prépa) : affichée tant que ni adoptée ni refusée, ni déjà des choix séance par séance
 function slOfferKey(st){ st = st || state; return String(st._prep_id || st.plan_start_date || 'prep'); }
-function slOffer(st){ st = st || state; const o = st._lib_offer || {}; return !st._lib_on && o.key !== slOfferKey(st) && !!st._plan_engine; }
+function slOffer(st){ st = st || state; const o = st._lib_offer || {}; return !st._lib_on && o.key !== slOfferKey(st) && !!st._plan_engine && !Object.keys(slPicks(st)).length; }
+// choix faits séance par séance pour la prépa en cours : { clé: 'classic' | 'pro' }
+function slPicks(st){ st = st || state; const P = st._lib_pick; return P && P.prep === slOfferKey(st) ? (P.k || {}) : {}; }
+
+// ─── Deux versions de chaque séance : classique (le plan) ou pro (la bibliothèque) — choix séance par séance ───
+// séance qui peut avoir deux versions : à faire, ni course, ni repos, ni test, ni étape de la saison
+function slChoosable(s, today){
+  today = today || (typeof prTodayIso === 'function' ? prTodayIso() : '');
+  return !!(s && !s.done && !s.skip && s.date && s.date >= today && ['ef', 'long', 'tempo', 'frac'].indexOf(s.type) >= 0 && !/^Test\b/i.test(s.title || '') && !(s.x && s.x._season));
+}
+// version classique d'une séance passée en pro : gardée avec elle (x.lib.cl), sinon retrouvée dans l'historique des changements
+function slClassicOf(st, s){
+  st = st || state; const lib = s && s.x && s.x.lib; if(!lib) return null;
+  if(lib.cl && lib.cl.t) return lib.cl;
+  const R = st._plan_reviews || [];
+  for(let i = R.length - 1; i >= 0; i--){
+    const c = (R[i].changes || []).filter(function(c){ return c.ref === s.key && c.field === 'session' && c.libAfter && !c.libBefore && c.before && c.before.t; })[0];
+    if(c && !R[i].undone) return { t: c.before.t, d: c.before.d || '', km: +c.before.km || s.kmPlan, type: c.before.type || s.type };
+  }
+  return null;
+}
+// version pro proposée pour une séance classique : même choix que « Ta prépa version pro » (rotation des modèles sur toute la prépa)
+let _slSelCache = null;
+function slSelectCached(st, a){
+  st = st || state;
+  const sig = [a.opt.today, typeof prDataSig === 'function' ? prDataSig() : '', (st._plan_reviews || []).length, JSON.stringify(st._lib_pick || {}), Object.keys(st).length].join('|');
+  if(_slSelCache && _slSelCache.st === st && _slSelCache.sig === sig && Date.now() - _slSelCache.t < 30000) return _slSelCache.out;
+  const out = slSelect(st, a, { from: a.opt.today });
+  _slSelCache = { st: st, sig: sig, t: Date.now(), out: out };
+  return out;
+}
+function slProOf(st, s, a){
+  if(!s || (s.x && s.x.lib)) return null;
+  return slSelectCached(st, a).filter(function(p){ return p.key === s.key; })[0] || null;
+}
+// les deux versions d'une séance : { cur: 'classic' | 'pro', classic: { t, d, km, type }, pro: { t, d, km, type, lib } | null, p: proposition }
+function slChoice(st, s, a){
+  st = st || state; if(!slChoosable(s, a && a.opt && a.opt.today)) return null;
+  const cur = { t: s.title, d: s.detail || '', km: s.kmPlan, type: s.type };
+  if(s.x && s.x.lib){ const cl = slClassicOf(st, s); return { cur: 'pro', pro: Object.assign(cur, { lib: s.x.lib }), classic: cl }; }
+  const p = a ? slProOf(st, s, a) : null;
+  return { cur: 'classic', classic: cur, pro: p ? p.after : null, p: p };
+}
+// changement à appliquer pour passer une séance à l'autre version (prApplyChanges, annulable)
+function slPickChange(st, s, C, mode){
+  if(!C || C.cur === mode) return null;
+  const to = mode === 'pro' ? C.pro : C.classic; if(!to || !to.t) return null;
+  const L = mode === 'pro' && to.lib ? SL_BY_ID[to.lib.id] : null;
+  return { key: s.key, w: s.w, date: s.date, field: 'session', title: s.title, type: s.type, kind: 'pick', sub: mode, src: 'choix', libId: L ? L.id : undefined,
+    before: { t: s.title, d: s.detail || '', km: s.kmPlan, type: s.type }, after: mode === 'pro' ? to : { t: to.t, d: to.d || '', km: to.km, type: to.type },
+    reason: mode === 'pro' ? 'Version pro choisie : ' + (L ? L.n : to.t) : 'Version classique choisie', short: mode === 'pro' ? 'Version pro : ' + (L ? L.n : to.t) : 'Version classique : ' + to.t };
+}
+// pastille de la ligne de la séance (accueil) : version en cours, et l'autre possible
+function slChipHtml(s2, key){
+  if(!s2 || ['ef', 'long', 'tempo', 'frac'].indexOf(s2.type) < 0) return '';
+  const t = String(s2.d || '').split('|')[0]; if(/^Test\b/i.test(t) || s2._season) return '';
+  const pro = !!s2.lib;
+  return '<span class="sl-vchip' + (pro ? ' pro' : '') + '" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:800;white-space:nowrap;'
+    + (pro ? 'background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;' : 'background:#F8FAFC;color:#64748B;border:1px solid #E2E8F0;') + '">' + (pro ? '✦ Pro' : 'Classique · ⇄ Pro') + '</span>';
+}
 
 // ─── Détail d'une séance (bibliothèque ou classique) : étapes + but + conseils + version courte + ravito ───
 function slDetail(s, st){

@@ -125,3 +125,68 @@ test('Coach : un modèle de la bibliothèque choisi par le Coach devient une sé
   assert.equal(items.length, 1); assert.equal(items[0].kind, 'lib'); assert.equal(items[0].src, 'coach');
   assert.equal(items[0].after.lib.id, 'norvegien'); assert.match(items[0].after.t, /seuil norvégien/);
 });
+
+test('deux versions par séance : classique ou pro, choix séance par séance, retour à la classique, annulable, choix retenu', () => {
+  const st = semi(), app = open(st), a = app.prAnalyze();
+  const S = app.prSessions(st).filter((s) => app.slChoosable(s, '2026-10-27') && (s.type === 'tempo' || s.type === 'frac'));
+  assert.ok(S.length > 3);
+  const s = S[1], orig = { t: s.title, d: s.detail, km: s.kmPlan };
+  const C = app.slChoice(st, s, a);
+  assert.equal(C.cur, 'classic'); assert.equal(C.classic.t, s.title);
+  assert.ok(C.pro && C.pro.lib && C.pro.t !== s.title, 'version pro proposée');
+  // même séance pro que la liste « classique ou pro » (rotation sur toute la prépa)
+  assert.equal(app.slSelect(st, a, { from: '2026-10-27' }).find((p) => p.key === s.key).after.lib.id, C.pro.lib.id);
+  const ch = app.slPickChange(st, s, C, 'pro');
+  assert.equal(ch.kind, 'pick'); assert.equal(app.paDir(ch), 'lib'); assert.match(app.paLine(ch).t, /^Version pro : /);
+  assert.equal(app.slPickChange(st, s, C, 'classic'), null, 'déjà classique');
+  assert.equal(app.prApplyChanges([ch], { kind: 'pick', at: 'P1' }).n, 1);
+  let x = JSON.parse(st[s.key]);
+  assert.equal(x.lib.id, C.pro.lib.id); assert.equal(x.lib.cl.t, orig.t, 'version classique gardée avec la séance'); assert.equal(x.lib.cl.d, orig.d);
+  // l'autre version reste proposée : la classique
+  let s2 = app.prSessions(st).find((y) => y.key === s.key);
+  const C2 = app.slChoice(st, s2, null);
+  assert.equal(C2.cur, 'pro'); assert.equal(C2.classic.t, orig.t); assert.equal(C2.pro.t, C.pro.t);
+  assert.ok(app.slChipHtml(x).includes('Pro'));
+  // une montée de palier garde la version classique
+  app.prApplyChanges([{ key: s.key, field: 'session', kind: 'lib', sub: 'step', before: {}, after: Object.assign({}, C.pro, { lib: Object.assign({}, C.pro.lib, { r: 1 }) }) }], { kind: 'lib' });
+  assert.equal(JSON.parse(st[s.key]).lib.cl.t, orig.t);
+  // retour à la classique : séance d'origine rétablie
+  s2 = app.prSessions(st).find((y) => y.key === s.key);
+  assert.equal(app.prApplyChanges([app.slPickChange(st, s2, app.slChoice(st, s2, null), 'classic')], { kind: 'pick', at: 'P2' }).n, 1);
+  x = JSON.parse(st[s.key]);
+  assert.equal(x.lib, undefined); assert.equal(x.d.split('|')[0], orig.t); assert.equal(+x.km, +orig.km);
+  // annuler ce retour : la version pro revient
+  app.prUndoReview(st._plan_reviews.length - 1);
+  assert.ok(JSON.parse(st[s.key]).lib, 'annulable');
+  // ancienne séance pro sans copie : version classique retrouvée dans l'historique
+  const y = JSON.parse(st[s.key]); delete y.lib.cl; st[s.key] = JSON.stringify(y);
+  st._plan_reviews.push({ at: 'P0', changes: [{ ref: s.key, field: 'session', libAfter: 'x', libBefore: null, before: { t: orig.t, d: orig.d, km: orig.km, type: s.type } }] });
+  assert.equal(app.slClassicOf(st, app.prSessions(st).find((z) => z.key === s.key)).t, orig.t);
+});
+
+test('choix classique respecté par la « prépa en version pro » ; séances pro choisies une à une suivies sans elle', () => {
+  const st = semi(), app = open(st), a = app.prAnalyze();
+  const S = app.prSessions(st).filter((s) => app.slChoosable(s, '2026-10-27') && s.date > '2026-10-27' && s.date <= '2026-11-17' && (s.type === 'tempo' || s.type === 'frac'));
+  // sans version pro de toute la prépa : aucune séance réécrite d'office
+  assert.equal(app.slProposals(st, a).filter((p) => p.sub === 'new').length, 0);
+  // une séance choisie pro, ses allures suivent le niveau même sans « tout en pro »
+  const s = S[0], C = app.slChoice(st, s, a), ch = app.slPickChange(st, s, C, 'pro');
+  const L0 = ch.after.lib, ctxOld = app.slCtx(st, { v: L0.v - 2, ef: L0.ef, cat: L0.cat });
+  ch.after = app.slAsSession(app.slBuild(L0.id, L0.r, ctxOld, s.kmPlan));   // séance écrite à un niveau plus ancien
+  app.prApplyChanges([ch], { kind: 'pick' });
+  assert.ok(app.slProposals(st, a).some((p) => p.key === s.key && p.sub === 'refresh'), 'allures recalées');
+  // tout en pro, sauf la séance choisie classique
+  st._lib_on = app.slOfferKey(st);
+  const k = S[1].key;
+  assert.ok(app.slProposals(st, a).some((p) => p.key === k && p.sub === 'new'));
+  st._lib_pick = { prep: app.slOfferKey(st), k: { [k]: 'classic' } };
+  assert.ok(!app.slProposals(st, a).some((p) => p.key === k), 'choix classique retenu');
+  st._lib_on = null;
+  assert.equal(app.slOffer(st), false, 'plus d\'offre « version pro » une fois des choix faits');
+  // choix d'une autre prépa ignorés
+  st._lib_pick = { prep: 'autre', k: { [k]: 'classic' } };
+  assert.equal(Object.keys(app.slPicks(st)).length, 0);
+  // course, test, séance faite : une seule version
+  const race = app.prSessions(st).find((y) => y.type === 'race');
+  assert.equal(app.slChoosable(race, '2026-10-27'), false);
+});

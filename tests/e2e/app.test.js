@@ -883,17 +883,43 @@ test('plan recalé une fois sur tout l\'historique rejoué : annulable, expliqu�
   await o.ctx.close();
 });
 
-test('séances de pro : version pro proposée sur l\'accueil, aperçu bloc par bloc, appliquée ; détail d\'une séance, profil, bibliothèque', async () => {
+test('séances de pro : deux versions par séance (classique ou pro) dans le détail et la liste, choix enregistré ; tout en pro ; détail, profil, bibliothèque', async () => {
   const o = await open('2026-10-29T09:00:00+01:00', savedDb), page = o.page;
   await page.evaluate(() => showScreen('home'));
   await page.waitForSelector('#home-plan-card .hp-r.lib', { timeout: 10000 });
-  assert.match(await page.evaluate(() => document.querySelector('#home-plan-card .hp-r.lib').textContent), /Ta prépa en version pro/);
-  await page.click('#home-plan-card .hp-r.lib');
-  await page.waitForSelector('#sl-prev .sl-wk', { timeout: 10000 });
+  assert.match(await page.evaluate(() => document.querySelector('#home-plan-card .hp-r.lib').textContent), /Séances de pro, à la carte/);
+  // séance à faire de l'accueil : pastille « Classique · ⇄ Pro »
+  assert.ok(await page.locator('#sc-home .sl-vchip').count() > 0, 'pastille de version sur les séances à faire');
+  // deux versions dans le détail d'une séance classique : voir la version pro, la prendre
+  const k0 = await page.evaluate(() => { const t = prTodayIso(); return prSessions(state).filter((s) => slChoosable(s, t) && (s.type === 'tempo' || s.type === 'frac')).sort((a, b) => a.date.localeCompare(b.date))[0].key; });
+  await page.evaluate((k) => openSessionDetail(k), k0);
+  await page.waitForSelector('#sl-ov .sl-ch .sl-cv', { timeout: 10000 });
+  assert.equal(await page.locator('#sl-ov .sl-cv').count(), 2);
+  assert.match(await page.evaluate(() => document.querySelector('#sl-ov .sl-cv.view').textContent), /Classique.*Ta séance|Ta séance.*Classique/);
+  await page.click('#sl-ov .sl-cv.pro'); await page.waitForSelector('#sl-ov .sl-cv.pro.view', { timeout: 10000 });
+  assert.match(await page.evaluate(() => document.getElementById('sl-ov').textContent), /Prendre la version pro/);
+  if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/lib-choice.png' }); }
+  await page.click('#sl-ov .sl-acts button.pro'); await page.waitForTimeout(500);
+  const p1 = await page.evaluate((k) => ({ lib: !!JSON.parse(state[k]).lib, cl: (JSON.parse(state[k]).lib || {}).cl, pick: slPicks(state)[k], kind: state._plan_reviews.slice(-1)[0].kind, db: JSON.parse(window.__DB.users.ADMINUID.state[k]).lib }), k0);
+  assert.ok(p1.lib && p1.cl && p1.cl.t && p1.db, 'version pro prise, classique gardée, enregistrée'); assert.equal(p1.pick, 'pro'); assert.equal(p1.kind, 'pick');
+  assert.match(await page.evaluate(() => document.querySelector('#sl-ov .sl-cv.pro').textContent), /Ta séance/);
+  // retour à la classique depuis le détail
+  await page.click('#sl-ov .sl-cv:not(.pro)'); await page.waitForSelector('#sl-ov .sl-cv:not(.pro).view', { timeout: 10000 });
+  await page.click('#sl-ov .sl-acts button.pri'); await page.waitForTimeout(500);
+  assert.equal(await page.evaluate((k) => JSON.parse(state[k]).d.split('|')[0], k0), p1.cl.t, 'séance classique rétablie');
+  await page.evaluate(() => document.getElementById('sl-ov').remove());
+  // liste « Classique ou pro » : chaque séance avec ses deux versions
+  await page.evaluate(() => openLibPreview());
+  await page.waitForSelector('#sl-prev .sl-pk', { timeout: 10000 });
   const prev = await page.evaluate(() => document.getElementById('sl-prev').textContent);
-  assert.match(prev, /séances clés/); assert.match(prev, /Base|Développement|Spécifique|Affûtage/);
+  assert.match(prev, /Classique/); assert.match(prev, /Pro/); assert.match(prev, /Base|Développement|Spécifique|Affûtage/);
+  assert.ok(await page.locator('#sl-prev .sl-pk-2 button.pro').count() >= 5);
   if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/lib-preview.png' }); }
-  await page.click('#sl-prev .sl-acts .pri'); await page.waitForTimeout(500);
+  const k1 = await page.evaluate(() => document.querySelectorAll('#sl-prev .sl-pk')[1].dataset.k);
+  await page.click('#sl-prev .sl-pk >> nth=1 >> button.pro'); await page.waitForTimeout(500);
+  assert.ok(await page.evaluate((k) => !!JSON.parse(state[k]).lib, k1), 'choisie pro depuis la liste');
+  assert.equal(await page.locator('#sl-prev .sl-pk >> nth=1 >> button.pro.on').count(), 1);
+  await page.click('#sl-prev .sl-acts button.pro'); await page.waitForTimeout(500);
   const on = await page.evaluate(() => ({ on: !!state._lib_on, n: prSessions(state).filter((s) => s.x && s.x.lib && !s.done).length, db: !!window.__DB.users.ADMINUID.state._lib_on }));
   assert.ok(on.on && on.db, 'adoptée et enregistrée'); assert.ok(on.n >= 5, on.n + ' séances de la bibliothèque');
   // détail de la prochaine séance clé

@@ -408,6 +408,7 @@ function paPaceDelta(p){
 }
 function paDir(p){
   if(p.kind === 'test') return 'other';
+  if(p.kind === 'pick') return 'lib';
   if(p.kind === 'lib') return p.sub === 'step' ? (p.delta > 0 ? 'up' : 'down') : 'lib';
   if(p.field === 'date') return 'move';
   if(p.field === 'skip') return 'down';
@@ -426,6 +427,7 @@ function paLine(p){
   const day = function(d){ return typeof prFmtDate === 'function' ? prFmtDate(d, { weekday: 'long' }) : d; };
   let t;
   if(p.kind === 'test') t = 'Test 5 km pour mesurer ton niveau';
+  else if(p.kind === 'pick') t = (p.sub === 'pro' ? 'Version pro : ' : 'Version classique : ') + (A.t || '');
   else if(p.kind === 'lib') t = p.sub === 'refresh' ? 'Allures recalées sur ton niveau' : (p.sub === 'step' ? (p.delta > 0 ? 'Un cran plus dur : ' : 'Un cran plus facile : ') : 'Devient : ') + (A.t || '');
   else if(f === 'date') t = 'Déplacée au ' + day(p.after);
   else if(f === 'km'){ const d = Math.round((+p.after - +p.before) * 10) / 10; t = (d > 0 ? '+' : '−') + String(Math.abs(d)).replace('.', ',') + ' km · ' + String(p.after).replace('.', ',') + ' km au total'; }
@@ -490,7 +492,7 @@ function planCardRender(){
   const evo = typeof openPlanEvolution === 'function';
   const recal = N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '';
   const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">🤖</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
-  const offerRow = N.offer ? '<button type="button" class="hp-r lib" onclick="openLibPreview()"><i aria-hidden="true">✦</i><span class="hp-x"><b>Ta prépa en version pro</b><small>Séances de coach variées, choisies pour toi · Voir</small></span></button>' : '';
+  const offerRow = N.offer ? '<button type="button" class="hp-r lib" onclick="openLibPreview()"><i aria-hidden="true">✦</i><span class="hp-x"><b>Séances de pro, à la carte</b><small>Chaque séance en 2 versions : classique ou pro · Choisir</small></span></button>' : '';
   if(!N.n && !N.goal && !N.next && !N.coach && !N.offer){
     if(recal){ el.innerHTML = '<section class="hp">' + recal + '<button type="button" class="hp-h" style="margin-top:8px" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button></section>'; return; }
     el.innerHTML = '<button type="button" class="hp hp-ok" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button>';

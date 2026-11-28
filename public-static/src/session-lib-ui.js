@@ -76,6 +76,13 @@ function _slCss(){
     + '.sl-wk{background:#fff;border:1px solid #DCE5F3;border-radius:14px;padding:10px;margin-bottom:8px;}.sl-wk h4{margin:0 0 6px;font-size:13px;color:#0F172A;display:flex;justify-content:space-between;gap:8px;}.sl-wk h4 span{font-size:11.5px;color:#6D28D9;font-weight:800;}'
     + '.sl-row{display:flex;gap:8px;font-size:12.5px;color:#334155;padding:3px 0;border-top:1px solid #F1F5F9;}.sl-row:first-of-type{border-top:0;}.sl-row b{flex:0 0 44px;color:#64748B;font-weight:800;}.sl-row s{color:#94A3B8;}'
     + '.sl-cat{background:#fff;border:1px solid #DCE5F3;border-radius:14px;margin-bottom:8px;overflow:hidden;}.sl-cat summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;flex-direction:column;gap:2px;}.sl-cat summary::-webkit-details-marker{display:none;}.sl-cat summary b{font-size:14px;color:#0F172A;}.sl-cat summary small{font-size:12px;color:#64748B;}.sl-cat .sl-steps{padding:0 10px 10px;}'
+    + '.sl-ch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 6px;}.sl-cv{position:relative;display:flex;flex-direction:column;gap:2px;text-align:left;background:#fff;border:1.5px solid #DCE5F3;border-radius:14px;padding:9px 10px 10px;font:inherit;color:#0F172A;cursor:pointer;min-width:0;}'
+    + '.sl-cv em{font-style:normal;font-size:10.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#64748B;}.sl-cv.pro em{color:#6D28D9;}.sl-cv b{font-size:13px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}.sl-cv small{font-size:11.5px;color:#64748B;font-variant-numeric:tabular-nums;}'
+    + '.sl-cv.view{border-color:#1B4FD8;box-shadow:0 0 0 3px rgba(27,79,216,.12);}.sl-cv.pro.view{border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,.14);}.sl-cv .sl-cur{position:absolute;top:-8px;right:8px;font-size:10px;font-weight:900;border-radius:8px;padding:1px 7px;background:#0F172A;color:#fff;}'
+    + '.sl-chn{margin:0 0 10px;font-size:12px;color:#64748B;}.sl-acts button.pro{background:#7C3AED;border-color:#7C3AED;color:#fff;}'
+    + '.sl-pk{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:8px;margin-top:6px;}.sl-pk-h{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:0 2px 6px;font-size:12px;font-weight:800;color:#64748B;}.sl-pk-h button{border:0;background:none;font:inherit;font-size:12px;font-weight:800;color:#1B4FD8;cursor:pointer;padding:0;}'
+    + '.sl-pk-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}.sl-pk-2 button{display:flex;flex-direction:column;gap:1px;text-align:left;border:1.5px solid #E2E8F0;background:#F8FAFC;border-radius:10px;padding:6px 8px;font:inherit;color:#64748B;cursor:pointer;min-width:0;}.sl-pk-2 button small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;}.sl-pk-2 button span{font-size:12.5px;font-weight:700;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}'
+    + '.sl-pk-2 button.on{background:#EEF3FC;border-color:#1B4FD8;color:#0F172A;}.sl-pk-2 button.pro.on{background:#F5F3FF;border-color:#7C3AED;}.sl-pk-2 button.pro small{color:#6D28D9;}.sl-pk-2 button:disabled{opacity:.55;cursor:default;}'
     + '.sl-tog{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px;font-size:13.5px;color:#0F172A;}.sl-tog button{border:1px solid #DCE5F3;background:#F5F8FD;border-radius:10px;padding:6px 10px;font:inherit;font-weight:800;color:#1B4FD8;cursor:pointer;}';
   document.head.appendChild(s);
 }
@@ -109,13 +116,38 @@ function _slBar(b){
   return '<div class="sl-bar" aria-hidden="true">' + segs.map(function(x){ return '<i style="width:' + (x.s / tot * 100).toFixed(2) + '%;background:' + x.c + '"></i>'; }).join('') + '</div>';
 }
 function _slFindSession(key){ return prSessions(state).filter(function(s){ return s.key === key; })[0] || null; }
-function openSessionDetail(key){
-  const s = _slFindSession(key); if(!s) return;
+// séance vue dans son autre version (classique ou pro) : mêmes jour et créneau, autre contenu
+function _slAltSession(s, v){
+  const x = Object.assign({}, s.x || {}); if(v.lib) x.lib = v.lib; else delete x.lib;
+  const det = v.d || '', pm = typeof PR_PACE_RE !== 'undefined' ? det.match(PR_PACE_RE) : null;
+  let pace = null; if(pm && typeof prParsePace === 'function'){ const a = prParsePace(pm[1], pm[2]), b = pm[3] ? prParsePace(pm[3], pm[4]) : a; pace = { lo: Math.min(a, b), hi: Math.max(a, b), range: !!pm[3], text: pm[0] }; }
+  return Object.assign({}, s, { title: v.t, detail: det, kmPlan: +v.km || s.kmPlan, type: v.type || s.type, x: x, pace: pace });
+}
+function _slSum(s){ let D = null; try { D = slDetail(s, state); } catch(e) { diagSilent(e, 'session-lib-ui:_slSum'); } const b = D && D.b; return String(b ? b.km : s.kmPlan).replace('.', ',') + ' km' + (b && b.min ? ' · ~' + b.min + ' min' : '') + (D && D.L ? ' · ' + SL_STIM[D.L.stim].toLowerCase() : ''); }
+function _slChoiceOf(s){
+  if(typeof _prepView !== 'undefined' && _prepView && !_prepView.next) return null;      // prépa consultée en lecture seule
+  try { return slChoice(state, s, s.x && s.x.lib ? null : prAnalyze()); } catch(e) { diagSilent(e, 'session-lib-ui:_slChoiceOf'); return null; }
+}
+function _slChoiceHtml(s0, C, alt){
+  if(!C || !C.classic || !C.pro) return '';
+  const vs = [['classic', 'Classique', C.classic], ['pro', '✦ Pro', C.pro]];
+  return '<div class="sl-ch" role="group" aria-label="Deux versions de la séance">' + vs.map(function(v){
+    const mine = C.cur === v[0], view = alt ? !mine : mine, ss = mine ? s0 : _slAltSession(s0, v[2]);
+    return '<button type="button" class="sl-cv' + (v[0] === 'pro' ? ' pro' : '') + (view ? ' view' : '') + '" aria-pressed="' + view + '" onclick="openSessionDetail(\'' + s0.key + '\'' + (mine ? '' : ',\'alt\'') + ')">'
+      + (mine ? '<span class="sl-cur">✓ Ta séance</span>' : '') + '<em>' + v[1] + '</em><b>' + _slEsc(v[2].t) + '</b><small>' + _slEsc(_slSum(ss)) + '</small></button>';
+  }).join('') + '</div><p class="sl-chn">' + (alt ? 'Tu regardes l\'autre version. Elle remplace ta séance si tu la prends.' : 'Deux versions possibles : touche l\'autre pour la voir.') + '</p>';
+}
+function openSessionDetail(key, view){
+  const s0 = _slFindSession(key); if(!s0) return;
+  const C = slChoosable(s0) ? _slChoiceOf(s0) : null;
+  const altV = view === 'alt' && C && C.classic && C.pro ? (C.cur === 'pro' ? C.classic : C.pro) : null;
+  const s = altV ? _slAltSession(s0, altV) : s0;
   const D = slDetail(s, state); if(!D){ if(typeof showToast === 'function') showToast('Détail indisponible : ton niveau n\'est pas encore connu', 'ℹ️'); return; }
   const b = D.b, L = D.L, today = prTodayIso();
   const day = s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const PH = typeof slPhases === 'function' ? slPhases(state, today, b.ctx.cat) : {}, ph = PH[s.w] ? SL_PHASE[PH[s.w].phase] : '';
-  let h = '<div class="sl-tiles"><div class="sl-tile"><b>' + String(b.km).replace('.', ',') + '</b><small>km</small></div><div class="sl-tile"><b>~' + b.min + '</b><small>min</small></div>'
+  let h = _slChoiceHtml(s0, C, !!altV);
+  h += '<div class="sl-tiles"><div class="sl-tile"><b>' + String(b.km).replace('.', ',') + '</b><small>km</small></div><div class="sl-tile"><b>~' + b.min + '</b><small>min</small></div>'
     + '<div class="sl-tile"><b>' + (b.workMin || '–') + '</b><small>min de travail</small></div><div class="sl-tile"><b>' + (D.rpe ? D.rpe[0] + '-' + D.rpe[1] : '–') + '</b><small>effort /10</small></div></div>';
   h += (L ? '<p style="margin:0 0 6px;"><span class="sl-chip">' + SL_STIM_IC[L.stim] + ' ' + SL_STIM[L.stim] + '</span>' + (ph ? '<span class="sl-chip" style="background:#EEF3FC;color:#1B4FD8;">' + ph + '</span>' : '') + (L.lvl ? '<span class="sl-chip" style="background:#F1F5F9;color:#334155;">Niveau ' + L.lvl + ' · palier ' + (b.r + 1) + '/' + b.rungs + '</span>' : '') + '</p>' : '');
   h += _slBar(b) + '<div class="sl-steps">' + b.steps.map(function(x){ return _slStepHtml(x, b.ctx); }).join('') + '</div>';
@@ -128,11 +160,18 @@ function openSessionDetail(key){
   if(D.shoe) h += '<p class="sl-sec">Chaussures</p><p class="sl-p">' + _slEsc(D.shoe) + '</p>';
   // autres séances possibles pour ce créneau (même effet recherché)
   const ro = typeof _prepView !== 'undefined' && _prepView && !_prepView.next;
-  if(L && !s.done && !s.skip && !ro && (L.type === 'tempo' || L.type === 'frac')){
+  if(L && !altV && !s.done && !s.skip && !ro && (L.type === 'tempo' || L.type === 'frac')){
     const pf = slPrefs(state), alts = SL_LIB.filter(function(T){ return T.id !== L.id && T.stim === L.stim && (T.type === 'tempo' || T.type === 'frac') && (!T.hill || pf.hills); }).slice(0, 4);
     if(alts.length) h += '<p class="sl-sec">Envie d\'autre chose ?</p><div class="sl-alt">' + alts.map(function(T){ return '<button type="button" onclick="slSwap(\'' + s.key + '\',\'' + T.id + '\')"><span><b>' + _slEsc(T.n) + '</b><br><small>' + _slEsc(T.why.split(':')[0].slice(0, 70)) + '</small></span><span>›</span></button>'; }).join('') + '</div>';
   }
   const acts = [];
+  if(altV){
+    const m = C.cur === 'pro' ? 'classic' : 'pro';
+    acts.push('<button type="button" class="' + (m === 'pro' ? 'pro' : 'pri') + '" onclick="slPick(\'' + s0.key + '\',\'' + m + '\')">Prendre la version ' + (m === 'pro' ? 'pro' : 'classique') + '</button>');
+    acts.push('<button type="button" onclick="openSessionDetail(\'' + s0.key + '\')">Garder ma séance</button>');
+    h += '<div class="sl-acts">' + acts.join('') + '</div>';
+    _slSheet('sl-ov', day, s0.title, (m === 'pro' ? 'Version pro : ' : 'Version classique : ') + s.title, h); return;
+  }
   if(!s.done && !s.skip && !ro && s.date === today && typeof toggleDoneExtra === 'function') acts.push('<button type="button" class="pri" onclick="document.getElementById(\'sl-ov\').remove();toggleDoneExtra(' + s.w + ',' + s.ei + ')">✓ Valider</button>');
   if(!s.done && !ro && typeof openEditExtraModal === 'function' && s.type !== 'race') acts.push('<button type="button" onclick="document.getElementById(\'sl-ov\').remove();openEditExtraModal(' + s.w + ',' + s.ei + ')">Modifier</button>');
   if(typeof coachAI === 'function' && coachAI() && typeof openPlanChat === 'function' && !ro) acts.push('<button type="button" onclick="document.getElementById(\'sl-ov\').remove();openPlanChat(' + _slEsc(JSON.stringify('Ma séance du ' + day + ' : ' + s.title + '. ')) + ')">En parler au Coach</button>');
@@ -153,6 +192,40 @@ function slSwap(key, id){
   openSessionDetail(key);
 }
 
+// choisir la version d'une séance (classique ou pro) : un changement annulable, et le choix est retenu (le moteur ne la repasse pas en pro de lui-même)
+function _slPickSet(keys, mode){
+  const P = state._lib_pick && state._lib_pick.prep === slOfferKey(state) ? state._lib_pick : { prep: slOfferKey(state), k: {} };
+  const k = Object.assign({}, P.k || {}); keys.forEach(function(x){ k[x] = mode; });
+  state._lib_pick = { prep: P.prep, k: k };
+}
+function _slAfterPick(){
+  _slSelCache = null; save();
+  if(typeof rendered !== 'undefined'){ rendered.plan = false; }
+  try { if(typeof renderHome === 'function') renderHome(); } catch(e) { diagSilent(e, 'session-lib-ui:_slAfterPick'); }
+}
+function slPick(key, mode, from){
+  const s = _slFindSession(key); if(!s) return;
+  const C = _slChoiceOf(s), ch = slPickChange(state, s, C, mode);
+  if(!ch){ if(typeof showToast === 'function') showToast(C && C.cur === mode ? 'C\'est déjà ta séance' : 'Pas d\'autre version pour cette séance', 'ℹ️'); return; }
+  const r = prApplyChanges([ch], { kind: 'pick', at: new Date().toISOString() });
+  if(!r.n){ if(typeof showToast === 'function') showToast('Séance déjà faite ou modifiée : rien changé', 'ℹ️'); return; }
+  _slPickSet([key], mode); _slAfterPick();
+  if(typeof showToast === 'function') showToast(mode === 'pro' ? 'Version pro : ' + ch.after.t : 'Version classique : ' + ch.after.t, mode === 'pro' ? '✦' : '✓');
+  if(from === 'list') openLibPreview(); else openSessionDetail(key);
+}
+// toutes les séances à venir dans une version (liste « Tes séances : classique ou pro »)
+function slPickAll(mode){
+  if(mode === 'pro'){ slLibOn(); openLibPreview(); return; }
+  const S = prSessions(state).filter(function(s){ return slChoosable(s) && s.x && s.x.lib; }), sel = [];
+  S.forEach(function(s){ const ch = slPickChange(state, s, slChoice(state, s, null), 'classic'); if(ch) sel.push(ch); });
+  const r = sel.length ? prApplyChanges(sel, { kind: 'pick', at: new Date().toISOString() }) : { n: 0 };
+  _slPickSet(sel.map(function(c){ return c.key; }), 'classic');
+  state._lib_on = null; state._lib_offer = { key: slOfferKey(state), answer: 'no', at: new Date().toISOString() };
+  _slAfterPick();
+  if(typeof showToast === 'function') showToast(r.n ? r.n + ' séance' + (r.n > 1 ? 's' : '') + ' en version classique' : 'Tes séances sont déjà classiques', '✓');
+  openLibPreview();
+}
+
 // ─── Ton profil de coureur ───────────────────────────────────────────────────
 function openRunnerProfile(){
   const a = typeof prAnalyze === 'function' ? prAnalyze() : null; if(!a) return;
@@ -167,7 +240,7 @@ function openRunnerProfile(){
   if(ks.length) h += '<p class="sl-sec">Ta réponse aux séances</p>' + ks.map(function(k){ const r = R[k]; return '<div class="sl-pf"><em class="' + (r.hard / r.n >= 0.5 ? 'weak' : r.easy / r.n >= 0.6 ? 'strong' : 'ok') + '">' + SL_STIM_IC[k] + '</em><span style="font-size:13px;"><b>' + SL_STIM[k] + '</b> · ' + r.n + ' séance' + (r.n > 1 ? 's' : '') + ' · ' + r.easy + ' facile' + (r.easy > 1 ? 's' : '') + ', ' + r.hard + ' dure' + (r.hard > 1 ? 's' : '') + '</span></div>'; }).join('');
   const pf = slPrefs(state);
   h += '<p class="sl-sec">Tes conditions</p><div class="sl-tog"><span>⛰️ Une côte près de chez moi</span><button type="button" onclick="slSetPref(\'hills\',' + (!pf.hills) + ')">' + (pf.hills ? 'Oui' : 'Non') + '</button></div>';
-  h += '<div class="sl-acts"><button type="button" onclick="openLibCatalog()">📚 La bibliothèque</button>' + (state._lib_on ? '' : '<button type="button" class="pri" onclick="openLibPreview()">Ta prépa version pro</button>') + '</div>';
+  h += '<div class="sl-acts"><button type="button" onclick="openLibCatalog()">📚 La bibliothèque</button><button type="button" class="pri" onclick="openLibPreview()">Classique ou pro</button></div>';
   _slSheet('sl-prof', 'Plan', 'Ton profil de coureur', 'Forces, faiblesses et ce que le plan travaille en priorité', h);
 }
 function slSetPref(k, v){ state._lib_prefs = Object.assign({}, state._lib_prefs || {}, { [k]: v }); save(); openRunnerProfile(); }
@@ -188,30 +261,36 @@ function openLibCatalog(){
   _slSheet('sl-cat', 'Plan', 'La bibliothèque de séances', 'Toutes les séances que le moteur peut te proposer', h);
 }
 
-// ─── Ta prépa version pro : toutes les séances à venir choisies par le moteur ───
+// ─── Tes séances : classique ou pro — les deux versions de chaque séance à venir, choix séance par séance ───
 function openLibPreview(){
-  const a = prAnalyze(), sel = slSelect(state, a), PH = slPhases(state, a.opt.today, a.opt.raceCat || 'Semi-marathon');
-  let h = '';
-  if(state._lib_on){
-    h += '<div class="lvp-card"><p class="sl-p">✦ Ta prépa est en version pro depuis le ' + _slEsc(prFmtDate((state._lib_on_at || a.opt.today).slice(0, 10))) + '. Le moteur choisit et fait progresser tes séances au fil des semaines.</p></div>'
-      + '<div class="sl-acts"><button type="button" onclick="openRunnerProfile()">Ton profil</button><button type="button" onclick="openLibCatalog()">La bibliothèque</button><button type="button" onclick="slLibOff()">Revenir aux séances classiques</button></div>';
-    _slSheet('sl-prev', 'Plan', 'Ta prépa version pro', '', h); return;
-  }
-  const byW = {}; sel.forEach(function(p){ (byW[p.w] = byW[p.w] || []).push(p); });
-  const nQ = sel.filter(function(p){ return p.type === 'tempo' || p.type === 'frac'; }).length;
-  h += '<div class="lvp-card"><p class="sl-p"><b>' + sel.length + ' séances</b> réécrites jusqu\'à la course, dont <b>' + nQ + ' séances clés</b> toutes différentes : du général au spécifique, selon ton profil' + (a.profile && a.profile.focus.length ? ' (priorité : ' + _slEsc(a.profile.focus.map(function(k){ return SL_FOCUS[k] || k; }).join(', ')) + ')' : '') + '. Km et jours gardés. Annulable d\'un geste.</p></div>';
+  const a = prAnalyze(), today = a.opt.today, sel = slSelectCached(state, a), PH = slPhases(state, today, a.opt.raceCat || 'Semi-marathon');
+  const proOf = {}; sel.forEach(function(p){ proOf[p.key] = p.after; });
+  const S = prSessions(state).filter(function(s){ return slChoosable(s, today); }).sort(function(x, y){ return x.date.localeCompare(y.date); });
+  const rows = S.map(function(s){ const pro = !!(s.x && s.x.lib); return { s: s, pro: pro, cl: pro ? slClassicOf(state, s) : { t: s.title }, pr: pro ? { t: s.title } : proOf[s.key] || null }; })
+    .filter(function(r){ return r.cl && r.pr; });
+  const nPro = rows.filter(function(r){ return r.pro; }).length;
+  let h = '<div class="lvp-card"><p class="sl-p">Pour chaque séance, deux versions : <b>la classique</b> du plan, ou <b>une séance de coach</b> choisie pour ta phase et ton profil' + (a.profile && a.profile.focus.length ? ' (priorité : ' + _slEsc(a.profile.focus.map(function(k){ return SL_FOCUS[k] || k; }).join(', ')) + ')' : '') + '. Mêmes jours, volume proche. Tu choisis séance par séance.</p>'
+    + '<p class="sl-p" style="margin-top:6px;font-weight:800;color:#0F172A;">' + nPro + ' en pro · ' + (rows.length - nPro) + ' en classique</p></div>';
+  if(!rows.length) h += '<p class="sl-p">Pas encore de version pro possible pour tes prochaines séances (niveau inconnu, ou séances de récupération et d\'affûtage).</p>';
+  const byW = {}; rows.forEach(function(r){ (byW[r.s.w] = byW[r.s.w] || []).push(r); });
   Object.keys(byW).map(Number).sort(function(x, y){ return x - y; }).forEach(function(w){
     const wk = PH[w] || {};
     h += '<div class="sl-wk"><h4>S' + w + (wk.from ? ' · ' + _slEsc(prFmtDate(wk.from)) : '') + '<span>' + (SL_PHASE[wk.phase] || '') + (wk.recov ? ' · allégée' : '') + '</span></h4>'
-      + byW[w].map(function(p){ return '<div class="sl-row"><b>' + _slEsc(prFmtDate(p.date, { weekday: 'short' })) + '</b><span><s>' + _slEsc(p.before.t) + '</s> → <span style="font-weight:700;color:#0F172A;">' + _slEsc(p.after.t) + '</span></span></div>'; }).join('') + '</div>';
+      + byW[w].map(function(r){ const k = r.s.key;
+        return '<div class="sl-pk" data-k="' + k + '"><p class="sl-pk-h"><span>' + _slEsc(prFmtDate(r.s.date, { weekday: 'short', day: 'numeric', month: 'short' })) + ' · ' + String(r.s.kmPlan).replace('.', ',') + ' km</span><button type="button" onclick="openSessionDetail(\'' + k + '\')">Détail ›</button></p><div class="sl-pk-2">'
+          + '<button type="button" class="' + (r.pro ? '' : 'on') + '" aria-pressed="' + !r.pro + '" onclick="slPick(\'' + k + '\',\'classic\',\'list\')"><small>Classique</small><span>' + _slEsc(r.cl.t) + '</span></button>'
+          + '<button type="button" class="pro' + (r.pro ? ' on' : '') + '" aria-pressed="' + r.pro + '" onclick="slPick(\'' + k + '\',\'pro\',\'list\')"><small>✦ Pro</small><span>' + _slEsc(r.pr.t) + '</span></button></div></div>'; }).join('') + '</div>';
   });
-  h += '<div class="sl-acts"><button type="button" class="pri" onclick="slLibOn()">✦ Passer ma prépa en version pro</button><button type="button" onclick="slLibLater()">Pas maintenant</button></div>';
-  _slSheet('sl-prev', 'Plan', 'Ta prépa version pro', 'Des séances de coach, choisies pour toi', h);
+  if(rows.length) h += '<div class="sl-acts"><button type="button" class="pro" onclick="slPickAll(\'pro\')">✦ Tout en pro</button><button type="button" onclick="slPickAll(\'classic\')">Tout en classique</button></div>';
+  h += '<div class="sl-acts"><button type="button" onclick="openRunnerProfile()">Ton profil</button><button type="button" onclick="openLibCatalog()">La bibliothèque</button>' + (slOffer(state) ? '<button type="button" onclick="slLibLater()">Pas maintenant</button>' : '') + '</div>';
+  const ov = _slSheet('sl-prev', 'Plan', 'Classique ou pro', 'Deux versions pour chaque séance : à toi de choisir', h);
+  return ov;
 }
 function slLibOn(){
   const a = prAnalyze(), sel = slSelect(state, a), at = new Date().toISOString();
   const r = sel.length ? prApplyChanges(sel, { kind: 'libplan', vdot: a.fit && a.fit.vdot, at: at }) : { n: 0 };
   state._lib_on = slOfferKey(state); state._lib_on_at = at; state._lib_offer = { key: slOfferKey(state), answer: 'yes', at: at };
+  _slPickSet(sel.map(function(p){ return p.key; }), 'pro'); _slSelCache = null;
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
   const ov = document.getElementById('sl-prev'); if(ov) ov.remove();
