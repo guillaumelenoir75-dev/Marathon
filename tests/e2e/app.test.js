@@ -948,6 +948,21 @@ test('séances de pro : deux versions par séance (classique ou pro) dans le dé
   const alt = await page.locator('#sl-ov .sl-alt button').count();
   if (alt) { await page.click('#sl-ov .sl-alt button >> nth=0'); await page.waitForTimeout(400); assert.equal(await page.evaluate(() => state._plan_reviews.slice(-1)[0].kind), 'lib'); }
   await page.evaluate(() => document.getElementById('sl-ov').remove());
+  // séance faite : prévu vs fait bloc par bloc
+  const kd = await page.evaluate(() => {
+    for (const s of prSessions(state).filter((x) => (x.type === 'tempo' || x.type === 'frac') && !x.done && !/^Test/.test(x.title))) {
+      state[s.key + '_done'] = true; state[s.key + '_perf'] = JSON.stringify({ date: s.date, blocsAllure: ["4'00", "4'00", "4'00"] });
+      const C = slCheck(prSessions(state).find((x) => x.key === s.key), state);                  // cibles de la séance (pro ou classique)
+      if (!C) { delete state[s.key + '_done']; delete state[s.key + '_perf']; continue; }
+      const R = C.rows; state[s.key + '_perf'] = JSON.stringify({ date: s.date, blocsAllure: [prPace(R[0].lo + 1), prPace(R[1].lo + 2), prPace(R[2].hi + 12)] }); return s.key;
+    } return null; });
+  assert.ok(kd, 'une séance de qualité contrôlable');
+  await page.evaluate((k) => openSessionDetail(k), kd);
+  await page.waitForSelector('#sl-ov .sl-ck', { timeout: 10000 });
+  const ck = await page.evaluate(() => document.querySelector('#sl-ov .sl-ck').textContent);
+  assert.match(ck, /Presque|À revoir/); assert.match(ck, /\+12 s/); assert.equal(await page.locator('#sl-ov .sl-ckt tr').count(), 4, 'en-tête + 3 blocs');
+  if (process.env.SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/lib-check.png' }); }
+  await page.evaluate(() => document.getElementById('sl-ov').remove());
   // profil et bibliothèque
   await page.evaluate(() => openRunnerProfile()); await page.waitForSelector('#sl-prof .ros-body', { timeout: 10000 });
   assert.match(await page.evaluate(() => document.getElementById('sl-prof').textContent), /Tes forces et tes points faibles/);

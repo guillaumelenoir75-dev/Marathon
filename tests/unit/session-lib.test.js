@@ -267,3 +267,70 @@ test('ce que la pro t\'apporte : séances faites de chaque version, ressenti, me
   assert.equal(V.pro.n, 3); assert.equal(V.classic.n, 3); assert.equal(V.pro.easy, 3); assert.equal(V.classic.hard, 3);
   assert.equal(V.best, 'pro');
 });
+
+test('séance réussie ? prévu vs fait bloc par bloc, séance pro et classique, endurance', () => {
+  const st = semi(), app = open(st, '2026-11-12'), key = (w, i) => 'extra_w' + w + '_s' + i;
+  const done = (k, perf) => { st[k + '_done'] = true; st[k + '_perf'] = JSON.stringify(Object.assign({ date: JSON.parse(st[k]).sched_date }, perf)); };
+  const S = (k) => app.prSessions(st).find((x) => x.key === k);
+  // tempo classique 3 × 8 min à 4'35 — 4'40 : 3 blocs dans la fourchette
+  done(key(1, 1), { blocsAllure: ["4'36", "4'38", "4'39"] });
+  let C = app.slCheck(S(key(1, 1)), st);
+  assert.equal(C.kind, 'blocs'); assert.equal(C.verdict, 'ok'); assert.equal(C.nPlan, 3); assert.equal(C.label, 'Réussie');
+  assert.match(C.line, /^Blocs 1 à 3 dans la fourchette$/);
+  // dernier bloc trop lent de 9 s : presque
+  done(key(2, 1), { blocsAllure: ["4'36", "4'38", "4'49"] });
+  C = app.slCheck(S(key(2, 1)), st);
+  assert.equal(C.verdict, 'partial'); assert.match(C.line, /^Blocs 1 et 2 dans la fourchette, bloc 3 à 4'49 \(\+9 s\)$/); assert.equal(C.rows[2].st, 'slow');
+  assert.ok(C.notes.some((n) => /Dernier bloc/.test(n)));
+  // un seul bloc sur 3 : à revoir, et l'absorption le compte
+  done(key(3, 1), { blocsAllure: ["4'36"] });
+  C = app.slCheck(S(key(3, 1)), st);
+  assert.equal(C.verdict, 'miss'); assert.match(C.line, /^1 blocs sur 3/);
+  assert.ok(app.paAbsorb(S(key(3, 1)), st).parts.some((p) => p.k === 'check'));
+  // séance pro : cibles prises dans les étapes de travail du modèle
+  const s5 = S(key(5, 1)), a = app.prAnalyze(), ch = app.slPickChange(st, s5, app.slChoice(st, s5, a), 'pro');
+  app.prApplyChanges([ch], { kind: 'pick' });
+  const b = app.slOfSession(S(key(5, 1)), st); const tg = [];
+  const flat = (x) => { if (x.rep) { for (let i = 0; i < x.rep; i++) x.steps.forEach(flat); return; } if (x.k === 'work') { const r = app.slPaceOf(x, b.ctx); if (r) tg.push(r); } };
+  b.steps.forEach(flat);
+  if (tg.length) {
+    const fmt = (v) => Math.floor(v / 60) + "'" + String(Math.round(v % 60)).padStart(2, '0');
+    done(key(5, 1), { date: JSON.parse(st[key(5, 1)]).sched_date, blocsAllure: tg.slice(0, 4).map((r) => fmt((r[0] + r[1]) / 2)) });
+    C = app.slCheck(S(key(5, 1)), st);
+    assert.ok(C && C.kind === 'blocs', 'contrôle de la séance pro');
+    assert.ok(C.rows.every((r) => r.st === 'ok'), JSON.stringify(C.rows));
+  }
+  // endurance : km dans l'allure + FC sous le plafond
+  const sp = (a) => a.map((v, i) => ({ km: i + 1, distanceKm: 1, allure: v, fc: 140 }));
+  done(key(2, 0), { pace: "5'55", hr: 140, strava: { splits: sp(["6'20", "5'55", "5'58", "6'00", "5'50", "5'52", "6'02"]) } });
+  C = app.slCheck(S(key(2, 0)), st);
+  assert.equal(C.kind, 'ef'); assert.equal(C.verdict, 'ok'); assert.match(C.line, /^6 km sur 6 dans l'allure · FC 140 sous ton plafond/);
+  // trop vite : endurance pas respectée
+  done(key(3, 0), { pace: "5'10", hr: 158, strava: { splits: sp(["5'40", "5'10", "5'05", "5'08", "5'12", "5'10"]) } });
+  C = app.slCheck(S(key(3, 0)), st);
+  assert.equal(C.verdict, 'miss'); assert.ok(C.notes.some((n) => /plus vite/.test(n)));
+  // pas de contrôle sans données
+  assert.equal(app.slCheck(S(key(6, 1)), st), null);
+});
+
+test('nouvelle prépa : « tout en pro » de la prépa d\'avant pas repris ; ce que la prépa reprend de la course d\'avant', () => {
+  const st = semi(); st._prep_id = 'semi-2027'; st._lib_on = 'novembrun-2026';      // choisi pendant la prépa précédente
+  const app = open(st, '2026-10-27'), a = app.prAnalyze();
+  assert.equal(app.slLibOnNow(st), false);
+  assert.ok(app.slProposals(st, a).every((p) => p.sub !== 'new'), 'pas de réécriture d\'office');
+  st._lib_on = 'semi-2027'; assert.equal(app.slLibOnNow(st), true);
+  // course 6 jours avant le début : départ trop rapide puis coup de mou
+  const s2 = semi(); s2._race_analysis = { date: '2026-10-20', name: 'Novemb\'Run', time: '43:20', start: { n: 2, pct: -3.1, diff: -8 }, pacing: 'fade', fade: { km: 7, pct: 4.2 }, lessons: ['🐢 Départ trop rapide'] };
+  s2._recette = { progression: 1.1, pacing: { start: 1.02 } };
+  const app2 = open(s2, '2026-10-27'), a2 = app2.prAnalyze(), K = app2.paCarry(a2, '2026-10-27');
+  assert.ok(K, 'carte « ce que ta prépa reprend »'); assert.equal(K.name, 'Novemb\'Run');
+  const T = K.items.map((x) => x.t + ' : ' + x.v).join('\n');
+  assert.match(T, /Ton résultat : 43:20/); assert.match(T, /Le départ : Trop rapide \(8 s\/km de trop sur 2 km\) → ton plan de course démarre plus prudemment/);
+  assert.match(T, /La fin de course : Coup de mou au km 7/); assert.match(T, /Allures/); assert.match(T, /Ta recette : Progression ≤ \+10 %/);
+  // carte « Ton plan » de l'accueil : une ligne pendant les 3 premières semaines
+  assert.equal(app2.planNews(a2, s2).carry, 'Novemb\'Run');
+  const app3 = open(s2, '2026-11-20'); assert.equal(app3.planNews(app3.prAnalyze(), s2).carry, null, 'plus après 3 semaines');
+  // course trop ancienne : rien
+  const s4 = semi(); s4._race_analysis = { date: '2026-08-01', name: 'Vieille course', time: '45:00' };
+  const app4 = open(s4, '2026-10-27'); assert.equal(app4.planNews(app4.prAnalyze(), s4).carry, null);
+});

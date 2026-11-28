@@ -553,29 +553,6 @@ function prTrajectory(a){
   }
   return out;
 }
-function prTrajectorySvg(T){
-  if(!T || !T.race) return '';
-  const W = 320, H = 150, L = 30, Rt = 8, Tp = 12, B = 22;
-  const today = prTodayIso(), first = T.pts.length && T.pts[0].date < prAddDays(today, -14) ? T.pts[0].date : prAddDays(today, -28), t0 = Date.parse(first + 'T12:00:00Z'), t1 = Date.parse(T.race.date + 'T12:00:00Z'), now = Date.parse(prTodayIso() + 'T12:00:00Z');
-  const vs = T.pts.map(function(p){ return p.v; }).concat([T.now, T.race.v + 0.6, T.race.v - 0.6]).concat(T.need ? [T.need] : []);
-  const v0 = Math.floor(Math.min.apply(null, vs) - 0.5), v1 = Math.ceil(Math.max.apply(null, vs) + 0.5);
-  const X = function(t){ return L + (t - t0) / Math.max(1, t1 - t0) * (W - L - Rt); }, Y = function(v){ return Tp + (v1 - v) / Math.max(0.5, v1 - v0) * (H - Tp - B); };
-  const td = function(d){ return Date.parse(d + 'T12:00:00Z'); };
-  let g = '';
-  for(let v = Math.ceil(v0); v <= v1; v++) if(v1 - v0 <= 8 || v % 2 === 0) g += '<line x1="' + L + '" x2="' + (W - Rt) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="tj-grid"/><text x="' + (L - 5) + '" y="' + (Y(v) + 3) + '" class="tj-ax" text-anchor="end">' + v + '</text>';
-  const months = []; const d = new Date(t0); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + 1);
-  while(d.getTime() <= t1){ months.push(d.getTime()); d.setUTCMonth(d.getUTCMonth() + 1); }
-  const step = Math.ceil(months.length / 5);
-  months.forEach(function(t, i){ if(i % step) return; g += '<text x="' + X(t) + '" y="' + (H - 6) + '" class="tj-ax" text-anchor="middle">' + new Date(t).toLocaleDateString('fr-FR', { month: 'short' }) + '</text>'; });
-  if(T.need) g += '<line x1="' + L + '" x2="' + (W - Rt) + '" y1="' + Y(T.need) + '" y2="' + Y(T.need) + '" class="tj-goal"/><text x="' + (W - Rt - 2) + '" y="' + (Y(T.need) - 4) + '" class="tj-goal-t" text-anchor="end">objectif ' + prV(T.need) + '</text>';
-  const xn = X(now), xr = X(t1), yn = Y(T.now), yr = Y(T.race.v);
-  g += '<polygon points="' + xn + ',' + yn + ' ' + xr + ',' + Y(T.race.v + 0.6) + ' ' + xr + ',' + Y(T.race.v - 0.6) + '" class="tj-band"/>';
-  g += '<line x1="' + xn + '" y1="' + yn + '" x2="' + xr + '" y2="' + yr + '" class="tj-proj"/>';
-  T.pts.forEach(function(p){ g += '<circle cx="' + X(td(p.date)) + '" cy="' + Y(p.v) + '" r="' + (p.kind === 'course' ? 4 : 2.6) + '" class="' + (p.kind === 'course' ? 'tj-race' : 'tj-ses') + '"><title>' + prEsc(p.label) + ' · ' + prV(p.v) + '</title></circle>'; });
-  g += '<circle cx="' + xn + '" cy="' + yn + '" r="5" class="tj-now"/><circle cx="' + xr + '" cy="' + yr + '" r="4.5" class="tj-end"/><text x="' + xr + '" y="' + (yr - 9) + '" class="tj-end-t" text-anchor="end">' + prV(T.race.v) + '</text>';
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="tj-svg" role="img" aria-label="Niveau dans le temps et projection au jour de la course">' + g + '</svg>';
-}
-
 // ─── 10. Bilan des allures proposées : tenues ou non, calibrage du calcul ───
 function prCalib(st){
   const byKey = {}; prSessions(st).forEach(function(s){ byKey[s.key] = s; });
@@ -638,16 +615,17 @@ function prAfterValidation(){
   try {
     prPrefetch().then(function(){
       // ce que la séance validée dit de toi (plan-adapt.js) + l'ajustement le plus utile des 10 prochains jours, appliqué en un geste
-      let ab = null, top = null, n = 0;
+      let ab = null, top = null, n = 0, ck = null;
       try {
         const k = window._lastValidatedKey, s = k ? prSessions(state).filter(function(x){ return x.key === k; })[0] : null;
         ab = s && typeof paAbsorb === 'function' ? paAbsorb(s, state) : null;
+        ck = s && typeof slCheck === 'function' ? slCheck(s, state) : null;           // séance réussie ? bloc par bloc
         const a = prAnalyze(), end = prAddDays(a.opt.today, 10), rank = { ladder: 0, volume: 2 };
         const P = a.proposals.filter(function(p){ return p.date && p.date >= a.opt.today && p.date <= end && !p.revert && p.kind !== 'test'; })
           .sort(function(x, y){ return ((rank[x.kind] != null ? rank[x.kind] : 1) - (rank[y.kind] != null ? rank[y.kind] : 1)) || x.date.localeCompare(y.date); });
         top = P[0] || null; n = planReviewPending();
       } catch(e) { diagSilent(e, 'plan-optim:prAfterValidation'); }
-      if(!top && !n && !(ab && ab.verdict)) return;
+      if(!top && !n && !(ab && ab.verdict) && !ck) return;
       // attendre que le retour de séance (fenêtre) soit fermé
       let tries = 0;
       (function show(){
@@ -658,7 +636,7 @@ function prAfterValidation(){
       const V = ab && ab.verdict && typeof PA_VERDICT !== 'undefined' ? PA_VERDICT[ab.verdict] : null;
       window._prSnackProp = top;
       const what = top ? prFmtDate(top.date, { weekday: 'long' }).replace(/^./, function(c){ return c.toUpperCase(); }) + ' : ' + (top.field === 'session' && top.after ? top.after.t : top.field === 'km' ? top.title + ' ' + top.before + ' → ' + top.after + ' km' : top.title + ' ' + (top.pa || '')) : n ? n + ' ajustement' + (n > 1 ? 's' : '') + ' proposé' + (n > 1 ? 's' : '') : '';
-      el.innerHTML = '<span class="pr-snack-t">' + (V ? '<b>' + V[1] + ' ' + V[2] + '</b>' : '') + (what ? '<small>🔄 ' + prEsc(what) + '</small>' : '') + '</span>'
+      el.innerHTML = '<span class="pr-snack-t">' + (ck ? '<b class="pr-ck ' + ck.verdict + '">' + (ck.verdict === 'ok' ? '✓ ' : ck.verdict === 'partial' ? '◐ ' : '✗ ') + ck.label + '</b><small>' + prEsc(ck.line) + '</small>' : '') + (V ? '<b>' + V[1] + ' ' + V[2] + '</b>' : '') + (what ? '<small>🔄 ' + prEsc(what) + '</small>' : '') + '</span>'
         + (top ? '<button type="button" onclick="prSnackApply()">Appliquer</button>' : '')
         + (n || top ? '<button type="button" class="sec" onclick="document.getElementById(\'pr-snack\').remove();showScreen(\'plan\');openPlanReview()">Voir</button>' : '');
       _prCss(); document.body.appendChild(el);

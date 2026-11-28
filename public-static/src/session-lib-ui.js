@@ -82,6 +82,8 @@ function _slCss(){
     + '.sl-adv{display:flex;flex-direction:column;gap:6px;border-radius:12px;padding:9px 11px;margin:0 0 8px;font-size:13px;line-height:1.4;background:#F8FAFC;border:1px solid #E2E8F0;color:#334155;}.sl-adv.pro{background:#F5F3FF;border-color:#DDD6FE;color:#4C1D95;}.sl-adv b{font-weight:900;}.sl-adv small{font-size:12px;color:#64748B;}'
     + '.sl-adv-b{display:flex;gap:6px;flex-wrap:wrap;}.sl-adv-b button{border:1px solid #DDD6FE;background:#fff;color:#6D28D9;border-radius:10px;padding:5px 10px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}.sl-adv-b button.pri{background:#7C3AED;border-color:#7C3AED;color:#fff;}'
     + '.sl-pk-a{margin:6px 2px 0;font-size:11.5px;font-weight:700;color:#6D28D9;}.sl-pk-a.cl{color:#64748B;}.sl-pk-2 button.adv{border-style:dashed;border-color:#7C3AED;}'
+    + '.sl-ck{border-radius:14px;padding:10px 12px;margin:0 0 10px;border:1px solid #E2E8F0;background:#fff;}.sl-ck h4{margin:0 0 2px;font-size:15px;font-weight:900;}.sl-ck.ok h4{color:#047857;}.sl-ck.partial h4{color:#B45309;}.sl-ck.miss h4{color:#B91C1C;}.sl-ck p{margin:2px 0;font-size:13px;color:#334155;line-height:1.4;}'
+    + '.sl-ckt{width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;font-variant-numeric:tabular-nums;}.sl-ckt th{text-align:left;font-size:11px;color:#64748B;font-weight:800;padding:3px 4px;}.sl-ckt td{padding:4px;border-top:1px solid #F1F5F9;color:#0F172A;}.sl-ckt td.ok{color:#047857;font-weight:800;}.sl-ckt td.slow{color:#B91C1C;font-weight:800;}.sl-ckt td.fast{color:#1B4FD8;font-weight:800;}'
     + '.sl-chn{margin:0 0 10px;font-size:12px;color:#64748B;}.sl-acts button.pro{background:#7C3AED;border-color:#7C3AED;color:#fff;}'
     + '.sl-pk{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:8px;margin-top:6px;}.sl-pk-h{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:0 2px 6px;font-size:12px;font-weight:800;color:#64748B;}.sl-pk-h button{border:0;background:none;font:inherit;font-size:12px;font-weight:800;color:#1B4FD8;cursor:pointer;padding:0;}'
     + '.sl-pk-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}.sl-pk-2 button{display:flex;flex-direction:column;gap:1px;text-align:left;border:1.5px solid #E2E8F0;background:#F8FAFC;border-radius:10px;padding:6px 8px;font:inherit;color:#64748B;cursor:pointer;min-width:0;}.sl-pk-2 button small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;}.sl-pk-2 button span{font-size:12.5px;font-weight:700;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}'
@@ -159,6 +161,15 @@ function _slChoiceHtml(s0, C, alt){
       + (mine ? '<span class="sl-cur">✓ Ta séance</span>' : '') + '<em>' + v[1] + '</em><b>' + _slEsc(v[2].t) + '</b><small>' + _slEsc(_slSum(ss)) + '</small></button>';
   }).join('') + '</div>' + _slAdvHtml(s0, C, alt) + '<p class="sl-chn">' + (alt ? 'Tu regardes l\'autre version. Elle remplace ta séance si tu la prends.' : 'Deux versions possibles : touche l\'autre pour la voir.') + '</p>';
 }
+// séance faite : prévu vs fait, bloc par bloc (slCheck)
+function _slCheckHtml(s){
+  let C = null; try { C = slCheck(s, state); } catch(e) { diagSilent(e, 'session-lib-ui:_slCheckHtml'); }
+  if(!C) return '';
+  const sign = function(d){ return d ? (d > 0 ? '+' : '−') + Math.abs(d) + ' s' : '✓'; };
+  return '<div class="sl-ck ' + C.verdict + '"><h4>' + (C.verdict === 'ok' ? '✓ ' : C.verdict === 'partial' ? '◐ ' : '✗ ') + C.label + '</h4><p>' + _slEsc(C.line) + '</p>'
+    + C.notes.map(function(n){ return '<p style="color:#64748B;font-size:12px;">' + _slEsc(n) + '</p>'; }).join('')
+    + (C.rows.length ? '<table class="sl-ckt"><tr><th>Bloc</th><th>Prévu</th><th>Fait</th><th>Écart</th></tr>' + C.rows.map(function(r){ return '<tr><td>' + r.i + '</td><td>' + _slPx(r.lo) + ' – ' + _slPx(r.hi) + '</td><td>' + _slPx(r.v) + '</td><td class="' + r.st + '">' + sign(r.d) + '</td></tr>'; }).join('') + '</table>' : '') + '</div>';
+}
 function openSessionDetail(key, view){
   const s0 = _slFindSession(key); if(!s0) return;
   const C = slChoosable(s0) ? _slChoiceOf(s0) : null;
@@ -168,7 +179,7 @@ function openSessionDetail(key, view){
   const b = D.b, L = D.L, today = prTodayIso();
   const day = s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const PH = typeof slPhases === 'function' ? slPhases(state, today, b.ctx.cat) : {}, ph = PH[s.w] ? SL_PHASE[PH[s.w].phase] : '';
-  let h = _slChoiceHtml(s0, C, !!altV);
+  let h = _slChoiceHtml(s0, C, !!altV) + (s0.done ? _slCheckHtml(s0) : '');
   h += '<div class="sl-tiles"><div class="sl-tile"><b>' + String(b.km).replace('.', ',') + '</b><small>km</small></div><div class="sl-tile"><b>~' + b.min + '</b><small>min</small></div>'
     + '<div class="sl-tile"><b>' + (b.workMin || '–') + '</b><small>min de travail</small></div><div class="sl-tile"><b>' + (D.rpe ? D.rpe[0] + '-' + D.rpe[1] : '–') + '</b><small>effort /10</small></div></div>';
   h += (L ? '<p style="margin:0 0 6px;"><span class="sl-chip">' + SL_STIM_IC[L.stim] + ' ' + SL_STIM[L.stim] + '</span>' + (ph ? '<span class="sl-chip" style="background:#EEF3FC;color:#1B4FD8;">' + ph + '</span>' : '') + (L.lvl ? '<span class="sl-chip" style="background:#F1F5F9;color:#334155;">Niveau ' + L.lvl + ' · palier ' + (b.r + 1) + '/' + b.rungs + '</span>' : '') + '</p>' : '');

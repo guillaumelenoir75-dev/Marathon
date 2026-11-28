@@ -451,7 +451,7 @@ function openPlanEvolution(){
   const today = prTodayIso(), a = (_prReview && _prReview.a) || prAnalyze(), E = paEvolution(a, today);
   const esc = prEsc, T = E.trend || {}, V = T.verdict ? PA_VERDICT[T.verdict] : null;
   const tile = function(k, v, sub){ return '<div class="lvp-t"><small>' + k + '</small><b>' + v + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>'; };
-  let h = '<div class="lvp-card"><div class="lvp-tiles">'
+  let h = _paCarryHtml(a, today) + '<div class="lvp-card"><div class="lvp-tiles">'
     + tile('Niveau', E.fit ? prV(E.fit) : '–', E.level && E.level.delta != null ? (E.level.delta >= 0 ? '+' : '') + prV(E.level.delta) + ' en 4 semaines' : '')
     + tile('Le plan', E.planVdot ? prV(E.planVdot) : '–', E.fit && E.planVdot ? (E.fit - E.planVdot >= 1 ? 'en retard sur toi : ça monte' : E.planVdot - E.fit >= 1 ? 'au-dessus de toi' : 'à ton niveau') : '')
     + tile('Tes séances', V ? V[1] + ' ' + V[0] : '–', T.n ? T.n + ' sur 3 semaines' : 'pas encore de ressenti')
@@ -548,4 +548,108 @@ function _prTraceHtml(a){
       : T[1];
     return '<div class="pr-tr"><span class="pr-tr-i">' + T[0] + '</span><span><b>' + prEsc(t.title) + '</b><small>' + prFmtDate(t.date, { weekday: 'short', day: 'numeric', month: 'short' }) + (t.cur ? ' · ' + prEsc(t.cur) : '') + ' · ' + prEsc(why) + '</small></span></div>';
   }).join('') + '</div>';
+}
+
+// ─── Calculs propres à ces écrans (sortis du bundle : chargés seulement avec MAJ le plan) ───
+// ─── F. Comment ton plan évolue ─────────────────────────────────────────────
+function paEvolution(a, today){
+  today = today || prTodayIso();
+  const st = state, trend = a.absorb || paTrend(st, today);
+  // paliers : dernière séance faite et prochaine séance prévue de chaque famille
+  const done = (typeof prAllDone === 'function' ? prAllDone(today) : []).filter(function(s){ return s.done && s.date && prDays(s.date, today) <= 56 && !s.ext; }).sort(function(x, y){ return y.date.localeCompare(x.date); });
+  const next = prSessions(st).filter(function(s){ return !s.done && !s.skip && s.date && s.date >= today; }).sort(function(x, y){ return x.date.localeCompare(y.date); });
+  const ladders = ['T', 'I', 'R', 'race'].map(function(f){
+    const last = done.filter(function(s){ return paFam(s) === f && paParseReps(s.title + ' ' + s.detail); })[0];
+    const nx = next.filter(function(s){ return paFam(s) === f && paParseReps(s.title + ' ' + s.detail); })[0];
+    if(!last && !nx) return null;
+    const ref = nx || last, r = paParseReps(ref.title + ' ' + ref.detail), L = PA_LADDERS[paLadderKey(f, r.unit, a.opt.raceCat)];
+    const pr = (a.proposals || []).filter(function(p){ return p.kind === 'ladder' && nx && p.key === nx.key; })[0];
+    const ab = last ? paAbsorb(last, st, { today: today }) : null;
+    return { fam: f, label: PA_FAM[f], ic: PA_FAM_IC[f], rungs: L ? L.length : 0,
+      last: last ? { title: last.title, date: last.date, verdict: ab && ab.verdict, rung: L ? paRung(L, paParseReps(last.title + ' ' + last.detail)) : null } : null,
+      next: nx ? { title: nx.title, date: nx.date, rung: L ? paRung(L, r) : null, prop: pr ? { title: pr.after.t, rung: pr.rung, up: pr.delta > 0 } : null } : null };
+  }).filter(Boolean);
+  // niveau : aujourd'hui vs il y a 4 semaines
+  let lvl = null;
+  try { const H = typeof bsLevelHistory === 'function' ? bsLevelHistory(today) : []; if(H.length){ const now = H[H.length - 1], ago = H.length >= 5 ? H[H.length - 5] : H[0]; lvl = { now: now.v, ago: ago.v, from: ago.date, delta: Math.round((now.v - ago.v) * 10) / 10 }; } } catch(e) { if(typeof diagSilent === 'function') diagSilent(e, 'plan-adapt:paEvolution'); }
+  const V = a.volume || null;
+  const changes = (st._plan_reviews || []).slice(-6).reverse().map(function(h){
+    const kinds = {}; (h.changes || []).forEach(function(c){ if(c.kind !== 'coherence') kinds[c.kind || c.src || 'calcul'] = (kinds[c.kind || c.src || 'calcul'] || 0) + 1; });
+    return { date: h.date, n: h.n || 0, undone: !!h.undone, kind: h.kind || (h.coach ? 'coach' : h.auto ? 'autopilot' : 'maj'), kinds: kinds };
+  });
+  const T = a.trajectory || null;
+  const calib = a.ladderCalib || paLadderCalib(state, today), habits = paHabits(state, today);
+  const longP = (a.proposals || []).filter(function(p){ return p.fam === 'long'; })[0] || null;
+  return { hist: a.hist || null, recal: state._hist_recal || null, calib: calib, habits: habits, longNext: longP ? { title: longP.short, date: longP.date, up: longP.delta > 0 } : null, trend: trend, ladders: ladders, level: lvl, fit: a.fit && a.fit.vdot, planVdot: a.planVdotNow || a.planVdot, volume: V ? { base: V.base, peak: V.peak, goalPeak: V.goalPeak || null, prog: V.prog || null, weeks: V.weeks } : null,
+    changes: changes, goal: a.opt.goalSec || null, traj: T && T.race ? { mid: T.race.mid, lo: T.race.lo, hi: T.race.hi, verdict: T.verdict || null } : null };
+}
+
+
+function prTrajectorySvg(T){
+  if(!T || !T.race) return '';
+  const W = 320, H = 150, L = 30, Rt = 8, Tp = 12, B = 22;
+  const today = prTodayIso(), first = T.pts.length && T.pts[0].date < prAddDays(today, -14) ? T.pts[0].date : prAddDays(today, -28), t0 = Date.parse(first + 'T12:00:00Z'), t1 = Date.parse(T.race.date + 'T12:00:00Z'), now = Date.parse(prTodayIso() + 'T12:00:00Z');
+  const vs = T.pts.map(function(p){ return p.v; }).concat([T.now, T.race.v + 0.6, T.race.v - 0.6]).concat(T.need ? [T.need] : []);
+  const v0 = Math.floor(Math.min.apply(null, vs) - 0.5), v1 = Math.ceil(Math.max.apply(null, vs) + 0.5);
+  const X = function(t){ return L + (t - t0) / Math.max(1, t1 - t0) * (W - L - Rt); }, Y = function(v){ return Tp + (v1 - v) / Math.max(0.5, v1 - v0) * (H - Tp - B); };
+  const td = function(d){ return Date.parse(d + 'T12:00:00Z'); };
+  let g = '';
+  for(let v = Math.ceil(v0); v <= v1; v++) if(v1 - v0 <= 8 || v % 2 === 0) g += '<line x1="' + L + '" x2="' + (W - Rt) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="tj-grid"/><text x="' + (L - 5) + '" y="' + (Y(v) + 3) + '" class="tj-ax" text-anchor="end">' + v + '</text>';
+  const months = []; const d = new Date(t0); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + 1);
+  while(d.getTime() <= t1){ months.push(d.getTime()); d.setUTCMonth(d.getUTCMonth() + 1); }
+  const step = Math.ceil(months.length / 5);
+  months.forEach(function(t, i){ if(i % step) return; g += '<text x="' + X(t) + '" y="' + (H - 6) + '" class="tj-ax" text-anchor="middle">' + new Date(t).toLocaleDateString('fr-FR', { month: 'short' }) + '</text>'; });
+  if(T.need) g += '<line x1="' + L + '" x2="' + (W - Rt) + '" y1="' + Y(T.need) + '" y2="' + Y(T.need) + '" class="tj-goal"/><text x="' + (W - Rt - 2) + '" y="' + (Y(T.need) - 4) + '" class="tj-goal-t" text-anchor="end">objectif ' + prV(T.need) + '</text>';
+  const xn = X(now), xr = X(t1), yn = Y(T.now), yr = Y(T.race.v);
+  g += '<polygon points="' + xn + ',' + yn + ' ' + xr + ',' + Y(T.race.v + 0.6) + ' ' + xr + ',' + Y(T.race.v - 0.6) + '" class="tj-band"/>';
+  g += '<line x1="' + xn + '" y1="' + yn + '" x2="' + xr + '" y2="' + yr + '" class="tj-proj"/>';
+  T.pts.forEach(function(p){ g += '<circle cx="' + X(td(p.date)) + '" cy="' + Y(p.v) + '" r="' + (p.kind === 'course' ? 4 : 2.6) + '" class="' + (p.kind === 'course' ? 'tj-race' : 'tj-ses') + '"><title>' + prEsc(p.label) + ' · ' + prV(p.v) + '</title></circle>'; });
+  g += '<circle cx="' + xn + '" cy="' + yn + '" r="5" class="tj-now"/><circle cx="' + xr + '" cy="' + yr + '" r="4.5" class="tj-end"/><text x="' + xr + '" y="' + (yr - 9) + '" class="tj-end-t" text-anchor="end">' + prV(T.race.v) + '</text>';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="tj-svg" role="img" aria-label="Niveau dans le temps et projection au jour de la course">' + g + '</svg>';
+}
+
+// ─── Ce que la prépa reprend de la précédente (course juste avant, leçons, recette, allures) ───
+// la dernière course (≤ 28 jours avant le début de la prépa) : résultat → niveau → allures, départ, fin de course, objectif, recette
+function paCarry(a, today){
+  const st = state, start = st.plan_start_date; if(!start || !a || !a.opt) return null;
+  today = today || a.opt.today;
+  const RA = st._race_analysis && st._race_analysis.date && st._race_analysis.date <= start && prDays(st._race_analysis.date, start) <= 28 ? st._race_analysis : null;
+  const races = (typeof prKnownRaces === 'function' ? prKnownRaces() : []).filter(function(r){ return r.date && r.date <= start && prDays(r.date, start) <= 28; }).sort(function(x, y){ return y.date.localeCompare(x.date); });
+  const L = races[0] || null; if(!RA && !L) return null;
+  const name = (RA && RA.name) || (L && (L.label || L.cat)) || 'ta dernière course', time = RA ? RA.time : L.time, items = [];
+  const v = L && PR_RACE_M[L.cat] && typeof vdotFromRace === 'function' ? vdotFromRace(PR_RACE_M[L.cat], prTimeSec(L.time)) : null;
+  items.push({ ic: '🏁', t: 'Ton résultat', v: time + (v ? ' · niveau ' + prV(v) : '') + (a.fit && a.fit.vdot ? ' · niveau du moment ' + prV(a.fit.vdot) : '') });
+  // allures : le plan suit ce niveau ?
+  const paceN = (a.proposals || []).filter(function(p){ return p.field === 'detail' && !p.kind; }).length + (a.held || []).length;
+  if(a.opt.noFasterUntil && a.opt.noFasterUntil >= today) items.push({ ic: '⏸️', t: 'Allures', v: 'Gardées jusqu\'au ' + prFmtDate(a.opt.noFasterUntil) + ' le temps de récupérer, puis recalées sur ce niveau' });
+  else if(paceN) items.push({ ic: '🔄', t: 'Allures', v: paceN + ' séance' + (paceN > 1 ? 's' : '') + ' à recaler sur ce niveau dans « MAJ le plan »', act: 'review' });
+  else items.push({ ic: '✓', t: 'Allures', v: 'Ton plan est déjà à ce niveau' + (a.planVdotNow ? ' (' + prV(a.planVdotNow) + ')' : '') });
+  // départ
+  if(RA && RA.start){
+    const fast = RA.start.pct <= -2, rec = st._recette && st._recette.pacing && st._recette.pacing.start;
+    items.push(fast ? { ic: '🐢', t: 'Le départ', v: 'Trop rapide (' + Math.round(-RA.start.diff) + ' s/km de trop sur ' + RA.start.n + ' km)' + (rec ? ' → ton plan de course démarre plus prudemment' : ' → départ prudent à prévoir') }
+      : { ic: '✓', t: 'Le départ', v: 'Bien géré : on garde la même prudence' });
+  }
+  // fin de course
+  if(RA && (RA.pacing || RA.fade)){
+    const hard = RA.pacing === 'fade' || RA.pacing === 'positive' || RA.fade, foc = a.profile && a.profile.focus && a.profile.focus.indexOf('specifique') >= 0;
+    items.push(hard ? { ic: '🧱', t: 'La fin de course', v: (RA.fade ? 'Coup de mou au km ' + RA.fade.km : '2e moitié plus lente') + (foc ? ' → priorité de ta prépa : endurance à allure course' : ' → plus de km à allure course en fin de sortie longue') }
+      : { ic: '✓', t: 'La fin de course', v: RA.pacing === 'negative' ? '2e moitié plus rapide : belle gestion' : 'Régulière jusqu\'au bout' });
+  }
+  // objectif de la nouvelle prépa
+  const R = typeof prepRace === 'function' ? (prepRace() || {}) : {}, cat = typeof predRaceCat === 'function' ? predRaceCat(R) : null, P = cat && typeof predRace === 'function' ? predRace(cat, today) : null;
+  const goal = prTimeSec(st.target_time || (st.onboarding || {}).target_time);
+  if(P && P.race) items.push({ ic: '🎯', t: 'L\'objectif', v: 'Prévu le ' + prFmtDate(P.race.date || R.date) + ' : ' + prTime(P.sec) + (goal ? ' pour ' + prTime(goal) : '') + (a.goalCheck ? ' · objectif à revoir dans « MAJ le plan »' : ''), act: a.goalCheck ? 'review' : null });
+  // recette et historique
+  const RC = st._recette;
+  if(RC) items.push({ ic: '🧬', t: 'Ta recette', v: 'Progression ≤ +' + Math.round((RC.progression - 1) * 100) + ' %/sem.' + (RC.taper ? ' · affûtage perso' : '') + (RC.pacing && RC.pacing.start ? ' · départ prudent' : '') });
+  const H = a.hist; if(H && H.pred && H.pred.n) items.push({ ic: '📚', t: 'Ton historique', v: H.pred.n + ' course' + (H.pred.n > 1 ? 's' : '') + ' rejouée' + (H.pred.n > 1 ? 's' : '') + ' pour caler les temps prévus' });
+  return { name: name, date: RA ? RA.date : L.date, time: time, lessons: RA ? (RA.lessons || []).slice(0, 3) : [], items: items };
+}
+function _paCarryHtml(a, today){
+  let K = null; try { K = paCarry(a, today); } catch(e) { diagSilent(e, 'plan-review-ui:paCarry'); }
+  if(!K) return '';
+  return '<div class="lvp-card" id="pe-carry"><p class="lvp-h">Ce que ta prépa reprend de ' + prEsc(K.name) + '</p>'
+    + K.items.map(function(x){ return '<p class="lvp-n" style="display:flex;gap:8px;margin:4px 0;"><span aria-hidden="true">' + x.ic + '</span><span><b>' + prEsc(x.t) + '</b> · ' + prEsc(x.v) + '</span></p>'; }).join('')
+    + (K.items.some(function(x){ return x.act === 'review'; }) ? '<div class="sl-acts" style="display:flex;margin-top:8px;"><button type="button" class="pr-btn pri" style="flex:1" onclick="document.getElementById(\'pe-ov\').remove();openPlanReview()">Voir dans « MAJ le plan »</button></div>' : '') + '</div>';
 }

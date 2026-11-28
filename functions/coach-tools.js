@@ -92,6 +92,7 @@ function ctDetail(s, E) {
   if (p.meteo) o.meteo = { temperature: num(p.meteo.temperature) != null ? Math.round(p.meteo.temperature) + '°C' : null, humidite: p.meteo.humidity != null ? Math.round(p.meteo.humidity) + ' %' : undefined, vent: p.meteo.wind != null ? Math.round(p.meteo.wind) + ' km/h' : undefined };
   if (p.journal) o.journal = String(p.journal).slice(0, 400);
   const B = (p.blocsAllure || []).filter(Boolean); if (B.length) o.blocs = B.map((b, i) => 'bloc ' + (i + 1) + ' : ' + String(b).replace(':', "'") + '/km');
+  try { const C = E && E.slCheck ? E.slCheck(s) : null; if (C) o.controle = { verdict: C.label, resume: C.line, notes: C.notes }; } catch (e) { /* contrôle facultatif */ }
   if (p.whoop && p.whoop.workout_strain != null) o.whoop_effort = r1(p.whoop.workout_strain);
   const sp = st.splits || st.splits_par_km;
   if (Array.isArray(sp) && sp.length) o.splits = sp.slice(0, 45).map((x) => ({ km: x.km, allure: x.allure ? pace(paceSec(x.allure)) : null, fc: x.fc || null, sur_plat: x.gap ? pace(x.gap) : undefined, denivele: x.dz != null ? x.dz : undefined }));

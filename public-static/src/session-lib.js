@@ -463,14 +463,16 @@ function slProposals(st, a){
         short: sub === 'step' ? (b.r > lib.r ? 'Ça monte : ' : 'On souffle : ') + why + '.' : 'Allures recalées sur ton niveau (' + _slV(ctx.v) + ').' });
     });
   // créneaux encore classiques dans les 3 semaines (séance ajoutée, nouvelle semaine…) : séance de la bibliothèque proposée
-  if(!st._lib_on) return out;
+  if(!slLibOnNow(st)) return out;
   const pick = slPicks(st);
   const fresh = slSelect(st, a, { from: prAddDays(today, 1), until: prAddDays(today, 21), keepLib: true }).filter(function(p){ return pick[p.key] !== 'classic'; });
   return out.concat(fresh.map(function(p){ return Object.assign(p, { sub: 'new' }); }));
 }
 // proposition « Ta prépa version pro » (une fois par prépa) : affichée tant que ni adoptée ni refusée, ni déjà des choix séance par séance
 function slOfferKey(st){ st = st || state; return String(st._prep_id || st.plan_start_date || 'prep'); }
-function slOffer(st){ st = st || state; const o = st._lib_offer || {}; return !st._lib_on && o.key !== slOfferKey(st) && !!st._plan_engine && !Object.keys(slPicks(st)).length; }
+// « tout en pro » : seulement pour la prépa où il a été choisi (la clé de la prépa est gardée), jamais repris par la suivante
+function slLibOnNow(st){ st = st || state; return !!st._lib_on && st._lib_on === slOfferKey(st); }
+function slOffer(st){ st = st || state; const o = st._lib_offer || {}; return !slLibOnNow(st) && o.key !== slOfferKey(st) && !!st._plan_engine && !Object.keys(slPicks(st)).length; }
 // choix faits séance par séance pour la prépa en cours : { clé: 'classic' | 'pro' }
 function slPicks(st){ st = st || state; const P = st._lib_pick; return P && P.prep === slOfferKey(st) ? (P.k || {}) : {}; }
 
@@ -630,7 +632,7 @@ function slAdviceStore(st, a, map){ _slAdvLast = { st: st, date: a.opt.today, ma
 // propositions : passer en pro les séances où c'est conseillé, revenir à la classique quand il faut garder simple (14 jours)
 // jamais avec « tout en pro », jamais contre un choix que tu as fait toi-même
 function slAdviceProposals(st, a, adv){
-  st = st || state; if(!a || !a.opt || st._lib_on) return [];
+  st = st || state; if(!a || !a.opt || slLibOnNow(st)) return [];
   const today = a.opt.today, end = prAddDays(today, 13), picks = slPicks(st), out = [];
   prSessions(st).forEach(function(s){
     const A = adv[s.key]; if(!A || A.rec === A.cur || picks[s.key] || !s.date || s.date > end) return;
@@ -639,5 +641,58 @@ function slAdviceProposals(st, a, adv){
     out.push(Object.assign(ch, { advice: true, why: A.why, reason: (A.rec === 'pro' ? 'Pro conseillée : ' : 'Classique conseillée : ') + A.why, short: A.why }));
   });
   return out;
+}
+// ─── Séance réussie ? Prévu vs fait, bloc par bloc (blocs saisis ou lus dans les tours Strava) ; endurance : km dans l'allure + FC ───
+const SL_CHECK_LBL = { ok: 'Réussie', partial: 'Presque', miss: 'À revoir' };
+const _slSec = function(v){ const m = String(v == null ? '' : v).match(/(\d{1,2})['’:](\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+function slCheck(s, st){
+  st = st || state;
+  if(!s || !s.done || !s.perf || s.type === 'race' || s.skip) return null;
+  const p = s.perf, wx = typeof prWxAdjFromMeteo === 'function' ? (prWxAdjFromMeteo(p.meteo).pct || 0) : 0, k = 1 + wx / 100;
+  const fmt = function(x){ return typeof prPace === 'function' ? prPace(x) : Math.floor(x / 60) + "'" + String(Math.round(x % 60)).padStart(2, '0'); };
+  const bl = (p.blocsAllure || p._blocsAuto || []).map(_slSec).filter(Boolean);
+  if((s.type === 'tempo' || s.type === 'frac' || bl.length) && bl.length){
+    // cibles : étapes de travail de la séance pro (dans l'ordre), sinon l'allure de la consigne pour chaque bloc
+    const spec = typeof prBlocSpec === 'function' ? prBlocSpec(s.title, s.detail, s.type) : null;
+    let T = [];
+    const b = typeof slOfSession === 'function' ? slOfSession(s, st) : null;
+    if(b){ const flat = function(x){ if(x.rep){ for(let i = 0; i < x.rep; i++) x.steps.forEach(flat); return; } if(x.k === 'work'){ const r = slPaceOf(x, b.ctx); if(r) T.push([Math.min(r[0], r[1]), Math.max(r[0], r[1])]); } }; b.steps.forEach(flat); }
+    if(!T.length && s.pace) T = [[s.pace.lo - (s.pace.range ? 0 : 3), s.pace.hi + (s.pace.range ? 0 : 3)]];
+    if(!T.length) return null;
+    if(T.length > 12 && bl.length < Math.ceil(T.length * 0.75)) return null;   // 30/30, 45/15… : pas de contrôle bloc par bloc sans tous les blocs
+    const nPlan = spec && spec.fixed ? spec.n : T.length > 1 ? T.length : (spec ? spec.n : bl.length);
+    const rows = bl.slice(0, Math.max(nPlan, bl.length)).map(function(v, i){
+      const t = T[Math.min(i, T.length - 1)], lo = t[0] * k, hi = t[1] * k;
+      const st0 = v < lo - 5 ? 'fast' : v > hi + 3 ? 'slow' : 'ok', d = v < lo ? Math.round(v - lo) : v > hi ? Math.round(v - hi) : 0;
+      return { i: i + 1, v: v, lo: Math.round(lo), hi: Math.round(hi), d: d, st: st0 };
+    });
+    const nOk = rows.filter(function(r){ return r.st !== 'slow'; }).length, nFast = rows.filter(function(r){ return r.st === 'fast'; }).length, nDone = rows.length;
+    const slow = rows.filter(function(r){ return r.st === 'slow'; }), fade = rows.length >= 3 ? Math.round(rows[rows.length - 1].v - rows[0].v) : 0;
+    const verdict = nDone >= nPlan && (!slow.length || (slow.length === 1 && slow[0].d <= 6)) ? 'ok' : nOk >= Math.ceil(nPlan * 0.6) ? 'partial' : 'miss';
+    // la phrase : segments de blocs consécutifs du même état
+    const seg = []; rows.forEach(function(r){ const L = seg[seg.length - 1]; if(L && L.st === r.st) L.r.push(r); else seg.push({ st: r.st, r: [r] }); });
+    const nm = function(g){ return g.r.length === 1 ? 'bloc ' + g.r[0].i : 'blocs ' + g.r[0].i + (g.r.length === 2 ? ' et ' : ' à ') + g.r[g.r.length - 1].i; };
+    const dd = function(g){ const m = Math.round(g.r.reduce(function(t, r){ return t + r.d; }, 0) / g.r.length); return (m > 0 ? '+' : '−') + Math.abs(m) + ' s'; };
+    let line = seg.length <= 3 ? seg.map(function(g){ return g.st === 'ok' ? nm(g) + ' dans la fourchette' : g.r.length === 1 ? nm(g) + ' à ' + fmt(g.r[0].v) + ' (' + dd(g) + ')' : nm(g) + (g.st === 'fast' ? ' plus vite' : ' plus lents') + ' (' + dd(g) + ' en moyenne)'; }).join(', ')
+      : nOk + ' blocs sur ' + nDone + ' dans la fourchette';
+    line = line.charAt(0).toUpperCase() + line.slice(1);
+    if(nDone < nPlan) line = nDone + ' blocs sur ' + nPlan + ' · ' + line;
+    const notes = [];
+    if(nFast >= Math.ceil(nDone / 2)) notes.push('Plus vite que prévu : la séance était peut-être trop facile');
+    if(fade >= 8) notes.push('Dernier bloc ' + fmt(rows[rows.length - 1].v) + ' contre ' + fmt(rows[0].v) + ' au premier : ça a coûté');
+    if(wx >= 1) notes.push('Fourchette élargie de ' + Math.round(wx) + ' % pour la chaleur');
+    return { kind: 'blocs', verdict: verdict, label: SL_CHECK_LBL[verdict], line: line, notes: notes, rows: rows, nPlan: nPlan, nDone: nDone, fade: fade, fast: nFast };
+  }
+  if((s.type === 'ef' || s.type === 'long') && s.pace && !(typeof paLongRaceKm === 'function' && paLongRaceKm(s.detail))){
+    const sp = ((p.strava || {}).splits || []).filter(function(x){ return x.allure && (+x.distanceKm || 0) >= 0.9; });
+    if(sp.length < 3) return null;
+    const lo = (s.pace.lo - 15) * k, hi = (s.pace.hi + 10) * k, body = sp.slice(1);
+    const ins = body.filter(function(x){ const v = _slSec(x.allure); return v && v >= lo && v <= hi; }).length, fast = body.filter(function(x){ const v = _slSec(x.allure); return v && v < lo; }).length;
+    const hr = parseInt(p.hr) || null, cap = typeof hrEfMax === 'function' ? hrEfMax(st) : 148, hrOk = !hr || hr <= cap + 2;
+    const r = ins / body.length, verdict = r >= 0.8 && hrOk ? 'ok' : r >= 0.6 ? 'partial' : 'miss';
+    const notes = []; if(fast >= Math.ceil(body.length / 3)) notes.push(fast + ' km plus vite que l\'allure d\'endurance');
+    return { kind: 'ef', verdict: verdict, label: SL_CHECK_LBL[verdict], line: ins + ' km sur ' + body.length + ' dans l\'allure' + (hr ? ' · FC ' + hr + (hrOk ? ' sous' : ' au-dessus de') + ' ton plafond (' + cap + ')' : ''), notes: notes, rows: [], nPlan: body.length, nDone: ins };
+  }
+  return null;
 }
 // Détail d'une séance (slDetail, slClassic, slStepsText) : session-lib-ui.js (écran chargé à la demande, aussi dans le moteur du serveur)

@@ -495,6 +495,12 @@ function showCoachFeedback(s, km, pace, hr, amImproved, idx, meteo, whoopData){
     if(Math.abs(d) >= 15 && E && Math.abs(E.diff) >= 4) analysisContext.ecart_consigne.allure_sur_plat = prPace(E.eq);
   })();
 
+  // séance réussie ? contrôle calculé bloc par bloc (session-lib.js) : le Coach s'appuie dessus au lieu de recalculer
+  (function(){ try {
+    const k = window._lastValidatedKey, S = k && typeof slCheck === 'function' ? prSessions(state).filter(function(x){ return x.key === k; })[0] : null, C = S ? slCheck(S, state) : null;
+    if(C) analysisContext.controle_seance = { verdict: C.label, resume: C.line, notes: C.notes, blocs: C.rows.map(function(r){ return { bloc: r.i, allure: prPace(r.v), cible: prPace(r.lo) + '–' + prPace(r.hi), ecart_s: r.d }; }) };
+  } catch(e) { diagSilent(e, 'validation-feedback:controle_seance'); } })();
+
   // Données WHOOP si importées (paramètre direct ou perf sauvegardé)
   let _whoopRaw = whoopData || null;
   if(!_whoopRaw && idx != null) {

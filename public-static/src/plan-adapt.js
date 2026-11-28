@@ -60,6 +60,14 @@ function paAbsorb(s, st, opt){
       else add('pace', 0, 'blocs dans l\'allure visée');
     }
   }
+  // séance réussie ? (session-lib.js) : blocs manqués, dernier bloc qui a coûté
+  if(fam && fam !== 'E' && typeof slCheck === 'function'){
+    let C = null; try { C = slCheck(s, st); } catch(e) { C = null; }
+    if(C && C.kind === 'blocs'){
+      if(C.nDone < C.nPlan * 0.75) add('check', -1, C.nDone + ' blocs faits sur ' + C.nPlan);
+      else if(C.fade >= 8 && C.verdict !== 'ok') add('check', -0.5, 'dernier bloc plus lent de ' + C.fade + ' s');
+    }
+  }
   // FC : endurance sous le plafond = aisance ; séance de qualité au-dessus de 93 % de la FC max = limite
   const hr = parseInt(p.hr) || null;
   if(hr){
@@ -205,39 +213,6 @@ function paGoalPeak(cat, vdot, perWeek){
 function paProg(base, trend){
   const v = trend && trend.verdict;
   return v === 'easy' ? Math.min(1.15, base + 0.03) : v === 'hard' ? 1 : base;
-}
-
-// ─── F. Comment ton plan évolue ─────────────────────────────────────────────
-function paEvolution(a, today){
-  today = today || prTodayIso();
-  const st = state, trend = a.absorb || paTrend(st, today);
-  // paliers : dernière séance faite et prochaine séance prévue de chaque famille
-  const done = (typeof prAllDone === 'function' ? prAllDone(today) : []).filter(function(s){ return s.done && s.date && prDays(s.date, today) <= 56 && !s.ext; }).sort(function(x, y){ return y.date.localeCompare(x.date); });
-  const next = prSessions(st).filter(function(s){ return !s.done && !s.skip && s.date && s.date >= today; }).sort(function(x, y){ return x.date.localeCompare(y.date); });
-  const ladders = ['T', 'I', 'R', 'race'].map(function(f){
-    const last = done.filter(function(s){ return paFam(s) === f && paParseReps(s.title + ' ' + s.detail); })[0];
-    const nx = next.filter(function(s){ return paFam(s) === f && paParseReps(s.title + ' ' + s.detail); })[0];
-    if(!last && !nx) return null;
-    const ref = nx || last, r = paParseReps(ref.title + ' ' + ref.detail), L = PA_LADDERS[paLadderKey(f, r.unit, a.opt.raceCat)];
-    const pr = (a.proposals || []).filter(function(p){ return p.kind === 'ladder' && nx && p.key === nx.key; })[0];
-    const ab = last ? paAbsorb(last, st, { today: today }) : null;
-    return { fam: f, label: PA_FAM[f], ic: PA_FAM_IC[f], rungs: L ? L.length : 0,
-      last: last ? { title: last.title, date: last.date, verdict: ab && ab.verdict, rung: L ? paRung(L, paParseReps(last.title + ' ' + last.detail)) : null } : null,
-      next: nx ? { title: nx.title, date: nx.date, rung: L ? paRung(L, r) : null, prop: pr ? { title: pr.after.t, rung: pr.rung, up: pr.delta > 0 } : null } : null };
-  }).filter(Boolean);
-  // niveau : aujourd'hui vs il y a 4 semaines
-  let lvl = null;
-  try { const H = typeof bsLevelHistory === 'function' ? bsLevelHistory(today) : []; if(H.length){ const now = H[H.length - 1], ago = H.length >= 5 ? H[H.length - 5] : H[0]; lvl = { now: now.v, ago: ago.v, from: ago.date, delta: Math.round((now.v - ago.v) * 10) / 10 }; } } catch(e) { if(typeof diagSilent === 'function') diagSilent(e, 'plan-adapt:paEvolution'); }
-  const V = a.volume || null;
-  const changes = (st._plan_reviews || []).slice(-6).reverse().map(function(h){
-    const kinds = {}; (h.changes || []).forEach(function(c){ if(c.kind !== 'coherence') kinds[c.kind || c.src || 'calcul'] = (kinds[c.kind || c.src || 'calcul'] || 0) + 1; });
-    return { date: h.date, n: h.n || 0, undone: !!h.undone, kind: h.kind || (h.coach ? 'coach' : h.auto ? 'autopilot' : 'maj'), kinds: kinds };
-  });
-  const T = a.trajectory || null;
-  const calib = a.ladderCalib || paLadderCalib(state, today), habits = paHabits(state, today);
-  const longP = (a.proposals || []).filter(function(p){ return p.fam === 'long'; })[0] || null;
-  return { hist: a.hist || null, recal: state._hist_recal || null, calib: calib, habits: habits, longNext: longP ? { title: longP.short, date: longP.date, up: longP.delta > 0 } : null, trend: trend, ladders: ladders, level: lvl, fit: a.fit && a.fit.vdot, planVdot: a.planVdotNow || a.planVdot, volume: V ? { base: V.base, peak: V.peak, goalPeak: V.goalPeak || null, prog: V.prog || null, weeks: V.weeks } : null,
-    changes: changes, goal: a.opt.goalSec || null, traj: T && T.race ? { mid: T.race.mid, lo: T.race.lo, hi: T.race.hi, verdict: T.verdict || null } : null };
 }
 
 // ─── 3. Le plan s'évalue lui-même : quand il a fait monter une séance, l'as-tu tenue ? ─────────────────
@@ -467,7 +442,9 @@ function planNews(a, st){
   const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
   const coach = CV && CV.fresh && !CV.agree && !CV.applied && CV.n ? { n: CV.n, text: CV.text, first: CV.first ? { title: CV.first.title, date: CV.first.date, t: paLine(CV.first).t } : null } : null;
   const RC = st._hist_recal && !st._hist_recal.undone && st._hist_recal.n && prDays(st._hist_recal.date, a.opt.today) <= 7 ? st._hist_recal : null;
-  return { offer: !!a.libOffer, libOn: !!st._lib_on, coach: coach, coachOk: !!(CV && CV.fresh && CV.agree), recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
+  const RA = st._race_analysis, s0 = st.plan_start_date;
+  const carry = s0 && RA && RA.date && RA.date <= s0 && prDays(RA.date, s0) <= 28 && a.opt.today <= prAddDays(s0, 21) ? (RA.name || 'ta dernière course') : null;   // ce que la prépa reprend de la course d'avant
+  return { carry: carry, offer: !!a.libOffer, libOn: typeof slLibOnNow === 'function' ? slLibOnNow(st) : !!st._lib_on, coach: coach, coachOk: !!(CV && CV.fresh && CV.agree), recal: RC, n: P.length, lead: paLead(a), counts: counts, lines: lines, goal: a.goalCheck || null, next: NW ? { from: NW.from, km: NW.km, n: NW.props.length } : null,
     green: a.greenLight ? a.greenLight.text : null, unseen: !!P.length && typeof prSig === 'function' && prSig(a.proposals) !== st._review_seen };
 }
 // carte « Ton plan » de l'accueil (#home-plan-card) : calcul gardé tant que les données ne changent pas
@@ -491,7 +468,8 @@ function planCardRender(){
   const esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   const D = function(d){ return d ? prFmtDate(d, { weekday: 'short', day: 'numeric' }).replace('.', '') : ''; };
   const evo = typeof openPlanEvolution === 'function';
-  const recal = N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '';
+  const carry = N.carry && typeof openPlanEvolution === 'function' ? '<div class="hp-rc"><span>🧬 Ta prépa reprend ' + esc(N.carry) + '</span><button type="button" onclick="openPlanEvolution()">Voir</button></div>' : '';
+  const recal = carry + (N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '');
   const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">🤖</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
   const offerRow = N.offer ? '<button type="button" class="hp-r lib" onclick="openLibPreview()"><i aria-hidden="true">✦</i><span class="hp-x"><b>Séances de pro, à la carte</b><small>Chaque séance en 2 versions : classique ou pro · Choisir</small></span></button>' : '';
   if(!N.n && !N.goal && !N.next && !N.coach && !N.offer){

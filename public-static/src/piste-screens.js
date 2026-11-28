@@ -191,10 +191,15 @@ function _psSessRender(key, D){
       + '<div class="ps-kms" style="--n:' + B.n + '">' + B.bars.map(function(b, i){ return '<span>' + (B.n <= 16 || i % 2 === 0 ? b.km : '') + '</span>'; }).join('') + '</div>'
       + (B.line != null ? '<p class="ps-note">Pointillés : haut de la consigne. Au-dessus = plus rapide que prévu.</p>' : '') + '</div>';
   }
+  // endurance : km dans l'allure et FC sous le plafond (slCheck)
+  if(s.type === 'ef' || s.type === 'long'){ let ce = null; try { ce = typeof slCheck === 'function' ? slCheck(s, state) : null; } catch(e) { diagSilent(e, 'piste-screens:slCheck'); }
+    if(ce && ce.kind === 'ef') h += '<div class="ps-box"><p class="ps-note" style="margin:0;"><b>' + (ce.verdict === 'ok' ? '✓ ' : ce.verdict === 'partial' ? '◐ ' : '✗ ') + ce.label + '</b> · ' + _psE(ce.line) + '</p></div>'; }
   // blocs du fractionné / tempo : temps et allure de chaque bloc (saisis à la validation ou lus dans les tours Strava)
   const BA = p.blocsAllure || [], BT = p.blocsTemps || [], nb = Math.max(BA.length, BT.length);
   if(nb && (BA.some(Boolean) || BT.some(Boolean))){
-    h += '<div class="ps-box"><div class="ps-bh"><h3>Tes blocs</h3><span>' + nb + ' bloc' + (nb > 1 ? 's' : '') + (p.blocsAuto || p._blocsAuto ? ' · tours Strava' : '') + '</span></div><div class="ps-bl">';
+    let ck = null; try { ck = typeof slCheck === 'function' ? slCheck(s, state) : null; } catch(e) { diagSilent(e, 'piste-screens:slCheck'); }
+    h += '<div class="ps-box"><div class="ps-bh"><h3>Tes blocs</h3><span>' + nb + ' bloc' + (nb > 1 ? 's' : '') + (p.blocsAuto || p._blocsAuto ? ' · tours Strava' : '') + '</span></div>'
+      + (ck ? '<p class="ps-note" style="margin:0 0 8px;"><b>' + (ck.verdict === 'ok' ? '✓ ' : ck.verdict === 'partial' ? '◐ ' : '✗ ') + ck.label + '</b> · ' + _psE(ck.line) + '</p>' : '') + '<div class="ps-bl">';
     for(let i = 0; i < nb; i++) h += '<div><small>' + (i + 1) + '</small>' + (BT[i] ? '<b>' + _psE(String(BT[i])) + '</b>' : '') + (BA[i] ? '<span>' + _psE(String(BA[i]).replace(':', '\'')) + ' /km</span>' : '') + '</div>';
     h += '</div></div>';
   }
