@@ -436,11 +436,12 @@ function planNews(a, st){
   st = st || state;
   const P = (a.proposals || []).slice().sort(function(x, y){ return (x.date || '').localeCompare(y.date || ''); });
   const counts = { up: 0, down: 0, move: 0, lib: 0, other: 0 };
-  const lines = P.map(function(p){ const L = paLine(p); counts[L.dir]++; return { key: p.key, date: p.date, title: p.title, dir: L.dir, t: L.t, pair: p.pair || null }; })
+  const nm = function(p){ return typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, typeof p.before === 'string' ? p.before : p.before && p.before.d) || p.title : p.title; };
+  const lines = P.map(function(p){ const L = paLine(p); counts[L.dir]++; return { key: p.key, date: p.date, title: nm(p), dir: L.dir, t: L.t, pair: p.pair || null }; })
     .filter(function(x, i, arr){ return !x.pair || arr.findIndex(function(y){ return y.pair === x.pair; }) === i; });   // un échange = une ligne
   const NW = a.nextWeek && st._week_ok !== a.nextWeek.from ? a.nextWeek : null;
   const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
-  const coach = CV && CV.fresh && !CV.agree && !CV.applied && CV.n ? { n: CV.n, text: CV.text, first: CV.first ? { title: CV.first.title, date: CV.first.date, t: paLine(CV.first).t } : null } : null;
+  const coach = CV && CV.fresh && !CV.agree && !CV.applied && CV.n ? { n: CV.n, text: CV.text, first: CV.first ? { title: nm(CV.first), date: CV.first.date, t: paLine(CV.first).t } : null } : null;
   const RC = st._hist_recal && !st._hist_recal.undone && st._hist_recal.n && prDays(st._hist_recal.date, a.opt.today) <= 7 ? st._hist_recal : null;
   const RA = st._race_analysis, s0 = st.plan_start_date;
   const carry = s0 && RA && RA.date && RA.date <= s0 && prDays(RA.date, s0) <= 28 && a.opt.today <= prAddDays(s0, 21) ? (RA.name || 'ta dernière course') : null;   // ce que la prépa reprend de la course d'avant
@@ -448,6 +449,36 @@ function planNews(a, st){
     green: a.greenLight ? a.greenLight.text : null, unseen: !!P.length && typeof prSig === 'function' && prSig(a.proposals) !== st._review_seen };
 }
 // carte « Ton plan » de l'accueil (#home-plan-card) : calcul gardé tant que les données ne changent pas
+// ─── Icônes au trait des écrans du plan (à la place des émojis : même famille, couleur du texte) ───
+const PI_PATHS = {
+  trend: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  bed: '<path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v9"/>',
+  pulse: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+  bars: '<path d="M12 20V10M18 20V4M6 20v-4"/>',
+  check: '<path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14 9 11"/>',
+  spark: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/>',
+  flask: '<path d="M9 3h6M10 3v6L4 20h16L14 9V3"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  repeat: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  bot: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M9 13v2M15 13v2"/>',
+  msg: '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/>',
+  alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.8 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9"/>',
+  tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
+  zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'
+};
+const PI_OF = { '📈': 'trend', '🎯': 'target', '📅': 'cal', '🛌': 'bed', '🗂️': 'layers', '🗂': 'layers', '🔎': 'search', '🎚️': 'sliders', '🕘': 'history', '🪜': 'bars', '📊': 'bars', '✅': 'check', '✓': 'check', '🟢': 'check', '✦': 'spark',
+  '🧪': 'flask', '📚': 'book', '🧬': 'repeat', '🤖': 'bot', '💬': 'msg', '⚠️': 'alert', '🩹': 'alert', '😮‍💨': 'heart', '💚': 'heart', '🧘': 'heart', '🧭': 'compass', '🔧': 'tool', '💪': 'zap', '🏁': 'target', '⏸️': 'bed', '🔄': 'repeat', '🐢': 'pulse', '🧱': 'alert' };
+// icône au trait d'un émoji connu (sinon l'émoji tel quel)
+function piIc(e, cls){ const k = PI_OF[e] || (PI_PATHS[e] ? e : null); if(!k) return e;
+  return '<svg class="pi' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + PI_PATHS[k] + '</svg>'; }
 let _hpCache = null;
 function planCardRender(){
   if(typeof document === 'undefined') return;
@@ -468,9 +499,9 @@ function planCardRender(){
   const esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   const D = function(d){ return d ? prFmtDate(d, { weekday: 'short', day: 'numeric' }).replace('.', '') : ''; };
   const evo = typeof openPlanEvolution === 'function';
-  const carry = N.carry && typeof openPlanEvolution === 'function' ? '<div class="hp-rc"><span>🧬 Ta prépa reprend ' + esc(N.carry) + '</span><button type="button" onclick="openPlanEvolution()">Voir</button></div>' : '';
-  const recal = carry + (N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '');
-  const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">🤖</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
+  const carry = N.carry && typeof openPlanEvolution === 'function' ? '<div class="hp-rc"><span>' + piIc('🧬') + ' Ta prépa reprend ' + esc(N.carry) + '</span><button type="button" onclick="openPlanEvolution()">Voir</button></div>' : '';
+  const recal = carry + (N.recal ? '<div class="hp-rc"><span>' + piIc('🧬') + ' Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '');
+  const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">' + piIc('🤖') + '</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
   // la carte dit l'essentiel : la raison, 3 lignes au plus (objectif, Coach, puis les changements les plus proches), un bouton
   if(!N.n && !N.goal && !N.next && !N.coach){
     if(recal){ el.innerHTML = '<section class="hp">' + recal + '<button type="button" class="hp-h" style="margin-top:8px" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button></section>'; return; }
@@ -478,16 +509,16 @@ function planCardRender(){
     return;
   }
   const rows = [];
-  if(N.goal) rows.push('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">🎯</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
+  if(N.goal) rows.push('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">' + piIc('🎯') + '</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
   if(coachRow) rows.push(coachRow);
   N.lines.slice(0, Math.max(1, 3 - rows.length - (N.next ? 1 : 0))).forEach(function(x){
     rows.push('<button type="button" class="hp-r ' + x.dir + '" onclick="openPlanReview()"><i aria-hidden="true">' + PA_DIR[x.dir][0] + '</i><span class="hp-d">' + esc(D(x.date)) + '</span><span class="hp-x"><b>' + esc(x.title) + '</b><small>' + esc(x.t) + '</small></span></button>');
   });
-  if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + (N.coachOk ? ' · relue par le Coach' : '') + ' · à valider</small></span></button>');
+  if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">' + piIc('📅') + '</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + (N.coachOk ? ' · relue par le Coach' : '') + ' · à valider</small></span></button>');
   el.innerHTML = '<section class="hp" aria-label="Ton plan">' + recal
-    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>' + (N.n ? 'Ton plan s\'adapte' : 'Ton plan') + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
+    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + piIc(N.lead.ic) + '</span><span class="hp-t"><b>' + (N.n ? 'Ton plan s\'adapte' : 'Ton plan') + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
     + '<div class="hp-l">' + rows.join('') + '</div>'
-    + (N.green ? '<p class="hp-g">🟢 ' + esc(N.green) + '</p>' : '')
+    + (N.green ? '<p class="hp-g">' + piIc('🟢') + ' ' + esc(N.green) + '</p>' : '')
     + '<div class="hp-a"><button type="button" class="hp-b pri" onclick="openPlanReview()">' + (N.n ? 'Voir les ' + N.n + ' changement' + (N.n > 1 ? 's' : '') : 'Voir et valider') + '</button>' + (evo ? '<button type="button" class="hp-b" onclick="openPlanEvolution()">Comprendre</button>' : '') + '</div></section>';
 }
 function _hpCss(){
@@ -500,14 +531,13 @@ function _hpCss(){
     + '.hp-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}.hp-t b{font-size:15px;font-weight:800;}.hp-t small{font-size:12.5px;color:#475569;line-height:1.35;}'
     + '.hp-new{font-style:normal;font-size:10.5px;font-weight:800;color:#fff;background:#1B4FD8;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:2px;}'
     + '.hp-go{font-size:22px;color:#94A3B8;}'
-    + '.hp-cs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 2px;}.hp-c{font-size:12px;font-weight:800;border-radius:9px;padding:2px 8px;}.hp-cl{font-size:12px;color:#64748B;}'
+    + '.pi{display:inline-block;vertical-align:-4px;flex-shrink:0;}.hp-ic{color:#1B4FD8;}.hp-ic.ok{color:#047857;}.hp-r i .pi{width:15px;height:15px;vertical-align:0;}.hp-r.goal i,.hp-r.coach i,.hp-r.next i{color:#1B4FD8;}'
     + '.hp-c.up,.hp-r.up i{background:#ECFDF5;color:#047857;}.hp-c.down,.hp-r.down i{background:#FFFBEB;color:#B45309;}.hp-c.move,.hp-r.move i{background:#EEF3FC;color:#1B4FD8;}.hp-c.lib,.hp-r.lib i{background:#F5F3FF;color:#6D28D9;}.hp-r.other i,.hp-r.goal i,.hp-r.next i,.hp-r.coach i{background:#F1F5F9;color:#334155;}'
     + '.hp-l{display:flex;flex-direction:column;gap:6px;margin-top:8px;}'
     + '.hp-r{display:flex;align-items:center;gap:9px;width:100%;background:#F5F8FD;border:0;border-radius:12px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer;min-width:0;}'
     + '.hp-r i{flex:0 0 26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:14px;}'
     + '.hp-d{flex:0 0 auto;font-size:12px;font-weight:800;color:#475569;text-transform:capitalize;min-width:44px;}'
     + '.hp-x{flex:1;min-width:0;display:flex;flex-direction:column;}.hp-x b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hp-x small{font-size:12px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
-    + '.hp-more{background:none;border:0;color:#1B4FD8;font:inherit;font-size:12.5px;font-weight:800;padding:2px 0;text-align:left;cursor:pointer;}'
     + '.hp-g{margin:8px 0 0;font-size:12.5px;color:#065F46;background:#ECFDF5;border-radius:10px;padding:7px 10px;}'
     + '.hp-rc{display:flex;align-items:center;gap:8px;background:#F5F3FF;color:#5B21B6;border-radius:12px;padding:7px 10px;margin-bottom:10px;font-size:12.5px;font-weight:700;}.hp-rc span{flex:1;min-width:0;}.hp-rc button{border:0;background:#fff;color:#5B21B6;border-radius:9px;padding:4px 9px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;}'
     + '.hp-a{display:flex;gap:8px;margin-top:10px;}.hp-b{flex:1;border:1px solid #DCE5F3;background:#F5F8FD;color:#1B4FD8;border-radius:12px;padding:10px 6px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;}.hp-b.pri{background:#1B4FD8;border-color:#1B4FD8;color:#fff;}';
