@@ -830,7 +830,8 @@ test('bilan de la prépa terminée et recette appliquée à la mise à jour du p
   assert.ok(await page.evaluate(() => /Ce que tu en retiens/.test(document.getElementById('prep-debrief').textContent)));
   await page.evaluate(() => { document.getElementById('prep-debrief').remove(); });
   await openReview(page);
-  assert.ok(await page.evaluate(() => /Ta recette/.test(document.getElementById('pr-content').textContent)));
+  await page.click('#pr-content .pr-evo-b'); await page.waitForSelector('#pe-ov .ros-body', { timeout: 8000 });
+  assert.ok(await page.evaluate(() => /Ta recette/.test(document.getElementById('pe-ov').textContent)), 'recette dans « Comprendre ton plan »');
   assert.deepEqual(errors, []);
   await ctx.close();
 });
@@ -840,7 +841,7 @@ test('accueil : carte « Ton plan » avec les propositions en clair, ouvre MAJ l
   await page.evaluate(() => showScreen('home'));
   await page.waitForSelector('#home-plan-card .hp', { timeout: 8000 });
   const t = await page.evaluate(() => document.getElementById('home-plan-card').textContent);
-  assert.match(t, /Ton plan s'adapte/); assert.match(t, /Nouveau/); assert.match(t, /Voir et valider/);
+  assert.match(t, /Ton plan s'adapte/); assert.match(t, /Nouveau/); assert.match(t, /Voir les \d+ changements?|Voir et valider/); assert.ok(await page.locator('#home-plan-card .hp-r').count() <= 3, '3 lignes au plus');
   assert.ok(await page.locator('#home-plan-card .hp-r').count() >= 1, 'les changements en une ligne');
   if (process.env.SHOTS) { await page.locator('#home-plan-card').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.locator('#home-plan-card').screenshot({ path: process.env.SHOTS + '/home-plan.png' }); }
   await page.click('#home-plan-card .hp-b.pri');
@@ -886,8 +887,8 @@ test('plan recalé une fois sur tout l\'historique rejoué : annulable, expliqu�
 test('séances de pro : deux versions par séance (classique ou pro) dans le détail et la liste, choix enregistré ; tout en pro ; détail, profil, bibliothèque', async () => {
   const o = await open('2026-10-29T09:00:00+01:00', savedDb), page = o.page;
   await page.evaluate(() => showScreen('home'));
-  await page.waitForSelector('#home-plan-card .hp-r.lib', { timeout: 10000 });
-  assert.match(await page.evaluate(() => document.querySelector('#home-plan-card .hp-r.lib').textContent), /Séances de pro, à la carte/);
+  await page.waitForSelector('#home-plan-card .hp', { timeout: 10000 });
+  assert.equal(await page.locator('#home-plan-card .hp-r.lib').count(), 0, 'plus d\'offre « version pro » sur la carte : la pro n\'est conseillée que séance par séance');
   // séance à faire de l'accueil : pastille « Classique · ⇄ Pro »
   assert.ok(await page.locator('#sc-home .sl-vchip').count() > 0, 'pastille de version sur les séances à faire');
   // deux versions dans le détail d'une séance classique : voir la version pro, la prendre
@@ -981,18 +982,19 @@ test('mise à jour du plan : analyse, application, historique, annulation', asyn
   await openReview(page);
   const n = await page.evaluate(() => _prReview.items.length);
   assert.ok(n > 0, 'des propositions');
-  // écran clair : les changements d'abord, points clés courts, détails repliés
-  const order = await page.evaluate(() => [...document.querySelectorAll('#pr-content > *')].filter((e) => e.offsetParent).map((e) => e.className.split(' ')[0]).filter((c) => c !== 'pr-goal' && c !== 'pr-nw'));   // cartes facultatives (objectif, semaine prochaine, version pro)
-  assert.equal(order[0], 'pr-lead', 'la raison en une phrase d\'abord : ' + order.join(','));
+  // écran clair : où tu en es (une carte), puis les changements semaine par semaine, une ligne chacun ; le détail est dans « Comprendre ton plan »
+  const order = await page.evaluate(() => [...document.querySelectorAll('#pr-content > *')].filter((e) => e.offsetParent).map((e) => e.className.split(' ')[0]));
+  assert.equal(order[0], 'pr-sum', 'où tu en es d\'abord : ' + order.join(','));
   assert.equal(order[1], 'pr-top', 'puis les changements : ' + order.join(','));
-  assert.equal(order[2], 'pr-grp', 'rangés par sens');
-  assert.equal(order[3], 'pr-chg');
-  assert.ok(await page.locator('#pr-content .pr-key').count() <= 4, '4 points clés au plus');
-  const nG = await page.locator('#pr-content > .pr-grp').count();
-  assert.ok(await page.locator('#pr-content > .pr-chg').count() <= 3 * nG, '3 changements visibles par groupe, les autres repliés');
+  assert.ok(order.slice(2).filter((c) => c !== 'pr-goal')[0] === 'pr-wsec', 'rangés par semaine : ' + order.join(','));
+  assert.ok(order.includes('pr-chg'));
+  assert.ok(await page.locator('#pr-content .pr-sum .pr-key').count() <= 4, '4 repères au plus');
+  assert.ok(await page.locator('#pr-content .pr-sum .pr-alerts p').count() <= 2, '2 alertes au plus');
+  assert.equal(await page.locator('#pr-content details.pr-more').count(), 0, 'aucun détail dans la mise à jour : tout est dans « Comprendre ton plan »');
+  assert.equal(await page.locator('#pr-content .pr-evo-b').count(), 1);
+  if (process.env.SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/maj-new.png' }); }
   assert.equal(await page.locator('#pr-content .pr-hl').count(), n, 'chaque changement dit en une phrase');
   assert.equal(await page.locator('#pr-content .pr-chg').count(), n);
-  assert.equal(await page.locator('#pr-content details.pr-more[open]').count(), 0, 'détails repliés');
   assert.ok(await page.evaluate(() => [...document.querySelectorAll('#pr-content .pr-why-t')].every((e) => e.textContent.length <= 72)), 'raisons courtes');
   if (process.env.SHOT_PR) { await page.setViewportSize({ width: 390, height: 2000 }); await page.waitForTimeout(300); await page.locator('#plan-review .modal-box').screenshot({ path: process.env.SHOT_PR }); }
   const before = await page.evaluate(() => JSON.stringify(Object.fromEntries(Object.keys(state).filter((k) => /^extra_w\d+_s\d+$/.test(k)).map((k) => [k, state[k]]))));
@@ -1170,7 +1172,8 @@ test('journal dicté, signaux du corps, chaussure du jour, carte de la semaine, 
   await openReview(page);
   const hasTj = await page.evaluate(() => !!(_prReview.a.trajectory && _prReview.a.trajectory.race));
   if (hasTj) {
-    await page.click('#pr-more-tj > summary'); await page.click('#pr-content .pr-whatif-b'); await page.waitForSelector('#wi-res .wi-big');
+    await page.click('#pr-content .pr-evo-b'); await page.waitForSelector('#pe-ov #pr-more-tj', { timeout: 8000 });
+    await page.click('#pe-ov #pr-more-tj > summary'); await page.click('#pe-ov .pr-whatif-b'); await page.waitForSelector('#wi-res .wi-big');
     const t0 = await page.textContent('#wi-res .wi-big');
     await page.click('#pr-whatif .wi-seg[data-k="skipWeeks"] button:nth-child(3)'); await page.waitForTimeout(200);
     assert.notEqual(await page.textContent('#wi-res .wi-big'), t0, 'scénario « 2 semaines sautées » recalculé');
@@ -1887,6 +1890,7 @@ test('thème sombre : fonds sombres, textes clairs, en-tête coloré et coches i
   const PE = await page.evaluate(() => document.querySelector('#pe-ov .ros-body').textContent);
   assert.match(PE, /Niveau/); assert.match(PE, /Tes séances/); assert.match(PE, /Volume visé/); assert.match(PE, /Le plan s'évalue/);
   if (process.env.SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: process.env.SHOTS + '/plan-evolue.png' }); }
+  assert.equal(await page.locator('#pe-ov details.pr-more').count() >= 4, true, 'le détail rangé en sections repliées');
   await page.evaluate(() => closePlanEvolution()); assert.equal(await page.locator('#pe-ov').count(), 0);
   // réglage
   await page.evaluate(() => { closePlanReview(); themeOpen(); });

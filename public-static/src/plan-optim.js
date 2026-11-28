@@ -639,7 +639,7 @@ function prAfterValidation(){
       el.innerHTML = '<span class="pr-snack-t">' + (ck ? '<b class="pr-ck ' + ck.verdict + '">' + (ck.verdict === 'ok' ? '✓ ' : ck.verdict === 'partial' ? '◐ ' : '✗ ') + ck.label + '</b><small>' + prEsc(ck.line) + '</small>' : '') + (V ? '<b>' + V[1] + ' ' + V[2] + '</b>' : '') + (what ? '<small>🔄 ' + prEsc(what) + '</small>' : '') + '</span>'
         + (top ? '<button type="button" onclick="prSnackApply()">Appliquer</button>' : '')
         + (n || top ? '<button type="button" class="sec" onclick="document.getElementById(\'pr-snack\').remove();showScreen(\'plan\');openPlanReview()">Voir</button>' : '');
-      _prCss(); document.body.appendChild(el);
+      _prSnackCss(); document.body.appendChild(el);
       setTimeout(function(){ if(el.parentNode) el.remove(); }, top ? 15000 : 7000);
       })();
     });

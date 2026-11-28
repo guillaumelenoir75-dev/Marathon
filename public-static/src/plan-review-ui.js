@@ -1,3 +1,134 @@
+// ─── Style de « MAJ le plan » et « Comprendre ton plan » (chargé avec ces écrans) ───
+const PR_CSS = '.pr-head{flex-shrink:0;background:linear-gradient(135deg,#0C447C,#1D4ED8);color:#fff;padding:16px;border-radius:24px 24px 0 0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}'
+  + '.pr-eb{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.8;margin:0 0 2px;}.pr-title{font-size:21px;font-weight:900;margin:0;}.pr-sub{font-size:12.5px;opacity:.85;margin:3px 0 0;font-weight:600;}'
+  + '.pr-x{flex-shrink:0;width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:18px;cursor:pointer;}'
+  + '.pr-body{background:#F3F6FC;}.pr-sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748B;margin:6px 2px -2px;display:flex;justify-content:space-between;align-items:baseline;}'
+  + '.pr-card{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;}'
+  + '.pr-note{font-size:12.5px;color:#5B6675;line-height:1.45;margin:0;}'
+  + '.pr-lvl{display:flex;align-items:center;gap:14px;}.pr-lvl b{font-size:30px;font-weight:900;color:#0C447C;line-height:1;font-variant-numeric:tabular-nums;}.pr-lvl span{font-size:12px;color:#64748B;font-weight:700;line-height:1.35;}'
+  + '.pr-chips{display:flex;flex-wrap:wrap;gap:6px;}.pr-chip{background:#F1F5FB;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;color:#334155;font-variant-numeric:tabular-nums;}.pr-chip b{color:#0C447C;}'
+  + '.pr-warn{display:flex;gap:8px;font-size:12.5px;line-height:1.4;color:#334155;}.pr-warn i{font-style:normal;flex-shrink:0;}'
+  + '.pr-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid #EEF2F7;}.pr-item:first-of-type{border-top:none;padding-top:2px;}'
+  + '.pr-item input{width:20px;height:20px;flex-shrink:0;margin-top:1px;accent-color:#1B4FD8;}.pr-item-b{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;}'
+  + '.pr-item-t{font-size:13px;font-weight:800;color:#0F172A;}.pr-item-t small{font-weight:700;color:#64748B;font-size:11.5px;margin-left:4px;}'
+  + '.pr-old{font-size:12px;color:#94A3B8;text-decoration:line-through;overflow-wrap:anywhere;}.pr-new{font-size:12.5px;color:#0F172A;font-weight:700;overflow-wrap:anywhere;}'
+  + '.pr-why{font-size:11.5px;color:#5B6675;line-height:1.35;}.pr-tag{display:inline-block;font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-right:5px;vertical-align:1px;}'
+  + '.pr-tag.calc{background:#E0E9FF;color:#1B4FD8;}.pr-tag.coach{background:#DCFCE7;color:#15803D;}'
+  + '.pr-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;border:1px solid transparent;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;}'
+  + '.pr-btn.pri{background:#1B4FD8;color:#fff;}.pr-btn.sec{background:#EEF3FC;color:#1B4FD8;border-color:#D3DFF5;}.pr-btn.ok{background:#15803D;color:#fff;}.pr-btn:disabled{opacity:.55;cursor:default;}'
+  + '.pr-link{background:none;border:none;color:#1B4FD8;font-weight:800;font-size:12.5px;cursor:pointer;padding:0;font-family:inherit;}'
+  + '.pr-foot{flex-shrink:0;background:#fff;border-top:1px solid #E2E8F0;padding:10px 16px calc(env(safe-area-inset-bottom) + 10px);}'
+  + '.pr-rec-top{display:flex;justify-content:space-between;align-items:center;}.pr-rec-top b{font-size:15px;color:#0C447C;}'
+  + '.pr-rec-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}.pr-card label{font-size:11.5px;font-weight:700;color:#5B6675;display:flex;flex-direction:column;gap:3px;}'
+  + '.pr-card input:not([type=checkbox]){width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #D6DFEC;border-radius:9px;font-size:15px;font-family:inherit;background:#fff;}'
+  + '.pr-coach{background:#F0FDF4;border-color:#BBF7D0;}.pr-coach p{margin:0;font-size:13px;line-height:1.5;color:#14532D;white-space:pre-line;}'
+  + '.rec-list{padding:4px 14px;gap:0;}.rec-row{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:10px;row-gap:6px;align-items:center;padding:12px 0;border-bottom:1px solid #EEF2F7;}.rec-row:last-child{border-bottom:none;}'
+  + '.rec-dist{display:flex;flex-direction:column;gap:2px;grid-row:span 2;align-self:start;padding-top:9px;}.rec-dist b{font-size:15px;font-weight:850;color:#0C447C;}.rec-dist span{font-size:10.5px;font-weight:700;color:#15803D;line-height:1.3;}'
+  + '.rec-fields{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:8px;min-width:0;}'
+  + '.rec-row input{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;margin:0;border:1px solid #D6DFEC;border-radius:10px;background:#fff;font-family:inherit;color:#0F172A;-webkit-appearance:none;appearance:none;}'
+  + '.rec-time{height:44px;padding:0 10px;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;}.rec-time::placeholder{color:#C3CCD9;font-weight:600;}'
+  + '.rec-date{position:relative;display:block;min-width:0;}.rec-date input{height:44px;line-height:44px;padding:0 8px 0 10px;font-size:14px;text-align:left;white-space:nowrap;overflow:hidden;}'
+  + '.rec-date input::-webkit-date-and-time-value{text-align:left;white-space:nowrap;margin:0;line-height:44px;font-size:14px;}.rec-date input:not(.has):not(:focus){color:transparent;}.rec-date input:not(.has):not(:focus)::-webkit-datetime-edit{color:transparent;}.rec-dph{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;color:#A3AEBE;pointer-events:none;}'
+  + '.rec-race{grid-column:2;height:34px;padding:0 10px;font-size:13px;border-color:#E6ECF5 !important;background:#F8FAFD !important;}'
+  + '.rec-sugg{grid-column:2;justify-self:start;font-size:12px;}'
+  + '.pr-tab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;}.pr-tab th,.pr-tab td{padding:7px 4px;text-align:left;border-top:1px solid #EEF2F7;vertical-align:top;}'
+  + '.pr-tab thead th{border-top:none;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B;padding-top:0;}.pr-tab tbody th{font-weight:800;color:#0C447C;width:28%;}'
+  + '.pr-tab td b{display:block;font-size:14px;color:#0F172A;}.pr-tab td small{display:block;font-size:11px;color:#64748B;font-weight:600;}.pr-tab td:last-child b{color:#1B4FD8;}'
+  + '.pr-hero{gap:14px;}.pr-verdict{display:flex;align-items:center;gap:14px;}.pr-big{flex-shrink:0;width:54px;height:54px;border-radius:16px;background:#1B4FD8;color:#fff;font-size:28px;font-weight:900;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;box-shadow:0 6px 16px -6px rgba(27,79,216,.6);}.pr-big.ok{background:#15803D;box-shadow:0 6px 16px -6px rgba(21,128,61,.55);}'
+  + '.pr-verdict b{display:block;font-size:18px;font-weight:900;color:#0F172A;line-height:1.2;}.pr-verdict>div>span{display:block;font-size:12.5px;color:#5B6675;line-height:1.4;margin-top:2px;}'
+  + '.pr-gauge{background:#F6F8FD;border-radius:12px;padding:10px 12px 12px;}.pr-gl{margin:0 0 42px;line-height:1.35;font-size:13px;font-weight:800;color:#0C447C;}'
+  + '.pr-track{position:relative;height:8px;border-radius:4px;background:#E2E8F3;margin:0 14px 30px;}.pr-fill{position:absolute;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,#9DB4EC,#1B4FD8);}'
+  + '.pr-mk{position:absolute;top:50%;}.pr-mk i{position:absolute;left:-8px;top:-8px;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 4px rgba(15,23,42,.25);}'
+  + '.pr-mk.plan i{background:#94A3B8;}.pr-mk.you i{background:#1B4FD8;width:20px;height:20px;left:-10px;top:-10px;}'
+  + '.pr-mk em{position:absolute;left:0;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:700;color:#64748B;text-align:center;line-height:1.2;white-space:nowrap;}.pr-mk.plan em{top:14px;}.pr-mk.you em{bottom:16px;color:#1B4FD8;}.pr-mk em b{font-size:13px;font-weight:900;}'
+  + '.pr-pills{display:flex;flex-wrap:wrap;gap:6px;}.pr-pill{font-size:12px;font-weight:700;border-radius:999px;padding:5px 10px;line-height:1.3;}.pr-pill.goal{background:#EEF3FC;color:#1E3A8A;}.pr-pill.rest{background:#FEF3C7;color:#92400E;}.pr-pill.base{background:#F1F5F9;color:#334155;}'
+  + '.pr-coach-h{font-weight:900 !important;font-size:13.5px !important;}.pr-coach-n{font-size:12px !important;color:#166534 !important;opacity:.85;margin-top:2px !important;}.pr-tag.rev{background:#FEF3C7;color:#92400E;}.pr-hist summary{cursor:pointer;}.pr-hist ul{margin:6px 0 2px;padding-left:18px;font-size:12px;color:#475569;line-height:1.5;}'
+  + '.pr-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 4px;margin:0 -2px;scrollbar-width:none;}.pr-strip::-webkit-scrollbar{display:none;}'
+  + '.pr-wk{flex:0 0 auto;min-width:62px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px 7px;border-radius:12px;border:1.5px solid #DCE5F3;background:#fff;font-family:inherit;cursor:pointer;}.pr-wk:disabled{cursor:default;}'
+  + '.pr-wk-s{font-size:13px;font-weight:900;color:#0F172A;}.pr-wk-d{font-size:10px;font-weight:700;color:#64748B;white-space:nowrap;}.pr-wk-i{margin-top:2px;min-width:26px;height:20px;border-radius:10px;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 6px;box-sizing:border-box;}'
+  + '.pr-wk.ok .pr-wk-i{background:#DCFCE7;color:#15803D;}.pr-wk.chg{border-color:#1B4FD8;background:#F2F6FF;}.pr-wk.chg .pr-wk-i{background:#1B4FD8;color:#fff;}.pr-wk.vig{border-color:#F5C46B;}.pr-wk.vig .pr-wk-i{background:#FEF3C7;color:#B45309;}'
+  + '.pr-wk.now{box-shadow:0 0 0 3px rgba(27,79,216,.15);}'
+  + '.pr-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:-4px 2px 0;font-size:11px;font-weight:700;}.pr-legend .chg{color:#1B4FD8;}.pr-legend .vig{color:#B45309;}.pr-legend .ok{color:#15803D;}'
+  + '.pr-week{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:8px;}'
+  + '.pr-week header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}.pr-week header b{display:block;font-size:16px;font-weight:900;color:#0C447C;}.pr-week header div>span{display:block;font-size:12px;font-weight:700;color:#64748B;margin-top:1px;}'
+  + '.pr-now{display:inline-block;font-size:10px;font-weight:800;color:#1B4FD8;background:#E0E9FF;border-radius:6px;padding:1px 6px;vertical-align:2px;margin-left:4px;}'
+  + '.pr-kind{flex-shrink:0;font-size:11.5px;font-weight:800;border-radius:999px;padding:4px 9px;background:#F1F5F9;color:#334155;}.pr-kind.k-race{background:#FEF9C3;color:#854D0E;}.pr-kind.k-recov,.pr-kind.k-taper{background:#ECFDF5;color:#047857;}.pr-kind.k-peak{background:#FFF1E6;color:#C2410C;}'
+  + '.pr-chg{border:1.5px solid #1B4FD8;background:#F7F9FF;border-radius:14px;padding:11px 12px;display:flex;flex-direction:column;gap:8px;transition:opacity .2s,border-color .2s,background .2s;}.pr-chg.off{border-color:#DCE5F3;background:#fff;opacity:.6;}'
+  + '.pr-chg-h{display:flex;align-items:center;gap:10px;}.pr-dot{flex-shrink:0;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}'
+  + '.pr-chg-t{flex:1;min-width:0;}.pr-chg-t b{display:block;font-size:14px;font-weight:850;color:#0F172A;line-height:1.25;}.pr-chg-t small{display:block;font-size:11.5px;font-weight:700;color:#64748B;margin-top:1px;}'
+  + '.pr-tick{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:2px solid #C3CEE0;background:#fff;cursor:pointer;position:relative;padding:0;}.pr-tick[aria-pressed=true]{background:#1B4FD8;border-color:#1B4FD8;}'
+  + '.pr-tick[aria-pressed=true]::after{content:"";position:absolute;left:9px;top:4px;width:7px;height:13px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg);}'
+  + '.pr-swap{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums;}.pr-p{font-size:15px;font-weight:800;border-radius:9px;padding:5px 9px;white-space:nowrap;}.pr-p.old{background:#F1F5F9;color:#94A3B8;text-decoration:line-through;font-size:13px;}.pr-p.new{background:#1B4FD8;color:#fff;}'
+  + '.pr-arr{font-weight:900;color:#1B4FD8;}.pr-u{font-size:12px;font-weight:700;color:#64748B;margin-left:-2px;}.pr-d{display:inline-block;font-size:11.5px;font-weight:900;border-radius:999px;padding:2px 8px;margin-right:6px;white-space:nowrap;}.pr-d.fast{background:#DCFCE7;color:#15803D;}.pr-d.slow{background:#FFEDD5;color:#C2410C;}'
+  + '.pr-chg .pr-why{font-size:12.5px;color:#334155;font-weight:600;margin:0;line-height:1.4;}.pr-txt{display:flex;flex-direction:column;gap:4px;}.pr-txt p,.pr-full p{margin:0;}'
+  + '.pr-full summary{font-size:11.5px;font-weight:800;color:#1B4FD8;cursor:pointer;}.pr-full[open]{display:flex;flex-direction:column;gap:4px;}'
+  + '.pr-vig{display:flex;flex-direction:column;gap:6px;background:#FFFBEB;border-radius:12px;padding:9px 11px;}.pr-vig p{margin:0;display:flex;gap:8px;font-size:12.5px;line-height:1.4;color:#713F12;}.pr-vig i{font-style:normal;flex-shrink:0;}.pr-vig .pr-vig-n{font-size:11.5px;color:#A16207;font-weight:700;}'
+  + '.pr-ask{display:flex;flex-direction:column;gap:6px;}.pr-held{border:1.5px dashed #F5C46B;background:#FFFBEB;border-radius:14px;padding:11px 12px;display:flex;flex-direction:column;gap:8px;}.pr-held-t b{display:block;font-size:14px;font-weight:850;color:#0F172A;}.pr-held-t small{display:block;font-size:11.5px;font-weight:700;color:#A16207;margin-top:1px;}.pr-p.cur{background:#fff;color:#334155;font-size:13px;border:1px solid #E2E8F0;}.pr-p.sug{background:#FEF3C7;color:#92400E;}.pr-held-b{padding:9px;font-size:13px;}'
+  + '.pr-fold{display:block;}.pr-fold[open]>*:not(summary){margin-top:10px;}.pr-fold summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}.pr-fold summary::-webkit-details-marker{display:none;}.pr-fold summary::after{content:"Détail ▾";font-size:12px;font-weight:800;color:#1B4FD8;}.pr-fold[open] summary::after{content:"Masquer ▴";}'
+  + '.pr-load{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;}.pr-load-h{display:flex;justify-content:space-between;align-items:baseline;}.pr-load-h b{font-size:16px;font-weight:900;color:#0C447C;}.pr-load-h span{font-size:12px;font-weight:800;color:#1B4FD8;font-variant-numeric:tabular-nums;}'
+  + '.pr-bar{height:6px;border-radius:3px;background:#E2E8F3;overflow:hidden;position:relative;}.pr-bar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#60A5FA,#1B4FD8);transition:width .35s ease;}'
+  + '.pr-bar.indet i{width:40%;position:absolute;animation:_prInd 1.4s ease-in-out infinite;}@keyframes _prInd{0%{left:-40%;}100%{left:100%;}}'
+  + '.pr-step{display:flex;align-items:center;gap:12px;opacity:.35;transition:opacity .25s;}.pr-step.run,.pr-step.ok{opacity:1;}'
+  + '.pr-step-ic{position:relative;flex-shrink:0;width:36px;height:36px;border-radius:11px;background:#F1F5FB;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .25s;}.pr-step.ok .pr-step-ic{background:#E7F0FF;}'
+  + '.pr-step.run .pr-step-ic::after{content:"";position:absolute;inset:-3px;border-radius:13px;border:2.5px solid transparent;border-top-color:#1B4FD8;border-right-color:#1B4FD8;animation:_prSpin .7s linear infinite;}'
+  + '.pr-step-t{flex:1;min-width:0;}.pr-step-t b{display:block;font-size:13.5px;font-weight:800;color:#0F172A;}.pr-step-t small{display:block;font-size:12px;font-weight:600;color:#64748B;margin-top:1px;transition:opacity .25s;}.pr-step:not(.ok) small{opacity:0;}'
+  + '.pr-step-ok{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#15803D;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;transform:scale(0);transition:transform .25s cubic-bezier(.3,1.6,.5,1);}.pr-step.ok .pr-step-ok{transform:scale(1);}'
+  + '#pr-content.pr-in>*{animation:_prFade .4s ease both;}#pr-content.pr-in>*:nth-child(2){animation-delay:.06s;}#pr-content.pr-in>*:nth-child(3){animation-delay:.12s;}#pr-content.pr-in>*:nth-child(n+4){animation-delay:.18s;}@keyframes _prFade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}'
+  + '.pr-cl{background:#fff;border:1.5px solid #1B4FD8;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;}.pr-cl-h{display:flex;align-items:center;gap:12px;}.pr-cl-ic{font-size:22px;width:42px;height:42px;border-radius:13px;background:#EEF3FC;display:flex;align-items:center;justify-content:center;animation:_prBob 1.6s ease-in-out infinite;}@keyframes _prBob{50%{transform:translateY(-3px);}}'
+  + '.pr-cl-h b{display:block;font-size:15px;font-weight:900;color:#0C447C;}.pr-cl-h small{display:block;font-size:11.5px;font-weight:700;color:#64748B;font-variant-numeric:tabular-nums;}.pr-cl-msg{margin:0;font-size:13px;font-weight:600;color:#334155;min-height:36px;line-height:1.4;}.pr-cl-msg.sw{animation:_prFade .35s ease both;}'
+  + '.pr-pop{animation:_prFade .45s ease both;}'
+  + '@media (prefers-reduced-motion:reduce){.pr-bar.indet i,.pr-cl-ic,.pr-step.run .pr-step-ic::after{animation:none;}#pr-content.pr-in>*{animation:none;}}'
+  + '.pr-pill.ok{background:#DCFCE7;color:#166534;}.pr-tag.wh{background:#DCFCE7;color:#166534;}.pr-tag.ts{background:#EDE9FE;color:#5B21B6;}.pr-tag.vo{background:#E0F2FE;color:#075985;}.pr-tgt{color:#1B4FD8;font-weight:800;}'
+  + '.pr-tj{gap:10px;}.pr-tj-h{margin:0;font-size:14px;font-weight:700;color:#0F172A;line-height:1.45;}.pr-tj-h b{font-variant-numeric:tabular-nums;color:#0C447C;}'
+  + '.pr-verd{display:inline-block;font-size:11.5px;font-weight:800;border-radius:999px;padding:2px 9px;margin-left:2px;}.pr-verd.ok{background:#DCFCE7;color:#166534;}.pr-verd.mid{background:#FEF3C7;color:#92400E;}.pr-verd.hard{background:#FFE4E6;color:#9F1239;}'
+  + '.tj-svg,.vc-svg{width:100%;height:auto;display:block;overflow:visible;}.tj-grid{stroke:#EEF2F7;stroke-width:1;}.tj-ax,.vc-ax{font-size:9px;fill:#94A3B8;font-weight:700;font-family:inherit;}'
+  + '.tj-goal{stroke:#E8530A;stroke-width:1.2;stroke-dasharray:4 3;}.tj-goal-t{font-size:9px;fill:#E8530A;font-weight:800;}.tj-band{fill:rgba(27,79,216,.10);}.tj-proj{stroke:#1B4FD8;stroke-width:2;stroke-dasharray:5 4;}'
+  + '.tj-race{fill:#E8530A;stroke:#fff;stroke-width:1.5;}.tj-ses{fill:#93B4F5;}.tj-now{fill:#1B4FD8;stroke:#fff;stroke-width:2;}.tj-end{fill:#fff;stroke:#1B4FD8;stroke-width:2.5;}.tj-end-t{font-size:10px;fill:#1B4FD8;font-weight:900;}'
+  + '.pr-tj-leg{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;font-size:11px;font-weight:700;color:#64748B;}.pr-tj-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px;}'
+  + '.lg-race{background:#E8530A;}.lg-ses{background:#93B4F5;}.lg-proj{background:transparent;border:2px dashed #1B4FD8;width:8px !important;height:8px !important;}.lg-plan{background:#E2E8F0;border-radius:2px !important;}.lg-tgt{background:#1B4FD8;height:3px !important;border-radius:2px !important;vertical-align:2px !important;}.lg-after{background:#1B4FD8;border-radius:2px !important;}.lg-done{background:#86EFAC;border-radius:2px !important;}'
+  + '.pr-vol{gap:6px;padding:12px 12px 10px;}.pr-vol-h{margin:0;font-size:13px;font-weight:850;color:#0C447C;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}.pr-vol-h span{font-size:11px;font-weight:700;color:#64748B;}'
+  + '.vc-plan{fill:#E2E8F0;}.vc-after{fill:#1B4FD8;}.vc-done{fill:#86EFAC;}.vc-tgt{stroke:#1B4FD8;stroke-width:2.5;stroke-linecap:round;}'
+  + '.pr-undo{display:block;margin:6px 0 2px;font-size:12px;}'
+  + '.pr-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:_prSpin .7s linear infinite;}@keyframes _prSpin{to{transform:rotate(360deg);}}';
+const PR_CSS2 = '.pr-top{display:flex;align-items:center;gap:10px;padding:2px 2px 0;}.pr-top b{font-size:17px;font-weight:900;color:#0F172A;flex:1;}.pr-top-n{min-width:34px;height:34px;padding:0 8px;border-radius:11px;background:#1D4ED8;color:#fff;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}'
+  + '.pr-uptodate{display:flex;align-items:center;gap:12px;}.pr-uptodate b{display:block;font-size:17px;color:#0F172A;}.pr-uptodate span{font-size:12.5px;color:#64748B;}'
+  + '.pr-keys{display:grid;grid-template-columns:1fr 1fr;gap:8px;}.pr-key{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:9px 11px;display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center;min-width:0;}'
+  + '.pr-key-i{grid-row:span 2;font-size:20px;line-height:1;}.pr-key b{font-size:18px;font-weight:900;color:#0F172A;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.pr-key b.sm{font-size:14.5px;}.pr-key small{font-size:11px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+  + '.pr-key.ok{border-color:#BBF7D0;background:#F0FDF4;}.pr-key.mid{border-color:#FDE68A;background:#FFFBEB;}.pr-key.low{border-color:#FECACA;background:#FEF2F2;}'
+  + '.pr-alerts{display:flex;flex-direction:column;gap:6px;}.pr-alerts p{margin:0;display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700;border-radius:12px;padding:8px 11px;}.pr-alerts p.low{background:#FEF2F2;color:#991B1B;}.pr-alerts p.mid{background:#FFFBEB;color:#92400E;}.pr-alerts p.ok{background:#ECFDF5;color:#065F46;}'
+  + '.pr-lead{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #DCE5F3;border-radius:14px;padding:10px 12px;margin-bottom:10px;}.pr-lead span{font-size:20px;}.pr-lead p{margin:0;font-size:14px;font-weight:700;color:#0F172A;line-height:1.35;}'
+  + '.pr-grp{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-size:13px;}.pr-grp i{font-style:normal;font-weight:900;width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;}.pr-grp b{font-weight:800;color:#0F172A;}.pr-grp span{color:#64748B;font-size:12px;min-width:0;}'
+  + '.pr-grp.up i{background:#ECFDF5;color:#047857;}.pr-grp.down i{background:#FFFBEB;color:#B45309;}.pr-grp.move i{background:#EEF3FC;color:#1B4FD8;}.pr-grp.lib i{background:#F5F3FF;color:#6D28D9;}.pr-grp.other i{background:#F1F5F9;color:#334155;}'
+  + '.pr-hl{margin:6px 0 2px;font-size:13.5px;font-weight:800;}.pr-hl.up{color:#047857;}.pr-hl.down{color:#B45309;}.pr-hl.move{color:#1B4FD8;}.pr-hl.lib{color:#6D28D9;}.pr-hl.other{color:#334155;}'
+  + '.pr-goal,.pr-nw{background:#fff;border:1px solid #DCE5F3;border-radius:16px;padding:12px 14px;margin-bottom:10px;}.pr-goal.up{border-color:#A7F3D0;background:#F0FDF7;}.pr-goal.down{border-color:#FDE68A;background:#FFFBEB;}'
+  + '.pr-goal-h{margin:0 0 6px;font-size:14px;font-weight:800;color:#0F172A;}.pr-goal-s{margin:6px 0 0;font-size:12.5px;color:#475569;line-height:1.4;}.pr-goal .pr-actions{margin-top:10px;}'
+  + '.pr-nw-l{display:flex;flex-direction:column;gap:4px;margin-top:8px;}.pr-nw-l span{font-size:12.5px;color:#334155;background:#F5F8FD;border-radius:9px;padding:6px 9px;}.pr-nw-l span.chg{background:#EEF3FC;color:#1B4FD8;font-weight:700;}.pr-alerts i{font-style:normal;}'
+  + '.pr-actions{display:flex;gap:8px;}.pr-chat-w{width:100%;margin:0 0 6px;}.pr-actions .pr-btn{flex:1;margin:0;padding:11px 8px;font-size:14px;}.pr-chat-b{background:#EEF2FF;color:#3730A3;border:1.5px solid #C7D2FE;}.pr-mini{margin:0;font-size:11.5px;color:#64748B;font-weight:600;}'
+  + '.pr-more{background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;}.pr-more>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;}.pr-more>summary::-webkit-details-marker{display:none;}'
+  + '.pr-more-i{font-size:18px;}.pr-more-t{flex:1;min-width:0;display:flex;flex-direction:column;}.pr-more-t b{font-size:14px;color:#0F172A;}.pr-more-t small{font-size:11.5px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+  + '.pr-more-c{color:#94A3B8;font-size:18px;transition:transform .2s;}.pr-more[open] .pr-more-c{transform:rotate(90deg);}.pr-more-b{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;}.pr-coach-t{margin:0;font-size:13px;line-height:1.45;color:#334155;}'
+  + '.pr-why{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}.pr-why-t{font-size:12px;color:#475569;font-weight:600;}.pr-whatif-b{width:100%;margin:0;}.pr-vig-h{font-weight:800;color:#0C447C;font-size:12px;}'
+  + '.pr-chg{padding:9px 11px;gap:6px;}.pr-chg .pr-dot{width:30px;height:30px;font-size:15px;}.pr-chg .pr-p{font-size:14px;padding:4px 8px;}'
+  + '.pr-rest>summary{list-style:none;cursor:pointer;text-align:center;font-size:13px;font-weight:800;color:#1D4ED8;background:#EEF3FF;border:1.5px dashed #BFD0FF;border-radius:12px;padding:9px;}.pr-rest>summary::-webkit-details-marker{display:none;}.pr-rest[open]>summary{margin-bottom:8px;}.pr-rest-b{display:flex;flex-direction:column;gap:10px;}'
+  + '@media (prefers-reduced-motion:reduce){.pr-more-c{transition:none;}}';
+// mise en page simplifiée : « Où tu en es » → changements semaine par semaine (une ligne chacun) → « Comprendre ton plan »
+const PR_CSS3 = '.pr-sum{background:#fff;border:1px solid #DCE5F3;border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}'
+  + '.pr-sum .pr-lead{border:0;padding:0;margin:0;background:none;}.pr-sum .pr-lead p{font-size:15px;font-weight:800;}'
+  + '.pr-sum .pr-keys{grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px;}.pr-sum .pr-key{display:flex;flex-direction:column;gap:1px;padding:7px 8px;border-radius:12px;}'
+  + '.pr-sum .pr-key small{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}.pr-sum .pr-key b{font-size:16px;}.pr-sum .pr-key span{font-size:11px;color:#475569;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+  + '.pr-sum .pr-alerts p{font-size:12.5px;}.pr-sum .pr-mini{margin:0;}'
+  + '.pr-wsec{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 2px 6px;font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:#64748B;}'
+  + '.pr-wsec span,.pr-wsec p span{min-width:22px;height:22px;border-radius:11px;background:#EEF3FC;color:#1B4FD8;font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;letter-spacing:0;}'
+  + 'div.pr-wsec{display:block;background:#fff;border:1px solid #DCE5F3;border-radius:14px;padding:10px 12px;text-transform:none;letter-spacing:0;color:#0F172A;}div.pr-wsec>p{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0;font-size:13.5px;font-weight:800;}'
+  + '.pr-nw-b{width:100%;margin-top:8px;}'
+  + '.pr-chg{flex-direction:row;align-items:flex-start;gap:10px;padding:10px 11px;margin-bottom:6px;}.pr-chg .pr-tick{width:26px;height:26px;margin-top:1px;}.pr-chg .pr-tick[aria-pressed=true]::after{left:7px;top:3px;width:6px;height:12px;}'
+  + '.pr-chg-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}.pr-chg-t{margin:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}.pr-chg-t b{display:inline;font-size:14px;}'
+  + '.pr-day{font-size:12px;font-weight:800;color:#64748B;text-transform:capitalize;}'
+  + '.pr-chg .pr-hl{margin:0;display:flex;gap:6px;align-items:baseline;}.pr-chg .pr-hl i{font-style:normal;}'
+  + '.pr-chg .pr-why{margin:0;font-size:12px;}.pr-chg .pr-full{margin-top:2px;}.pr-chg .pr-full summary{font-size:12px;font-weight:700;color:#1B4FD8;cursor:pointer;}.pr-chg .pr-full .pr-swap{margin:6px 0 4px;}'
+  + '.pr-goal .pr-goal-h{margin-bottom:8px;}';
+function _prCss(){ if(!document.getElementById('pr-css')){ const st = document.createElement('style'); st.id = 'pr-css'; st.textContent = PR_CSS + PR_CSS2 + PR_CSS3; document.head.appendChild(st); } }
+
 // Écran « MAJ le plan » et « Mes records » (à la demande : groupe « review », points d'entrée dans config.js) — sortis de
 // plan-review.js pour alléger le démarrage ; le moteur (prAnalyze, prApplyChanges, prCoachBody…) reste dans plan-review.js.
 function openRecordsModal(onDone){
@@ -139,7 +270,7 @@ function _prToggle(i){
 }
 // une proposition : séance, changement en grand (allure, km, titre), raison en une phrase
 function _prItem(p, i, wo){
-  const ty = p.type || 'ef', col = (typeof typeColor !== 'undefined' && typeColor[ty]) || '#1B4FD8', bg = (typeof typeBg !== 'undefined' && typeBg[ty]) || '#EEF3FC';
+  const ty = p.type || 'ef';
   const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, p.before) || p.title : p.title;
   let swap = '', full = '', delta = '';
   if(p.field === 'detail' && !p.pb){                                       // consigne du Coach : allures extraites si elles changent
@@ -149,34 +280,28 @@ function _prItem(p, i, wo){
       p = Object.assign({}, p, { pb: m1[0].replace(/\s*\/\s*km$/, ''), pa: m2[0].replace(/\s*\/\s*km$/, ''), delta: Math.round(mid(m2) - mid(m1)) });
     }
   }
+  const sw = function(a, b){ return '<div class="pr-swap"><span class="pr-p old">' + prEsc(a) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(b) + '</span></div>'; };
   if(p.pb && p.pa){
     const d = p.delta || 0;
-    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span></div>';
+    swap = sw(p.pb + ' /km', p.pa + ' /km');
     if(d) delta = '<span class="pr-d ' + (d < 0 ? 'fast' : 'slow') + '">' + (d < 0 ? '⚡ ' + (-d) + ' s/km plus vite' : '🐢 ' + d + ' s/km plus lent') + '</span>';
-    full = '<details class="pr-full"><summary>Consigne complète</summary><p class="pr-old">' + prEsc(p.before) + '</p><p class="pr-new">' + prEsc(p.after) + '</p></details>';
+    full = '<p class="pr-old">' + prEsc(p.before) + '</p><p class="pr-new">' + prEsc(p.after) + '</p>';
   } else if(p.field === 'session'){
-    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.before.t) + ' · ' + prEsc(p.before.km) + ' km</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.after.t) + ' · ' + prEsc(p.after.km) + ' km</span></div>';
-    full = '<details class="pr-full"><summary>Consigne</summary><p class="pr-old">' + prEsc(p.before.d) + '</p><p class="pr-new">' + prEsc(p.after.d) + '</p></details>';
-  } else if(p.field === 'km'){
-    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(p.before) + ' km</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(p.after) + ' km</span></div>';
-  } else if(p.field === 'date'){
-    const D = function(d){ return prFmtDate(d, { weekday: 'short', day: 'numeric' }); };
-    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(D(p.before)) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(D(p.after)) + '</span></div>';
-  } else if(p.field === 'type'){
-    const L = function(t){ return (typeof typeLabel !== 'undefined' && typeLabel[t]) || t; };
-    swap = '<div class="pr-swap"><span class="pr-p old">' + prEsc(L(p.before)) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prEsc(L(p.after)) + '</span></div>';
-  } else {
-    swap = '<div class="pr-txt"><p class="pr-old">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.before) + '</p><p class="pr-new">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.after) + '</p></div>';
-  }
-  const kindTag = p.kind === 'pain' ? ' · <span class="pr-tag rev">🩹 Douleur</span>' : p.kind === 'whoop' ? ' · <span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? ' · <span class="pr-tag ts">🎯 Test</span>' : p.kind === 'volume' ? ' · <span class="pr-tag vo">Volume</span>' : p.kind === 'ladder' ? ' · <span class="pr-tag vo">' + (p.delta > 0 ? '↑ Palier' : '↓ Palier') + '</span>' : p.kind === 'habit' ? ' · <span class="pr-tag ts">📅 Ta semaine</span>' : '';
+    swap = sw(p.before.t + ' · ' + p.before.km + ' km', p.after.t + ' · ' + p.after.km + ' km');
+    full = '<p class="pr-old">' + prEsc(p.before.d) + '</p><p class="pr-new">' + prEsc(p.after.d) + '</p>';
+  } else if(p.field === 'km') swap = sw(p.before + ' km', p.after + ' km');
+  else if(p.field === 'date'){ const D = function(d){ return prFmtDate(d, { weekday: 'short', day: 'numeric' }); }; swap = sw(D(p.before), D(p.after)); }
+  else if(p.field === 'type'){ const L = function(t){ return (typeof typeLabel !== 'undefined' && typeLabel[t]) || t; }; swap = sw(L(p.before), L(p.after)); }
+  else full = '<p class="pr-old">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.before) + '</p><p class="pr-new">' + (p.field === 'title' ? 'Titre : ' : '') + prEsc(p.after) + '</p>';
+  const tag = p.src === 'coach' ? '<span class="pr-tag coach">Coach</span>' : p.kind === 'pain' ? '<span class="pr-tag rev">🩹 Douleur</span>' : p.kind === 'whoop' ? '<span class="pr-tag wh">💚 WHOOP</span>' : p.kind === 'test' ? '<span class="pr-tag ts">🎯 Test</span>' : p.revert ? '<span class="pr-tag rev">↩ annule ' + prFmtDate(p.revert) + '</span>' : '';
   const why = _prShortWhy(p.short || p.reason || ''), LN = paLine(p);
-  if(p.field === 'km') LN.t = LN.t.split(' · ')[0];                       // le total est déjà dans « avant → après »
-  const K = wo && PR_KIND[wo.kind], wk = 'S' + p.w + (K && wo.kind !== 'load' ? ' · ' + K[1] + ' ' + K[0] : '');
+  const day = p.date ? prFmtDate(p.date, { weekday: 'short', day: 'numeric' }).replace('.', '') : 'S' + p.w;
   return '<div class="pr-chg' + (p.on ? '' : ' off') + '" id="pr-it-' + i + '">'
-    + '<div class="pr-chg-h"><span class="pr-dot" style="background:' + bg + ';color:' + col + ';">' + ((typeof typeEmoji !== 'undefined' && typeEmoji[ty]) || '•') + '</span>'
-    + '<div class="pr-chg-t"><b>' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'short' }) : '') + ' · ' + wk + (p.src === 'coach' ? ' · <span class="pr-tag coach">Coach</span>' : '') + kindTag + (p.revert ? ' · <span class="pr-tag rev">↩ annule ' + prFmtDate(p.revert) + '</span>' : '') + '</small></div>'
-    + '<button type="button" class="pr-tick" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="Retenir ce changement" onclick="_prToggle(' + i + ')"></button></div>'
-    + '<p class="pr-hl ' + LN.dir + '">' + prEsc(LN.t) + '</p>' + swap + '<p class="pr-why">' + delta + (why ? '<span class="pr-why-t">' + prEsc(why) + '</span>' : '') + '</p>' + full + '</div>';
+    + '<button type="button" class="pr-tick" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="Retenir ce changement" onclick="_prToggle(' + i + ')"></button>'
+    + '<div class="pr-chg-b"><p class="pr-chg-t"><span class="pr-day">' + prEsc(day) + '</span><b>' + prEsc(title) + '</b>' + tag + '</p>'
+    + '<p class="pr-hl ' + LN.dir + '"><i aria-hidden="true">' + PA_DIR[LN.dir][0] + '</i>' + prEsc(LN.t) + '</p>'
+    + (why || delta ? '<p class="pr-why">' + (why ? '<span class="pr-why-t">' + prEsc(why) + '</span>' : '') + delta + '</p>' : '')
+    + (swap || full ? '<details class="pr-full"><summary>Avant → après</summary>' + swap + full + '</details>' : '') + '</div></div>';
 }
 // raison d'une proposition en quelques mots : 1re phrase, sans la partie « type : » redondante, 70 caractères au plus
 function _prShortWhy(t){
@@ -223,92 +348,87 @@ function _prRender(){
   const admin = typeof isAdmin === 'function' && isAdmin();
   const fold = function(id, ico, title, sub, body, open){ return '<details class="pr-more" id="pr-more-' + id + '"' + (open ? ' open' : '') + '><summary><span class="pr-more-i">' + ico + '</span><span class="pr-more-t"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="pr-more-c" aria-hidden="true">›</span></summary><div class="pr-more-b">' + body + '</div></details>'; };
 
-  // ── 0. La raison en une phrase, objectif à revoir (toutes les 4 semaines au plus) et semaine prochaine (week-end)
-  const GC = a.goalCheck;
-  if(nI || (R.held || []).length || GC || a.nextWeek){ const LD = paLead(a); h += '<div class="pr-lead"><span>' + LD.ic + '</span><p>' + prEsc(LD.t) + '</p></div>'; }
-  // ── 0 bis. Ta prépa version pro (bibliothèque de séances, session-lib.js) : proposée une fois par prépa
-  if(a.libOffer) h += '<div class="pr-goal up" id="pr-lib" style="border-color:#DDD6FE;background:#F5F3FF;"><p class="pr-goal-h">✦ Séances de pro, à la carte</p><p class="pr-goal-s">Chaque séance en 2 versions : la classique du plan, ou une séance de coach (seuil norvégien, 30/30, Michigan, Canova…). Tu choisis séance par séance.</p><div class="pr-actions"><button type="button" class="pr-btn pri" onclick="openLibPreview()">Choisir mes séances</button><button type="button" class="pr-btn sec" onclick="openRunnerProfile()">Mon profil</button></div></div>';
-  if(GC){
-    h += '<div class="pr-goal ' + GC.dir + '" id="pr-goal"><p class="pr-goal-h">🎯 ' + (GC.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif est loin') + '</p>'
-      + '<div class="pr-swap"><span class="pr-p old">' + prTime(GC.from) + '</span><span class="pr-arr">→</span><span class="pr-p new">' + prTime(GC.to) + '</span></div>'
-      + '<p class="pr-goal-s">Prévu le jour J : ' + prTime(GC.mid) + (GC.dir === 'up' ? '. Relever l\'objectif fait monter les allures du plan.' : '. Un objectif réaliste garde des allures que tu tiens.') + '</p>'
-      + '<div class="pr-actions"><button type="button" class="pr-btn pri" onclick="paGoalSet(' + GC.to + ')">' + (GC.dir === 'up' ? 'Relever à ' : 'Viser ') + prTime(GC.to) + '</button><button type="button" class="pr-btn sec" onclick="paGoalSet(0, true)">Garder ' + prTime(GC.from) + '</button></div></div>';
-  }
-  const NW = a.nextWeek;
-  if(NW && state._week_ok !== NW.from){
-    const nP = NW.props.length;
-    h += '<div class="pr-nw" id="pr-nw"><p class="pr-goal-h">📅 Ta semaine prochaine · ' + prFmtDate(NW.from) + ' – ' + prFmtDate(NW.to) + '</p>'
-      + '<p class="pr-goal-s"><b>' + NW.km + ' km</b> · ' + NW.sessions.length + ' séance' + (NW.sessions.length > 1 ? 's' : '') + (nP ? ' · ' + nP + ' ajustement' + (nP > 1 ? 's' : '') : ' · rien à changer') + '</p>'
-      + '<div class="pr-nw-l">' + NW.sessions.map(function(x){ return '<span' + (x.changed ? ' class="chg"' : '') + '>' + prEsc(prFmtDate(x.date, { weekday: 'short' })) + ' · ' + prEsc(x.title) + (x.km ? ' · ' + x.km + ' km' : '') + '</span>'; }).join('') + '</div>'
-      + (function(){ const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null; return CV && CV.fresh && CV.agree ? '<p class="pr-goal-s">✓ Relue par le Coach : d\'accord</p>' : ''; })()
-      + '<button type="button" class="pr-btn pri" style="width:100%;margin-top:8px;" onclick="prValidateWeek()">✓ Valider la semaine</button></div>';
-  }
+  // ── 1. Où tu en es : la raison en une phrase, 4 repères, ce qui compte (2 alertes au plus), le Coach
+  const GC = a.goalCheck, NW = a.nextWeek && state._week_ok !== a.nextWeek.from ? a.nextWeek : null, TJ = a.trajectory, LD = paLead(a);
+  const tq = function(sec){ return prTime(sec).replace(/:(\d\d)$/, "'$1").replace(/^(\d+):(\d\d)'/, '$1h$2\''); };
+  const keys = [];
+  if(f.vdot){ const pv = a.planVdotNow || a.planVdot, gap = pv ? f.vdot - pv : 0; keys.push({ l: 'Niveau', v: prV(f.vdot), s: pv ? 'plan ' + prV(pv) : '', c: gap < -0.4 ? 'mid' : 'ok' }); }
+  if(TJ && TJ.race) keys.push({ l: 'Prévu jour J', v: tq((TJ.race.lo + TJ.race.hi) / 2), s: a.opt.goalSec ? 'objectif ' + tq(a.opt.goalSec) : '', c: TJ.verdict === 'atteignable' ? 'ok' : TJ.verdict === 'à portée' ? 'mid' : 'low' });
+  else if(goal && f.vdot && a.opt.raceCat) keys.push({ l: 'Aujourd\'hui', v: tq(f.preds[a.opt.raceCat]), s: 'objectif ' + tq(a.opt.goalSec), c: 'mid' });
+  if(a.load && a.load.k7 != null) keys.push({ l: '7 jours', v: a.load.k7 + ' km', s: a.load.acwr ? 'charge ×' + prV(a.load.acwr) : '', c: a.load.acwr > 1.5 ? 'low' : a.load.acwr > 1.3 ? 'mid' : 'ok' });
+  const alcX = a.whoop && a.whoop.alc && a.whoop.alc.explained;
+  if(a.whoop) keys.push({ l: 'Récup', v: a.whoop.avg3 + ' %', s: alcX ? 'hors alcool' : '3 nuits', c: a.whoop.tired ? 'low' : a.whoop.fresh ? 'ok' : 'mid' });
+  const alerts = [], pn = a.internal && a.internal.pains[0];
+  if(a.greenLight) alerts.push(['🟢', a.greenLight.text, 'ok']);
+  if(pn && pn.level >= 2) alerts.push(['🩹', 'Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' · ' + pn.zone.toLowerCase() + ' → allégé', 'low']);
+  if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) alerts.push(['🛌', 'Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées' : ''), 'mid']);
+  if(a.stride && a.stride.level >= 2) alerts.push(['⚠️', 'Foulée fatiguée → pas de hausse de volume', 'low']);
+  a.warnings.filter(function(x){ return !x.goal && x.level === 'warn'; }).forEach(function(x){ alerts.push(['⚠️', x.short || x.text, 'low']); });
+  const CV = admin && typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
+  h += '<div class="pr-sum"><div class="pr-lead"><span>' + LD.ic + '</span><p>' + prEsc(LD.t) + '</p></div>'
+    + (keys.length ? '<div class="pr-keys">' + keys.slice(0, 4).map(function(t){ return '<div class="pr-key ' + t.c + '"><small>' + t.l + '</small><b>' + t.v + '</b>' + (t.s ? '<span>' + prEsc(t.s) + '</span>' : '') + '</div>'; }).join('') + '</div>' : '')
+    + (alerts.length ? '<div class="pr-alerts">' + alerts.slice(0, 2).map(function(x){ return '<p class="' + x[2] + '"><i>' + x[0] + '</i><span>' + prEsc(x[1]) + '</span></p>'; }).join('') + '</div>' : '')
+    + (CV && CV.fresh ? '<p class="pr-mini">🤖 Relu par le Coach ' + (CV.date === a.opt.today ? 'aujourd\'hui' : 'le ' + prFmtDate(CV.date, { day: 'numeric', month: 'short' })) + ' · ' + (CV.agree ? 'd\'accord avec ces changements' : CV.applied ? 'ses changements sont appliqués' : CV.n + ' changement' + (CV.n > 1 ? 's' : '') + ' à lui, marqués « Coach »') + '</p>' : '')
+    + '</div>';
+  if(!f.vdot) h += '<button class="pr-btn sec" onclick="' + prReload + '">🏆 Saisir mes records pour calculer ton niveau</button>';
 
-  // ── 1. Les changements proposés, tout en haut (ou « plan à jour »), après la raison en une phrase
+  // ── 2. Ce que je te propose : objectif à revoir, puis les changements semaine par semaine (cette semaine, la prochaine, plus tard)
   const nH = (R.held || []).length;
-  if(nI || nH){
-    h += '<div class="pr-top"><span class="pr-top-n">' + (nI || '⏳') + '</span><b>' + (nI ? 'séance' + (nI > 1 ? 's' : '') + ' à ajuster' : 'en attente') + '</b>'
+  if(nI || nH || GC || NW){
+    h += '<div class="pr-top"><span class="pr-top-n">' + (nI || '✓') + '</span><b>' + (nI ? 'changement' + (nI > 1 ? 's' : '') + ' proposé' + (nI > 1 ? 's' : '') : 'rien à changer') + '</b>'
       + (nI > 1 ? '<button class="pr-link" onclick="const on=_prReview.items.some(function(x){return !x.on;});_prReview.items.forEach(function(x){x.on=on;});_prRender()">' + (R.items.every(function(x){ return x.on; }) ? 'Tout décocher' : 'Tout cocher') + '</button>' : '') + '</div>';
-    // rangés par sens : ce qui monte, ce qui s'allège, ce qui bouge (3 visibles par groupe, le reste replié)
+    if(GC) h += '<div class="pr-goal ' + GC.dir + '" id="pr-goal"><p class="pr-goal-h">🎯 ' + (GC.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif est loin') + ' · prévu ' + prTime(GC.mid) + '</p>'
+      + '<div class="pr-actions"><button type="button" class="pr-btn pri" onclick="paGoalSet(' + GC.to + ')">' + (GC.dir === 'up' ? 'Relever à ' : 'Viser ') + prTime(GC.to) + '</button><button type="button" class="pr-btn sec" onclick="paGoalSet(0, true)">Garder ' + prTime(GC.from) + '</button></div></div>';
+    const mon = prIso(prMonday(today)), nmon = prAddDays(mon, 7), nsun = prAddDays(mon, 13);
     const ord = R.items.map(function(p, i){ return [p, i]; }).sort(function(x, y){ return (x[0].date || '').localeCompare(y[0].date || '') || x[0].w - y[0].w; });
-    const G = { up: [], down: [], move: [], lib: [], other: [] }; ord.forEach(function(x){ G[paDir(x[0])].push(x); });
-    const GW = { up: 'tu encaisses, le plan monte', down: 'pour récupérer ou te protéger', move: 'même séance, autre jour', lib: 'nouvelles séances, allures recalées', other: '' };
+    const B = { now: [], next: [], later: [] }; ord.forEach(function(x){ const d = x[0].date || ''; B[d && d < nmon ? 'now' : d && d <= nsun ? 'next' : 'later'].push(x); });
     R.open = R.open || {};
-    ['up', 'down', 'move', 'lib', 'other'].forEach(function(g){
-      const L = G[g]; if(!L.length) return;
-      h += '<p class="pr-grp ' + g + '"><i>' + PA_DIR[g][0] + '</i><b>' + PA_DIR[g][1] + '</b><span>' + L.length + (GW[g] ? ' · ' + GW[g] : '') + '</span></p>';
-      L.slice(0, 3).forEach(function(x){ h += _prItem(x[0], x[1], W[x[0].w]); });
-      if(L.length > 3){ const rest = L.slice(3);
-        h += '<details class="pr-rest"' + (R.open[g] ? ' open' : '') + ' ontoggle="if(_prReview)_prReview.open.' + g + '=this.open"><summary>+ ' + rest.length + ' autre' + (rest.length > 1 ? 's' : '') + '</summary><div class="pr-rest-b">'
-          + rest.map(function(x){ return _prItem(x[0], x[1], W[x[0].w]); }).join('') + '</div></details>'; }
-    });
+    const list = function(L, k, max){ if(L.length <= max) return L.map(function(x){ return _prItem(x[0], x[1], W[x[0].w]); }).join('');
+      return L.slice(0, max).map(function(x){ return _prItem(x[0], x[1], W[x[0].w]); }).join('') + '<details class="pr-rest"' + (R.open[k] ? ' open' : '') + ' ontoggle="if(_prReview)_prReview.open.' + k + '=this.open"><summary>+ ' + (L.length - max) + ' autre' + (L.length - max > 1 ? 's' : '') + '</summary><div class="pr-rest-b">'
+        + L.slice(max).map(function(x){ return _prItem(x[0], x[1], W[x[0].w]); }).join('') + '</div></details>'; };
+    if(B.now.length) h += '<p class="pr-wsec">Cette semaine<span>' + B.now.length + '</span></p>' + list(B.now, 'now', 6);
+    if(B.next.length || NW){
+      if(!NW) h += '<p class="pr-wsec">Semaine prochaine · ' + prFmtDate(nmon) + ' – ' + prFmtDate(nsun) + '<span>' + B.next.length + '</span></p>';
+      else {
+        h += '<div class="pr-wsec nw" id="pr-nw"><p>📅 Ta semaine prochaine · ' + prFmtDate(nmon) + ' – ' + prFmtDate(nsun) + ' · ' + NW.km + ' km<span>' + B.next.length + '</span></p>';
+        h += '<div class="pr-nw-l">' + NW.sessions.map(function(x){ return '<span' + (x.changed ? ' class="chg"' : '') + '>' + prEsc(prFmtDate(x.date, { weekday: 'short' })) + ' · ' + prEsc(x.title) + (x.km ? ' · ' + x.km + ' km' : '') + '</span>'; }).join('') + '</div>'
+          + (CV && CV.fresh && CV.agree ? '<p class="pr-mini">✓ Relue par le Coach : d\'accord</p>' : '')
+          + '<button type="button" class="pr-btn sec pr-nw-b" onclick="prValidateWeek()">✓ Valider la semaine' + (B.next.length ? ' (ses ' + B.next.length + ' changement' + (B.next.length > 1 ? 's' : '') + ' cochés)' : '') + '</button></div>';
+      }
+      h += list(B.next, 'next', 6);
+    }
+    if(B.later.length) h += '<p class="pr-wsec">Plus tard<span>' + B.later.length + '</span></p>' + list(B.later, 'later', 3);
     (R.held || []).forEach(function(p, i){
       const title = typeof normalizeSessionTitle === 'function' ? normalizeSessionTitle(p.title, p.type, p.before) || p.title : p.title;
       h += '<div class="pr-held"><div class="pr-held-t"><b>⏳ ' + prEsc(title) + '</b><small>' + (p.date ? prFmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' : '') + 'en attente (récup)</small></div>'
         + '<div class="pr-swap"><span class="pr-p cur">' + prEsc(p.pb) + '</span><span class="pr-arr">→</span><span class="pr-p sug">' + prEsc(p.pa) + '</span><span class="pr-u">/km</span></div>'
         + '<button type="button" class="pr-btn sec pr-held-b" onclick="_prUnhold(' + i + ')">⚡ Accélérer quand même</button></div>';
     });
+    if(!nI && !nH) h += _prTraceHtml(a);
   } else h += '<div class="pr-card pr-uptodate"><span class="pr-big ok">✓</span><div><b>Ton plan est à jour</b><span>Rien à changer pour l\'instant</span></div></div>' + _prTraceHtml(a);
 
-  // ── 2. Points clés : 4 tuiles au plus
-  const tiles = [], TJ = a.trajectory;
-  if(f.vdot){
-    const pv = a.planVdotNow || a.planVdot, gap = pv ? f.vdot - pv : 0;   // niveau des allures écrites aujourd'hui (après mises à jour)
-    tiles.push({ ico: gap > 0.4 ? '📈' : gap < -0.4 ? '🧭' : '👌', v: prV(f.vdot), l: pv ? 'niveau · plan ' + prV(pv) : 'ton niveau', c: gap > 0.4 ? 'ok' : gap < -0.4 ? 'mid' : 'ok' });
-  }
-  const tq = function(sec){ return prTime(sec).replace(/:(\d\d)$/, "'$1").replace(/^(\d+):(\d\d)'/, '$1h$2\''); };
-  if(TJ && TJ.race) tiles.push({ ico: '🏁', v: tq(TJ.race.lo) + '–' + tq(TJ.race.hi), l: 'prévu · objectif ' + (a.opt.goalSec ? tq(a.opt.goalSec) : prEsc(a.race.objectif || '')), c: TJ.verdict === 'atteignable' ? 'ok' : TJ.verdict === 'à portée' ? 'mid' : 'low', sm: true });
-  else if(goal && f.vdot && a.opt.raceCat) tiles.push({ ico: '🎯', v: prTime(f.preds[a.opt.raceCat]), l: 'aujourd\'hui · objectif ' + prTime(a.opt.goalSec), c: 'mid' });
-  if(a.load && a.load.k7 != null) tiles.push({ ico: '📊', v: a.load.k7 + ' km', l: '7 jours' + (a.load.acwr ? ' · ratio ' + prV(a.load.acwr) : ''), c: a.load.acwr > 1.5 ? 'low' : a.load.acwr > 1.3 ? 'mid' : 'ok' });
-  const alcX = a.whoop && a.whoop.alc && a.whoop.alc.explained;              // récup basse due à l'alcool : valeur « hors alcool » + mesurée, plan non allégé
-  if(a.whoop) tiles.push({ ico: alcX ? '🍷' : a.whoop.tired ? '😮‍💨' : '💚', v: a.whoop.avg3 + ' %', l: alcX ? 'hors alcool · ' + a.whoop.alc.rawAvg3 + ' % mesuré' : 'récup WHOOP 3 j', c: a.whoop.tired ? 'low' : a.whoop.fresh ? 'ok' : 'mid' });
-  if(tiles.length) h += '<div class="pr-keys">' + tiles.slice(0, 4).map(function(t){ return '<div class="pr-key ' + t.c + '"><span class="pr-key-i">' + t.ico + '</span><b' + (t.sm ? ' class="sm"' : '') + '>' + t.v + '</b><small>' + t.l + '</small></div>'; }).join('') + '</div>';
-  if(!f.vdot) h += '<button class="pr-btn sec" onclick="' + prReload + '">🏆 Saisir mes records pour calculer ton niveau</button>';
-
-  // ── 3. À surveiller : seulement ce qui compte (3 au plus, une ligne chacun)
-  const alerts = [];
-  if(a.greenLight) alerts.push(['🟢', a.greenLight.text, 'ok']);
-  const pn = a.internal && a.internal.pains[0];
-  if(pn && pn.level >= 2) alerts.push(['🩹', 'Douleur ' + ['', 'légère', 'gênante', 'forte'][pn.level] + ' · ' + pn.zone.toLowerCase() + ' → allégé', 'low']);
-  if(a.opt.postRace && wk.length && (!wk[0].from || a.opt.postRaceUntil >= wk[0].from)) alerts.push(['🛌', 'Récup jusqu\'au ' + prFmtDate(a.opt.postRaceUntil, { day: 'numeric', month: 'short' }) + (a.opt.noFasterUntil ? ' · allures gardées' : ''), 'mid']);
-  if(a.stride && a.stride.level >= 2) alerts.push(['⚠️', 'Foulée fatiguée → pas de hausse de volume', 'low']);
-  a.warnings.filter(function(x){ return !x.goal && x.level === 'warn'; }).forEach(function(x){ alerts.push(['⚠️', x.short || x.text, 'low']); });
-  if(alerts.length) h += '<div class="pr-alerts">' + alerts.slice(0, 3).map(function(x){ return '<p class="' + x[2] + '"><i>' + x[0] + '</i><span>' + prEsc(x[1]) + '</span></p>'; }).join('') + '</div>';
-
-  // ── 4. Coach (admin) : il relit tout seul le week-end ; ici son avis s'il en a un, et la discussion
-  if(R.coach) h += fold('coach', '🤖', 'Avis du Coach', 'lire', '<p class="pr-coach-t">' + prEsc(R.coach) + '</p>');
-  if(admin){
-    const CV = typeof prCoachVerdict === 'function' ? prCoachVerdict() : null;
-    if(typeof openPlanChat === 'function') h += '<button type="button" class="pr-btn pr-chat-b pr-chat-w" onclick="openPlanChat(_prReview && _prReview.items.length ? \'À propos des ajustements proposés par la mise à jour : \' : \'\')">💬 En parler au Coach</button>';
-    if(CV && CV.fresh) h += '<p class="pr-mini">🤖 Relu par le Coach ' + (CV.date === a.opt.today ? 'aujourd\'hui' : 'le ' + prFmtDate(CV.date, { day: 'numeric', month: 'short' })) + ' · ' + (CV.agree ? 'd\'accord avec ces ajustements' : CV.applied ? 'ses changements sont appliqués' : CV.n + ' changement' + (CV.n > 1 ? 's' : '') + ' à lui, marqués « Coach »') + '</p>';
-    else h += '<p class="pr-mini">🤖 Le Coach relit ton plan tout seul le week-end</p>';
-  }
-
-  // ── 5. Détails, repliés
-  h += '<p class="pr-sec"><span>Détails</span></p>';
-  // comment le plan suit ce que tu encaisses (plan-adapt.js)
+  // ── 3. En parler au Coach (admin) et comprendre (un seul écran pour tout le détail)
+  if(R.coach) h += '<details class="pr-more" id="pr-more-coach"><summary><span class="pr-more-i">🤖</span><span class="pr-more-t"><b>Avis du Coach</b><small>lire</small></span><span class="pr-more-c" aria-hidden="true">›</span></summary><div class="pr-more-b"><p class="pr-coach-t">' + prEsc(R.coach) + '</p></div></details>';
+  if(admin && typeof openPlanChat === 'function') h += '<button type="button" class="pr-btn pr-chat-b pr-chat-w" onclick="openPlanChat(_prReview && _prReview.items.length ? \'À propos des ajustements proposés par la mise à jour : \' : \'\')">💬 En parler au Coach</button>';
   if(typeof openPlanEvolution === 'function'){ const ab = a.absorb, V = ab && ab.verdict && typeof PA_VERDICT !== 'undefined' ? PA_VERDICT[ab.verdict] : null;
-    h += '<button type="button" class="pr-evo-b" onclick="openPlanEvolution()"><span>📈</span><span><b>Comment ton plan évolue</b><small>' + (V ? V[1] + ' séances récentes : ' + V[0].toLowerCase() + ' · ' : '') + 'paliers, volume, changements</small></span><span>›</span></button>'; }
+    h += '<button type="button" class="pr-evo-b" onclick="openPlanEvolution()"><span>📊</span><span><b>Comprendre ton plan</b><small>' + (V ? V[1] + ' séances : ' + V[0].toLowerCase() + ' · ' : '') + 'niveau, trajectoire, semaines, paliers, historique</small></span><span>›</span></button>'; }
+  // repère invisible pour les tests et l'ouverture : la carte principale
+  if(!/pr-card/.test(h)) h = '<div class="pr-card" style="display:none"></div>' + h;
+  box.innerHTML = h;
+  _prFoot();
+}
+// ─── Le détail du plan (trajectoire, semaines, signaux, niveau, mises à jour) : affiché dans « Comprendre ton plan » ───
+function _prDetailsHtml(a){
+  const f = a.fit, today = a.opt.today, TJ = a.trajectory;
+  const W = prWeeks(state, today), wk = Object.keys(W).map(Number).sort(function(x, y){ return x - y; }).map(function(w){ return W[w]; }).filter(function(o){ return !o.past; });
+  const byW = {}, warnW = {}, heldW = {};
+  (a.proposals || []).forEach(function(p, i){ (byW[p.w] = byW[p.w] || []).push(i); });
+  (a.warnings || []).forEach(function(x){ if(x.w != null && W[x.w] && !W[x.w].past) (warnW[x.w] = warnW[x.w] || []).push(x); });
+  (a.held || []).forEach(function(p, i){ (heldW[p.w] = heldW[p.w] || []).push(i); });
+  const pn = a.internal && a.internal.pains[0];
+  const tq = function(sec){ return prTime(sec).replace(/:(\d\d)$/, "'$1").replace(/^(\d+):(\d\d)'/, '$1h$2\''); };
+  const fold = _prFold;
+  let h = '';
   if(TJ && TJ.race){
     h += fold('tj', '📈', 'Trajectoire', tq(TJ.race.lo) + '–' + tq(TJ.race.hi) + (TJ.verdict ? ' · ' + TJ.verdict : '') + ' · et si… ?',
       prTrajectorySvg(TJ) + '<p class="pr-tj-leg"><span><i class="lg-race"></i>courses</span><span><i class="lg-ses"></i>séances</span><span><i class="lg-proj"></i>projection</span></p>'
@@ -350,22 +470,21 @@ function _prRender(){
         }).join('') + '</tbody></table>'
       + '<p class="pr-mini">Seuil <b>' + prPace(f.paces.T) + '</b> · fractionné <b>' + prPace(f.paces.I) + '</b>' + (a.opt.efPace ? ' · EF <b>' + prPace(a.opt.efPace) + '</b>' : '') + ' /km' + (a.planVdot ? ' · plan écrit pour ' + prV(a.planVdot) : '') + '</p>'
       + '<details class="pr-hist"><summary class="pr-mini">Sur quoi c\'est calculé</summary><ul>' + f.sources.map(function(x){ return '<li>' + prEsc(x.label) + ' — ' + (x.time || x.pace + '/km' + (x.hr ? ', FC ' + x.hr : '')) + (x.date ? ' (' + prFmtDate(x.date, { day: 'numeric', month: 'short', year: 'numeric' }) + ')' : '') + ' → <b>' + prV(x.vdot) + '</b></li>'; }).join('') + '</ul></details>'
-      + '<button class="pr-link" onclick="' + prReload + '">🏆 Mes records</button>');
+      + '<button class="pr-link" onclick="openRecordsModal()">🏆 Mes records</button>');
   }
-  const allH = state._plan_reviews || [], hist = allH.slice(-3).reverse();
+  const allH = state._plan_reviews || [], hist = allH.slice(-6).reverse();
   const short = function(c, v){ if(c.field === 'km') return v + ' km'; if(c.field === 'skip') return v ? 'non réalisée' : 'prévue'; if(c.field === 'date') return v ? prFmtDate(v, { weekday: 'short', day: 'numeric' }) : ''; if(c.field === 'session') return v && v.t ? v.t + ' · ' + v.km + ' km' : ''; const m = String(v).match(PR_PACE_RE); return c.field === 'detail' && m ? m[0].replace(/\s*\/\s*km$/, '') : String(v); };
-  if(hist.length) h += fold('hist', '🕘', 'Dernières mises à jour', prFmtDate(hist[0].date, { day: 'numeric', month: 'short' }) + ' · ' + hist[0].n + ' séance' + (hist[0].n > 1 ? 's' : ''), hist.map(function(x){
+  if(hist.length) h += fold('hist', '🕘', 'Qui a changé ton plan', prFmtDate(hist[0].date, { day: 'numeric', month: 'short' }) + ' · ' + hist[0].n + ' séance' + (hist[0].n > 1 ? 's' : ''), hist.map(function(x){
       const idx = allH.indexOf(x);
-      const line = (x.undone ? '↩ ' : x.imprevu ? '🧳 ' : '✓ ') + prFmtDate(x.date, { day: 'numeric', month: 'short' }) + ' · ' + (x.imprevu ? ({ indispo: 'indisponible', charge: 'semaine chargée', malade: 'malade' }[x.imprevu] || 'imprévu') + ' · ' : '') + x.n + ' séance' + (x.n > 1 ? 's' : '') + (x.coach ? ' · Coach' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
+      const line = (x.undone ? '↩ ' : x.imprevu ? '🧳 ' : '✓ ') + prFmtDate(x.date, { day: 'numeric', month: 'short' }) + ' · ' + (x.imprevu ? ({ indispo: 'indisponible', charge: 'semaine chargée', malade: 'malade' }[x.imprevu] || 'imprévu') + ' · ' : '') + x.n + ' séance' + (x.n > 1 ? 's' : '') + (x.kind && PE_KIND[x.kind] ? ' · ' + PE_KIND[x.kind] : x.coach ? ' · Coach' : '') + (x.vdot ? ' · niveau ' + String(x.vdot).replace('.', ',') : '');
       if(!(x.changes || []).length) return '<p class="pr-mini">' + line + '</p>';
       return '<details class="pr-hist"><summary class="pr-mini">' + line + '</summary><ul>' + x.changes.map(function(c){ return '<li><b>' + prEsc(typeof normalizeSessionTitle === 'function' && c.type ? normalizeSessionTitle(c.title, c.type, typeof c.before === 'string' ? c.before : '') || c.title : c.title) + '</b>' + (c.date ? ' · ' + prFmtDate(c.date) : '') + ' : ' + prEsc(short(c, c.before)) + ' → <b>' + prEsc(short(c, c.after)) + '</b></li>'; }).join('') + '</ul>'
         + (x.undone ? '<p class="pr-mini">Annulée le ' + prFmtDate(x.undone, { day: 'numeric', month: 'short' }) + '</p>' : '<button type="button" class="pr-link pr-undo" onclick="if(confirm(\'Annuler cette mise à jour ? Les séances pas encore faites retrouvent leur ancienne version.\')) prUndoReview(' + idx + ')">↩ Annuler</button>') + '</details>';
     }).join(''));
-  // repère invisible pour les tests et l'ouverture : la carte principale
-  if(!/pr-card/.test(h)) h = '<div class="pr-card" style="display:none"></div>' + h;
-  box.innerHTML = h;
-  _prFoot();
+  return h;
 }
+// section repliée : titre + l'essentiel en une ligne, le détail au toucher
+function _prFold(id, ico, title, sub, body, open){ return '<details class="pr-more" id="pr-more-' + id + '"' + (open ? ' open' : '') + '><summary><span class="pr-more-i">' + ico + '</span><span class="pr-more-t"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="pr-more-c" aria-hidden="true">›</span></summary><div class="pr-more-b">' + body + '</div></details>'; }
 function _prFoot(){
   const b = document.getElementById('pr-apply'); if(!b || !_prReview) return;
   const n = _prReview.items.filter(function(x){ return x.on; }).length;
@@ -421,6 +540,8 @@ function applyPlanReview(){
   if(!_prReview) return;
   const sel = _prReview.items.filter(function(x){ return x.on; }); if(!sel.length) return;
   const r = prApplyChanges(sel, { coach: sel.some(function(p){ return p.src === 'coach'; }), vdot: _prReview.a.fit.vdot || null });
+  const NW = _prReview.a.nextWeek;                                         // semaine prochaine montrée : validée avec ses changements
+  if(NW && state._week_ok !== NW.from && sel.some(function(p){ return p.date && p.date >= NW.from && p.date <= NW.to; })) state._week_ok = NW.from;
   if(state._coach_review && sel.some(function(p){ return p.src === 'coach'; })) state._coach_review.applied = true;
   save();
   if(typeof rendered !== 'undefined'){ rendered.plan = false; rendered.stats = false; }
@@ -444,92 +565,88 @@ function prValidateWeek(){
   if(typeof showToast === 'function') showToast('Semaine validée' + (r.n ? ' · ' + r.n + ' séance' + (r.n > 1 ? 's' : '') + ' ajustée' + (r.n > 1 ? 's' : '') : ''), '📅');
 }
 
-// ─── Comment ton plan évolue (plan-adapt.js : paEvolution) ─────────────────
+// ─── Comprendre ton plan (plan-adapt.js : paEvolution) ─────────────────
 const PE_KIND = { maj: 'MAJ le plan', autopilot: 'Pilote de nuit', after: 'Après une séance', chat: 'Mon plan (Coach)', coach: 'Coach', adapt: 'Séance écourtée', taper: 'Affûtage', imprevu: 'Imprévu', week: 'Semaine validée', hist: 'Recalé sur ton historique', pick: 'Choix classique / pro', libplan: 'Prépa version pro', lib: 'Séances de pro' };
 function openPlanEvolution(){
   if(document.getElementById('pe-ov')) return;
+  _prCss();
   const today = prTodayIso(), a = (_prReview && _prReview.a) || prAnalyze(), E = paEvolution(a, today);
-  const esc = prEsc, T = E.trend || {}, V = T.verdict ? PA_VERDICT[T.verdict] : null;
+  const esc = prEsc, T = E.trend || {}, V = T.verdict ? PA_VERDICT[T.verdict] : null, fold = function(id, ico, t, sub, body, open){ return _prFold('pe-' + id, ico, t, sub, body, open); };
   const tile = function(k, v, sub){ return '<div class="lvp-t"><small>' + k + '</small><b>' + v + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>'; };
-  let h = _paCarryHtml(a, today) + '<div class="lvp-card"><div class="lvp-tiles">'
+  // ── En bref : 4 repères et une phrase (toujours visible)
+  let h = '<div class="lvp-card"><div class="lvp-tiles">'
     + tile('Niveau', E.fit ? prV(E.fit) : '–', E.level && E.level.delta != null ? (E.level.delta >= 0 ? '+' : '') + prV(E.level.delta) + ' en 4 semaines' : '')
     + tile('Le plan', E.planVdot ? prV(E.planVdot) : '–', E.fit && E.planVdot ? (E.fit - E.planVdot >= 1 ? 'en retard sur toi : ça monte' : E.planVdot - E.fit >= 1 ? 'au-dessus de toi' : 'à ton niveau') : '')
     + tile('Tes séances', V ? V[1] + ' ' + V[0] : '–', T.n ? T.n + ' sur 3 semaines' : 'pas encore de ressenti')
     + tile('Volume visé', E.volume ? E.volume.peak + ' km' : '–', E.volume ? 'au pic · habitude ' + E.volume.base + ' km' + (E.volume.goalPeak && E.volume.goalPeak > E.volume.base ? ' · objectif ' + E.volume.goalPeak : '') : '')
     + '</div>' + (E.traj ? '<p class="lvp-n">🎯 Prévu le jour J : ' + prTime(E.traj.mid) + (E.goal ? ' pour un objectif de ' + prTime(E.goal) : '') + (E.traj.verdict ? ' · ' + E.traj.verdict : '') + '</p>' : '')
     + '<p class="lvp-n">' + (T.verdict === 'easy' ? 'Tu encaisses bien : le plan monte d\'un cran (paliers, volume).' : T.verdict === 'hard' ? 'Séances récentes dures : le plan ne monte pas tant que ça ne passe pas mieux.' : 'Le plan suit son rythme ; il monte dès que tes séances passent facilement.') + '</p></div>';
-  // séances de pro (session-lib.js) : profil et bibliothèque
-  if(typeof openRunnerProfile === 'function'){
-    const PF = a.profile || null, foc = PF && PF.focus && PF.focus.length ? PF.focus.join(', ') : null;
-    h += '<div class="lvp-card"><p class="lvp-h">Tes séances</p><p class="lvp-n">' + (function(){ const n = prSessions(state).filter(function(s){ return !s.done && !s.skip && s.x && s.x.lib; }).length; return n ? '✦ ' + n + ' séance' + (n > 1 ? 's' : '') + ' à venir en version pro, choisies et montées au fil des semaines ; les autres restent classiques.' : 'Toutes tes séances sont classiques : chacune a aussi une version pro, à choisir séance par séance.'; })() + (foc ? ' Priorité : ' + esc(PF.focus.map(function(k){ return ({ vitesse: 'vitesse', specifique: 'endurance spécifique', aerobie: 'base aérobie' })[k] || k; }).join(', ')) + '.' : '') + '</p>'
-      + (function(){ let V = null; try { V = typeof slVersionStats === 'function' ? slVersionStats(state, a.opt.today) : null; } catch(e) { diagSilent(e, 'plan-review-ui:slVersionStats'); } if(!V || (!V.pro.n && !V.classic.n)) return '';
-        const g = function(x){ return x.gain == null ? '' : ' · ' + (x.gain >= 0 ? '+' : '') + prV(x.gain) + ' de niveau 3 sem. après'; };
-        const nA = Object.keys(a.advice || {}).filter(function(k){ return a.advice[k].rec === 'pro' && a.advice[k].cur === 'classic'; }).length;
-        return '<p class="lvp-n">✦ Pro : ' + V.pro.n + ' séance' + (V.pro.n > 1 ? 's' : '') + ' (' + V.pro.easy + ' faciles' + g(V.pro) + ') · Classique : ' + V.classic.n + ' (' + V.classic.easy + ' faciles' + g(V.classic) + ')'
-          + (V.best ? ' → ' + (V.best === 'pro' ? 'la pro te réussit, elle est conseillée plus souvent.' : 'la classique te réussit, la pro est conseillée plus rarement.') : '') + (nA ? ' ' + nA + ' séance' + (nA > 1 ? 's' : '') + ' pro conseillée' + (nA > 1 ? 's' : '') + ' dans les 4 semaines.' : '') + '</p>'; })()
-      + '<div class="sl-acts" style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="pr-btn sec" style="flex:1" onclick="openRunnerProfile()">Ton profil</button><button type="button" class="pr-btn sec" style="flex:1" onclick="openLibCatalog()">La bibliothèque</button>' + '<button type="button" class="pr-btn pri" style="flex:1" onclick="openLibPreview()">Classique ou pro</button>' + '</div></div>';
-  }
-  // ce que tout ton historique a appris au plan (plan-adapt.js : paHist)
-  const HI = E.hist;
-  if(HI && HI.n){
-    const P = HI.pred || {}, V = HI.vol || {}, RP = HI.rpe || {}, TL = { ef: 'Footing', long: 'Sortie longue', tempo: 'Tempo', frac: 'Fractionné' };
-    const yr = HI.first ? prFmtDate(HI.first, { month: 'short', year: 'numeric' }) : '';
-    h += '<div class="lvp-card"><p class="lvp-h">Ce que ton historique lui apprend</p>'
-      + '<p class="lvp-n">' + HI.n + ' séances · ' + HI.km.toLocaleString('fr-FR') + ' km depuis ' + esc(yr) + ', toutes rejouées.</p>'
-      + (P.n ? P.races.slice(0, 4).map(function(r){ return '<div class="pe-row"><span class="pe-chip pe-' + (Math.abs(r.err) < 0.5 ? 'ok' : r.err > 0 ? 'easy' : 'hard') + '">' + (r.err > 0 ? '+' : '') + prV(r.err) + '</span><span class="pe-tx"><b>' + esc(r.label) + '</b><small>' + prFmtDate(r.date, { day: 'numeric', month: 'short', year: '2-digit' }) + ' · prévu ' + prTime(r.projSec) + ' 6 sem. avant · fait ' + prTime(r.sec) + '</small></span></div>'; }).join('')
-        + '<p class="lvp-n">' + (Math.abs(P.bias) >= 0.1 ? (P.bias > 0 ? 'Tu fais mieux que prévu : temps prévus recalés de +' : 'Tu fais moins bien que prévu : temps prévus recalés de ') + prV(P.bias) + ' de niveau.' : 'Les temps prévus tombaient juste : rien à recaler.') + '</p>' : '<p class="lvp-n">Pas encore assez de courses avec de l\'entraînement connu avant pour vérifier les prédictions.</p>')
-      + (V.prog ? '<div class="pe-row"><span class="pe-tx"><b>Hausse de volume que tu tiens : +' + Math.round((V.prog - 1) * 100) + ' % par semaine</b><small>' + V.safe + ' hausse' + (V.safe > 1 ? 's' : '') + ' bien passée' + (V.safe > 1 ? 's' : '') + (V.bad ? ', ' + V.bad + ' suivie' + (V.bad > 1 ? 's' : '') + ' d\'une douleur ou d\'un arrêt' : '') + '</small></span></div>' : '')
-      + (V.best4 ? '<div class="pe-row"><span class="pe-tx"><b>Meilleur volume tenu : ' + V.best4 + ' km par semaine</b><small>sur 4 semaines, ces 2 dernières années</small></span></div>' : '')
-      + (Object.keys(RP).length ? '<div class="pe-row"><span class="pe-tx"><b>Ton effort habituel</b><small>' + Object.keys(RP).map(function(t){ return TL[t] + ' ' + String(RP[t].med).replace('.', ',') + '/10'; }).join(' · ') + '</small></span></div>' : '')
-      + (E.recal && !E.recal.undone && E.recal.n ? '<p class="lvp-n">🧬 Recalé le ' + prFmtDate(E.recal.date) + ' : ' + E.recal.n + ' séance' + (E.recal.n > 1 ? 's' : '') + ' ajustée' + (E.recal.n > 1 ? 's' : '') + '. <button type="button" class="pr-link" onclick="paHistUndo();closePlanEvolution()">Annuler</button></p>' : '')
-      + '</div>';
-  }
-  // séances récentes
-  if(T.list && T.list.length){
-    h += '<div class="lvp-card"><p class="lvp-h">Tes dernières séances</p>' + T.list.slice(0, 8).map(function(x){
-      const v = PA_VERDICT[x.verdict];
-      return '<div class="pe-row"><span class="pe-chip pe-' + x.verdict + '">' + v[1] + ' ' + v[0] + '</span><span class="pe-tx"><b>' + esc(x.title) + '</b><small>' + prFmtDate(x.date, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + esc(x.parts.slice(0, 2).map(function(p){ return p.t; }).join(' · ')) + '</small></span></div>';
-    }).join('') + '<p class="lvp-n">Note faite avec ton allure, ta FC, ton effort ressenti, la dérive cardiaque, une douleur et ta récup WHOOP du lendemain.</p></div>';
-  }
-  // paliers
+  // ── la course d'avant (21 premiers jours d'une prépa : ouvert)
+  let K = null; try { K = paCarry(a, today); } catch(e) { diagSilent(e, 'plan-review-ui:paCarry'); }
+  if(K) h += '<div id="pe-carry">' + fold('carry', '🧬', 'Ce que ta prépa reprend de ' + esc(K.name), esc(K.time), K.items.map(function(x){ return '<p class="lvp-n" style="display:flex;gap:8px;margin:4px 0;"><span aria-hidden="true">' + x.ic + '</span><span><b>' + esc(x.t) + '</b> · ' + esc(x.v) + '</span></p>'; }).join(''),
+    state.plan_start_date && today <= prAddDays(state.plan_start_date, 21)) + '</div>';
+  // ── trajectoire, semaines, signaux, niveau, mises à jour (même détail que la mise à jour du plan)
+  h += _prDetailsHtml(a);
+  // ── paliers
   if(E.ladders.length){
-    h += '<div class="lvp-card"><p class="lvp-h">Tes paliers</p>' + E.ladders.map(function(L){
+    h += fold('lad', '🪜', 'Tes paliers', esc(E.ladders.map(function(L){ const cur = L.next && L.next.rung != null ? L.next.rung : L.last ? L.last.rung : 0; return L.label.split(' ')[0] + ' ' + (cur + 1) + '/' + L.rungs; }).join(' · ')), E.ladders.map(function(L){
       const cur = L.next && L.next.rung != null ? L.next.rung : L.last ? L.last.rung : 0, to = L.next && L.next.prop ? L.next.prop.rung : null;
       const bar = '<div class="pe-lad">' + Array.from({ length: L.rungs }).map(function(_, i){ return '<i class="' + (i <= cur ? 'on' : '') + (to != null && i === to ? ' to' : '') + '"></i>'; }).join('') + '</div>';
       return '<div class="pe-l"><p><b>' + L.ic + ' ' + L.label + '</b>' + (to != null ? '<span class="pe-chip pe-' + (L.next.prop.up ? 'easy' : 'hard') + '">' + (L.next.prop.up ? '↑ palier suivant' : '↓ on souffle') + '</span>' : '') + '</p>' + bar
         + '<small>' + [L.last ? 'Dernière : ' + esc(L.last.title) + (L.last.verdict ? ' (' + PA_VERDICT[L.last.verdict][0].toLowerCase() + ')' : '') : '', L.next ? 'Prochaine : ' + esc(L.next.prop ? L.next.prop.title : L.next.title) + ' · ' + prFmtDate(L.next.date, { weekday: 'short', day: 'numeric' }) : ''].filter(Boolean).join('<br>') + '</small></div>';
-    }).join('') + (E.ladders.some(function(L){ return L.next && L.next.prop; }) ? '<button type="button" class="pr-btn" style="width:100%;margin-top:8px;" onclick="closePlanEvolution();if(!document.getElementById(\'plan-review\'))openPlanReview()">Voir les changements proposés</button>' : '') + '</div>';
+    }).join(''));
   }
-  // le plan s'évalue : les hausses d'avant ont-elles été tenues ?
+  // ── séances récentes et leur note
+  if(T.list && T.list.length){
+    h += fold('ses', '✅', 'Tes dernières séances', V ? V[1] + ' ' + V[0].toLowerCase() + ' · ' + T.list.length + ' notées' : T.list.length + ' notées', T.list.slice(0, 8).map(function(x){
+      const v = PA_VERDICT[x.verdict];
+      return '<div class="pe-row"><span class="pe-chip pe-' + x.verdict + '">' + v[1] + ' ' + v[0] + '</span><span class="pe-tx"><b>' + esc(x.title) + '</b><small>' + prFmtDate(x.date, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + esc(x.parts.slice(0, 2).map(function(p){ return p.t; }).join(' · ')) + '</small></span></div>';
+    }).join('') + '<p class="lvp-n">Note faite avec ton allure, ta FC, ton effort ressenti, la dérive cardiaque, une douleur et ta récup WHOOP du lendemain.</p>');
+  }
+  // ── classique ou pro
+  if(typeof openRunnerProfile === 'function'){
+    const PF = a.profile || null, nPro = prSessions(state).filter(function(s){ return !s.done && !s.skip && s.x && s.x.lib; }).length;
+    const nA = Object.keys(a.advice || {}).filter(function(k){ return a.advice[k].rec === 'pro' && a.advice[k].cur === 'classic'; }).length;
+    let VS = null; try { VS = typeof slVersionStats === 'function' ? slVersionStats(state, a.opt.today) : null; } catch(e) { diagSilent(e, 'plan-review-ui:slVersionStats'); }
+    const g = function(x){ return x.gain == null ? '' : ' · ' + (x.gain >= 0 ? '+' : '') + prV(x.gain) + ' de niveau 3 sem. après'; };
+    h += fold('lib', '✦', 'Séances classiques ou pro', nPro + ' en pro' + (nA ? ' · ' + nA + ' conseillée' + (nA > 1 ? 's' : '') : ''),
+      '<p class="lvp-n">' + (nPro ? nPro + ' séance' + (nPro > 1 ? 's' : '') + ' à venir en version pro ; les autres restent classiques.' : 'Toutes tes séances sont classiques. La version pro n\'est conseillée que quand elle sert.') + (PF && PF.focus && PF.focus.length ? ' Priorité : ' + esc(PF.focus.map(function(k){ return ({ vitesse: 'vitesse', specifique: 'endurance spécifique', aerobie: 'base aérobie' })[k] || k; }).join(', ')) + '.' : '') + '</p>'
+      + (VS && (VS.pro.n || VS.classic.n) ? '<p class="lvp-n">Pro : ' + VS.pro.n + ' (' + VS.pro.easy + ' faciles' + g(VS.pro) + ') · Classique : ' + VS.classic.n + ' (' + VS.classic.easy + ' faciles' + g(VS.classic) + ')' + (VS.best ? ' → ' + (VS.best === 'pro' ? 'la pro te réussit.' : 'la classique te réussit.') : '') + '</p>' : '')
+      + '<div class="pr-actions" style="margin-top:8px;"><button type="button" class="pr-btn pri" onclick="openLibPreview()">Classique ou pro</button><button type="button" class="pr-btn sec" onclick="openRunnerProfile()">Ton profil</button><button type="button" class="pr-btn sec" onclick="openLibCatalog()">Bibliothèque</button></div>');
+  }
+  // ── le plan s'évalue
   const CB = E.calib;
   if(CB){
     const M = { bold: ['Franc', 'tu tiens tes hausses : une séance facile suffit pour monter, deux = deux paliers'], careful: ['Prudent', 'plusieurs hausses mal passées : il faut deux séances faciles de suite pour monter'], normal: ['Normal', CB.n < 3 ? 'pas encore assez de hausses pour juger (3 au moins)' : 'une séance facile sans séance dure avant pour monter'] }[CB.mode];
-    h += '<div class="lvp-card"><p class="lvp-h">Le plan s\'évalue</p><div class="pe-row"><span class="pe-chip pe-' + (CB.mode === 'bold' ? 'easy' : CB.mode === 'careful' ? 'hard' : 'ok') + '">' + M[0] + '</span><span class="pe-tx"><b>' + (CB.n ? CB.ok + ' hausse' + (CB.ok > 1 ? 's' : '') + ' tenue' + (CB.ok > 1 ? 's' : '') + ' sur ' + CB.n + (CB.hist ? ' (dont ' + CB.hist + ' dans ton historique)' : '') : 'Aucune hausse encore jouée') + '</b><small>' + esc(M[1]) + '</small></span></div>'
-      + Object.keys(CB.fams).map(function(f){ const x = CB.fams[f]; return '<div class="pe-row"><span class="pe-tx"><b>' + esc((typeof PA_FAM !== 'undefined' && PA_FAM[f]) || (f === 'long' ? 'Sortie longue' : f)) + '</b><small>' + x.ok + ' / ' + x.n + ' tenue' + (x.ok > 1 ? 's' : '') + '</small></span></div>'; }).join('')
-      + (E.longNext ? '<p class="lvp-n">🏃 Sortie longue : ' + esc(E.longNext.title) + '</p>' : '') + '</div>';
+    h += fold('cal', '🧪', 'Le plan s\'évalue', M[0] + (CB.n ? ' · ' + CB.ok + ' hausse' + (CB.ok > 1 ? 's' : '') + ' tenue' + (CB.ok > 1 ? 's' : '') + ' sur ' + CB.n : ''),
+      '<div class="pe-row"><span class="pe-chip pe-' + (CB.mode === 'bold' ? 'easy' : CB.mode === 'careful' ? 'hard' : 'ok') + '">' + M[0] + '</span><span class="pe-tx"><b>' + (CB.n ? CB.ok + ' hausse' + (CB.ok > 1 ? 's' : '') + ' tenue' + (CB.ok > 1 ? 's' : '') + ' sur ' + CB.n + (CB.hist ? ' (dont ' + CB.hist + ' dans ton historique)' : '') : 'Aucune hausse encore jouée') + '</b><small>' + esc(M[1]) + '</small></span></div>'
+      + Object.keys(CB.fams).map(function(fm){ const x = CB.fams[fm]; return '<div class="pe-row"><span class="pe-tx"><b>' + esc((typeof PA_FAM !== 'undefined' && PA_FAM[fm]) || (fm === 'long' ? 'Sortie longue' : fm)) + '</b><small>' + x.ok + ' / ' + x.n + ' tenue' + (x.ok > 1 ? 's' : '') + '</small></span></div>'; }).join('')
+      + (E.longNext ? '<p class="lvp-n">🏃 Sortie longue : ' + esc(E.longNext.title) + '</p>' : ''));
   }
   const HB = E.habits ? Object.keys(E.habits) : [];
   if(HB.length){
     const TL = { tempo: 'Tempo', frac: 'Fractionné', long: 'Sortie longue' };
-    h += '<div class="lvp-card"><p class="lvp-h">Ta vraie semaine</p>' + HB.map(function(t){ const x = E.habits[t]; return '<div class="pe-row"><span class="pe-tx"><b>' + TL[t] + ' le ' + PA_DAYS[x.day] + '</b><small>' + x.n + ' des ' + x.of + ' dernières · le plan les place ce jour-là</small></span></div>'; }).join('') + '</div>';
+    h += fold('hab', '📅', 'Ta vraie semaine', esc(HB.map(function(t){ return TL[t] + ' le ' + PA_DAYS[E.habits[t].day]; }).join(' · ')), HB.map(function(t){ const x = E.habits[t]; return '<div class="pe-row"><span class="pe-tx"><b>' + TL[t] + ' le ' + PA_DAYS[x.day] + '</b><small>' + x.n + ' des ' + x.of + ' dernières · le plan les place ce jour-là</small></span></div>'; }).join(''));
   }
-  // volume semaine par semaine
-  if(E.volume && E.volume.weeks && E.volume.weeks.length){
-    const W = E.volume.weeks.slice(-12), mx = Math.max.apply(null, W.map(function(w){ return Math.max(w.plan || 0, w.after || 0, w.done || 0, w.target || 0); }).concat([1]));
-    h += '<div class="lvp-card"><p class="lvp-h">Volume semaine par semaine</p>' + W.map(function(w){
-      const val = w.past ? w.done : (w.after != null ? w.after : w.plan), pct = Math.round(val / mx * 100);
-      return '<div class="pe-w' + (w.now ? ' now' : '') + '"><span>S' + w.w + '</span><i style="width:' + pct + '%" class="' + (w.past ? 'past' : w.changed ? 'chg' : '') + '"></i><b>' + (w.past ? val + ' / ' + w.plan : (w.changed ? w.plan + ' → ' : '') + val) + ' km</b></div>';
-    }).join('') + '<p class="lvp-n">Progression ' + (E.volume.prog && E.volume.prog > 1 ? '≤ +' + Math.round((E.volume.prog - 1) * 100) + ' % par semaine' : 'en pause (séances dures)') + ', semaines allégées et affûtage gardés.</p></div>';
+  // ── ce que tout ton historique a appris au plan
+  const HI = E.hist;
+  if(HI && HI.n){
+    const P = HI.pred || {}, VV = HI.vol || {}, RP = HI.rpe || {}, TL = { ef: 'Footing', long: 'Sortie longue', tempo: 'Tempo', frac: 'Fractionné' };
+    const yr = HI.first ? prFmtDate(HI.first, { month: 'short', year: 'numeric' }) : '';
+    h += fold('hist', '📚', 'Ce que ton historique lui apprend', HI.n + ' séances · ' + HI.km.toLocaleString('fr-FR') + ' km',
+      '<p class="lvp-n">' + HI.n + ' séances · ' + HI.km.toLocaleString('fr-FR') + ' km depuis ' + esc(yr) + ', toutes rejouées.</p>'
+      + (P.n ? P.races.slice(0, 4).map(function(r){ return '<div class="pe-row"><span class="pe-chip pe-' + (Math.abs(r.err) < 0.5 ? 'ok' : r.err > 0 ? 'easy' : 'hard') + '">' + (r.err > 0 ? '+' : '') + prV(r.err) + '</span><span class="pe-tx"><b>' + esc(r.label) + '</b><small>' + prFmtDate(r.date, { day: 'numeric', month: 'short', year: '2-digit' }) + ' · prévu ' + prTime(r.projSec) + ' 6 sem. avant · fait ' + prTime(r.sec) + '</small></span></div>'; }).join('')
+        + '<p class="lvp-n">' + (Math.abs(P.bias) >= 0.1 ? (P.bias > 0 ? 'Tu fais mieux que prévu : temps prévus recalés de +' : 'Tu fais moins bien que prévu : temps prévus recalés de ') + prV(P.bias) + ' de niveau.' : 'Les temps prévus tombaient juste : rien à recaler.') + '</p>' : '<p class="lvp-n">Pas encore assez de courses avec de l\'entraînement connu avant pour vérifier les prédictions.</p>')
+      + (VV.prog ? '<div class="pe-row"><span class="pe-tx"><b>Hausse de volume que tu tiens : +' + Math.round((VV.prog - 1) * 100) + ' % par semaine</b><small>' + VV.safe + ' hausse' + (VV.safe > 1 ? 's' : '') + ' bien passée' + (VV.safe > 1 ? 's' : '') + (VV.bad ? ', ' + VV.bad + ' suivie' + (VV.bad > 1 ? 's' : '') + ' d\'une douleur ou d\'un arrêt' : '') + '</small></span></div>' : '')
+      + (VV.best4 ? '<div class="pe-row"><span class="pe-tx"><b>Meilleur volume tenu : ' + VV.best4 + ' km par semaine</b><small>sur 4 semaines, ces 2 dernières années</small></span></div>' : '')
+      + (Object.keys(RP).length ? '<div class="pe-row"><span class="pe-tx"><b>Ton effort habituel</b><small>' + Object.keys(RP).map(function(t){ return TL[t] + ' ' + String(RP[t].med).replace('.', ',') + '/10'; }).join(' · ') + '</small></span></div>' : '')
+      + (E.recal && !E.recal.undone && E.recal.n ? '<p class="lvp-n">🧬 Recalé le ' + prFmtDate(E.recal.date) + ' : ' + E.recal.n + ' séance' + (E.recal.n > 1 ? 's' : '') + ' ajustée' + (E.recal.n > 1 ? 's' : '') + '. <button type="button" class="pr-link" onclick="paHistUndo();closePlanEvolution()">Annuler</button></p>' : ''));
   }
-  // changements
-  if(E.changes.length){
-    h += '<div class="lvp-card"><p class="lvp-h">Ce qui a changé</p>' + E.changes.map(function(c){
-      return '<div class="pe-row"><span class="pe-tx"><b>' + esc(PE_KIND[c.kind] || 'Mise à jour') + (c.undone ? ' · annulé' : '') + '</b><small>' + prFmtDate(c.date, { day: 'numeric', month: 'short' }) + ' · ' + c.n + ' séance' + (c.n > 1 ? 's' : '') + (c.kinds.ladder ? ' · ' + c.kinds.ladder + ' palier' + (c.kinds.ladder > 1 ? 's' : '') : '') + '</small></span></div>';
-    }).join('') + '</div>';
-  }
+  // ── qui a changé quoi (pilote de nuit, Coach, choix…)
+  if(a.proposals && a.proposals.length && !document.getElementById('plan-review')) h += '<button type="button" class="pr-btn pri" style="width:100%;margin-top:12px;" onclick="closePlanEvolution();openPlanReview()">Voir les ' + a.proposals.length + ' changement' + (a.proposals.length > 1 ? 's' : '') + ' proposé' + (a.proposals.length > 1 ? 's' : '') + '</button>';
   const ov = document.createElement('div'); ov.id = 'pe-ov'; ov.className = 'ros pe';
   ov.innerHTML = '<div class="ros-box" role="dialog" aria-modal="true" aria-labelledby="pe-title"><div class="ros-head"><div class="ros-top"><button type="button" class="ros-x" onclick="closePlanEvolution()" aria-label="Fermer">×</button>'
-    + '<div style="min-width:0;"><p class="ros-eb">Plan</p><p class="ros-title" id="pe-title">Comment ton plan évolue</p><p class="ros-sub">Il suit ce que tu encaisses, séance après séance</p></div></div></div>'
+    + '<div style="min-width:0;"><p class="ros-eb">Plan</p><p class="ros-title" id="pe-title">Comprendre ton plan</p><p class="ros-sub">Pourquoi il bouge, et où il te mène</p></div></div></div>'
     + '<div class="ros-body">' + h + '</div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) closePlanEvolution(); });
   document.body.appendChild(ov); document.body.style.overflow = 'hidden';
@@ -645,11 +762,4 @@ function paCarry(a, today){
   if(RC) items.push({ ic: '🧬', t: 'Ta recette', v: 'Progression ≤ +' + Math.round((RC.progression - 1) * 100) + ' %/sem.' + (RC.taper ? ' · affûtage perso' : '') + (RC.pacing && RC.pacing.start ? ' · départ prudent' : '') });
   const H = a.hist; if(H && H.pred && H.pred.n) items.push({ ic: '📚', t: 'Ton historique', v: H.pred.n + ' course' + (H.pred.n > 1 ? 's' : '') + ' rejouée' + (H.pred.n > 1 ? 's' : '') + ' pour caler les temps prévus' });
   return { name: name, date: RA ? RA.date : L.date, time: time, lessons: RA ? (RA.lessons || []).slice(0, 3) : [], items: items };
-}
-function _paCarryHtml(a, today){
-  let K = null; try { K = paCarry(a, today); } catch(e) { diagSilent(e, 'plan-review-ui:paCarry'); }
-  if(!K) return '';
-  return '<div class="lvp-card" id="pe-carry"><p class="lvp-h">Ce que ta prépa reprend de ' + prEsc(K.name) + '</p>'
-    + K.items.map(function(x){ return '<p class="lvp-n" style="display:flex;gap:8px;margin:4px 0;"><span aria-hidden="true">' + x.ic + '</span><span><b>' + prEsc(x.t) + '</b> · ' + prEsc(x.v) + '</span></p>'; }).join('')
-    + (K.items.some(function(x){ return x.act === 'review'; }) ? '<div class="sl-acts" style="display:flex;margin-top:8px;"><button type="button" class="pr-btn pri" style="flex:1" onclick="document.getElementById(\'pe-ov\').remove();openPlanReview()">Voir dans « MAJ le plan »</button></div>' : '') + '</div>';
 }

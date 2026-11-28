@@ -4,7 +4,7 @@
 // B. Échelles de progression par famille de séance (paLadderProposals) : la prochaine séance de seuil / fractionné / vitesse /
 //    allure course monte d'un palier quand les deux dernières ont été faciles, redescend après une séance dure.
 // C. Volume visé selon ton objectif et ton niveau (paGoalPeak, lu par prVolumePlan) ; progression selon la tendance (paProg).
-// F. Données de l'écran « Comment ton plan évolue » (paEvolution, dessiné par plan-review-ui.js).
+// F. Données de l'écran « Comprendre ton plan » (paEvolution, dessiné par plan-review-ui.js).
 
 // effort ressenti attendu (sur 10) et part de la FC max moyenne attendue sur la séance
 const PA_RPE = { ef: [2, 4], long: [3, 5], tempo: [5, 7], frac: [6, 8], race: [8, 10] };
@@ -471,27 +471,24 @@ function planCardRender(){
   const carry = N.carry && typeof openPlanEvolution === 'function' ? '<div class="hp-rc"><span>🧬 Ta prépa reprend ' + esc(N.carry) + '</span><button type="button" onclick="openPlanEvolution()">Voir</button></div>' : '';
   const recal = carry + (N.recal ? '<div class="hp-rc"><span>🧬 Recalé sur tout ton historique · ' + N.recal.n + ' séance' + (N.recal.n > 1 ? 's' : '') + '</span><button type="button" onclick="paHistUndo()">Annuler</button></div>' : '');
   const coachRow = N.coach ? '<button type="button" class="hp-r coach" onclick="openPlanReview()"><i aria-hidden="true">🤖</i><span class="hp-x"><b>Le Coach propose autre chose</b><small>' + esc(N.coach.first ? D(N.coach.first.date) + ' · ' + N.coach.first.title + ' : ' + N.coach.first.t : (N.coach.text || N.coach.n + ' changement' + (N.coach.n > 1 ? 's' : ''))) + '</small></span></button>' : '';
-  const offerRow = N.offer ? '<button type="button" class="hp-r lib" onclick="openLibPreview()"><i aria-hidden="true">✦</i><span class="hp-x"><b>Séances de pro, à la carte</b><small>Chaque séance en 2 versions : classique ou pro · Choisir</small></span></button>' : '';
-  if(!N.n && !N.goal && !N.next && !N.coach && !N.offer){
+  // la carte dit l'essentiel : la raison, 3 lignes au plus (objectif, Coach, puis les changements les plus proches), un bouton
+  if(!N.n && !N.goal && !N.next && !N.coach){
     if(recal){ el.innerHTML = '<section class="hp">' + recal + '<button type="button" class="hp-h" style="margin-top:8px" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button></section>'; return; }
     el.innerHTML = '<button type="button" class="hp hp-ok" onclick="' + (evo ? 'openPlanEvolution()' : 'openPlanReview()') + '"><span class="hp-ic ok">✓</span><span class="hp-t"><b>Ton plan est à jour</b><small>' + esc(N.green || N.lead.t) + '</small></span><span class="hp-go">›</span></button>';
     return;
   }
-  const rows = N.lines.slice(0, 3).map(function(x){
-    return '<button type="button" class="hp-r ' + x.dir + '" onclick="openPlanReview()"><i aria-hidden="true">' + PA_DIR[x.dir][0] + '</i><span class="hp-d">' + esc(D(x.date)) + '</span><span class="hp-x"><b>' + esc(x.title) + '</b><small>' + esc(x.t) + '</small></span></button>';
+  const rows = [];
+  if(N.goal) rows.push('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">🎯</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
+  if(coachRow) rows.push(coachRow);
+  N.lines.slice(0, Math.max(1, 3 - rows.length - (N.next ? 1 : 0))).forEach(function(x){
+    rows.push('<button type="button" class="hp-r ' + x.dir + '" onclick="openPlanReview()"><i aria-hidden="true">' + PA_DIR[x.dir][0] + '</i><span class="hp-d">' + esc(D(x.date)) + '</span><span class="hp-x"><b>' + esc(x.title) + '</b><small>' + esc(x.t) + '</small></span></button>');
   });
-  if(coachRow) rows.unshift(coachRow);
-  if(offerRow) rows.unshift(offerRow);
-  if(N.goal) rows.unshift('<button type="button" class="hp-r goal" onclick="openPlanReview()"><i aria-hidden="true">🎯</i><span class="hp-x"><b>' + (N.goal.dir === 'up' ? 'Tu es en avance sur ton objectif' : 'Ton objectif semble loin') + '</b><small>' + esc(prTime(N.goal.from) + ' → ' + prTime(N.goal.to) + ' possible') + '</small></span></button>');
   if(N.next) rows.push('<button type="button" class="hp-r next" onclick="openPlanReview()"><i aria-hidden="true">📅</i><span class="hp-x"><b>Semaine prochaine prête</b><small>' + N.next.km + ' km' + (N.next.n ? ' · ' + N.next.n + ' ajustement' + (N.next.n > 1 ? 's' : '') : '') + (N.coachOk ? ' · relue par le Coach' : '') + ' · à valider</small></span></button>');
-  const more = N.lines.length - 3;
-  const C = N.counts, chips = ['up', 'down', 'move', 'lib'].filter(function(k){ return C[k]; }).map(function(k){ return '<span class="hp-c ' + k + '">' + PA_DIR[k][0] + ' ' + C[k] + '</span>'; }).join('');
   el.innerHTML = '<section class="hp" aria-label="Ton plan">' + recal
-    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>' + (N.n ? 'Ton plan s\'adapte' : 'Ton plan') + '' + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
-    + (chips ? '<div class="hp-cs">' + chips + '<span class="hp-cl">' + N.n + ' changement' + (N.n > 1 ? 's' : '') + ' proposé' + (N.n > 1 ? 's' : '') + '</span></div>' : '')
-    + '<div class="hp-l">' + rows.join('') + (more > 0 ? '<button type="button" class="hp-more" onclick="openPlanReview()">+ ' + more + ' autre' + (more > 1 ? 's' : '') + '</button>' : '') + '</div>'
+    + '<button type="button" class="hp-h" onclick="openPlanReview()"><span class="hp-ic">' + esc(N.lead.ic) + '</span><span class="hp-t"><b>' + (N.n ? 'Ton plan s\'adapte' : 'Ton plan') + (N.unseen ? ' <em class="hp-new">Nouveau</em>' : '') + '</b><small>' + esc(N.lead.t) + '</small></span></button>'
+    + '<div class="hp-l">' + rows.join('') + '</div>'
     + (N.green ? '<p class="hp-g">🟢 ' + esc(N.green) + '</p>' : '')
-    + '<div class="hp-a"><button type="button" class="hp-b pri" onclick="openPlanReview()">Voir et valider</button>' + (evo ? '<button type="button" class="hp-b" onclick="openPlanEvolution()">Comment il évolue</button>' : '') + '</div></section>';
+    + '<div class="hp-a"><button type="button" class="hp-b pri" onclick="openPlanReview()">' + (N.n ? 'Voir les ' + N.n + ' changement' + (N.n > 1 ? 's' : '') : 'Voir et valider') + '</button>' + (evo ? '<button type="button" class="hp-b" onclick="openPlanEvolution()">Comprendre</button>' : '') + '</div></section>';
 }
 function _hpCss(){
   if(document.getElementById('hp-css')) return;
